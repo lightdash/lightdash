@@ -3,7 +3,7 @@ import {
     SEED_ORG_1_ADMIN_EMAIL,
 } from '@lightdash/common';
 import { ApiClient, Body } from '../helpers/api-client';
-import { login, loginAsEditor } from '../helpers/auth';
+import { anotherLogin, login, loginAsEditor } from '../helpers/auth';
 
 const apiUrl = '/api/v1';
 
@@ -29,15 +29,15 @@ const futureExpiresAt = () =>
 
 describe('Invite links endpoints', () => {
     let admin: ApiClient;
-    const createdUserUuids: string[] = [];
+    const createdUsers: { client: ApiClient; userUuid: string }[] = [];
 
     beforeAll(async () => {
         admin = await login();
     });
 
     afterAll(async () => {
-        for (const userUuid of createdUserUuids) {
-            await admin.delete(`${apiUrl}/org/user/${userUuid}`, {
+        for (const { client, userUuid } of createdUsers) {
+            await client.delete(`${apiUrl}/org/user/${userUuid}`, {
                 failOnStatusCode: false,
             });
         }
@@ -53,7 +53,7 @@ describe('Invite links endpoints', () => {
             { failOnStatusCode: false },
         );
         if (resp.status === 201) {
-            createdUserUuids.push(resp.body.results.userUuid);
+            createdUsers.push({ client, userUuid: resp.body.results.userUuid });
         }
         return resp;
     };
@@ -183,7 +183,10 @@ describe('Invite links endpoints', () => {
                 },
             );
             expect(resp.status).toBe(201);
-            createdUserUuids.push(resp.body.results.userUuid);
+            createdUsers.push({
+                client: admin,
+                userUuid: resp.body.results.userUuid,
+            });
 
             await admin.delete(
                 `${apiUrl}/user/me/personal-access-tokens/${patUuid}`,
@@ -287,14 +290,27 @@ describe('Invite links endpoints', () => {
         });
 
         it('revokes all invite links in the organization', async () => {
-            const created = await createInvite({
-                email: uniqueEmail('revoke'),
-                expiresAt: futureExpiresAt(),
-            });
+            const otherAdmin = await anotherLogin();
+            const created = await createInvite(
+                {
+                    email: uniqueEmail('revoke'),
+                    expiresAt: futureExpiresAt(),
+                },
+                otherAdmin,
+            );
             expect(created.status).toBe(201);
             const { inviteCode } = created.body.results;
 
-            const resp = await admin.delete(`${apiUrl}/invite-links`);
+            const retained = await createInvite({
+                email: uniqueEmail('retain'),
+                expiresAt: futureExpiresAt(),
+            });
+            expect(retained.status).toBe(201);
+            expect(retained.body.results.organizationUuid).not.toBe(
+                created.body.results.organizationUuid,
+            );
+
+            const resp = await otherAdmin.delete(`${apiUrl}/invite-links`);
             expect(resp.status).toBe(200);
 
             const anonymous = new ApiClient();
@@ -303,6 +319,17 @@ describe('Invite links endpoints', () => {
                 { failOnStatusCode: false },
             );
             expect(afterRevoke.status).toBe(404);
+
+            const afterOtherOrgRevoke = await anonymous.get<
+                Body<InviteLinkResults>
+            >(`${apiUrl}/invite-links/${retained.body.results.inviteCode}`);
+            expect(afterOtherOrgRevoke.status).toBe(200);
+            expect(afterOtherOrgRevoke.body.results).toMatchObject({
+                inviteCode: retained.body.results.inviteCode,
+                organizationUuid: retained.body.results.organizationUuid,
+                userUuid: retained.body.results.userUuid,
+                email: retained.body.results.email,
+            });
         });
     });
 });

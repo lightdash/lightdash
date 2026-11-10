@@ -1,4 +1,9 @@
-import { FeatureFlags, type DataAppViz } from '@lightdash/common';
+import { Ability } from '@casl/ability';
+import {
+    FeatureFlags,
+    type DataAppViz,
+    type PossibleAbilities,
+} from '@lightdash/common';
 import {
     act,
     fireEvent,
@@ -14,6 +19,7 @@ import { useCanCreateDataApp } from '../features/apps/hooks/useCanCreateDataApp'
 import { useCanEditDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useDeleteApp } from '../features/apps/hooks/useDeleteApp';
 import { useDuplicateApp } from '../features/apps/hooks/useDuplicateApp';
+import { useChartStudioAvailable } from '../features/chartTypes/hooks/useChartStudioAvailable';
 import { useDataAppVisualization } from '../features/chartTypes/hooks/useDataAppVisualization';
 import { useDataAppVisualizations } from '../features/chartTypes/hooks/useDataAppVisualizations';
 import { useDataAppVizDeleteImpact } from '../features/chartTypes/hooks/useDataAppVizDeleteImpact';
@@ -22,10 +28,16 @@ import { useInstallRegistryChartType } from '../features/chartTypes/hooks/useIns
 import { useRegistryChartTypes } from '../features/chartTypes/hooks/useRegistryChartTypes';
 import { useExplores } from '../hooks/useExplores';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
+import { AbilityContext } from '../providers/Ability/context';
 import { renderWithProviders } from '../testing/testUtils';
 import { EventName } from '../types/Events';
 import ChartTypeGallery from './ChartTypeGallery';
+
+const licensedAppMocks = {
+    health: { license: { hasLicenseKey: true, valid: true } },
+};
 const { track } = vi.hoisted(() => ({ track: vi.fn() }));
+vi.mock('../features/chartTypes/hooks/useChartStudioAvailable');
 vi.mock('../providers/Tracking/useTracking', () => ({
     default: () => ({ track }),
 }));
@@ -156,22 +168,14 @@ const setData = (data: DataAppViz[]) => {
     } as unknown as ReturnType<typeof useDataAppVisualizations>);
 };
 
-const setFlags = ({
-    dataApps = true,
-    chartTypeRegistry = true,
-}: {
-    dataApps?: boolean;
-    chartTypeRegistry?: boolean;
-} = {}) => {
+const setFlags = ({ dataApps = false }: { dataApps?: boolean } = {}) => {
     vi.mocked(useServerFeatureFlag).mockImplementation(
         (flag) =>
             ({
                 data: {
                     id: flag,
                     enabled:
-                        flag === FeatureFlags.EnableDataApps
-                            ? dataApps
-                            : chartTypeRegistry,
+                        flag === FeatureFlags.EnableDataApps ? dataApps : true,
                 },
                 isLoading: false,
             }) as ReturnType<typeof useServerFeatureFlag>,
@@ -188,8 +192,11 @@ const LocationPathname = () => {
     return <div data-testid="location-pathname">{pathname}</div>;
 };
 
-const renderPage = (initialEntry = '/projects/project-1/chart-studio') =>
-    renderWithProviders(
+const renderPage = (
+    initialEntry = '/projects/project-1/chart-studio',
+    ability = new Ability<PossibleAbilities>([]),
+) => {
+    const page = (
         <MemoryRouter initialEntries={[initialEntry]}>
             <Routes>
                 <Route
@@ -218,8 +225,15 @@ const renderPage = (initialEntry = '/projects/project-1/chart-studio') =>
                     }
                 />
             </Routes>
-        </MemoryRouter>,
+        </MemoryRouter>
     );
+    return renderWithProviders(
+        <AbilityContext.Provider value={ability}>
+            {page}
+        </AbilityContext.Provider>,
+        licensedAppMocks,
+    );
+};
 
 const mockedDeleteApp = vi.fn();
 const mockedUpgradeMutate = vi.fn();
@@ -255,6 +269,7 @@ describe('ChartTypeGallery', () => {
             data: undefined,
         } as ReturnType<typeof useDataAppVisualization>);
         setFlags();
+        vi.mocked(useChartStudioAvailable).mockReturnValue(true);
         vi.mocked(useCanEditDataApp).mockReturnValue(true);
         vi.mocked(useCanCreateDataApp).mockReturnValue(true);
         vi.mocked(useDuplicateApp).mockReturnValue({
@@ -419,7 +434,7 @@ describe('ChartTypeGallery', () => {
         });
     });
 
-    it('lists the custom chart types and opens the detail modal', () => {
+    it('lists the custom chart types and opens the detail modal', async () => {
         setData([
             makeDataAppViz({}),
             makeDataAppViz({ dataAppVizUuid: 'viz-2', name: 'Bar race' }),
@@ -427,9 +442,13 @@ describe('ChartTypeGallery', () => {
         renderPage();
 
         expect(screen.getByText('Bar race')).toBeInTheDocument();
-        expect(screen.getByText('Chart Studio')).toBeInTheDocument();
+        expect(
+            screen.getByText(/use them on any data you explore/),
+        ).toBeInTheDocument();
         expect(document.title).toContain('Chart Studio');
-        expect(screen.getByText('(2)')).toBeInTheDocument();
+        expect(
+            await screen.findByRole('tab', { name: 'Installed 2' }),
+        ).toBeInTheDocument();
 
         fireEvent.click(screen.getByText('Radial gauge'));
 
@@ -446,15 +465,15 @@ describe('ChartTypeGallery', () => {
         expect(screen.getByText('metric')).toBeInTheDocument();
     });
 
-    it('separates installed chart types and the chart library into top-level tabs', () => {
+    it('separates installed chart types and the chart library into top-level tabs', async () => {
         setData([makeDataAppViz({})]);
         renderPage();
 
-        const chartTypesTab = screen.getByRole('tab', {
-            name: 'Installed chart types (1)',
+        const chartTypesTab = await screen.findByRole('tab', {
+            name: 'Installed 1',
         });
         const libraryTab = screen.getByRole('tab', {
-            name: 'Chart type library Beta',
+            name: 'Library',
         });
 
         expect(chartTypesTab).toHaveAttribute('aria-selected', 'true');
@@ -476,31 +495,17 @@ describe('ChartTypeGallery', () => {
         expect(screen.getByTestId('location-search')).toBeEmptyDOMElement();
     });
 
-    it('opens the chart library tab from a deep link', () => {
+    it('opens the chart library tab from a deep link', async () => {
         setData([makeDataAppViz({})]);
         renderPage('/projects/project-1/chart-studio?tab=chart-library');
 
         expect(
-            screen.getByRole('tab', { name: 'Chart type library Beta' }),
+            await screen.findByRole('tab', { name: 'Library' }),
         ).toHaveAttribute('aria-selected', 'true');
         expect(
             screen.queryByRole('button', { name: 'Radial gauge' }),
         ).not.toBeInTheDocument();
     });
-
-    it.each(['', '?tab=chart-library'])(
-        'shows chart types without tabs when the registry flag is disabled (%s)',
-        (query) => {
-            setFlags({ chartTypeRegistry: false });
-            setData([makeDataAppViz({})]);
-            renderPage(`/projects/project-1/chart-studio${query}`);
-
-            expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
-            expect(screen.queryByRole('tab')).not.toBeInTheDocument();
-            expect(screen.queryByRole('tabpanel')).not.toBeInTheDocument();
-            expect(screen.getByText('Radial gauge')).toBeInTheDocument();
-        },
-    );
 
     it.each([{ registryEnabled: false, charts: [] }, undefined])(
         'shows chart types without tabs until the registry is available (%j)',
@@ -899,23 +904,39 @@ describe('ChartTypeGallery', () => {
         renderPage();
 
         expect(
-            screen.getByText(/Chart types are custom visualizations/),
+            screen.getByText(/Chart types are new ways to draw your data/),
         ).toBeInTheDocument();
         expect(
-            screen.queryByPlaceholderText('Search by name or description'),
+            screen.queryByRole('button', { name: 'Search chart types' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('hides search while every chart type fits on screen', () => {
+        setData([makeDataAppViz({})]);
+        renderPage();
+
+        expect(
+            screen.queryByRole('button', { name: 'Search chart types' }),
         ).not.toBeInTheDocument();
     });
 
     it('shows a no-results message for an empty searched page', async () => {
-        setData([makeDataAppViz({})]);
+        setData(
+            Array.from({ length: 9 }, (_, i) =>
+                makeDataAppViz({
+                    dataAppVizUuid: `viz-${i}`,
+                    name: `Viz ${i}`,
+                }),
+            ),
+        );
         renderPage();
 
-        fireEvent.change(
-            screen.getByPlaceholderText('Search by name or description'),
-            {
-                target: { value: 'prog' },
-            },
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Search chart types' }),
         );
+        fireEvent.change(screen.getByPlaceholderText('Search chart types'), {
+            target: { value: 'prog' },
+        });
         setData([]);
 
         await waitFor(() =>
@@ -932,28 +953,66 @@ describe('ChartTypeGallery', () => {
         );
     });
 
-    it('redirects home when both chart type flags are disabled', () => {
+    it('stays open without Chart Studio when licensed', async () => {
         setData([]);
-        setFlags({ dataApps: false, chartTypeRegistry: false });
+        vi.mocked(useChartStudioAvailable).mockReturnValue(false);
+        setFlags();
         renderPage();
 
-        expect(screen.getByText('home')).toBeInTheDocument();
+        expect(
+            await screen.findByText(/use them on any data you explore/),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('home')).not.toBeInTheDocument();
     });
 
-    it('stays open with data apps off when the library flag is on', () => {
+    it('redirects home without a licence, even with data apps on', async () => {
         setData([]);
-        setFlags({ dataApps: false, chartTypeRegistry: true });
-        renderPage();
+        vi.mocked(useChartStudioAvailable).mockReturnValue(false);
+        setFlags({ dataApps: true });
+        renderWithProviders(
+            <MemoryRouter initialEntries={['/projects/project-1/chart-studio']}>
+                <Routes>
+                    <Route
+                        path="/projects/:projectUuid/chart-studio"
+                        element={<ChartTypeGallery />}
+                    />
+                    <Route
+                        path="/projects/:projectUuid/home"
+                        element={<div>home</div>}
+                    />
+                </Routes>
+            </MemoryRouter>,
+        );
+
+        expect(await screen.findByText('home')).toBeInTheDocument();
+    });
+
+    it('offers a new chart type with data apps off when Chart Studio is available', async () => {
+        setData([makeDataAppViz({})]);
+        setFlags({ dataApps: false });
+        renderPage(
+            undefined,
+            new Ability<PossibleAbilities>([
+                { action: 'create', subject: 'DataApp' },
+            ]),
+        );
 
         expect(screen.queryByText('home')).not.toBeInTheDocument();
-        expect(screen.getByText('Installed chart types')).toBeInTheDocument();
+        expect(await screen.findByText('New chart type')).toBeInTheDocument();
     });
 
-    it('hides the new-chart-type button with data apps off', () => {
+    it('hides the new-chart-type button without Chart Studio, even with data apps on', async () => {
         setData([makeDataAppViz({})]);
-        setFlags({ dataApps: false, chartTypeRegistry: true });
-        renderPage();
+        vi.mocked(useChartStudioAvailable).mockReturnValue(false);
+        setFlags({ dataApps: true });
+        renderPage(
+            undefined,
+            new Ability<PossibleAbilities>([
+                { action: 'create', subject: 'DataApp' },
+            ]),
+        );
 
+        await screen.findByText(/use them on any data you explore/);
         expect(screen.queryByText('New chart type')).not.toBeInTheDocument();
     });
 
@@ -962,7 +1021,9 @@ describe('ChartTypeGallery', () => {
             setData([makeDataAppViz({ registrySlug: 'radial-gauge' })]);
             renderPage();
 
-            expect(screen.getByText('Built by Lightdash')).toBeInTheDocument();
+            expect(
+                screen.getByRole('img', { name: 'Built by Lightdash' }),
+            ).toBeInTheDocument();
             expect(
                 screen.queryByLabelText('Edit Radial gauge'),
             ).not.toBeInTheDocument();

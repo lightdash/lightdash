@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     type CreateGroupAttributeValue,
     type CreateUserAttribute,
     type CreateUserAttributeValue,
@@ -29,7 +28,6 @@ import {
 import { useEffect, useState, type FC } from 'react';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
 import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
     useCreateUserAtributesMutation,
     useUpdateUserAtributesMutation,
@@ -52,10 +50,6 @@ const UserAttributeModal: FC<{
     allUserAttributes: UserAttribute[];
     onClose: () => void;
 }> = ({ opened, userAttribute, allUserAttributes, onClose }) => {
-    const userGroupsFeatureFlagQuery = useServerFeatureFlag(
-        FeatureFlags.UserGroupsEnabled,
-    );
-
     const form = useForm<UserAttributeFormValues>({
         initialValues: {
             name: userAttribute?.name || '',
@@ -153,14 +147,8 @@ const UserAttributeModal: FC<{
         handleClose();
     };
 
-    const isGroupManagementEnabled =
-        userGroupsFeatureFlagQuery.data?.enabled ?? false;
-
     const { data: orgUsers } = useOrganizationUsers();
-    const { data: groups } = useOrganizationGroups(
-        {},
-        { enabled: isGroupManagementEnabled },
-    );
+    const { data: groups } = useOrganizationGroups({});
 
     return (
         <MantineModal
@@ -328,96 +316,89 @@ const UserAttributeModal: FC<{
                             </Button>
                         </Stack>
 
-                        {isGroupManagementEnabled && (
-                            <Stack gap="xs">
-                                <Text fw={500}>Assign to groups</Text>
-                                {!form.isValid('groups') && (
-                                    <Text c="red" size="xs">
-                                        {form.errors.groups}
-                                    </Text>
-                                )}
-                                {form.values.groups.map((group, index) => {
-                                    return (
-                                        <Group key={index}>
-                                            <Select
-                                                size="xs"
-                                                flex={1}
-                                                label={
-                                                    index === 0
-                                                        ? 'Group name'
-                                                        : undefined
-                                                }
-                                                name={`groups.${index}.groupUuid`}
-                                                placeholder="E.g. Marketing, Product"
-                                                required
-                                                searchable
-                                                {...form.getInputProps(
-                                                    `groups.${index}.groupUuid`,
-                                                )}
-                                                data={
-                                                    groups?.map(
-                                                        (groupInfo) => ({
-                                                            value: groupInfo.uuid,
-                                                            label: groupInfo.name,
-                                                        }),
-                                                    ) || []
-                                                }
-                                            />
+                        <Stack gap="xs">
+                            <Text fw={500}>Assign to groups</Text>
+                            {!form.isValid('groups') && (
+                                <Text c="red" size="xs">
+                                    {form.errors.groups}
+                                </Text>
+                            )}
+                            {form.values.groups.map((group, index) => {
+                                return (
+                                    <Group key={index}>
+                                        <Select
+                                            size="xs"
+                                            flex={1}
+                                            label={
+                                                index === 0
+                                                    ? 'Group name'
+                                                    : undefined
+                                            }
+                                            name={`groups.${index}.groupUuid`}
+                                            placeholder="E.g. Marketing, Product"
+                                            required
+                                            searchable
+                                            {...form.getInputProps(
+                                                `groups.${index}.groupUuid`,
+                                            )}
+                                            data={
+                                                groups?.map((groupInfo) => ({
+                                                    value: groupInfo.uuid,
+                                                    label: groupInfo.name,
+                                                })) || []
+                                            }
+                                        />
 
-                                            <TagsInput
-                                                size="xs"
-                                                flex={1}
-                                                label={
-                                                    index === 0
-                                                        ? 'Values'
-                                                        : undefined
-                                                }
-                                                name={`groups.${index}.values`}
-                                                placeholder="E.g. US (press Enter to add)"
-                                                {...form.getInputProps(
-                                                    `groups.${index}.values`,
-                                                )}
-                                                value={group.values ?? []}
-                                            />
-                                            <ActionIcon
-                                                mt={
-                                                    index === 0 ? 20 : undefined
-                                                }
-                                                color="red"
-                                                variant="outline"
-                                                onClick={() => {
-                                                    form.setFieldValue(
-                                                        'groups',
-                                                        form.values.groups.filter(
-                                                            (_, i) =>
-                                                                i !== index,
-                                                        ),
-                                                    );
-                                                }}
-                                            >
-                                                <MantineIcon icon={IconTrash} />
-                                            </ActionIcon>
-                                        </Group>
-                                    );
-                                })}
-                                <Button
-                                    size="xs"
-                                    variant="default"
-                                    className={classes.addButton}
-                                    leftSection={
-                                        <MantineIcon icon={IconUsersPlus} />
-                                    }
-                                    onClick={() => {
-                                        form.insertListItem('groups', {
-                                            groupUuid: '',
-                                            values: [],
-                                        });
-                                    }}
-                                >
-                                    Add group
-                                </Button>
-                            </Stack>
-                        )}
+                                        <TagsInput
+                                            size="xs"
+                                            flex={1}
+                                            label={
+                                                index === 0
+                                                    ? 'Values'
+                                                    : undefined
+                                            }
+                                            name={`groups.${index}.values`}
+                                            placeholder="E.g. US (press Enter to add)"
+                                            {...form.getInputProps(
+                                                `groups.${index}.values`,
+                                            )}
+                                            value={group.values ?? []}
+                                        />
+                                        <ActionIcon
+                                            mt={index === 0 ? 20 : undefined}
+                                            color="red"
+                                            variant="outline"
+                                            onClick={() => {
+                                                form.setFieldValue(
+                                                    'groups',
+                                                    form.values.groups.filter(
+                                                        (_, i) => i !== index,
+                                                    ),
+                                                );
+                                            }}
+                                        >
+                                            <MantineIcon icon={IconTrash} />
+                                        </ActionIcon>
+                                    </Group>
+                                );
+                            })}
+                            <Button
+                                size="xs"
+                                variant="default"
+                                className={classes.addButton}
+                                leftSection={
+                                    <MantineIcon icon={IconUsersPlus} />
+                                }
+                                onClick={() => {
+                                    form.insertListItem('groups', {
+                                        groupUuid: '',
+                                        values: [],
+                                    });
+                                }}
+                            >
+                                Add group
+                            </Button>
+                        </Stack>
                     </Stack>
                 </Stack>
             </form>

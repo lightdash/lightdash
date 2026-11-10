@@ -11,7 +11,7 @@ import ReportChartFrame from './presentation/ReportChartFrame';
 
 type Props = {
     projectUuid: string;
-    spaceUuid: string;
+    spaceUuid: string | null;
     chart: SemanticChartAsCode;
     actions?: ReactNode;
 };

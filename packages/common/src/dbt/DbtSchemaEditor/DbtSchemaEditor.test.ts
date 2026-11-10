@@ -1,10 +1,21 @@
+import { parse } from 'yaml';
 import { warehouseClientMock } from '../../compiler/exploreCompiler.mock';
+import { convertExplores } from '../../compiler/translator';
+import { model as dbtModel } from '../../compiler/translator.mock';
+import {
+    SupportedDbtAdapter,
+    type DbtModelColumn,
+    type DbtModelNode,
+} from '../../types/dbt';
 import { ParseError } from '../../types/errors';
+import { isExploreError } from '../../types/explore';
 import {
     CustomDimensionType,
     DimensionType,
     MetricType,
 } from '../../types/field';
+import { FilterOperator } from '../../types/filter';
+import { DEFAULT_SPOTLIGHT_CONFIG } from '../../types/lightdashProjectConfig';
 import { SupportedDbtVersions } from '../../types/projects';
 import DbtSchemaEditor from './DbtSchemaEditor';
 import {
@@ -50,6 +61,113 @@ describe('DbtSchemaEditor', () => {
         expect(editor.toString()).toEqual(
             EXPECTED_SCHEMA_YML_WITH_NEW_METRICS_AND_DIMENSIONS,
         );
+    });
+
+    it('round-trips a custom metric filter through dbt YAML and a chained join', async () => {
+        const editor = new DbtSchemaEditor(
+            `version: 2
+models:
+  - name: order_items
+    config:
+      meta:
+        joins:
+          - join: order_header
+            sql_on: \${order_items.order_item_id} = \${order_header.order_item_id}
+            relationship: one-to-one
+          - join: tax_operation
+            sql_on: \${order_header.tax_operation_key} = \${tax_operation.tax_operation_key}
+            relationship: many-to-one
+    columns:
+      - name: order_item_id
+        data_type: number
+      - name: item_amount
+        data_type: number
+  - name: order_header
+    columns:
+      - name: order_item_id
+        data_type: number
+      - name: tax_operation_key
+        data_type: number
+  - name: tax_operation
+    columns:
+      - name: tax_operation_key
+        data_type: number
+      - name: generates_invoice
+        data_type: string
+`,
+            'models/orders.yml',
+            SupportedDbtVersions.V1_10,
+        );
+        editor.addCustomMetrics([
+            {
+                field: {
+                    name: 'sales_amount',
+                    label: 'Sales amount',
+                    table: 'order_items',
+                    baseDimensionName: 'item_amount',
+                    sql: '${order_items.item_amount}',
+                    type: MetricType.SUM,
+                    filters: [
+                        {
+                            id: 'invoice',
+                            target: {
+                                fieldRef: 'tax_operation.generates_invoice',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: ['Y'],
+                        },
+                    ],
+                },
+                column: dimensionColumn('order_items', 'item_amount'),
+            },
+        ]);
+        const output = editor.toString();
+        expect(output).toContain('tax_operation.generates_invoice: Y');
+        const schema = parse(output) as {
+            models: (Pick<DbtModelNode, 'name' | 'config'> & {
+                columns: DbtModelColumn[];
+            })[];
+        };
+        const models: DbtModelNode[] = schema.models.map((model) => ({
+            ...dbtModel,
+            ...model,
+            unique_id: `model.test.${model.name}`,
+            alias: model.name,
+            relation_name: `public.${model.name}`,
+            columns: Object.fromEntries(
+                model.columns.map((column) => [column.name, column]),
+            ),
+        }));
+        const explores = await convertExplores(
+            models,
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        );
+        const explore = explores.find(({ name }) => name === 'order_items');
+        if (!explore || isExploreError(explore)) {
+            throw new Error('Expected the chained-join explore to compile');
+        }
+        expect(explore.warnings ?? []).toEqual([]);
+        expect(
+            explore.tables.order_items.metrics.sales_amount.compiledSql,
+        ).toBe(
+            `SUM(CASE WHEN (("tax_operation".generates_invoice) IN ('Y')) THEN ("order_items".item_amount) ELSE NULL END)`,
+        );
+        expect(explore.joinedTables).toMatchObject([
+            {
+                table: 'order_header',
+                compiledSqlOn:
+                    '("order_items".order_item_id) = ("order_header".order_item_id)',
+            },
+            {
+                table: 'tax_operation',
+                compiledSqlOn:
+                    '("order_header".tax_operation_key) = ("tax_operation".tax_operation_key)',
+                tablesReferences: ['order_header', 'tax_operation'],
+            },
+        ]);
     });
 
     it('returns a warehouse-aware custom bin definition for previews', () => {

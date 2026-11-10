@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { Box } from '@mantine/core';
 import { useSessionStorage } from '@mantine/hooks';
+import { IconAlertCircle } from '@tabler/icons-react';
 import {
     memo,
     useCallback,
@@ -23,6 +24,7 @@ import { validate as isUuidString } from 'uuid';
 import LoadingChart from '../components/common/LoadingChart';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
+import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
 import MetricQueryDataProvider from '../components/MetricQueryData/MetricQueryDataProvider';
@@ -66,7 +68,7 @@ const MinimalExplorerContent = memo(() => {
         useResizeObserver<HTMLDivElement>();
 
     // Get query state from hook
-    const { query, queryResults, explore } = useExplorerQuery();
+    const { query, queryResults, explore, exploreError } = useExplorerQuery();
 
     const resultsData = useMemo(
         () => ({
@@ -134,6 +136,24 @@ const MinimalExplorerContent = memo(() => {
         needsPaintSignal,
         chartHasPainted,
     ]);
+
+    // Without the explore the query never runs, so surface the error instead of loading forever
+    if (exploreError) {
+        return (
+            <>
+                <SuboptimalState
+                    icon={IconAlertCircle}
+                    title="Error loading chart"
+                    description={exploreError.error.message}
+                />
+                <ScreenshotReadyIndicator
+                    tilesTotal={1}
+                    tilesReady={0}
+                    tilesErrored={1}
+                />
+            </>
+        );
+    }
 
     if (!savedChart || health.isInitialLoading || !health.data) {
         return <LoadingChart />;

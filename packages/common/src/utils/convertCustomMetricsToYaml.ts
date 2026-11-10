@@ -7,7 +7,7 @@ import { getFormatExpression } from './formatting';
 export function convertCustomMetricToDbt(
     field: AdditionalMetric,
 ): DbtColumnLightdashMetric {
-    const filters = convertMetricFilterToDbt(field.filters);
+    const filters = convertMetricFilterToDbt(field.filters, field.table);
     return {
         label: field.label || friendlyName(field.name),
         description: field.description,

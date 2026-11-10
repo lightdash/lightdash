@@ -1,9 +1,7 @@
 import { subject } from '@casl/ability';
 import {
-    type ApiChartAndResults,
     type ApiError,
     assertUnreachable,
-    CartesianSeriesType,
     ChartType,
     createDashboardFilterRuleFromField,
     type CreateSavedChartVersion,
@@ -28,8 +26,6 @@ import {
     getMergeDefinitionQueryExploreNames,
     getShowColumnTotalsFromChartConfig,
     getVisibleFields,
-    isCartesianChartConfig,
-    isCompleteLayout,
     isDashboardChartTileType,
     isFilterableField,
     isTableChartConfig,
@@ -75,6 +71,7 @@ import React, {
     useMemo,
     useRef,
     useState,
+    type CSSProperties,
     type FC,
     type RefObject,
 } from 'react';
@@ -99,20 +96,18 @@ type ClientSideError = {
 type DashboardTileError = ApiError | ClientSideError | Error;
 
 const useAppliedTileDateZoom = ({
-    tileUuid,
-    tilesWithDateZoomApplied,
+    isDateZoomApplied,
     dateZoom,
     dateDimension,
 }: AppliedTileDateZoomArgs) =>
     useMemo(
         () =>
             getAppliedTileDateZoom({
-                tileUuid,
-                tilesWithDateZoomApplied,
+                isDateZoomApplied,
                 dateZoom,
                 dateDimension,
             }),
-        [tileUuid, tilesWithDateZoomApplied, dateZoom, dateDimension],
+        [isDateZoomApplied, dateZoom, dateDimension],
     );
 
 const getDashboardTileErrorMessage = (
@@ -128,15 +123,20 @@ import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAg
 import { AskAiAgentMenuItem } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { DashboardTileComments } from '../../features/comments';
+import {
+    selectAppliedParameterValues,
+    selectDashboardParameterDefinitions,
+    selectInvalidateCache,
+    selectIsDateZoomAppliedToTile,
+    useDashboardSelector,
+    useTileDashboardParameterInputs,
+} from '../../features/dashboard/store';
+import { useTileQueryQueueVisibility } from '../../features/dashboard/tileQueryQueue/useTileQueryQueue';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
 import { getExploreFromHereUrl } from '../../features/mergeQuery/utils/getExploreFromHereUrl';
-import {
-    getExpectedSeriesMap,
-    isPivotSeriesOrderDeterminedByQuery,
-    mergeExistingAndExpectedSeries,
-} from '../../hooks/cartesianChartConfig/utils';
+import { computeChartSeries } from '../../hooks/cartesianChartConfig/computeChartSeries';
 import { useDashboardChartDownload } from '../../hooks/dashboard/useDashboardChartDownload';
 import {
     useDashboardChartReadyQuery,
@@ -167,6 +167,8 @@ import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
+import { useRegisterTileQuery } from '../../providers/Dashboard/useRegisterTileQuery';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import {
@@ -189,6 +191,7 @@ import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryData
 import { getDataFromChartClick } from '../MetricQueryData/utils';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import { DashboardExportImage } from './DashboardExportImage';
+import tileClasses from './DashboardTiles.module.css';
 import EditChartMenuItem from './EditChartMenuItem';
 import EmbeddedDashboardChartInteractions, {
     type EmbeddedDashboardInteractions,
@@ -196,6 +199,7 @@ import EmbeddedDashboardChartInteractions, {
 import ExportDataModal from './ExportDataModal';
 import ExportImageModal from './ExportImageModal';
 import TileBase from './TileBase';
+import { TileHeaderPopover } from './TileBase/TileHeaderPopover';
 import TileExecutionInfo from './TileExecutionInfo';
 import TileTimezoneInfo from './TileTimezoneInfo';
 import { UnderlyingDataMenuItem } from './UnderlyingDataMenuItem';
@@ -227,8 +231,9 @@ const ExportGoogleSheet: FC<ExportGoogleSheetProps> = ({
     parameters,
     disabled,
 }) => {
+    const lightdashApi = useLightdashApi();
     const getGsheetLink = async () => {
-        return uploadGsheet({
+        return uploadGsheet(lightdashApi, {
             projectUuid: savedChart.projectUuid,
             exploreId: savedChart.tableName,
             metricQuery: savedChart.metricQuery,
@@ -252,63 +257,6 @@ const ExportGoogleSheet: FC<ExportGoogleSheetProps> = ({
             disabled={disabled}
         />
     );
-};
-
-/**
- * We need to compute these series on dashboards to populate properly fallbackColors in VisualizationProvider
- * otherwise, some series will appear as transparent
- * on view charts, this information is refreshed from the explore.
- * This is the most basic function that runs on useEchartsCartesianConfig to generate series
- *
- * This is passed to computedSeries prop in VisualizationProvider
- * We don't want to override the chartConfig, to cause conflicts with other visualization stuff.
- */
-const computeDashboardChartSeries = (
-    chart: ApiChartAndResults['chart'],
-    validPivotDimensions: string[] | undefined,
-    resultData: InfiniteQueryResults | undefined,
-    itemsMap: ItemsMap,
-) => {
-    if (!chart.chartConfig || !resultData || resultData.rows.length === 0) {
-        return [];
-    }
-
-    if (
-        isCartesianChartConfig(chart.chartConfig.config) &&
-        isCompleteLayout(chart.chartConfig.config.layout)
-    ) {
-        const firstSerie = chart.chartConfig.config.eChartsConfig.series?.[0];
-
-        const expectedSeriesMap = getExpectedSeriesMap({
-            defaultSmooth: firstSerie?.smooth,
-            defaultShowSymbol: firstSerie?.showSymbol,
-            defaultAreaStyle: firstSerie?.areaStyle,
-            defaultCartesianType: CartesianSeriesType.BAR,
-            isStacked: false,
-            pivotKeys: validPivotDimensions,
-            resultsData: resultData,
-            xField: chart.chartConfig.config.layout.xField,
-            yFields: chart.chartConfig.config.layout.yField,
-            defaultLabel: firstSerie?.label,
-            defaultStackLabel: firstSerie?.stackLabel,
-            itemsMap,
-            columnLimit: chart.chartConfig.config.columnLimit,
-            existingSeries: chart.chartConfig.config.eChartsConfig.series,
-        });
-        const sortedByPivot = isPivotSeriesOrderDeterminedByQuery(
-            validPivotDimensions,
-            chart.chartConfig.config.layout.yField,
-            chart.metricQuery.sorts,
-        );
-
-        const newSeries = mergeExistingAndExpectedSeries({
-            expectedSeriesMap,
-            existingSeries: chart.chartConfig.config.eChartsConfig.series || [],
-            sortedByPivot,
-        });
-        return newSeries.filter((s) => !s.isFilteredOut);
-    }
-    return [];
 };
 
 const ValidDashboardChartTile: FC<{
@@ -343,11 +291,9 @@ const ValidDashboardChartTile: FC<{
         );
 
         const dashboardFilters = useDashboardFiltersForTile(tileUuid);
-        const invalidateCache = useDashboardTileStatusContext(
-            (c) => c.invalidateCache,
-        );
-        const tilesWithDateZoomApplied = useDashboardContext(
-            (c) => c.tilesWithDateZoomApplied,
+        const invalidateCache = useDashboardSelector(selectInvalidateCache);
+        const isDateZoomApplied = useDashboardSelector((state) =>
+            selectIsDateZoomAppliedToTile(state, tileUuid),
         );
 
         const { health } = useApp();
@@ -365,8 +311,7 @@ const ValidDashboardChartTile: FC<{
             chart,
         } = dashboardChartReadyQuery;
         const chartDateZoom = useAppliedTileDateZoom({
-            tileUuid,
-            tilesWithDateZoomApplied,
+            isDateZoomApplied,
             dateZoom: dashboardChartReadyQuery.dateZoom,
             dateDimension: metricQuery.metadata?.hasADateDimension,
         });
@@ -381,7 +326,7 @@ const ValidDashboardChartTile: FC<{
         );
 
         const computedSeries: Series[] = useMemo(() => {
-            return computeDashboardChartSeries(
+            return computeChartSeries(
                 chart,
                 validPivotDimensions,
                 resultsData,
@@ -502,8 +447,8 @@ const ValidDashboardChartTileMinimal: FC<{
     const colorScheme = useComputedColorScheme();
 
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
-    const tilesWithDateZoomApplied = useDashboardContext(
-        (c) => c.tilesWithDateZoomApplied,
+    const isDateZoomApplied = useDashboardSelector((state) =>
+        selectIsDateZoomAppliedToTile(state, tileUuid),
     );
     const markTileScreenshotReady = useDashboardTileStatusContext(
         (c) => c.markTileScreenshotReady,
@@ -520,8 +465,7 @@ const ValidDashboardChartTileMinimal: FC<{
         dashboardChartReadyQuery.executeQueryResponse.metricQuery,
     );
     const chartDateZoom = useAppliedTileDateZoom({
-        tileUuid,
-        tilesWithDateZoomApplied,
+        isDateZoomApplied,
         dateZoom: dashboardChartReadyQuery.dateZoom,
         dateDimension:
             dashboardChartReadyQuery.executeQueryResponse.metricQuery.metadata
@@ -529,7 +473,7 @@ const ValidDashboardChartTileMinimal: FC<{
     });
 
     const computedSeries: Series[] = useMemo(() => {
-        return computeDashboardChartSeries(
+        return computeChartSeries(
             chart,
             validPivotDimensions,
             resultsData,
@@ -643,6 +587,7 @@ interface DashboardChartTileMainProps extends Pick<
     onExplore?: (options: { chart: SavedChart }) => void;
     // Embed dashboard builder: opens the chart in the in-place editor
     onEditChart?: (chart: SavedChart) => void;
+    canEditChart?: (chart: SavedChart) => boolean;
     colorPaletteOverride?: string[];
     darkColorPaletteOverride?: string[] | null;
     hasDashboardColorPalette?: boolean;
@@ -806,8 +751,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                 projectUuid: chart.projectUuid,
             }),
         );
-        const appliedParameterValues = useDashboardContext(
-            (c) => c.appliedParameterValues,
+        const appliedParameterValues = useDashboardSelector(
+            selectAppliedParameterValues,
+        );
+        const tileParameterInputs = useTileDashboardParameterInputs(
+            tileUuid,
+            appliedParameterValues,
         );
         const { mutate: exportSavedChartImage } = useSavedChartImageExport();
         const canExportSavedDataAppVizImage =
@@ -819,7 +768,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                 ).every((filters) => filters.length === 0),
                 hasParameterOverrides: hasDashboardTileParameterOverrides({
                     usedParameterValues: usedParametersValues ?? {},
-                    dashboardValues: appliedParameterValues,
+                    dashboardValues: tileParameterInputs.dashboardValues,
                     chartSavedValues: chart.parameters ?? {},
                 }),
                 hasUnpublishedChanges: !!chart.hasUnpublishedChanges,
@@ -836,12 +785,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             }),
         );
 
-        const tilesWithDateZoomApplied = useDashboardContext(
-            (c) => c.tilesWithDateZoomApplied,
+        const isDateZoomApplied = useDashboardSelector((state) =>
+            selectIsDateZoomAppliedToTile(state, tileUuid),
         );
 
-        const parameterDefinitions = useDashboardContext(
-            (c) => c.parameterDefinitions,
+        const parameterDefinitions = useDashboardSelector(
+            selectDashboardParameterDefinitions,
         );
 
         const preAggregateStatuses = useDashboardTileStatusContext(
@@ -872,8 +821,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             if (!viewUnderlyingDataOptions) return;
 
             const dateZoom = getAppliedTileDateZoom({
-                tileUuid,
-                tilesWithDateZoomApplied,
+                isDateZoomApplied,
                 dateZoom: dashboardChartReadyQuery.dateZoom,
                 dateDimension: metricQuery?.metadata?.hasADateDimension,
             });
@@ -885,8 +833,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
         }, [
             viewUnderlyingDataOptions,
             openUnderlyingDataModal,
-            tileUuid,
-            tilesWithDateZoomApplied,
+            isDateZoomApplied,
             dashboardChartReadyQuery.dateZoom,
             metricQuery?.metadata?.hasADateDimension,
         ]);
@@ -1133,8 +1080,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             () => ({
                 ...chart,
                 metricQuery: metricQuery ?? chart.metricQuery,
+                parameters: usedParametersValues,
             }),
-            [chart, metricQuery],
+            [chart, metricQuery, usedParametersValues],
         );
         const cannotUseCustomDimensions =
             !userCanUseCustomFields &&
@@ -1232,22 +1180,19 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                             {/* Dashboard comments button only appears on hover if there are no comments yet */}
                             {tileHasComments ? undefined : dashboardComments}
                             {hasFiltersToShow && (
-                                <Popover
-                                    withArrow
-                                    position="bottom-end"
-                                    offset={4}
-                                    arrowOffset={10}
-                                >
+                                <TileHeaderPopover>
                                     <Popover.Dropdown
                                         maw="calc(100vw - 24px)"
                                         mah="calc(100dvh - 24px)"
-                                        style={{ overflowY: 'auto' }}
+                                        className={
+                                            tileClasses.scrollableDropdown
+                                        }
                                     >
                                         <Stack gap="xs" align="flex-start">
                                             {appliedFilterItems.length > 0 && (
                                                 <>
                                                     <Text
-                                                        c="ldGray.7"
+                                                        c="dimmed"
                                                         fw={500}
                                                         fz="xs"
                                                     >
@@ -1315,10 +1260,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                 <Badge
                                                                     maw="100%"
                                                                     h="auto"
-                                                                    style={{
-                                                                        whiteSpace:
-                                                                            'normal',
-                                                                    }}
+                                                                    className={
+                                                                        tileClasses.wrapBadge
+                                                                    }
                                                                     key={`${sourceId ?? ''}:${filterRule.id}`}
                                                                     variant="outline"
                                                                     color="ldGray.4"
@@ -1332,7 +1276,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                         <Text
                                                                             span
                                                                             inherit
-                                                                            c="ldGray.6"
+                                                                            c="dimmed"
                                                                         >
                                                                             {
                                                                                 sourceLabel
@@ -1395,7 +1339,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                             {chartFilterItems.length > 0 && (
                                                 <>
                                                     <Text
-                                                        c="ldGray.7"
+                                                        c="dimmed"
                                                         fw={500}
                                                         fz="xs"
                                                     >
@@ -1440,14 +1384,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     field,
                                                                     getUiString,
                                                                 );
-                                                            const ruleStrikeStyle:
-                                                                | React.CSSProperties
-                                                                | undefined =
+                                                            const ruleTextDecoration =
                                                                 isOverridden
-                                                                    ? {
-                                                                          textDecoration:
-                                                                              'line-through',
-                                                                      }
+                                                                    ? 'line-through'
                                                                     : undefined;
                                                             return (
                                                                 <Badge
@@ -1461,25 +1400,21 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     size="lg"
                                                                     fz="xs"
                                                                     fw="normal"
-                                                                    style={{
-                                                                        whiteSpace:
-                                                                            'normal',
-                                                                        textTransform:
-                                                                            'none',
-                                                                        color: 'black',
-                                                                        opacity:
-                                                                            isOverridden
-                                                                                ? 0.6
-                                                                                : 1,
-                                                                    }}
+                                                                    className={
+                                                                        tileClasses.overrideBadge
+                                                                    }
+                                                                    data-overridden={
+                                                                        isOverridden ||
+                                                                        undefined
+                                                                    }
                                                                 >
                                                                     <Text
                                                                         fw={600}
                                                                         span
                                                                         inherit
                                                                         c="foreground"
-                                                                        style={
-                                                                            ruleStrikeStyle
+                                                                        td={
+                                                                            ruleTextDecoration
                                                                         }
                                                                     >
                                                                         {
@@ -1492,8 +1427,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                             c="foreground"
                                                                             span
                                                                             inherit
-                                                                            style={
-                                                                                ruleStrikeStyle
+                                                                            td={
+                                                                                ruleTextDecoration
                                                                             }
                                                                         >
                                                                             is
@@ -1506,8 +1441,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                                 span
                                                                                 inherit
                                                                                 c="foreground"
-                                                                                style={
-                                                                                    ruleStrikeStyle
+                                                                                td={
+                                                                                    ruleTextDecoration
                                                                                 }
                                                                             >
                                                                                 {
@@ -1521,8 +1456,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                                 span
                                                                                 inherit
                                                                                 c="foreground"
-                                                                                style={
-                                                                                    ruleStrikeStyle
+                                                                                td={
+                                                                                    ruleTextDecoration
                                                                                 }
                                                                             >
                                                                                 {
@@ -1563,23 +1498,20 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                             <MantineIcon icon={IconFilter} />
                                         </ActionIcon>
                                     </Popover.Target>
-                                </Popover>
+                                </TileHeaderPopover>
                             )}
                             {usedParametersValues &&
                                 Object.keys(usedParametersValues).length >
                                     0 && (
-                                    <Popover
-                                        withArrow
-                                        position="bottom-end"
-                                        offset={4}
-                                        arrowOffset={10}
-                                    >
+                                    <TileHeaderPopover>
                                         <Popover.Dropdown
                                             maw="calc(100vw - 24px)"
                                             mah="calc(100dvh - 24px)"
-                                            style={{ overflowY: 'auto' }}
+                                            className={
+                                                tileClasses.scrollableDropdown
+                                            }
                                         >
-                                            <Text c="ldGray.7" fw={500} mb="xs">
+                                            <Text c="dimmed" fw={500} mb="xs">
                                                 Parameters
                                             </Text>
                                             <Stack
@@ -1597,12 +1529,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     key,
                                                                     definitions:
                                                                         parameterDefinitions,
-                                                                    dashboardValues:
-                                                                        appliedParameterValues,
+                                                                    ...tileParameterInputs,
                                                                     chartSavedValues:
                                                                         chart.parameters ??
                                                                         {},
-                                                                    isTargeted: true,
                                                                 },
                                                             ),
                                                             getUiString,
@@ -1651,7 +1581,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                 />
                                             </ActionIcon>
                                         </Popover.Target>
-                                    </Popover>
+                                    </TileHeaderPopover>
                                 )}
                             <TileTimezoneInfo
                                 resolvedTimezone={resolvedTimezone}
@@ -1707,7 +1637,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                             />
                             {metricQuery?.metadata?.hasADateDimension &&
                             dashboardChartReadyQuery.dateZoom?.granularity &&
-                            tilesWithDateZoomApplied?.has(tileUuid) ? (
+                            isDateZoomApplied ? (
                                 <DateZoomInfoOnTile
                                     dateDimension={
                                         metricQuery.metadata.hasADateDimension
@@ -1942,7 +1872,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                             onClose={() => setContextMenuIsOpen(false)}
                             closeOnItemClick
                             closeOnEscape
-                            radius={0}
                             position="bottom-start"
                             offset={{
                                 crossAxis: 0,
@@ -1953,10 +1882,15 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                 <Menu.Target>
                                     <div
                                         onContextMenu={handleCancelContextMenu}
-                                        style={{
-                                            position: 'absolute',
-                                            ...contextMenuTargetOffset,
-                                        }}
+                                        className={
+                                            tileClasses.contextMenuTarget
+                                        }
+                                        style={
+                                            {
+                                                '--menu-left': `${contextMenuTargetOffset?.left ?? 0}px`,
+                                                '--menu-top': `${contextMenuTargetOffset?.top ?? 0}px`,
+                                            } as CSSProperties
+                                        }
                                     />
                                 </Menu.Target>
                             </Portal>
@@ -2133,6 +2067,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
         canViewExplore: canViewExploreOverride,
         onExplore,
         onEditChart,
+        canEditChart,
         embeddedDashboardInteractions,
         colorPaletteOverride,
         darkColorPaletteOverride,
@@ -2147,8 +2082,12 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
     const {
         chart,
         explore,
-        executeQueryResponse: { metricQuery },
+        executeQueryResponse: { metricQuery, usedParametersValues },
     } = dashboardChartReadyQuery;
+    const showEditChart =
+        onEditChart !== undefined &&
+        props.isEditMode &&
+        (canEditChart?.(chart) ?? true);
     const projectUuid = useProjectUuid();
     const { canViewExplore } = useContextMenuPermissions({
         organizationUuid: chart.organizationUuid,
@@ -2163,13 +2102,21 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
     // Explorer can open, so a merged chart reopens from its own primary query.
     const handleExploreFromHere = useCallback(() => {
         if (!onExplore) return;
-        onExplore({ chart: chart.merge ? chart : { ...chart, metricQuery } });
-    }, [onExplore, chart, metricQuery]);
+        onExplore({
+            chart: chart.merge
+                ? chart
+                : {
+                      ...chart,
+                      metricQuery,
+                      parameters: usedParametersValues,
+                  },
+        });
+    }, [onExplore, chart, metricQuery, usedParametersValues]);
 
     const canExplore = canViewExploreOverride ?? canViewExplore;
 
-    const tilesWithDateZoomApplied = useDashboardContext(
-        (c) => c.tilesWithDateZoomApplied,
+    const isDateZoomApplied = useDashboardSelector((state) =>
+        selectIsDateZoomAppliedToTile(state, tileUuid),
     );
 
     const { openUnderlyingDataModal } = useMetricQueryDataContext();
@@ -2186,8 +2133,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
         if (!viewUnderlyingDataOptions) return;
 
         const dateZoom = getAppliedTileDateZoom({
-            tileUuid,
-            tilesWithDateZoomApplied,
+            isDateZoomApplied,
             dateZoom: dashboardChartReadyQuery.dateZoom,
             dateDimension: metricQuery?.metadata?.hasADateDimension,
         });
@@ -2199,8 +2145,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
     }, [
         viewUnderlyingDataOptions,
         openUnderlyingDataModal,
-        tileUuid,
-        tilesWithDateZoomApplied,
+        isDateZoomApplied,
         dashboardChartReadyQuery.dateZoom,
         metricQuery?.metadata?.hasADateDimension,
     ]);
@@ -2302,9 +2247,9 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                     (canExportImages &&
                         !isTableChartConfig(chart.chartConfig.config)) ||
                     isEmbeddedExploreEnabled ||
-                    (onEditChart && props.isEditMode) ? (
+                    showEditChart ? (
                         <>
-                            {onEditChart && props.isEditMode && (
+                            {showEditChart && onEditChart && (
                                 <Menu.Item
                                     leftSection={
                                         <MantineIcon icon={IconFilePencil} />
@@ -2365,7 +2310,6 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                         onClose={() => setContextMenuIsOpen(false)}
                         closeOnItemClick
                         closeOnEscape
-                        radius={0}
                         position="bottom-start"
                         offset={{
                             crossAxis: 0,
@@ -2376,10 +2320,13 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                             <Menu.Target>
                                 <div
                                     onContextMenu={handleCancelContextMenu}
-                                    style={{
-                                        position: 'absolute',
-                                        ...contextMenuTargetOffset,
-                                    }}
+                                    className={tileClasses.contextMenuTarget}
+                                    style={
+                                        {
+                                            '--menu-left': `${contextMenuTargetOffset?.left ?? 0}px`,
+                                            '--menu-top': `${contextMenuTargetOffset?.top ?? 0}px`,
+                                        } as CSSProperties
+                                    }
                                 />
                             </Menu.Target>
                         </Portal>
@@ -2746,6 +2693,32 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         resultsData.isFetchingFirstPage,
         resultsData.error,
     ]);
+    useTileQueryQueueVisibility(props.tile.uuid);
+
+    // Publish this tile's query as an AI analysis source once it settles.
+    const queryUuid = readyQuery.data?.executeQueryResponse.queryUuid ?? null;
+    const tileError =
+        orphanedChartError ?? readyQuery.error ?? resultsData.error;
+    const registration = useMemo(() => {
+        if (isLoading || (!queryUuid && !tileError)) return null;
+        return {
+            tileUuid: props.tile.uuid,
+            queryUuid,
+            label:
+                props.tile.properties.title ||
+                readyQuery.data?.chart.name ||
+                'Chart',
+            status: (tileError ? 'error' : 'ready') as 'ready' | 'error',
+        };
+    }, [
+        queryUuid,
+        isLoading,
+        props.tile.uuid,
+        props.tile.properties.title,
+        readyQuery.data?.chart.name,
+        tileError,
+    ]);
+    useRegisterTileQuery(registration);
 
     return (
         <GenericDashboardChartTile

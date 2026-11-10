@@ -1,7 +1,6 @@
 import {
     DbtProjectType,
     DefaultSupportedDbtVersion,
-    FeatureFlags,
     validateProjectDbtSourceName,
     WarehouseTypes,
     type CreateWarehouseCredentials,
@@ -12,7 +11,6 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Badge,
     Button,
     Card,
     Group,
@@ -35,6 +33,7 @@ import {
 } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import { useDbtSourceBindings } from '../../hooks/useDbtSourceBindings';
+import { useMixedWarehouseConnectionsEnabled } from '../../hooks/useExploreWarehouseConnection';
 import {
     useCreateProjectDbtSourceMutation,
     useDeleteProjectDbtSourceMutation,
@@ -42,7 +41,6 @@ import {
     useProjectDbtSources,
     useUpdateProjectDbtSourceMutation,
 } from '../../hooks/useProjectDbtSources';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import { dbtDefaults } from './DbtForms/defaultValues';
@@ -174,9 +172,14 @@ const DbtSourceFields: FC<{
     form: Form;
     intro: string;
     projectUuid: string;
-}> = ({ form, intro, projectUuid }) => (
+    dbtSourceWarehouseConnectionUuid?: string | null;
+}> = ({ form, intro, projectUuid, dbtSourceWarehouseConnectionUuid }) => (
     <FormProvider form={form}>
-        <ProjectFormProvider isDbtSource projectUuid={projectUuid}>
+        <ProjectFormProvider
+            isDbtSource
+            projectUuid={projectUuid}
+            dbtSourceWarehouseConnectionUuid={dbtSourceWarehouseConnectionUuid}
+        >
             <Stack gap="md">
                 <Text size="sm" c="dimmed">
                     {intro}
@@ -267,6 +270,17 @@ const EditDbtSourceModalInner: FC<{
     const updateMutation = useUpdateProjectDbtSourceMutation(projectUuid, {
         onSuccess: onClose,
     });
+    const mixedWarehouseConnectionsEnabled =
+        useMixedWarehouseConnectionsEnabled();
+    const { data: bindings } = useDbtSourceBindings(
+        projectUuid,
+        mixedWarehouseConnectionsEnabled,
+    );
+    const dbtSourceWarehouseConnectionUuid =
+        bindings?.sources.find(
+            (binding) =>
+                binding.projectDbtSourceUuid === source.projectDbtSourceUuid,
+        )?.warehouseConnectionUuid ?? null;
     const form = useForm({
         initialValues: {
             name: source.name,
@@ -322,6 +336,9 @@ const EditDbtSourceModalInner: FC<{
             <DbtSourceFields
                 form={form}
                 projectUuid={projectUuid}
+                dbtSourceWarehouseConnectionUuid={
+                    dbtSourceWarehouseConnectionUuid
+                }
                 intro="Update this source's connection. Leave the access token blank to keep the saved one."
             />
         </MantineModal>
@@ -425,10 +442,9 @@ const DbtSourcesPanel: FC<{
     project: Pick<Project, 'projectUuid' | 'connectionRoute'>;
 }> = ({ project }) => {
     const { projectUuid } = project;
-    const { data: flag } = useServerFeatureFlag(FeatureFlags.MultiDbtSources);
     const { data: bindings } = useDbtSourceBindings(
         projectUuid,
-        flag?.enabled === true && project.connectionRoute === 'multi',
+        project.connectionRoute === 'multi',
     );
     const [rebound, setRebound] = useState<ReboundDbtSource | null>(null);
     const {
@@ -445,11 +461,6 @@ const DbtSourcesPanel: FC<{
         useState<ProjectDbtSourceSummary | null>(null);
     const [isAddOpen, setIsAddOpen] = useState(false);
 
-    // Only show the panel when the feature is on.
-    if (!flag?.enabled) {
-        return null;
-    }
-
     const primarySource = sources?.find((source) => source.isPrimary);
     const additionalSources = (sources ?? []).filter(
         (source) => !source.isPrimary,
@@ -457,9 +468,6 @@ const DbtSourcesPanel: FC<{
 
     return (
         <Card shadow="xs" padding="lg" radius="md" className={classes.panel}>
-            <Badge className={classes.beta} color="violet" size="sm">
-                Beta
-            </Badge>
             <Stack gap="md">
                 <Group gap={6}>
                     <Title order={5}>dbt sources</Title>

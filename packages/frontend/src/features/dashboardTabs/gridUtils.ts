@@ -1,74 +1,209 @@
-import { DashboardTileTypes, type DashboardTile } from '@lightdash/common';
+import {
+    DashboardTileTypes,
+    type DashboardTab,
+    type DashboardTile,
+} from '@lightdash/common';
 import { type Layout } from 'react-grid-layout';
 
-const DEFAULT_COLS = 36;
+/**
+ * Tiles are stored in 36 columns, and the grid shows the same count at every
+ * width that isn't the phone stack: any other count turns positions into
+ * fractions that the grid rounds or pushes down a row. Narrower windows just
+ * get narrower columns. The breakpoints only decide where the phone stack
+ * starts and where fit to screen is offered.
+ */
+const GRID_DESKTOP_COLS = 36;
+
+/** The narrowest a tile can be resized to, in stored columns */
+const MIN_TILE_COLS = 4;
 
 export const GRID_BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 0 };
-export const GRID_COLS = { lg: DEFAULT_COLS, md: 30, sm: 18, xs: 1 };
-export type DashboardLayouts = Record<keyof typeof GRID_COLS, Layout[]>;
+type GridBreakpoint = keyof typeof GRID_BREAKPOINTS;
+export type DashboardLayouts = Record<GridBreakpoint, Layout[]>;
 /**
  * Row height: fontSize * lineHeight + padding + borders
  */
 export const DEFAULT_ROW_HEIGHT = 14 * 1.5 + 16 * 2 + 2;
 
+/** Mirrors react-grid-layout: the largest breakpoint strictly narrower than `width`. */
+export const getBreakpointForWidth = (
+    breakpoints: Record<string, number>,
+    width: number,
+): string => {
+    const ascending = Object.entries(breakpoints).sort(([, a], [, b]) => a - b);
+    const [name] =
+        ascending.filter(([, minWidth]) => width > minWidth).at(-1) ??
+        ascending[0];
+    return name;
+};
+
 export const GRID_MARGIN: [number, number] = [10, 10];
 export const GRID_CONTAINER_PADDING: [number, number] = [10, 0];
 
 /**
- * Converts layout positions from the current breakpoint's coordinate system
- * back to the base coordinate system (DEFAULT_COLS).
- *
- * This is needed when saving tile positions after drag/resize operations,
- * because react-grid-layout returns positions in the current breakpoint's
- * column count, but we store positions in the base 36-column system.
- *
- * @param layout - The layout array from react-grid-layout
- * @param currentCols - The current breakpoint's column count
- * @returns Layout array with positions converted to base coordinates
+ * The grid itself has no gaps: each tile is inset by half a gap on every side
+ * (styles/react-grid.css), so the gap no longer eats into every column and a
+ * finer grid keeps usable columns on narrow windows. Tiles land on the same
+ * pixels as with a grid margin.
+ */
+const GRID_TILE_GUTTER = GRID_MARGIN[0] / 2;
+
+/**
+ * How many finer steps the edit grid splits each stored grid unit into.
+ * Positions are stored in base units, so a finer step saves as a fraction
+ * (x: 14.5); the stored columns are `real` and the API types them as doubles.
+ */
+export const FINE_GRID_SCALE = 2;
+
+/** Row height for a grid split `gridScale` times: that many rows plus the
+ * gaps between them span exactly one base row */
+export const getRowHeightForScale = (gridScale: number): number =>
+    (DEFAULT_ROW_HEIGHT + GRID_MARGIN[1]) / gridScale - GRID_MARGIN[1];
+
+export const FIT_TO_SCREEN_MIN_ROW_HEIGHT = 20;
+export const FIT_TO_SCREEN_GRID_BOTTOM_PADDING = GRID_MARGIN[1];
+/** Grids taller than this many viewports are too long to squash into one */
+const FIT_TO_SCREEN_MAX_VIEWPORTS = 2;
+const FIT_TO_SCREEN_BREAKPOINTS = new Set(['lg', 'md']);
+
+/**
+ * Auto fit (the always-on experiment) is gentler than the toggle: rows are
+ * only squashed down to this fraction of the default row height, so big
+ * numbers keep their minimum legible size. Longer grids keep their height.
+ */
+export const AUTO_FIT_MIN_SCALE = 0.75;
+/** Short grids stretch to fill the viewport, up to this many times a row */
+export const AUTO_FIT_MAX_SCALE = 2;
+/** How long the tiles spring to a new snap target, matched by the CSS easing */
+export const FIT_TO_SCREEN_SNAP_DURATION_MS = 700;
+
+export const isFitToScreenBreakpoint = (breakpoint: string): boolean =>
+    FIT_TO_SCREEN_BREAKPOINTS.has(breakpoint);
+
+/**
+ * Tiles on the grid shown in view mode: the active tab's, or every tile not on
+ * a hidden tab when there are no tabs to switch between. Tiles with a stale
+ * tab fall back to the first tab.
+ */
+export const getViewModeActiveTabTiles = (
+    tiles: DashboardTile[],
+    tabs: DashboardTab[],
+    activeTabUuid: string | undefined,
+): DashboardTile[] => {
+    const visibleTabs = tabs.filter((tab) => !tab.hidden);
+    if (visibleTabs.length <= 1) {
+        const hiddenTabUuids = new Set(
+            tabs.filter((tab) => tab.hidden).map((tab) => tab.uuid),
+        );
+        return tiles.filter(
+            (tile) => !tile.tabUuid || !hiddenTabUuids.has(tile.tabUuid),
+        );
+    }
+    const tabUuids = new Set(tabs.map((tab) => tab.uuid));
+    const defaultTabUuid = tabs[0]?.uuid;
+    return tiles.filter(
+        (tile) =>
+            (tile.tabUuid && tabUuids.has(tile.tabUuid)
+                ? tile.tabUuid
+                : defaultTabUuid) === activeTabUuid,
+    );
+};
+
+export const getGridTotalRows = (
+    tiles: Pick<DashboardTile, 'y' | 'h'>[],
+): number => tiles.reduce((max, tile) => Math.max(max, tile.y + tile.h), 0);
+
+/** Pixel height react-grid-layout gives a grid of `totalRows` rows */
+export const getGridHeight = (totalRows: number, rowHeight: number): number =>
+    totalRows * rowHeight +
+    Math.max(0, totalRows - 1) * GRID_MARGIN[1] +
+    GRID_CONTAINER_PADDING[1] * 2;
+
+export const canFitGridToScreen = (
+    availableHeight: number,
+    totalRows: number,
+): boolean =>
+    totalRows > 0 &&
+    availableHeight > 0 &&
+    getGridHeight(totalRows, DEFAULT_ROW_HEIGHT) <=
+        availableHeight * FIT_TO_SCREEN_MAX_VIEWPORTS;
+
+/**
+ * Auto fit: the row height that fills the viewport, capped on the stretch
+ * side. Null when filling it would squash rows below the floor, so the grid
+ * keeps its natural height.
+ */
+export const getAutoFitRowHeight = (
+    availableHeight: number,
+    totalRows: number,
+): number | null => {
+    if (totalRows <= 0 || availableHeight <= 0) return null;
+    const rowHeight = getFitToScreenRowHeight(availableHeight, totalRows);
+    if (rowHeight < DEFAULT_ROW_HEIGHT * AUTO_FIT_MIN_SCALE) return null;
+    return Math.min(rowHeight, DEFAULT_ROW_HEIGHT * AUTO_FIT_MAX_SCALE);
+};
+
+/** Row height that makes `totalRows` rows fill `availableHeight` exactly */
+export const getFitToScreenRowHeight = (
+    availableHeight: number,
+    totalRows: number,
+): number => {
+    if (totalRows <= 0) return DEFAULT_ROW_HEIGHT;
+    // 1px slack: react-grid-layout rounds each tile's top and height
+    const rowHeight =
+        (availableHeight -
+            1 -
+            GRID_CONTAINER_PADDING[1] * 2 -
+            (totalRows - 1) * GRID_MARGIN[1]) /
+        totalRows;
+    return Math.max(FIT_TO_SCREEN_MIN_ROW_HEIGHT, rowHeight);
+};
+
+/**
+ * Converts a layout from react-grid-layout back to stored units, for saving
+ * after a drag or resize. The grid works in `gridScale` steps per stored unit
+ * (FINE_GRID_SCALE for the fine edit grid), so a fine step saves as a
+ * fraction such as x: 14.5.
  */
 export const convertLayoutToBaseCoordinates = (
     layout: Layout[],
-    currentCols: number,
-): Layout[] => {
-    const scaleFactor = currentCols / DEFAULT_COLS;
-
-    return layout.map((item) => ({
+    gridScale = 1,
+): Layout[] =>
+    layout.map((item) => ({
         ...item,
-        x: Math.round(item.x / scaleFactor),
-        w: Math.round(item.w / scaleFactor),
+        x: item.x / gridScale,
+        w: item.w / gridScale,
+        y: item.y / gridScale,
+        h: item.h / gridScale,
     }));
-};
 
 export type ResponsiveGridLayoutProps = {
+    compactType: null;
     draggableCancel: string;
     useCSSTransforms: boolean;
     measureBeforeMount: boolean;
     breakpoints: typeof GRID_BREAKPOINTS;
-    cols: typeof GRID_COLS;
+    cols: Record<GridBreakpoint, number>;
     rowHeight: number;
     margin: [number, number];
+    containerPadding: [number, number];
 };
 
 export const getReactGridLayoutConfig = (
     tile: DashboardTile,
     isEditMode = false,
-    cols = 36,
-): Layout => {
-    // Scale factor based on the number of columns (36 is the default for lg)
-    const scaleFactor = cols / DEFAULT_COLS;
-
-    return {
-        minH: 1,
-        minW: Math.min(4, cols),
-        x: tile.x * scaleFactor,
-        y: tile.y,
-        w: tile.w * scaleFactor,
-        h: tile.h,
-        i: tile.uuid,
-        isDraggable: isEditMode,
-        isResizable: isEditMode,
-    };
-};
+    gridScale = 1,
+): Layout => ({
+    minH: gridScale,
+    minW: MIN_TILE_COLS * gridScale,
+    x: tile.x * gridScale,
+    y: tile.y * gridScale,
+    w: tile.w * gridScale,
+    h: tile.h * gridScale,
+    i: tile.uuid,
+    isDraggable: isEditMode,
+    isResizable: isEditMode,
+});
 
 export const getMobileGridLayout = (tiles: DashboardTile[]): Layout[] => {
     let y = 0;
@@ -101,35 +236,39 @@ export const getMobileGridLayout = (tiles: DashboardTile[]): Layout[] => {
         });
 };
 
+/** One desktop layout for every width; phones get the stack unless editing */
 export const getDashboardLayouts = (
     tiles: DashboardTile[],
     isEditMode = false,
-    cols = GRID_COLS,
-): DashboardLayouts => ({
-    lg: tiles.map((tile) =>
-        getReactGridLayoutConfig(tile, isEditMode, cols.lg),
-    ),
-    md: tiles.map((tile) =>
-        getReactGridLayoutConfig(tile, isEditMode, cols.md),
-    ),
-    sm:
-        cols.sm === 1
-            ? getMobileGridLayout(tiles)
-            : tiles.map((tile) =>
-                  getReactGridLayoutConfig(tile, isEditMode, cols.sm),
-              ),
-    xs: isEditMode
-        ? tiles.map((tile) => getReactGridLayoutConfig(tile, true, cols.xs))
-        : getMobileGridLayout(tiles),
-});
+    gridScale = 1,
+): DashboardLayouts => {
+    const desktop = tiles.map((tile) =>
+        getReactGridLayoutConfig(tile, isEditMode, gridScale),
+    );
+    return {
+        lg: desktop,
+        md: desktop,
+        sm: desktop,
+        xs: isEditMode ? desktop : getMobileGridLayout(tiles),
+    };
+};
 
 export const getResponsiveGridLayoutProps = ({
     enableAnimation = false,
     stackVerticallyOnSmallestBreakpoint = false,
     isEditMode = false,
+    rowHeight = DEFAULT_ROW_HEIGHT,
+    gridScale = 1,
+    containerPadding = GRID_CONTAINER_PADDING,
 }: {
     enableAnimation?: boolean;
     isEditMode?: boolean;
+    /** Visible height of one row, without the gap below it */
+    rowHeight?: number;
+    /** Space between the grid's edge and the visible tiles */
+    containerPadding?: [number, number];
+    /** Splits every column into this many, for the fine edit grid */
+    gridScale?: number;
 
     /**
      * If enabled, we set the grid on the smallest breakpoint to have a single
@@ -138,15 +277,24 @@ export const getResponsiveGridLayoutProps = ({
      */
     stackVerticallyOnSmallestBreakpoint?: boolean;
 } = {}): ResponsiveGridLayoutProps => ({
+    compactType: null,
     draggableCancel: '.non-draggable',
     useCSSTransforms: enableAnimation,
     measureBeforeMount: !enableAnimation,
     breakpoints: GRID_BREAKPOINTS,
     cols: {
-        ...GRID_COLS,
-        sm: stackVerticallyOnSmallestBreakpoint ? 1 : GRID_COLS.sm,
-        xs: isEditMode ? GRID_COLS.sm : 1,
+        lg: GRID_DESKTOP_COLS * gridScale,
+        md: GRID_DESKTOP_COLS * gridScale,
+        sm: stackVerticallyOnSmallestBreakpoint
+            ? 1
+            : GRID_DESKTOP_COLS * gridScale,
+        xs: isEditMode ? GRID_DESKTOP_COLS * gridScale : 1,
     },
-    rowHeight: DEFAULT_ROW_HEIGHT,
-    margin: GRID_MARGIN,
+    // Each row and column carries its share of the gap, drawn inside tiles
+    rowHeight: rowHeight + GRID_MARGIN[1],
+    margin: [0, 0],
+    containerPadding: [
+        containerPadding[0] - GRID_TILE_GUTTER,
+        containerPadding[1] - GRID_TILE_GUTTER,
+    ],
 });

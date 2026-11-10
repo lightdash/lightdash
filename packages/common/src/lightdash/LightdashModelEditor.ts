@@ -37,6 +37,21 @@ const getModelValidator = (): ModelValidator => {
     return modelValidator;
 };
 
+/** The model a YAML document holds; throws when it does not parse or validate. */
+export const validateModelDocument = (
+    doc: Document,
+    filename: string,
+): LightdashModel => {
+    const model: unknown = doc.toJS();
+    const { ajv, validate } = getModelValidator();
+    if (doc.errors.length > 0 || !validate(model)) {
+        throw new ParseError(
+            `Invalid Lightdash model in ${filename}: ${doc.errors.map((error) => error.message).join('; ') || ajv.errorsText(validate.errors)}`,
+        );
+    }
+    return model;
+};
+
 /** Edits the original native model document, preserving comments and unrelated nodes. */
 export class LightdashModelEditor {
     private readonly doc: Document;
@@ -54,14 +69,7 @@ export class LightdashModelEditor {
     }
 
     private validate(): LightdashModel {
-        const model: unknown = this.doc.toJS();
-        const { ajv, validate } = getModelValidator();
-        if (this.doc.errors.length > 0 || !validate(model)) {
-            throw new ParseError(
-                `Invalid Lightdash model in ${this.filename}: ${this.doc.errors.map((error) => error.message).join('; ') || ajv.errorsText(validate.errors)}`,
-            );
-        }
-        return model;
+        return validateModelDocument(this.doc, this.filename);
     }
 
     private assertModelName(name: string): void {

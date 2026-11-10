@@ -14,6 +14,7 @@ import {
     DashboardsTableName,
     DashboardVersionsTableName,
 } from '../database/entities/dashboards';
+import { DocumentsTableName } from '../database/entities/documents';
 import {
     SavedChartsTableName,
     SavedChartVersionFieldsTableName,
@@ -36,8 +37,9 @@ export class ContentVerificationModel {
     async getByContent(
         contentType: ContentType,
         contentUuid: string,
+        trx?: Knex,
     ): Promise<ContentVerificationInfo | null> {
-        const row = await this.database(ContentVerificationTableName)
+        const row = await (trx ?? this.database)(ContentVerificationTableName)
             .leftJoin(
                 UserTableName,
                 `${ContentVerificationTableName}.verified_by_user_uuid`,
@@ -129,13 +131,14 @@ export class ContentVerificationModel {
     async unverify(
         contentType: ContentType,
         contentUuid: string,
-    ): Promise<void> {
-        await this.database(ContentVerificationTableName)
+    ): Promise<boolean> {
+        const deleted = await this.database(ContentVerificationTableName)
             .where({
                 content_type: contentType,
                 content_uuid: contentUuid,
             })
             .delete();
+        return deleted > 0;
     }
 
     async getAllForProject(
@@ -338,7 +341,57 @@ export class ContentVerificationModel {
             slug: row.slug,
         }));
 
-        return [...charts, ...dashboards, ...dataApps];
+        const documentRows = await this.database(ContentVerificationTableName)
+            .innerJoin(
+                DocumentsTableName,
+                `${ContentVerificationTableName}.content_uuid`,
+                `${DocumentsTableName}.document_uuid`,
+            )
+            .innerJoin(
+                SpaceTableName,
+                `${DocumentsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${ContentVerificationTableName}.verified_by_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .where(`${ContentVerificationTableName}.project_uuid`, projectUuid)
+            .where(
+                `${ContentVerificationTableName}.content_type`,
+                ContentType.DOCUMENT,
+            )
+            .whereNull(`${DocumentsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .select(
+                `${ContentVerificationTableName}.content_verification_uuid`,
+                `${ContentVerificationTableName}.content_type`,
+                `${ContentVerificationTableName}.content_uuid`,
+                `${DocumentsTableName}.name`,
+                `${DocumentsTableName}.slug`,
+                `${DocumentsTableName}.description`,
+                this.database
+                    .ref(`${DocumentsTableName}.document_views_count`)
+                    .as('views_count'),
+                this.database
+                    .ref(`${DocumentsTableName}.updated_at`)
+                    .as('last_updated_at'),
+                `${SpaceTableName}.space_uuid`,
+                this.database.ref(`${SpaceTableName}.name`).as('space_name'),
+                `${UserTableName}.user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${ContentVerificationTableName}.verified_at`,
+            );
+        const documents: VerifiedContentListItem[] = documentRows.map(
+            (row) => ({
+                ...toBaseItem(row),
+                contentType: ContentType.DOCUMENT,
+                slug: row.slug,
+            }),
+        );
+        return [...charts, ...dashboards, ...dataApps, ...documents];
     }
 
     async getVerifiedFieldUsage(

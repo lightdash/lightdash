@@ -73,6 +73,58 @@ describe('toolDashboardV2Args persisted parsing', () => {
     });
 });
 
+describe('dashboard visualization merges', () => {
+    const mergeConfig = {
+        primarySourceId: 'primary',
+        additionalSources: [
+            {
+                id: 'comparison',
+                queryConfig: {
+                    exploreName: 'orders',
+                    dimensions: ['orders_created_month'],
+                    metrics: ['orders_revenue'],
+                    sorts: [],
+                    customMetrics: null,
+                    filters: null,
+                },
+            },
+        ],
+        joinKey: [
+            {
+                name: 'month',
+                fields: [
+                    { sourceId: 'primary', fieldId: 'orders_created_month' },
+                    { sourceId: 'comparison', fieldId: 'orders_created_month' },
+                ],
+            },
+        ],
+        joinType: 'full',
+    };
+    const dashboard = {
+        title: 'Revenue dashboard',
+        description: 'Revenue dashboard',
+        visualizations: [
+            { ...visualization(null), mergeConfig },
+            visualization(null),
+        ],
+    };
+
+    it('the advertised schema refuses a merge the agent authors', () => {
+        const result = toolDashboardV2ArgsSchema.safeParse(dashboard);
+        expect(result.success).toBe(false);
+        expect(result.error?.issues[0]).toMatchObject({
+            path: ['visualizations', 0, 'mergeConfig'],
+            message: 'Merge queries are not supported by the agent.',
+        });
+    });
+
+    it('persisted dashboards with merges still parse', () => {
+        expect(
+            toolDashboardV2ArgsSchemaPersisted.safeParse(dashboard).success,
+        ).toBe(true);
+    });
+});
+
 describe('server-owned dashboard layout', () => {
     const dashboard = {
         title: 'Overview',

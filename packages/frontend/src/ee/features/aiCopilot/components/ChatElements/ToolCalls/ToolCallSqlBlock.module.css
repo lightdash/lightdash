@@ -1,0 +1,20 @@
+.code {
+    min-width: 0;
+    overflow: hidden;
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: 6px;
+    background: var(--mantine-color-ldGray-1);
+}
+
+.codeHighlight {
+    background: transparent;
+}
+
+.codeInner {
+    max-height: 220px;
+    overflow: auto;
+    padding: 8px 34px 8px 10px;
+    background: transparent;
+    font-size: 11px;
+    line-height: 1.5;
+}

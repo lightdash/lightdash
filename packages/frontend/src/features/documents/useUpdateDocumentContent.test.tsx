@@ -2,10 +2,11 @@ import { type UpdateDocumentContentRequest } from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { useUpdateDocumentContent } from './useUpdateDocumentContent';
 
-const api = vi.hoisted(() => vi.fn());
-vi.mock('../../api', () => ({ lightdashApi: api }));
+const api = mockedLightdashApi;
+vi.mock('../../api');
 
 const request: UpdateDocumentContentRequest = {
     baseVersionUuid: 'version-1',

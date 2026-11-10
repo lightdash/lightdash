@@ -223,6 +223,19 @@ describe('validateFilterRules error messages', () => {
         expect(message).not.toContain('ZodError');
     });
 
+    it('accepts minute-precision datetimes in date filters', () => {
+        expect(() =>
+            validateFilterRules(mockOrdersExplore, [
+                rule({
+                    id: 'filter-date-minute-precision',
+                    fieldId: 'orders_order_date',
+                    operator: FilterOperator.EQUALS,
+                    values: ['2025-01-01T06:15Z'],
+                }),
+            ]),
+        ).not.toThrow();
+    });
+
     it('explains invalid date filters with available combinations', () => {
         const message = getValidationMessage(
             rule({
@@ -247,5 +260,41 @@ describe('validateFilterRules error messages', () => {
         );
         expect(message).not.toContain('invalid_union');
         expect(message).not.toContain('ZodError');
+    });
+
+    it('accepts current-period bounds and rejects invalid combinations', () => {
+        const currentRule = (settings: Record<string, unknown>) =>
+            rule({
+                id: 'filter-current',
+                fieldId: 'orders_order_date',
+                operator: FilterOperator.IN_THE_CURRENT,
+                values: [1],
+                settings: { completed: false, ...settings },
+            });
+
+        expect(() =>
+            validateFilterRules(mockOrdersExplore, [
+                currentRule({ unitOfTime: 'months', toDate: true }),
+            ]),
+        ).not.toThrow();
+        expect(() =>
+            validateFilterRules(mockOrdersExplore, [
+                currentRule({
+                    unitOfTime: 'quarters',
+                    toDate: true,
+                    excludeToday: true,
+                }),
+            ]),
+        ).not.toThrow();
+
+        for (const settings of [
+            { unitOfTime: 'months', excludeToday: true },
+            { unitOfTime: 'days', toDate: true },
+            { unitOfTime: 'months', toDate: false },
+        ]) {
+            expect(getValidationMessage(currentRule(settings))).toContain(
+                'optional toDate=true only with weeks, months, quarters, or years, and excludeToday=true only with toDate',
+            );
+        }
     });
 });

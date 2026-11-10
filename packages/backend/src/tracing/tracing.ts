@@ -21,6 +21,7 @@ import type {
     Link,
     Span as OtelSpan,
     SpanKind,
+    Tracer,
 } from '@opentelemetry/api';
 import {
     context,
@@ -29,6 +30,7 @@ import {
     propagation,
     SpanStatusCode,
     trace,
+    TraceFlags,
 } from '@opentelemetry/api';
 import {
     CompositePropagator,
@@ -83,6 +85,7 @@ type TracingStrategy = {
     initialize(): void;
     shutdown(): Promise<void>;
     getActiveSpanId(): string | undefined;
+    getActiveTraceId(): string | undefined;
     getActiveSpanName(): string | undefined;
     getTraceHeaders(): TraceHeaders;
     continueTrace<T>(headers: TraceHeaders, callback: () => T): T;
@@ -93,6 +96,16 @@ type TracingStrategy = {
 };
 
 const serviceVersion = String(VERSION);
+
+// Only a sampled trace is exported, so an unsampled ID would send callers
+// looking for a trace that does not exist in their store.
+const getSampledTraceId = (
+    spanContext: ReturnType<OtelSpan['spanContext']> | undefined,
+): string | undefined =>
+    // eslint-disable-next-line no-bitwise
+    spanContext && (spanContext.traceFlags & TraceFlags.SAMPLED) !== 0
+        ? spanContext.traceId
+        : undefined;
 
 const parseBoolean = (value: string | undefined) => value === 'true';
 
@@ -475,6 +488,10 @@ class SentryTracingStrategy implements TracingStrategy {
         return this.sentry.getActiveSpan()?.spanContext().spanId;
     }
 
+    getActiveTraceId(): string | undefined {
+        return getSampledTraceId(this.sentry.getActiveSpan()?.spanContext());
+    }
+
     getActiveSpanName(): string | undefined {
         const span = this.sentry.getActiveSpan();
         return span ? this.sentry.spanToJSON(span).description : undefined;
@@ -531,6 +548,26 @@ const isIgnoredIncomingRequest = (
     );
 };
 
+/**
+ * instrumentation-knex names a span `${operation} ${db}.${table}`, falling
+ * back to `${db}` alone for schema-builder queries (knex.schema.hasTable),
+ * which carry no `method`. `db` is knex's `connection.database`, and that is
+ * undefined whenever the connection is configured from PG* env vars rather
+ * than PGCONNECTIONURI (docker-compose, Cloud). The OTLP protobuf serializer
+ * (gRPC and http/protobuf) throws on an undefined span name and drops the
+ * whole batch, so give those spans a name before they reach the SDK.
+ */
+class NamedKnexInstrumentation extends KnexInstrumentation {
+    protected get tracer(): Tracer {
+        const tracer = super.tracer;
+        // Prototype-chain wrapper: the SDK's startActiveSpan calls
+        // this.startSpan, so it routes through the override too.
+        const startSpan: Tracer['startSpan'] = (name, ...rest) =>
+            tracer.startSpan(name || 'knex', ...rest);
+        return Object.assign(Object.create(tracer) as Tracer, { startSpan });
+    }
+}
+
 export const createOtelInstrumentations = () => [
     new HttpInstrumentation({
         ignoreIncomingRequestHook: (req) =>
@@ -546,7 +583,7 @@ export const createOtelInstrumentations = () => [
     }),
     ...(otelDatabaseTracingEnabled()
         ? [
-              new KnexInstrumentation({
+              new NamedKnexInstrumentation({
                   requireParentSpan: true,
                   maxQueryLength: getOtelDatabaseTraceMaxQueryLength(),
               }),
@@ -623,6 +660,12 @@ class OtelTracingStrategy implements TracingStrategy {
     getActiveSpanId(): string | undefined {
         return this.isEnabled()
             ? trace.getActiveSpan()?.spanContext().spanId
+            : undefined;
+    }
+
+    getActiveTraceId(): string | undefined {
+        return this.isEnabled()
+            ? getSampledTraceId(trace.getActiveSpan()?.spanContext())
             : undefined;
     }
 
@@ -767,6 +810,10 @@ class TracingService {
         return this.strategy.getActiveSpanId();
     }
 
+    getActiveTraceId(): string | undefined {
+        return this.strategy.getActiveTraceId();
+    }
+
     getActiveSpanName(): string | undefined {
         return this.strategy.getActiveSpanName();
     }
@@ -804,6 +851,8 @@ export const initOtelTracing = () => tracingService.initialize();
 export const shutdownOtelTracing = async () => tracingService.shutdown();
 
 export const getActiveSpanId = () => tracingService.getActiveSpanId();
+
+export const getActiveTraceId = () => tracingService.getActiveTraceId();
 
 export const getActiveSpanName = () => tracingService.getActiveSpanName();
 

@@ -1,3 +1,4 @@
+import { getDocumentUrl } from '@lightdash/common';
 import {
     Alert,
     Box,
@@ -28,7 +29,6 @@ import { Link } from 'react-router';
 import { type StreamdownProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { DeepResearchBetaBadge } from '../../deepResearch/DeepResearchBetaBadge';
 import {
     getDeepResearchReportPreview,
     isDeepResearchRunTerminal,
@@ -38,6 +38,7 @@ import {
     useCancelDeepResearchMutation,
     useTrackDeepResearchReportEngagement,
 } from '../../hooks/useDeepResearch';
+import { AiDocumentCardButton } from '../ChatElements/AiDocumentCardButton';
 import styles from './DeepResearchRunCard.module.css';
 
 const PreviewLink: FC<AnchorHTMLAttributes<HTMLAnchorElement>> = ({
@@ -136,18 +137,15 @@ export const DeepResearchRunHeading = ({
                     color="currentColor"
                     className={styles.metaText}
                 />
-                <Group gap="xs" align="baseline" wrap="nowrap">
-                    <Text
-                        size="xs"
-                        fw={600}
-                        ff="monospace"
-                        tt="uppercase"
-                        className={styles.eyebrow}
-                    >
-                        Deep research
-                    </Text>
-                    <DeepResearchBetaBadge />
-                </Group>
+                <Text
+                    size="xs"
+                    fw={600}
+                    ff="monospace"
+                    tt="uppercase"
+                    className={styles.eyebrow}
+                >
+                    Deep research
+                </Text>
                 <Box className={styles.metaSeparator} />
                 <Group className={styles.statusMeta} gap={6} wrap="nowrap">
                     <Text size="xs" className={styles.metaText}>
@@ -203,8 +201,28 @@ export const DeepResearchRunCard = ({
         }
     }, [announcedStatus, run.status]);
 
-    const hasReport = !!run.resultMarkdown;
-    const isReportExpired = run.isReportExpired;
+    const hasDocument = run.document !== null;
+    const hasReport = !hasDocument && !!run.resultMarkdown;
+    // A published Document outlives the run's report retention.
+    const isReportExpired = !hasDocument && run.isReportExpired;
+    const trackReportOpened = () => {
+        if (
+            run.status === 'completed' ||
+            run.status === 'partially_completed' ||
+            run.status === 'failed' ||
+            run.status === 'cancelled'
+        ) {
+            trackReportEngagement('opened', {
+                aiDeepResearchRunUuid: run.uuid,
+                projectUuid: run.projectUuid,
+                agentUuid: run.agentUuid,
+                aiThreadUuid: run.threadUuid,
+                status: run.status,
+                completedAt: run.completedAt,
+                updatedAt: run.updatedAt,
+            });
+        }
+    };
     const isTerminal = isDeepResearchRunTerminal(run.status);
     const elapsedMs = useElapsedMs(run, isTerminal);
     const isActionRequired = !!run.actionRequired;
@@ -300,7 +318,7 @@ export const DeepResearchRunCard = ({
 
                 {canShowActionRequired && run.actionRequired && (
                     <Alert
-                        color="yellow"
+                        color="orange"
                         icon={<IconPlugConnected size={16} />}
                     >
                         <Stack gap="sm">
@@ -383,7 +401,7 @@ export const DeepResearchRunCard = ({
                 )}
 
                 {run.status === 'partially_completed' && !isReportExpired && (
-                    <Alert color="yellow" icon={<IconAlertCircle size={16} />}>
+                    <Alert color="orange" icon={<IconAlertCircle size={16} />}>
                         This report is incomplete. Completed queries and
                         available findings are saved below.
                     </Alert>
@@ -419,6 +437,25 @@ export const DeepResearchRunCard = ({
                     </Paper>
                 )}
 
+                {run.document && (
+                    <AiDocumentCardButton
+                        projectUuid={run.projectUuid}
+                        agentUuid={run.agentUuid}
+                        threadUuid={run.threadUuid}
+                        messageUuid={run.promptUuid}
+                        document={{
+                            uuid: run.document.documentUuid,
+                            name: run.document.name,
+                            href: getDocumentUrl(
+                                run.projectUuid,
+                                run.document.documentUuid,
+                                run.document.slug,
+                            ),
+                        }}
+                        onOpen={trackReportOpened}
+                    />
+                )}
+
                 {hasReport && (
                     <Paper className={styles.answer} p="lg" radius="sm">
                         <Stack gap="md">
@@ -451,24 +488,7 @@ export const DeepResearchRunCard = ({
                                 // Anchor for scope walkthroughs (data-tour-via)
                                 data-tour-anchor="research-report-open"
                                 data-tour-hint="Open the full report"
-                                onClick={() => {
-                                    if (
-                                        run.status === 'completed' ||
-                                        run.status === 'partially_completed' ||
-                                        run.status === 'failed' ||
-                                        run.status === 'cancelled'
-                                    ) {
-                                        trackReportEngagement('opened', {
-                                            aiDeepResearchRunUuid: run.uuid,
-                                            projectUuid: run.projectUuid,
-                                            agentUuid: run.agentUuid,
-                                            aiThreadUuid: run.threadUuid,
-                                            status: run.status,
-                                            completedAt: run.completedAt,
-                                            updatedAt: run.updatedAt,
-                                        });
-                                    }
-                                }}
+                                onClick={trackReportOpened}
                             >
                                 View full report
                             </Button>

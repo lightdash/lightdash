@@ -8,9 +8,15 @@ export type ProjectFormContext = {
     // fields inherited from the project (dbt version, warehouse schema).
     isDbtSource?: boolean;
     isProjectExtraConnection?: boolean;
+    inheritsPrimaryCredentialRequirement?: boolean;
+    primaryRequiresUserCredentials?: boolean;
     // Set with isDbtSource: the project the source is being added to, for the
     // fields that read the project's own warehouse connection.
     projectUuid?: string;
+    warehouseConnectionUuid?: string | null;
+    dbtSourceWarehouseConnectionUuid?: string | null;
+    // Onboarding: GitHub OAuth shows only the sign-in until it is connected
+    revealAfterSignIn?: boolean;
 };
 
 const Context = createContext<ProjectFormContext | undefined>(undefined);

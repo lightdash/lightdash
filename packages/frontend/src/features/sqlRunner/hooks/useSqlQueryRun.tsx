@@ -9,6 +9,7 @@ import { useMutation, type UseMutationOptions } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 import { SHARED_SIGN_IN_RECONNECTED } from '../../../hooks/useReconnectSharedSignIn';
 import { reportSharedSignInQueryFailure } from '../../../hooks/useReconnectSharedSignIn';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { executeSqlQuery } from '../../queryRunner/executeQuery';
 import { useAppSelector } from '../store/hooks';
 import { selectConnectionUuid } from '../store/sqlRunnerSlice';
@@ -18,6 +19,7 @@ export type ResultsAndColumns = {
     fileUrl: string | undefined;
     results: RawResultRow[];
     columns: VizColumn[];
+    durationMs: number | null;
 };
 
 type UseSqlQueryRunParams = {
@@ -38,6 +40,7 @@ export const useSqlQueryRun = (
         UseSqlQueryRunParams
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
     const warehouseConnectionUuid = useAppSelector(selectConnectionUuid);
     const lastFailedRun = useRef<UseSqlQueryRunParams | null>(null);
     const mutation = useMutation<
@@ -47,6 +50,7 @@ export const useSqlQueryRun = (
     >(
         async ({ sql, limit, parameterValues }) =>
             executeSqlQuery(
+                lightdashApi,
                 projectUuid,
                 sql,
                 limit,

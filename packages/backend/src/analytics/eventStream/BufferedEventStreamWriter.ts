@@ -6,6 +6,7 @@ import { S3BaseClient } from '../../clients/Aws/S3BaseClient';
 import { S3Config } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
+import { runWithConcurrency } from '../../utils/runWithConcurrency';
 import { EventStreamRow, EventStreamWriter } from './types';
 
 const gzipAsync = promisify(gzip);
@@ -148,8 +149,8 @@ export class BufferedEventStreamWriter
             }
         });
 
-        await Promise.all(
-            Array.from(groups.values(), (group) => this.putGroup(group)),
+        await runWithConcurrency(Array.from(groups.values()), 8, (group) =>
+            this.putGroup(group),
         );
     }
 

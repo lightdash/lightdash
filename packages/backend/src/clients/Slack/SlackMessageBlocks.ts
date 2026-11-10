@@ -850,6 +850,7 @@ export type Unfurl = {
     pageType: LightdashPage;
     minimalUrl: string;
     organizationUuid: string;
+    projectUuid: string | undefined;
     resourceUuid: string | undefined;
     chartTileUuids?: (string | null)[];
     sqlChartTileUuids?: (string | null)[];

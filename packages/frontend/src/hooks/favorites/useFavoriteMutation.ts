@@ -4,10 +4,17 @@ import {
     type ToggleFavoriteResponse,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useToaster from '../toaster/useToaster';
 
+export type FavoriteMutationVariables = {
+    contentType: ContentType;
+    contentUuid: string;
+};
+
 const toggleFavorite = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     contentType: ContentType,
     contentUuid: string,
@@ -19,20 +26,26 @@ const toggleFavorite = async (
     });
 
 export const useFavoriteMutation = (projectUuid: string | undefined) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
 
     return useMutation<
         ToggleFavoriteResponse,
         ApiError,
-        { contentType: ContentType; contentUuid: string }
+        FavoriteMutationVariables
     >({
-        mutationKey: ['favorite_toggle'],
+        mutationKey: ['favorite_toggle', projectUuid],
         mutationFn: ({ contentType, contentUuid }) => {
             if (!projectUuid) {
                 return Promise.reject(new Error('No project UUID'));
             }
-            return toggleFavorite(projectUuid, contentType, contentUuid);
+            return toggleFavorite(
+                lightdashApi,
+                projectUuid,
+                contentType,
+                contentUuid,
+            );
         },
         onSuccess: async (data) => {
             await queryClient.invalidateQueries(['favorites', projectUuid]);

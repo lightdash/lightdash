@@ -10,7 +10,8 @@ import {
     type DataAppCreationExperience,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type IterateAppParams = {
     projectUuid: string;
@@ -29,20 +30,23 @@ type IterateAppParams = {
 
 type IterateAppResult = ApiGenerateAppResponse['results'];
 
-const iterateApp = async ({
-    projectUuid,
-    appUuid,
-    prompt,
-    vizContext,
-    creationExperience,
-    fileIds,
-    charts,
-    dashboard,
-    claudeModel,
-    codexModel,
-    externalConnections,
-    designUuid,
-}: IterateAppParams): Promise<IterateAppResult> => {
+const iterateApp = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        appUuid,
+        prompt,
+        vizContext,
+        creationExperience,
+        fileIds,
+        charts,
+        dashboard,
+        claudeModel,
+        codexModel,
+        externalConnections,
+        designUuid,
+    }: IterateAppParams,
+): Promise<IterateAppResult> => {
     const data = await lightdashApi<IterateAppResult>({
         method: 'POST',
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/versions`,
@@ -62,7 +66,9 @@ const iterateApp = async ({
     return data;
 };
 
-export const useIterateApp = () =>
-    useMutation<IterateAppResult, ApiError, IterateAppParams>({
-        mutationFn: iterateApp,
+export const useIterateApp = () => {
+    const lightdashApi = useLightdashApi();
+    return useMutation<IterateAppResult, ApiError, IterateAppParams>({
+        mutationFn: (args: IterateAppParams) => iterateApp(lightdashApi, args),
     });
+};

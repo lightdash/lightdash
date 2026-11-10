@@ -96,7 +96,9 @@ export const DISTILL_TOOL_POLICIES = {
     runSavedChart: { result: shape(), args: truncateSql(SQL_ARG_LIMIT) },
     runContentQuery: { result: shape(), args: truncateSql(SQL_ARG_LIMIT) },
     runSql: { result: shape(), args: truncateSql(SQL_ARG_LIMIT) },
+    query: { result: shape() },
     runComposerQueries: { result: shape() },
+    visualize: { result: keep },
     generateVisualization: { result: shapeRows(DEFAULT_TOOL_RESULT_LIMIT) },
     exportChartAsCode: { result: omitResult('derived chart configuration') },
     getDashboardCharts: { result: shapeRows(DEFAULT_TOOL_RESULT_LIMIT) },
@@ -114,6 +116,7 @@ export const DISTILL_TOOL_POLICIES = {
     generateDataApp: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
     iterateDataApp: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
     listDataAppThemes: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
+    listDataAppConnections: { result: truncate(SHORT_TOOL_RESULT_LIMIT) },
     editDbtProject: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     syncDbtProject: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     setupPreviewDeploy: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
@@ -123,6 +126,8 @@ export const DISTILL_TOOL_POLICIES = {
     // Legacy persisted tool; keep past-thread distillation bounded and quiet.
     improveContext: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     editProjectContext: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
+    proposeSemanticLayerChange: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
+    readSemanticModel: { result: truncate(DEFAULT_TOOL_RESULT_LIMIT) },
     updateUserName: { result: keep },
     submitResearchReport: { result: truncate(RESEARCH_REPORT_RESULT_LIMIT) },
     delegateResearchTask: {

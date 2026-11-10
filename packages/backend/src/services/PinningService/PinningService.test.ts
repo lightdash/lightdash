@@ -4,6 +4,7 @@ import {
     getUserAbilityBuilder,
     NotFoundError,
     OrganizationMemberRole,
+    ParameterError,
     ResourceViewItemType,
     SpaceMemberRole,
     type RegisteredAccount,
@@ -110,6 +111,11 @@ const setup = () => {
         }),
     };
     const documentService = new DocumentService({
+        contentVerificationModel: {
+            getByContent: vi.fn().mockResolvedValue(null),
+            verify: vi.fn(),
+            unverify: vi.fn(),
+        },
         documentModel,
         featureFlagModel,
         projectModel,
@@ -219,6 +225,18 @@ describe('Document pins', () => {
         ]);
     });
 
+    it('refuses to pin a personal Document', async () => {
+        const { service, documentModel, pinnedListModel } = setup();
+        documentModel.getBySlug.mockResolvedValueOnce({
+            ...document,
+            spaceUuid: null,
+        });
+        await expect(
+            service.toggleDocumentPin(accountFor(), projectUuid, document.slug),
+        ).rejects.toThrow(ParameterError);
+        expect(pinnedListModel.addItem).not.toHaveBeenCalled();
+    });
+
     it('denies pin mutations to a document reader without manage PinnedItems', async () => {
         const { service, pinnedListModel } = setup();
         await expect(
@@ -271,26 +289,6 @@ describe('Document pins', () => {
                 },
             },
         ]);
-    });
-
-    it('hides pins and rejects pin/reorder mutations when Documents is disabled', async () => {
-        const { service, featureFlagModel, pinnedListModel } = setup();
-        featureFlagModel.get.mockResolvedValue({ enabled: false });
-        await expect(
-            service.getPinnedItems(accountFor(), projectUuid, pinnedListUuid),
-        ).resolves.toEqual([]);
-        await expect(
-            service.toggleDocumentPin(accountFor(), projectUuid, document.slug),
-        ).rejects.toThrow(ForbiddenError);
-        await expect(
-            service.updatePinnedItemsOrder(
-                accountFor(),
-                projectUuid,
-                pinnedListUuid,
-                [pinnedDocument],
-            ),
-        ).rejects.toThrow(ForbiddenError);
-        expect(pinnedListModel.updatePinnedItemsOrder).not.toHaveBeenCalled();
     });
 
     it('omits deleted Documents and rejects reordering stale membership', async () => {

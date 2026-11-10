@@ -31,6 +31,7 @@ import { getWarehouseIcon } from '../ProjectConnectFlow/utils';
 import { useProjectFormContext } from '../useProjectFormContext';
 import DataTimezoneField from './DataTimezoneField';
 import { DatabricksDefaultValues } from './defaultValues';
+import { useFieldHint } from './useFieldHint';
 import { getSsoLabel, PERSONAL_ACCESS_TOKEN_LABEL } from './util';
 import styles from './WarehouseButtons.module.css';
 
@@ -106,6 +107,7 @@ const DatabricksSSOInput: FC<{
 const DatabricksForm: FC<{
     disabled: boolean;
 }> = ({ disabled }) => {
+    const fieldHint = useFieldHint();
     const form = useFormContext();
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
@@ -230,7 +232,7 @@ const DatabricksForm: FC<{
                     required
                     disabled={disabled}
                     placeholder="xxxx.gcp.databricks.com"
-                    labelProps={{ style: { marginTop: '8px' } }}
+                    labelProps={{ mt: 'xs' }}
                 />
                 <TextInput
                     name="warehouse.httpPath"
@@ -372,7 +374,7 @@ const DatabricksForm: FC<{
                     name="warehouse.catalog"
                     {...form.getInputProps('warehouse.catalog')}
                     label="Catalog name"
-                    description="This is the catalog name."
+                    description={fieldHint('This is the catalog name.')}
                     required
                     disabled={disabled}
                 />
@@ -434,9 +436,6 @@ const DatabricksForm: FC<{
                                                     onClick={() =>
                                                         removeCompute(index)
                                                     }
-                                                    style={{
-                                                        flexGrow: 0,
-                                                    }}
                                                 >
                                                     <MantineIcon
                                                         icon={IconTrash}
@@ -448,10 +447,7 @@ const DatabricksForm: FC<{
                                     <Button
                                         variant="default"
                                         size="xs"
-                                        style={(theme) => ({
-                                            alignSelf: 'flex-end',
-                                            boxShadow: theme.shadows.subtle,
-                                        })}
+                                        className={styles.addComputeButton}
                                         leftSection={
                                             <MantineIcon icon={IconPlus} />
                                         }

@@ -25,7 +25,6 @@ export const ToolCallIcon: FC<Props> = ({
     size = 13,
     stroke = 1.6,
     className,
-    style,
     mcpServer,
     ...dataAttributes
 }) => {
@@ -53,7 +52,6 @@ export const ToolCallIcon: FC<Props> = ({
             component="span"
             aria-hidden
             className={`${styles.mcpIcon} ${className ?? ''}`}
-            style={style}
             data-provider={displayMetadata.kind}
             data-has-image={shouldShowFavicon ? 'true' : 'false'}
             {...dataAttributes}

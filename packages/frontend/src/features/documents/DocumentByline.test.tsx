@@ -51,6 +51,26 @@ describe('DocumentByline', () => {
         expect(screen.getByText('Owned by ada@example.com')).toBeVisible();
     });
 
+    it('marks a personal Document', () => {
+        render(
+            <MantineProvider>
+                <DocumentByline document={{ ...document, spaceUuid: null }} />
+            </MantineProvider>,
+        );
+        expect(screen.getByText('Personal')).toBeVisible();
+    });
+
+    it('omits the personal mark for a Document in a Space', () => {
+        render(
+            <MantineProvider>
+                <DocumentByline
+                    document={{ ...document, spaceUuid: 'space' }}
+                />
+            </MantineProvider>,
+        );
+        expect(screen.queryByText('Personal')).not.toBeInTheDocument();
+    });
+
     it('omits ownership for an unowned Document', () => {
         renderByline(null);
         expect(screen.queryByText(/Owned by/)).not.toBeInTheDocument();

@@ -5,7 +5,6 @@ import {
     AiAgentAdminMemorySort,
     AiAgentAdminSort,
     AiAgentReviewItemStatus,
-    AiAgentReviewReplayCaptureRequest,
     ApiAiAgentAdminConversationsResponse,
     ApiAiAgentAdminEvalPromptsResponse,
     ApiAiAgentAdminEvalsResponse,
@@ -15,7 +14,6 @@ import {
     ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemResponse,
     ApiAiAgentReviewItemsResponse,
-    ApiAiAgentReviewReplayCaptureResponse,
     ApiAiAgentReviewSignalsResponse,
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadDumpResponse,
@@ -72,6 +70,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -92,7 +91,11 @@ export class AiAgentAdminController extends BaseController {
      * Get all AI agent threads for admin
      * @summary List AI agent threads
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentAdminController.getAllThreads'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/threads')
     @OperationId('getAllThreads')
@@ -191,6 +194,7 @@ export class AiAgentAdminController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('AiAgentAdminController.deleteThread'),
     ])
     @SuccessResponse('200', 'Success')
     @Delete('/threads/{threadUuid}')
@@ -215,7 +219,11 @@ export class AiAgentAdminController extends BaseController {
      * Get all AI agent evaluations for admin
      * @summary List AI agent evaluations
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentAdminController.getAllEvals'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/evals')
     @OperationId('getAllEvals')
@@ -268,7 +276,13 @@ export class AiAgentAdminController extends BaseController {
      * Get the prompts of an AI agent evaluation for admin
      * @summary List AI agent evaluation prompts
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentAdminController.getAdminEvalPrompts',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/evals/{evalUuid}/prompts')
     @OperationId('getAdminEvalPrompts')
@@ -293,7 +307,11 @@ export class AiAgentAdminController extends BaseController {
      * Get MCP tool call activity for admin
      * @summary List MCP activity
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentAdminController.getMcpActivity'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/mcp-activity')
     @OperationId('getMcpActivity')
@@ -363,7 +381,13 @@ export class AiAgentAdminController extends BaseController {
      * Get aggregated MCP tool call stats for admin
      * @summary Get MCP activity stats
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentAdminController.getMcpActivityStats',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/mcp-activity/stats')
     @OperationId('getMcpActivityStats')
@@ -410,7 +434,13 @@ export class AiAgentAdminController extends BaseController {
      * Get prompt activity for one project
      * @summary Get project AI agent prompt activity
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentAdminController.getProjectPromptActivity',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/projects/{projectUuid}/prompt-activity')
     @OperationId('getProjectPromptActivity')
@@ -435,7 +465,11 @@ export class AiAgentAdminController extends BaseController {
      * Get all AI agents for admin
      * @summary List AI agents
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentAdminController.getAllAgents'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/agents')
     @OperationId('getAllAgents')
@@ -456,7 +490,13 @@ export class AiAgentAdminController extends BaseController {
      * Get all AI agent memories for admin
      * @summary List AI agent memories
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentAdminController.getAllAiAgentMemories',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/memories')
     @OperationId('getAllAiAgentMemories')
@@ -513,7 +553,11 @@ export class AiAgentAdminController extends BaseController {
      * Get AI agent classifier review items for admin
      * @summary List AI agent review items
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentAdminController.getReviewItems'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/review-items')
     @OperationId('getAiAgentReviewItems')
@@ -567,7 +611,11 @@ export class AiAgentAdminController extends BaseController {
      * Get a single AI agent review item (lightweight, for polling progress)
      * @summary Get AI agent review item
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentAdminController.getReviewItem'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/review-items/{fingerprint}')
     @OperationId('getAiAgentReviewItem')
@@ -587,35 +635,16 @@ export class AiAgentAdminController extends BaseController {
     }
 
     /**
-     * Rebuild judge replay inputs for historical review signals so the eval
-     * scoreboard can replay the judge offline. Read-only; feature-flag gated.
-     * @summary Capture AI review judge replay inputs
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Post('/review-replay-capture')
-    @OperationId('captureAiAgentReviewReplayInputs')
-    async captureReviewReplayInputs(
-        @Request() req: express.Request,
-        @Body() body: AiAgentReviewReplayCaptureRequest,
-    ): Promise<ApiAiAgentReviewReplayCaptureResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results:
-                await this.getAiAgentAdminService().captureReviewReplayInputs(
-                    toSessionUser(req.account),
-                    body,
-                ),
-        };
-    }
-
-    /**
      * Get the remediation activity feed for a review item
      * @summary Get AI agent review item activity
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentAdminController.getReviewItemActivity',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/review-items/{fingerprint}/activity')
     @OperationId('getAiAgentReviewItemActivity')
@@ -638,7 +667,13 @@ export class AiAgentAdminController extends BaseController {
      * Get the file diff of the pull request linked to a review item
      * @summary Get AI agent review item PR diff
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentAdminController.getReviewItemPrDiff',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/review-items/{fingerprint}/pr-diff')
     @OperationId('getAiAgentReviewItemPrDiff')
@@ -661,7 +696,13 @@ export class AiAgentAdminController extends BaseController {
      * Get the review item linked to a remediation preview work thread
      * @summary Get AI agent review item by preview thread
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentAdminController.getReviewItemByPreviewThread',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/review-items/by-preview-thread/{threadUuid}')
     @OperationId('getAiAgentReviewItemByPreviewThread')
@@ -883,7 +924,13 @@ export class AiAgentAdminController extends BaseController {
      * Only project_context findings have a deterministic diff.
      * @summary Preview AI agent review item writeback diff
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentAdminController.getReviewItemWritebackPreview',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/review-items/{fingerprint}/writeback-preview')
     @OperationId('getAiAgentReviewItemWritebackPreview')
@@ -1242,7 +1289,11 @@ export class AiAgentAdminController extends BaseController {
      * Get AI organization settings
      * @summary Get AI settings
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentAdminController.getSettings'),
+    ])
     @SuccessResponse('200', 'Retrieved AI organization settings')
     @Get('/settings')
     @OperationId('getAiOrganizationSettings')
@@ -1297,6 +1348,7 @@ export class AiAgentAdminController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('AiAgentAdminController.upsertSettings'),
     ])
     @SuccessResponse('200', 'Updated AI organization settings')
     @Patch('/settings')
@@ -1308,7 +1360,7 @@ export class AiAgentAdminController extends BaseController {
         assertRegisteredAccount(req.account);
         const settings =
             await this.getAiOrganizationSettingsService().upsertSettings(
-                toSessionUser(req.account),
+                req.account,
                 body,
             );
 

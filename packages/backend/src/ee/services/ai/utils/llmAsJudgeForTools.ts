@@ -1,11 +1,11 @@
 import {
     agentToolDefinitionsByName,
-    isToolName,
+    isAgentToolName,
     type ToolName,
 } from '@lightdash/common';
 import { generateText, Output } from 'ai';
 import { JSONDiff } from 'autoevals';
-import { compact, differenceWith } from 'lodash';
+import { compact, differenceWith } from 'es-toolkit/compat';
 import { z } from 'zod';
 import {
     emitAiUsage,
@@ -51,7 +51,9 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     runContentQuery: 'run_content_query',
     runSavedChart: 'run_saved_chart',
     runSql: 'run_sql',
+    query: 'query',
     runComposerQueries: 'run_composer_queries',
+    visualize: 'visualize',
     listWarehouseTables: 'list_warehouse_tables',
     describeWarehouseTable: 'describe_warehouse_table',
     listKnowledgeDocuments: 'list_knowledge_documents',
@@ -64,8 +66,11 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     generateDataApp: 'generate_data_app',
     iterateDataApp: 'iterate_data_app',
     listDataAppThemes: 'list_data_app_themes',
+    listDataAppConnections: 'list_data_app_connections',
     editDbtProject: 'edit_dbt_project',
     editProjectContext: 'edit_project_context',
+    proposeSemanticLayerChange: 'propose_semantic_layer_change',
+    readSemanticModel: 'read_semantic_model',
     editRepo: 'edit_repo',
     syncDbtProject: 'sync_dbt_project',
     exploreRepo: 'explore_repo',
@@ -73,14 +78,13 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     listWorkstreams: 'list_workstreams',
     closePullRequest: 'close_pull_request',
     getPullRequestDiff: 'get_pull_request_diff',
-    setupPreviewDeploy: 'setup_preview_deploy',
     submitResearchReport: 'submit_research_report',
     delegateResearchTask: 'delegate_research_task',
     submitWorkerFindings: 'submit_worker_findings',
 } satisfies Record<ToolName, string>;
 
 const getToolInfo = (toolName: string) => {
-    if (!isToolName(toolName)) {
+    if (!isAgentToolName(toolName)) {
         throw new Error(`Tool ${toolName} is not a valid tool`);
     }
     return agentToolDefinitionsByName[toolName].inputSchema;

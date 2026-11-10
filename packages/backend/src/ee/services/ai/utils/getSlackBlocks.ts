@@ -1,4 +1,7 @@
 import {
+    AiAccessRefusal,
+    AiAccessRefusalAction,
+    AiAccessRefusalReason,
     AiAgent,
     AiAgentMessageAssistantArtifact,
     AiAgentToolResult,
@@ -11,17 +14,19 @@ import {
     getWebAiChartConfig,
     isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
+    isComposerSlackImageVizConfig,
     isToolEditDbtProjectResult,
-    isToolSetupPreviewDeployResult,
     NotFoundError,
     parseVizConfig,
     SlackPrompt,
+    stripNodeCitations,
     type ChartConfig,
+    type ComposerBigNumber,
     type DataAppVizField,
     type Explore,
 } from '@lightdash/common';
 import { Block, KnownBlock } from '@slack/bolt';
-import { partition } from 'lodash';
+import { partition } from 'es-toolkit/compat';
 import type { SlackStreamChunk } from '../../../../clients/Slack/SlackClient';
 import { stripMemoryCitations } from './memoryCitation';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
@@ -29,6 +34,87 @@ import {
     deduplicateSlackArtifacts,
     getLegacySlackArtifactImage,
 } from './slackArtifactIdentity';
+import { getSlackArtifactCardBlockId } from './slackArtifactImages';
+
+const isEligibleSlackAiAccessRefusal = (refusal: AiAccessRefusal): boolean =>
+    (refusal.action === AiAccessRefusalAction.SIGN_IN &&
+        typeof refusal.connectUrl === 'string' &&
+        refusal.connectUrl.trim().length > 0) ||
+    (refusal.action === AiAccessRefusalAction.ASK_ADMIN &&
+        typeof refusal.settingsUrl === 'string' &&
+        refusal.settingsUrl.trim().length > 0);
+
+export const selectSlackAiAccessRefusal = (
+    current: AiAccessRefusal | null,
+    incoming: AiAccessRefusal,
+): AiAccessRefusal | null => {
+    if (!isEligibleSlackAiAccessRefusal(incoming)) return current;
+    if (
+        current === null ||
+        (current.action === AiAccessRefusalAction.ASK_ADMIN &&
+            incoming.action === AiAccessRefusalAction.SIGN_IN)
+    ) {
+        return incoming;
+    }
+    return current;
+};
+
+export const getSlackAiAccessRefusalMessage = (
+    refusal: AiAccessRefusal,
+): string =>
+    refusal.action === AiAccessRefusalAction.SIGN_IN &&
+    refusal.reason !== AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED
+        ? 'I need you to sign in to Snowflake before I can run this. It takes about 30 seconds. Then ask me again.'
+        : refusal.message;
+
+export const getAiAccessRefusalBlocks = (
+    refusal: AiAccessRefusal | null,
+    siteUrl: string,
+): KnownBlock[] => {
+    if (refusal === null || !isEligibleSlackAiAccessRefusal(refusal)) return [];
+    const isSignIn = refusal.action === AiAccessRefusalAction.SIGN_IN;
+    const isProjectServiceAccountRefusal =
+        refusal.reason === AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING ||
+        refusal.reason === AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID;
+    const connectLabel =
+        refusal.reason === AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED
+            ? 'Connect your Slack account'
+            : 'Connect agent';
+    const settingsLabel = isProjectServiceAccountRefusal
+        ? 'Open project agent settings'
+        : 'Open agent settings';
+    const refusalUrl = isSignIn ? refusal.connectUrl : refusal.settingsUrl;
+    if (refusalUrl === null) return [];
+    const url =
+        !isSignIn && !URL.canParse(refusalUrl)
+            ? new URL(refusalUrl, siteUrl).href
+            : refusalUrl;
+    return [
+        {
+            type: 'section',
+            text: {
+                type: 'plain_text',
+                text: getSlackAiAccessRefusalMessage(refusal),
+            },
+        },
+        {
+            type: 'actions',
+            elements: [
+                {
+                    type: 'button',
+                    action_id: isSignIn
+                        ? 'ai_access_connect'
+                        : 'ai_access_settings',
+                    text: {
+                        type: 'plain_text',
+                        text: isSignIn ? connectLabel : settingsLabel,
+                    },
+                    url,
+                },
+            ],
+        },
+    ];
+};
 
 const SLACK_SECTION_TEXT_LIMIT = 3000;
 
@@ -94,6 +180,10 @@ export const getTextBlocks = (
         },
     }));
 
+/** Slack renders neither memory nor node citations. */
+export const stripCitationsForSlack = (text: string): string =>
+    stripNodeCitations(stripMemoryCitations(text));
+
 /**
  * Converts standard markdown into Slack `markdown` blocks. Unlike `mrkdwn`
  * inside a section block, the markdown block natively renders GitHub-flavoured
@@ -102,7 +192,7 @@ export const getTextBlocks = (
  * Pass the agent's raw markdown response here — no slackifyMarkdown needed.
  */
 export const getMarkdownBlocks = (text: string): (Block | KnownBlock)[] =>
-    chunkSlackText(stripMemoryCitations(text)).map(
+    chunkSlackText(stripCitationsForSlack(text)).map(
         (chunk) =>
             ({
                 type: 'markdown',
@@ -194,7 +284,6 @@ const TOOL_TASK_TITLES: Record<string, string> = {
     editContent: 'Updating content',
     editDbtProject: 'Opening dbt project PR',
     editRepo: 'Opening repository PR',
-    setupPreviewDeploy: 'Preparing preview deploy',
     listKnowledgeDocuments: 'Checking project knowledge',
     getKnowledgeDocumentContent: 'Reading project knowledge',
     readPinnedThread: 'Reading pinned conversation',
@@ -203,6 +292,7 @@ const TOOL_TASK_TITLES: Record<string, string> = {
     listProjects: 'Checking projects',
     getProjectInfo: 'Reading project',
     listDataAppThemes: 'Checking data app themes',
+    listDataAppConnections: 'Checking data app connections',
 };
 
 const truncateTaskText = (text: string, maxLength = 256) =>
@@ -338,6 +428,7 @@ export const buildSlackTaskUpdate = ({
 
 export const buildFeedbackContextActions = (
     promptUuid: string,
+    threadUrl: string,
 ): (Block | KnownBlock)[] => [
     {
         block_id: 'prompt_human_score',
@@ -371,6 +462,15 @@ export const buildFeedbackContextActions = (
             },
         ],
     } as unknown as Block,
+    {
+        type: 'context',
+        elements: [
+            {
+                type: 'mrkdwn',
+                text: `<${threadUrl}|Open agent thread>`,
+            },
+        ],
+    },
 ];
 
 /**
@@ -461,6 +561,9 @@ const parseGithubPrUrl = (prUrl: string) => {
         return undefined;
     }
 };
+
+export const escapeMrkdwn = (text: string) =>
+    text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 const buildSlackCardBlock = ({
     blockId,
@@ -561,6 +664,7 @@ export async function getModernArtifactCardBlocks(
         dataAppVizVersion?: number,
     ) => Promise<DataAppVizField[] | null>,
     enableFastDecisions = false,
+    bigNumbers: ReadonlyMap<string, ComposerBigNumber> = new Map(),
 ): Promise<(Block | KnownBlock)[]> {
     if (!artifacts || artifacts.length === 0) {
         return [];
@@ -838,6 +942,48 @@ export async function getModernArtifactCardBlocks(
                 });
             }
 
+            // Composer chart cards link to the thread; deferred delivery adds an image.
+            if (
+                isAiComposerChartArtifactConfig(artifact.chartConfig) &&
+                artifact.chartConfig.schemaVersion === 2 &&
+                agentUuid
+            ) {
+                const { vizConfig } = artifact.chartConfig;
+                const isTable = vizConfig?.type === 'table';
+                const threadButton = {
+                    type: 'button' as const,
+                    url: `${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}`,
+                    style: 'primary' as const,
+                    action_id: `actions.view_composer_card_button_click.${index}`,
+                    text: {
+                        type: 'plain_text' as const,
+                        text: 'Explore in Lightdash',
+                    },
+                };
+                const bigNumber = bigNumbers.get(artifact.versionUuid);
+                if (bigNumber) {
+                    return buildSlackCardBlock({
+                        blockId: `ai_agent_composer_card_${artifact.versionUuid}`,
+                        title: getArtifactTitle(artifact),
+                        body: `*${escapeMrkdwn(bigNumber.value)}*\n${escapeMrkdwn(bigNumber.label)}`,
+                        subtext: artifact.description || undefined,
+                        actions: [threadButton],
+                    });
+                }
+                return buildSlackCardBlock({
+                    blockId:
+                        vizConfig && isComposerSlackImageVizConfig(vizConfig)
+                            ? getSlackArtifactCardBlockId(artifact.versionUuid)
+                            : `ai_agent_composer_card_${artifact.versionUuid}`,
+                    title: getArtifactTitle(artifact),
+                    subtitle: isTable ? 'Table' : 'Chart',
+                    body:
+                        artifact.description ||
+                        `Open the thread to see this ${isTable ? 'table' : 'chart'}.`,
+                    actions: [threadButton],
+                });
+            }
+
             if (artifact.dashboardConfig && agentUuid) {
                 return buildSlackCardBlock({
                     blockId: `ai_agent_dashboard_card_${artifact.versionUuid}`,
@@ -990,6 +1136,8 @@ const ANSWER_PRODUCING_TOOLS = new Set([
     'runQuery',
     'runContentQuery',
     'runSql',
+    'query',
+    'runComposerQueries',
     'runSavedChart',
     'generateDashboard',
     'editDbtProject',
@@ -1139,37 +1287,6 @@ export function getModernPullRequestCardBlocks(
             );
             return;
         }
-
-        if (
-            isToolSetupPreviewDeployResult(result) &&
-            result.metadata.status === 'success' &&
-            result.metadata.prUrl
-        ) {
-            const pr = parseGithubPrUrl(result.metadata.prUrl);
-            cards.push(
-                buildSlackCardBlock({
-                    blockId: `ai_agent_preview_pr_card_${result.uuid}`,
-                    title: `Opened preview deploy PR${
-                        pr?.number ? ` #${pr.number}` : ''
-                    }`,
-                    subtitle: pr?.repository,
-                    body: 'Adds the Lightdash preview-project GitHub Actions workflow.',
-                    subtext: 'Add the required GitHub secrets before merging.',
-                    actions: [
-                        {
-                            type: 'button',
-                            url: result.metadata.prUrl,
-                            style: 'primary',
-                            action_id: `actions.view_preview_deploy_pr_card_button_click.${index}`,
-                            text: {
-                                type: 'plain_text',
-                                text: 'PR',
-                            },
-                        },
-                    ],
-                }),
-            );
-        }
     });
 
     return cards;
@@ -1312,83 +1429,6 @@ export function getAgentSelectionBlocks(args: {
                   }
                 : { options: buildAgentOptions(agents, buildValue) },
     });
-}
-
-// At or below this many projects we render quick-tap buttons; above it we fall
-// back to a dropdown to avoid a wall of buttons.
-const PROJECT_SELECTION_BUTTON_THRESHOLD = 3;
-
-export function getProjectSelectionBlocks(
-    projects: { projectUuid: string; name: string }[],
-    channelId: string,
-): (Block | KnownBlock)[] {
-    const promptBlock: Block | KnownBlock = {
-        type: 'section',
-        text: {
-            type: 'mrkdwn',
-            text: ':open_file_folder: *Which project would you like to use?*\n\nThis organization has multiple projects, so pick the one I should work in.',
-        },
-    };
-
-    // Slack caps static_select option values at 150 chars.
-    const buildSelectionValue = (project: {
-        projectUuid: string;
-        name: string;
-    }): string =>
-        JSON.stringify({
-            p: project.projectUuid,
-            c: channelId,
-            n: truncateSlackText(project.name, 50),
-        });
-
-    // Few projects: one button each for a single tap.
-    if (projects.length <= PROJECT_SELECTION_BUTTON_THRESHOLD) {
-        return [
-            promptBlock,
-            {
-                type: 'actions',
-                block_id: 'project_selection',
-                elements: projects.map((project, index) => ({
-                    type: 'button',
-                    // Unique per button; handler matches the select_project prefix.
-                    action_id: `select_project:${index}`,
-                    // Slack caps button text at 75 characters.
-                    text: {
-                        type: 'plain_text',
-                        text: truncateSlackText(project.name, 75),
-                    },
-                    value: buildSelectionValue(project),
-                })),
-            },
-        ];
-    }
-
-    // Many projects: a dropdown keeps the message compact.
-    return [
-        promptBlock,
-        {
-            type: 'actions',
-            block_id: 'project_selection',
-            elements: [
-                {
-                    type: 'static_select',
-                    action_id: 'select_project',
-                    placeholder: {
-                        type: 'plain_text',
-                        text: 'Choose a project...',
-                    },
-                    // Slack caps option text at 75 characters.
-                    options: projects.map((project) => ({
-                        text: {
-                            type: 'plain_text',
-                            text: truncateSlackText(project.name, 75),
-                        },
-                        value: buildSelectionValue(project),
-                    })),
-                },
-            ],
-        },
-    ];
 }
 
 // Slack caps static_select at 100 options.

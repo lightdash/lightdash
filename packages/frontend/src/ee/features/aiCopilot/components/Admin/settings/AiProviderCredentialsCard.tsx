@@ -11,13 +11,13 @@ import {
     Paper,
     Stack,
     Text,
-    Title,
     Tooltip,
 } from '@mantine/core';
 import { IconDots, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import Callout from '../../../../../../components/common/Callout';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 import {
     useAdoptLegacyAiProviderCredential,
     useAiProviderCredentials,
@@ -31,6 +31,7 @@ import {
     BedrockCredentialModal,
     type BedrockCredentialFormValues,
 } from './BedrockCredentialModal';
+import { BEDROCK_GEOGRAPHY_LABELS } from './bedrockGeographyLabels';
 
 type Props = {
     models: AiModelOption[];
@@ -67,6 +68,7 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                         region: values.region,
                         allowedModels: values.allowedModels,
                         apiKey: values.apiKey ?? '',
+                        inferenceGeography: values.inferenceGeography,
                     },
                 },
                 { onSuccess: () => setModalState(null) },
@@ -88,29 +90,34 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                 region: values.region,
                 allowedModels: values.allowedModels,
                 apiKey: values.apiKey ?? '',
+                inferenceGeography: values.inferenceGeography,
+                setAsDefault: values.setAsDefault,
             },
             { onSuccess: () => setModalState(null) },
         );
     };
 
+    // Legacy blob counts: it serves the organization until adopted.
+    const defaultExists =
+        credentials.some((credential) => credential.isDefault) ||
+        legacyBedrock !== null;
+
     return (
         <Stack gap="xs">
-            <Group justify="space-between">
-                <Title order={6}>Amazon Bedrock credentials</Title>
-                <Button
-                    size="xs"
-                    variant="light"
-                    leftSection={<MantineIcon icon={IconPlus} size={14} />}
-                    onClick={() => setModalState({ credential: null })}
-                >
-                    Add credential
-                </Button>
-            </Group>
-            <Text c="dimmed" fz="xs">
-                Each credential pins Ask AI to one AWS region. Projects can
-                select a credential; anything without a project — Slack routing,
-                thread titles — uses the default.
-            </Text>
+            <SettingRow
+                title="Amazon Bedrock credentials"
+                description="Each credential pins Ask AI to one AWS region. Projects can select a credential; anything without a project — Slack routing, thread titles — uses the default."
+                control={
+                    <Button
+                        size="xs"
+                        variant="light"
+                        leftSection={<MantineIcon icon={IconPlus} size={14} />}
+                        onClick={() => setModalState({ credential: null })}
+                    >
+                        Add credential
+                    </Button>
+                }
+            />
 
             {!isInitialLoading &&
                 credentials.length === 0 &&
@@ -168,7 +175,13 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                                 )}
                             </Group>
                             <Text c="dimmed" fz="xs">
-                                {credential.region} · {credential.apiKeyHint} ·{' '}
+                                {credential.region} · inference in{' '}
+                                {
+                                    BEDROCK_GEOGRAPHY_LABELS[
+                                        credential.inferenceGeography
+                                    ]
+                                }{' '}
+                                · {credential.apiKeyHint} ·{' '}
                                 {credential.allowedModels.length} model(s)
                             </Text>
                         </Stack>
@@ -251,7 +264,16 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                 </Callout>
             )}
 
-            {(credentials.length > 0 || legacyBedrock !== null) && (
+            {credentials.length > 0 && !defaultExists && (
+                <Text c="dimmed" fz="xs">
+                    No credential is the organization default, so anything
+                    without a project-level selection runs on the
+                    instance-managed provider. Make a credential the default to
+                    route all AI traffic through it.
+                </Text>
+            )}
+
+            {defaultExists && (
                 <Text c="dimmed" fz="xs">
                     While Bedrock is configured it is the only provider Ask AI
                     uses, so agents pinned to another provider stop working
@@ -266,6 +288,7 @@ export const AiProviderCredentialsCard: FC<Props> = ({ models }) => {
                     opened
                     credential={modalState.credential}
                     isReplacement={Boolean(modalState.replaceUuid)}
+                    defaultExists={defaultExists}
                     models={models}
                     isSaving={
                         createCredential.isLoading ||

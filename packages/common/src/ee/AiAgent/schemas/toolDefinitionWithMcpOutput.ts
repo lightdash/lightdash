@@ -1,4 +1,4 @@
-import snakeCase from 'lodash/snakeCase';
+import { snakeCase } from 'es-toolkit/compat';
 import { type z } from 'zod';
 import { createAgentInputSchema } from './agentInputSchema';
 import {
@@ -115,7 +115,7 @@ export class ToolDefinitionWithMcpOutputImpl<
                 toolName: mcpName,
             }),
             inputSchema: createMcpCompatibleInputSchema(this.inputSchema),
-            annotations: this.mcpConfig.annotations,
+            annotations: { title: this.title, ...this.mcpConfig.annotations },
             outputSchema: this.outputSchema,
             meta: this.mcpConfig.meta,
             result: createMcpToolResultBuilders<z.infer<TOutputSchema>>(),

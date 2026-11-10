@@ -13,6 +13,10 @@ import {
     UnitOfTime,
     VizIndexType,
     WindowFunctionType,
+    type AdditionalMetric,
+    type CustomDimension,
+    type CustomSqlDimension,
+    type Explore,
     type FormulaTableCalculation,
     type PivotConfiguration,
 } from '@lightdash/common';
@@ -32,7 +36,184 @@ import {
     METRIC_QUERY_WITH_ADDITIONAL_METRICS_COMPILED,
     METRIC_QUERY_WITH_INVALID_ADDITIONAL_METRIC,
 } from './queryCompiler.mock';
-import { warehouseClientMock } from './utils/QueryBuilder/MetricQueryBuilder.mock';
+import { MetricQueryBuilder } from './utils/QueryBuilder/MetricQueryBuilder';
+import {
+    emptyTable,
+    warehouseClientMock,
+} from './utils/QueryBuilder/MetricQueryBuilder.mock';
+
+describe('custom metrics referencing dimensions', () => {
+    const explore: Explore = {
+        ...EXPLORE,
+        name: 'table1',
+        label: 'Table 1',
+        baseTable: 'table1',
+        joinedTables: [],
+        tags: [],
+    };
+    const dimension: CustomSqlDimension = {
+        id: 'adjusted',
+        name: 'Adjusted',
+        table: 'table1',
+        type: CustomDimensionType.SQL,
+        dimensionType: DimensionType.NUMBER,
+        sql: '${table1.dim_1} * 2',
+    };
+    const metric: AdditionalMetric = {
+        name: 'adjusted_total',
+        label: 'Adjusted total',
+        table: 'table1',
+        type: MetricType.SUM,
+        sql: '${table1.adjusted}',
+    };
+    const compile = (
+        customDimensions: CustomDimension[] = [dimension],
+        additionalMetric = metric,
+        currentExplore = explore,
+    ) =>
+        compileMetricQuery({
+            explore: currentExplore,
+            metricQuery: {
+                ...METRIC_QUERY_NO_CALCS,
+                dimensions: [],
+                metrics: [`table1_${additionalMetric.name}`],
+                customDimensions,
+                additionalMetrics: [additionalMetric],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            availableParameters: [],
+        });
+
+    it('uses the current custom dimension SQL even when the dimension is not selected', () => {
+        const before = compile();
+        const after = compile([
+            {
+                ...dimension,
+                name: 'Renamed dimension',
+                sql: '${table1.dim_1} * 3',
+            },
+        ]);
+        expect(before.compiledAdditionalMetrics[0].compiledSql).toContain(
+            '* 2',
+        );
+        expect(after.compiledAdditionalMetrics[0].compiledSql).toContain('* 3');
+        const { query } = new MetricQueryBuilder({
+            explore,
+            compiledMetricQuery: after,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: {},
+            parameterDefinitions: {},
+            timezone: 'UTC',
+        }).compileQuery();
+        expect(query).toContain('SUM(((`some`.`table1`.`dim_1`) * 3))');
+        expect(explore.tables.table1.dimensions.adjusted).toBeUndefined();
+    });
+
+    it('rejects a deleted custom dimension with the metric and reference in the error', () => {
+        expect(() => compile([])).toThrow(/adjusted_total.*table1.adjusted/);
+    });
+
+    it('does not allow bin dimensions as metric SQL references', () => {
+        expect(() =>
+            compile([
+                {
+                    id: 'adjusted',
+                    name: 'Bins',
+                    table: 'table1',
+                    type: CustomDimensionType.BIN,
+                    dimensionId: 'table1_dim_1',
+                    binType: BinType.FIXED_NUMBER,
+                    binNumber: 5,
+                },
+            ]),
+        ).toThrow(/adjusted_total.*table1.adjusted/);
+    });
+
+    it('tracks multiple custom dimensions and their joined table dependencies', () => {
+        const joinedExplore = {
+            ...explore,
+            tables: {
+                ...explore.tables,
+                other: {
+                    ...emptyTable('other'),
+                    dimensions: {
+                        amount: {
+                            ...explore.tables.table1.dimensions.dim_1,
+                            name: 'amount',
+                            table: 'other',
+                            compiledSql: '"other".amount',
+                            tablesReferences: ['other'],
+                        },
+                    },
+                },
+            },
+        };
+        const result = compile(
+            [
+                dimension,
+                {
+                    ...dimension,
+                    id: 'other_amount',
+                    table: 'other',
+                    sql: '${other.amount}',
+                },
+            ],
+            { ...metric, sql: '${table1.adjusted} + ${other.other_amount}' },
+            joinedExplore,
+        );
+        expect(result.compiledAdditionalMetrics[0].tablesReferences).toEqual(
+            expect.arrayContaining(['table1', 'other']),
+        );
+        expect(result.compiledAdditionalMetrics[0].compiledSql).toContain(
+            '"other".amount',
+        );
+    });
+
+    it('keeps model dimension precedence when a custom dimension has the same name', () => {
+        const result = compile([{ ...dimension, id: 'dim_1', sql: '999' }], {
+            ...metric,
+            sql: '${table1.dim_1}',
+            baseDimensionName: 'dim_1',
+        });
+        expect(result.compiledAdditionalMetrics[0].compiledSql).toBe(
+            'SUM((`some`.`table1`.`dim_1`))',
+        );
+    });
+
+    it('follows model SQL changes for references while preserving legacy copied SQL', () => {
+        const updatedExplore = {
+            ...explore,
+            tables: {
+                table1: {
+                    ...explore.tables.table1,
+                    dimensions: {
+                        dim_1: {
+                            ...explore.tables.table1.dimensions.dim_1,
+                            sql: '${TABLE}.dim_1 * 2',
+                            compiledSql: '"table1".dim_1 * 2',
+                        },
+                    },
+                },
+            },
+        };
+        const referenced = compile(
+            [],
+            { ...metric, baseDimensionName: 'dim_1', sql: '${table1.dim_1}' },
+            updatedExplore,
+        );
+        const legacy = compile(
+            [],
+            { ...metric, baseDimensionName: 'dim_1', sql: '${TABLE}.dim_1' },
+            updatedExplore,
+        );
+        expect(referenced.compiledAdditionalMetrics[0].compiledSql).toBe(
+            'SUM(("table1".dim_1 * 2))',
+        );
+        expect(legacy.compiledAdditionalMetrics[0].compiledSql).toBe(
+            'SUM("table1".dim_1)',
+        );
+    });
+});
 
 test('Should compile without table calculations', () => {
     const expected: CompiledMetricQuery = {
@@ -473,6 +654,31 @@ test('Should compile table calculations that reference additional metrics', () =
     );
 });
 
+test('Should compile a SQL-less custom metric from its base dimension', () => {
+    const compileWithSql = (sql: string) =>
+        compileMetricQuery({
+            explore: EXPLORE,
+            metricQuery: {
+                ...METRIC_QUERY_VALID_REFERENCES,
+                additionalMetrics: [
+                    {
+                        name: 'custom_metric_1',
+                        table: 'table1',
+                        type: MetricType.SUM,
+                        sql,
+                        baseDimensionName: 'dim_1',
+                    },
+                ],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            availableParameters: [],
+        }).compiledAdditionalMetrics[0].compiledSql;
+
+    expect(compileWithSql('')).toBe(
+        compileWithSql(EXPLORE.tables.table1.dimensions.dim_1.sql),
+    );
+});
+
 test('Should compile table calculations that reference both custom dimensions and additional metrics', () => {
     const metricQueryWithBoth = {
         ...METRIC_QUERY_VALID_REFERENCES,
@@ -593,6 +799,39 @@ test('Should compile PERCENT_OF_COLUMN_TOTAL template without partitionBy', () =
     expect(percentOfTotal?.compiledSql).toBe(
         '(CAST("table_3_metric_1" AS FLOAT) / CAST(NULLIF(SUM("table_3_metric_1") OVER(), 0) AS FLOAT))',
     );
+});
+
+test('Should compile DIFFERENCE_FROM_PREVIOUS template with partitionBy', () => {
+    const tableCalculation: TableCalculation = {
+        name: 'difference_by_category',
+        displayName: 'Difference by Category',
+        template: {
+            type: TableCalculationTemplateType.DIFFERENCE_FROM_PREVIOUS,
+            fieldId: 'table_3_metric_1',
+            orderBy: [{ fieldId: 'table3_dim_3', order: 'asc' }],
+            partitionBy: ['table1_dim_1'],
+        },
+    };
+
+    const result = compileMetricQuery({
+        explore: EXPLORE,
+        metricQuery: {
+            ...METRIC_QUERY_VALID_REFERENCES,
+            dimensions: ['table1_dim_1', 'table3_dim_3'],
+            tableCalculations: [tableCalculation],
+        },
+        warehouseSqlBuilder: warehouseClientMock,
+        availableParameters: [],
+    });
+
+    const difference = result.compiledTableCalculations.find(
+        (c) => c.name === tableCalculation.name,
+    );
+
+    expect(difference?.compiledSql).toBe(
+        '"table_3_metric_1" - LAG("table_3_metric_1") OVER(PARTITION BY "table1_dim_1" ORDER BY "table3_dim_3" ASC )',
+    );
+    expect(difference?.dependsOn).toEqual([]);
 });
 
 test('Should compile PERCENT_CHANGE_FROM_PREVIOUS template with partitionBy', () => {

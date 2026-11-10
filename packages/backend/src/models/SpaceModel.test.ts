@@ -147,11 +147,18 @@ describe('SpaceModel restore', () => {
         tracker.on.select(SpaceTableName).responseOnce([deletedSpaceRow]);
         tracker.on.select(SpaceTableName).responseOnce([]);
         tracker.on.update(SpaceTableName).responseOnce(1);
-        tracker.on.update('documents').responseOnce(2);
+        tracker.on.update('documents').responseOnce([
+            { document_uuid: 'document-1', project_uuid: 'project' },
+            { document_uuid: 'document-2', project_uuid: 'project' },
+        ]);
 
-        await model.restore('deleted-space-uuid');
+        await expect(model.restore('deleted-space-uuid')).resolves.toEqual([
+            { documentUuid: 'document-1', projectUuid: 'project' },
+            { documentUuid: 'document-2', projectUuid: 'project' },
+        ]);
 
         expect(tracker.history.update).toHaveLength(2);
+        expect(tracker.history.update[1].sql).toContain('returning');
         expect(tracker.history.update[0].bindings).toContain(
             'deleted-space-uuid',
         );
@@ -1196,5 +1203,45 @@ describe('SpaceModel space access as code', () => {
         );
         expect(actorUserLocks).toHaveLength(1);
         expect(actorUserLocks[0].bindings).toContain('actor-user-uuid');
+    });
+});
+
+describe('SpaceModel app popularity visibility', () => {
+    const database = knex({ client: MockClient, dialect: 'pg' });
+    const model = new SpaceModel({ database });
+    let tracker: Tracker;
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    it('scopes direct grants and space access before sorting and limiting, excluding deleted, personal and chart-type apps', async () => {
+        tracker.on.select('apps').response([]);
+        await model.getMostPopularApps(
+            'project',
+            ['visible-space'],
+            ['direct-app'],
+        );
+        const query = tracker.history.select[0];
+        expect(query.sql).toContain('("apps"."space_uuid" in ($');
+        expect(query.sql).toContain('or "apps"."app_id" in ($');
+        expect(query.sql).toContain('"apps"."deleted_at" is null');
+        expect(query.sql).toContain('"spaces"."deleted_at" is null');
+        expect(query.sql).toContain('"apps"."space_uuid" is not null');
+        expect(query.sql).toContain('not "apps"."template" =');
+        expect(query.sql).toContain(
+            'order by "views" desc, "apps"."app_id" asc limit',
+        );
+        expect(query.bindings).toEqual(
+            expect.arrayContaining([
+                'project',
+                'visible-space',
+                'direct-app',
+                'data_app_viz',
+                10,
+            ]),
+        );
     });
 });

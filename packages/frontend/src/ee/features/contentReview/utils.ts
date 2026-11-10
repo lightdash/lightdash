@@ -1,12 +1,15 @@
 import {
     assertUnreachable,
     ContentReviewContentType,
+    getDocumentUrl,
     type ContentReviewContentSummary,
     type ContentReviewUser,
     type ContentReviewSimilarContentItem,
+    type SpaceSummary,
 } from '@lightdash/common';
 import {
     IconChartBar,
+    IconFileText,
     IconLayoutDashboard,
     IconTerminal2,
 } from '@tabler/icons-react';
@@ -19,6 +22,8 @@ export const getContentTypeIcon = (contentType: ContentReviewContentType) => {
             return IconTerminal2;
         case ContentReviewContentType.DASHBOARD:
             return IconLayoutDashboard;
+        case ContentReviewContentType.DOCUMENT:
+            return IconFileText;
         default:
             return assertUnreachable(
                 contentType,
@@ -36,6 +41,8 @@ export const getContentTypeColor = (
             return 'blue.6';
         case ContentReviewContentType.DASHBOARD:
             return 'green.6';
+        case ContentReviewContentType.DOCUMENT:
+            return 'gray.6';
         default:
             return assertUnreachable(
                 contentType,
@@ -55,6 +62,8 @@ export const getContentTypeNoun = (
             return 'SQL chart';
         case ContentReviewContentType.DASHBOARD:
             return 'dashboard';
+        case ContentReviewContentType.DOCUMENT:
+            return 'Document';
         default:
             return assertUnreachable(
                 contentType,
@@ -81,6 +90,8 @@ export const getContentHref = (
             return `/projects/${projectUuid}/sql-runner/${content.slug}`;
         case ContentReviewContentType.DASHBOARD:
             return `/projects/${projectUuid}/dashboards/${content.slug}`;
+        case ContentReviewContentType.DOCUMENT:
+            return getDocumentUrl(projectUuid, content.slug);
         default:
             return assertUnreachable(
                 contentType,
@@ -99,6 +110,8 @@ export const getContentTypeLabel = (
             return 'SQL chart';
         case ContentReviewContentType.DASHBOARD:
             return 'Dashboard';
+        case ContentReviewContentType.DOCUMENT:
+            return 'Document';
         default:
             return assertUnreachable(
                 contentType,
@@ -120,4 +133,26 @@ export const getSimilarityMatchLabel = (
         default:
             return 'Similar name';
     }
+};
+
+// The root spaces plus every space nested under them; stops growing on a
+// malformed parent cycle instead of looping
+export const getSpaceTreeUuids = (
+    spaces: Pick<SpaceSummary, 'uuid' | 'parentSpaceUuid'>[],
+    rootSpaceUuids: string[],
+): Set<string> => {
+    const expand = (treeUuids: Set<string>): Set<string> => {
+        const expanded = new Set([
+            ...treeUuids,
+            ...spaces
+                .filter(
+                    (space) =>
+                        space.parentSpaceUuid !== null &&
+                        treeUuids.has(space.parentSpaceUuid),
+                )
+                .map((space) => space.uuid),
+        ]);
+        return expanded.size === treeUuids.size ? treeUuids : expand(expanded);
+    };
+    return expand(new Set(rootSpaceUuids));
 };

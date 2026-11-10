@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     DirectAccessResourceType,
     ForbiddenError,
+    ParameterError,
     ResourceViewItemType,
     type PinnedItems,
     type RegisteredAccount,
@@ -259,6 +260,12 @@ export class PinningService extends BaseService {
             projectUuid,
             documentUuidOrSlug,
         );
+        // Pinned items are visible project-wide; a personal Document is not
+        if (document.spaceUuid === null) {
+            throw new ParameterError(
+                'Move this personal Document to a Space before pinning it',
+            );
+        }
         if (
             this.createAuditedAbility(account).cannot(
                 'manage',

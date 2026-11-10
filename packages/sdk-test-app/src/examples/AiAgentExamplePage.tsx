@@ -1,26 +1,52 @@
 import Lightdash, {
     useLightdashAiAgentThreads,
+    type AiThreadBinding,
     type LightdashAiAgentThread,
     type LightdashApiClientConfig,
     type ListAiAgentThreadsOptions,
 } from '@lightdash/sdk';
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import {
+    useEffect,
+    useMemo,
+    useState,
+    type ComponentProps,
+    type CSSProperties,
+} from 'react';
 import { ExampleLayout } from '../components/ExampleLayout';
 import type { EmbedConfigState } from '../hooks/useEmbedConfig';
 import { getRepoSourceUrl } from '../lib/repo';
-import {
-    emptyStateBoxStyle,
-    emptyStateStyle,
-    monoFontFamily,
-} from '../styles';
+import { emptyStateBoxStyle, emptyStateStyle, monoFontFamily } from '../styles';
 import {
     dashboardContainerStyle,
+    helperTextStyle,
+    panelLabelStyle,
     sectionDescStyle,
     sectionTitleStyle,
 } from './PaletteUuidExamplePage.styles';
 
 type AiAgentExamplePageProps = {
     embedConfig: EmbedConfigState;
+};
+
+type AiAgentRenderMode = 'iframe' | 'native';
+type AiAgentTheme = NonNullable<
+    ComponentProps<typeof Lightdash.AiAgent>['theme']
+>;
+const AI_AGENT_THEMES: { value: AiAgentTheme; label: string }[] = [
+    { value: 'light', label: 'Light' },
+    { value: 'dark', label: 'Dark' },
+    { value: 'system', label: 'System' },
+];
+
+const AI_AGENT_RENDER_MODES: { value: AiAgentRenderMode; label: string }[] = [
+    { value: 'iframe', label: 'Iframe (default)' },
+    { value: 'native', label: 'Native (beta)' },
+];
+
+type AiAgentPermissions = {
+    debug: boolean;
+    sql: boolean;
+    download: boolean;
 };
 
 type JwtPayload = {
@@ -34,6 +60,42 @@ const sourceUrl = getRepoSourceUrl(
 );
 
 const defaultAiAgentEmbedUrl = import.meta.env.VITE_AI_AGENT_EMBED_URL ?? '';
+
+const parsePermissionEmbedUrls = (
+    value: string | undefined,
+): Record<string, string> => {
+    if (!value) return {};
+    try {
+        const parsed: unknown = JSON.parse(value);
+        if (typeof parsed !== 'object' || parsed === null) return {};
+        return Object.fromEntries(
+            Object.entries(parsed).filter(
+                (entry): entry is [string, string] =>
+                    typeof entry[1] === 'string',
+            ),
+        );
+    } catch {
+        return {};
+    }
+};
+
+const aiAgentPermissionEmbedUrls = parsePermissionEmbedUrls(
+    import.meta.env.VITE_AI_AGENT_PERMISSION_EMBED_URLS,
+);
+const hasAiAgentPermissionEmbedUrls =
+    Object.keys(aiAgentPermissionEmbedUrls).length > 0;
+
+const AI_AGENT_PERMISSION_OPTIONS: {
+    key: keyof AiAgentPermissions;
+    label: string;
+}[] = [
+    { key: 'debug', label: 'Debug panel (canViewDebugInfo)' },
+    { key: 'sql', label: 'SQL quick action (view:EmbedCompiledSql)' },
+    {
+        key: 'download',
+        label: 'Download quick action (view:EmbedCsvExport)',
+    },
+];
 const latestAiAgentThreadStorageKey = 'lightdash:sdk-test-app:ai-agent-thread';
 const EMPTY_AI_AGENT_THREADS: LightdashAiAgentThread[] = [];
 
@@ -134,7 +196,7 @@ return (
             <option value="">Start a new thread</option>
             {threads.data?.map((thread) => (
                 <option key={thread.uuid} value={thread.uuid}>
-                    {thread.title ?? thread.firstMessage.message}
+                    {thread.title ?? thread.firstMessage?.message ?? 'Untitled thread'}
                 </option>
             ))}
         </select>
@@ -155,8 +217,32 @@ return (
 const truncateThreadLabel = (label: string) =>
     label.length > 96 ? `${label.slice(0, 93)}...` : label;
 
+type AiAgentThreadSetup = {
+    boundDashboardUuid: string;
+    boundChartUuid: string;
+    threadContext: string;
+};
+
+const EMPTY_THREAD_SETUP: AiAgentThreadSetup = {
+    boundDashboardUuid: '',
+    boundChartUuid: '',
+    threadContext: '',
+};
+
+const getThreadBinding = (
+    setup: AiAgentThreadSetup,
+): AiThreadBinding | undefined => {
+    const dashboardUuid = setup.boundDashboardUuid.trim();
+    if (dashboardUuid) return { type: 'dashboard', dashboardUuid };
+    const chartUuid = setup.boundChartUuid.trim();
+    if (chartUuid) return { type: 'chart', chartUuid };
+    return undefined;
+};
+
 const getThreadLabel = (thread: LightdashAiAgentThread) =>
-    truncateThreadLabel(thread.title ?? thread.firstMessage.message);
+    truncateThreadLabel(
+        thread.title ?? thread.firstMessage?.message ?? 'Untitled thread',
+    );
 
 const getProjectUuid = (
     aiAgentEmbedProjectUuid: string | null,
@@ -233,7 +319,16 @@ const parseEmbedUrl = (
 };
 
 export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
-    const aiAgentEmbedConfig = parseEmbedUrl(defaultAiAgentEmbedUrl);
+    const [permissions, setPermissions] = useState<AiAgentPermissions>({
+        debug: true,
+        sql: true,
+        download: true,
+    });
+    const selectedAiAgentEmbedUrl =
+        aiAgentPermissionEmbedUrls[
+            `${permissions.debug}:${permissions.sql}:${permissions.download}`
+        ] ?? defaultAiAgentEmbedUrl;
+    const aiAgentEmbedConfig = parseEmbedUrl(selectedAiAgentEmbedUrl);
     const instanceUrl =
         aiAgentEmbedConfig.instanceUrl ?? embedConfig.instanceUrl;
     const token = aiAgentEmbedConfig.token ?? embedConfig.token;
@@ -244,8 +339,16 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
     );
     const defaultThreadUuid = aiAgentEmbedConfig.threadUuid ?? '';
     const [latestThreadUuid, setLatestThreadUuid] = useState('');
+    const [renderMode, setRenderMode] = useState<AiAgentRenderMode>('iframe');
+    const [theme, setTheme] = useState<AiAgentTheme>('light');
+    const [disableNavigation, setDisableNavigation] = useState(false);
     const [resumeThreadUuid, setResumeThreadUuid] = useState(defaultThreadUuid);
-    const remountKey = `${defaultAiAgentEmbedUrl || embedConfig.remountKey}:${
+    const [threadSetupDraft, setThreadSetupDraft] =
+        useState<AiAgentThreadSetup>(EMPTY_THREAD_SETUP);
+    // Applied on demand so typing doesn't reload the agent
+    const [threadSetup, setThreadSetup] =
+        useState<AiAgentThreadSetup>(EMPTY_THREAD_SETUP);
+    const remountKey = `${selectedAiAgentEmbedUrl || embedConfig.remountKey}:${
         resumeThreadUuid || 'new'
     }`;
 
@@ -253,7 +356,7 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
     const apiInstanceUrl =
         import.meta.env.DEV && typeof window !== 'undefined'
             ? `${window.location.origin}/sdk-test-app-api/lightdash`
-            : instanceUrl ?? '';
+            : (instanceUrl ?? '');
     const apiConfig = useMemo<LightdashApiClientConfig>(
         () => ({
             instanceUrl: apiInstanceUrl,
@@ -281,17 +384,16 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
             enabled: hasRequiredConfig && !!projectUuid,
         },
     );
-    const aiAgentThreads =
-        aiAgentThreadsQuery.data ?? EMPTY_AI_AGENT_THREADS;
+    const aiAgentThreads = aiAgentThreadsQuery.data ?? EMPTY_AI_AGENT_THREADS;
     const threadStatus = !projectUuid
         ? 'Thread history needs a project UUID in the embed URL or token'
         : aiAgentThreadsQuery.isLoading
-        ? 'Loading threads'
-        : aiAgentThreadsQuery.error
-        ? aiAgentThreadsQuery.error.message
-        : `${aiAgentThreads.length} previous ${
-              aiAgentThreads.length === 1 ? 'thread' : 'threads'
-          }`;
+          ? 'Loading threads'
+          : aiAgentThreadsQuery.error
+            ? aiAgentThreadsQuery.error.message
+            : `${aiAgentThreads.length} previous ${
+                  aiAgentThreads.length === 1 ? 'thread' : 'threads'
+              }`;
 
     useEffect(() => {
         const storedThreadUuid =
@@ -299,6 +401,12 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
         setLatestThreadUuid(storedThreadUuid);
         setResumeThreadUuid(defaultThreadUuid || storedThreadUuid);
     }, [defaultThreadUuid]);
+
+    // Each permission set uses a different write actor, whose threads are separate.
+    const togglePermission = (key: keyof AiAgentPermissions) => {
+        setPermissions((current) => ({ ...current, [key]: !current[key] }));
+        setResumeThreadUuid('');
+    };
 
     const handleThreadChange = ({ threadUuid }: { threadUuid: string }) => {
         setLatestThreadUuid(threadUuid);
@@ -330,6 +438,122 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                             The agent and write-action scope come from the
                             configured AI-agent embed URL and JWT.
                         </p>
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={panelLabelStyle}>Render mode</label>
+                            <div style={{ display: 'flex', gap: 16 }}>
+                                {AI_AGENT_RENDER_MODES.map((option) => (
+                                    <label
+                                        key={option.value}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 6,
+                                            fontSize: 14,
+                                        }}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="ai-agent-render-mode"
+                                            checked={
+                                                renderMode === option.value
+                                            }
+                                            onChange={() =>
+                                                setRenderMode(option.value)
+                                            }
+                                        />
+                                        {option.label}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={panelLabelStyle}>Theme</label>
+                            <div style={{ display: 'flex', gap: 16 }}>
+                                {AI_AGENT_THEMES.map((option) => (
+                                    <label
+                                        key={option.value}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 6,
+                                            fontSize: 14,
+                                        }}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="ai-agent-theme"
+                                            checked={theme === option.value}
+                                            onChange={() =>
+                                                setTheme(option.value)
+                                            }
+                                        />
+                                        {option.label}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                        <div style={{ marginBottom: 16 }}>
+                            <label
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 6,
+                                    fontSize: 14,
+                                }}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={disableNavigation}
+                                    onChange={(event) =>
+                                        setDisableNavigation(
+                                            event.target.checked,
+                                        )
+                                    }
+                                />
+                                Disable navigation
+                            </label>
+                        </div>
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={panelLabelStyle}>
+                                Answer permissions
+                            </label>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    flexWrap: 'wrap',
+                                    gap: 16,
+                                }}
+                            >
+                                {AI_AGENT_PERMISSION_OPTIONS.map((option) => (
+                                    <label
+                                        key={option.key}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 6,
+                                            fontSize: 14,
+                                        }}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={permissions[option.key]}
+                                            disabled={
+                                                !hasAiAgentPermissionEmbedUrls
+                                            }
+                                            onChange={() =>
+                                                togglePermission(option.key)
+                                            }
+                                        />
+                                        {option.label}
+                                    </label>
+                                ))}
+                            </div>
+                            <p style={helperTextStyle}>
+                                {hasAiAgentPermissionEmbedUrls
+                                    ? 'Each combination uses its own token. SQL and downloads come from the write actor role, debug from the JWT flag.'
+                                    : 'Run generate-embed-token to set VITE_AI_AGENT_PERMISSION_EMBED_URLS.'}
+                            </p>
+                        </div>
                         <div
                             style={{
                                 display: 'flex',
@@ -361,6 +585,73 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                                 Use latest
                             </button>
                         </div>
+                        <div style={{ marginBottom: 16 }}>
+                            <label style={panelLabelStyle}>
+                                New thread setup
+                            </label>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: 8,
+                                }}
+                            >
+                                <input
+                                    aria-label="Bound dashboard UUID"
+                                    placeholder="Dashboard UUID to bind new threads to"
+                                    value={threadSetupDraft.boundDashboardUuid}
+                                    onChange={(event) =>
+                                        setThreadSetupDraft((current) => ({
+                                            ...current,
+                                            boundDashboardUuid:
+                                                event.target.value,
+                                        }))
+                                    }
+                                    style={{ padding: '8px 10px' }}
+                                />
+                                <input
+                                    aria-label="Bound chart UUID"
+                                    placeholder="Chart UUID to bind new threads to"
+                                    value={threadSetupDraft.boundChartUuid}
+                                    onChange={(event) =>
+                                        setThreadSetupDraft((current) => ({
+                                            ...current,
+                                            boundChartUuid: event.target.value,
+                                        }))
+                                    }
+                                    style={{ padding: '8px 10px' }}
+                                />
+                                <textarea
+                                    aria-label="Thread context"
+                                    placeholder="Initial context for new threads"
+                                    value={threadSetupDraft.threadContext}
+                                    onChange={(event) =>
+                                        setThreadSetupDraft((current) => ({
+                                            ...current,
+                                            threadContext: event.target.value,
+                                        }))
+                                    }
+                                    rows={3}
+                                    style={{ padding: '8px 10px' }}
+                                />
+                                <div>
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setThreadSetup(threadSetupDraft)
+                                        }
+                                    >
+                                        Apply to new threads
+                                    </button>
+                                </div>
+                            </div>
+                            <p style={helperTextStyle}>
+                                Only threads started here get the binding and
+                                context. Set a dashboard or a chart; the
+                                dashboard wins when both are set. It must be in
+                                the token's embed space.
+                            </p>
+                        </div>
                         <div style={threadHistoryStyle}>
                             <select
                                 aria-label="AI agent thread history"
@@ -376,7 +667,9 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                                 }}
                                 style={threadSelectStyle}
                             >
-                                <option value="">Select a previous thread</option>
+                                <option value="">
+                                    Select a previous thread
+                                </option>
                                 {aiAgentThreads.map((thread) => (
                                     <option
                                         key={thread.uuid}
@@ -393,7 +686,7 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                         {hasRequiredConfig ? (
                             <div style={dashboardContainerStyle}>
                                 <Lightdash.AiAgent
-                                    key={`${remountKey}:${agentUuid}`}
+                                    key={`${remountKey}:${agentUuid}:${renderMode}`}
                                     instanceUrl={instanceUrl}
                                     token={token}
                                     agentUuid={agentUuid}
@@ -401,6 +694,14 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                                         resumeThreadUuid.trim() || undefined
                                     }
                                     onThreadChange={handleThreadChange}
+                                    renderMode={renderMode}
+                                    theme={theme}
+                                    disableNavigation={disableNavigation}
+                                    binding={getThreadBinding(threadSetup)}
+                                    threadContext={
+                                        threadSetup.threadContext.trim() ||
+                                        undefined
+                                    }
                                 />
                             </div>
                         ) : (
@@ -433,14 +734,14 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                                         iframe.
                                     </li>
                                     <li>
-                                        Results are scoped to the token actor and
-                                        embedded space.
+                                        Results are scoped to the token actor
+                                        and embedded space.
                                     </li>
                                     <li>
                                         <code>onThreadChange</code> fires when a
                                         new thread is created or opened, so the
-                                        host app can store the latest thread UUID
-                                        or refresh the list.
+                                        host app can store the latest thread
+                                        UUID or refresh the list.
                                     </li>
                                 </ol>
                             </div>

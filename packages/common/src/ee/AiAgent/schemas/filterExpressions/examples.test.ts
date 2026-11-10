@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { DimensionType } from '../../../../types/field';
-import { FilterOperator, FilterType } from '../../../../types/filter';
+import {
+    FilterOperator,
+    FilterType,
+    UnitOfTime,
+} from '../../../../types/filter';
 import { type AiFilterExample } from '../filters/filterExamples';
 import {
-    FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE,
+    FILTER_EXPRESSION_STRING_VALUES_EXAMPLE,
     formatFilterExpressionExample,
     getFilterExpressionExamples,
 } from './examples';
@@ -50,23 +54,82 @@ describe('filter expression examples', () => {
         }
     });
 
-    it('generates a parseable canonical punctuated-string example', () => {
-        expect(FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE).toBe(
-            'orders_product_name equals="Coffee Filters (100pk)"',
+    it('generates a parseable canonical string-values example', () => {
+        expect(FILTER_EXPRESSION_STRING_VALUES_EXAMPLE).toBe(
+            'orders_product_name equals="Coffee Filters (100pk)","Paper Cups"',
         );
         expect(
-            parseFilterExpression(FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE),
+            parseFilterExpression(FILTER_EXPRESSION_STRING_VALUES_EXAMPLE),
         ).toMatchObject({
             success: true,
             expression: {
                 rules: [
                     {
                         field: { value: 'orders_product_name' },
-                        arguments: [{ value: 'Coffee Filters (100pk)' }],
+                        arguments: [
+                            { kind: 'quoted', value: 'Coffee Filters (100pk)' },
+                            { kind: 'quoted', value: 'Paper Cups' },
+                        ],
                     },
                 ],
             },
         });
+    });
+
+    it('quotes every string-field value, even single words', () => {
+        expect(
+            formatFilterExpressionExample({
+                fieldId: 'orders_status',
+                fieldType: DimensionType.STRING,
+                fieldFilterType: FilterType.STRING,
+                operator: FilterOperator.EQUALS,
+                values: ['completed', 'shipped'],
+            }),
+        ).toBe('orders_status equals="completed","shipped"');
+    });
+
+    it.each([
+        [{}, 'orders_order_date inTheCurrent=months'],
+        [
+            { toDate: true },
+            'orders_order_date inTheCurrent=months{toDate:true}',
+        ],
+        [
+            { toDate: true, excludeToday: true },
+            'orders_order_date inTheCurrent=months{toDate:true,excludeToday:true}',
+        ],
+    ] as const)(
+        'formats current-period bounds %j as named settings',
+        (bounds, expected) => {
+            const expression = formatFilterExpressionExample({
+                fieldId: 'orders_order_date',
+                fieldType: DimensionType.DATE,
+                fieldFilterType: FilterType.DATE,
+                operator: FilterOperator.IN_THE_CURRENT,
+                values: [1],
+                settings: {
+                    completed: false,
+                    unitOfTime: UnitOfTime.months,
+                    ...bounds,
+                },
+            });
+            expect(expression).toBe(expected);
+            expect(parseFilterExpression(expression)).toMatchObject({
+                success: true,
+            });
+        },
+    );
+
+    it('includes current-period bound examples', () => {
+        const expressions = getFilterExpressionExamples().map(
+            ({ expression }) => expression,
+        );
+        expect(expressions).toContain(
+            'orders_order_date inTheCurrent=months{toDate:true}',
+        );
+        expect(expressions).toContain(
+            'orders_order_date inTheCurrent=quarters{toDate:true,excludeToday:true}',
+        );
     });
 
     it('double-quotes apostrophes in string values', () => {

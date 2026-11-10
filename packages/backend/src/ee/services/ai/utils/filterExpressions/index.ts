@@ -8,6 +8,7 @@ export type {
 } from './errors';
 export { formatFilterExpressionError } from './renderFilterExpressionError';
 export {
+    resolveExploreFilterExpressions,
     resolveFilterExpressionArgs,
     resolveSearchFieldValuesFilterExpression,
     type ResolveFilterExpressionArgsResult,

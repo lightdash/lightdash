@@ -13,7 +13,7 @@ type AbilityCanCheck = {
 
 /**
  * Whether the actor may mutate (update/delete/move) verified charts,
- * dashboards, or data apps. Unverified content is unrestricted by this check.
+ * dashboards, data apps, or Documents. Unverified content is unrestricted by this check.
  *
  * Granted by default to project developers/admins and org admins via
  * `manage:VerifiedContent`. The content's verifier is also allowed so they

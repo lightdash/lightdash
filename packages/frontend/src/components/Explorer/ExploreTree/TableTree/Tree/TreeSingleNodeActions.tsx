@@ -1,6 +1,5 @@
 import {
     DimensionType,
-    FeatureFlags,
     friendlyName,
     getCustomDimensionWriteBackError,
     getCustomMetricType,
@@ -41,13 +40,13 @@ import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useFilteredFields } from '../../../../../hooks/useFilters';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useCannotAuthorCustomSql } from '../../../../../hooks/user/useCannotAuthorCustomSql';
-import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import { useRequestRegistryMetricDelete } from '../../../../../providers/Explorer/useIsModalHosted';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import MantineIcon from '../../../../common/MantineIcon';
 import { useCustomMetricSourceId } from '../../CustomMetricSourceContext';
+import { useFieldFilterTarget } from '../../FieldFilterTargetContext';
 
 type Props = {
     item: Metric | Dimension | AdditionalMetric | CustomDimension;
@@ -88,6 +87,7 @@ const TreeSingleNodeActions: FC<Props> = ({
 
     const dispatch = useExplorerDispatch();
     const customMetricSourceId = useCustomMetricSourceId();
+    const filterTarget = useFieldFilterTarget();
     const customDimensionWriteBackError = isCustomDimension(item)
         ? getCustomDimensionWriteBackError(item)
         : null;
@@ -99,11 +99,6 @@ const TreeSingleNodeActions: FC<Props> = ({
     }, [item]);
 
     const requestRegistryMetricDelete = useRequestRegistryMetricDelete();
-
-    const { data: customGroupBinsFlag } = useServerFeatureFlag(
-        FeatureFlags.CustomGroupBins,
-    );
-    const isCustomGroupBinsEnabled = customGroupBinsFlag?.enabled ?? false;
 
     const duplicateCustomMetric = (customMetric: AdditionalMetric) => {
         const newDeepCopyItem = JSON.parse(JSON.stringify(customMetric));
@@ -163,6 +158,8 @@ const TreeSingleNodeActions: FC<Props> = ({
                             });
                             if (onAddFilter) {
                                 onAddFilter(item);
+                            } else if (filterTarget) {
+                                filterTarget.addFilter(item);
                             } else {
                                 addFilter(item, undefined);
                             }
@@ -509,8 +506,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                 {!basicActionsOnly &&
                 isDimension(item) &&
                 (item.type === DimensionType.NUMBER ||
-                    (item.type === DimensionType.STRING &&
-                        isCustomGroupBinsEnabled)) ? (
+                    item.type === DimensionType.STRING) ? (
                     <>
                         <Menu.Divider />
                         <Menu.Item

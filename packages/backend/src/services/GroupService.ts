@@ -3,14 +3,12 @@ import {
     Account,
     ApiGroupAsCodeUpsertResponse,
     assertRegisteredAccount,
-    FeatureFlags,
     ForbiddenError,
     Group,
     GroupAsCode,
     GroupMember,
     GroupMembership,
     GroupWithMembers,
-    isAccount,
     ParameterError,
     ProjectGroupAccess,
     ProjectMemberRole,
@@ -24,8 +22,13 @@ import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { UpdateDBProjectGroupAccess } from '../database/entities/projectGroupAccess';
 import { GroupsModel } from '../models/GroupsModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
+import {
+    assertHumanAgentPolicyMutation,
+    assertHumanManagedMutation,
+} from './AgentPermissionService/assertHumanManagedMutation';
 import { BaseService } from './BaseService';
 import { FeatureFlagService } from './FeatureFlag/FeatureFlagService';
+import { recordGroupMembershipChange } from './groupMembershipAudit';
 
 type GroupServiceArguments = {
     analytics: LightdashAnalytics;
@@ -133,9 +136,6 @@ export class GroupsService extends BaseService {
         organizationUuid: string,
     ): Promise<GroupAsCode[]> {
         this.validateGroupsAsCodeAccess(account, organizationUuid);
-        if (!(await this.isGroupServiceEnabled(account))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
 
         const { data: groups } = await this.groupsModel.find({
             organizationUuid,
@@ -168,10 +168,14 @@ export class GroupsService extends BaseService {
         organizationUuid: string,
         groupInput: GroupAsCode,
     ): Promise<ApiGroupAsCodeUpsertResponse['results']> {
+        await assertHumanAgentPolicyMutation({
+            organizationUuid: account.organization.organizationUuid,
+            ability: account.user.ability,
+            oauth: account.authentication.type === 'oauth',
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagService,
+        });
         this.validateGroupsAsCodeAccess(account, organizationUuid);
-        if (!(await this.isGroupServiceEnabled(account))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
 
         const group = GroupsService.validateGroupAsCode(groupInput);
         const result = await this.groupsModel.upsertGroupAsCode({
@@ -182,6 +186,15 @@ export class GroupsService extends BaseService {
         });
 
         if (result.action !== PromotionAction.NO_CHANGES) {
+            recordGroupMembershipChange(
+                account,
+                organizationUuid,
+                result.groupUuid,
+                {
+                    operation: 'replace',
+                    memberUuids: null,
+                },
+            );
             this.analytics.track({
                 userId: account.user.userUuid,
                 event:
@@ -202,30 +215,18 @@ export class GroupsService extends BaseService {
         return { action: result.action };
     }
 
-    private async isGroupServiceEnabled(
-        accountOrUser: RegisteredAccount | SessionUser,
-    ): Promise<boolean> {
-        const user = isAccount(accountOrUser)
-            ? {
-                  userUuid: accountOrUser.user.userUuid,
-                  organizationUuid: accountOrUser.organization.organizationUuid,
-              }
-            : accountOrUser;
-        const featureFlag = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.UserGroupsEnabled,
-        });
-        return featureFlag.enabled;
-    }
-
     /** @deprecated Only used by the deprecated add-user-to-group endpoint; use update with the full member set instead. */
     async addGroupMember(
         user: SessionUser,
         member: GroupMembership,
     ): Promise<GroupMembership | undefined> {
-        if (!(await this.isGroupServiceEnabled(user))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
+        await assertHumanAgentPolicyMutation({
+            organizationUuid: user.organizationUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagService,
+        });
 
         const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(member.groupUuid);
@@ -248,6 +249,15 @@ export class GroupsService extends BaseService {
             [member.userUuid],
         );
         if (groupMembership) {
+            recordGroupMembershipChange(
+                user,
+                group.organizationUuid,
+                group.uuid,
+                {
+                    operation: 'add',
+                    memberUuids: [member.userUuid],
+                },
+            );
             const updatedGroup = await this.groupsModel.getGroupWithMembers(
                 member.groupUuid,
             );
@@ -272,9 +282,13 @@ export class GroupsService extends BaseService {
         user: SessionUser,
         member: GroupMembership,
     ): Promise<boolean> {
-        if (!(await this.isGroupServiceEnabled(user))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
+        await assertHumanAgentPolicyMutation({
+            organizationUuid: user.organizationUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagService,
+        });
 
         const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(member.groupUuid);
@@ -296,6 +310,15 @@ export class GroupsService extends BaseService {
             await this.groupsModel.removeGroupMember(member);
 
         if (isGroupMemberRemoved) {
+            recordGroupMembershipChange(
+                user,
+                group.organizationUuid,
+                group.uuid,
+                {
+                    operation: 'remove',
+                    memberUuids: [member.userUuid],
+                },
+            );
             const updatedGroup = await this.groupsModel.getGroupWithMembers(
                 member.groupUuid,
             );
@@ -316,9 +339,13 @@ export class GroupsService extends BaseService {
     }
 
     async delete(user: SessionUser, groupUuid: string): Promise<void> {
-        if (!(await this.isGroupServiceEnabled(user))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
+        await assertHumanAgentPolicyMutation({
+            organizationUuid: user.organizationUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagService,
+        });
 
         const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(groupUuid);
@@ -337,6 +364,10 @@ export class GroupsService extends BaseService {
             throw new ForbiddenError();
         }
         await this.groupsModel.deleteGroup(groupUuid);
+        recordGroupMembershipChange(user, group.organizationUuid, group.uuid, {
+            operation: 'delete',
+            memberUuids: null,
+        });
         this.analytics.track({
             userId: user.userUuid,
             event: 'group.deleted',
@@ -354,10 +385,6 @@ export class GroupsService extends BaseService {
         includeMembers?: number,
         offset?: number,
     ): Promise<Group | GroupWithMembers> {
-        if (!(await this.isGroupServiceEnabled(user))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
-
         const group =
             includeMembers === undefined
                 ? await this.groupsModel.getGroup(groupUuid)
@@ -390,9 +417,13 @@ export class GroupsService extends BaseService {
         groupUuid: string,
         update: UpdateGroupWithMembers,
     ): Promise<Group | GroupWithMembers> {
-        if (!(await this.isGroupServiceEnabled(user))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
+        await assertHumanAgentPolicyMutation({
+            organizationUuid: user.organizationUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagService,
+        });
 
         const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(groupUuid);
@@ -415,6 +446,17 @@ export class GroupsService extends BaseService {
             groupUuid,
             update,
         });
+        if (update.members !== undefined) {
+            recordGroupMembershipChange(
+                user,
+                group.organizationUuid,
+                group.uuid,
+                {
+                    operation: 'replace',
+                    memberUuids: updatedGroup.memberUuids,
+                },
+            );
+        }
         this.analytics.track({
             userId: user.userUuid,
             event: 'group.updated',
@@ -435,10 +477,6 @@ export class GroupsService extends BaseService {
         user: SessionUser,
         groupUuid: string,
     ): Promise<GroupMember[]> {
-        if (!(await this.isGroupServiceEnabled(user))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
-
         const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroupWithMembers(groupUuid);
         if (
@@ -463,9 +501,13 @@ export class GroupsService extends BaseService {
         user: SessionUser,
         { groupUuid, projectUuid, role }: ProjectGroupAccess,
     ): Promise<ProjectGroupAccess> {
-        if (!(await this.isGroupServiceEnabled(user))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
+        await assertHumanManagedMutation({
+            organizationUuid: user.organizationUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagService,
+        });
 
         const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(groupUuid);
@@ -522,9 +564,13 @@ export class GroupsService extends BaseService {
             projectUuid,
         }: Pick<ProjectGroupAccess, 'groupUuid' | 'projectUuid'>,
     ) {
-        if (!(await this.isGroupServiceEnabled(user))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
+        await assertHumanManagedMutation({
+            organizationUuid: user.organizationUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagService,
+        });
 
         const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(groupUuid);
@@ -577,9 +623,13 @@ export class GroupsService extends BaseService {
         }: Pick<ProjectGroupAccess, 'groupUuid' | 'projectUuid'>,
         updateAttributes: UpdateDBProjectGroupAccess,
     ): Promise<ProjectGroupAccess> {
-        if (!(await this.isGroupServiceEnabled(user))) {
-            throw new ForbiddenError('Group service is not enabled');
-        }
+        await assertHumanManagedMutation({
+            organizationUuid: user.organizationUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagService,
+        });
 
         const auditedAbility = this.createAuditedAbility(user);
         const group = await this.groupsModel.getGroup(groupUuid);

@@ -1,10 +1,15 @@
-import { AuthorizationError, OrganizationSsoProvider } from '@lightdash/common';
+import {
+    AuthorizationError,
+    ForbiddenError,
+    OrganizationSsoProvider,
+} from '@lightdash/common';
 import {
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID,
     isDatabricksCliOAuthClientId,
 } from '@lightdash/warehouses';
 import express, { type Router } from 'express';
 import passport from 'passport';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import { lightdashConfig } from '../config/lightdashConfig';
 import {
     allowApiKeyAuthenticationIfPresent,
@@ -16,6 +21,13 @@ import {
     storeOIDCRedirect,
     storeSlackContext,
 } from '../controllers/authentication';
+import {
+    agentConnectCallback,
+    authenticateAgentConnect,
+    storeAgentConnectAttempt,
+} from '../controllers/authentication/agentConnectAnalytics';
+import { storeAgentConnectRedirect } from '../controllers/authentication/agentConnectRedirect';
+import { requireAgentIdentity } from '../controllers/authentication/requireAgentIdentity';
 import {
     createAzureAdOidcStrategyForConfig,
     isAzureAdPassportStrategyAvailableToUse,
@@ -35,6 +47,10 @@ import {
     isOneLoginPassportStrategyAvailableToUse,
 } from '../controllers/authentication/strategies/oneLoginStrategy';
 import { chartRegistryAssetRouter } from '../ee/routers/chartRegistryAssetRouter';
+import {
+    handleGoogleLiveSourceCallback,
+    isGoogleLiveSourceCallback,
+} from '../ee/routers/googleLiveSourceCallback';
 import { AiAgentService } from '../ee/services/AiAgentService/AiAgentService';
 import { createAuditLogEvent } from '../logging/auditLog';
 import { createActorFromUser } from '../logging/caslAuditWrapper';
@@ -318,8 +334,10 @@ const registerOneLoginStrategyForOrg = (
 
 /**
  * Resolves the OneLogin strategy name for this request, registering the per-org
- * strategy dynamically. Returns undefined when neither a per-org DB config
- * matching the email domain nor an env-based fallback is available.
+ * strategy dynamically. Without an email hint (OneLogin portal tile launches
+ * send none) the org is inferred only when exactly one has OneLogin enabled.
+ * Returns undefined when neither a per-org DB config nor an env-based fallback
+ * is available.
  */
 const resolveOneLoginStrategyName = async (
     req: express.Request,
@@ -330,6 +348,16 @@ const resolveOneLoginStrategyName = async (
     if (email) {
         const method = await ssoService.findEnabledMethodForEmail(
             email,
+            OrganizationSsoProvider.ONELOGIN,
+        );
+        if (method) {
+            return registerOneLoginStrategyForOrg(
+                method.organizationUuid,
+                method.config,
+            );
+        }
+    } else {
+        const method = await ssoService.findSoleEnabledMethodForProvider(
             OrganizationSsoProvider.ONELOGIN,
         );
         if (method) {
@@ -399,6 +427,7 @@ const authenticateDatabricks = (
 apiV1Router.get(
     '/health',
     allowApiKeyAuthenticationIfPresent,
+    requireOAuthScopeOperation('apiV1Router GET /health'),
     async (req, res, next) => {
         const skipMigrationCheck = req.query.skipMigrationCheck === 'true';
         req.services
@@ -614,7 +643,8 @@ apiV1Router.get(
             if (!strategyName) {
                 res.status(404).json({
                     status: 'error',
-                    message: 'OneLogin SSO is not configured',
+                    message:
+                        'Could not determine which organization to sign in to with OneLogin. Start sign-in from the Lightdash login page.',
                 });
                 return;
             }
@@ -639,7 +669,8 @@ apiV1Router.get(
             if (!strategyName) {
                 res.status(404).json({
                     status: 'error',
-                    message: 'OneLogin SSO is not configured',
+                    message:
+                        'Could not determine which organization to sign in to with OneLogin. Start sign-in from the Lightdash login page.',
                 });
                 return;
             }
@@ -803,6 +834,10 @@ apiV1Router.get(
 );
 
 apiV1Router.get(lightdashConfig.auth.google.callbackPath, (req, res, next) => {
+    if (isGoogleLiveSourceCallback(req)) {
+        void handleGoogleLiveSourceCallback(req, res, next);
+        return;
+    }
     if (req.session.oauth?.intent === 'link') {
         passport.authenticate(
             'google',
@@ -840,6 +875,22 @@ apiV1Router.get(
             successRedirect: getOidcRedirectURL(true)(req),
         })(req, res, next);
     },
+);
+
+apiV1Router.get(
+    lightdashConfig.auth.snowflakeAi.loginPath,
+    isAuthenticated,
+    requireAgentIdentity,
+    storeAgentConnectRedirect,
+    storeAgentConnectAttempt,
+    authenticateAgentConnect,
+);
+
+apiV1Router.get(
+    lightdashConfig.auth.snowflakeAi.callbackPath,
+    isAuthenticated,
+    requireAgentIdentity,
+    agentConnectCallback,
 );
 
 apiV1Router.get(
@@ -895,9 +946,27 @@ apiV1Router.get('/logout', (req, res, next) => {
                         });
                     }
                 }
-                res.json({
-                    status: 'ok',
-                });
+                const deleteMobileSignInCodes = userBeforeLogout?.userUuid
+                    ? req.services
+                          .getMobileSignInService()
+                          .deleteUnredeemedForUser(userBeforeLogout.userUuid)
+                          .catch((cleanupErr: unknown) => {
+                              Logger.warn(
+                                  'Failed to delete mobile sign-in codes at logout',
+                                  {
+                                      error:
+                                          cleanupErr instanceof Error
+                                              ? cleanupErr.message
+                                              : String(cleanupErr),
+                                  },
+                              );
+                          })
+                    : Promise.resolve();
+                void deleteMobileSignInCodes.then(() =>
+                    res.json({
+                        status: 'ok',
+                    }),
+                );
             }
         });
     });

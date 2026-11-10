@@ -1,0 +1,22 @@
+diff --git a/lib/src/scimPatch.js b/lib/src/scimPatch.js
+index 7e0cb95fb47f26ad60e26f2f5c4f0ce50628b5f7..94263f844463e30b1d9cb048229ce83d51289167 100644
+--- a/lib/src/scimPatch.js
++++ b/lib/src/scimPatch.js
+@@ -26,6 +26,7 @@ const IS_ARRAY_SEARCH = /(\[|\])/;
+ const ARRAY_SEARCH = /^(.+)\[(.+)\]$/;
+ // Split path on periods
+ const SPLIT_PERIOD = /(?!\B"[^[]*)\.(?![^\]]*"\B)/g;
++const URN_PREFIX = /^((?:[A-Za-z0-9][A-Za-z0-9.+-]*:)+[A-Za-z0-9.+-]*)/;
+ // Valid patch operation, value needs to be in lowercase here.
+ const AUTHORIZED_OPERATION = ['remove', 'add', 'replace'];
+ const CORE_SCHEMA_USER = 'urn:ietf:params:scim:schemas:core:2.0:User';
+@@ -96,7 +97,8 @@ function validatePatchOperation(operation) {
+         throw new scimErrors_1.InvalidScimPatchRequest('Path is supposed to be a string');
+ }
+ function resolvePaths(path) {
+-    const uriIndex = path.lastIndexOf(':');
++    const urnPrefix = path.match(URN_PREFIX);
++    const uriIndex = urnPrefix ? urnPrefix[1].lastIndexOf(':') : -1;
+     let paths;
+     if (uriIndex < 0) {
+         // No schema prefix - this is a core schema path

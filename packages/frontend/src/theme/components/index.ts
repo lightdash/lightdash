@@ -43,6 +43,7 @@ import {
     type MantineThemeOverride,
 } from '@mantine/core';
 import { DotsLoader } from '../../ee/features/aiCopilot/components/ChatElements/DotsLoader/DotsLoader';
+import { DROPDOWN_DURATION, DROPDOWN_EASING } from '../motion';
 /* eslint-disable css-modules/no-unused-class */
 import accordionClasses from './Accordion.module.css';
 import actionIconClasses from './ActionIcon.module.css';
@@ -94,17 +95,82 @@ const controlFontSize = (theme: MantineTheme, size: unknown) => {
 
 const isNeutral = (color: unknown) => color === undefined || color === 'gray';
 
-/** Dropdowns pop out of their anchor; Dropdown.module.css sets the origin. */
-const dropdownTransition: NonNullable<PopoverProps['transitionProps']> = {
-    transition: {
-        in: { opacity: 1, transform: 'scale(1)' },
-        out: { opacity: 0, transform: 'scale(0.96)' },
-        transitionProperty: 'transform, opacity',
+/**
+ * Alerts are a scale rather than tint versus solid block: `light` is a pale
+ * wash with an ink hairline, `filled` a firmer tint, `outline` the hairline
+ * alone. All keep the semantic colour on the title and icon; dark tints the
+ * deep shade over the surface so none becomes a block.
+ */
+type AlertTone = 'light' | 'filled' | 'outline';
+
+/** The icon chip's hairline tint, dashed so the pale wash reads as a note
+ *  rather than a panel. */
+const ALERT_INK_HAIRLINE =
+    '1px dashed color-mix(in srgb, var(--alert-color) 8%, transparent)';
+
+const semanticHairline = (color: string) =>
+    `1px solid light-dark(color-mix(in srgb, var(--mantine-color-${color}-6) 40%, transparent), color-mix(in srgb, var(--mantine-color-${color}-5) 40%, transparent))`;
+
+const semanticWash = (color: string, fill: number, darkFill: number) =>
+    `light-dark(color-mix(in srgb, var(--mantine-color-${color}-0) ${fill}%, var(--mantine-color-body)), color-mix(in srgb, var(--mantine-color-${color}-9) ${darkFill}%, transparent))`;
+
+const ALERT_TONES: Record<
+    AlertTone,
+    { bg: (color: string) => string; border: (color: string) => string }
+> = {
+    light: {
+        bg: (color) => semanticWash(color, 45, 8),
+        border: () => ALERT_INK_HAIRLINE,
     },
-    duration: 160,
-    exitDuration: 100,
-    timingFunction: 'cubic-bezier(0.32, 1.25, 0.6, 1)',
+    filled: {
+        bg: (color) => semanticWash(color, 100, 22),
+        border: semanticHairline,
+    },
+    outline: {
+        bg: () => 'transparent',
+        border: semanticHairline,
+    },
 };
+
+const NEUTRAL_ALERT_VARS: Record<AlertTone, Record<string, string>> = {
+    light: {
+        '--alert-bg': 'var(--mantine-color-ldGray-1)',
+        '--alert-bd': ALERT_INK_HAIRLINE,
+        '--alert-color': 'var(--mantine-color-text)',
+    },
+    filled: {
+        '--alert-bg': 'var(--mantine-color-ldGray-2)',
+        '--alert-bd': '1px solid var(--mantine-color-ldGray-4)',
+        '--alert-color': 'var(--mantine-color-text)',
+    },
+    outline: {
+        '--alert-bg': 'transparent',
+        '--alert-bd': '1px solid var(--mantine-color-ldGray-4)',
+        '--alert-color': 'var(--mantine-color-text)',
+    },
+};
+
+const semanticAlertVars = (tone: AlertTone, color: string) => ({
+    '--alert-bg': ALERT_TONES[tone].bg(color),
+    '--alert-bd': ALERT_TONES[tone].border(color),
+    '--alert-color': `light-dark(var(--mantine-color-${color}-8), var(--mantine-color-${color}-4))`,
+});
+
+const isAlertTone = (variant: unknown): variant is AlertTone =>
+    variant === 'light' || variant === 'filled' || variant === 'outline';
+
+/** Dropdowns pop out of their anchor; Dropdown.module.css sets the origin. */
+export const dropdownTransition: NonNullable<PopoverProps['transitionProps']> =
+    {
+        transition: {
+            in: { opacity: 1, transform: 'scale(1)' },
+            out: { opacity: 0, transform: 'scale(0.96)' },
+            transitionProperty: 'transform, opacity',
+        },
+        duration: DROPDOWN_DURATION,
+        exitDuration: 100,
+        timingFunction: DROPDOWN_EASING,
+    };
 
 /**
  * Component extensions: the app's variants live here, as CSS modules for the
@@ -253,6 +319,7 @@ export const themeComponents: MantineThemeOverride['components'] = {
         defaultProps: {
             shadow: 'md',
             withinPortal: true,
+            transitionProps: dropdownTransition,
         },
         classNames: menuClasses,
     }),
@@ -323,6 +390,24 @@ export const themeComponents: MantineThemeOverride['components'] = {
             variant: 'light',
         },
         classNames: alertClasses,
+        vars: (theme, props) => {
+            // Mantine paints alert colours inline, so the fill, hairline
+            // border and ink have to be set here rather than in CSS.
+            const tone = props.variant ?? 'light';
+            if (!isAlertTone(tone)) {
+                return { root: {} };
+            }
+            if (isNeutral(props.color)) {
+                return { root: NEUTRAL_ALERT_VARS[tone] };
+            }
+            const [colorName] = props.color.split('.');
+            return {
+                root:
+                    colorName in theme.colors
+                        ? semanticAlertVars(tone, colorName)
+                        : {},
+            };
+        },
     }),
 
     Table: Table.extend({

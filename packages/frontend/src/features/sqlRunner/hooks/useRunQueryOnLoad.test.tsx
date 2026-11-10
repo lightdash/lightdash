@@ -5,6 +5,7 @@ import { Provider } from 'react-redux';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { store } from '../store';
 import {
+    EditorTabs,
     resetState,
     setConnectionRoute,
     setFetchResultsOnLoad,
@@ -71,5 +72,18 @@ describe('useRunQueryOnLoad', () => {
         rerender({ hasQueryResults: false });
 
         expect(runQuery).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the tab the load started on once the results arrive', () => {
+        store.dispatch(setConnectionRoute({ route: 'single' }));
+        const { rerender } = renderHook(
+            ({ hasQueryResults }: { hasQueryResults: boolean }) =>
+                useRunQueryOnLoad({ runQuery, hasQueryResults }),
+            { wrapper, initialProps: { hasQueryResults: false } },
+        );
+
+        rerender({ hasQueryResults: true });
+
+        expect(store.getState().sqlRunner.activeEditorTab).toBe(EditorTabs.SQL);
     });
 });

@@ -852,16 +852,19 @@ describe('getLatestVersionSummaries', () => {
         tracker.on.select(SavedChartsTableName).responseOnce([
             {
                 ...chartSummary,
+                agent_identity: null,
                 saved_queries_version_uuid: 'version1',
                 created_at: dateDaysAgo(365),
             },
             {
                 ...chartSummary,
+                agent_identity: null,
                 saved_queries_version_uuid: 'version2',
                 created_at: dateDaysAgo(30),
             },
             {
                 ...chartSummary,
+                agent_identity: null,
                 saved_queries_version_uuid: 'version3',
                 created_at: new Date(),
             },
@@ -878,7 +881,9 @@ describe('getLatestVersionSummaries', () => {
         // `responseOnce` only answers the first query; the removed "fetch one
         // extra older version" fallback would issue a second (unmocked) query
         // and throw, so this implicitly guards against that regression.
-        tracker.on.select(SavedChartsTableName).responseOnce([chartSummary]);
+        tracker.on
+            .select(SavedChartsTableName)
+            .responseOnce([{ ...chartSummary, agent_identity: null }]);
 
         const response = await model.getLatestVersionSummaries('chart_uuid');
 
@@ -1230,6 +1235,18 @@ describe('findChartsForValidation', () => {
         expect(query.sql.match(/spaces/g)).toHaveLength(1);
         expect(query.sql.match(/dashboards/g)).toHaveLength(1);
         expect(query.sql).toContain('"sq"."project_uuid"');
+    });
+
+    test('loads only charts on the given explores', async () => {
+        tracker.on.select(({ sql }) => sql.length > 0).response([]);
+
+        await model.findChartsForValidation('project', undefined, ['orders']);
+
+        const [query] = tracker.history.select;
+        expect(query.sql).toContain(
+            '"saved_queries_versions"."explore_name" in',
+        );
+        expect(query.bindings).toContain('orders');
     });
 
     test('excludes dashboard charts without tiles', async () => {

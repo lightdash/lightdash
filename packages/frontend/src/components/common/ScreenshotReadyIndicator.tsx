@@ -39,7 +39,7 @@ const ScreenshotReadyIndicator: FC<ScreenshotReadyIndicatorProps> = ({
             data-tiles-total={tilesTotal}
             data-tiles-ready={tilesReady}
             data-tiles-errored={tilesErrored}
-            style={{ display: 'none' }}
+            hidden
             aria-hidden="true"
         />
     );

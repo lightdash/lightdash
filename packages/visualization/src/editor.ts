@@ -40,11 +40,12 @@ export {
     type LegendValues,
 } from './cartesian/echartsOption';
 export { defaultGrid } from './cartesian/grid';
-export { finalizeTimeAxisOptions } from './cartesian/timezoneShift';
 export {
-    calculateKeyColorAssignment,
-    calculateSeriesColorAssignment,
-} from './colors/mappings';
+    hasIncompletePeriod,
+    isIncompletePeriodEligible,
+} from './cartesian/incompletePeriod';
+export { finalizeTimeAxisOptions } from './cartesian/timezoneShift';
+export { calculateKeyColorAssignment } from './colors/mappings';
 export { createSeriesColorResolver } from './colors/resolver';
 export { type SeriesLike } from './colors/series';
 export {

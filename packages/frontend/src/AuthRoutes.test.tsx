@@ -4,6 +4,10 @@ import { type ReactNode } from 'react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import AuthRoutes from './AuthRoutes';
 
+vi.mock('./components/LightdashLogo/LightdashLogo', () => ({
+    default: () => null,
+}));
+
 vi.mock('./components/PrivateRoute', () => ({
     default: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
@@ -49,6 +53,11 @@ const renderAuthRouteAt = (pathname: string) => {
 };
 
 describe('AuthRoutes', () => {
+    it('renders the public agent connection landing page', async () => {
+        renderAuthRouteAt('/agent-connected');
+        expect(await screen.findByText('Agent connected.')).toBeInTheDocument();
+    });
+
     it('renders the invite activation page', async () => {
         renderAuthRouteAt('/invite/some-invite-code');
 

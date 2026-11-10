@@ -17,6 +17,7 @@ import {
     type DbContentReviewRequest,
 } from '../database/entities/contentReviewRequests';
 import { DashboardsTableName } from '../database/entities/dashboards';
+import { DocumentsTableName } from '../database/entities/documents';
 import { ProjectTableName } from '../database/entities/projects';
 import {
     SavedChartsTableName,
@@ -477,7 +478,9 @@ export class ContentReviewRequestModel {
             });
     }
 
-    async transaction<T>(callback: (tx: Knex) => Promise<T>): Promise<T> {
+    async transaction<T>(
+        callback: (tx: Knex.Transaction) => Promise<T>,
+    ): Promise<T> {
         return this.database.transaction(callback);
     }
 
@@ -538,6 +541,28 @@ export class ContentReviewRequestModel {
                 `${SpaceTableName}.space_uuid`,
                 this.database.raw('null as dashboard_uuid'),
                 `${DashboardsTableName}.deleted_at`,
+            );
+        return rows.map(parseLocationRow);
+    }
+
+    async findDocumentLocations(
+        documentUuids: string[],
+    ): Promise<ContentReviewContentLocation[]> {
+        if (documentUuids.length === 0) return [];
+        const rows = await this.database(DocumentsTableName)
+            .leftJoin(
+                SpaceTableName,
+                `${DocumentsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .whereIn(`${DocumentsTableName}.document_uuid`, documentUuids)
+            .select<DbLocationRow[]>(
+                `${DocumentsTableName}.document_uuid as uuid`,
+                `${DocumentsTableName}.name`,
+                `${DocumentsTableName}.slug`,
+                `${SpaceTableName}.space_uuid`,
+                this.database.raw('null as dashboard_uuid'),
+                `${DocumentsTableName}.deleted_at`,
             );
         return rows.map(parseLocationRow);
     }
@@ -752,7 +777,11 @@ export class ContentReviewRequestModel {
         name: string;
         limit: number;
     }): Promise<ContentReviewSimilarCandidate[]> {
-        if (name.trim().length === 0 || scope.accessibleSpaceUuids.length === 0)
+        if (
+            name.trim().length === 0 ||
+            scope.accessibleSpaceUuids.length === 0 ||
+            contentType === ContentReviewContentType.DOCUMENT
+        )
             return [];
         const sources =
             contentType === ContentReviewContentType.DASHBOARD

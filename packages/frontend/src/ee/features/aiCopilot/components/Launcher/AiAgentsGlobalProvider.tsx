@@ -6,16 +6,14 @@ import {
     type FC,
     type PropsWithChildren,
 } from 'react';
-import { Provider } from 'react-redux';
-import { useLocation, useMatches } from 'react-router';
+import { useLocation } from 'react-router';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
-import { store } from '../../store';
-import { AiAgentThreadStreamAbortControllerContextProvider } from '../../streaming/AiAgentThreadStreamAbortControllerContextProvider';
 import { CreateIssueModalHost } from '../CreateIssue/CreateIssueModalHost';
-import { PendingPromptProvider } from '../PendingPromptContext/PendingPromptContext';
 import { AiAgentBuildWatcher } from './AiAgentBuildWatcher';
-import { LauncherDockProvider } from './LauncherDockProvider';
+import { AiAgentsCoreProvider } from './AiAgentsCoreProvider';
+import { AiAgentSqlApprovalWatcher } from './AiAgentSqlApprovalWatcher';
 import { launcherSession } from './launcherSession';
+import { useIsLauncherHidden } from './useIsLauncherHidden';
 import { useIsLauncherMounted } from './useIsLauncherMounted';
 
 const AiAgentsLauncher = lazy(() =>
@@ -41,12 +39,7 @@ const AiAgentsLauncherGate: FC = () => {
 // the last non-agent URL without loading the launcher bundle.
 const AiAgentsLauncherSessionTracker: FC = () => {
     const { pathname, search } = useLocation();
-    const matches = useMatches();
-    const isHidden = matches.some(
-        (m) =>
-            (m.handle as { hideAILauncher?: boolean } | undefined)
-                ?.hideAILauncher,
-    );
+    const isHidden = useIsLauncherHidden();
 
     useEffect(() => {
         if (isHidden) return;
@@ -58,19 +51,14 @@ const AiAgentsLauncherSessionTracker: FC = () => {
 };
 
 export const AiAgentsGlobalProvider: FC<PropsWithChildren> = ({ children }) => (
-    <Provider store={store}>
-        <AiAgentThreadStreamAbortControllerContextProvider>
-            <PendingPromptProvider>
-                <LauncherDockProvider>
-                    {children}
-                    <Sentry.ErrorBoundary fallback={<></>}>
-                        <AiAgentsLauncherSessionTracker />
-                        <AiAgentBuildWatcher />
-                        <AiAgentsLauncherGate />
-                        <CreateIssueModalHost />
-                    </Sentry.ErrorBoundary>
-                </LauncherDockProvider>
-            </PendingPromptProvider>
-        </AiAgentThreadStreamAbortControllerContextProvider>
-    </Provider>
+    <AiAgentsCoreProvider>
+        {children}
+        <Sentry.ErrorBoundary fallback={<></>}>
+            <AiAgentsLauncherSessionTracker />
+            <AiAgentBuildWatcher />
+            <AiAgentSqlApprovalWatcher />
+            <AiAgentsLauncherGate />
+            <CreateIssueModalHost />
+        </Sentry.ErrorBoundary>
+    </AiAgentsCoreProvider>
 );

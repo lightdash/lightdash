@@ -57,3 +57,23 @@
     top: var(--drawer-top-offset, 0);
     height: calc(100% - var(--drawer-top-offset, 0));
 }
+
+.drawerHeader {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    min-height: auto;
+}
+
+.drawerBody {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 0 var(--mantine-spacing-md) var(--mantine-spacing-md);
+}
+
+.configCode {
+    font-size: 12px;
+}
+
+.argsCode {
+    font-size: 11px;
+}

@@ -209,6 +209,31 @@ const isInViewport = (el: Element) => {
     return true;
 };
 
+/**
+ * Room a control needs between itself and the edge of the window or of the
+ * scroller that clips it, so the ring around it is whole; the card finds
+ * its own side. A short scroller gets a quarter of its height instead.
+ */
+const EDGE_MARGIN = 16;
+
+/** In view, and not pressed against an edge. */
+const comfortablyInView = (el: Element) => {
+    if (!isInViewport(el)) return false;
+    const r = el.getBoundingClientRect();
+    const clear = (top: number, bottom: number) => {
+        const margin = Math.min(EDGE_MARGIN, (bottom - top) / 4);
+        return r.top >= top + margin && r.bottom <= bottom - margin;
+    };
+    if (!clear(0, window.innerHeight)) return false;
+    for (let p = el.parentElement; p; p = p.parentElement) {
+        if (clips(getComputedStyle(p))) {
+            const pr = p.getBoundingClientRect();
+            if (!clear(pr.top, pr.bottom)) return false;
+        }
+    }
+    return true;
+};
+
 const sameRect = (a: DOMRect | null, b: DOMRect | null) =>
     !!a &&
     !!b &&
@@ -239,19 +264,20 @@ const useTargetRect = (
         let el: Element | null = null;
         let last: DOMRect | null = null;
         let published: DOMRect | null = null;
+        // Whether the control had room around it at the last rect change;
+        // null until it is first measured.
+        let hadRoom: boolean | null = null;
         let frame = 0;
         const tick = () => {
             if (el && !el.isConnected) {
                 el = null;
                 last = null;
                 published = null;
+                hadRoom = null;
                 setRect(null);
             }
             if (!el) {
                 el = document.querySelector(selector);
-                if (el && !isInViewport(el)) {
-                    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-                }
                 // The page can tell which control the tour points at: a
                 // control shown only on hover (a comment's actions) uses
                 // this to show itself while it is the target.
@@ -259,6 +285,23 @@ const useTargetRect = (
             }
             if (el) {
                 const current = el.getBoundingClientRect();
+                // Scroll the control into the middle when it is found off
+                // the page or against an edge, and again whenever layout
+                // later pushes it there (the sidebar above it filling in).
+                // Checked only as the rect changes, and only on the change
+                // that loses the room, so a control nothing can uncover (a
+                // sticky bar over it) is tried once per change, not every
+                // frame.
+                if (!sameRect(current, last)) {
+                    const hasRoom = comfortablyInView(el);
+                    if (!hasRoom && hadRoom !== false) {
+                        el.scrollIntoView({
+                            block: 'center',
+                            behavior: 'smooth',
+                        });
+                    }
+                    hadRoom = hasRoom;
+                }
                 if (sameRect(current, last) && !sameRect(current, published)) {
                     published = current;
                     setRect(current);
@@ -474,7 +517,12 @@ const useTargetInvalid = (
 export type TourEditable = {
     tourEditor?: {
         getValue: () => string;
-        setValue: (value: string) => void;
+        /**
+         * Puts the step's suggestion into the editor. `expect` is the step's
+         * own, for an editor that fills in differently by what is expected
+         * (typing lines in, or replacing one).
+         */
+        setValue: (value: string, expect?: Record<string, string>) => void;
         /**
          * Whether the editor holds what the step asked for: null when it
          * does, else one line saying what is missing. An editor that can
@@ -521,12 +569,16 @@ const aceEditorIn = (el: HTMLElement): AceLike | undefined => {
  * own listener advances the tour. A rich text editor (a contenteditable, or
  * a wrapper holding one) is typed into instead, which its own editor sees.
  */
-const fillTarget = (selector: string, value: string) => {
+const fillTarget = (
+    selector: string,
+    value: string,
+    expect?: Record<string, string>,
+) => {
     const el = document.querySelector<HTMLElement>(selector);
     if (!el) return;
     const own = (el as HTMLElement & TourEditable).tourEditor;
     if (own) {
-        own.setValue(value);
+        own.setValue(value, expect);
         el.dispatchEvent(new Event('input', { bubbles: true }));
         el.focus();
         return;
@@ -789,6 +841,10 @@ export const GuidedTour: FC<GuidedTourProps> = ({
                 // released, so unmount clears whichever is still pending.
                 expandTimeoutRef.current = window.setTimeout(() => {
                     expandTimeoutRef.current = null;
+                    // The control can move while the card expands (a scroll
+                    // bringing it into view): open at where it is now, not
+                    // where the expansion started, or the card sits over it.
+                    setCardRect(latestRectRef.current);
                     setCardPhase('shown');
                 }, CARD_EXPAND_MS);
             }, GLIDE_MS);
@@ -1177,7 +1233,11 @@ export const GuidedTour: FC<GuidedTourProps> = ({
             onClick={() => {
                 setCheckMessage(null);
                 if (shownStep.target)
-                    fillTarget(shownStep.target, shownStep.suggestion!);
+                    fillTarget(
+                        shownStep.target,
+                        shownStep.suggestion!,
+                        shownStep.expect,
+                    );
                 // The editor may now be typing: hold the buttons from this
                 // click, not from the next poll of the page.
                 refreshTarget();

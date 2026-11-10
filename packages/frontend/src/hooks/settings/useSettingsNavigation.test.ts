@@ -1,5 +1,8 @@
+import { Ability } from '@casl/ability';
+import { type Project } from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { type LimitedProjectSettingsPage } from './projectSettingsAccess';
 import { type SettingsContext } from './types';
 import { useSettingsNavigation } from './useSettingsNavigation';
 
@@ -10,15 +13,16 @@ vi.mock('../../providers/Tracking/useTracking', () => ({
 const settingsContext = (
     overrides: Partial<SettingsContext> = {},
 ): SettingsContext => ({
+    showMyAgentConnections: false,
+    isMyAgentConnectionsLoading: false,
     user: undefined,
     health: undefined,
     organization: undefined,
     project: undefined,
     showImpersonationPanel: false,
     isCustomRolesEnabled: false,
-    isProLimitsEnabled: false,
     canAccessAnalyticsSettings: false,
-    isAnalyticsProjectFlagLoading: false,
+    isAnalyticsProjectLoading: false,
     isOrganizationRoadmapEnabled: false,
     canAccessAiCredits: false,
     isAiCreditsLoading: false,
@@ -32,18 +36,22 @@ const settingsContext = (
     hasAnyAiAgentAccess: true,
     isAiOrganizationSettingsLoading: false,
     dataAppsFlag: undefined,
-    dataAppAnalysisFlag: undefined,
     isDataAppsFlagLoading: false,
+    isApiQuerySourcesEnabled: false,
+    isChartStudioAvailable: false,
     externalSourcesFlag: undefined,
-    isResultsCacheEnabled: false,
+    isMobileSettingsEnabled: false,
+    isMobileSettingsFlagLoading: false,
+    isResultsCacheAvailable: false,
     embeddingEnabled: undefined,
     allowPasswordAuthentication: false,
     hasSocialLogin: false,
-    isGroupManagementEnabled: false,
-    isWarehouseCredentialsEnabled: false,
+    isAgentIdentityEnabled: false,
+    isAgentIdentityFlagLoading: false,
     isGitProject: false,
-    projectSettingsAccess: 'none',
+    projectSettingsAccess: { type: 'none', defaultPage: null },
     isProjectSettingsAccessLoading: false,
+    projectSettingsAccessError: null,
     isContentReviewAvailable: false,
     isHealthLoading: false,
     healthError: null,
@@ -135,6 +143,171 @@ describe('MCP settings navigation', () => {
     });
 });
 
+describe('Agents settings navigation', () => {
+    it('indexes the Identity and Permissions sections on the Agents page', () => {
+        const agents = organizationNavigation({
+            isAgentIdentityEnabled: true,
+            user: {
+                ability: new Ability([
+                    { action: 'manage', subject: 'Organization' },
+                ]),
+            } as SettingsContext['user'],
+        })?.find((item) => item.label === 'Agents');
+
+        expect(agents?.to).toBe('/generalSettings/agentIdentity');
+        expect(agents?.pageSections?.map(({ title }) => title)).toEqual([
+            'Identity',
+            'Permissions',
+        ]);
+    });
+});
+
+describe('Mobile settings navigation', () => {
+    const yourSettingsLabels = (isMobileSettingsEnabled: boolean) => {
+        const { result } = renderHook(() =>
+            useSettingsNavigation(
+                settingsContext({
+                    user: {
+                        ability: new Ability([
+                            {
+                                action: 'manage',
+                                subject: 'PersonalAccessToken',
+                            },
+                        ]),
+                    } as unknown as SettingsContext['user'],
+                    isMobileSettingsEnabled,
+                }),
+            ),
+        );
+        return result.current
+            .find((section) => section.id === 'your-settings')
+            ?.items.map(({ label }) => label);
+    };
+
+    it('shows Mobile after Personal access tokens when the flag is on', () => {
+        expect(yourSettingsLabels(true)?.slice(-2)).toEqual([
+            'Personal access tokens',
+            'Mobile',
+        ]);
+    });
+
+    it('hides Mobile when the flag is off', () => {
+        expect(yourSettingsLabels(false)).not.toContain('Mobile');
+    });
+});
+
+describe('Data apps settings navigation', () => {
+    const dataAppsChildren = (rules: { action: string; subject: string }[]) =>
+        organizationNavigation({
+            user: {
+                ability: new Ability(rules),
+            } as unknown as SettingsContext['user'],
+            dataAppsFlag: {
+                id: 'data-apps',
+                enabled: true,
+            } as SettingsContext['dataAppsFlag'],
+        })
+            ?.find((item) => item.label === 'Data apps')
+            ?.children.map(({ label, to }) => ({ label, to }));
+
+    it('shows General first to users who can manage the organization', () => {
+        expect(
+            dataAppsChildren([
+                { action: 'manage', subject: 'Organization' },
+                { action: 'manage', subject: 'OrganizationDesign' },
+            ]),
+        ).toEqual([
+            { label: 'General', to: '/generalSettings/dataApps/general' },
+            { label: 'Themes', to: '/generalSettings/dataApps/themes' },
+            { label: 'Activity', to: '/generalSettings/dataApps/activity' },
+            {
+                label: 'AI analysis',
+                to: '/generalSettings/dataApps/aiAnalysis',
+            },
+        ]);
+    });
+
+    it('hides General from users who cannot manage the organization', () => {
+        expect(
+            dataAppsChildren([
+                { action: 'manage', subject: 'OrganizationDesign' },
+            ]),
+        ).toEqual([
+            { label: 'Themes', to: '/generalSettings/dataApps/themes' },
+        ]);
+    });
+});
+
+describe('Themes settings navigation with Chart Studio', () => {
+    const chartStudioNavigation = (
+        rules: { action: string; subject: string }[],
+        overrides: Partial<SettingsContext> = {},
+    ) =>
+        organizationNavigation({
+            user: {
+                ability: new Ability(rules),
+            } as unknown as SettingsContext['user'],
+            isChartStudioAvailable: true,
+            ...overrides,
+        });
+
+    const allRules = [
+        { action: 'manage', subject: 'Organization' },
+        { action: 'manage', subject: 'OrganizationDesign' },
+    ];
+
+    it('shows Themes as a top-level entry without the data apps flag', () => {
+        const items = chartStudioNavigation(allRules);
+
+        expect(
+            items
+                ?.filter((item) => item.label === 'Themes')
+                .map(({ to, children }) => ({ to, children })),
+        ).toEqual([{ to: '/generalSettings/dataApps/themes', children: [] }]);
+        expect(items?.some((item) => item.label === 'Data apps')).toBe(false);
+        expect(
+            items?.some((item) =>
+                [
+                    '/generalSettings/dataApps/general',
+                    '/generalSettings/dataApps/activity',
+                ].includes(item.to),
+            ),
+        ).toBe(false);
+    });
+
+    it('hides Themes from users who cannot manage designs', () => {
+        expect(
+            chartStudioNavigation([
+                { action: 'manage', subject: 'Organization' },
+            ])?.some((item) => item.label === 'Themes'),
+        ).toBe(false);
+    });
+
+    it('keeps Themes inside Data apps when the flag is on', () => {
+        const items = chartStudioNavigation(allRules, {
+            dataAppsFlag: {
+                id: 'data-apps',
+                enabled: true,
+            } as SettingsContext['dataAppsFlag'],
+        });
+
+        expect(items?.some((item) => item.label === 'Themes')).toBe(false);
+        expect(
+            items
+                ?.find((item) => item.label === 'Data apps')
+                ?.children.map(({ label }) => label),
+        ).toEqual(['General', 'Themes', 'Activity', 'AI analysis']);
+    });
+
+    it('shows no Themes entry without Chart Studio or data apps', () => {
+        expect(
+            chartStudioNavigation(allRules, {
+                isChartStudioAvailable: false,
+            })?.some((item) => item.label === 'Themes'),
+        ).toBe(false);
+    });
+});
+
 describe('AI credits settings navigation', () => {
     it('shows AI credits only to organizations that can access them', () => {
         const aiCredits = (canAccessAiCredits: boolean) =>
@@ -144,5 +317,333 @@ describe('AI credits settings navigation', () => {
 
         expect(aiCredits(true)?.label).toBe('AI credits');
         expect(aiCredits(false)).toBeUndefined();
+    });
+});
+
+describe('limited project settings navigation', () => {
+    it.each([
+        {
+            pages: ['recentlyDeleted'] as LimitedProjectSettingsPage[],
+            expected: [
+                {
+                    label: 'Recently deleted',
+                    to: '/generalSettings/projectManagement/project/recentlyDeleted',
+                },
+            ],
+        },
+        {
+            pages: [
+                'validator',
+                'recentlyDeleted',
+            ] as LimitedProjectSettingsPage[],
+            expected: [
+                {
+                    label: 'Validator',
+                    to: '/generalSettings/projectManagement/project/validator',
+                },
+                {
+                    label: 'Recently deleted',
+                    to: '/generalSettings/projectManagement/project/recentlyDeleted',
+                },
+            ],
+        },
+    ])(
+        'lists only the allowed project settings pages ($pages)',
+        ({ pages, expected }) => {
+            const { result } = renderHook(() =>
+                useSettingsNavigation(
+                    settingsContext({
+                        organization: {
+                            organizationUuid: 'org',
+                            name: 'Test organization',
+                        },
+                        project: {
+                            organizationUuid: 'org',
+                            projectUuid: 'project',
+                            name: 'Test project',
+                        } as Project,
+                        projectSettingsAccess: {
+                            type: 'limited',
+                            pages,
+                            defaultPage: pages[0],
+                        },
+                    }),
+                ),
+            );
+            expect(
+                result.current
+                    .find((section) => section.id === 'current-project')
+                    ?.items.map(({ label, to }) => ({ label, to })),
+            ).toEqual(expected);
+        },
+    );
+});
+
+describe('managed analytics project settings navigation', () => {
+    it.each(['full', 'limited'] as const)(
+        'keeps only useful analytics project settings with %s access',
+        (type) => {
+            const { result } = renderHook(() =>
+                useSettingsNavigation(
+                    settingsContext({
+                        organization: {
+                            organizationUuid: 'org',
+                            name: 'Organization',
+                        },
+                        project: {
+                            projectUuid: 'project',
+                            organizationUuid: 'org',
+                            name: 'Analytics',
+                            provisioningSource: 'analytics',
+                        } as Project,
+                        canAccessAnalyticsSettings: true,
+                        health: {
+                            softDelete: { enabled: true },
+                            preAggregates: { enabled: false },
+                        } as SettingsContext['health'],
+                        user: {
+                            ability: new Ability([
+                                { action: 'manage', subject: 'all' },
+                            ]),
+                        } as SettingsContext['user'],
+                        projectSettingsAccess:
+                            type === 'full'
+                                ? { type, defaultPage: 'settings' }
+                                : {
+                                      type,
+                                      pages: ['recentlyDeleted'],
+                                      defaultPage: 'recentlyDeleted',
+                                  },
+                    }),
+                ),
+            );
+            expect(
+                result.current
+                    .find(({ id }) => id === 'current-project')
+                    ?.items.map(({ label }) => label),
+            ).toEqual(
+                type === 'full'
+                    ? ['Project access', 'Recently deleted']
+                    : ['Recently deleted'],
+            );
+            expect(result.current.flatMap(({ items }) => items)).toContainEqual(
+                expect.objectContaining({
+                    label: 'Lightdash analytics',
+                    to: '/generalSettings/lightdashAnalytics',
+                }),
+            );
+        },
+    );
+});
+
+describe('Agent identity settings navigation', () => {
+    it.each([
+        [true, 'manage', true],
+        [false, 'manage', false],
+        [true, 'update', false],
+        [true, 'view', false],
+    ])('flag %s with %s project permission', (enabled, action, visible) => {
+        const { result } = renderHook(() =>
+            useSettingsNavigation(
+                settingsContext({
+                    isAgentIdentityEnabled: enabled,
+                    organization: {
+                        organizationUuid: 'org',
+                        name: 'Organization',
+                    },
+                    project: {
+                        projectUuid: 'project',
+                        organizationUuid: 'org',
+                        name: 'Project',
+                    } as Project,
+                    user: {
+                        ability: new Ability([
+                            {
+                                action,
+                                subject: 'Project',
+                                conditions: {
+                                    organizationUuid: 'org',
+                                    projectUuid: 'project',
+                                },
+                            },
+                        ]),
+                    } as SettingsContext['user'],
+                    projectSettingsAccess: {
+                        type: 'full',
+                        defaultPage: 'settings',
+                    },
+                }),
+            ),
+        );
+        const items = result.current.find(
+            ({ id }) => id === 'current-project',
+        )!.items;
+        const index = items.findIndex(
+            ({ label }) => label === 'Agent identity',
+        );
+        if (visible) {
+            expect(items[index].to).toBe(
+                '/generalSettings/projectManagement/project/agentIdentity',
+            );
+            expect(items[index - 1].label).toBe('Tables configuration');
+        } else expect(index).toBe(-1);
+    });
+});
+
+describe('Project connections settings navigation', () => {
+    const projectItems = (overrides: Partial<SettingsContext>) => {
+        const { result } = renderHook(() =>
+            useSettingsNavigation(
+                settingsContext({
+                    organization: {
+                        organizationUuid: 'org',
+                        name: 'Organization',
+                    },
+                    project: {
+                        projectUuid: 'project',
+                        organizationUuid: 'org',
+                        name: 'Project',
+                    } as Project,
+                    user: {
+                        ability: new Ability([
+                            {
+                                action: 'manage',
+                                subject: 'ExternalConnection',
+                                conditions: {
+                                    organizationUuid: 'org',
+                                    projectUuid: 'project',
+                                },
+                            },
+                        ]),
+                    } as SettingsContext['user'],
+                    projectSettingsAccess: {
+                        type: 'full',
+                        defaultPage: 'settings',
+                    },
+                    ...overrides,
+                }),
+            ),
+        );
+        return result.current.find(({ id }) => id === 'current-project')!.items;
+    };
+    const projectLabels = (overrides: Partial<SettingsContext>) =>
+        projectItems(overrides).map(({ label }) => label);
+
+    it('links Live data sources to the Semantic Layer page, marked as moved', () => {
+        const item = projectItems({ isApiQuerySourcesEnabled: true }).find(
+            ({ label }) => label === 'Live data sources',
+        );
+        expect(item).toMatchObject({
+            to: '/projects/project/semantic-layer/kinds/live',
+            movedTo: 'Semantic Layer',
+        });
+        expect(item?.keywords).toEqual(
+            expect.arrayContaining(['posthog', 'semantic layer']),
+        );
+    });
+
+    it('links External sources to the Semantic Layer page, marked as moved', () => {
+        const item = projectItems({
+            externalSourcesFlag: { id: 'external-sources', enabled: true },
+            health: {
+                softDelete: { enabled: false },
+                preAggregates: { enabled: false },
+                externalSources: { engineAvailable: true },
+            } as SettingsContext['health'],
+            user: {
+                ability: new Ability([
+                    {
+                        action: 'manage',
+                        subject: 'ExternalSource',
+                        conditions: {
+                            organizationUuid: 'org',
+                            projectUuid: 'project',
+                        },
+                    },
+                ]),
+            } as SettingsContext['user'],
+        }).find(({ label }) => label === 'External sources');
+        expect(item).toMatchObject({
+            to: '/projects/project/semantic-layer/kinds/files',
+            movedTo: 'Semantic Layer',
+        });
+        expect(item?.keywords).toEqual(
+            expect.arrayContaining(['csv', 'semantic layer']),
+        );
+    });
+
+    it('shows Live data sources without Data app connections when only live sources are enabled', () => {
+        const labels = projectLabels({ isApiQuerySourcesEnabled: true });
+        expect(labels).toContain('Live data sources');
+        expect(labels).not.toContain('Data app connections');
+    });
+
+    it('shows Data app connections without Live data sources when only data apps are enabled', () => {
+        const labels = projectLabels({
+            dataAppsFlag: { id: 'enable-data-apps', enabled: true },
+        });
+        expect(labels).toContain('Data app connections');
+        expect(labels).not.toContain('Live data sources');
+    });
+});
+
+describe('My agent connections navigation', () => {
+    it.each([true, false])(
+        'uses shared visibility %s',
+        (showMyAgentConnections) => {
+            const { result } = renderHook(() =>
+                useSettingsNavigation(
+                    settingsContext({ showMyAgentConnections }),
+                ),
+            );
+            const items = result.current.find(
+                ({ id }) => id === 'your-settings',
+            )!.items;
+            const index = items.findIndex(
+                ({ label }) => label === 'My agent identity',
+            );
+            if (showMyAgentConnections) {
+                expect(items[index - 1].label).toBe('My warehouse connections');
+                expect(items[index]).toMatchObject({
+                    to: '/generalSettings/myAgentConnections',
+                    keywords: [
+                        'agent',
+                        'identity',
+                        'sign-in',
+                        'ai',
+                        'mcp',
+                        'snowflake',
+                        'bigquery',
+                        'connect',
+                    ],
+                });
+            } else {
+                expect(index).toBe(-1);
+            }
+        },
+    );
+});
+
+describe('AI analysis settings navigation without data apps', () => {
+    const aiAnalysisItem = (overrides: Partial<SettingsContext> = {}) =>
+        organizationNavigation({
+            user: {
+                ability: new Ability([
+                    { action: 'manage', subject: 'Organization' },
+                ]),
+            } as unknown as SettingsContext['user'],
+            ...overrides,
+        })?.find((item) => item.label === 'AI analysis');
+
+    it('shows AI analysis wherever AI is available', () => {
+        expect(aiAnalysisItem()?.to).toBe(
+            '/generalSettings/dataApps/aiAnalysis',
+        );
+    });
+
+    it('hides AI analysis without AI', () => {
+        expect(
+            aiAnalysisItem({ isAiCopilotEnabledOrTrial: false }),
+        ).toBeUndefined();
     });
 });

@@ -11,6 +11,14 @@ export type ApiAiGenerateCustomVizResponse = {
     results: string;
 };
 
+/**
+ * Naming styles for generated chart titles and descriptions, in the order the
+ * regenerate button cycles through them. `question` is the default style.
+ */
+export const CHART_METADATA_STYLES = ['question', 'compact', 'short'] as const;
+
+export type ChartMetadataStyle = (typeof CHART_METADATA_STYLES)[number];
+
 export type GenerateChartMetadataRequest = {
     tableName: string;
     chartType: string;
@@ -21,6 +29,10 @@ export type GenerateChartMetadataRequest = {
         Pick<Field, 'name' | 'label' | 'description' | 'type'>
     >;
     chartConfigJson?: string;
+    /** Naming style to generate in. Defaults to `question`. */
+    style?: ChartMetadataStyle;
+    /** An existing title whose voice and format the new title should follow. */
+    styleReferenceTitle?: string;
 };
 
 export type GeneratedChartMetadata = {
@@ -41,6 +53,7 @@ export type TableCalculationFieldContext = Pick<
 };
 
 export type GenerateTableCalculationRequest = {
+    exploreName: string;
     prompt: string;
     tableName: string;
     fieldsContext: TableCalculationFieldContext[];
@@ -68,6 +81,7 @@ export type CustomDimensionFieldContext = Pick<
 };
 
 export type GenerateCustomDimensionRequest = {
+    exploreName: string;
     prompt: string;
     tableName: string;
     fieldsContext: CustomDimensionFieldContext[];

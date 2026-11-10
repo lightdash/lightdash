@@ -8,9 +8,9 @@ const DbtManifestForm: FC = () => {
         <Stack>
             <Alert
                 color="orange"
-                icon={<MantineIcon icon={IconExclamationCircle} size="lg" />}
+                icon={<MantineIcon icon={IconExclamationCircle} />}
             >
-                <Text c="orange">
+                <Text>
                     This project was created from a manifest.json file. If you
                     want to keep Lightdash in sync with your dbt project, you
                     need to either{' '}

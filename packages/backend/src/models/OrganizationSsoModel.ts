@@ -223,6 +223,44 @@ export class OrganizationSsoModel {
             .find((method) => method.config.oauth2Issuer === oauth2Issuer);
     }
 
+    /**
+     * All enabled methods for a provider whose org has at least one verified
+     * domain. Used when a login arrives without an email hint (IdP-initiated
+     * launch) to tell whether the provider can be resolved unambiguously. Orgs
+     * without a verified domain are excluded because the callback-time domain
+     * check would reject them anyway.
+     */
+    async findEnabledMethodsForProvider<P extends OrganizationSsoProvider>(
+        provider: P,
+    ): Promise<OrganizationSsoConfigLookup<P>[]> {
+        const rows = await this.database(OrganizationSsoConfigurationsTableName)
+            .where(
+                `${OrganizationSsoConfigurationsTableName}.provider`,
+                provider,
+            )
+            .where(`${OrganizationSsoConfigurationsTableName}.enabled`, true)
+            .whereExists((qb) => {
+                void qb
+                    .select(this.database.raw('1'))
+                    .from(OrganizationDomainVerificationsTableName)
+                    .whereRaw(
+                        `${OrganizationDomainVerificationsTableName}.organization_uuid = ${OrganizationSsoConfigurationsTableName}.organization_uuid`,
+                    )
+                    .whereNotNull(
+                        `${OrganizationDomainVerificationsTableName}.verified_at`,
+                    );
+            })
+            .select(
+                `${OrganizationSsoConfigurationsTableName}.organization_uuid`,
+                `${OrganizationSsoConfigurationsTableName}.config`,
+            );
+
+        return rows.map((row) => ({
+            organizationUuid: row.organization_uuid,
+            config: this.decryptConfig<P>(row.config),
+        }));
+    }
+
     async findEnabledAzureAdMethodsByTenantId(
         tenantId: string,
     ): Promise<OrganizationSsoConfigLookup<OrganizationSsoProvider.AZUREAD>[]> {

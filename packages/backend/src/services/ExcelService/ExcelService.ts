@@ -151,8 +151,14 @@ export class ExcelService {
             // Convert string numbers to actual numbers for Excel formatting
             // When there is a formatExpression, the formatting is applied at the column level
             // so we need to convert the raw value to a number
-            if (isNumber(rawValue)) {
-                return Number(stringValue);
+            // Known non-numeric fields keep their text (e.g. zero-padded codes)
+            const numericValue = Number(stringValue);
+            if (
+                (!item || isNumericItem(item)) &&
+                isNumber(rawValue) &&
+                Number.isFinite(numericValue)
+            ) {
+                return numericValue;
             }
 
             // Otherwise, use standard Lightdash formatting as there won't be a format expression

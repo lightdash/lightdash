@@ -4,11 +4,16 @@ import {
     type ApiExecuteAsyncDashboardChartQueryResults,
     type DateZoom,
 } from '@lightdash/common';
-import { useCallback, useMemo } from 'react';
-import { lightdashApi } from '../../api';
+import { useCallback } from 'react';
 import { Limit } from '../../components/ExportResults/types';
+import {
+    selectParameterValues,
+    selectTileChartSorts,
+    useDashboardSelector,
+    useTileDashboardParameterInputs,
+} from '../../features/dashboard/store';
 import { pollForResults } from '../../features/queryRunner/executeQuery';
-import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 
 export const useDashboardChartDownload = (
@@ -20,13 +25,14 @@ export const useDashboardChartDownload = (
     canExportPivotedData: boolean,
     dateZoom?: DateZoom,
 ) => {
+    const lightdashApi = useLightdashApi();
     // Get dashboard filters and sorts for this tile
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
-    const chartSort = useDashboardContext((c) => c.chartSort);
-    const parameters = useDashboardContext((c) => c.parameterValues);
-    const dashboardSorts = useMemo(
-        () => chartSort[tileUuid] || [],
-        [chartSort, tileUuid],
+    const appliedParameterValues = useDashboardSelector(selectParameterValues);
+    const { dashboardValues: parameters, excludedParameterKeys } =
+        useTileDashboardParameterInputs(tileUuid, appliedParameterValues);
+    const dashboardSorts = useDashboardSelector((state) =>
+        selectTileChartSorts(state, tileUuid),
     );
 
     const getDownloadQueryUuid = useCallback(
@@ -65,12 +71,14 @@ export const useDashboardChartDownload = (
                         limit,
                         invalidateCache: false,
                         parameters,
+                        excludedParameterKeys,
                         pivotResults: shouldPivotResults,
                     }),
                 });
 
             // Poll for results similar to executeQueryAndWaitForResults
             const results = await pollForResults(
+                lightdashApi,
                 projectUuid,
                 executeQueryResponse.queryUuid,
             );
@@ -97,8 +105,10 @@ export const useDashboardChartDownload = (
             dashboardSorts,
             dateZoom,
             parameters,
+            excludedParameterKeys,
             canExportPivotedData,
             originalQueryUuid,
+            lightdashApi,
         ],
     );
 

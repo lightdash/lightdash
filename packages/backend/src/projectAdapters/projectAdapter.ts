@@ -1,15 +1,20 @@
 import {
-    CreateWarehouseCredentials,
+    assertUnreachable,
     DbtManifestProjectConfig,
     DbtProjectConfig,
     DbtProjectType,
     DbtVersionOption,
     ParameterError,
     resolveDbtVersion,
+    type DbtJoinAvailability,
+    type WarehouseClient,
 } from '@lightdash/common';
-import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import Logger from '../logging/logger';
+import type {
+    DbtTargetPolicy,
+    DbtTargetResult,
+} from '../services/WarehouseClientFactory/CredentialResolver';
 import { CachedWarehouse, ProjectAdapter } from '../types';
 import { DbtAzureDevOpsProjectAdapter } from './dbtAzureDevOpsProjectAdapter';
 import { DbtBitBucketProjectAdapter } from './dbtBitBucketProjectAdapter';
@@ -29,25 +34,38 @@ export const projectAdapterFromConfig = async (
     config:
         | Exclude<DbtProjectConfig, DbtManifestProjectConfig>
         | (Omit<DbtManifestProjectConfig, 'manifest'> & ManifestInput),
-    warehouseCredentials: CreateWarehouseCredentials,
+    warehouseClient: WarehouseClient,
     cachedWarehouse: CachedWarehouse,
     dbtVersionOption: DbtVersionOption,
     environmentVariableAllowlist: string[],
     partialParseBaselinePath: string | null,
+    dbtTarget: {
+        resolve: () => DbtTargetResult;
+        policy: DbtTargetPolicy;
+    } | null,
     analytics?: LightdashAnalytics,
     // MANIFEST-only: project dir for Lightdash config and selected model ids.
     // Ignored by every other adapter type.
-    manifestOptions?: { projectDir?: string; selectedModelIds?: string[] },
+    manifestOptions?: {
+        projectDir?: string;
+        selectedModelIds?: string[];
+        joinAvailability?: DbtJoinAvailability;
+    },
 ): Promise<ProjectAdapter> => {
-    Logger.debug(
-        `Initialize warehouse client of type ${warehouseCredentials.type}`,
-    );
-    const warehouseClient =
-        warehouseClientFromCredentials(warehouseCredentials);
     const configType = config.type;
     Logger.debug(`Initialize project adaptor of type ${configType}`);
 
     const dbtVersion = resolveDbtVersion(dbtVersionOption);
+    const resolveTarget = () => {
+        if (dbtTarget === null)
+            throw new ParameterError('A resolved dbt target is required.');
+        const target = dbtTarget.resolve();
+        if (target.kind === 'none') throw new ParameterError(target.reason);
+        return {
+            dbtTarget: target,
+            explicitCredentials: dbtTarget.policy.explicitCredentials,
+        };
+    };
 
     switch (config.type) {
         case DbtProjectType.DBT:
@@ -56,7 +74,7 @@ export const projectAdapterFromConfig = async (
                 analytics,
                 warehouseClient,
                 projectDir: config.project_dir || '/usr/app/dbt',
-                warehouseCredentials,
+                ...resolveTarget(),
                 targetName: config.target,
                 environment: config.environment,
                 environmentVariableAllowlist,
@@ -81,6 +99,7 @@ export const projectAdapterFromConfig = async (
                     : { manifest: config.manifest }),
                 dbtProjectDir: manifestOptions?.projectDir,
                 selectedModelIds: manifestOptions?.selectedModelIds,
+                joinAvailability: manifestOptions?.joinAvailability,
             });
 
         case DbtProjectType.DBT_CLOUD_IDE:
@@ -133,7 +152,7 @@ export const projectAdapterFromConfig = async (
                 githubBranch: config.branch,
                 projectDirectorySubPath: config.project_sub_path,
                 hostDomain: config.host_domain,
-                warehouseCredentials,
+                ...resolveTarget(),
                 targetName: config.target,
                 environment: config.environment,
                 environmentVariableAllowlist,
@@ -152,7 +171,7 @@ export const projectAdapterFromConfig = async (
                 gitlabBranch: config.branch,
                 projectDirectorySubPath: config.project_sub_path,
                 hostDomain: config.host_domain,
-                warehouseCredentials,
+                ...resolveTarget(),
                 targetName: config.target,
                 environment: config.environment,
                 environmentVariableAllowlist,
@@ -184,7 +203,7 @@ export const projectAdapterFromConfig = async (
                 branch: config.branch,
                 projectDirectorySubPath: config.project_sub_path,
                 hostDomain: config.host_domain,
-                warehouseCredentials,
+                ...resolveTarget(),
                 targetName: config.target,
                 environment: config.environment,
                 environmentVariableAllowlist,
@@ -204,7 +223,7 @@ export const projectAdapterFromConfig = async (
                 repository: config.repository,
                 branch: config.branch,
                 projectDirectorySubPath: config.project_sub_path,
-                warehouseCredentials,
+                ...resolveTarget(),
                 targetName: config.target,
                 environment: config.environment,
                 environmentVariableAllowlist,
@@ -214,7 +233,9 @@ export const projectAdapterFromConfig = async (
                 selector: config.selector,
             });
         default:
-            const never: never = config;
-            throw new Error(`Adapter not implemented for type: ${configType}`);
+            return assertUnreachable(
+                config,
+                `Adapter not implemented for type: ${configType}`,
+            );
     }
 };

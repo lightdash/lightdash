@@ -47,6 +47,7 @@ const makeDeps = ({
                     }),
                 },
             }),
+            joinChannels: vi.fn().mockResolvedValue(undefined),
             postMessage: vi.fn().mockResolvedValue({ ok: true }),
         },
         analytics: {
@@ -107,4 +108,40 @@ test('needs_review posts to configured channel when enabled', async () => {
             channel: AiReviewNotificationChannel.SlackChannel,
         }),
     );
+});
+
+const needsReviewPayload = {
+    event: AiReviewNotificationEvent.NeedsReview,
+    fingerprints: ['fingerprint-1'],
+    organizationUuid: 'org-1',
+    projectUuid: 'project-1',
+    reviewRunUuid: 'run-1',
+    assigneeUserUuid: null,
+};
+
+test('needs_review joins the configured channel before posting', async () => {
+    const deps = makeDeps();
+
+    await sendReviewNotification(deps as never)(needsReviewPayload);
+
+    expect(deps.slackClient.joinChannels).toHaveBeenCalledWith('org-1', [
+        'C123',
+    ]);
+    expect(
+        deps.slackClient.joinChannels.mock.invocationCallOrder[0],
+    ).toBeLessThan(deps.slackClient.postMessage.mock.invocationCallOrder[0]);
+});
+
+test('needs_review still posts when joining the channel fails', async () => {
+    const deps = makeDeps();
+    deps.slackClient.joinChannels.mockRejectedValue(
+        new Error('missing channels:join scope'),
+    );
+
+    await sendReviewNotification(deps as never)(needsReviewPayload);
+
+    expect(deps.slackClient.postMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ channel: 'C123' }),
+    );
+    expect(deps.model.recordSent).toHaveBeenCalled();
 });

@@ -39,6 +39,11 @@ export type SettingsNavigationItem = {
     pageSections?: SettingsPageSection[];
     children: SettingsNavigationItem[];
     exact?: boolean;
+    /**
+     * The page moved out of settings to the page named here; `to` leads
+     * there, and the entry is marked so it isn't mistaken for a settings page.
+     */
+    movedTo?: string;
     onClick?: () => void;
     /** `data-tour-nav` for scope walkthroughs; hints are declared in SettingsNavigation. */
     tourNav?: string;
@@ -59,17 +64,18 @@ export type SettingsNavigationSection = {
  * router, sidebar nav, and a future settings search all derive from it.
  */
 export type SettingsContext = {
+    showMyAgentConnections: boolean;
+    isMyAgentConnectionsLoading: boolean;
     user: UserWithAbility | undefined;
     health: HealthState | undefined;
     organization: Organization | undefined;
     project: Project | undefined;
     showImpersonationPanel: boolean | undefined;
     isCustomRolesEnabled: boolean | undefined;
-    isProLimitsEnabled: boolean;
     canAccessAnalyticsSettings: boolean;
-    isAnalyticsProjectFlagLoading: boolean;
+    isAnalyticsProjectLoading: boolean;
     isOrganizationRoadmapEnabled: boolean;
-    // Org admin, ai-credits flag on, and a contract in force.
+    // Org admin and a contract in force.
     canAccessAiCredits: boolean;
     isAiCreditsLoading: boolean;
     isSsoOrganizationSettingsEnabled: boolean;
@@ -85,19 +91,24 @@ export type SettingsContext = {
     hasAnyAiAgentAccess: boolean;
     isAiOrganizationSettingsLoading: boolean;
     dataAppsFlag: FeatureFlag | undefined;
-    dataAppAnalysisFlag: FeatureFlag | undefined;
     isDataAppsFlagLoading: boolean;
+    isApiQuerySourcesEnabled: boolean;
+    // Chart Studio uses org themes, so it opens Themes without data apps.
+    isChartStudioAvailable: boolean;
     externalSourcesFlag: FeatureFlag | undefined;
-    isResultsCacheEnabled: boolean;
+    isMobileSettingsEnabled: boolean;
+    isMobileSettingsFlagLoading: boolean;
+    isResultsCacheAvailable: boolean;
     embeddingEnabled: FeatureFlag | undefined;
     allowPasswordAuthentication: boolean;
     hasSocialLogin: boolean | undefined;
-    isGroupManagementEnabled: boolean;
-    isWarehouseCredentialsEnabled: boolean;
+    isAgentIdentityEnabled: boolean;
+    isAgentIdentityFlagLoading: boolean;
     isGitProject: boolean;
     /** Which project settings the user can open; see `getProjectSettingsAccess`. */
     projectSettingsAccess: ProjectSettingsAccess;
     isProjectSettingsAccessLoading: boolean;
+    projectSettingsAccessError: ApiError | null;
     isContentReviewAvailable: boolean;
     isHealthLoading: boolean;
     healthError: ApiError | null;

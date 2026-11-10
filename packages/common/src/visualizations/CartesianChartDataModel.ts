@@ -1,4 +1,4 @@
-import intersectionBy from 'lodash/intersectionBy';
+import { intersectionBy } from 'es-toolkit/compat';
 import { getFirstIndexColumns } from '../pivot/utils';
 import { type AnyType } from '../types/any';
 import {
@@ -976,6 +976,9 @@ export class CartesianChartDataModel {
                 nameTextStyle: getAxisTitleStyle(),
                 axisLabel: {
                     ...getAxisLabelStyle(),
+                    // Time axes emit month-boundary ticks on top of regular
+                    // ones; the shared formatter makes those labels collide
+                    hideOverlap: true,
                     ...(xAxisType === VizIndexType.TIME && effectiveDateFormat
                         ? {
                               formatter: (value: string | number) =>

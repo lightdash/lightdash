@@ -1,10 +1,7 @@
 .panel {
     border: 1px solid var(--mantine-color-ldGray-3);
     border-radius: var(--mantine-radius-md);
-    background-color: light-dark(
-        var(--mantine-color-gray-0),
-        var(--mantine-color-dark-6)
-    );
+    background-color: var(--mantine-color-ldGray-0);
     padding: 14px 16px;
 }
 

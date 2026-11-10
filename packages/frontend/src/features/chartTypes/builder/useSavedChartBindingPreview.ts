@@ -10,6 +10,7 @@ import {
 import { useDebouncedValue } from '@mantine/hooks';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { executeSavedChartPreviewQuery } from '../utils/savedChartPreviewQuery';
 import { type SavedChartPreviewRun } from './useSavedChartPreviewData';
 
@@ -59,6 +60,7 @@ export const useSavedChartBindingPreview = ({
     schema: DataAppVizSchema | null;
     fieldMapping: DataAppVizFieldMapping;
 }): SavedChartPreviewRun & { fieldMapping: DataAppVizFieldMapping } => {
+    const lightdashApi = useLightdashApi();
     const request = useMemo(() => {
         if (!projectUuid || !savedChartUuid || source.data.status !== 'ready')
             return null;
@@ -92,7 +94,7 @@ export const useSavedChartBindingPreview = ({
                 throw new Error('No saved chart selected');
             const results = debouncedRequest.reuseSource
                 ? source.data
-                : await executeSavedChartPreviewQuery({
+                : await executeSavedChartPreviewQuery(lightdashApi, {
                       projectUuid: debouncedRequest.projectUuid,
                       chartUuid: debouncedRequest.chartUuid,
                       pivotResults: false,

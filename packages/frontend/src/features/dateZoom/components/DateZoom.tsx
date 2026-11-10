@@ -25,9 +25,18 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import {
+    selectAvailableCustomGranularities,
+    selectChartZoomableFieldsByTileUuid,
+    selectDateZoomGranularity,
+    selectIsDateZoomDisabled,
+    useDashboardDateZoomConfig,
+    useDashboardDateZoomGranularities,
+    useDashboardSelector,
+    useDefaultDateZoomGranularity,
+} from '../../dashboard/store';
 import { getGranularityLabel } from '../utils';
 import styles from './DateZoom.module.css';
 import { DateZoomControlPills } from './DateZoomControlPills';
@@ -130,32 +139,26 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
     const getUiString = useUiStrings();
     const [showOpenIcon, setShowOpenIcon] = useState(false);
 
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
-    );
+    const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
     const setDateZoomGranularity = useDashboardContext(
         (c) => c.setDateZoomGranularity,
     );
-    const isDateZoomDisabled = useDashboardContext((c) => c.isDateZoomDisabled);
-    const dateZoomGranularities = useDashboardContext(
-        (c) => c.dateZoomGranularities,
-    );
+    const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
+    const dateZoomGranularities = useDashboardDateZoomGranularities();
     const setDateZoomGranularities = useDashboardContext(
         (c) => c.setDateZoomGranularities,
     );
-    const defaultDateZoomGranularity = useDashboardContext(
-        (c) => c.defaultDateZoomGranularity,
-    );
+    const defaultDateZoomGranularity = useDefaultDateZoomGranularity();
     const setDefaultDateZoomGranularity = useDashboardContext(
         (c) => c.setDefaultDateZoomGranularity,
     );
-    const availableCustomGranularities = useDashboardTileStatusContext(
-        (c) => c.availableCustomGranularities,
+    const availableCustomGranularities = useDashboardSelector(
+        selectAvailableCustomGranularities,
     );
     const { track } = useTracking();
-    const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
-    const chartZoomableFieldsByTileUuid = useDashboardContext(
-        (c) => c.chartZoomableFieldsByTileUuid,
+    const dateZoomConfig = useDashboardDateZoomConfig();
+    const chartZoomableFieldsByTileUuid = useDashboardSelector(
+        selectChartZoomableFieldsByTileUuid,
     );
 
     // Charts the Default governs: date-zoomable tiles not claimed by a control.

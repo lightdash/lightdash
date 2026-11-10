@@ -7,12 +7,14 @@ import {
 } from '@lightdash/common';
 import fs from 'fs/promises';
 import path from 'path';
-import simpleGit from 'simple-git';
+import { simpleGit } from 'simple-git';
 import { getInstallationToken } from '../clients/github/Github';
 import { DbtCliClient } from '../dbt/dbtCliClient';
+import { toDbtTarget } from '../dbt/targets';
 import { warehouseClientMock } from '../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { DbtBitBucketProjectAdapter } from './dbtBitBucketProjectAdapter';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
+import { GitRepository } from './gitRepository';
 import { NativeGitProjectAdapter } from './nativeGitProjectAdapter';
 import { projectAdapterFromConfig } from './projectAdapter';
 
@@ -49,21 +51,51 @@ describe('native GitHub server compilation', () => {
     const createAdapter = (config: DbtProjectConfig = connection) =>
         projectAdapterFromConfig(
             config,
-            {
-                type: WarehouseTypes.POSTGRES,
-                host: 'localhost',
-                port: 5432,
-                user: 'postgres',
-                password: 'test',
-                dbname: 'postgres',
-                schema: 'public',
-            },
+            warehouseClientMock,
             { warehouseCatalog: undefined, onWarehouseCatalogChange: vi.fn() },
             SupportedDbtVersions.V1_10,
             [],
             null,
+            {
+                resolve: () =>
+                    toDbtTarget(
+                        {
+                            type: WarehouseTypes.POSTGRES,
+                            host: 'localhost',
+                            port: 5432,
+                            user: 'postgres',
+                            password: 'test',
+                            dbname: 'postgres',
+                            schema: 'public',
+                        },
+                        { explicitCredentials: false },
+                    ),
+                policy: { explicitCredentials: false },
+            },
         );
     const adapters: Awaited<ReturnType<typeof createAdapter>>[] = [];
+
+    it('passes cancellation through the native repository test', async () => {
+        const adapter = await createAdapter();
+        adapters.push(adapter);
+        const controller = new AbortController();
+        const reason = new Error('leaf_a interrupted');
+        const refresh = vi
+            .spyOn(GitRepository.prototype, 'refresh')
+            .mockImplementationOnce(async (signal) => {
+                expect(signal).toBe(controller.signal);
+                controller.abort(reason);
+                signal!.throwIfAborted();
+            });
+        try {
+            await expect(
+                adapter.test({ signal: controller.signal }),
+            ).rejects.toBe(reason);
+            expect(refresh).toHaveBeenCalledOnce();
+        } finally {
+            refresh.mockRestore();
+        }
+    });
 
     beforeEach(() => {
         vi.clearAllMocks();

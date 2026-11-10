@@ -143,9 +143,7 @@ const UpdateProjectConnection: FC<{
             {project?.type === ProjectType.PREVIEW && (
                 <Alert
                     color="orange"
-                    icon={
-                        <MantineIcon icon={IconExclamationCircle} size="lg" />
-                    }
+                    icon={<MantineIcon icon={IconExclamationCircle} />}
                     title="Developer previews are temporary Lightdash projects where settings cannot be changed."
                 >
                     Read docs{' '}

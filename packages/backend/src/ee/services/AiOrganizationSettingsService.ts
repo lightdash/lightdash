@@ -4,12 +4,15 @@ import {
     AI_DEEP_RESEARCH_MAX_WORKERS,
     AiOrganizationRuntimeSettings,
     AiOrganizationSettings,
+    assertUnreachable,
     BYO_AI_PROVIDERS,
     CommercialFeatureFlags,
     ComputedAiOrganizationSettings,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+    DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
     FeatureFlags,
     ForbiddenError,
+    getErrorMessage,
     getVisibleDataAppClaudeModels,
     isValidRetentionWindowHours,
     LightdashUser,
@@ -22,25 +25,36 @@ import {
     type AiModelOption,
     type AiOrgModelVisibility,
     type AiProviderCredentialsList,
+    type ByoAiApiKeyProvider,
     type ByoAiProvider,
     type CreateAiProviderCredential,
     type DataAppAnalysisLimits,
+    type McpProjectAccess,
     type ProjectAiCredentialSelection,
+    type RegisteredAccount,
     type SessionUser,
     type UpdateAiProviderCredential,
 } from '@lightdash/common';
+import { toSessionUser } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
+import { createAuditLogEvent } from '../../logging/auditLog';
+import { createActorFromAccount } from '../../logging/caslAuditWrapper';
+import { logAuditEvent } from '../../logging/winston';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { assertHumanManagedMutation } from '../../services/AgentPermissionService/assertHumanManagedMutation';
 import { BaseService } from '../../services/BaseService';
 import { AiOrganizationProviderCredentialModel } from '../models/AiOrganizationProviderCredentialModel';
 import { AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { CommercialFeatureFlagModel } from '../models/CommercialFeatureFlagModel';
+import { isCreatedInAiTrial } from './ai/aiTrial';
 import {
     filterModelsForOrg,
     getAvailableModels,
     getDefaultModel,
-    presetToModelOption,
+    getOrgModelCatalogue,
+    getOrgModelOptions,
 } from './ai/models';
 import {
     matchesPreset,
@@ -52,6 +66,7 @@ import {
     OrgAiCopilotConfigResolver,
     type ReviewJudgeAvailability,
 } from './ai/OrgAiCopilotConfigResolver';
+import { isSameMcpProjectAccess } from './McpService/mcpProjectAccess';
 
 type AvailableModelPreset = ModelPreset<SelectableModelProvider>;
 
@@ -102,6 +117,20 @@ export const pickReplacementDefaultModelConfig = (
         reasoning: preset.supportsReasoning ? previous.reasoning : undefined,
     };
 };
+
+/**
+ * Clearing an org base URL while the instance runs its own gateway would make
+ * every turn fail the gateway-conflict check, so reject it at write time.
+ */
+export const findBaseUrlRemovalsBlockedByInstanceGateway = (
+    providerApiKeys: UpdateAiProviderApiKeys,
+    configuredProviders: LightdashConfig['ai']['copilot']['providers'],
+): ByoAiApiKeyProvider[] =>
+    (['anthropic', 'google'] as const).filter(
+        (provider) =>
+            providerApiKeys.providerBaseUrls?.[provider] === null &&
+            Boolean(configuredProviders[provider]?.baseUrl),
+    );
 
 /**
  * Providers being SET to a key that this instance does not configure. BYO can
@@ -163,6 +192,22 @@ export const validateDataAppAnalysisLimits = (
     });
 };
 
+/** Normalizes a submitted org default to trimmed text or null (cleared). */
+export const normalizeAnalysisDefaultInstructions = (
+    raw: string | null,
+): string | null => {
+    const instructions = raw?.trim() || null;
+    if (
+        instructions !== null &&
+        instructions.length > DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS
+    ) {
+        throw new ParameterError(
+            `Analysis instructions are limited to ${DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS} characters`,
+        );
+    }
+    return instructions;
+};
+
 export const validateDeepResearchLimits = (
     limits: AiDeepResearchLimits,
 ): void => {
@@ -200,6 +245,7 @@ type AiOrganizationSettingsServiceDependencies = {
     organizationModel: OrganizationModel;
     projectModel: ProjectModel;
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
+    featureFlagModel: FeatureFlagModel;
     lightdashConfig: LightdashConfig;
     orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
@@ -215,12 +261,11 @@ export class AiOrganizationSettingsService extends BaseService {
 
     private readonly commercialFeatureFlagModel: CommercialFeatureFlagModel;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
-
-    // Date when trial feature was enabled for new organizations
-    private static readonly TRIAL_START_DATE = new Date('2025-10-13T00:00:00Z');
 
     constructor(dependencies: AiOrganizationSettingsServiceDependencies) {
         super();
@@ -232,9 +277,26 @@ export class AiOrganizationSettingsService extends BaseService {
         this.projectModel = dependencies.projectModel;
         this.commercialFeatureFlagModel =
             dependencies.commercialFeatureFlagModel;
+        this.featureFlagModel = dependencies.featureFlagModel;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.orgAiCopilotConfigResolver =
             dependencies.orgAiCopilotConfigResolver;
+    }
+
+    async isMcpEnabled(organizationUuid: string): Promise<boolean> {
+        return (
+            (await this.aiOrganizationSettingsModel.findMcpEnabled(
+                organizationUuid,
+            )) ?? true
+        );
+    }
+
+    async getMcpProjectAccess(
+        organizationUuid: string,
+    ): Promise<McpProjectAccess> {
+        return this.aiOrganizationSettingsModel.getMcpProjectAccess(
+            organizationUuid,
+        );
     }
 
     private checkManageAiAgentAccess(user: SessionUser): void {
@@ -301,39 +363,37 @@ export class AiOrganizationSettingsService extends BaseService {
     }> {
         // Display-only: this read path must survive an unreadable credential,
         // because the screen it renders is where that credential is replaced.
-        const [copilotConfig, overrides] = await Promise.all([
-            this.orgAiCopilotConfigResolver.getCopilotConfigForDisplay(
+        const { copilotConfig, overrides, catalogue } =
+            await this.orgAiCopilotConfigResolver.getOrgModelCatalogueForDisplay(
                 organizationUuid,
-            ),
-            this.orgAiCopilotConfigResolver.getOrgModelOverrides(
-                organizationUuid,
-            ),
-        ]);
+            );
         const defaultModel = getDefaultModel(copilotConfig);
-        const allPresets = getAvailableModels(copilotConfig);
-        const toOption = (preset: (typeof allPresets)[number]): AiModelOption =>
-            presetToModelOption(preset, defaultModel);
         return {
-            effectiveOptions: filterModelsForOrg(allPresets, overrides).map(
-                toOption,
-            ),
+            effectiveOptions: getOrgModelOptions(catalogue, defaultModel),
             // Admin picker ignores visibility so restricted models stay selectable
-            configurableOptions: filterModelsForOrg(allPresets, {
-                modelVisibility: null,
-                keyAccessibleModelIds: overrides.keyAccessibleModelIds,
-            }).map(toOption),
+            configurableOptions: getOrgModelOptions(
+                getOrgModelCatalogue(catalogue.instancePresets, {
+                    modelVisibility: null,
+                    keyAccessibleModelIds: overrides.keyAccessibleModelIds,
+                }),
+                defaultModel,
+            ),
             effectiveModelVisibility: overrides.modelVisibility,
             // The org brings its own Bedrock key, so every Bedrock preset is
             // selectable regardless of what this instance configures.
-            bedrockModelOptions: MODEL_PRESETS.bedrock.map((preset) =>
-                presetToModelOption(preset, defaultModel),
+            bedrockModelOptions: getOrgModelOptions(
+                {
+                    instancePresets: MODEL_PRESETS.bedrock,
+                    offeredPresets: MODEL_PRESETS.bedrock,
+                },
+                defaultModel,
             ),
         };
     }
 
     /**
      * Check if the organization qualifies for AI trial
-     * Organization was created on or after TRIAL_START_DATE
+     * Organization was created on or after AI_TRIAL_START_DATE
      */
     async isEligibleForTrial(
         isCopilotEnabled: boolean,
@@ -354,9 +414,7 @@ export class AiOrganizationSettingsService extends BaseService {
             }
             const orgCreatedAt = new Date(org.createdAt);
 
-            return (
-                orgCreatedAt >= AiOrganizationSettingsService.TRIAL_START_DATE
-            );
+            return isCreatedInAiTrial(orgCreatedAt);
         } catch (error) {
             return false;
         }
@@ -447,12 +505,14 @@ export class AiOrganizationSettingsService extends BaseService {
                 aiAgentMemoryEnabled,
                 deepResearchLimits: AI_DEEP_RESEARCH_DEFAULT_LIMITS,
                 deepResearchRawSqlEnabled: false,
+                mcpEnabled: true,
+                mcpProjectAccess: { mode: 'all' },
                 mcpContentWritesEnabled: true,
                 mcpAgentsEnabled: true,
                 dataAppRuntimeAiEnabled: false,
                 dataAppContinueInAskAiEnabled: true,
-                dataAppAutoAnalysisEnabled: false,
                 dataAppAnalysisLimits: DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+                dataAppAnalysisDefaultInstructions: null,
                 requireExplicitSlackChannelLinking: false,
                 defaultAiAgentModelConfig: null,
                 modelVisibility: effectiveModelVisibility,
@@ -470,6 +530,11 @@ export class AiOrganizationSettingsService extends BaseService {
                     bedrock: null,
                 },
                 bedrockConfig: null,
+                providerBaseUrls: {
+                    anthropic: null,
+                    google: null,
+                    openai: null,
+                },
                 threadRetentionHours: null,
                 defaultAiAgentModelOptions: effectiveOptions,
                 configurableModelOptions: configurableOptions,
@@ -529,6 +594,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 );
             return {
                 ...availability,
+                mcpEnabled: await this.isMcpEnabled(organizationUuid),
                 aiAgentsVisible: false,
                 aiAgentMemoryEnabled: false,
                 aiAgentReviewsEnabled: false,
@@ -542,7 +608,6 @@ export class AiOrganizationSettingsService extends BaseService {
                 ),
                 dataAppRuntimeAiEnabled: false,
                 dataAppContinueInAskAiEnabled: true,
-                dataAppAutoAnalysisEnabled: false,
                 threadRetentionHours: null,
             };
         }
@@ -550,6 +615,7 @@ export class AiOrganizationSettingsService extends BaseService {
         const settings = await this.resolveSettings(user, availability);
         return {
             ...availability,
+            mcpEnabled: settings.mcpEnabled ?? true,
             aiAgentsVisible: settings.aiAgentsVisible,
             aiAgentMemoryEnabled: settings.aiAgentMemoryEnabled,
             aiAgentReviewsEnabled: settings.aiAgentReviewsEnabled,
@@ -566,8 +632,6 @@ export class AiOrganizationSettingsService extends BaseService {
             dataAppRuntimeAiEnabled: settings.dataAppRuntimeAiEnabled ?? false,
             dataAppContinueInAskAiEnabled:
                 settings.dataAppContinueInAskAiEnabled ?? true,
-            dataAppAutoAnalysisEnabled:
-                settings.dataAppAutoAnalysisEnabled ?? false,
             threadRetentionHours: settings.threadRetentionHours ?? null,
         };
     }
@@ -615,15 +679,15 @@ export class AiOrganizationSettingsService extends BaseService {
         );
     }
 
-    /** Org default for running AI analysis when a data app loads. */
-    async isDataAppAutoAnalysisEnabled(
+    /** Org-wide guidance for AI analysis summaries; app instructions append to it. */
+    async getDataAppAnalysisDefaultInstructions(
         organizationUuid: string,
-    ): Promise<boolean> {
+    ): Promise<string | null> {
         const settings =
             await this.aiOrganizationSettingsModel.findByOrganizationUuid(
                 organizationUuid,
             );
-        return settings?.dataAppAutoAnalysisEnabled ?? false;
+        return settings?.dataAppAnalysisDefaultInstructions ?? null;
     }
 
     async isDeepResearchRawSqlEnabled({
@@ -673,15 +737,90 @@ export class AiOrganizationSettingsService extends BaseService {
     }
 
     async upsertSettings(
-        user: SessionUser,
+        account: RegisteredAccount,
         aiSettingsUpdate: UpdateAiOrganizationSettings,
     ): Promise<AiOrganizationSettings> {
+        const user = toSessionUser(account);
+        await assertHumanManagedMutation({
+            organizationUuid: user.organizationUuid,
+            ability: user.ability,
+            oauth: account.authentication.type === 'oauth',
+            database: this.aiOrganizationSettingsModel.db,
+            featureFlagModel: this.featureFlagModel,
+        });
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('User must belong to an organization');
         }
 
         await this.checkAiSettingsAccess(user, organizationUuid);
+
+        let { mcpProjectAccess } = aiSettingsUpdate;
+        if (mcpProjectAccess !== undefined) {
+            switch (mcpProjectAccess.mode) {
+                case 'all':
+                    mcpProjectAccess = { mode: 'all' };
+                    break;
+                case 'selected': {
+                    const projectUuids = [
+                        ...new Set(mcpProjectAccess.projectUuids),
+                    ].sort();
+                    const projects =
+                        await this.projectModel.getAllByOrganizationUuid(
+                            organizationUuid,
+                        );
+                    const organizationProjects = new Set(
+                        projects.map((project) => project.projectUuid),
+                    );
+                    if (
+                        projectUuids.some(
+                            (uuid) => !organizationProjects.has(uuid),
+                        )
+                    ) {
+                        throw new ParameterError(
+                            'Invalid MCP project selection',
+                        );
+                    }
+                    mcpProjectAccess = { mode: 'selected', projectUuids };
+                    break;
+                }
+                default:
+                    assertUnreachable(
+                        mcpProjectAccess,
+                        'Unknown MCP project access mode',
+                    );
+            }
+        }
+
+        if (
+            aiSettingsUpdate.mcpProjectAccess !== undefined ||
+            aiSettingsUpdate.mcpAgentsEnabled !== undefined ||
+            aiSettingsUpdate.mcpContentWritesEnabled !== undefined
+        ) {
+            if (!(await this.isMcpEnabled(organizationUuid))) {
+                const storedSettings =
+                    await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                        organizationUuid,
+                    );
+                if (
+                    (mcpProjectAccess !== undefined &&
+                        !isSameMcpProjectAccess(
+                            mcpProjectAccess,
+                            storedSettings?.mcpProjectAccess ?? { mode: 'all' },
+                        )) ||
+                    (aiSettingsUpdate.mcpAgentsEnabled !== undefined &&
+                        aiSettingsUpdate.mcpAgentsEnabled !==
+                            (storedSettings?.mcpAgentsEnabled ?? true)) ||
+                    (aiSettingsUpdate.mcpContentWritesEnabled !== undefined &&
+                        aiSettingsUpdate.mcpContentWritesEnabled !==
+                            (storedSettings?.mcpContentWritesEnabled ?? true))
+                ) {
+                    throw new ForbiddenError(
+                        'MCP access is disabled for this organization',
+                    );
+                }
+            }
+        }
 
         if (aiSettingsUpdate.deepResearchLimits !== undefined) {
             validateDeepResearchLimits(aiSettingsUpdate.deepResearchLimits);
@@ -691,6 +830,12 @@ export class AiOrganizationSettingsService extends BaseService {
                 aiSettingsUpdate.dataAppAnalysisLimits,
             );
         }
+        const normalizedDefaultInstructions =
+            aiSettingsUpdate.dataAppAnalysisDefaultInstructions === undefined
+                ? undefined
+                : normalizeAnalysisDefaultInstructions(
+                      aiSettingsUpdate.dataAppAnalysisDefaultInstructions,
+                  );
 
         if (aiSettingsUpdate.threadRetentionHours !== undefined) {
             // No-op writes stay allowed: clients that round-trip the settings
@@ -735,9 +880,30 @@ export class AiOrganizationSettingsService extends BaseService {
                     'AI copilot is not enabled for this organization',
                 );
             }
+            const { enabled: customProvidersEnabled } =
+                await this.featureFlagModel.get({
+                    user,
+                    featureFlagId: FeatureFlags.OrgAiCustomProviders,
+                });
+            if (!customProvidersEnabled) {
+                throw new ForbiddenError(
+                    'Custom AI providers are not enabled for this organization',
+                );
+            }
         }
 
         if (aiSettingsUpdate.providerApiKeys !== undefined) {
+            const blockedRemovals = findBaseUrlRemovalsBlockedByInstanceGateway(
+                aiSettingsUpdate.providerApiKeys,
+                this.lightdashConfig.ai.copilot.providers,
+            );
+            if (blockedRemovals.length > 0) {
+                throw new ParameterError(
+                    `This instance routes ${blockedRemovals.join(
+                        ', ',
+                    )} through its own gateway, so an organization key needs a custom base URL. Remove the key instead.`,
+                );
+            }
             const unconfigured = findUnconfiguredProviderKeyWrites(
                 aiSettingsUpdate.providerApiKeys,
                 this.lightdashConfig.ai.copilot.providers,
@@ -871,17 +1037,62 @@ export class AiOrganizationSettingsService extends BaseService {
             }
         }
 
-        const update =
-            reconciledDefaultModelConfig === undefined
-                ? aiSettingsUpdate
-                : {
-                      ...aiSettingsUpdate,
-                      defaultAiAgentModelConfig: reconciledDefaultModelConfig,
-                  };
+        const update = {
+            ...aiSettingsUpdate,
+            ...(mcpProjectAccess !== undefined ? { mcpProjectAccess } : {}),
+            ...(reconciledDefaultModelConfig !== undefined
+                ? { defaultAiAgentModelConfig: reconciledDefaultModelConfig }
+                : {}),
+            ...(normalizedDefaultInstructions !== undefined
+                ? {
+                      dataAppAnalysisDefaultInstructions:
+                          normalizedDefaultInstructions,
+                  }
+                : {}),
+        };
         const settings = await this.aiOrganizationSettingsModel.upsert(
             organizationUuid,
             update,
         );
+        if (
+            update.mcpEnabled !== undefined ||
+            update.mcpProjectAccess !== undefined
+        ) {
+            try {
+                logAuditEvent(
+                    createAuditLogEvent(
+                        createActorFromAccount(account),
+                        'update',
+                        {
+                            type: 'OrganizationSettings',
+                            organizationUuid,
+                            metadata: {
+                                ...(update.mcpEnabled !== undefined
+                                    ? { mcpEnabled: settings.mcpEnabled }
+                                    : {}),
+                                ...(update.mcpProjectAccess !== undefined
+                                    ? {
+                                          mcpProjectAccess:
+                                              settings.mcpProjectAccess,
+                                      }
+                                    : {}),
+                            },
+                        },
+                        {
+                            ip: account.requestContext?.ip,
+                            userAgent: account.requestContext?.userAgent,
+                            requestId: account.requestContext?.requestId,
+                        },
+                        'allowed',
+                    ),
+                );
+            } catch (error) {
+                this.logger.warn('Failed to log MCP settings audit event', {
+                    error: getErrorMessage(error),
+                    organizationUuid,
+                });
+            }
+        }
 
         return {
             ...settings,
@@ -1026,7 +1237,9 @@ export class AiOrganizationSettingsService extends BaseService {
 
         if (defaultCredential.status === 'ok') {
             const { config } = defaultCredential.credential;
-            await this.aiOrganizationSettingsModel.update(organizationUuid, {
+            // Upsert: the organization may never have saved AI settings, and
+            // the first credential must not fail on the missing settings row.
+            await this.aiOrganizationSettingsModel.upsert(organizationUuid, {
                 providerApiKeys: {
                     bedrock: {
                         apiKey: config.apiKey,
@@ -1067,6 +1280,7 @@ export class AiOrganizationSettingsService extends BaseService {
     async adoptLegacyProviderCredential(user: SessionUser): Promise<void> {
         this.checkManageAiAgentAccess(user);
         const organizationUuid = user.organizationUuid!;
+        await this.assertCustomProvidersEnabled(organizationUuid);
         const existingCount =
             await this.aiOrganizationProviderCredentialModel.countByOrganizationUuid(
                 organizationUuid,
@@ -1155,12 +1369,34 @@ export class AiOrganizationSettingsService extends BaseService {
         });
     }
 
+    /**
+     * Stored org provider config is inert while the org flag is off, so a
+     * credential write in that state would save successfully and then silently
+     * do nothing — for a data-residency feature, the worst failure mode.
+     * Mirrors the `upsertSettings` gate on provider API keys. Deletion and pin
+     * clearing stay allowed so a flag-off organization can clean up.
+     */
+    private async assertCustomProvidersEnabled(
+        organizationUuid: string,
+    ): Promise<void> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid },
+            featureFlagId: FeatureFlags.OrgAiCustomProviders,
+        });
+        if (!enabled) {
+            throw new ForbiddenError(
+                'Custom AI providers are not enabled for this organization',
+            );
+        }
+    }
+
     async createProviderCredential(
         user: SessionUser,
         data: CreateAiProviderCredential,
     ): Promise<{ uuid: string }> {
         this.checkManageAiAgentAccess(user);
         const organizationUuid = user.organizationUuid!;
+        await this.assertCustomProvidersEnabled(organizationUuid);
         await this.adoptLegacyBedrockCredential(user, organizationUuid);
         const uuid = await this.aiOrganizationProviderCredentialModel.create(
             organizationUuid,
@@ -1178,6 +1414,7 @@ export class AiOrganizationSettingsService extends BaseService {
         data: UpdateAiProviderCredential,
     ): Promise<void> {
         this.checkManageAiAgentAccess(user);
+        await this.assertCustomProvidersEnabled(user.organizationUuid!);
         await this.aiOrganizationProviderCredentialModel.update(
             user.organizationUuid!,
             credentialUuid,
@@ -1196,6 +1433,7 @@ export class AiOrganizationSettingsService extends BaseService {
         data: CreateAiProviderCredential,
     ): Promise<void> {
         this.checkManageAiAgentAccess(user);
+        await this.assertCustomProvidersEnabled(user.organizationUuid!);
         await this.aiOrganizationProviderCredentialModel.replace(
             user.organizationUuid!,
             credentialUuid,
@@ -1223,6 +1461,7 @@ export class AiOrganizationSettingsService extends BaseService {
         credentialUuid: string,
     ): Promise<void> {
         this.checkManageAiAgentAccess(user);
+        await this.assertCustomProvidersEnabled(user.organizationUuid!);
         await this.aiOrganizationProviderCredentialModel.setDefault(
             user.organizationUuid!,
             credentialUuid,
@@ -1272,8 +1511,10 @@ export class AiOrganizationSettingsService extends BaseService {
             projectUuid,
         );
         // Resolved through the organization so a project can never be pinned to
-        // another organization's credential.
+        // another organization's credential. Clearing a pin stays allowed while
+        // the flag is off so a flag-off organization can clean up.
         if (credentialUuid !== null) {
+            await this.assertCustomProvidersEnabled(organizationUuid);
             const resolution =
                 await this.aiOrganizationProviderCredentialModel.findDecrypted(
                     organizationUuid,
@@ -1294,5 +1535,60 @@ export class AiOrganizationSettingsService extends BaseService {
             projectUuid,
             credentialUuid,
         );
+    }
+
+    /**
+     * Validates an agent's credential pin at write time: the credential must
+     * belong to the organization and be readable, and a model the agent also
+     * pins must be one the credential can serve. Refused here rather than at
+     * the agent's first prompt, which would otherwise fail with no obvious
+     * cause. Callers hold manage rights on the agent, which is the same gate
+     * as reading the credential list.
+     */
+    async validateAgentProviderCredential(
+        organizationUuid: string,
+        credentialUuid: string,
+        modelConfig: AiAgentModelConfig | null,
+    ): Promise<void> {
+        // Stored org provider config is inert while the org flag is off, so a
+        // pin saved in that state would never take effect — reject it instead.
+        const { enabled: customProvidersEnabled } =
+            await this.featureFlagModel.get({
+                user: { organizationUuid },
+                featureFlagId: FeatureFlags.OrgAiCustomProviders,
+            });
+        if (!customProvidersEnabled) {
+            throw new ParameterError(
+                'Custom AI providers are not enabled for this organization, so an agent cannot be pinned to a credential.',
+            );
+        }
+        const resolution =
+            await this.aiOrganizationProviderCredentialModel.findDecrypted(
+                organizationUuid,
+                credentialUuid,
+            );
+        if (resolution.status === 'none') {
+            throw new ParameterError('AI provider credential not found');
+        }
+        if (resolution.status === 'unreadable') {
+            throw new ParameterError(
+                'That credential cannot be read with the current encryption secret. Replace its API key before pinning an agent to it.',
+            );
+        }
+        if (!modelConfig) return;
+        const { credential } = resolution;
+        if (modelConfig.modelProvider !== credential.provider) {
+            throw new ParameterError(
+                `The agent's model runs on ${modelConfig.modelProvider}, but "${credential.label}" is a ${credential.provider} credential. Pick a ${credential.provider} model or clear the credential pin.`,
+            );
+        }
+        if (
+            credential.config.allowedModels.length > 0 &&
+            !credential.config.allowedModels.includes(modelConfig.modelName)
+        ) {
+            throw new ParameterError(
+                `The model "${modelConfig.modelName}" is not in the allowed models of the credential "${credential.label}".`,
+            );
+        }
     }
 }

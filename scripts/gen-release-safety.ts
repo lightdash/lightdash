@@ -18,6 +18,7 @@ import { isReleaseVersion } from '../packages/cli/src/releaseSafety';
 import { aiRollingUpdateReview } from './ai-migration-review';
 import { compareVersions, findExpandFloor } from './expand-version';
 import { diffMcpTools } from './mcp-tools-diff';
+import { uncoveredFindings } from './release-safety-advisories';
 import type { ConfigSurface } from './release-safety-config-diff';
 import { diffConfigBetweenRefs } from './release-safety-config-diff';
 import type {
@@ -26,7 +27,10 @@ import type {
     TriState,
 } from './release-safety-contract';
 import { collectBreakingChangeDeclarationsBetweenRefs } from './release-safety-declarations';
-import type { BreakingChangeDeclaration } from './release-safety-declarations';
+import type {
+    AdvisoryDeclaration,
+    BreakingChangeDeclaration,
+} from './release-safety-declarations';
 import {
     appendReleaseSafetyMarker,
     CONFIGURE_RELEASE_SAFETY_BACKFILL_FLOOR_VERSION,
@@ -131,6 +135,7 @@ export interface BuildMarkerInput {
     migrationMetadataComplete?: boolean;
     declarationMetadataComplete?: boolean;
     declaredBreaks?: BreakingChangeDeclaration[];
+    declaredAdvisories?: AdvisoryDeclaration[];
     config?: ConfigSurface | null;
     /**
      * Optional verdict from the gated AI migration review (P6). Applied only when
@@ -204,6 +209,7 @@ export interface DeterministicSafetyInput {
     migrationMetadataComplete?: boolean;
     declarationMetadataComplete?: boolean;
     declaredBreaks?: readonly BreakingChangeDeclaration[];
+    declaredAdvisories?: readonly AdvisoryDeclaration[];
     config?: ConfigSurface | null;
     restApi?: ApiSurface | null;
     mcpApi?: ApiSurface | null;
@@ -231,9 +237,13 @@ export function isDeterministicallyRollingUpdateSafe(
         input.migrationMetadataComplete === true &&
         input.declarationMetadataComplete === true &&
         input.restApi?.checked === true &&
-        input.restApi.breaking === false &&
+        input.restApi.breaking !== 'unknown' &&
+        uncoveredFindings(input.restApi, input.declaredAdvisories ?? [], 'rest')
+            .length === 0 &&
         input.mcpApi?.checked === true &&
-        input.mcpApi.breaking === false &&
+        input.mcpApi.breaking !== 'unknown' &&
+        uncoveredFindings(input.mcpApi, input.declaredAdvisories ?? [], 'mcp')
+            .length === 0 &&
         input.config?.checked === true &&
         input.config.breaking === false &&
         (input.declaredBreaks?.length ?? 0) === 0 &&
@@ -246,9 +256,25 @@ export function isDeterministicallyRollingUpdateSafe(
     );
 }
 
+export function buildAiReviewApiInput(
+    input: Pick<DeterministicSafetyInput, 'restApi' | 'mcpApi' | 'declaredAdvisories'>,
+): { restBreaking: string[]; mcpBreaking: string[] } {
+    return {
+        restBreaking: input.restApi?.checked
+            ? uncoveredFindings(input.restApi, input.declaredAdvisories ?? [], 'rest')
+            : [],
+        mcpBreaking: input.mcpApi?.checked
+            ? uncoveredFindings(input.mcpApi, input.declaredAdvisories ?? [], 'mcp')
+            : [],
+    };
+}
+
 export function isAiReviewEligible(input: DeterministicSafetyInput): boolean {
     const apiBreak =
-        input.restApi?.breaking === true || input.mcpApi?.breaking === true;
+        uncoveredFindings(input.restApi, input.declaredAdvisories ?? [], 'rest')
+            .length > 0 ||
+        uncoveredFindings(input.mcpApi, input.declaredAdvisories ?? [], 'mcp')
+            .length > 0;
     return (
         apiBreak ||
         (input.migrations?.present === true &&
@@ -314,17 +340,25 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
         ? input.config
         : { checked: false, breaking: 'unknown', changes: [] };
     const declaredBreaks = input.declaredBreaks ?? [];
+    const declaredAdvisories = input.declaredAdvisories ?? [];
     const metadataComplete =
         (input.migrationMetadataComplete ?? true) &&
         (input.declarationMetadataComplete ?? true);
     const deterministicBreak =
         config.breaking === true || declaredBreaks.length > 0;
-    const apiBreak = rest.breaking === true || mcp.breaking === true;
+    const apiBreak =
+        uncoveredFindings(rest, declaredAdvisories, 'rest').length > 0 ||
+        uncoveredFindings(mcp, declaredAdvisories, 'mcp').length > 0;
     const linterFlagged = Boolean(
         input.sqlLint?.ran && input.sqlLint.breaking && present === true,
     );
     const fullyChecked =
-        rest.checked && mcp.checked && config.checked && metadataComplete;
+        rest.checked &&
+        rest.breaking !== 'unknown' &&
+        mcp.checked &&
+        mcp.breaking !== 'unknown' &&
+        config.checked &&
+        metadataComplete;
     const deterministicallySafe = isDeterministicallyRollingUpdateSafe(input);
 
     let rollingUpdateSafe: TriState = 'unknown';
@@ -415,6 +449,7 @@ export function buildMarker(input: BuildMarkerInput): ReleaseSafetyMarker {
         config,
         upgrade: { minPreviousVersion, requiredStops },
         declaredBreaks,
+        declaredAdvisories,
     };
 }
 
@@ -556,7 +591,7 @@ export async function generateReleaseSafety(
 
     let migrations: MigrationsResult | null = null;
     let migrationPaths: string[] = [];
-    let declarations = { added: [], diagnostics: [] } as ReturnType<
+    let declarations = { added: [], advisories: [], diagnostics: [] } as ReturnType<
         typeof collectBreakingChangeDeclarationsBetweenRefs
     >;
     if (args.lastTag) {
@@ -720,16 +755,18 @@ export async function generateReleaseSafety(
     // exactly what the detectors found. Any degrade leaves the verdict at the linter
     // floor /
     // cautious default and never fails the release.
-    const restBreakingChanges =
-        restApi?.checked && restApi.breaking === true ? restApi.changes : [];
-    const mcpBreakingChanges =
-        mcpApi?.checked && mcpApi.breaking === true ? mcpApi.changes : [];
+    const apiReviewInput = buildAiReviewApiInput({
+        restApi,
+        mcpApi,
+        declaredAdvisories: declarations.advisories,
+    });
     const reviewable = isAiReviewEligible({
         migrations,
         migrationOperations: migrationMetadata.operations,
         migrationMetadataComplete: migrationMetadata.complete,
         declarationMetadataComplete: declarations.diagnostics.length === 0,
         declaredBreaks: declarations.added,
+        declaredAdvisories: declarations.advisories,
         config,
         restApi,
         mcpApi,
@@ -755,8 +792,7 @@ export async function generateReleaseSafety(
                 // validates exactly what the linter flagged (confirm or clear via
                 // expand/contract), rather than re-deriving the shape from the files.
                 sqlLintFindings: sqlLint?.breaking ? sqlLint.findings : [],
-                restBreaking: restBreakingChanges,
-                mcpBreaking: mcpBreakingChanges,
+                ...apiReviewInput,
                 log: (m) => console.warn(`[ai-review] ${m}`),
             });
             if (r) {
@@ -841,6 +877,7 @@ export async function generateReleaseSafety(
         migrationMetadataComplete: migrationMetadata.complete,
         declarationMetadataComplete: declarations.diagnostics.length === 0,
         declaredBreaks: declarations.added,
+        declaredAdvisories: declarations.advisories,
         config,
         aiReview,
         sqlLint,
@@ -936,6 +973,7 @@ if (invokedDirectly) {
             migrationMetadataComplete: false,
             declarationMetadataComplete: false,
             declaredBreaks: [],
+            declaredAdvisories: [],
             config: null,
             restApi: null,
             mcpApi: null,

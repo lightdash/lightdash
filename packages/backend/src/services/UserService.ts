@@ -86,15 +86,17 @@ import {
     UserLoginOptions,
     UserOnboarding,
     UserOnboardingTour,
+    UserWarehouseCredentialPurpose,
     validateEmail,
     validateOrganizationEmailDomains,
     validateOrganizationNameOrThrow,
     validateUserName,
     WarehouseTypes,
     type RegisteredAccount,
+    type UserWarehouseCredentialsWithAgentStatus,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
-import { uniq } from 'lodash';
+import { uniq } from 'es-toolkit/compat';
 import { nanoid } from 'nanoid';
 import refresh from 'passport-oauth2-refresh';
 import {
@@ -103,9 +105,17 @@ import {
     type OneTimePasscodeFailureReason,
     type OneTimePasscodePurpose,
 } from '../analytics/LightdashAnalytics';
+import { trackSafely } from '../analytics/trackSafely';
 import * as AccountFactory from '../auth/account';
+import {
+    requestOAuthRefreshWithDeadline,
+    type OAuthRefreshCallback,
+} from '../auth/oauthRequestDeadline';
+import { assertOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import EmailClient from '../clients/EmailClient/EmailClient';
+import { lightdashConfig as configuredLightdashConfig } from '../config/lightdashConfig';
 import { LightdashConfig } from '../config/parseConfig';
+import { createSnowflakePassportStrategy } from '../controllers/authentication/strategies/snowflakeStrategy';
 import { UserOAuthGrantProvider } from '../database/entities/userOAuthGrants';
 import {
     createAuditLogEvent,
@@ -140,16 +150,27 @@ import { UserLearnProgressModel } from '../models/UserLearnProgressModel';
 import { CreatePasswordlessUserArgs, UserModel } from '../models/UserModel';
 import { UserOAuthGrantsModel } from '../models/UserOAuthGrantsModel';
 import { UserOnboardingModel } from '../models/UserOnboardingModel';
-import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
+import {
+    UserWarehouseCredentialsModel,
+    type PersonalCredentialPersistencePolicy,
+    type SnowflakeAiClientBinding,
+} from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { wrapSentryTransaction } from '../utils';
+import { getMissingUserNames } from '../utils/missingUserNames';
 import {
     getOrganizationSystemRoleScopes,
     validateOrganizationScopesCanBeGranted,
 } from '../utils/organizationRolePermissions';
 import { processAvatarImage } from '../utils/processAvatarImage';
+import { assertHumanManagedMutation } from './AgentPermissionService/assertHumanManagedMutation';
+import {
+    type ResolvedSnowflakeAgentClient,
+    type SnowflakeAgentClientResolver,
+} from './AiAccessService/SnowflakeAgentClientResolver';
 import { BaseService } from './BaseService';
 import { getOrganizationSettingsInstanceDefaults } from './OrganizationSettingsService/getInstanceDefaults';
+import { resolvePersonalCredentialPolicy } from './WarehouseClientFactory/personalCredentialPolicy';
 
 const AWS_SSO_DEVICE_GRANT_TYPE =
     'urn:ietf:params:oauth:grant-type:device_code';
@@ -167,6 +188,7 @@ type RedshiftAwsSsoSession = {
 };
 
 type UserServiceArguments = {
+    snowflakeAgentClientResolver: Pick<SnowflakeAgentClientResolver, 'resolve'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     inviteLinkModel: InviteLinkModel;
@@ -314,6 +336,11 @@ export class UserService extends BaseService {
 
     private readonly organizationSettingsModel: OrganizationSettingsModel;
 
+    private readonly snowflakeAgentClientResolver: Pick<
+        SnowflakeAgentClientResolver,
+        'resolve'
+    >;
+
     private readonly userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 
     private readonly warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
@@ -331,6 +358,7 @@ export class UserService extends BaseService {
     private readonly emailOneTimePasscodeResendIntervalSeconds = 60;
 
     constructor({
+        snowflakeAgentClientResolver,
         lightdashConfig,
         analytics,
         inviteLinkModel,
@@ -359,6 +387,7 @@ export class UserService extends BaseService {
     }: UserServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
+        this.snowflakeAgentClientResolver = snowflakeAgentClientResolver;
         this.analytics = analytics;
         this.inviteLinkModel = inviteLinkModel;
         this.userModel = userModel;
@@ -468,15 +497,24 @@ export class UserService extends BaseService {
         inviteCode: string,
         activateUser: ActivateUser | OpenIdUser,
     ): Promise<LightdashUser> {
-        const inviteLink = await this.inviteLinkModel.getByCode(inviteCode);
-        return this.activateUserFromInviteLink(inviteLink, activateUser);
+        const { inviteLink, invitedByUserUuid } =
+            await this.inviteLinkModel.getByCodeWithInviter(inviteCode);
+        return this.activateUserFromInviteLink(
+            inviteLink,
+            invitedByUserUuid,
+            activateUser,
+        );
     }
 
     async activateUserFromInviteWithoutPassword(
         inviteCode: string,
     ): Promise<SessionUser> {
-        const inviteLink = await this.getInviteLink(inviteCode);
-        const user = await this.activateUserFromInviteLink(inviteLink);
+        const { inviteLink, invitedByUserUuid } =
+            await this.inviteLinkModel.getByCodeWithInviter(inviteCode);
+        const user = await this.activateUserFromInviteLink(
+            inviteLink,
+            invitedByUserUuid,
+        );
         // The invite link was delivered to this address, so opening it proves
         // mailbox ownership — same trust as OpenID email verification.
         await this.tryVerifyUserEmail(user, inviteLink.email, 'link');
@@ -485,6 +523,7 @@ export class UserService extends BaseService {
 
     private async activateUserFromInviteLink(
         inviteLink: InviteLink,
+        invitedByUserUuid: string | null,
         activateUser?: ActivateUser | OpenIdUser,
     ): Promise<LightdashUser> {
         const userEmail =
@@ -628,6 +667,7 @@ export class UserService extends BaseService {
                     organizationId: inviteLink.organizationUuid,
                     invitePurpose: InviteLinkPurpose.Setup,
                     onboardingFlow,
+                    invitedByUserId: invitedByUserUuid,
                 },
             });
         }
@@ -757,6 +797,13 @@ export class UserService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        await assertHumanManagedMutation({
+            organizationUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagModel,
+        });
         const { email, role } = createInviteLink;
         const purpose = createInviteLink.purpose ?? InviteLinkPurpose.Member;
         const rawOrganizationSettings =
@@ -887,11 +934,16 @@ export class UserService extends BaseService {
             organizationUuid,
             userUuid,
             purpose,
+            user.userUuid,
         );
         await this.emailClient.sendInviteEmail(user, inviteLink);
         this.analytics.track({
             userId: user.userUuid,
             event: 'invite_link.created',
+            properties: {
+                organizationId: organizationUuid,
+                purpose,
+            },
         });
 
         const organization = await this.organizationModel.get(organizationUuid);
@@ -1206,7 +1258,11 @@ export class UserService extends BaseService {
                     'sso',
                 );
             }
-            this.identifyUser(loginUser);
+            const namedLoginUser = await this.fillMissingNamesFromGoogle(
+                loginUser,
+                openIdUser.openId,
+            );
+            this.identifyUser(namedLoginUser);
             this.analytics.track({
                 userId: loginUser.userUuid,
                 event: 'user.logged_in',
@@ -1216,7 +1272,6 @@ export class UserService extends BaseService {
             });
 
             if (
-                this.lightdashConfig.groups.enabled === true &&
                 this.lightdashConfig.auth.enableGroupSync === true &&
                 Array.isArray(openIdUser.openId.groups) &&
                 openIdUser.openId.groups.length &&
@@ -1234,7 +1289,7 @@ export class UserService extends BaseService {
                 });
             }
 
-            return loginUser;
+            return namedLoginUser;
         }
 
         // Link the new openid identity to an existing user if they already
@@ -1295,7 +1350,6 @@ export class UserService extends BaseService {
                     );
 
                     if (
-                        this.lightdashConfig.groups.enabled === true &&
                         this.lightdashConfig.auth.enableGroupSync === true &&
                         Array.isArray(openIdUser.openId.groups) &&
                         openIdUser.openId.groups.length &&
@@ -1345,7 +1399,6 @@ export class UserService extends BaseService {
 
                 if (isLinkingEnabled && emailStatus.isVerified) {
                     if (
-                        this.lightdashConfig.groups.enabled === true &&
                         this.lightdashConfig.auth.enableGroupSync === true &&
                         Array.isArray(openIdUser.openId.groups) &&
                         openIdUser.openId.groups.length &&
@@ -1391,7 +1444,6 @@ export class UserService extends BaseService {
                 `Linking OpenID identity to authenticated user ${authenticatedUser.userUuid}`,
             );
             if (
-                this.lightdashConfig.groups.enabled === true &&
                 this.lightdashConfig.auth.enableGroupSync === true &&
                 Array.isArray(openIdUser.openId.groups) &&
                 openIdUser.openId.groups.length &&
@@ -1446,7 +1498,6 @@ export class UserService extends BaseService {
         );
 
         const hasGroups =
-            this.lightdashConfig.groups.enabled === true &&
             this.lightdashConfig.auth.enableGroupSync === true &&
             Array.isArray(openIdUser.openId.groups) &&
             openIdUser.openId.groups.length;
@@ -1536,7 +1587,6 @@ export class UserService extends BaseService {
         });
 
         if (
-            this.lightdashConfig.groups.enabled &&
             this.lightdashConfig.auth.enableGroupSync &&
             Array.isArray(openIdUser.openId.groups) &&
             openIdUser.openId.groups.length &&
@@ -1549,13 +1599,34 @@ export class UserService extends BaseService {
             });
         }
 
-        return sessionUser;
+        return this.fillMissingNamesFromGoogle(sessionUser, openIdUser.openId);
+    }
+
+    /**
+     * Passwordless invites and email codes activate accounts without names, so
+     * a later Google sign-in fills whichever names are still blank.
+     */
+    async fillMissingNamesFromGoogle(
+        user: SessionUser,
+        openId: OpenIdUser['openId'],
+    ): Promise<SessionUser> {
+        if (openId.issuerType !== OpenIdIdentityIssuerType.GOOGLE) {
+            return user;
+        }
+        const missingNames = getMissingUserNames(user, openId);
+        if (!missingNames) {
+            return user;
+        }
+        await this.userModel.updateUser(user.userUuid, undefined, missingNames);
+        return { ...user, ...missingNames };
     }
 
     async completeUserSetup(
         user: SessionUser,
         {
             organizationName,
+            firstName,
+            lastName,
             jobTitle,
             isTrackingAnonymized,
             isMarketingOptedIn,
@@ -1565,6 +1636,14 @@ export class UserService extends BaseService {
     ): Promise<LightdashUser> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
+        }
+        if (
+            (firstName !== undefined && !validateUserName(firstName)) ||
+            (lastName !== undefined && !validateUserName(lastName))
+        ) {
+            throw new ParameterError(
+                'First name and last name must not contain HTML',
+            );
         }
         const auditedAbility = this.createAuditedAbility(user);
         if (organizationName) {
@@ -1624,6 +1703,8 @@ export class UserService extends BaseService {
             user.userUuid,
             undefined,
             {
+                firstName: firstName?.trim(),
+                lastName: lastName?.trim(),
                 isSetupComplete: true,
                 isTrackingAnonymized,
                 isMarketingOptedIn,
@@ -2370,7 +2451,8 @@ export class UserService extends BaseService {
     private async getAccountForSessionUser(
         sessionUser: SessionUser,
     ): Promise<RegisteredAccount> {
-        if (!this.lightdashConfig.serviceAccount.enabled) {
+        // The service_accounts table only exists on licensed instances (EE migrations).
+        if (this.lightdashConfig.license.licenseKey === null) {
             return AccountFactory.fromSession(sessionUser);
         }
 
@@ -2696,6 +2778,7 @@ export class UserService extends BaseService {
     ): Promise<EmailStatusExpiring> {
         // Attempt to verify the passcode if it's provided
         if (passcode) {
+            assertOAuthScopeOperation(user, 'UserService.verifyEmail');
             const purpose = user.isSetupComplete
                 ? 'email_change'
                 : 'signup_verification';
@@ -2784,6 +2867,14 @@ export class UserService extends BaseService {
     }
 
     async joinOrg(user: SessionUser, orgUuid: string): Promise<void> {
+        await assertHumanManagedMutation({
+            organizationUuid: orgUuid,
+            ability: user.ability,
+            oauth: false,
+            database: this.groupsModel.database,
+            featureFlagModel: this.featureFlagModel,
+        });
+
         if (isUserWithOrg(user)) {
             throw new ForbiddenError('User already has an organization');
         }
@@ -3347,26 +3438,46 @@ export class UserService extends BaseService {
 
     static async generateSnowflakeAccessToken(
         refreshToken: string,
+        requestTimeoutMs?: number,
     ): Promise<{ accessToken: string; refreshToken: string }> {
         return new Promise((resolve, reject) => {
-            refresh.requestNewAccessToken(
-                'snowflake',
-                refreshToken,
-                (
-                    err: AnyType,
-                    accessToken: string,
-                    newRefreshToken: string | undefined,
-                ) => {
-                    if (err || !accessToken) {
-                        reject(err);
-                        return;
-                    }
-                    resolve({
-                        accessToken,
-                        refreshToken: newRefreshToken || refreshToken,
-                    });
-                },
-            );
+            const callback: OAuthRefreshCallback = (
+                err,
+                accessToken,
+                newRefreshToken,
+            ) => {
+                if (err || !accessToken) {
+                    reject(err);
+                    return;
+                }
+                resolve({
+                    accessToken,
+                    refreshToken: newRefreshToken || refreshToken,
+                });
+            };
+            if (requestTimeoutMs !== undefined) {
+                const strategy = createSnowflakePassportStrategy();
+                if (
+                    !strategy ||
+                    !configuredLightdashConfig.auth.snowflake.tokenEndpoint
+                ) {
+                    reject(new Error('Snowflake OAuth is not configured'));
+                    return;
+                }
+                requestOAuthRefreshWithDeadline(
+                    strategy,
+                    configuredLightdashConfig.auth.snowflake.tokenEndpoint,
+                    refreshToken,
+                    callback,
+                    requestTimeoutMs,
+                );
+            } else {
+                refresh.requestNewAccessToken(
+                    'snowflake',
+                    refreshToken,
+                    callback,
+                );
+            }
         });
     }
 
@@ -3516,9 +3627,66 @@ export class UserService extends BaseService {
         );
     }
 
-    async getWarehouseCredentials(user: SessionUser) {
-        return this.userWarehouseCredentialsModel.getAllByUserUuid(
+    async getWarehouseCredentials(
+        user: SessionUser,
+    ): Promise<UserWarehouseCredentialsWithAgentStatus[]> {
+        const [defaults, ai] = await Promise.all([
+            this.userWarehouseCredentialsModel.getAllByUserUuid(user.userUuid),
+            this.userWarehouseCredentialsModel.getAiCredentialsByUserUuid(
+                user.userUuid,
+            ),
+        ]);
+        let client: ResolvedSnowflakeAgentClient | null = null;
+        if (
+            user.organizationUuid &&
+            ai.some(
+                ({ credentials }) =>
+                    credentials.type === WarehouseTypes.SNOWFLAKE,
+            )
+        ) {
+            try {
+                client = await this.snowflakeAgentClientResolver.resolve(
+                    user.organizationUuid,
+                );
+            } catch {
+                client = null;
+            }
+        }
+        return [
+            ...defaults.map((credential) => ({
+                ...credential,
+                agentClientCurrent: null,
+            })),
+            ...ai.map(({ aiClientBinding, ...credential }) => ({
+                ...credential,
+                agentClientCurrent:
+                    credential.credentials.type === WarehouseTypes.SNOWFLAKE
+                        ? client !== null &&
+                          (aiClientBinding?.clientVersion ?? null) ===
+                              client.clientVersion &&
+                          (!aiClientBinding ||
+                              aiClientBinding.organizationUuid ===
+                                  user.organizationUuid)
+                        : null,
+            })),
+        ];
+    }
+
+    async upsertAiSnowflakeCredential(
+        user: SessionUser,
+        refreshToken: string,
+        expiresAt: Date | null,
+        binding: SnowflakeAiClientBinding,
+    ): Promise<void> {
+        await this.userWarehouseCredentialsModel.upsertAiSnowflakeCredential(
             user.userUuid,
+            refreshToken,
+            expiresAt,
+            binding,
+            await resolvePersonalCredentialPolicy(this.featureFlagModel, {
+                organizationUuid: binding.organizationUuid,
+                userUuid: user.userUuid,
+            }),
         );
     }
 
@@ -3530,6 +3698,7 @@ export class UserService extends BaseService {
             await this.userWarehouseCredentialsModel.findDatabricksOauthU2mForHostWithSecrets(
                 user.userUuid,
                 serverHostName,
+                { strictPersonalOverlay: false },
             );
         return credential !== undefined;
     }
@@ -3546,12 +3715,6 @@ export class UserService extends BaseService {
             );
         }
 
-        // Remove old BigQuery credentials to prevent duplicates on re-authentication
-        await this.userWarehouseCredentialsModel.deleteAllByUserAndWarehouseType(
-            user.userUuid,
-            WarehouseTypes.BIGQUERY,
-        );
-
         const bigqueryCredentials: UpsertUserWarehouseCredentials = {
             name: 'Default',
             credentials: {
@@ -3566,7 +3729,30 @@ export class UserService extends BaseService {
                 },
             },
         };
-        await this.createWarehouseCredentials(user, bigqueryCredentials);
+        const policy = await resolvePersonalCredentialPolicy(
+            this.featureFlagModel,
+            {
+                organizationUuid: user.organizationUuid ?? null,
+                userUuid: user.userUuid,
+            },
+        );
+        if (policy.strictPersonalOverlay) {
+            UserWarehouseCredentialsModel.normalizeCredentialsForPersistence(
+                bigqueryCredentials,
+                policy,
+            );
+        }
+        // Remove old BigQuery credentials to prevent duplicates on re-authentication
+        await this.userWarehouseCredentialsModel.deleteAllByUserAndWarehouseType(
+            user.userUuid,
+            WarehouseTypes.BIGQUERY,
+        );
+
+        await this.createWarehouseCredentialsWithPolicy(
+            user,
+            bigqueryCredentials,
+            policy,
+        );
     }
 
     async createSnowflakeWarehouseCredentials(
@@ -3656,6 +3842,7 @@ export class UserService extends BaseService {
                     await this.userWarehouseCredentialsModel.findDatabricksOauthU2mForHostWithSecrets(
                         user.userUuid,
                         serverHostName,
+                        { strictPersonalOverlay: false },
                         {
                             projectUuid: options.projectUuid,
                         },
@@ -3695,6 +3882,7 @@ export class UserService extends BaseService {
                 await this.userWarehouseCredentialsModel.findDatabricksOauthU2mForHostWithSecrets(
                     user.userUuid,
                     serverHostName,
+                    { strictPersonalOverlay: false },
                     {
                         includeProjectScoped: false,
                     },
@@ -3934,10 +4122,32 @@ export class UserService extends BaseService {
         data: UpsertUserWarehouseCredentials,
         projectUuid?: string,
     ) {
+        const policy = await resolvePersonalCredentialPolicy(
+            this.featureFlagModel,
+            {
+                organizationUuid: user.organizationUuid ?? null,
+                userUuid: user.userUuid,
+            },
+        );
+        return this.createWarehouseCredentialsWithPolicy(
+            user,
+            data,
+            policy,
+            projectUuid,
+        );
+    }
+
+    private async createWarehouseCredentialsWithPolicy(
+        user: SessionUser,
+        data: UpsertUserWarehouseCredentials,
+        policy: PersonalCredentialPersistencePolicy,
+        projectUuid?: string,
+    ) {
         const userWarehouseCredentialsUuid =
             await this.userWarehouseCredentialsModel.create(
                 user.userUuid,
                 data,
+                policy,
                 projectUuid,
             );
         this.analytics.track({
@@ -3962,6 +4172,10 @@ export class UserService extends BaseService {
             user.userUuid,
             userWarehouseCredentialsUuid,
             data,
+            await resolvePersonalCredentialPolicy(this.featureFlagModel, {
+                organizationUuid: user.organizationUuid ?? null,
+                userUuid: user.userUuid,
+            }),
         );
         this.analytics.track({
             userId: user.userUuid,
@@ -3980,17 +4194,49 @@ export class UserService extends BaseService {
         user: SessionUser,
         userWarehouseCredentialsUuid: string,
     ) {
-        await this.userWarehouseCredentialsModel.delete(
-            user.userUuid,
-            userWarehouseCredentialsUuid,
+        const deletedAi =
+            await this.userWarehouseCredentialsModel.deleteAiCredential(
+                user.userUuid,
+                userWarehouseCredentialsUuid,
+            );
+        if (!deletedAi) {
+            await this.userWarehouseCredentialsModel.delete(
+                user.userUuid,
+                userWarehouseCredentialsUuid,
+            );
+        }
+        trackSafely(() =>
+            this.analytics.track({
+                userId: user.userUuid,
+                event: 'user_warehouse_credentials.deleted',
+                properties: {
+                    credentialsId: userWarehouseCredentialsUuid,
+                },
+            }),
         );
-        this.analytics.track({
-            userId: user.userUuid,
-            event: 'user_warehouse_credentials.deleted',
-            properties: {
-                credentialsId: userWarehouseCredentialsUuid,
-            },
-        });
+        if (deletedAi) {
+            const { enabled } = await this.featureFlagModel
+                .get({ user, featureFlagId: FeatureFlags.AgentIdentity })
+                .catch(() => ({ enabled: false }));
+            if (enabled) {
+                this.logger.info('Agent sign-in disconnected', {
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid ?? null,
+                });
+                trackSafely(() =>
+                    this.analytics.track({
+                        userId: user.userUuid,
+                        event: 'agent_identity.disconnected',
+                        properties: {
+                            organizationId: user.organizationUuid ?? null,
+                            userId: user.userUuid,
+                            projectId: deletedAi.projectUuid,
+                            warehouseType: deletedAi.warehouseType,
+                        },
+                    }),
+                );
+            }
+        }
     }
 
     private getRedirectUri(issuer: OpenIdIdentityIssuerType) {

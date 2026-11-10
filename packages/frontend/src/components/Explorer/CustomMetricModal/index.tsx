@@ -64,6 +64,7 @@ import {
     addFieldIdToMetricFilterRule,
     buildNewAdditionalMetric,
     getCustomMetricLabelError,
+    getCustomMetricSourceDimension,
     getFilterRulesFromMetricBaseFilters,
     getInheritedCustomMetricFormat,
     prepareCustomMetricData,
@@ -133,7 +134,7 @@ export const CustomMetricModal = memo(() => {
                 : undefined,
         [mergeSource, mergeSourceId, tableName],
     );
-    const { projectUuid, fieldsMap, startOfWeek } =
+    const { projectUuid, fieldsMap, startOfWeek, warehouseType } =
         useDataForFiltersProvider(mergeQueryContext);
 
     const dimensionsMap = useMemo(
@@ -237,8 +238,23 @@ export const CustomMetricModal = memo(() => {
         );
     };
 
+    const customSourceDimension = getCustomMetricSourceDimension(
+        item,
+        mergeSourceId
+            ? mergeSource?.customDimensions
+            : metricQuery.customDimensions,
+    );
+
     const canApplyFormatting = useMemo(() => {
         if (!customMetricType) return false;
+        if (customSourceDimension) {
+            return (
+                isNumericItem(customSourceDimension) ||
+                [MetricType.COUNT, MetricType.COUNT_DISTINCT].includes(
+                    customMetricType,
+                )
+            );
+        }
         // Metric-derived custom metrics have no base dimension to check
         if (isMetricDerived) {
             // MIN/MAX-of-date clones are date-valued; numeric formats don't apply
@@ -270,6 +286,7 @@ export const CustomMetricModal = memo(() => {
         );
     }, [
         dimensionToCheck,
+        customSourceDimension,
         customMetricType,
         isMetricDerived,
         item,
@@ -475,7 +492,7 @@ export const CustomMetricModal = memo(() => {
                 selectedBaseDimension
                     ? {
                           ...item,
-                          sql: selectedBaseDimension.sql,
+                          sql: `\${${selectedBaseDimension.table}.${selectedBaseDimension.name}}`,
                           table: selectedBaseDimension.table,
                       }
                     : item;
@@ -787,12 +804,7 @@ export const CustomMetricModal = memo(() => {
                                                 ? `(${customMetricFiltersWithIds.length}) `
                                                 : ' '}
                                         </Text>
-                                        <Text
-                                            span
-                                            fz="xs"
-                                            c="ldGray.5"
-                                            fw={400}
-                                        >
+                                        <Text span fz="xs" c="dimmed" fw={400}>
                                             (optional)
                                         </Text>
                                     </Text>
@@ -804,6 +816,7 @@ export const CustomMetricModal = memo(() => {
                                         projectUuid={projectUuid}
                                         itemsMap={dimensionsMap}
                                         startOfWeek={startOfWeek ?? undefined}
+                                        warehouseType={warehouseType}
                                         popoverProps={{
                                             withinPortal: true,
                                         }}

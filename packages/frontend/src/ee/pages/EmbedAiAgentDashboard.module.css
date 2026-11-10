@@ -1,0 +1,8 @@
+.page {
+    height: 100dvh;
+}
+
+/* SDK embeds fill the host's container, not the viewport */
+.sdkPage {
+    height: 100%;
+}

@@ -1,7 +1,6 @@
 import {
     FeatureFlag,
     FeatureFlags,
-    LightdashMode,
     LightdashUser,
     PREVIEW_ENABLED_FEATURE_FLAGS,
 } from '@lightdash/common';
@@ -32,7 +31,7 @@ export type EnsureOrganizationOverrideOutcome =
     | 'already_enabled'
     | 'kept_disabled';
 
-type FeatureFlagQueryOptions = {
+export type FeatureFlagQueryOptions = {
     trx?: Knex;
     /** Set false for admin listings so they don't inflate flag-usage telemetry. */
     recordCheck?: boolean;
@@ -56,36 +55,8 @@ export class FeatureFlagModel {
         this.lightdashConfig = args.lightdashConfig;
         // Initialize the handlers for feature flag logic
         this.featureFlagHandlers = {
-            [FeatureFlags.EditYamlInUi]: this.getEditYamlInUiEnabled.bind(this),
             [FeatureFlags.EnableTimezoneSupport]:
                 this.getEnableTimezoneSupportEnabled.bind(this),
-            [FeatureFlags.EnableDataApps]:
-                this.getEnableDataAppsEnabled.bind(this),
-            [FeatureFlags.ResultsCacheEnabled]: (flagArgs, options) =>
-                this.getWithEnvFallback(
-                    flagArgs,
-                    this.lightdashConfig.results.cacheEnabled,
-                    options,
-                ),
-            // On by default on Lightdash Cloud; self-hosted opts in through
-            // LIGHTDASH_ENABLE_FEATURE_FLAGS. An organization override (or a
-            // stored flag default) still wins, so one org can be turned off.
-            [FeatureFlags.EnableLearn]: (flagArgs, options) =>
-                this.getWithEnvFallback(
-                    flagArgs,
-                    this.lightdashConfig.mode === LightdashMode.CLOUD_BETA,
-                    options,
-                ),
-            [FeatureFlags.SharedSignInExpiryMessage]: (flagArgs, options) =>
-                this.getWithEnvFallback(flagArgs, true, options),
-            [FeatureFlags.SharedSignInReconnect]: (flagArgs, options) =>
-                this.getWithEnvFallback(flagArgs, true, options),
-            [FeatureFlags.PreviewSsoCredentialSync]: (flagArgs, options) =>
-                this.getWithEnvFallback(flagArgs, true, options),
-            [FeatureFlags.AgentSqlScopeHyphenatedIdentifiers]: (
-                flagArgs,
-                options,
-            ) => this.getWithEnvFallback(flagArgs, true, options),
         };
     }
 
@@ -161,15 +132,6 @@ export class FeatureFlagModel {
         return dbResult ?? { id: args.featureFlagId, enabled: false };
     }
 
-    private async getEditYamlInUiEnabled({
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        return {
-            id: featureFlagId,
-            enabled: this.lightdashConfig.editYamlInUi.enabled,
-        };
-    }
-
     // On by default. Disable it instance-wide with
     // LIGHTDASH_ENABLE_TIMEZONE_SUPPORT=false (or LIGHTDASH_DISABLE_FEATURE_FLAGS),
     // or per organization/user with a `feature_flag_overrides` row.
@@ -186,21 +148,10 @@ export class FeatureFlagModel {
         return this.getWithEnvFallback(args, true, options);
     }
 
-    private async getEnableDataAppsEnabled(
-        args: FeatureFlagLogicArgs,
-        options: FeatureFlagQueryOptions = {},
-    ): Promise<FeatureFlag> {
-        if (this.lightdashConfig.appRuntime.enabled) {
-            return { id: args.featureFlagId, enabled: true };
-        }
-        const dbResult = await this.tryGetFromDatabase(args, options);
-        return dbResult ?? { id: args.featureFlagId, enabled: false };
-    }
-
     // DB value (user override → org override → flag default) wins. Falls
     // back to the supplied default when the flag has no DB row and no
     // override applies.
-    private async getWithEnvFallback(
+    protected async getWithEnvFallback(
         args: FeatureFlagLogicArgs,
         fallback: boolean,
         options: FeatureFlagQueryOptions = {},

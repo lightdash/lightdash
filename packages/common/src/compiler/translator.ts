@@ -1,9 +1,13 @@
-import merge from 'lodash/merge';
-import partition from 'lodash/partition';
+import { merge, partition } from 'es-toolkit/compat';
 import {
+    getDeferredExploreName,
     getManifestNamespaceKey,
     qualifyManifestNames,
 } from '../dbt/qualifiedName';
+import {
+    assertValidDbtModelIdentifiers,
+    getDbtModelTextError,
+} from '../dbt/validateDbtText';
 import {
     buildModelGraph,
     convertColumnMetric,
@@ -17,11 +21,14 @@ import {
     type DbtColumnMetadata,
     type DbtExploreLightdashAdditionalDimension,
     type DbtModelColumn,
+    type DbtModelJoin,
     type DbtModelNode,
     type LineageGraph,
+    type ModelInventoryEntry,
 } from '../types/dbt';
 import {
     CompileError,
+    DbtModelTextError,
     MissingCatalogEntryError,
     NotSupportedError,
     ParseError,
@@ -64,6 +71,7 @@ import {
     getCatalogNestedColumnsUnavailableReason,
     getCatalogTimestampDomain,
     WAREHOUSE_MISSING_ENTRIES_KEY,
+    WAREHOUSE_NATIVE_TYPES_KEY,
     WAREHOUSE_NESTED_COLUMNS_KEY,
     WAREHOUSE_NESTED_COLUMNS_UNAVAILABLE_KEY,
     WAREHOUSE_TIMESTAMP_DOMAINS_KEY,
@@ -1501,10 +1509,23 @@ export const instantiateNestedTables = ({
     );
 };
 
+export type DbtJoinAvailability = Readonly<{
+    unavailableSources: readonly Readonly<{
+        sourceUuid: string;
+        sourceName: string;
+    }>[];
+}>;
+
 export type ConvertExploresOptions = {
+    joinAvailability?: DbtJoinAvailability;
+    unavailableModels?: readonly ModelInventoryEntry[];
     disableTimestampConversion?: boolean;
     allowPartialCompilation?: boolean;
     postProcessors?: ExplorePostProcessor[];
+    deferExploreNaming?: boolean;
+    modelInventory?: ModelInventoryEntry[];
+    allowCrossSourceJoinFallback?: boolean;
+    includeModelIdentity?: boolean;
 };
 
 const RESERVED_MODEL_META_KEY_SET = new Set<string>(RESERVED_MODEL_META_KEYS);
@@ -1534,23 +1555,128 @@ export async function* iterateExplores(
         disableTimestampConversion,
         allowPartialCompilation,
         postProcessors,
+        deferExploreNaming,
+        includeModelIdentity = deferExploreNaming,
+        modelInventory = models,
+        allowCrossSourceJoinFallback = true,
+        joinAvailability,
+        unavailableModels = [],
     } = options ?? {};
-    const resolvedNamesByUniqueId = qualifyManifestNames(
-        models.map((model) => ({
-            uniqueId: model.unique_id,
-            name: model.name,
-            lightdash_source_name: model.lightdash_source_name,
-            package_name: model.package_name,
-        })),
-        'model',
-    );
-    const modelsByNamespaceAndName = new Map<string, DbtModelNode>();
-    models.forEach((model) => {
-        const namespaceKey = getManifestNamespaceKey(model, model.name);
-        if (namespaceKey !== undefined) {
-            modelsByNamespaceAndName.set(namespaceKey, model);
-        }
+    models.forEach((model) => assertValidDbtModelIdentifiers(model));
+    const resolvedNamesByUniqueId = deferExploreNaming
+        ? new Map(
+              models.map((model) => [
+                  model.unique_id,
+                  getDeferredExploreName(model),
+              ]),
+          )
+        : qualifyManifestNames(
+              models.map((model) => ({
+                  uniqueId: model.unique_id,
+                  name: model.name,
+                  version: model.version,
+                  lightdash_source_name: model.lightdash_source_name,
+                  package_name: model.package_name,
+              })),
+              'model',
+          );
+    const inventoryByNamespaceAndName = new Map<
+        string,
+        ModelInventoryEntry[]
+    >();
+    modelInventory.forEach((model) => {
+        const key = getManifestNamespaceKey(model, model.name);
+        if (key !== undefined)
+            inventoryByNamespaceAndName.set(key, [
+                ...(inventoryByNamespaceAndName.get(key) ?? []),
+                model,
+            ]);
     });
+    const selectJoinTarget = (
+        candidates: DbtModelNode[],
+    ): DbtModelNode | null => {
+        const first = candidates[0];
+        if (candidates.every((model) => model.version == null))
+            return candidates.length === 1 ? first : null;
+        const key = getManifestNamespaceKey(first, first.name);
+        if (
+            candidates.some(
+                (model) =>
+                    model.version == null ||
+                    model.package_name !== first.package_name ||
+                    getManifestNamespaceKey(model, model.name) !== key,
+            )
+        )
+            return null;
+        const declarations = new Set(
+            [
+                ...candidates,
+                ...(key === undefined
+                    ? []
+                    : (inventoryByNamespaceAndName.get(key) ?? [])),
+            ].flatMap((model) =>
+                model.latest_version == null
+                    ? []
+                    : [String(model.latest_version)],
+            ),
+        );
+        if (declarations.size !== 1) return null;
+        const latest = candidates.filter(
+            (model) => String(model.version) === [...declarations][0],
+        );
+        return latest.length === 1 ? latest[0] : null;
+    };
+    const versionGroups = new Map<string, DbtModelNode[]>();
+    models.forEach((model) => {
+        const key = getManifestNamespaceKey(model, model.name);
+        if (key !== undefined)
+            versionGroups.set(key, [...(versionGroups.get(key) ?? []), model]);
+    });
+    const joinTargets = [...versionGroups.values()].map((candidates) => ({
+        representative: candidates[0],
+        target: selectJoinTarget(candidates),
+    }));
+    const unavailableGroups = new Map<string, ModelInventoryEntry>();
+    unavailableModels.forEach((model) => {
+        const key = getManifestNamespaceKey(model, model.name);
+        if (key !== undefined && !versionGroups.has(key))
+            unavailableGroups.set(key, model);
+    });
+    const allJoinTargets: {
+        representative: ModelInventoryEntry;
+        target: DbtModelNode | null;
+    }[] = [
+        ...joinTargets,
+        ...[...unavailableGroups.values()].map((representative) => ({
+            representative,
+            target: null,
+        })),
+    ];
+    const buildJoinLookup = (
+        keyFor: (model: ModelInventoryEntry) => string | undefined,
+    ) => {
+        const lookup = new Map<string, DbtModelNode | null>();
+        allJoinTargets.forEach(({ representative, target }) => {
+            const key = keyFor(representative);
+            if (key !== undefined)
+                lookup.set(key, lookup.has(key) ? null : target);
+        });
+        return lookup;
+    };
+    const modelsByNamespaceAndName = buildJoinLookup((model) =>
+        getManifestNamespaceKey(model, model.name),
+    );
+    const modelsByQualifiedName = buildJoinLookup(
+        (model) =>
+            `${model.lightdash_source_name ?? model.package_name}__${model.name}`,
+    );
+    const modelsByPlainName = buildJoinLookup((model) => model.name);
+    const inventoryNamespaceKeys = new Set(
+        modelInventory.map((model) =>
+            getManifestNamespaceKey(model, model.name),
+        ),
+    );
+    const joinResolutionErrors = new WeakMap<DbtModelJoin, string>();
     const resolveJoins = (
         model: DbtModelNode,
         joins: DbtModelNode['meta']['joins'],
@@ -1560,7 +1686,89 @@ export async function* iterateExplores(
             if (namespaceKey === undefined) {
                 return join;
             }
-            const joinedModel = modelsByNamespaceAndName.get(namespaceKey);
+            let joinedModel = modelsByNamespaceAndName.has(namespaceKey)
+                ? modelsByNamespaceAndName.get(namespaceKey)
+                : modelsByQualifiedName.get(join.join);
+            if (!joinedModel) {
+                if (
+                    modelsByNamespaceAndName.has(namespaceKey) ||
+                    modelsByQualifiedName.has(join.join)
+                ) {
+                    joinResolutionErrors.set(
+                        join,
+                        'the declared latest version is unavailable or the model name is ambiguous',
+                    );
+                    return join;
+                }
+                if (inventoryNamespaceKeys.has(namespaceKey)) {
+                    joinResolutionErrors.set(
+                        join,
+                        'the own-source model is disabled or excluded from compilation',
+                    );
+                    return join;
+                }
+                const unavailableSources =
+                    joinAvailability?.unavailableSources ?? [];
+                const unavailableTarget = unavailableSources.find((source) =>
+                    join.join.startsWith(`${source.sourceName}__`),
+                );
+                if (unavailableTarget) {
+                    joinResolutionErrors.set(
+                        join,
+                        `source "${unavailableTarget.sourceName}" inventory is unavailable`,
+                    );
+                    return join;
+                }
+                if (
+                    !(
+                        model.lightdash_model_inventory_complete ??
+                        allowCrossSourceJoinFallback
+                    )
+                ) {
+                    joinResolutionErrors.set(
+                        join,
+                        'the full own-source model inventory is unavailable, so cross-source fallback is unsafe',
+                    );
+                    return join;
+                }
+                const unavailableSiblings = unavailableSources.filter(
+                    (source) =>
+                        source.sourceUuid !== model.lightdash_source_uuid,
+                );
+                if (unavailableSiblings.length > 0) {
+                    joinResolutionErrors.set(
+                        join,
+                        `source inventory is unavailable: ${unavailableSiblings
+                            .map((source) => source.sourceName)
+                            .sort()
+                            .join(', ')}`,
+                    );
+                    return join;
+                }
+                joinedModel = modelsByPlainName.get(join.join) ?? undefined;
+                if (!joinedModel && modelsByPlainName.has(join.join)) {
+                    const candidates = [...modelsByQualifiedName.entries()]
+                        .filter(
+                            ([qualifiedName, candidate]) =>
+                                candidate !== null &&
+                                candidate.name === join.join &&
+                                modelsByNamespaceAndName.get(
+                                    getManifestNamespaceKey(
+                                        model,
+                                        qualifiedName,
+                                    ) ?? '',
+                                ) === undefined,
+                        )
+                        .map(([qualifiedName]) => qualifiedName)
+                        .sort();
+                    joinResolutionErrors.set(
+                        join,
+                        candidates.length > 0
+                            ? `the bare model name is ambiguous. Use one of: ${candidates.join(', ')}`
+                            : 'the declared latest version is unavailable or the model name is ambiguous',
+                    );
+                }
+            }
             const resolvedJoinName = joinedModel
                 ? resolvedNamesByUniqueId.get(joinedModel.unique_id)
                 : undefined;
@@ -1576,27 +1784,21 @@ export async function* iterateExplores(
     const resolvedModels = models.map((model) => {
         const resolvedName =
             resolvedNamesByUniqueId.get(model.unique_id) ?? model.name;
-        const metaJoins = resolveJoins(model, model.meta.joins);
-        const configMetaJoins = resolveJoins(model, model.config?.meta?.joins);
         return {
             ...model,
             name: resolvedName,
-            meta:
-                metaJoins === model.meta.joins
-                    ? model.meta
-                    : { ...model.meta, joins: metaJoins },
-            config:
-                configMetaJoins === model.config?.meta?.joins
-                    ? model.config
-                    : {
-                          ...model.config,
-                          meta: {
-                              ...model.config?.meta,
-                              joins: configMetaJoins,
-                          },
-                      },
+            meta: deferExploreNaming
+                ? {
+                      ...model.meta,
+                      label: model.meta.label ?? friendlyName(model.name),
+                  }
+                : model.meta,
         };
     });
+
+    const originalModelsByUniqueId = new Map(
+        models.map((model) => [model.unique_id, model]),
+    );
     const originalNamesByUniqueId = new Map(
         models.map((model) => [model.unique_id, model.name]),
     );
@@ -1613,6 +1815,7 @@ export async function* iterateExplores(
         lightdashProjectConfig.defaults?.granularity_labels,
     );
     const tables: Table[] = [];
+    const preferredVersionTables = new WeakSet<Table>();
     const exploreErrors: ExploreError[] = [];
     // eslint-disable-next-line no-restricted-syntax
     for (const [modelIndex, model] of resolvedModels.entries()) {
@@ -1631,6 +1834,8 @@ export async function* iterateExplores(
 
         // If there are any errors compiling the table return an ExploreError
         try {
+            const textError = getDbtModelTextError(model);
+            if (textError !== null) throw textError;
             const table = convertTable(
                 adapterType,
                 model,
@@ -1646,6 +1851,14 @@ export async function* iterateExplores(
             // add lineage
             const tableWithLineage: Table = {
                 ...table,
+                ...(includeModelIdentity
+                    ? {
+                          dbtModelUniqueId: model.unique_id,
+                          ...(model.lightdash_source_name !== undefined
+                              ? { dbtSourceName: model.lightdash_source_name }
+                              : {}),
+                      }
+                    : {}),
                 ...(originalNamesByUniqueId.get(model.unique_id) !== model.name
                     ? {
                           originalName: originalNamesByUniqueId.get(
@@ -1656,6 +1869,17 @@ export async function* iterateExplores(
                 ...tableLineage[model.name],
             };
 
+            if (
+                model.version != null &&
+                modelsByNamespaceAndName.get(
+                    getManifestNamespaceKey(
+                        model,
+                        originalNamesByUniqueId.get(model.unique_id) ??
+                            model.name,
+                    ) ?? '',
+                )?.unique_id === model.unique_id
+            )
+                preferredVersionTables.add(tableWithLineage);
             tables.push(tableWithLineage);
             const templates = getNestedTableTemplates(model);
             if (templates.length > 0) {
@@ -1665,28 +1889,45 @@ export async function* iterateExplores(
                 });
             }
         } catch (e: unknown) {
-            const exploreError: ExploreError = {
-                name: model.name,
-                label: meta.label || friendlyName(model.name),
-                tags,
-                groupLabel: meta.group_label,
-                ...(meta.groups && meta.groups.length > 0
-                    ? { groups: meta.groups }
-                    : {}),
-                errors: [
-                    {
-                        type:
-                            e instanceof ParseError
-                                ? InlineErrorType.METADATA_PARSE_ERROR
-                                : InlineErrorType.NO_DIMENSIONS_FOUND,
-                        message:
-                            e instanceof Error
-                                ? e.message
-                                : `Could not convert dbt model: "${model.name}" into an explore`,
-                    },
-                ],
-            };
-            exploreErrors.push(exploreError);
+            if (e instanceof DbtModelTextError) {
+                if (!allowPartialCompilation) throw e;
+                exploreErrors.push({
+                    name: model.name,
+                    label: friendlyName(
+                        originalNamesByUniqueId.get(model.unique_id) ??
+                            model.name,
+                    ),
+                    errors: [
+                        {
+                            type: InlineErrorType.METADATA_PARSE_ERROR,
+                            message: e.message,
+                        },
+                    ],
+                });
+            } else {
+                const exploreError: ExploreError = {
+                    name: model.name,
+                    label: meta.label || friendlyName(model.name),
+                    tags,
+                    groupLabel: meta.group_label,
+                    ...(meta.groups && meta.groups.length > 0
+                        ? { groups: meta.groups }
+                        : {}),
+                    errors: [
+                        {
+                            type:
+                                e instanceof ParseError
+                                    ? InlineErrorType.METADATA_PARSE_ERROR
+                                    : InlineErrorType.NO_DIMENSIONS_FOUND,
+                            message:
+                                e instanceof Error
+                                    ? e.message
+                                    : `Could not convert dbt model: "${model.name}" into an explore`,
+                        },
+                    ],
+                };
+                exploreErrors.push(exploreError);
+            }
         }
 
         if ((modelIndex + 1) % MODELS_PER_EVENT_LOOP_YIELD === 0) {
@@ -1696,7 +1937,13 @@ export async function* iterateExplores(
     }
     const tableLookup: Record<string, Table> = {};
     tables.forEach((table) => {
-        tableLookup[table.name] = table;
+        const existing = tableLookup[table.name];
+        if (
+            existing === undefined ||
+            !preferredVersionTables.has(existing) ||
+            preferredVersionTables.has(table)
+        )
+            tableLookup[table.name] = table;
     });
     // Virtual tables are instantiated per explore, once for the base model
     // and once per join, named after the join alias; their joins go right
@@ -1946,10 +2193,26 @@ export async function* iterateExplores(
         // Properties created from `exploreToCreate` are specific to each explore. e.g. each explore can have a different name, label & joins
         const compiledExplores = exploresToCreate.map((exploreToCreate) => {
             try {
+                const resolvedJoins =
+                    resolveJoins(model, exploreToCreate.joins) ?? [];
+                const resolutionWarnings: InlineError[] = resolvedJoins.flatMap(
+                    (join) => {
+                        const reason = joinResolutionErrors.get(join);
+                        if (reason === undefined) return [];
+                        const message = `Join "${join.alias || join.join}" to table "${join.join}" was skipped because ${reason}.`;
+                        if (!allowPartialCompilation)
+                            throw new CompileError(message, {});
+                        return [
+                            { type: InlineErrorType.MISSING_TABLE, message },
+                        ];
+                    },
+                );
                 const { joins: exploreJoins, tables: exploreTables } =
                     attachNestedTables(
                         model.name,
-                        exploreToCreate.joins,
+                        resolvedJoins.filter(
+                            (join) => !joinResolutionErrors.has(join),
+                        ),
                         exploreToCreate.tables,
                     );
                 const compiled = exploreCompiler.compileExplore({
@@ -2003,6 +2266,14 @@ export async function* iterateExplores(
                 });
                 return {
                     ...compiled,
+                    ...(resolutionWarnings.length > 0
+                        ? {
+                              warnings: [
+                                  ...(compiled.warnings ?? []),
+                                  ...resolutionWarnings,
+                              ],
+                          }
+                        : {}),
                     ...(Object.keys(granularityLabels).length > 0
                         ? { granularityLabels }
                         : {}),
@@ -2065,8 +2336,32 @@ export async function* iterateExplores(
             return [...errors, ...processor(successes, postProcessorContext)];
         }, successfulExplores);
 
-        yield* compileErrors;
-        yield* postProcessedExplores;
+        const originalModel = originalModelsByUniqueId.get(model.unique_id)!;
+        for (const explore of [...compileErrors, ...postProcessedExplores]) {
+            yield {
+                ...explore,
+                ...(includeModelIdentity
+                    ? {
+                          dbtModelIdentity: {
+                              sourceUuid: model.lightdash_source_uuid ?? null,
+                              sourceName: model.lightdash_source_name ?? null,
+                              packageName: model.package_name,
+                              uniqueId: model.unique_id,
+                              ...(model.version != null
+                                  ? {
+                                        version: model.version,
+                                        latestVersion: model.latest_version,
+                                    }
+                                  : {}),
+                              modelName:
+                                  explore.name === model.name
+                                      ? originalModel.name
+                                      : explore.name,
+                          },
+                      }
+                    : {}),
+            };
+        }
 
         if ((modelIndex + 1) % MODELS_PER_EVENT_LOOP_YIELD === 0) {
             // eslint-disable-next-line no-await-in-loop
@@ -2074,7 +2369,33 @@ export async function* iterateExplores(
         }
     }
 
-    yield* exploreErrors;
+    const originalModelsByResolvedName = new Map(
+        models.map((model) => [
+            resolvedNamesByUniqueId.get(model.unique_id) ?? model.name,
+            model,
+        ]),
+    );
+    for (const explore of exploreErrors) {
+        const model = originalModelsByResolvedName.get(explore.name);
+        yield includeModelIdentity && model
+            ? {
+                  ...explore,
+                  dbtModelIdentity: {
+                      sourceUuid: model.lightdash_source_uuid ?? null,
+                      sourceName: model.lightdash_source_name ?? null,
+                      packageName: model.package_name,
+                      uniqueId: model.unique_id,
+                      ...(model.version != null
+                          ? {
+                                version: model.version,
+                                latestVersion: model.latest_version,
+                            }
+                          : {}),
+                      modelName: model.name,
+                  },
+              }
+            : explore;
+    }
 }
 
 export const convertExplores = async (
@@ -2117,6 +2438,7 @@ const RESERVED_CATALOG_KEYS = new Set<string>([
     WAREHOUSE_NESTED_COLUMNS_KEY,
     WAREHOUSE_NESTED_COLUMNS_UNAVAILABLE_KEY,
     WAREHOUSE_MISSING_ENTRIES_KEY,
+    WAREHOUSE_NATIVE_TYPES_KEY,
 ]);
 
 const catalogTableKey = (database: string, schema: string, table: string) =>

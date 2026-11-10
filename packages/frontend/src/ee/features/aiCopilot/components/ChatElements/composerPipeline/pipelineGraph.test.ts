@@ -2,6 +2,8 @@ import { QuerySourceType, type SourceQuery } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { groupPipeline } from './groupPipeline';
 import {
+    getFittedGraphShare,
+    getPipelineFlowHeight,
     layoutPipelineFlow,
     toPipelineFlow,
     type PipelineFlowNode,
@@ -30,14 +32,46 @@ const measured = (nodes: PipelineFlowNode[]) =>
     nodes.map((node) => ({ ...node, measured: { width: 160, height: 40 } }));
 
 const noDisplay = {
-    displayedNodeId: '',
-    displayableNodeIds: new Set<string>(),
+    focusedNodeId: null,
+    notebookLineage: null,
+    nodeStatuses: {},
 };
 
 const xOf = (nodes: PipelineFlowNode[], id: string) =>
     nodes.find((node) => node.id === id)!.position.x;
 
 describe('toPipelineFlow', () => {
+    it('labels python nodes and draws edges into and out of them', () => {
+        const { nodes, edges } = toPipelineFlow(
+            groupPipeline(
+                [
+                    sql('orders', 'Orders by status'),
+                    {
+                        sourceType: QuerySourceType.PYTHON,
+                        nodeId: 'sim',
+                        title: 'Simulation',
+                        code: 'def run(inputs, params):\n    return inputs["orders"]',
+                        references: ['orders'],
+                    },
+                    duckdb('summary', 'Summary', ['sim']),
+                ],
+                'summary',
+            ),
+            noDisplay,
+        );
+        expect(
+            nodes.map((node) => [node.id, node.data.query.sourceType]),
+        ).toEqual([
+            ['orders', QuerySourceType.SQL],
+            ['sim', QuerySourceType.PYTHON],
+            ['summary', QuerySourceType.DUCKDB],
+        ]);
+        expect(edges.map((edge) => edge.id)).toEqual([
+            'orders->sim',
+            'sim->summary',
+        ]);
+    });
+
     it('makes one node per pipeline node with source and terminal flags', () => {
         const { nodes } = toPipelineFlow(
             groupPipeline(
@@ -50,24 +84,20 @@ describe('toPipelineFlow', () => {
             noDisplay,
         );
         expect(nodes.map((node) => node.data)).toEqual([
-            {
+            expect.objectContaining({
                 title: 'Orders by status',
-                sourceLabel: 'Warehouse SQL',
                 isTerminal: false,
-                isDisplayed: false,
-                isDisplayable: false,
-            },
-            {
+                status: null,
+            }),
+            expect.objectContaining({
                 title: 'Orders with amounts',
-                sourceLabel: null,
                 isTerminal: true,
-                isDisplayed: false,
-                isDisplayable: false,
-            },
+                status: null,
+            }),
         ]);
     });
 
-    it('marks the displayed node and the nodes with a stored result', () => {
+    it('carries each node status', () => {
         const { nodes } = toPipelineFlow(
             groupPipeline(
                 [
@@ -77,20 +107,81 @@ describe('toPipelineFlow', () => {
                 'joined',
             ),
             {
-                displayedNodeId: 'orders',
-                displayableNodeIds: new Set(['orders']),
+                ...noDisplay,
+                nodeStatuses: {
+                    orders: {
+                        status: 'success',
+                        error: null,
+                        totalRowCount: 20,
+                        durationMs: null,
+                    },
+                },
             },
         );
         expect(
             nodes.map(({ id, data }) => [
                 id,
-                data.isDisplayed,
-                data.isDisplayable,
+                data.status?.totalRowCount ?? null,
             ]),
         ).toEqual([
-            ['orders', true, true],
-            ['joined', false, false],
+            ['orders', 20],
+            ['joined', null],
         ]);
+    });
+
+    it('keeps the focused node and its whole lineage undimmed', () => {
+        const layers = groupPipeline(
+            [
+                sql('revenue', 'Revenue by payment method'),
+                duckdb('quarterly', 'Quarterly revenue', ['revenue']),
+                sql('customers', 'Customer first orders'),
+                sql('unrelated', 'Unrelated'),
+                duckdb('final', 'Revenue per new customer', [
+                    'quarterly',
+                    'customers',
+                ]),
+            ],
+            'final',
+        );
+        const dimmed = (focusedNodeId: string) =>
+            toPipelineFlow(layers, { ...noDisplay, focusedNodeId })
+                .nodes.filter((node) => node.data.isDimmed)
+                .map((node) => node.id);
+
+        expect(dimmed('final')).toEqual(['unrelated']);
+        expect(dimmed('revenue')).toEqual(['customers', 'unrelated']);
+    });
+
+    it("marks the notebook's lineage, its edges, and keeps it undimmed", () => {
+        const layers = groupPipeline(
+            [
+                sql('a', 'A'),
+                duckdb('b', 'B', ['a']),
+                duckdb('final', 'Final', ['a', 'b']),
+                sql('other', 'Other'),
+            ],
+            'final',
+        );
+        const { nodes, edges } = toPipelineFlow(layers, {
+            ...noDisplay,
+            focusedNodeId: 'other',
+            notebookLineage: {
+                nodeId: 'b',
+                relatedIds: new Set(['a', 'final']),
+            },
+        });
+        expect(
+            nodes.map(({ id, data }) => [id, data.lineageRole, data.isDimmed]),
+        ).toEqual([
+            ['a', 'related', false],
+            ['other', null, false],
+            ['b', 'hovered', false],
+            ['final', 'related', false],
+        ]);
+        // a->final joins two related nodes but not the hovered one.
+        expect(
+            edges.filter((edge) => edge.className).map((edge) => edge.id),
+        ).toEqual(['a->b', 'b->final']);
     });
 
     it('makes one edge per read, from the read node to the reader', () => {
@@ -111,44 +202,6 @@ describe('toPipelineFlow', () => {
             ['b', 'ab'],
             ['ab', 'final'],
         ]);
-    });
-
-    it('draws an earlier result placeholder with an edge to its reader', () => {
-        const { nodes, edges } = toPipelineFlow(
-            groupPipeline(
-                [duckdb('final', 'Final', { prev: 'uuid-1' })],
-                'final',
-            ),
-            noDisplay,
-        );
-        const marks = { isDisplayed: false, isDisplayable: false };
-        expect(nodes.map((node) => [node.id, node.data])).toEqual([
-            [
-                'earlier:uuid-1',
-                {
-                    title: 'prev',
-                    sourceLabel: 'Earlier result',
-                    isTerminal: false,
-                    ...marks,
-                },
-            ],
-            [
-                'final',
-                {
-                    title: 'Final',
-                    sourceLabel: null,
-                    isTerminal: true,
-                    ...marks,
-                },
-            ],
-        ]);
-        expect(edges.map((edge) => [edge.source, edge.target])).toEqual([
-            ['earlier:uuid-1', 'final'],
-        ]);
-        const laidOut = layoutPipelineFlow(measured(nodes), edges);
-        expect(xOf(laidOut, 'earlier:uuid-1')).toBeLessThan(
-            xOf(laidOut, 'final'),
-        );
     });
 
     it('returns empty arrays for an empty pipeline', () => {
@@ -198,5 +251,37 @@ describe('layoutPipelineFlow', () => {
         );
         // y reads the terminal, so it sits just before it rather than at rank 0
         expect(xOf(laidOut, 'y')).toBeGreaterThan(xOf(laidOut, 'a'));
+    });
+});
+
+describe('graph pane fit', () => {
+    const bounds = { min: 15, max: 35 };
+
+    it('measures the laid-out nodes from top to bottom', () => {
+        const { nodes } = toPipelineFlow(
+            groupPipeline(
+                [sql('a', 'A'), duckdb('final', 'Final', ['a'])],
+                'final',
+            ),
+            noDisplay,
+        );
+        const [a, final] = measured(nodes);
+        expect(
+            getPipelineFlowHeight([
+                { ...a, position: { x: 0, y: 10 } },
+                { ...final, position: { x: 200, y: 60 } },
+            ]),
+        ).toBe(90);
+    });
+
+    it('sizes a short pipeline to its content, a tall one to the cap', () => {
+        expect(getFittedGraphShare(100, 1000, bounds)).toBe(18);
+        expect(getFittedGraphShare(600, 1000, bounds)).toBe(35);
+        expect(getFittedGraphShare(10, 1000, bounds)).toBe(15);
+    });
+
+    it('keeps the cap until both heights are known', () => {
+        expect(getFittedGraphShare(0, 1000, bounds)).toBe(35);
+        expect(getFittedGraphShare(100, 0, bounds)).toBe(35);
     });
 });

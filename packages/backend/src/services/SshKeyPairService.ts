@@ -1,4 +1,9 @@
-import { SshKeyPair } from '@lightdash/common';
+import {
+    assertIsAccountWithOrg,
+    assertRegisteredAccount,
+    type Account,
+    type SshKeyPair,
+} from '@lightdash/common';
 import { SshKeyPairModel } from '../models/SshKeyPairModel';
 import { BaseService } from './BaseService';
 
@@ -14,8 +19,14 @@ export class SshKeyPairService extends BaseService {
         this.sshKeyPairModel = sshKeyPairModel;
     }
 
-    async create(): Promise<Pick<SshKeyPair, 'publicKey'>> {
-        const { publicKey } = await this.sshKeyPairModel.create();
+    async create(
+        account: Account | undefined,
+    ): Promise<Pick<SshKeyPair, 'publicKey'>> {
+        assertRegisteredAccount(account);
+        assertIsAccountWithOrg(account);
+        const { publicKey } = await this.sshKeyPairModel.create(
+            account.organization.organizationUuid,
+        );
         return { publicKey };
     }
 }

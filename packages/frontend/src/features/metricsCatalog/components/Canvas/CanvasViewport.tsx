@@ -58,7 +58,7 @@ export const CanvasViewport: FC<Props> = ({ navigation, children }) => {
                 <Group>{navigation}</Group>
                 <ActionIcon
                     variant="default"
-                    size={44}
+                    mod="touch-target"
                     aria-label={getUiString(
                         expanded
                             ? 'metrics.exitExpandedCanvas'

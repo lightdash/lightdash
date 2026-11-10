@@ -11,7 +11,7 @@ import Callout from '../../components/common/Callout';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import MantineModal from '../../components/common/MantineModal';
 import SpaceSelector from '../../components/common/SpaceSelector/SpaceSelector';
-import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
+import { useResolvedProjectUrlIdentifier } from '../../hooks/useResolvedProjectUrlIdentifier';
 import { useDocumentCreationSpaces } from './useDocumentCreationSpaces';
 import { useDuplicateDocument } from './useDuplicateDocument';
 
@@ -20,7 +20,7 @@ type Props = {
     documentUuid: string;
     name: string;
     description: string;
-    spaceUuid: string;
+    spaceUuid: string | null;
     opened: boolean;
     onClose: () => void;
 };
@@ -37,16 +37,16 @@ const DocumentDuplicateModal = ({
     const spaces = useDocumentCreationSpaces(projectUuid);
     const duplicate = useDuplicateDocument(projectUuid, documentUuid);
     const navigate = useNavigate();
-    const projectUrlIdentifier = useProjectUrlIdentifier();
+    const projectUrlIdentifier = useResolvedProjectUrlIdentifier(projectUuid);
     const form = useForm<DuplicateDocumentRequest>({
         initialValues: {
             name: `Copy of ${name}`,
             description,
-            spaceUuid: spaces.writableSpaces.some(
-                (space) => space.uuid === spaceUuid,
-            )
-                ? spaceUuid
-                : '',
+            spaceUuid:
+                spaceUuid !== null &&
+                spaces.writableSpaces.some((space) => space.uuid === spaceUuid)
+                    ? spaceUuid
+                    : '',
         },
         validate: {
             name: (value) => (value.trim() ? null : 'Enter a document name'),

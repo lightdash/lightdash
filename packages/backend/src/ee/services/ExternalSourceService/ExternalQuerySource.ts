@@ -4,6 +4,7 @@ import {
     QuerySourceType,
     type ExternalSourceQuery,
     type ExternalSourceTableReference,
+    type FeatureFlags,
     type QuerySourceDefinition,
     type QuerySourceSchema,
     type QuerySourceSchemaTable,
@@ -35,6 +36,8 @@ export class ExternalQuerySource implements QuerySourceClient {
     };
 
     readonly supportsPivot = false;
+
+    readonly requiredFeatureFlags: FeatureFlags[] = [];
 
     private readonly asyncQueryService: AsyncQueryService;
 
@@ -131,6 +134,7 @@ export class ExternalQuerySource implements QuerySourceClient {
         account,
         projectUuid,
         context,
+        querySurface,
         query,
         parameters,
         invalidateCache,
@@ -154,6 +158,7 @@ export class ExternalQuerySource implements QuerySourceClient {
                 limit: sourceQuery.limit,
                 tables: ExternalQuerySource.normalizeTables(sourceQuery.tables),
                 context,
+                querySurface,
                 parameters,
                 invalidateCache,
             });

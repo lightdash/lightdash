@@ -34,12 +34,13 @@ import {
     IconDotsVertical,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import { useCanManageDashboard } from '../../../hooks/dashboard/useCanManageDashboard';
 import { useCopyTileLink } from '../../../hooks/dashboard/useTileLink';
 import { useDelayedHover } from '../../../hooks/useDelayedHover';
 import ConnectionBadge from '../../common/ConnectionBadge';
+import { DASHBOARD_TILE_RADIUS } from '../../common/Dashboard/dashboard.constants';
 import { FloatingActionsPill } from '../../common/FloatingActionsPill';
 import MantineIcon from '../../common/MantineIcon';
 import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/DeleteChartTileThatBelongsToDashboardModal';
@@ -48,6 +49,7 @@ import MoveTileToTabModal from '../TileForms/MoveTileToTabModal';
 import TileUpdateModal from '../TileForms/TileUpdateModal';
 import LoadingSkeletonOverlay from './LoadingSkeletonOverlay';
 import styles from './TileBase.module.css';
+import { TileHeaderPopoverContext } from './tileHeaderPopoverContext';
 import { type TileBaseProps } from './types';
 
 const TileBase = <T extends Dashboard['tiles'][number]>({
@@ -98,6 +100,18 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     });
     const [titleHovered, setTitleHovered] = useState(false);
     const [isMenuOpen, toggleMenu] = useToggle([false, true]);
+    const [openHeaderPopovers, setOpenHeaderPopovers] = useState<
+        ReadonlySet<string>
+    >(() => new Set());
+    const setHeaderPopoverOpen = useCallback((id: string, open: boolean) => {
+        setOpenHeaderPopovers((prev) => {
+            if (prev.has(id) === open) return prev;
+            const next = new Set(prev);
+            if (open) next.add(id);
+            else next.delete(id);
+            return next;
+        });
+    }, []);
     const isPhoneLayout = useMediaQuery('(width < 32em)', undefined, {
         getInitialValueInEffect: false,
     });
@@ -133,6 +147,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const showHeaderActions =
         (containerHovered && !titleHovered && !chartHovered) ||
         isMenuOpen ||
+        openHeaderPopovers.size > 0 ||
         lockHeaderVisibility ||
         !!visibleHeaderElement;
     const menuItems = (
@@ -236,7 +251,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     <ActionIcon
                         aria-label={getUiString('tileMenu.actions')}
                         size="sm"
-                        style={{ position: 'relative', zIndex: 1 }}
+                        className={styles.menuTrigger}
                     >
                         <MantineIcon
                             data-testid="tile-icon-more-vertical"
@@ -271,10 +286,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 >
                     <IconCircleCheckFilled
                         size={14}
-                        style={{
-                            flexShrink: 0,
-                            color: 'var(--mantine-color-green-6)',
-                        }}
+                        className={styles.verifiedIcon}
                     />
                 </Tooltip>
             )}
@@ -310,10 +322,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                         <ActionIcon
                             aria-label={getUiString('tileMenu.actions')}
                             size="sm"
-                            style={{
-                                position: 'relative',
-                                zIndex: 1,
-                            }}
+                            className={styles.menuTrigger}
                         >
                             <MantineIcon
                                 data-testid="tile-icon-more"
@@ -359,7 +368,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                 h="100%"
                 p={transparent ? 0 : 'md'}
                 bg={transparent ? 'transparent' : 'var(--ld-color-tile)'}
-                radius={isEditMode ? rem(4) : rem(12)}
+                radius={rem(
+                    isEditMode
+                        ? DASHBOARD_TILE_RADIUS.edit
+                        : DASHBOARD_TILE_RADIUS.view,
+                )}
             >
                 <LoadingSkeletonOverlay
                     // ! Very important to have this class name on the tile loading overlay, otherwise the unfurl service will not be able to find it
@@ -385,7 +398,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                     disabled={!description}
                                     label={
                                         <Text
-                                            style={{ whiteSpace: 'pre-line' }}
+                                            className={styles.description}
                                             fz="sm"
                                         >
                                             {description}
@@ -406,7 +419,7 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                                 disabled={!description}
                                 label={
                                     <Text
-                                        style={{ whiteSpace: 'pre-line' }}
+                                        className={styles.description}
                                         fz="sm"
                                     >
                                         {description}
@@ -448,7 +461,11 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
                     {!minimal && !hideTitle && (
                         <ConnectionBadge name={connectionName} />
                     )}
-                    {headerActions}
+                    <TileHeaderPopoverContext.Provider
+                        value={setHeaderPopoverOpen}
+                    >
+                        {headerActions}
+                    </TileHeaderPopoverContext.Provider>
                 </Group>
 
                 <Flex

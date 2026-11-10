@@ -1,0 +1,13 @@
+version: 2
+models:
+  - name: pg_calendar
+    config:
+      access: public
+    columns:
+      - name: calendar_date
+        meta:
+          dimension: { type: date }
+          metrics:
+            day_count: { type: count_distinct }
+      - name: day_of_week
+        meta: { dimension: { type: number } }

@@ -4,8 +4,9 @@ import {
     type ApiPromoteAppResponse,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type PromoteAppParams = {
     projectUuid: string;
@@ -15,7 +16,10 @@ type PromoteAppParams = {
 type PromoteAppDiff = ApiPromoteAppDiffResponse['results'];
 type PromoteAppResult = ApiPromoteAppResponse['results'];
 
-const getPromoteAppDiff = ({ projectUuid, appUuid }: PromoteAppParams) =>
+const getPromoteAppDiff = (
+    lightdashApi: LightdashApi,
+    { projectUuid, appUuid }: PromoteAppParams,
+) =>
     lightdashApi<PromoteAppDiff>({
         method: 'GET',
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/promoteDiff`,
@@ -25,14 +29,19 @@ const getPromoteAppDiff = ({ projectUuid, appUuid }: PromoteAppParams) =>
 export const usePromoteAppDiff = (
     params: PromoteAppParams | undefined,
     { enabled }: { enabled: boolean },
-) =>
-    useQuery<PromoteAppDiff, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<PromoteAppDiff, ApiError>({
         queryKey: ['appPromoteDiff', params?.projectUuid, params?.appUuid],
-        queryFn: () => getPromoteAppDiff(params!),
+        queryFn: () => getPromoteAppDiff(lightdashApi, params!),
         enabled: enabled && !!params,
     });
+};
 
-const promoteApp = ({ projectUuid, appUuid }: PromoteAppParams) =>
+const promoteApp = (
+    lightdashApi: LightdashApi,
+    { projectUuid, appUuid }: PromoteAppParams,
+) =>
     lightdashApi<PromoteAppResult>({
         method: 'POST',
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/promote`,
@@ -40,10 +49,11 @@ const promoteApp = ({ projectUuid, appUuid }: PromoteAppParams) =>
     });
 
 export const usePromoteApp = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<PromoteAppResult, ApiError, PromoteAppParams>({
-        mutationFn: promoteApp,
+        mutationFn: (args: PromoteAppParams) => promoteApp(lightdashApi, args),
         onSuccess: (result) => {
             void queryClient.invalidateQueries({ queryKey: ['myApps'] });
             void queryClient.invalidateQueries({ queryKey: ['content'] });

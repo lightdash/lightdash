@@ -43,6 +43,22 @@ const SECOND_RUN_RESULT = {
     },
 };
 
+// Cost and API time one session's results reported, captured from CLI 2.1.284:
+// `/compact` reports the session's cost but no API time, and the next run's
+// API time is cumulative again.
+const sessionResult = (costUsd: number, durationApiMs: number) => ({
+    ...SECOND_RUN_RESULT,
+    modelUsage: undefined,
+    costUsd,
+    durationApiMs,
+});
+const CAPTURED_RUNS = [
+    sessionResult(0.012067, 5_461),
+    sessionResult(0.015924, 9_304),
+    { ...sessionResult(0.028169, 0), numTurns: 0 },
+    sessionResult(0.034947, 27_585),
+];
+
 const AFTER_FIRST_RUN: CodingAgentSessionUsageSnapshot = {
     sessionId: 'session-1',
     costUsd: 0.56,
@@ -562,7 +578,7 @@ describe('codingAgentSessionUsageDelta', () => {
         expect(usage).toEqual(SECOND_RUN_RESULT);
     });
 
-    it('takes a run whose totals fell below the snapshot as reported', () => {
+    it('takes a run whose cost fell below the snapshot as reported', () => {
         const { usage } = codingAgentSessionUsageDelta({
             sessionId: 'session-1',
             result: { ...SECOND_RUN_RESULT, costUsd: 0.1 },
@@ -571,6 +587,45 @@ describe('codingAgentSessionUsageDelta', () => {
 
         expect(usage.costUsd).toBe(0.1);
         expect(usage.durationApiMs).toBe(133_000);
+    });
+
+    it('charges a compaction that reports no API time only its added cost', () => {
+        const { usage, snapshot } = codingAgentSessionUsageDelta({
+            sessionId: 'session-1',
+            result: CAPTURED_RUNS[2],
+            previous: {
+                sessionId: 'session-1',
+                costUsd: 0.015924,
+                durationApiMs: 9_304,
+                modelUsage: null,
+            },
+        });
+
+        expect(usage.costUsd).toBeCloseTo(0.028169 - 0.015924, 9);
+        expect(usage.durationApiMs).toBe(0);
+        expect(snapshot).toEqual({
+            sessionId: 'session-1',
+            costUsd: 0.028169,
+            durationApiMs: 9_304,
+            modelUsage: null,
+        });
+    });
+
+    it('charges the run after a compaction its own API time', () => {
+        const { usage, snapshot } = codingAgentSessionUsageDelta({
+            sessionId: 'session-1',
+            result: CAPTURED_RUNS[3],
+            previous: {
+                sessionId: 'session-1',
+                costUsd: 0.028169,
+                durationApiMs: 9_304,
+                modelUsage: null,
+            },
+        });
+
+        expect(usage.costUsd).toBeCloseTo(0.034947 - 0.028169, 9);
+        expect(usage.durationApiMs).toBe(27_585 - 9_304);
+        expect(snapshot.durationApiMs).toBe(27_585);
     });
 
     it('drops a model the resumed run never called', () => {
@@ -633,6 +688,36 @@ describe('CodingAgentSessionUsageLedger', () => {
         expect(third.costUsd).toBeCloseTo(1.14);
         expect(third.durationApiMs).toBe(211_000);
         expect(persisted.map((s) => s.costUsd)).toEqual([0.65, 1.79]);
+    });
+
+    it('charges a compaction mid-session only its own share', () => {
+        const persisted: CodingAgentSessionUsageSnapshot[] = [];
+        const ledger = new CodingAgentSessionUsageLedger(null, (s) =>
+            persisted.push(s),
+        );
+
+        const charged = CAPTURED_RUNS.map((result) =>
+            ledger.record('session-1', result),
+        );
+
+        expect(charged.map((u) => u.durationApiMs)).toEqual([
+            5_461,
+            9_304 - 5_461,
+            0,
+            27_585 - 9_304,
+        ]);
+        [
+            0.012067,
+            0.015924 - 0.012067,
+            0.028169 - 0.015924,
+            0.034947 - 0.028169,
+        ].forEach((cost, i) => expect(charged[i].costUsd).toBeCloseTo(cost, 9));
+        expect(persisted.map((s) => s.durationApiMs)).toEqual([
+            5_461, 9_304, 9_304, 27_585,
+        ]);
+        expect(persisted.map((s) => s.costUsd)).toEqual([
+            0.012067, 0.015924, 0.028169, 0.034947,
+        ]);
     });
 
     it('starts over when a thread has no snapshot yet', () => {

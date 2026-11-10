@@ -9,6 +9,7 @@ import {
     assertRegisteredAccount,
     CreateGitBranchRequest,
     CreateGitPullRequestRequest,
+    ParameterError,
 } from '@lightdash/common';
 import {
     Body,
@@ -95,6 +96,7 @@ export class GitFilesController extends BaseController {
 
     /**
      * Create or update a file. Provide sha to update existing file, omit for new file.
+     * Send text as content, or a binary file's bytes as contentBase64: one of the two.
      * @summary Save file
      */
     @Middlewares([
@@ -111,13 +113,21 @@ export class GitFilesController extends BaseController {
         @Body()
         body: {
             path: string;
-            content: string;
+            content?: string;
+            contentBase64?: string;
             sha?: string;
             message?: string;
         },
         @Request() req: express.Request,
     ): Promise<ApiGitFileSavedResponse> {
         assertRegisteredAccount(req.account);
+        const content = body.contentBase64 ?? body.content;
+        if (
+            content === undefined ||
+            (body.content !== undefined && body.contentBase64 !== undefined)
+        ) {
+            throw new ParameterError('Provide either content or contentBase64');
+        }
         this.setStatus(200);
         return {
             status: 'ok',
@@ -128,9 +138,10 @@ export class GitFilesController extends BaseController {
                     projectUuid,
                     branch,
                     body.path,
-                    body.content,
+                    content,
                     body.sha,
                     body.message,
+                    body.contentBase64 === undefined ? undefined : 'base64',
                 ),
         };
     }

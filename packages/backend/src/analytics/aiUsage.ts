@@ -33,6 +33,7 @@ export const AI_CALL_FEATURES = [
     'chart-type-explore',
     'document-summary',
     'thread-title',
+    'release-highlights',
     'tooltip',
     'artifact-question',
     'agent-suggestions',
@@ -41,7 +42,6 @@ export const AI_CALL_FEATURES = [
     'formula-table-calc',
     'compaction',
     'embedding',
-    'project-router',
     'agent-selector',
     'review-classifier',
     'prompt-input-classifier',
@@ -52,6 +52,7 @@ export const AI_CALL_FEATURES = [
     'external-connection-config',
     'delivery-summary',
     'data-app-analysis',
+    'custom-viz',
 ] as const;
 
 export type AiCallFeature = (typeof AI_CALL_FEATURES)[number];
@@ -88,22 +89,29 @@ const parseChannel = (value: string | null): AiUsageChannel | null =>
 export type AiThreadOrigin = {
     createdFrom: AiThreadCreatedFrom;
     embedSpaceUuid: string | null;
+    embedExternalUserId: string | null;
 };
 
 export const getAiUsageChannel = ({
     createdFrom,
     embedSpaceUuid,
+    embedExternalUserId,
 }: AiThreadOrigin): AiUsageChannel => {
     switch (createdFrom) {
         case 'web_app':
-            // An embedded chat is a web thread scoped to the embed's space.
-            return embedSpaceUuid === null ? 'web' : 'embed';
+            // Embedded chats are scoped to the embed's spaces, or to the viewer when read-only.
+            return embedSpaceUuid === null && embedExternalUserId === null
+                ? 'web'
+                : 'embed';
         case 'api':
         case 'slack':
         case 'evals':
         case 'scheduler':
         case 'data_app':
+        case 'dashboard_analysis':
             return createdFrom;
+        case 'semantic_studio':
+            return 'web';
         default:
             return assertUnreachable(createdFrom, 'Unknown AI thread origin');
     }
@@ -289,6 +297,7 @@ export type AiCallRuntimeContextKey =
     | 'channel'
     | 'externalUserId'
     | 'appUuid'
+    | 'dashboardUuid'
     | 'runUuid'
     | 'deepResearchRunUuid'
     | 'deepResearchPhase';

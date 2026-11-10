@@ -1,11 +1,7 @@
-import {
-    ActionIcon,
-    Tooltip,
-    type ActionIconProps,
-    type MantineSize,
-} from '@mantine/core';
-import { IconStar } from '@tabler/icons-react';
-import MantineIcon from '../../../../../components/common/MantineIcon';
+import { type ActionIconProps, type MantineSize } from '@mantine/core';
+import clsx from 'clsx';
+import { useState } from 'react';
+import { FavoriteActionIcon } from '../../../../../components/common/FavoriteActionIcon';
 import {
     useDeleteUserAgentPreferences,
     useGetUserAgentPreferences,
@@ -24,45 +20,50 @@ export const DefaultAgentButton: React.FC<Props> = ({
     agentUuid,
     size = 'md',
     className,
+    disabled,
     ...props
 }) => {
-    const { data: userAgentPreferences } =
+    const [hasInteracted, setHasInteracted] = useState(false);
+    const { data: userAgentPreferences, isLoading: isLoadingPreferences } =
         useGetUserAgentPreferences(projectUuid);
-    const { mutateAsync: setDefaultAgentUuid } = useUpdateUserAgentPreferences(
-        projectUuid!,
-    );
-    const { mutateAsync: deleteUserPreferences } =
-        useDeleteUserAgentPreferences(projectUuid!);
+    const { mutate: setDefaultAgentUuid, isLoading: isSettingDefault } =
+        useUpdateUserAgentPreferences(projectUuid ?? '');
+    const { mutate: deleteUserPreferences, isLoading: isRemovingDefault } =
+        useDeleteUserAgentPreferences(projectUuid ?? '');
 
     const isDefault = userAgentPreferences?.defaultAgentUuid === agentUuid;
 
     return (
-        <Tooltip
+        <FavoriteActionIcon
+            {...props}
+            isFavorite={isDefault}
             label={
                 isDefault ? 'Remove as default agent' : 'Set as default agent'
             }
-        >
-            <ActionIcon
-                className={[styles.button, className].filter(Boolean).join(' ')}
-                onClick={async () => {
-                    if (isDefault) {
-                        await deleteUserPreferences();
-                    } else {
-                        await setDefaultAgentUuid({
-                            defaultAgentUuid: agentUuid,
-                        });
-                    }
-                }}
-                size={size}
-                {...props}
-            >
-                <MantineIcon
-                    size={size}
-                    icon={IconStar}
-                    fill={isDefault ? 'yellow' : 'transparent'}
-                    color={isDefault ? 'yellow' : 'gray'}
-                />
-            </ActionIcon>
-        </Tooltip>
+            aria-pressed={isDefault}
+            aria-busy={isSettingDefault || isRemovingDefault}
+            data-starred={isDefault}
+            data-interacted={hasInteracted || undefined}
+            className={clsx(styles.button, className)}
+            onToggle={() => {
+                setHasInteracted(true);
+                if (isDefault) {
+                    deleteUserPreferences();
+                } else {
+                    setDefaultAgentUuid({ defaultAgentUuid: agentUuid });
+                }
+            }}
+            disabled={
+                disabled ||
+                !projectUuid ||
+                isLoadingPreferences ||
+                isSettingDefault ||
+                isRemovingDefault
+            }
+            variant={isDefault ? 'light' : 'subtle'}
+            size={size}
+            iconSize="md"
+            favoriteColor="yellow"
+        />
     );
 };

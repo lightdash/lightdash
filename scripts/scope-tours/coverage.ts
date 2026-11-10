@@ -20,8 +20,6 @@ const excluded = (reason: string, ticket = 'CS-212'): ScopeDisposition => ({
 // Content obligations outside the training role remain explicitly tracked.
 export const ADDITIONAL_CONTENT_SCOPES = [
     'view:Analytics',
-    'view:AiAgentDocument',
-    'manage:AiAgentDocument',
     'view:AiAgentSkill',
     'manage:AiAgentSkill',
 ];
@@ -38,10 +36,10 @@ export const SCOPE_DISPOSITIONS: Readonly<Record<string, ScopeDisposition>> = {
             },
         ]),
     ),
-    'manage:DeletedContent': {
+    'manage:ContentAsCode': {
         status: 'coming-soon',
-        reason: 'Walkthrough withdrawn: its only reachable path was a Browse menu entry added for Learn, which was removed pending a product decision on where Recently deleted lives.',
-        ticket: 'CS-311',
+        reason: 'Its siblings are content-as-code lessons. Manage only waives upload checks (custom SQL, custom fields) that a learner already passes in their own copy, so a chart upload cannot show the difference: it needs an outcome of its own.',
+        ticket: 'CS-283',
         tour: null,
     },
     'view:Project': excluded(
@@ -58,6 +56,21 @@ export const SCOPE_DISPOSITIONS: Readonly<Record<string, ScopeDisposition>> = {
     ),
     'manage:SemanticViewer': excluded(
         'Catalogue records no product surface for this permission.',
+    ),
+    'view:AgentReadDiscover': excluded(
+        'Agent capability ceiling; it limits AI agents, not the learner.',
+    ),
+    'view:AgentQuery': excluded(
+        'Agent capability ceiling; it limits AI agents, not the learner.',
+    ),
+    'view:AgentExport': excluded(
+        'Agent capability ceiling; it limits AI agents, not the learner.',
+    ),
+    'view:AgentRawSql': excluded(
+        'Agent capability ceiling; it limits AI agents, not the learner.',
+    ),
+    'view:AiAgentThreadContext': excluded(
+        'Only reveals context on threads created through the API; a learner cannot create one in the product.',
     ),
 };
 

@@ -226,6 +226,11 @@ export const selectPendingFetch = createSelector(
     (queryExecution) => queryExecution.pendingFetch,
 );
 
+export const selectPendingCostConfirmation = createSelector(
+    [selectQueryExecution],
+    (queryExecution) => queryExecution.pendingCostConfirmation,
+);
+
 // TODO: REDUX-MIGRATION - Add missingRequiredParameters as a computed selector once all dependencies are in Redux
 // Currently missingRequiredParameters is computed state in Context, not stored in Redux
 
@@ -257,6 +262,9 @@ export const selectChartConfig = createSelector(
     [selectUnsavedChartVersion],
     (unsavedChartVersion) => unsavedChartVersion.chartConfig,
 );
+
+export const selectChartType = (state: ExplorerStoreState) =>
+    selectChartConfig(state).type;
 
 // Pivot config selector
 export const selectPivotConfig = createSelector(

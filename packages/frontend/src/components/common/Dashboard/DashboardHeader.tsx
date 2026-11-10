@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     DirectAccessResourceType,
-    canMutateVerifiedContent,
+    FeatureFlags,
     getDashboardDeleteAccess,
     ContentReviewContentType,
     ContentType,
@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import {
     Badge,
+    ActionBar,
     ActionIcon,
     Box,
     Button,
@@ -24,7 +25,7 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
-    IconAlertTriangle,
+    IconArrowAutofitHeight,
     IconBolt,
     IconCircleCheck,
     IconCircleCheckFilled,
@@ -53,6 +54,7 @@ import {
     IconUpload,
     IconUsers,
 } from '@tabler/icons-react';
+import { clsx } from 'clsx';
 import dayjs from 'dayjs';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
@@ -68,6 +70,12 @@ import {
     useDashboardCommentsSummary,
 } from '../../../features/comments';
 import DashboardAsCodeModal from '../../../features/contentAsCode/components/DashboardAsCodeModal';
+import ProjectContentAsCodeUploadModal from '../../../features/contentAsCode/components/ProjectContentAsCodeUploadModal';
+import { useCanUploadContentAsCode } from '../../../features/contentAsCode/hooks/useCanUploadContentAsCode';
+import {
+    EditFiltersVisibilityControl,
+    type EditFiltersVisibility,
+} from '../../../features/dashboardFilters/EditFiltersVisibilityControl';
 import {
     DirectAccessModal,
     useCanManageDirectAccess,
@@ -80,7 +88,6 @@ import {
 } from '../../../features/promotion/hooks/usePromoteDashboard';
 import { DashboardSchedulersModal } from '../../../features/scheduler';
 import { getSchedulerUuidFromUrlParams } from '../../../features/scheduler/utils';
-import useDashboardPerformanceWarning from '../../../hooks/dashboard/useDashboardPerformanceWarning';
 import { useFavoriteMutation } from '../../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../../hooks/favorites/useFavorites';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
@@ -92,16 +99,22 @@ import {
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUrlIdentifier } from '../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import { type TilePreAggregateStatus } from '../../../providers/Dashboard/types';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import AddTileButton from '../../DashboardTiles/AddTileButton';
+import {
+    ClearCachedResultsMenuItem,
+    ClearCachedResultsModal,
+} from '../../ProjectResultsCache/ClearCachedResultsMenuItem';
 import ContentSlugRenameModal from '../ContentSlugRenameModal/ContentSlugRenameModal';
 import { FavoriteActionIcon } from '../FavoriteActionIcon';
 import MantineIcon from '../MantineIcon';
 import MantineModal from '../MantineModal';
 import DashboardUpdateModal from '../modal/DashboardUpdateModal';
+import { Z_INDEX_FLOATING } from '../Page/constants';
 import {
     HeaderActions,
     HeaderHeading,
@@ -115,11 +128,19 @@ import ShareShortLinkButton from '../ShareShortLinkButton';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
-import { DASHBOARD_HEADER_ZINDEX } from './dashboard.constants';
 import headerClasses from './DashboardHeader.module.css';
+import { DashboardPerformanceWarning } from './DashboardPerformanceWarning';
 import DashboardPreAggRefreshModal from './DashboardPreAggRefreshModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 import { PreAggregateAuditDrawer } from './PreAggregateAuditIndicator';
+import { useDashboardManageAccess } from './useDashboardManageAccess';
+
+// The dashboard controls' floating bars sit this far from the bottom too
+const EDIT_BAR_POSITION = {
+    bottom: 'md',
+    left: 0,
+    right: 0,
+};
 
 type DashboardHeaderProps = {
     dashboard: Dashboard;
@@ -152,6 +173,12 @@ type DashboardHeaderProps = {
     onMoveToSpace: (spaceUuid: string) => void;
     onExport: () => void;
     onToggleFullscreen: () => void;
+    isFitToScreen: boolean;
+    isFitToScreenAvailable: boolean;
+    onToggleFitToScreen: () => void;
+    // null when the control is not offered
+    editFiltersVisibility: EditFiltersVisibility | null;
+    onEditFiltersVisibilityChange: (value: EditFiltersVisibility) => void;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
     onEditClicked: () => void;
     className?: string;
@@ -183,16 +210,17 @@ const DashboardHeader = memo(
         onMoveToSpace,
         onExport,
         onToggleFullscreen,
+        isFitToScreen,
+        isFitToScreenAvailable,
+        onToggleFitToScreen,
+        editFiltersVisibility,
+        onEditFiltersVisibilityChange,
         setAddingTab,
         onEditClicked,
         className,
     }: DashboardHeaderProps) => {
         const authoringEnabled = useContentAuthoringEnabled();
         const compact = useCompactContentHeader();
-        const performanceWarning = useDashboardPerformanceWarning(
-            dashboardTiles,
-            dashboardTabs,
-        );
         const { search, pathname } = useLocation();
         const navigate = useNavigate();
         const projectUuid = useProjectUuid();
@@ -201,6 +229,8 @@ const DashboardHeader = memo(
         const dashboardIdentifier = dashboard.slug;
 
         const { data: project } = useProject(projectUuid);
+        const canUploadContentAsCode = useCanUploadContentAsCode(projectUuid);
+        const [isUploadModalOpen, uploadModalHandlers] = useDisclosure();
 
         const { track } = useTracking();
         const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -232,6 +262,8 @@ const DashboardHeader = memo(
             grantRoles: [],
         });
         const [isPreAggAuditOpen, preAggAuditHandlers] = useDisclosure(false);
+        const [isClearCacheModalOpen, clearCacheModalHandlers] =
+            useDisclosure(false);
         const [isCommentsPanelOpen, commentsPanelHandlers] =
             useDisclosure(false);
         const {
@@ -351,25 +383,18 @@ const DashboardHeader = memo(
         const { user, health } = useApp();
         const preAggregatesEnabled =
             health.data?.preAggregates.enabled ?? false;
-        const hasDashboardManageAbility = !!user.data?.ability.can(
-            'manage',
-            subject('Dashboard', dashboard),
-        );
+        const { hasDashboardManageAbility, userCanManageDashboard } =
+            useDashboardManageAccess(dashboard);
         // Read-only, so verification does not restrict it
         const userCanViewPreAggregateAudit = hasDashboardManageAbility;
-        const userCanManageDashboard =
-            !!user.data &&
-            hasDashboardManageAbility &&
-            canMutateVerifiedContent(
-                user.data.ability,
-                {
-                    organizationUuid: dashboard.organizationUuid,
-                    projectUuid: dashboard.projectUuid,
-                },
-                dashboard.verification,
-                user.data.userUuid,
-            );
         const canAuthorDashboard = authoringEnabled && userCanManageDashboard;
+        const { data: dashboardControlsFlag } = useServerFeatureFlag(
+            FeatureFlags.DashboardControls,
+        );
+        const showEditingBadge =
+            isEditMode &&
+            userCanManageDashboard &&
+            dashboardControlsFlag?.enabled === true;
         const canEditDashboard =
             canAuthorDashboard && !isEditMode && !isFullscreen;
         const userCanDeleteDashboard =
@@ -468,11 +493,22 @@ const DashboardHeader = memo(
                 mobileLayout={!isEditMode ? 'content' : undefined}
                 variant="dashboard"
                 cardProps={{
-                    style: { zIndex: DASHBOARD_HEADER_ZINDEX },
-                    className,
+                    className: clsx(headerClasses.headerCard, className),
                 }}
             >
                 <HeaderTitle gap="xs" flex={1} wrap="nowrap">
+                    {showEditingBadge && (
+                        <Badge
+                            color="indigo"
+                            size="sm"
+                            flex="0 0 auto"
+                            leftSection={
+                                <MantineIcon icon={IconPencil} size={12} />
+                            }
+                        >
+                            Editing
+                        </Badge>
+                    )}
                     <HeaderHeading
                         order={6}
                         // Walkthrough result marker for manage:Dashboard:
@@ -497,7 +533,7 @@ const DashboardHeader = memo(
                                 color="yellow"
                                 variant="dot"
                                 size="sm"
-                                style={{ cursor: 'default' }}
+                                className={headerClasses.staticBadge}
                             >
                                 Unpublished changes
                             </Badge>
@@ -563,13 +599,12 @@ const DashboardHeader = memo(
                                     ? `Verified by ${dashboard.verification.verifiedBy.firstName} ${dashboard.verification.verifiedBy.lastName}`
                                     : 'Verified'
                             }
-                            zIndex={10000}
+                            zIndex={Z_INDEX_FLOATING}
                         >
-                            <IconCircleCheckFilled
+                            <MantineIcon
+                                icon={IconCircleCheckFilled}
                                 size={16}
-                                style={{
-                                    color: 'var(--mantine-color-green-6)',
-                                }}
+                                color="green.6"
                             />
                         </Tooltip>
                     )}
@@ -590,6 +625,7 @@ const DashboardHeader = memo(
                     {isEditMode && userCanManageDashboard && (
                         <ActionIcon
                             size="md"
+                            aria-label="Edit details"
                             disabled={isSaving}
                             onClick={handleEditClick}
                         >
@@ -631,6 +667,16 @@ const DashboardHeader = memo(
                             contentName={dashboard.name}
                             opened={isRequestReviewModalOpen}
                             onClose={requestReviewModalHandlers.close}
+                        />
+                    )}
+                    {isClearCacheModalOpen && (
+                        <ClearCachedResultsModal
+                            opened={isClearCacheModalOpen}
+                            onClose={clearCacheModalHandlers.close}
+                            content={{
+                                type: 'dashboard',
+                                uuid: dashboard.uuid,
+                            }}
                         />
                     )}
                     {isTransferToSpaceModalOpen && projectUuid && (
@@ -680,49 +726,45 @@ const DashboardHeader = memo(
                 )}
                 {userCanManageDashboard && isEditMode ? (
                     <Group gap="xs">
-                        {performanceWarning.hasWarning && (
-                            <Tooltip
-                                label={
-                                    <Box>
-                                        <Text size="sm" fw={500} mb={6}>
-                                            Speed up this dashboard
-                                        </Text>
-                                        <Text size="xs">
-                                            With{' '}
-                                            {performanceWarning.totalChartCount}{' '}
-                                            charts, load times can be slower
-                                            depending on the user's machine.{' '}
-                                            {performanceWarning.totalTabs <= 1
-                                                ? `We recommend splitting this into multiple dashboard tabs, limited to ${performanceWarning.tabsExceedingLimit[0]?.limit ?? 10} charts per tab to keep things snappy for your team.`
-                                                : `We recommend splitting this into multiple dashboards to keep things snappy for your team.`}
-                                        </Text>
-                                    </Box>
-                                }
-                                withinPortal
-                                position="bottom"
-                                multiline
-                                maw={320}
-                                openDelay={200}
-                                transitionProps={{
-                                    transition: 'fade',
-                                    duration: 150,
-                                }}
-                            >
-                                <ActionIcon size="md" color="orange.6">
-                                    <MantineIcon icon={IconAlertTriangle} />
-                                </ActionIcon>
-                            </Tooltip>
-                        )}
-
-                        <AddTileButton
-                            onAddTiles={onAddTiles}
-                            disabled={isSaving}
-                            setAddingTab={setAddingTab}
-                            activeTabUuid={activeTabUuid}
+                        <DashboardPerformanceWarning
+                            dashboardTiles={dashboardTiles}
                             dashboardTabs={dashboardTabs}
-                            onNewChart={onNewChart}
-                            radius="md"
                         />
+
+                        {editFiltersVisibility === null ? (
+                            <AddTileButton
+                                onAddTiles={onAddTiles}
+                                disabled={isSaving}
+                                setAddingTab={setAddingTab}
+                                activeTabUuid={activeTabUuid}
+                                dashboardTabs={dashboardTabs}
+                                onNewChart={onNewChart}
+                                radius="md"
+                            />
+                        ) : (
+                            <ActionBar
+                                opened
+                                shadow="md"
+                                aria-label="Dashboard editing tools"
+                                position={EDIT_BAR_POSITION}
+                                className={headerClasses.editBar}
+                            >
+                                <AddTileButton
+                                    onAddTiles={onAddTiles}
+                                    disabled={isSaving}
+                                    setAddingTab={setAddingTab}
+                                    activeTabUuid={activeTabUuid}
+                                    dashboardTabs={dashboardTabs}
+                                    onNewChart={onNewChart}
+                                    radius="md"
+                                />
+                                <ActionBar.Divider />
+                                <EditFiltersVisibilityControl
+                                    value={editFiltersVisibility}
+                                    onChange={onEditFiltersVisibilityChange}
+                                />
+                            </ActionBar>
+                        )}
 
                         <Tooltip
                             fz="xs"
@@ -738,10 +780,10 @@ const DashboardHeader = memo(
                             <Box>
                                 <Button
                                     size="xs"
+                                    className={headerClasses.save}
                                     disabled={!hasDashboardChanged}
                                     loading={isSaving}
                                     onClick={onSaveDashboard}
-                                    color="green.7"
                                     // Walkthrough marker for manage:Dashboard:
                                     // a new dashboard with a saved chart on
                                     // it, then saved. The name is typed (the
@@ -852,6 +894,36 @@ const DashboardHeader = memo(
                                 }
                             />
                         )}
+                        {!isEditMode && !compact && isFitToScreenAvailable && (
+                            <Tooltip
+                                label={
+                                    isFitToScreen
+                                        ? 'Exit fit to screen'
+                                        : 'Fit to screen'
+                                }
+                                position="bottom"
+                                openDelay={200}
+                                transitionProps={{
+                                    transition: 'fade',
+                                    duration: 150,
+                                }}
+                            >
+                                <ActionIcon
+                                    variant={
+                                        isFitToScreen ? 'light' : 'default'
+                                    }
+                                    size="md"
+                                    aria-label="Fit to screen"
+                                    aria-pressed={isFitToScreen}
+                                    onClick={onToggleFitToScreen}
+                                >
+                                    <MantineIcon
+                                        icon={IconArrowAutofitHeight}
+                                        size="md"
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
                         {!isEditMode &&
                             (!compact || isFullscreen) &&
                             document.fullscreenEnabled &&
@@ -943,6 +1015,7 @@ const DashboardHeader = memo(
                                     !hasDashboardManageAbility &&
                                     !userCanExportData &&
                                     !userCanViewContentAsCode &&
+                                    !canUploadContentAsCode &&
                                     !canViewDashboardComments &&
                                     !(
                                         compact &&
@@ -996,7 +1069,7 @@ const DashboardHeader = memo(
 
                                 <Menu.Dropdown
                                     mah="calc(100dvh - 24px)"
-                                    style={{ overflowY: 'auto' }}
+                                    className={headerClasses.scrollableDropdown}
                                 >
                                     {compact && (
                                         <>
@@ -1078,6 +1151,24 @@ const DashboardHeader = memo(
                                                 onClick={onToggleFullscreen}
                                             >
                                                 Enter fullscreen
+                                            </Menu.Item>
+                                        )}
+                                    {compact &&
+                                        !isEditMode &&
+                                        isFitToScreenAvailable && (
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={
+                                                            IconArrowAutofitHeight
+                                                        }
+                                                    />
+                                                }
+                                                onClick={onToggleFitToScreen}
+                                            >
+                                                {isFitToScreen
+                                                    ? 'Exit fit to screen'
+                                                    : 'Fit to screen'}
                                             </Menu.Item>
                                         )}
                                     <AskAiAgentMenuItem
@@ -1184,6 +1275,15 @@ const DashboardHeader = memo(
                                             >
                                                 Move dashboard
                                             </Menu.Item>
+
+                                            <ClearCachedResultsMenuItem
+                                                projectUuid={
+                                                    dashboard.projectUuid
+                                                }
+                                                onClick={
+                                                    clearCacheModalHandlers.open
+                                                }
+                                            />
 
                                             {contentReview.canRequest && (
                                                 <Menu.Item
@@ -1314,11 +1414,12 @@ const DashboardHeader = memo(
                                             <Menu.Item
                                                 leftSection={
                                                     isDashboardVerified ? (
-                                                        <IconCircleCheckFilled
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconCircleCheckFilled
+                                                            }
                                                             size={16}
-                                                            style={{
-                                                                color: 'var(--mantine-color-green-6)',
-                                                            }}
+                                                            color="green.6"
                                                         />
                                                     ) : (
                                                         <MantineIcon
@@ -1361,7 +1462,8 @@ const DashboardHeader = memo(
                                     )}
 
                                     {(userCanViewContentAsCode ||
-                                        canAuthorDashboard) && (
+                                        canAuthorDashboard ||
+                                        canUploadContentAsCode) && (
                                         <>
                                             <Menu.Divider />
                                             <Menu.Label>
@@ -1381,22 +1483,61 @@ const DashboardHeader = memo(
                                                     View as code
                                                 </Menu.Item>
                                             )}
-                                            {canAuthorDashboard && (
-                                                <Menu.Item
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={IconLink}
-                                                        />
-                                                    }
-                                                    disabled={
-                                                        hasDashboardChanged
-                                                    }
-                                                    onClick={
-                                                        slugRenameModalHandlers.open
-                                                    }
+                                            {canUploadContentAsCode && (
+                                                <Tooltip
+                                                    label="Exit edit mode before uploading content."
+                                                    disabled={!isEditMode}
                                                 >
-                                                    Change URL slug
-                                                </Menu.Item>
+                                                    <Box>
+                                                        <Menu.Item
+                                                            leftSection={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconUpload
+                                                                    }
+                                                                />
+                                                            }
+                                                            onClick={
+                                                                uploadModalHandlers.open
+                                                            }
+                                                            disabled={
+                                                                isEditMode
+                                                            }
+                                                        >
+                                                            Upload content
+                                                        </Menu.Item>
+                                                    </Box>
+                                                </Tooltip>
+                                            )}
+                                            {canAuthorDashboard && (
+                                                <Tooltip
+                                                    label="Save or discard your dashboard changes before changing the URL slug. Reset any unsaved filters or parameters."
+                                                    disabled={
+                                                        !hasDashboardChanged
+                                                    }
+                                                    multiline
+                                                    maw={320}
+                                                >
+                                                    <Box>
+                                                        <Menu.Item
+                                                            leftSection={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconLink
+                                                                    }
+                                                                />
+                                                            }
+                                                            disabled={
+                                                                hasDashboardChanged
+                                                            }
+                                                            onClick={
+                                                                slugRenameModalHandlers.open
+                                                            }
+                                                        >
+                                                            Change URL slug
+                                                        </Menu.Item>
+                                                    </Box>
+                                                </Tooltip>
                                             )}
                                         </>
                                     )}
@@ -1472,6 +1613,14 @@ const DashboardHeader = memo(
                                 hasUnsavedChanges={
                                     hasDashboardChanged && isEditMode
                                 }
+                            />
+                        )}
+                        {isUploadModalOpen && project && (
+                            <ProjectContentAsCodeUploadModal
+                                opened={isUploadModalOpen}
+                                onClose={uploadModalHandlers.close}
+                                projectUuid={project.projectUuid}
+                                projectName={project.name}
                             />
                         )}
                         {(promoteDashboardDiff ||

@@ -6,12 +6,15 @@ import type {
 } from '@lightdash/common';
 import {
     assertUnreachable,
+    getPatchedSql,
     isRunQueryArgsV1,
     migrateRunQueryArgsV1ToV2,
     type AiAgentToolResult,
     type ToolAnalyzeFieldImpactArgs,
     type ToolComposerQueriesArgs,
     type ToolCreateScheduledDeliveryOutput,
+    type ToolLoadSkillArgs,
+    type ToolLoadSkillOutput,
     type ToolDashboardV2Args,
     type ToolDescribeWarehouseTableArgs,
     type ToolFindChartsArgs,
@@ -35,12 +38,11 @@ import {
     type ToolSearchSemanticLayerArgs,
 } from '@lightdash/common';
 import type { FC } from 'react';
-import { type SqlApprovalTarget } from '../SqlApprovalCard';
+import { type ComposerQueryNodeStatus } from '../../composerNodeStatus';
+import { type SqlApprovalTarget } from '../SqlApprovalActions';
+import { isToolWithoutDescription } from '../utils/toolsWithoutDescription';
 import type { ToolCallSummary } from '../utils/types';
-import {
-    ComposerQueriesToolCallDescription,
-    type ComposerQueryNodeStatus,
-} from './ComposerQueriesToolCallDescription';
+import { ComposerQueriesToolCallDescription } from './ComposerQueriesToolCallDescription';
 import { ContentEditorToolCallDescription } from './ContentEditorToolCallDescription';
 import { ContentSearchToolCallDescription } from './ContentSearchToolCallDescription';
 import { DashboardChartsToolCallDescription } from './DashboardChartsToolCallDescription';
@@ -56,11 +58,16 @@ import { GrepFieldsToolCallDescription } from './GrepFieldsToolCallDescription';
 import { KnowledgeDocumentToolCallDescription } from './KnowledgeDocumentToolCallDescription';
 import { ListContentToolCallDescription } from './ListContentToolCallDescription';
 import { ListWarehouseTablesToolCallDescription } from './ListWarehouseTablesToolCallDescription';
+import { LoadSkillToolCallDescription } from './LoadSkillToolCallDescription';
 import { QueryResultToolCallDescription } from './QueryResultToolCallDescription';
 import { RepoShellToolCallDescription } from './RepoShellToolCallDescription';
 import { RunContentQueryToolCallDescription } from './RunContentQueryToolCallDescription';
 import { ScheduledDeliveryToolCallDescription } from './ScheduledDeliveryToolCallDescription';
 import { SemanticLayerSearchToolCallDescription } from './SemanticLayerSearchToolCallDescription';
+import {
+    SqlChartToolCallDescription,
+    type SqlChartToolArgs,
+} from './SqlChartToolCallDescription';
 import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
 
 type ToolReadContentArgs = {
@@ -71,12 +78,13 @@ type ToolReadContentArgs = {
 
 type ToolEditContentArgs = {
     slug?: string;
-    type?: 'dashboard' | 'chart' | 'document';
+    type?: 'dashboard' | 'chart' | 'sql_chart' | 'document';
+    patch?: unknown;
 };
 
 type ToolCreateContentArgs = {
-    content?: { slug?: string };
-    type?: 'dashboard' | 'chart' | 'document';
+    content?: { slug?: string } & SqlChartToolArgs;
+    type?: 'dashboard' | 'chart' | 'sql_chart' | 'document';
 };
 
 export const ToolCallDescription: FC<{
@@ -85,23 +93,20 @@ export const ToolCallDescription: FC<{
     toolResult?: AiAgentToolResult;
     /**
      * Live per-node execution statuses for a running composer pipeline,
-     * keyed by nodeId. Only meaningful for runComposerQueries; omitted for
+     * keyed by nodeId. Only meaningful for the composer query tool; omitted for
      * persisted views, which render the pipeline without indicators.
      */
     composerNodeStatuses?: Record<string, ComposerQueryNodeStatus>;
-    /** Approval target while a composer pipeline's SQL nodes await a decision. */
-    composerApproval?: SqlApprovalTarget;
-}> = ({
-    toolName,
-    toolCall,
-    toolResult,
-    composerNodeStatuses,
-    composerApproval,
-}) => {
+    /** Approval target while this call's SQL awaits the user's decision. */
+    approval?: SqlApprovalTarget;
+}> = ({ toolName, toolCall, toolResult, composerNodeStatuses, approval }) => {
     // Mid-stream the toolArgs payload can arrive before any input chunks have
     // been parsed. Casting an undefined value and reading fields throws, so
     // bail until args exist.
     if (!toolCall.toolArgs || typeof toolCall.toolArgs !== 'object') {
+        return <> </>;
+    }
+    if (isToolWithoutDescription(toolName)) {
         return <> </>;
     }
     switch (toolName) {
@@ -233,8 +238,10 @@ export const ToolCallDescription: FC<{
                 <SqlRunToolCallDescription
                     sql={sqlToolArgs.sql}
                     limit={sqlToolArgs.limit}
+                    approval={approval}
                 />
             );
+        case 'query':
         case 'runComposerQueries':
             const composerToolArgs =
                 toolCall.toolArgs as ToolComposerQueriesArgs;
@@ -242,7 +249,7 @@ export const ToolCallDescription: FC<{
                 <ComposerQueriesToolCallDescription
                     queries={composerToolArgs.queries ?? []}
                     nodeStatuses={composerNodeStatuses}
-                    approval={composerApproval}
+                    approval={approval}
                 />
             );
         case 'readContent':
@@ -262,6 +269,23 @@ export const ToolCallDescription: FC<{
         case 'editContent':
             const editContentToolArgs =
                 toolCall.toolArgs as ToolEditContentArgs;
+            if (
+                editContentToolArgs.type === 'sql_chart' &&
+                editContentToolArgs.slug
+            ) {
+                return (
+                    <SqlChartToolCallDescription
+                        action="edit"
+                        slug={editContentToolArgs.slug}
+                        chart={{
+                            sql:
+                                getPatchedSql(editContentToolArgs.patch) ??
+                                undefined,
+                        }}
+                        approval={approval ?? null}
+                    />
+                );
+            }
             return editContentToolArgs.slug && editContentToolArgs.type ? (
                 <ContentEditorToolCallDescription
                     action="edit"
@@ -274,6 +298,19 @@ export const ToolCallDescription: FC<{
         case 'createContent':
             const createContentToolArgs =
                 toolCall.toolArgs as ToolCreateContentArgs;
+            if (
+                createContentToolArgs.type === 'sql_chart' &&
+                createContentToolArgs.content?.slug
+            ) {
+                return (
+                    <SqlChartToolCallDescription
+                        action="create"
+                        slug={createContentToolArgs.content.slug}
+                        chart={createContentToolArgs.content}
+                        approval={approval ?? null}
+                    />
+                );
+            }
             return createContentToolArgs.content?.slug &&
                 createContentToolArgs.type ? (
                 <ContentEditorToolCallDescription
@@ -307,6 +344,7 @@ export const ToolCallDescription: FC<{
             return (
                 <RunContentQueryToolCallDescription
                     source={runContentQueryArgs.source}
+                    approval={approval}
                 />
             );
         case 'describeWarehouseTable':
@@ -348,13 +386,6 @@ export const ToolCallDescription: FC<{
                     fieldId={analyzeFieldImpactArgs.fieldId}
                 />
             );
-        case 'listKnowledgeDocuments':
-        case 'listProjects':
-        case 'getProjectInfo':
-        case 'generateHashes':
-        case 'generateUuids':
-        case 'loadSkill':
-        case 'loadProjectContext':
         case 'exploreRepo':
             const toolArgsExploreRepo = toolCall.toolArgs as {
                 command?: string;
@@ -364,6 +395,23 @@ export const ToolCallDescription: FC<{
                     command={toolArgsExploreRepo.command ?? null}
                 />
             );
+        case 'loadSkill': {
+            const args = toolCall.toolArgs as Partial<ToolLoadSkillArgs>;
+            const servedSkill =
+                toolResult &&
+                toolResult.toolName === 'loadSkill' &&
+                'metadata' in toolResult
+                    ? (toolResult.metadata as ToolLoadSkillOutput['metadata'])
+                          .skill
+                    : undefined;
+            return (
+                <LoadSkillToolCallDescription
+                    name={args.name ?? null}
+                    resourceName={args.resourceName ?? null}
+                    servedSkill={servedSkill ?? null}
+                />
+            );
+        }
         case 'createScheduledDelivery': {
             const args = toolCall.toolArgs as { name?: string };
             const metadata =
@@ -379,29 +427,6 @@ export const ToolCallDescription: FC<{
                 />
             );
         }
-        case 'discoverRepos':
-        case 'listWorkstreams':
-        case 'closePullRequest':
-        case 'getPullRequestDiff':
-        case 'generateDataApp':
-        case 'iterateDataApp':
-        case 'listDataAppThemes':
-        case 'editDbtProject':
-        case 'editProjectContext':
-        case 'editRepo':
-        case 'updateUserName':
-        case 'syncDbtProject':
-        case 'setupPreviewDeploy':
-        case 'runSavedChart':
-        case 'readPinnedThread':
-        case 'readAttachments':
-        case 'submitResearchReport':
-        case 'delegateResearchTask':
-        case 'submitWorkerFindings':
-        case 'loadMcpTools':
-        case 'resolveUrl':
-        case 'findCustomChartTypes':
-            return <> </>;
         default:
             return assertUnreachable(toolName, `Unknown tool name ${toolName}`);
     }

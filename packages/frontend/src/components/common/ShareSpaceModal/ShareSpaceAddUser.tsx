@@ -18,8 +18,7 @@ import {
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconUsers } from '@tabler/icons-react';
-import uniq from 'lodash/uniq';
-import uniqBy from 'lodash/uniqBy';
+import { uniq, uniqBy } from 'es-toolkit/compat';
 import {
     useCallback,
     useEffect,
@@ -466,7 +465,7 @@ export const ShareSpaceAddUser: FC<ShareSpaceAddUserProps> = ({
                     {spaceAccess && roleTitle && (
                         <Badge
                             size="sm"
-                            color={getAccessColor(spaceAccess.role).join('.')}
+                            color={getAccessColor(spaceAccess.role)}
                             radius="xl"
                         >
                             {origin} &middot; {roleTitle}

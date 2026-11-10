@@ -183,7 +183,9 @@ describe('getFindCustomChartTypes execute', () => {
             toolFindCustomChartTypesOutputSchema.safeParse(output).success,
         ).toBe(true);
         expect(output.metadata).toEqual({ status: 'error' });
-        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(output.structuredContent).toEqual({
+            error: output.result,
+        });
         expect(output.result).toContain('Set exactly one of `query`');
     });
 
@@ -199,7 +201,9 @@ describe('getFindCustomChartTypes execute', () => {
             toolFindCustomChartTypesOutputSchema.safeParse(output).success,
         ).toBe(true);
         expect(output.metadata).toEqual({ status: 'error' });
-        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(output.structuredContent).toEqual({
+            error: output.result,
+        });
         expect(output.result).toContain('Error finding custom chart types.');
         expect(output.result).toContain('library unavailable');
     });

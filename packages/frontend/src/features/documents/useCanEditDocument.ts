@@ -1,9 +1,10 @@
 import { subject } from '@casl/ability';
-import { type Document } from '@lightdash/common';
+import { canMutateVerifiedContent, type Document } from '@lightdash/common';
 import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
 import useApp from '../../providers/App/useApp';
 
+/** A verified Document is read-only unless the user manages verified content or verified it. */
 export const useCanEditDocument = (document: Document) => {
     const { user } = useApp();
     const authoringEnabled = useContentAuthoringEnabled();
@@ -33,6 +34,15 @@ export const useCanEditDocument = (document: Document) => {
                     })),
                 ],
             }),
+        ) &&
+        canMutateVerifiedContent(
+            user.data.ability,
+            {
+                organizationUuid: document.organizationUuid,
+                projectUuid: document.projectUuid,
+            },
+            document.verification,
+            user.data.userUuid,
         )
     );
 };

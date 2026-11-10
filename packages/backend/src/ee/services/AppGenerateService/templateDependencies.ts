@@ -18,13 +18,14 @@ export const TEMPLATE_DEV_DEPENDENCIES: Record<string, string> = {
     '@types/d3-sankey': '0.12.5',
     '@types/react': '19.2.14',
     '@types/react-dom': '19.2.3',
+    '@types/three': '0.186.0',
     '@vitejs/plugin-react': '6.0.1',
     autoprefixer: '10.4.20',
     'oxc-parser': '0.128.0',
     postcss: '8.5.25',
     tailwindcss: '3.4.17',
     typescript: '7.0.2',
-    vite: '8.0.16',
+    vite: '8.1.6',
 };
 
 // Copy of sandboxes/data-apps/template/package.json `dependencies` — the
@@ -67,6 +68,7 @@ export const TEMPLATE_DEPENDENCIES: Record<string, string> = {
     recharts: '3.8.1',
     'tailwind-merge': '3.5.0',
     'tailwindcss-animate': '1.0.7',
+    three: '0.186.1',
 };
 
 /**

@@ -1,5 +1,6 @@
 import type { QueryCompletedEvent } from '../LightdashAnalytics';
 import { buildEnvelope, ProjectionResult } from './projection';
+import { truncateQueryError } from './queryError';
 import type { CompactedStreamColumn } from './types';
 
 /**
@@ -16,6 +17,7 @@ export const queryEventsCompactedColumns: CompactedStreamColumn[] = [
     { name: 'project_id', type: 'VARCHAR' },
     { name: 'query_id', type: 'VARCHAR' },
     { name: 'status', type: 'VARCHAR' },
+    { name: 'error', type: 'VARCHAR' },
     { name: 'context', type: 'VARCHAR' },
     { name: 'explore_name', type: 'VARCHAR' },
     { name: 'chart_id', type: 'VARCHAR' },
@@ -30,6 +32,8 @@ export const queryEventsCompactedColumns: CompactedStreamColumn[] = [
     { name: 'parent_operation_id', type: 'VARCHAR' },
     { name: 'initiating_actor_type', type: 'VARCHAR' },
     { name: 'scheduler_id', type: 'VARCHAR' },
+    { name: 'semantic_lineage_status', type: 'VARCHAR' },
+    { name: 'semantic_field_references', type: 'VARCHAR' },
     { name: 'cache_hit', type: 'BOOLEAN' },
     { name: 'execution_source', type: 'VARCHAR' },
     { name: 'warehouse_type', type: 'VARCHAR' },
@@ -66,6 +70,10 @@ const projectQueryCompletedEvent = (
             project_id: properties.projectId,
             query_id: properties.queryId,
             status: properties.status,
+            error:
+                properties.status === 'error'
+                    ? truncateQueryError(properties.errorMessage)
+                    : null,
             context: properties.context,
             explore_name: properties.exploreName,
             chart_id: properties.chartId,
@@ -80,6 +88,10 @@ const projectQueryCompletedEvent = (
             parent_operation_id: properties.parentOperationId ?? null,
             initiating_actor_type: properties.initiatingActorType ?? null,
             scheduler_id: properties.schedulerId ?? null,
+            semantic_lineage_status: properties.semanticUsage?.status ?? null,
+            semantic_field_references: properties.semanticUsage
+                ? JSON.stringify(properties.semanticUsage.references)
+                : null,
             cache_hit: properties.cacheHit,
             execution_source: properties.executionSource,
             warehouse_type: properties.warehouseType,

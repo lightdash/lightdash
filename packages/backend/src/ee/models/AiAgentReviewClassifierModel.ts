@@ -324,6 +324,14 @@ type ListReviewSignalsArgs = {
     limit?: number;
 };
 
+export type AiAgentRecentUserPrompt = {
+    promptUuid: string;
+    threadUuid: string;
+    userUuid: string | null;
+    createdAt: Date;
+    text: string;
+};
+
 type GetPromptTextArgs = {
     organizationUuid: string;
     promptUuid: string;
@@ -1032,34 +1040,6 @@ export class AiAgentReviewClassifierModel {
         }));
     }
 
-    async findTurnSignalSubjects(args: {
-        organizationUuid: string;
-        signalUuids: string[];
-    }): Promise<
-        { signalUuid: string; promptUuid: string; threadUuid: string }[]
-    > {
-        const rows = await this.database(AiAgentTurnSignalTableName)
-            .select<
-                {
-                    ai_agent_review_turn_signal_uuid: string;
-                    ai_prompt_uuid: string;
-                    ai_thread_uuid: string;
-                }[]
-            >(
-                'ai_agent_review_turn_signal_uuid',
-                'ai_prompt_uuid',
-                'ai_thread_uuid',
-            )
-            .where('organization_uuid', args.organizationUuid)
-            .whereIn('ai_agent_review_turn_signal_uuid', args.signalUuids);
-
-        return rows.map((row) => ({
-            signalUuid: row.ai_agent_review_turn_signal_uuid,
-            promptUuid: row.ai_prompt_uuid,
-            threadUuid: row.ai_thread_uuid,
-        }));
-    }
-
     async getAgentMcpCapabilities(
         agentUuid: string,
     ): Promise<AiAgentMcpServerSnapshot[]> {
@@ -1456,6 +1436,7 @@ export class AiAgentReviewClassifierModel {
                         recommendation: latest.recommendation,
                         projectContextEntry:
                             latest.project_context_entry ?? null,
+                        skillProposal: latest.skill_proposal ?? null,
                         createdAt: latest.created_at,
                     },
                 };
@@ -1906,6 +1887,56 @@ export class AiAgentReviewClassifierModel {
             }
         });
         return remediations;
+    }
+
+    // Prompts people sent this agent from other threads in the window, so the
+    // judge can see when several threads keep asking for the same procedure.
+    async findRecentUserPrompts(args: {
+        organizationUuid: string;
+        projectUuid: string;
+        agentUuid: string;
+        excludeThreadUuid: string;
+        since: Date;
+        limit: number;
+    }): Promise<AiAgentRecentUserPrompt[]> {
+        const rows = await this.database(`${AiPromptTableName} as prompt`)
+            .innerJoin(
+                `${AiThreadTableName} as thread`,
+                'thread.ai_thread_uuid',
+                'prompt.ai_thread_uuid',
+            )
+            .where('thread.organization_uuid', args.organizationUuid)
+            .where('thread.project_uuid', args.projectUuid)
+            .where('thread.agent_uuid', args.agentUuid)
+            .whereNot('thread.ai_thread_uuid', args.excludeThreadUuid)
+            .whereIn('thread.created_from', AI_USER_THREAD_CREATED_FROM)
+            .whereNotNull('prompt.created_by_user_uuid')
+            .where('prompt.created_at', '>=', args.since)
+            .select<
+                {
+                    ai_prompt_uuid: string;
+                    ai_thread_uuid: string;
+                    created_by_user_uuid: string | null;
+                    created_at: Date;
+                    prompt: string;
+                }[]
+            >(
+                'prompt.ai_prompt_uuid',
+                'prompt.ai_thread_uuid',
+                'prompt.created_by_user_uuid',
+                'prompt.created_at',
+                'prompt.prompt',
+            )
+            .orderBy('prompt.created_at', 'desc')
+            .limit(args.limit);
+
+        return rows.map((row) => ({
+            promptUuid: row.ai_prompt_uuid,
+            threadUuid: row.ai_thread_uuid,
+            userUuid: row.created_by_user_uuid,
+            createdAt: row.created_at,
+            text: row.prompt,
+        }));
     }
 
     /**
@@ -2974,6 +3005,9 @@ export class AiAgentReviewClassifierModel {
                         : null,
                     project_context_entry: finding?.projectContextEntry
                         ? this.jsonb(finding.projectContextEntry)
+                        : null,
+                    skill_proposal: finding?.skillProposal
+                        ? this.jsonb(finding.skillProposal)
                         : null,
                     owner_type: finding?.reviewItem.ownerType,
                     review_item_title: finding?.reviewItem.title,

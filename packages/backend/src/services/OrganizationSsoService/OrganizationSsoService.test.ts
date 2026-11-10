@@ -27,6 +27,7 @@ const buildService = () => {
         findMethod: vi.fn(),
         findEnabledMethodsForEmailDomain: vi.fn(),
         findEnabledOktaMethodByStoredIssuer: vi.fn(),
+        findEnabledMethodsForProvider: vi.fn(),
         findGoogleMethodsForEmailDomain: vi.fn(),
         upsert: vi.fn(),
         delete: vi.fn(),
@@ -579,6 +580,55 @@ describe('OrganizationSsoService', () => {
             expect(
                 organizationSsoModel.findEnabledOktaMethodByStoredIssuer,
             ).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('findSoleEnabledMethodForProvider', () => {
+        const lookup = (organizationUuid: string) => ({
+            organizationUuid,
+            config: { oauth2ClientId: 'id', oauth2ClientSecret: 's' },
+        });
+
+        it('returns the method when exactly one org has it enabled', async () => {
+            const { service, organizationSsoModel } = buildService();
+            organizationSsoModel.findEnabledMethodsForProvider.mockResolvedValue(
+                [lookup(ORG_UUID)],
+            );
+
+            await expect(
+                service.findSoleEnabledMethodForProvider(
+                    OrganizationSsoProvider.ONELOGIN,
+                ),
+            ).resolves.toEqual(lookup(ORG_UUID));
+            expect(
+                organizationSsoModel.findEnabledMethodsForProvider,
+            ).toHaveBeenCalledWith(OrganizationSsoProvider.ONELOGIN);
+        });
+
+        it('returns undefined when no org has it enabled', async () => {
+            const { service, organizationSsoModel } = buildService();
+            organizationSsoModel.findEnabledMethodsForProvider.mockResolvedValue(
+                [],
+            );
+
+            await expect(
+                service.findSoleEnabledMethodForProvider(
+                    OrganizationSsoProvider.ONELOGIN,
+                ),
+            ).resolves.toBeUndefined();
+        });
+
+        it('returns undefined when more than one org has it enabled (ambiguous)', async () => {
+            const { service, organizationSsoModel } = buildService();
+            organizationSsoModel.findEnabledMethodsForProvider.mockResolvedValue(
+                [lookup(ORG_UUID), lookup(OTHER_ORG_UUID)],
+            );
+
+            await expect(
+                service.findSoleEnabledMethodForProvider(
+                    OrganizationSsoProvider.ONELOGIN,
+                ),
+            ).resolves.toBeUndefined();
         });
     });
 });

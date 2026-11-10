@@ -124,6 +124,29 @@ const DocumentReportLayout = ({
                                             className={styles.contentsControl}
                                             title={heading.label}
                                             aria-label={heading.label}
+                                            // Walkthrough: read a document by
+                                            // jumping to a section. See
+                                            // scripts/scope-tours.
+                                            {...(variant === 'document' &&
+                                            heading.id !== null
+                                                ? {
+                                                      'data-tour-scope':
+                                                          'view:Document',
+                                                      'data-tour-step': '2',
+                                                      'data-tour-route':
+                                                          '/projects/:projectUuid/documents/:documentUuidOrSlug',
+                                                      'data-tour-label':
+                                                          'Jump to a section',
+                                                      'data-tour-title':
+                                                          'Read a document',
+                                                      'data-tour-interactive':
+                                                          'true',
+                                                      'data-tour-via':
+                                                          '[data-tour-nav="browse"] >> [data-tour-nav="all-documents"] >> [data-tour-anchor="document-row"][data-tour-value="Monthly orders review"]',
+                                                      'data-tour-docs':
+                                                          'explore/documents.mdx#read-a-document:2',
+                                                  }
+                                                : {})}
                                             data-active={
                                                 contents.activeSection ===
                                                     heading.id || undefined

@@ -4,17 +4,14 @@ import {
     type AiArtifact,
     type ApiError,
 } from '@lightdash/common';
-import { Box, Drawer, Flex, Group, Text } from '@mantine/core';
-import {
-    useDisclosure,
-    useMediaQuery,
-    type UseSplitterReturnValue,
-} from '@mantine/hooks';
+import { Box, Drawer, Group, Text, Tooltip } from '@mantine/core';
+import { useDisclosure, type UseSplitterReturnValue } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
+import clsx from 'clsx';
 import {
     useCallback,
     useEffect,
@@ -27,6 +24,9 @@ import { useLocation, useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ResizableSplitter from '../../../../../components/common/ResizableSplitter';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
+import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
+import useEmbed from '../../../../providers/Embed/useEmbed';
+import { useAgentMaxWidth } from '../../hooks/useAgentMaxWidth';
 import {
     AI_AGENT_ARTIFACT_KEY,
     aiAgentArtifactVersionQuery,
@@ -43,8 +43,10 @@ import {
 import { AiArtifactPanel } from '../ChatElements/AiArtifactPanel';
 import { AiDataAppPreviewPanel } from '../ChatElements/AiDataAppPreviewPanel';
 import { AiDocumentPreviewPanel } from '../ChatElements/AiDocumentPreviewPanel';
+import { AiQueryPipelinePreviewPanel } from '../ChatElements/AiQueryPipelinePreviewPanel';
 import { AiSavedChartPreviewPanel } from '../ChatElements/AiSavedChartPreviewPanel';
 import styles from './aiAgentPageLayout.module.css';
+import { ArtifactFocusContext, useArtifactFocusMode } from './artifactFocus';
 import {
     PREVIEW_PANE_MAX,
     PREVIEW_PANE_MIN,
@@ -64,6 +66,8 @@ const renderPreviewPanel = (preview: AiPreview) => {
             );
         case 'document':
             return <AiDocumentPreviewPanel documentPreview={preview} />;
+        case 'queryPipeline':
+            return <AiQueryPipelinePreviewPanel pipelinePreview={preview} />;
         default:
             return assertUnreachable(preview, 'Unknown preview type');
     }
@@ -71,6 +75,7 @@ const renderPreviewPanel = (preview: AiPreview) => {
 
 interface Props extends PropsWithChildren {
     Sidebar?: React.ReactNode;
+    SidebarHeader?: React.ReactNode;
     Header?: React.ReactNode;
     MobileSidebarHeader?: React.ReactNode;
     isAgentSidebarCollapsed?: boolean;
@@ -80,6 +85,7 @@ interface Props extends PropsWithChildren {
 
 export const AiAgentPageLayout: React.FC<Props> = ({
     Sidebar,
+    SidebarHeader,
     Header,
     MobileSidebarHeader,
     children,
@@ -87,8 +93,14 @@ export const AiAgentPageLayout: React.FC<Props> = ({
     isAgentSidebarCollapsed,
     isEmbed = false,
 }) => {
+    const lightdashApi = useLightdashApi();
+
     const dispatch = useAiAgentStoreDispatch();
     const splitterRef = useRef<UseSplitterReturnValue>(null);
+    const { mode: embedMode } = useEmbed();
+    // In the SDK the agent lives in a box on the host page, so its drawers
+    // stay inside that box and leave the host's scroll alone
+    const isSdk = isEmbed && embedMode === 'sdk';
 
     // Thread routes and the battle route name the threads on screen.
     const { threadUuid, threadUuidA, threadUuidB } = useParams();
@@ -106,7 +118,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
     // panel owns error handling.
     const artifactQuery =
         preview?.type === 'artifact'
-            ? aiAgentArtifactVersionQuery(preview)
+            ? aiAgentArtifactVersionQuery(lightdashApi, preview)
             : null;
     const { data: previewArtifact } = useQuery<AiArtifact, ApiError>({
         queryKey: artifactQuery?.queryKey ?? [AI_AGENT_ARTIFACT_KEY, 'none'],
@@ -120,7 +132,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
           )
         : null;
     // Resolved on first render so the sidebar never flashes open on mobile
-    const isMobile = useMediaQuery('(max-width: 768px)', undefined, {
+    const isMobile = useAgentMaxWidth(768, {
         getInitialValueInEffect: false,
     });
     const [
@@ -128,6 +140,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
         { close: closeMobileSidebar, toggle: toggleMobileSidebar },
     ] = useDisclosure(false);
     const { pathname } = useLocation();
+    const artifactFocus = useArtifactFocusMode(isMobile ? null : preview);
 
     // Navigating from a thread link inside the drawer should dismiss it
     useEffect(() => {
@@ -161,13 +174,18 @@ export const AiAgentPageLayout: React.FC<Props> = ({
 
     return (
         <div
-            className={`${styles.workspace} ${
-                isEmbed ? styles.workspaceEmbed : ''
-            }`}
+            className={clsx(
+                styles.workspace,
+                isEmbed && styles.workspaceEmbed,
+                isSdk && styles.workspaceSdk,
+            )}
+            data-artifact-focused={artifactFocus.isFocused || undefined}
         >
             <ResizableSplitter
                 orientation="horizontal"
                 className={styles.panelGroup}
+                // Adjacent resizing evaluates collapse before clamping to min.
+                redistribute={undefined}
                 splitterRef={splitterRef}
                 handleLabel="Resize workspace panels"
                 classNames={{ handle: styles.resizeHandle }}
@@ -175,13 +193,14 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                     if (index === 0 && Sidebar && !isMobile)
                         setIsAgentSidebarCollapsed?.(collapsed);
                 }}
-                style={{ flex: 1, minWidth: 0 }}
+                flex={1}
+                miw={0}
             >
                 {Sidebar && !isMobile && (
                     <ResizableSplitter.Pane
                         id="sidebar"
-                        defaultSize={20}
-                        min={10}
+                        defaultSize="300px"
+                        min="170px"
                         max={40}
                         collapsible
                         className={styles.sidebar}
@@ -190,33 +209,59 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                         }
                     >
                         <ErrorBoundary>
-                            <Flex
+                            <Group
                                 align="center"
-                                justify="flex-end"
+                                justify="space-between"
+                                gap={0}
+                                wrap="nowrap"
                                 className={styles.sidebarHeader}
+                                data-collapsed={
+                                    isAgentSidebarCollapsed ? true : undefined
+                                }
                             >
-                                <SidebarButton
-                                    aria-label={
+                                {SidebarHeader && (
+                                    <Box
+                                        flex={
+                                            isAgentSidebarCollapsed
+                                                ? undefined
+                                                : 1
+                                        }
+                                        miw={0}
+                                    >
+                                        {SidebarHeader}
+                                    </Box>
+                                )}
+                                <Tooltip
+                                    label={
                                         isAgentSidebarCollapsed
-                                            ? 'Expand Ask AI sidebar'
-                                            : 'Collapse Ask AI sidebar'
+                                            ? 'Expand sidebar'
+                                            : 'Collapse sidebar'
                                     }
-                                    size="sm"
-                                    leftSection={
-                                        <MantineIcon
-                                            size="md"
-                                            icon={
-                                                isAgentSidebarCollapsed
-                                                    ? IconLayoutSidebarLeftExpand
-                                                    : IconLayoutSidebarLeftCollapse
-                                            }
-                                            stroke={1.8}
-                                            color="ldGray.7"
-                                        />
-                                    }
-                                    onClick={toggleSidebar}
-                                />
-                            </Flex>
+                                    position="right"
+                                >
+                                    <SidebarButton
+                                        aria-label={
+                                            isAgentSidebarCollapsed
+                                                ? 'Expand Ask AI sidebar'
+                                                : 'Collapse Ask AI sidebar'
+                                        }
+                                        size="xs"
+                                        leftSection={
+                                            <MantineIcon
+                                                size="md"
+                                                icon={
+                                                    isAgentSidebarCollapsed
+                                                        ? IconLayoutSidebarLeftExpand
+                                                        : IconLayoutSidebarLeftCollapse
+                                                }
+                                                stroke={1.8}
+                                                color="ldGray.7"
+                                            />
+                                        }
+                                        onClick={toggleSidebar}
+                                    />
+                                </Tooltip>
+                            </Group>
 
                             {Sidebar}
                         </ErrorBoundary>
@@ -235,7 +280,10 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                 >
                     <ErrorBoundary>
                         {(Header || (isMobile && Sidebar)) && (
-                            <Box className={styles.chatHeader}>
+                            <Box
+                                className={styles.chatHeader}
+                                data-compact={isMobile}
+                            >
                                 <Group gap="xs" wrap="nowrap" align="center">
                                     {isMobile && Sidebar && (
                                         <SidebarButton
@@ -277,9 +325,13 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                         max={PREVIEW_PANE_MAX}
                     >
                         <ErrorBoundary>
-                            <Box className={styles.floatingArtifactWrap}>
-                                {renderPreviewPanel(preview)}
-                            </Box>
+                            <ArtifactFocusContext.Provider
+                                value={artifactFocus}
+                            >
+                                <Box className={styles.floatingArtifactWrap}>
+                                    {renderPreviewPanel(preview)}
+                                </Box>
+                            </ArtifactFocusContext.Provider>
                         </ErrorBoundary>
                     </ResizableSplitter.Pane>
                 )}
@@ -289,6 +341,8 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                 <Drawer
                     opened={isMobileSidebarOpened}
                     onClose={closeMobileSidebar}
+                    withinPortal={!isSdk}
+                    lockScroll={!isSdk}
                     closeButtonProps={{
                         'aria-label': 'Close threads',
                         size: 44,
@@ -301,6 +355,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                         </Text>
                     }
                     classNames={{
+                        inner: isSdk ? styles.sdkDrawerInner : undefined,
                         content: styles.mobileSidebarContent,
                         header: styles.mobileSidebarHeader,
                         body: styles.mobileSidebarBody,
@@ -311,6 +366,7 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                             {MobileSidebarHeader}
                         </Box>
                     )}
+                    {SidebarHeader && <Box mb="sm">{SidebarHeader}</Box>}
                     {Sidebar}
                 </Drawer>
             )}
@@ -319,21 +375,20 @@ export const AiAgentPageLayout: React.FC<Props> = ({
                 <Drawer
                     opened={!!preview}
                     onClose={() => dispatch(clearPreview())}
+                    withinPortal={!isSdk}
+                    lockScroll={!isSdk}
                     size="75%"
                     position="bottom"
                     h="75%"
                     withCloseButton={false}
+                    classNames={{
+                        inner: isSdk ? styles.sdkDrawerInner : undefined,
+                        body: styles.previewDrawerBody,
+                    }}
                     transitionProps={{
                         transition: 'slide-up',
                         duration: 200,
                         timingFunction: 'ease-out',
-                    }}
-                    styles={{
-                        body: {
-                            padding: 0,
-                            paddingBottom: 'var(--mantine-spacing-lg)',
-                            height: '100%',
-                        },
                     }}
                 >
                     {preview && renderPreviewPanel(preview)}

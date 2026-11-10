@@ -88,10 +88,15 @@ export interface DashboardContent extends Content {
     owner: DashboardOwner | null;
 }
 
-export interface DocumentContentItem extends Content {
+export interface DocumentContentItem extends Omit<Content, 'space'> {
     contentType: ContentType.DOCUMENT;
     directAccessRoles: SpaceMemberRole[];
     owner: DashboardOwner | null;
+    // Personal Documents have no space until they are moved into one.
+    space: {
+        uuid: string;
+        name: string;
+    } | null;
 }
 
 // Data App types

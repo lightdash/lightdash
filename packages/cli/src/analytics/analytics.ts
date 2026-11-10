@@ -1,6 +1,10 @@
 import { LightdashError, LightdashUser } from '@lightdash/common';
 import fetch from 'node-fetch';
 import { Config, getConfig } from '../config';
+import {
+    refuseAgentConnection,
+    requireInvocationContext,
+} from '../credentials';
 import { getInstallMethod } from '../env';
 import GlobalState from '../globalState';
 import { lightdashApi } from '../handlers/dbt/apiClient';
@@ -26,8 +30,9 @@ const detectCI = (): CIInfo => {
 };
 
 const identifyUser = async (): Promise<Config['user']> => {
+    refuseAgentConnection();
     const config = await getConfig();
-    if (config.context?.serverUrl && config.context.apiKey) {
+    if (config.context?.serverUrl) {
         try {
             const user = await lightdashApi<LightdashUser>({
                 method: 'GET',
@@ -570,6 +575,7 @@ const ERROR_NAME_TO_CATEGORY: Record<string, string> = {
     DbtError: 'dbt',
     WarehouseConnectionError: 'warehouse_connection',
     WarehouseQueryError: 'warehouse_query',
+    WarehouseQueryTimeoutError: 'warehouse_query',
 };
 
 export const categorizeError = (error: unknown): string => {
@@ -599,6 +605,7 @@ export class LightdashAnalytics {
     static async track(payload: Track): Promise<void> {
         try {
             const user = await identifyUser();
+            requireInvocationContext();
             const ci = detectCI();
             const lightdashContext = {
                 app: {
@@ -634,6 +641,7 @@ export class LightdashAnalytics {
     static async identify(traits: Record<string, unknown>): Promise<void> {
         try {
             const user = await identifyUser();
+            requireInvocationContext();
             const body = {
                 anonymousId: user?.anonymousUuid,
                 userId: user?.userUuid,

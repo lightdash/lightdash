@@ -1,7 +1,6 @@
 import { LightdashMode } from '@lightdash/common';
 import {
     ActionIcon,
-    Alert,
     Anchor,
     Badge,
     Box,
@@ -14,6 +13,7 @@ import {
 } from '@mantine/core';
 import { IconBook, IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import WhatsNewDrawer from '../ee/features/releaseHighlights/WhatsNewDrawer';
 import useApp from '../providers/App/useApp';
 import {
     TrackPage,
@@ -21,6 +21,7 @@ import {
 } from '../providers/Tracking/TrackingProvider';
 import Logo from '../svgs/grey-icon-logo.svg?react';
 import { PageName, PageType, SectionName } from '../types/Events';
+import classes from './AboutFooter.module.css';
 import MantineIcon from './common/MantineIcon';
 import MantineLinkButton from './common/MantineLinkButton';
 import MantineModal from './common/MantineModal';
@@ -35,11 +36,14 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
     maxWidth = PAGE_CONTENT_WIDTH,
 }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [isWhatsNewOpen, setIsWhatsNewOpen] = useState(false);
     const { health: healthState } = useApp();
     const showUpdateBadge =
         healthState.data?.latest.version &&
         healthState.data.version !== healthState.data.latest.version &&
         healthState.data?.mode === LightdashMode.DEFAULT;
+    // Cloud plans are per organization; the instance license says nothing about them
+    const isCloud = healthState.data?.mode === LightdashMode.CLOUD_BETA;
     const licenseStatus = healthState.data?.license;
     const licenseDisplay = licenseStatus?.valid
         ? {
@@ -59,13 +63,28 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                 description: 'No enterprise license key is configured.',
             };
 
+    const versionButton = (
+        <Button
+            variant={minimal ? 'transparent' : 'subtle'}
+            color="ldGray.7"
+            size="xs"
+            fw="500"
+            leftSection={<Logo />}
+            loading={healthState.isInitialLoading}
+            onClick={() => setIsOpen(true)}
+        >
+            {!minimal && 'Lightdash - '}
+            {healthState.data && `v${healthState.data.version}`}
+        </Button>
+    );
+
     return (
         <TrackSection name={SectionName.PAGE_FOOTER}>
             <Box
                 mt={FOOTER_MARGIN}
                 h={FOOTER_HEIGHT}
                 component="footer"
-                style={{ flexShrink: 0 }}
+                flex="none"
             >
                 <Divider color="ldGray.2" w="100%" mb="-1px" />
 
@@ -77,23 +96,25 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                     justify="space-between"
                     mx="auto"
                 >
-                    <Button
-                        variant={minimal ? 'transparent' : 'subtle'}
-                        color="ldGray.7"
-                        size="xs"
-                        fw="500"
-                        leftSection={<Logo />}
-                        loading={healthState.isInitialLoading}
-                        onClick={() => setIsOpen(true)}
-                    >
-                        {!minimal && 'Lightdash - '}
-                        {healthState.data && `v${healthState.data.version}`}
-                        {showUpdateBadge && (
-                            <Badge ml="xs" radius="xs" size="xs">
+                    {showUpdateBadge ? (
+                        <Group gap={0} wrap="nowrap">
+                            {versionButton}
+                            <Badge
+                                component="button"
+                                type="button"
+                                ml="xs"
+                                radius="xs"
+                                size="xs"
+                                className={classes.updateBadge}
+                                aria-label="New version available! Open what's new"
+                                onClick={() => setIsWhatsNewOpen(true)}
+                            >
                                 New version available!
                             </Badge>
-                        )}
-                    </Button>
+                        </Group>
+                    ) : (
+                        versionButton
+                    )}
 
                     {minimal ? (
                         <Anchor
@@ -130,6 +151,13 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                 </Group>
             </Box>
 
+            {showUpdateBadge && (
+                <WhatsNewDrawer
+                    opened={isWhatsNewOpen}
+                    onClose={() => setIsWhatsNewOpen(false)}
+                />
+            )}
+
             <MantineModal
                 opened={isOpen}
                 onClose={() => setIsOpen(false)}
@@ -144,7 +172,9 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                 >
                     <Stack gap="md">
                         <Text fz="sm" c="dimmed">
-                            Instance details and licensing status.
+                            {isCloud
+                                ? 'Instance details.'
+                                : 'Instance details and licensing status.'}
                         </Text>
 
                         <Paper radius="md" p="md">
@@ -160,54 +190,34 @@ const AboutFooter: FC<{ minimal?: boolean; maxWidth?: number }> = ({
                                     </Text>
                                 </Group>
 
-                                <Divider />
+                                {!isCloud && (
+                                    <>
+                                        <Divider />
 
-                                <Group
-                                    justify="space-between"
-                                    align="center"
-                                    wrap="nowrap"
-                                >
-                                    <Box>
-                                        <Text fz="sm" fw={500}>
-                                            Enterprise license
-                                        </Text>
-                                        <Text fz="xs" c="dimmed">
-                                            {licenseDisplay.description}
-                                        </Text>
-                                    </Box>
-                                    <Badge
-                                        color={licenseDisplay.color}
-                                        flex="none"
-                                    >
-                                        {licenseDisplay.badge}
-                                    </Badge>
-                                </Group>
+                                        <Group
+                                            justify="space-between"
+                                            align="center"
+                                            wrap="nowrap"
+                                        >
+                                            <Box>
+                                                <Text fz="sm" fw={500}>
+                                                    Enterprise license
+                                                </Text>
+                                                <Text fz="xs" c="dimmed">
+                                                    {licenseDisplay.description}
+                                                </Text>
+                                            </Box>
+                                            <Badge
+                                                color={licenseDisplay.color}
+                                                flex="none"
+                                            >
+                                                {licenseDisplay.badge}
+                                            </Badge>
+                                        </Group>
+                                    </>
+                                )}
                             </Stack>
                         </Paper>
-
-                        {showUpdateBadge && (
-                            <Alert
-                                title="New version available!"
-                                color="blue"
-                                icon={<IconInfoCircle size={17} />}
-                            >
-                                <Text c="blue">
-                                    The version v
-                                    {healthState.data?.latest.version} is now
-                                    available. Please follow the instructions in
-                                    the{' '}
-                                    <Anchor
-                                        href="https://docs.lightdash.com/self-host/update-lightdash"
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        underline="always"
-                                    >
-                                        How to update version
-                                    </Anchor>{' '}
-                                    documentation.
-                                </Text>
-                            </Alert>
-                        )}
 
                         <Group gap="xs">
                             <MantineLinkButton

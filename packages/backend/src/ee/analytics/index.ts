@@ -1,5 +1,7 @@
-import { type TokenUsage } from '@langchain/core/language_models/base';
-import { DashboardFilterInteractivityOptions } from '@lightdash/common';
+import {
+    ChartMetadataStyle,
+    DashboardFilterInteractivityOptions,
+} from '@lightdash/common';
 import { Track as AnalyticsTrack } from '@rudderstack/rudder-sdk-node';
 
 type BaseTrack = Omit<AnalyticsTrack, 'context'>;
@@ -36,9 +38,6 @@ export type CustomVizGenerated = BaseTrack & {
         // Track the metadata of the request and response
         prompt: string; // the prompt used to generate the custom viz
         responseSize: number; // length in chars
-        tokenUsage?: TokenUsage;
-        // Track how long is taking to get the response
-        timeOpenAi: number;
     };
 };
 
@@ -48,6 +47,8 @@ export type GenerateChartMetadataGenerated = BaseTrack & {
         organizationId: string;
         projectId: string;
         chartType: string;
+        /** Requested naming style; unset for the automatic first suggestion. */
+        style?: ChartMetadataStyle;
     };
 };
 

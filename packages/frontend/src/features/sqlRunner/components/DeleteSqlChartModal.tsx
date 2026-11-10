@@ -3,6 +3,7 @@ import MantineModal, {
     type MantineModalProps,
 } from '../../../components/common/MantineModal';
 import useApp from '../../../providers/App/useApp';
+import DocumentsLinkingChartCallout from '../../documents/DocumentsLinkingChartCallout';
 import { useDeleteSqlChartMutation } from '../hooks/useSavedSqlCharts';
 
 type Props = Pick<MantineModalProps, 'opened' | 'onClose'> & {
@@ -51,6 +52,13 @@ export const DeleteSqlChartModal: FC<Props> = ({
             onConfirm={mutate}
             confirmLoading={isLoading}
             cancelDisabled={isLoading}
-        />
+        >
+            <DocumentsLinkingChartCallout
+                projectUuid={projectUuid}
+                kind="sqlChart"
+                chartUuid={savedSqlUuid}
+                softDeleteEnabled={!!softDeleteEnabled}
+            />
+        </MantineModal>
     );
 };

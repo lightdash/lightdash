@@ -1,0 +1,97 @@
+/* Each frame is a transformed box, so the modal's fixed overlay is contained
+   inside it instead of covering the whole canvas. */
+.frame {
+    position: relative;
+    height: 480px;
+    overflow: hidden;
+    transform: translateZ(0);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background-color: var(--ld-color-page);
+    /* Inherited text colour would otherwise come from the page's scheme. */
+    color: var(--mantine-color-text);
+}
+
+/* Label row with the regenerate icon on the right. It keeps the label's own
+   height and its 4px gap to the input, so the field spacing is unchanged. */
+.labelRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-xs);
+    margin-bottom: calc(var(--mantine-spacing-xs) / 2);
+}
+
+.labelRow > label {
+    margin-bottom: 0;
+}
+
+/* F: icon straight after the label text, at the same gap as the asterisk
+   group, instead of pushed to the far right. */
+.labelRowStart {
+    justify-content: flex-start;
+    gap: calc(var(--mantine-spacing-xs) / 2);
+}
+
+/* E: the icon keeps its space (no layout shift) but only shows while the
+   field is hovered or focused, or while it is generating. */
+.hoverAction {
+    display: flex;
+    opacity: 0;
+}
+
+.fieldGroup:hover .hoverAction,
+.fieldGroup:focus-within .hoverAction,
+.hoverAction[data-visible] {
+    opacity: 1;
+}
+
+/* Touch screens have no hover, so always show it there. */
+@media (hover: none) {
+    .hoverAction {
+        opacity: 1;
+    }
+}
+
+/* Keep the textarea's regenerate icon on the first line instead of centred. */
+.textareaSection {
+    align-items: flex-start;
+    padding-top: calc(var(--mantine-spacing-xs) / 2);
+}
+
+/* A description over three rows still scrolls (wheel, trackpad, keyboard),
+   but without a visible scrollbar. */
+.hiddenScrollbar {
+    scrollbar-width: none;
+}
+
+.hiddenScrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+/* A and H: each input's regenerate icon shows only while that input is
+   hovered, a button in it has keyboard focus, or it is generating. It keeps its space, so text never
+   shifts when it appears. */
+.revealAction {
+    opacity: 0;
+}
+
+/* Keyboard focus on one of its buttons shows it too; a mouse click or
+   typing in the input does not keep it visible once the pointer leaves. */
+.revealOnHover:hover .revealAction,
+.revealOnHover:has(button:focus-visible) .revealAction,
+.revealAction[data-visible] {
+    opacity: 1;
+}
+
+/* Touch screens have no hover, so always show it there. */
+@media (hover: none) {
+    .revealAction {
+        opacity: 1;
+    }
+}
+
+/* Option H: room for the style menu below the fields. */
+.frameTall {
+    height: 640px;
+}

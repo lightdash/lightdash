@@ -5,7 +5,7 @@ import {
     useTree,
     type TreeNodeData,
 } from '@mantine/core';
-import isEqual from 'lodash/isEqual';
+import { isEqual } from 'es-toolkit/compat';
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { type FuzzyMatches } from '../../../hooks/useFuzzySearch';
 import classes from './Tree.module.css';
@@ -15,7 +15,8 @@ import { type FuzzyFilteredItem } from './useFuzzyTreeSearch';
 import {
     collectTreeValues,
     convertNestableListToTree,
-    getAllParentPaths,
+    getAncestorUuids,
+    getParentUuids,
 } from './utils';
 
 type Data<T> = T | FuzzyFilteredItem<T> | FuzzyFilteredItem<FuzzyMatches<T>>;
@@ -67,15 +68,7 @@ const Tree: React.FC<Props> = (props) => {
     } = props;
 
     const treeData = useMemo(() => convertNestableListToTree(data), [data]);
-
-    // Build a map for O(1) lookups in renderNode instead of O(n) .find() calls
-    const dataByPath = useMemo(() => {
-        const map = new Map<string, Data<NestableItem>>();
-        for (const item of data) {
-            map.set(item.path, item);
-        }
-        return map;
-    }, [data]);
+    const parentUuids = useMemo(() => getParentUuids(data), [data]);
 
     const values = useMemo(
         () =>
@@ -119,7 +112,7 @@ const Tree: React.FC<Props> = (props) => {
     }, [data]);
 
     const initialSelectedState = useMemo(() => {
-        return items.map((item) => item.path);
+        return items.map((item) => item.uuid);
         // WARNING: this is to get an initial state, so we don't need to re-run this
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -137,17 +130,17 @@ const Tree: React.FC<Props> = (props) => {
     const isInternalUpdate = useRef(false);
 
     // Tree setters replace the whole expanded state from the current render,
-    // so every path is merged into a single update.
+    // so every ancestor is merged into a single update.
     const withAncestorsExpanded = useCallback(
         (base: Record<string, boolean>) => ({
             ...base,
             ...Object.fromEntries(
                 items
-                    .flatMap((item) => getAllParentPaths(treeData, item.path))
-                    .map((path) => [path, true]),
+                    .flatMap((item) => getAncestorUuids(parentUuids, item.uuid))
+                    .map((uuid) => [uuid, true]),
             ),
         }),
-        [items, treeData],
+        [items, parentUuids],
     );
 
     useEffect(() => {
@@ -188,12 +181,10 @@ const Tree: React.FC<Props> = (props) => {
             return;
         }
 
-        const expectedPaths = values
-            .map((uuid) => dataByUuid.get(uuid)?.path)
-            .filter((path): path is string => path !== undefined);
+        const expectedUuids = values.filter((uuid) => dataByUuid.has(uuid));
 
-        if (!isEqual(new Set(tree.selectedState), new Set(expectedPaths))) {
-            tree.setSelectedState(expectedPaths);
+        if (!isEqual(new Set(tree.selectedState), new Set(expectedUuids))) {
+            tree.setSelectedState(expectedUuids);
         }
         // WARNING: does not need to be re-run every time tree ref changes
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -205,15 +196,13 @@ const Tree: React.FC<Props> = (props) => {
      * the external sync effect from immediately undoing this change.
      */
     useEffect(() => {
-        const uuids = tree.selectedState
-            .map((path) => dataByPath.get(path)?.uuid ?? null)
-            .filter((item) => item !== null);
+        const uuids = tree.selectedState.filter((uuid) => dataByUuid.has(uuid));
 
         if (!isEqual(uuids, values)) {
             isInternalUpdate.current = true;
             handleChange(uuids);
         }
-    }, [tree.selectedState, handleChange, dataByPath, values]);
+    }, [tree.selectedState, handleChange, dataByUuid, values]);
 
     const handleSelectTopLevel = useCallback(() => {
         if (withRootSelectable) {
@@ -245,11 +234,11 @@ const Tree: React.FC<Props> = (props) => {
                         elementProps,
                         tree: nTree,
                     }) => {
-                        const nodeItem = dataByPath.get(node.value);
+                        const nodeItem = dataByUuid.get(node.value);
 
                         if (!nodeItem) {
                             throw new Error(
-                                `Item with path ${node.value} not found`,
+                                `Item with uuid ${node.value} not found`,
                             );
                         }
 

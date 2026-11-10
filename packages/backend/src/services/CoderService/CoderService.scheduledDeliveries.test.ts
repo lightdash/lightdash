@@ -9,6 +9,8 @@ import {
     SchedulerFormat,
     ThresholdOperator,
     type AlertAsCode,
+    type DashboardDAO,
+    type DashboardFilterRule,
     type Filters,
     type FiltersInput,
     type GoogleSheetsSyncAsCode,
@@ -19,6 +21,7 @@ import {
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { CoderService } from './CoderService';
+import { getDashboardScheduledDeliveryFiltersWithTileUuids } from './scheduledContent';
 
 const projectUuid = 'project-uuid';
 const organizationUuid = 'organization-uuid';
@@ -90,6 +93,7 @@ const scheduler: SchedulerAndTargets = {
     enabled: true,
     includeLinks: true,
     plainTextEmail: false,
+    useCachedResults: false,
     targets: [
         {
             schedulerEmailTargetUuid: 'email-target-uuid',
@@ -112,6 +116,7 @@ const delivery: ScheduledDeliveryAsCode = {
     enabled: true,
     includeLinks: true,
     plainTextEmail: false,
+    useCachedResults: false,
     targets: [{ type: 'email', recipient: 'data@example.com' }],
     resource: { type: 'chart', slug: 'orders' },
     format: SchedulerFormat.CSV,
@@ -151,6 +156,7 @@ const alert: AlertAsCode = {
     enabled: true,
     includeLinks: true,
     plainTextEmail: false,
+    useCachedResults: false,
     targets: [{ type: 'email', recipient: 'data@example.com' }],
     resource: { type: 'chart', slug: 'orders' },
     thresholds: [
@@ -181,6 +187,7 @@ const googleSheetsScheduler: SchedulerAndTargets = {
     },
     includeLinks: false,
     plainTextEmail: false,
+    useCachedResults: false,
     targets: [],
 };
 
@@ -195,6 +202,7 @@ const googleSheetsSync: GoogleSheetsSyncAsCode = {
     enabled: true,
     includeLinks: false,
     plainTextEmail: false,
+    useCachedResults: false,
     destination: {
         spreadsheetId: 'spreadsheet-id',
         spreadsheetName: 'Orders',
@@ -282,6 +290,7 @@ const buildService = ({
     };
 
     const service = new CoderService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         directAccessService: {} as never,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
@@ -482,6 +491,50 @@ describe('CoderService scheduled deliveries as code', () => {
         expect(schedulerService.updateScheduler).not.toHaveBeenCalled();
     });
 
+    it.each([
+        ['delivery', () => scheduler, () => delivery],
+        ['alert', () => alertScheduler, () => alert],
+        ['sync', () => googleSheetsScheduler, () => googleSheetsSync],
+    ] as const)(
+        'does not update a %s from a file written before the optional settings',
+        async (_name, getExisting, getContent) => {
+            const { service, schedulerService } = buildService({
+                existing: getExisting(),
+            });
+            const {
+                plainTextEmail: _plainTextEmail,
+                useCachedResults: _useCachedResults,
+                ...legacyContent
+            } = getContent();
+
+            const result = await service.upsertScheduledDelivery(
+                user,
+                projectUuid,
+                legacyContent.slug,
+                legacyContent,
+            );
+
+            expect(result).toEqual({ action: PromotionAction.NO_CHANGES });
+            expect(schedulerService.updateScheduler).not.toHaveBeenCalled();
+        },
+    );
+
+    it('still updates a delivery when a file changes useCachedResults', async () => {
+        const { service, schedulerService } = buildService({
+            existing: scheduler,
+        });
+
+        const result = await service.upsertScheduledDelivery(
+            user,
+            projectUuid,
+            delivery.slug,
+            { ...delivery, useCachedResults: true },
+        );
+
+        expect(result.action).toBe(PromotionAction.UPDATE);
+        expect(schedulerService.updateScheduler).toHaveBeenCalledOnce();
+    });
+
     it('ignores generated filter IDs when detecting delivery changes', async () => {
         const { service, schedulerService } = buildService({
             existing: { ...scheduler, filters: runtimeFilters },
@@ -547,6 +600,67 @@ describe('CoderService scheduled deliveries as code', () => {
 
         expect(result).toEqual({ action: PromotionAction.UPDATE });
         expect(schedulerService.updateScheduler).toHaveBeenCalledOnce();
+    });
+});
+
+describe('dashboard scheduled delivery filter ids', () => {
+    const status = { fieldId: 'orders_status', tableName: 'orders' };
+    const amount = { fieldId: 'orders_amount', tableName: 'orders' };
+    const dashboard = {
+        tiles: [],
+        filters: {
+            dimensions: [
+                { id: 'status-id', target: status },
+                { id: 'amount-id', target: amount },
+            ],
+        },
+    } as unknown as DashboardDAO;
+    const upload = (targets: (typeof status)[]) =>
+        (
+            getDashboardScheduledDeliveryFiltersWithTileUuids(
+                dashboard,
+                targets.map(
+                    (target) =>
+                        ({
+                            target,
+                            operator: FilterOperator.EQUALS,
+                            values: ['x'],
+                        }) as Omit<DashboardFilterRule, 'id'>,
+                ),
+            ) ?? []
+        ).map(({ id }) => id);
+
+    it("carries the delivery's dashboard filter id on matching overrides", () => {
+        expect(upload([amount, status])).toEqual(['amount-id', 'status-id']);
+    });
+
+    it('mints ids for new or ambiguous overrides', () => {
+        const ids = upload([
+            status,
+            status,
+            { fieldId: 'orders_date', tableName: 'orders' },
+        ]);
+        expect(new Set(ids).size).toBe(3);
+        expect(ids).not.toContain('status-id');
+        expect(ids).not.toContain('amount-id');
+    });
+
+    it('carries no ids from a dashboard without that filter', () => {
+        const ids = getDashboardScheduledDeliveryFiltersWithTileUuids(
+            {
+                tiles: [],
+                filters: { dimensions: [{ id: 'amount-id', target: amount }] },
+            } as unknown as DashboardDAO,
+            [{ target: status, operator: FilterOperator.EQUALS }] as Omit<
+                DashboardFilterRule,
+                'id'
+            >[],
+        );
+        expect(ids?.[0].id).not.toBe('amount-id');
+    });
+
+    it('keeps the remaining id when an override is removed', () => {
+        expect(upload([amount])).toEqual(['amount-id']);
     });
 });
 

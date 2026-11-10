@@ -1,13 +1,12 @@
 import { Ability } from '@casl/ability';
 import {
-    FeatureFlags,
     ForbiddenError,
     ParameterError,
     type PossibleAbilities,
     type RegisteredAccount,
+    type UpdateOrganizationSettings,
 } from '@lightdash/common';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
-import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { OrganizationSettingsService } from './OrganizationSettingsService';
 
@@ -28,15 +27,7 @@ const account = {
 // Raw row with no overrides — the resolver fills the rest with instance defaults.
 const rawSettings = { queryLimit: null, csvCellsLimit: null };
 
-const buildService = (proLimitsEnabled: boolean) => {
-    const featureFlagModel = {
-        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
-            id: featureFlagId,
-            enabled:
-                proLimitsEnabled && featureFlagId === FeatureFlags.ProLimits,
-        })),
-    } as unknown as FeatureFlagModel;
-
+const buildService = () => {
     const organizationSettingsModel = {
         get: vi.fn(async () => rawSettings),
         update: vi.fn(async () => rawSettings),
@@ -45,29 +36,27 @@ const buildService = (proLimitsEnabled: boolean) => {
     const service = new OrganizationSettingsService({
         lightdashConfig: lightdashConfigMock,
         organizationSettingsModel,
-        featureFlagModel,
     });
     return { service, organizationSettingsModel };
 };
 
-describe('OrganizationSettingsService — pro-limits gate', () => {
-    it('rejects a csvCellsLimit update when pro-limits is disabled', async () => {
-        const { service, organizationSettingsModel } = buildService(false);
-        await expect(
-            service.updateOrganizationSettings(account, { csvCellsLimit: 50 }),
-        ).rejects.toThrow(ForbiddenError);
-        expect(organizationSettingsModel.update).not.toHaveBeenCalled();
+describe('OrganizationSettingsService — updates', () => {
+    it('allows a csvCellsLimit update', async () => {
+        const { service, organizationSettingsModel } = buildService();
+        await service.updateOrganizationSettings(account, {
+            csvCellsLimit: 50,
+        });
+        expect(organizationSettingsModel.update).toHaveBeenCalled();
     });
 
-    it('rejects a queryLimit update when pro-limits is disabled', async () => {
-        const { service } = buildService(false);
-        await expect(
-            service.updateOrganizationSettings(account, { queryLimit: 50 }),
-        ).rejects.toThrow(ForbiddenError);
+    it('allows a queryLimit update', async () => {
+        const { service, organizationSettingsModel } = buildService();
+        await service.updateOrganizationSettings(account, { queryLimit: 50 });
+        expect(organizationSettingsModel.update).toHaveBeenCalled();
     });
 
-    it('allows a non-limit update (scheduled delivery) when pro-limits is disabled', async () => {
-        const { service, organizationSettingsModel } = buildService(false);
+    it('allows a non-limit update (scheduled delivery)', async () => {
+        const { service, organizationSettingsModel } = buildService();
         await service.updateOrganizationSettings(account, {
             scheduledDeliveryExpirationSeconds: 3600,
         });
@@ -75,7 +64,7 @@ describe('OrganizationSettingsService — pro-limits gate', () => {
     });
 
     it('allows an invite link expiration from one to seven whole days', async () => {
-        const { service, organizationSettingsModel } = buildService(false);
+        const { service, organizationSettingsModel } = buildService();
         await service.updateOrganizationSettings(account, {
             inviteLinkExpirationDays: 7,
         });
@@ -88,7 +77,7 @@ describe('OrganizationSettingsService — pro-limits gate', () => {
     it.each([0, 1.5, 8, '7'])(
         'rejects invalid invite link expiration %s',
         async (inviteLinkExpirationDays) => {
-            const { service, organizationSettingsModel } = buildService(false);
+            const { service, organizationSettingsModel } = buildService();
             await expect(
                 service.updateOrganizationSettings(account, {
                     inviteLinkExpirationDays:
@@ -99,16 +88,8 @@ describe('OrganizationSettingsService — pro-limits gate', () => {
         },
     );
 
-    it('allows a limit update when pro-limits is enabled', async () => {
-        const { service, organizationSettingsModel } = buildService(true);
-        await service.updateOrganizationSettings(account, {
-            csvCellsLimit: 50,
-        });
-        expect(organizationSettingsModel.update).toHaveBeenCalled();
-    });
-
-    it('allows valid CORS settings when pro-limits is disabled', async () => {
-        const { service, organizationSettingsModel } = buildService(false);
+    it('allows valid CORS settings', async () => {
+        const { service, organizationSettingsModel } = buildService();
         await service.updateOrganizationSettings(account, {
             corsAllowedDomains: [
                 'https://app.example.com',
@@ -127,7 +108,7 @@ describe('OrganizationSettingsService — pro-limits gate', () => {
     });
 
     it('rejects invalid CORS regex patterns', async () => {
-        const { service, organizationSettingsModel } = buildService(false);
+        const { service, organizationSettingsModel } = buildService();
         await expect(
             service.updateOrganizationSettings(account, {
                 corsAllowedDomains: ['/unterminated[/'],
@@ -137,7 +118,7 @@ describe('OrganizationSettingsService — pro-limits gate', () => {
     });
 
     it('rejects broad CORS regex patterns', async () => {
-        const { service, organizationSettingsModel } = buildService(false);
+        const { service, organizationSettingsModel } = buildService();
         await expect(
             service.updateOrganizationSettings(account, {
                 corsAllowedDomains: ['/^https?:\\/\\/.*$/'],
@@ -147,12 +128,127 @@ describe('OrganizationSettingsService — pro-limits gate', () => {
     });
 
     it('rejects invalid CORS origins', async () => {
-        const { service, organizationSettingsModel } = buildService(false);
+        const { service, organizationSettingsModel } = buildService();
         await expect(
             service.updateOrganizationSettings(account, {
                 corsAllowedDomains: ['https://app.example.com/path'],
             }),
         ).rejects.toThrow(ParameterError);
+        expect(organizationSettingsModel.update).not.toHaveBeenCalled();
+    });
+});
+
+describe('OrganizationSettingsService — data app captures', () => {
+    const buildStatefulService = (capturesEnabledOnInstance = true) => {
+        let stored: UpdateOrganizationSettings = {};
+        const organizationSettingsModel = {
+            get: async () => stored,
+            update: async (
+                _orgUuid: string,
+                patch: UpdateOrganizationSettings,
+            ) => {
+                stored = { ...stored, ...patch };
+                return stored;
+            },
+        } as unknown as OrganizationSettingsModel;
+        return new OrganizationSettingsService({
+            lightdashConfig: {
+                ...lightdashConfigMock,
+                appRuntime: {
+                    ...lightdashConfigMock.appRuntime,
+                    capturesEnabled: capturesEnabledOnInstance,
+                },
+            },
+            organizationSettingsModel,
+        });
+    };
+
+    it('is on for an organization that has never changed it', async () => {
+        const settings =
+            await buildStatefulService().getOrganizationSettings(account);
+
+        expect(settings.dataAppCapturesEnabled).toBe(true);
+    });
+
+    it('lets an organization turn it off and back on', async () => {
+        const service = buildStatefulService();
+
+        await service.updateOrganizationSettings(account, {
+            dataAppCapturesEnabled: false,
+        });
+        let settings = await service.getOrganizationSettings(account);
+        expect(settings.dataAppCapturesEnabled).toBe(false);
+
+        await service.updateOrganizationSettings(account, {
+            dataAppCapturesEnabled: true,
+        });
+        settings = await service.getOrganizationSettings(account);
+        expect(settings.dataAppCapturesEnabled).toBe(true);
+    });
+
+    it('stays off when the instance env turns captures off, whatever the org sets', async () => {
+        const service = buildStatefulService(false);
+
+        await service.updateOrganizationSettings(account, {
+            dataAppCapturesEnabled: true,
+        });
+        const settings = await service.getOrganizationSettings(account);
+
+        expect(settings.dataAppCapturesEnabled).toBe(false);
+    });
+});
+
+describe('OrganizationSettingsService — custom data app dependencies', () => {
+    it('is off by default', async () => {
+        const organizationSettingsModel = {
+            get: vi.fn(async () => ({})),
+        } as unknown as OrganizationSettingsModel;
+        const service = new OrganizationSettingsService({
+            lightdashConfig: lightdashConfigMock,
+            organizationSettingsModel,
+        });
+
+        const settings = await service.getOrganizationSettings(account);
+
+        expect(settings.dataAppCustomDependenciesEnabled).toBe(false);
+    });
+
+    it('saves an admin turning it on', async () => {
+        const { service, organizationSettingsModel } = buildService();
+        await service.updateOrganizationSettings(account, {
+            dataAppCustomDependenciesEnabled: true,
+        });
+        expect(organizationSettingsModel.update).toHaveBeenCalledWith(
+            'org-uuid',
+            { dataAppCustomDependenciesEnabled: true },
+        );
+    });
+
+    it('rejects a value that is not a boolean', async () => {
+        const { service, organizationSettingsModel } = buildService();
+        await expect(
+            service.updateOrganizationSettings(account, {
+                dataAppCustomDependenciesEnabled:
+                    null as unknown as UpdateOrganizationSettings['dataAppCustomDependenciesEnabled'],
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(organizationSettingsModel.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a member without manage:Organization', async () => {
+        const { service, organizationSettingsModel } = buildService();
+        const member = {
+            ...account,
+            user: {
+                ...account.user,
+                ability: new Ability<PossibleAbilities>([]),
+            },
+        } as unknown as RegisteredAccount;
+        await expect(
+            service.updateOrganizationSettings(member, {
+                dataAppCustomDependenciesEnabled: true,
+            }),
+        ).rejects.toThrow(ForbiddenError);
         expect(organizationSettingsModel.update).not.toHaveBeenCalled();
     });
 });

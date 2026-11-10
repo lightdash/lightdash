@@ -1,23 +1,20 @@
 import { FeatureFlags, isAppVersionInProgress } from '@lightdash/common';
 import { ActionIcon, Box, Loader, Stack, Text, Tooltip } from '@mantine/core';
-import {
-    IconAppsOff,
-    IconMaximize,
-    IconMinimize,
-    IconSparkles,
-} from '@tabler/icons-react';
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { IconAppsOff, IconMaximize, IconMinimize } from '@tabler/icons-react';
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import MantineIcon from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { AskAiAgentMenuItem } from '../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
-import DataAppAnalysisPanel from '../features/apps/analysis/DataAppAnalysisPanel';
 import {
-    UNAVAILABLE_COPY,
-    useDataAppAnalysisAvailability,
-} from '../features/apps/analysis/useDataAppAnalysisAvailability';
+    useRegisterLauncherAnalysisAdapter,
+    type LauncherAnalysisAdapter,
+} from '../ee/features/aiCopilot/components/Launcher/launcherAnalysisAdapter';
+import { store as aiAgentStore } from '../ee/features/aiCopilot/store';
+import { openAnalysisPanel } from '../ee/features/aiCopilot/store/aiAgentLauncherSlice';
+import { useDataAppAnalysisAvailability } from '../features/apps/analysis/useDataAppAnalysisAvailability';
 import { useDataAppAnalysisController } from '../features/apps/analysis/useDataAppAnalysisController';
 import AppIframePreview, {
     type AppIframePreviewHandle,
@@ -34,6 +31,7 @@ import { useCanEditVerifiedDataApp } from '../features/apps/hooks/useCanEditData
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import { useProjectUuid } from '../hooks/useProjectUuid';
+import { useRecordContentView } from '../hooks/useRecordContentView';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useNativeFullscreenToggle from '../providers/Fullscreen/useNativeFullscreenToggle';
 import classes from './AppPreviewTest.module.css';
@@ -65,7 +63,6 @@ export default function AppPreviewTest() {
     const appSlug = firstPage?.slug ?? null;
     const appViews = firstPage?.views ?? null;
     const appVerification = firstPage?.verification ?? null;
-    const appAutoAnalysis = firstPage?.autoAnalysis ?? null;
     // Latest build activity stands in for "last modified" — apps have no
     // updated-at of their own.
     const newestVersion = firstPage?.versions[0];
@@ -79,6 +76,14 @@ export default function AppPreviewTest() {
     });
 
     const version = explicitVersion ?? latestReadyVersion;
+
+    useRecordContentView(
+        projectUuid,
+        'data_app',
+        appSpaceUuid && version && !appQuery.isError
+            ? firstPage?.appUuid
+            : undefined,
+    );
 
     // No successful build yet — distinguish "still building" (poll so the
     // preview swaps in automatically when the build finishes) from "failed" /
@@ -102,7 +107,7 @@ export default function AppPreviewTest() {
         data: token,
         isLoading: isTokenLoading,
         error: tokenError,
-    } = useAppPreviewToken(projectUuid, appUuid, version);
+    } = useAppPreviewToken(projectUuid, appUuid, version, 'standalone');
 
     // Panel is opt-in here (most viewers aren't technical), but bridge events
     // are captured regardless so earlier queries show once it's opened.
@@ -111,14 +116,9 @@ export default function AppPreviewTest() {
     const { rolloverLogs } = inspector;
 
     // "Analyse this view": host-side AI analysis over the queries the app
-    // ran. Hidden entirely until the org is rolled out; otherwise the panel
-    // explains any remaining reason it is unavailable.
+    // ran. When it's unavailable, the panel explains why.
     const analysisAvailability = useDataAppAnalysisAvailability();
-    const [analysisOpened, setAnalysisOpened] = useState(false);
-    const showAnalysis =
-        analysisAvailability.status === 'available' ||
-        (analysisAvailability.status === 'unavailable' &&
-            analysisAvailability.reason !== 'not_rolled_out');
+    const showAnalysis = analysisAvailability.status !== 'loading';
     // Manual refresh: bumping the counter changes the iframe URL, forcing a
     // reload so the app's metric queries re-fire. `invalidateCache` latches on
     // with the first refresh so those re-fired queries bypass the warehouse
@@ -131,17 +131,55 @@ export default function AppPreviewTest() {
         rolloverLogs();
     }, [rolloverLogs]);
 
-    const openAnalysis = useCallback(() => setAnalysisOpened(true), []);
+    // The analysis panel lives in the AI launcher; the store is reached
+    // directly because this page can render without the launcher providers.
+    const openAnalysis = useCallback(() => {
+        aiAgentStore.dispatch(openAnalysisPanel());
+    }, []);
+    // Author guidance declared in app code, reported by the running bundle.
+    const [insightInstructions, setInsightInstructions] = useState<
+        string | null
+    >(null);
+    const [insightAnalyseOnLoad, setInsightAnalyseOnLoad] = useState<
+        boolean | null
+    >(null);
     const analysisController = useDataAppAnalysisController({
         projectUuid,
         appUuid,
         queries: inspector.panelProps.queries,
         availability: analysisAvailability,
-        autoAnalyse: appAutoAnalysis ?? 'inherit',
+        analyseOnLoad: insightAnalyseOnLoad ?? false,
+        instructions: insightInstructions,
         onNeedsAgent: openAnalysis,
         // Expired sources: reload the app once so its queries re-run.
         onSourcesExpired: handleRefresh,
     });
+
+    const { lineageAvailable, onHoverQuery } = inspector.panelProps;
+    const analysisAdapter = useMemo<LauncherAnalysisAdapter | null>(
+        () =>
+            projectUuid && showAnalysis
+                ? {
+                      projectUuid,
+                      targetKind: 'app' as const,
+                      targetName: appName || null,
+                      availability: analysisAvailability,
+                      controller: analysisController,
+                      highlightAvailable: lineageAvailable,
+                      onHoverQuery,
+                  }
+                : null,
+        [
+            projectUuid,
+            showAnalysis,
+            appName,
+            analysisAvailability,
+            analysisController,
+            lineageAvailable,
+            onHoverQuery,
+        ],
+    );
+    useRegisterLauncherAnalysisAdapter(analysisAdapter);
 
     const previewOrigin = usePreviewOrigin();
 
@@ -270,6 +308,8 @@ export default function AppPreviewTest() {
                         showAnalysis ? analysisController.insightsPayload : null
                     }
                     onInsightAction={analysisController.handleAction}
+                    onInsightInstructionsChange={setInsightInstructions}
+                    onInsightAnalyseOnLoadChange={setInsightAnalyseOnLoad}
                     onMountedQueriesChange={
                         analysisController.setMountedQueryUuids
                     }
@@ -281,17 +321,6 @@ export default function AppPreviewTest() {
                         defaultCollapsed={false}
                         hideWhenEmpty={false}
                         {...inspector.panelProps}
-                    />
-                )}
-                {showAnalysis && (
-                    <DataAppAnalysisPanel
-                        opened={analysisOpened}
-                        onClose={() => setAnalysisOpened(false)}
-                        appUuid={appUuid}
-                        availability={analysisAvailability}
-                        controller={analysisController}
-                        lineageAvailable={inspector.panelProps.lineageAvailable}
-                        onHoverQuery={inspector.panelProps.onHoverQuery}
                     />
                 )}
             </>
@@ -310,8 +339,8 @@ export default function AppPreviewTest() {
             {isFullscreen && (
                 <ActionIcon
                     className={classes.exitFullscreen}
+                    mod="touch-target"
                     variant="default"
-                    size={44}
                     onClick={handleToggleFullscreen}
                     aria-label="Exit fullscreen"
                 >
@@ -346,38 +375,6 @@ export default function AppPreviewTest() {
                     rightSection={
                         <AppHeaderActions
                             capturedQueryCount={inspector.readyQueryCount}
-                            analysisToggle={
-                                showAnalysis ? (
-                                    <Tooltip
-                                        label={
-                                            analysisAvailability.status ===
-                                            'unavailable'
-                                                ? UNAVAILABLE_COPY[
-                                                      analysisAvailability
-                                                          .reason
-                                                  ]
-                                                : 'Analyse this view'
-                                        }
-                                        position="bottom"
-                                        openDelay={200}
-                                    >
-                                        <ActionIcon
-                                            variant="light"
-                                            color="indigo"
-                                            size="md"
-                                            onClick={() =>
-                                                setAnalysisOpened(true)
-                                            }
-                                            aria-label="Analyse this view"
-                                        >
-                                            <MantineIcon
-                                                icon={IconSparkles}
-                                                size="md"
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                ) : null
-                            }
                             fullscreenToggle={
                                 isFullscreenFeatureEnabled &&
                                 document.fullscreenEnabled ? (
@@ -412,7 +409,6 @@ export default function AppPreviewTest() {
                             appSpaceUuid={appSpaceUuid}
                             appCreatedByUserUuid={appCreatedByUserUuid}
                             verification={appVerification}
-                            autoAnalysis={appAutoAnalysis}
                             latestVersionNumber={latestReadyVersion ?? null}
                             latestVersionStatus={
                                 latestReadyVersion ? 'ready' : null
@@ -425,6 +421,7 @@ export default function AppPreviewTest() {
                                     ? capturePreviewScreenshot
                                     : null
                             }
+                            previewVersion={version ?? null}
                             onViewNetwork={inspector.show}
                             onDeleted={() => {
                                 void navigate(`/projects/${projectUuid}/home`);
@@ -459,7 +456,7 @@ export default function AppPreviewTest() {
                 data-tour-step="1"
                 data-tour-route="/projects/:projectUuid/apps/:appUuid/view"
                 data-tour-label="Data apps"
-                data-tour-docs="data-apps.mdx#sharing-an-app:p2:1"
+                data-tour-docs="data-apps.mdx#sharing-an-app:p4:1"
                 data-tour-resultdocs="data-apps.mdx#space-access:li1"
                 data-tour-return="none"
                 className={classes.previewBody}

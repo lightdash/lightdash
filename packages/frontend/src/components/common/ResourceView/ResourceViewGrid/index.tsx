@@ -26,8 +26,8 @@ import {
 import { Box, SimpleGrid, Stack, Text } from '@mantine/core';
 import { mergeRefs, useHover } from '@mantine/hooks';
 import { IconGripVertical } from '@tabler/icons-react';
+import { orderBy } from 'es-toolkit/compat';
 import { produce } from 'immer';
-import orderBy from 'lodash/orderBy';
 import {
     useCallback,
     useEffect,
@@ -179,20 +179,13 @@ const DraggableItem: FC<DraggableItemProps> = ({
     const showDragIcon = (isHovered && hasReorder) || isDragging;
     const resourceUrl = getResourceUrl(projectUuid, item, projectUrlIdentifier);
 
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        position: 'relative' as const,
-        zIndex: isDragging ? 1 : undefined,
-    };
-
     const DragIcon = (
         <Box
             pos="absolute"
             left={0}
             p={4}
             ref={setActivatorNodeRef}
-            style={{ touchAction: 'none' }}
+            className={classes.dragHandle}
             onPointerDownCapture={() => {
                 if (!hasReorder) return;
                 markHandleInteraction();
@@ -226,7 +219,11 @@ const DraggableItem: FC<DraggableItemProps> = ({
                     : ''
             }`}
             ref={mergeRefs(setNodeRef, hoverRef)}
-            style={style}
+            pos="relative"
+            style={{
+                '--drag-transform': CSS.Transform.toString(transform),
+                '--drag-transition': transition,
+            }}
             // Walkthrough anchor (data-tour-via): a pinned item, by name.
             data-tour-anchor="pinned-item"
             data-tour-hint="Open a pinned item"

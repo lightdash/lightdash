@@ -127,19 +127,18 @@ const makeViewerUser = (): SessionUser => ({
 });
 
 const makeService = ({
-    flagEnabled = true,
+    homepageEnabled = true,
     documentService = { filterViewableUuids: vi.fn().mockResolvedValue([]) },
     projectHomepageModel = {},
     groupsModel = {},
     projectModel = {},
     userModel = {},
-    fileStorageClient = {},
     persistentDownloadFileService = {},
     slackClient = {},
     slackInstalled = true,
     schedulerClient = {},
 }: {
-    flagEnabled?: boolean;
+    homepageEnabled?: boolean;
     documentService?: ProjectHomepageServiceArguments['documentService'];
     projectHomepageModel?: Partial<
         ProjectHomepageServiceArguments['projectHomepageModel']
@@ -147,9 +146,6 @@ const makeService = ({
     groupsModel?: Partial<ProjectHomepageServiceArguments['groupsModel']>;
     projectModel?: Partial<ProjectHomepageServiceArguments['projectModel']>;
     userModel?: Partial<ProjectHomepageServiceArguments['userModel']>;
-    fileStorageClient?: Partial<
-        ProjectHomepageServiceArguments['fileStorageClient']
-    >;
     persistentDownloadFileService?: Partial<
         ProjectHomepageServiceArguments['persistentDownloadFileService']
     >;
@@ -165,12 +161,6 @@ const makeService = ({
             getRecentlyViewed: vi.fn().mockResolvedValue([]),
         },
         analytics: { track: vi.fn() },
-        featureFlagService: {
-            get: vi.fn().mockResolvedValue({
-                id: 'homepage-builder',
-                enabled: flagEnabled,
-            }),
-        },
         projectHomepageModel: {
             getCodeReferences: vi.fn().mockResolvedValue([]),
             getCodeGroups: vi.fn().mockResolvedValue([]),
@@ -196,7 +186,15 @@ const makeService = ({
             deleteAnnouncement: vi.fn().mockResolvedValue(undefined),
             publishProjectDraftAnnouncements: vi.fn().mockResolvedValue([]),
             publishPendingAnnouncements: vi.fn().mockResolvedValue([]),
-            findOrgHomepageSettings: vi.fn().mockResolvedValue(null),
+            findOrgHomepageSettings: vi.fn().mockResolvedValue(
+                homepageEnabled
+                    ? null
+                    : {
+                          organizationUuid: ORGANIZATION_UUID,
+                          enabled: false,
+                          opening: null,
+                      },
+            ),
             upsertOrgHomepageSettings: vi.fn(),
             swapHeroBlocks: vi.fn().mockResolvedValue(undefined),
             ...projectHomepageModel,
@@ -220,12 +218,8 @@ const makeService = ({
             }),
             ...userModel,
         },
-        fileStorageClient: {
-            uploadImage: vi.fn(),
-            ...fileStorageClient,
-        } as ProjectHomepageServiceArguments['fileStorageClient'],
         persistentDownloadFileService: {
-            createPersistentUrl: vi.fn(),
+            uploadPersistentImage: vi.fn(),
             deleteFileWithKeyPrefix: vi.fn().mockResolvedValue(undefined),
             ...persistentDownloadFileService,
         } as ProjectHomepageServiceArguments['persistentDownloadFileService'],
@@ -449,6 +443,11 @@ describe('ProjectHomepageService', () => {
                 const slug = 'confidential-acquisition-plan';
                 const upsertAsCode = vi.fn();
                 const documentService = new DocumentService({
+                    contentVerificationModel: {
+                        getByContent: vi.fn().mockResolvedValue(null),
+                        verify: vi.fn(),
+                        unverify: vi.fn(),
+                    },
                     projectModel: {
                         getSummary: vi.fn().mockResolvedValue({
                             projectUuid: PROJECT_UUID,
@@ -630,7 +629,7 @@ describe('ProjectHomepageService', () => {
 
         it('rejects disabled features, missing code permissions, and access to another project', async () => {
             await expect(
-                makeService({ flagEnabled: false }).downloadHomepagesAsCode(
+                makeService({ homepageEnabled: false }).downloadHomepagesAsCode(
                     codeUser(),
                     PROJECT_UUID,
                 ),
@@ -692,39 +691,30 @@ describe('ProjectHomepageService', () => {
             expect(upsertAsCode).not.toHaveBeenCalled();
         });
     });
-    it('getResolvedHomepage throws ForbiddenError when flag is disabled', async () => {
-        const service = makeService({ flagEnabled: false });
+    it('getResolvedHomepage throws ForbiddenError when the org switched back to classic', async () => {
+        const service = makeService({ homepageEnabled: false });
 
         await expect(
             service.getResolvedHomepage(makeAdminUser(), PROJECT_UUID),
         ).rejects.toThrow(ForbiddenError);
     });
 
-    it('org settings opt-in enables the homepage even when the flag is off', async () => {
-        const service = makeService({
-            flagEnabled: false,
-            projectHomepageModel: {
-                findOrgHomepageSettings: vi.fn().mockResolvedValue({
-                    organizationUuid: ORGANIZATION_UUID,
-                    enabled: true,
-                    opening: 'content-first',
-                }),
-            },
-        });
+    it('homepage is enabled by default when the org has no settings row', async () => {
+        const service = makeService();
 
         await expect(
             service.getResolvedHomepage(makeAdminUser(), PROJECT_UUID),
         ).resolves.toBeNull();
     });
 
-    it('getOrgHomepageSettings returns defaults when the org never opted in', async () => {
+    it('getOrgHomepageSettings defaults to enabled with auto opening', async () => {
         const service = makeService();
 
         await expect(
             service.getOrgHomepageSettings(makeViewerUser()),
         ).resolves.toEqual({
             organizationUuid: ORGANIZATION_UUID,
-            enabled: false,
+            enabled: true,
             opening: null,
         });
     });
@@ -2129,17 +2119,13 @@ describe('ProjectHomepageService', () => {
             });
 
             it('uploads the normalized image and returns a site-relative URL', async () => {
-                const uploadImage = vi
-                    .fn()
-                    .mockResolvedValue('https://s3/presigned');
-                const createPersistentUrl = vi
+                const uploadPersistentImage = vi
                     .fn()
                     .mockResolvedValue(
                         'https://app.lightdash.com/api/v1/file/abc123',
                     );
                 const service = makeService({
-                    fileStorageClient: { uploadImage },
-                    persistentDownloadFileService: { createPersistentUrl },
+                    persistentDownloadFileService: { uploadPersistentImage },
                 });
 
                 const result = await service.uploadAnnouncementImage(
@@ -2150,15 +2136,12 @@ describe('ProjectHomepageService', () => {
                     tinyPng.length,
                 );
 
-                expect(uploadImage).toHaveBeenCalledWith(
-                    expect.any(Buffer),
-                    expect.stringMatching(
-                        new RegExp(`^announcements/${PROJECT_UUID}/`),
-                    ),
-                );
-                expect(createPersistentUrl).toHaveBeenCalledWith(
+                expect(uploadPersistentImage).toHaveBeenCalledWith(
                     expect.objectContaining({
-                        fileType: 'image',
+                        image: expect.any(Buffer),
+                        storageId: expect.stringMatching(
+                            new RegExp(`^announcements/${PROJECT_UUID}/`),
+                        ),
                         organizationUuid: ORGANIZATION_UUID,
                         projectUuid: PROJECT_UUID,
                         createdByUserUuid: USER_UUID,

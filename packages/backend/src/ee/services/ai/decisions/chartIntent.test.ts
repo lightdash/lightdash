@@ -10,6 +10,7 @@ import type { DecisionAnswers } from './AiDecisionClient';
 import {
     buildChartIntentContext,
     buildChartIntentQuestions,
+    CHART_INTENT_THRESHOLDS,
     decideTurn,
     extractAmountCandidates,
     extractNumberCandidates,
@@ -96,6 +97,16 @@ const choice = (value: string, probability = 0.95) => ({
     probabilities: { [value]: probability, other: 1 - probability },
 });
 const noul = (value: number) => ({ type: 'noul' as const, noul: value });
+/** A primary pick with real mass left on the extra edits a compound request names. */
+const compound = (value: string, extras: Record<string, number>) => {
+    const rest = Object.values(extras).reduce((sum, p) => sum + p, 0);
+    return {
+        type: 'choice' as const,
+        choice: value,
+        confidence: 1 - rest,
+        probabilities: { [value]: 1 - rest, ...extras },
+    };
+};
 const noUsage = { verified: new Map<string, number>(), charts: new Map() };
 
 const interpret = (prompt: string, answers: Partial<DecisionAnswers>) =>
@@ -396,7 +407,7 @@ describe('interpretChartIntent', () => {
     it('applies every edit a request names, never just the primary one', () => {
         expect(
             interpretByStatus('top 3 as horizontal bars', {
-                intent: choice('chart_type'),
+                intent: compound('chart_type', { sort: 0.2 }),
                 chartType: choice('horizontal'),
                 wantsSort: noul(0.95),
                 sortDirection: choice('descending'),
@@ -466,7 +477,7 @@ describe('interpretChartIntent', () => {
     it('falls back when any part of a compound request is unresolved', () => {
         expect(
             interpret('segment by region and sort it', {
-                intent: choice('add_field'),
+                intent: compound('add_field', { sort: 0.2 }),
                 addField: choice('orders_region'),
                 wantsSort: noul(0.9),
             }),
@@ -476,7 +487,7 @@ describe('interpretChartIntent', () => {
     it('does not combine edits with a non-composable intent', () => {
         expect(
             interpret('stack it and only last 6 months', {
-                intent: choice('stack'),
+                intent: compound('stack', { filter: 0.2 }),
                 wantsFilter: noul(0.9),
             }),
         ).toEqual({ type: 'unresolved', reason: 'multiple' });
@@ -485,7 +496,7 @@ describe('interpretChartIntent', () => {
     it('never applies a single edit when JEV says several were asked for', () => {
         expect(
             interpret('make it a line and do the other thing', {
-                intent: choice('chart_type'),
+                intent: compound('chart_type', { filter: 0.3 }),
                 multiple: noul(0.9),
                 chartType: choice('line'),
             }),
@@ -1194,6 +1205,14 @@ describe('date ranges and thresholds', () => {
         ]);
     });
 
+    it('does not read a period length as a threshold amount', () => {
+        expect(extractAmountCandidates('last 6 months instead')).toEqual([]);
+        expect(extractAmountCandidates('over 50 in the last 2 weeks')).toEqual([
+            50,
+        ]);
+        expect(extractAmountCandidates('top 3 years by revenue')).toEqual([]);
+    });
+
     it('builds an explicit range with an inclusive last day', () => {
         expect(
             ask('13 to 20 May 2026', {
@@ -1551,7 +1570,7 @@ describe('buildChartIntentContext', () => {
         expect(questionsFor([region]).removeFilterField).toMatchObject({
             type: 'choice',
             criteria: {
-                orders_region: 'Region (Orders)',
+                orders_region: 'Region (Orders), text',
                 none: expect.any(String),
             },
         });
@@ -1583,6 +1602,7 @@ describe('buildChartIntentContext', () => {
             table: 'Other',
             description: null,
             isDate: false,
+            kind: null,
             verifiedUsage: 0,
             chartUsage: 0,
         }));
@@ -1600,6 +1620,7 @@ describe('buildChartIntentContext', () => {
                     table: 'Other',
                     description: null,
                     isDate: false,
+                    kind: null,
                     verifiedUsage: 0,
                     chartUsage: 0,
                 },
@@ -1889,5 +1910,120 @@ describe('selectFilterValues', () => {
                 candidates: ['placed'],
             }),
         ).resolves.toBeNull();
+    });
+});
+
+describe('dominance rule', () => {
+    const context = () =>
+        buildChartIntentContext({
+            filterRules: [],
+            prompt: 'stack them',
+            artifact,
+            explore,
+            usage: noUsage,
+        });
+    const spread = (top: string, probability: number, runnerUp: number) => ({
+        type: 'choice' as const,
+        choice: top,
+        confidence: probability,
+        // The remainder is spread thin across the tail, as a flat provider does.
+        probabilities: {
+            [top]: probability,
+            unclear: runnerUp,
+            ...Object.fromEntries(
+                ['filter', 'sort', 'add_field', 'undo', 'chart_type', 'stack']
+                    .filter((key) => key !== top)
+                    .slice(0, 5)
+                    .map((key) => [key, (1 - probability - runnerUp) / 5]),
+            ),
+        },
+    });
+    const resolve = (intent: ReturnType<typeof spread>) =>
+        interpretChartIntent({
+            answers: {
+                intent,
+                multiple: noul(0.01),
+                nonEdit: noul(0.01),
+            } as DecisionAnswers,
+            prompt: 'stack them',
+            context: context(),
+        });
+
+    it('accepts a clear leader below the peak threshold', () => {
+        expect(resolve(spread('stack', 0.39, 0.12))).toEqual({
+            type: 'intent',
+            intent: { kind: 'series', op: 'stack' },
+        });
+    });
+
+    it('still asks when the runner-up is close or the leader is weak', () => {
+        expect(resolve(spread('stack', 0.39, 0.3))).toEqual({
+            type: 'unresolved',
+            reason: 'intent',
+        });
+        expect(resolve(spread('stack', 0.2, 0.0))).toEqual({
+            type: 'unresolved',
+            reason: 'intent',
+        });
+    });
+
+    it('ignores a "wants" predicate the intent choice gives no mass to', () => {
+        expect(
+            interpretChartIntent({
+                answers: {
+                    intent: spread('chart_type', 0.95, 0.02),
+                    chartType: {
+                        type: 'choice',
+                        choice: 'line',
+                        confidence: 0.95,
+                        probabilities: { line: 0.95, bar: 0.05 },
+                    },
+                    wantsFilter: noul(0.98),
+                    multiple: noul(0.01),
+                    nonEdit: noul(0.01),
+                } as DecisionAnswers,
+                prompt: 'make it a line chart',
+                context: context(),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: { kind: 'chart_type', chartType: 'line' },
+        });
+    });
+
+    it('ignores a "several things" predicate the intent choice does not back', () => {
+        expect(
+            interpret('make it a line chart', {
+                intent: compound('chart_type', { filter: 0.02 }),
+                chartType: choice('line'),
+                multiple: noul(0.89),
+                nonEdit: noul(0.01),
+            }),
+        ).toEqual({
+            type: 'intent',
+            intent: { kind: 'chart_type', chartType: 'line' },
+        });
+    });
+
+    it('a "wants" predicate needs a quarter of the top intent mass behind it', () => {
+        const base = {
+            chartType: choice('line'),
+            wantsFilter: noul(0.98),
+            multiple: noul(0.01),
+            nonEdit: noul(0.01),
+        };
+        expect(
+            interpret('by week as a line', {
+                ...base,
+                intent: compound('chart_type', { filter: 0.1 }),
+            }),
+        ).toMatchObject({ type: 'intent', intent: { kind: 'chart_type' } });
+        // With real mass on the filter the turn is two edits; without filter answers it cannot apply.
+        expect(
+            interpret('completed only, as a line', {
+                ...base,
+                intent: compound('chart_type', { filter: 0.3 }),
+            }),
+        ).toEqual({ type: 'unresolved', reason: 'multiple' });
     });
 });

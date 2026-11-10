@@ -189,6 +189,20 @@ describe('resolveComposeMergeOutcome', () => {
         ).toEqual({ kind: 'ready', rowCount: 10, joinExecutionTimeMs: 55 });
     });
 
+    it('is a cancellation, not a failure, when the row was cancelled', () => {
+        expect(
+            resolveComposeMergeOutcome({
+                history: {
+                    status: QueryHistoryStatus.CANCELLED,
+                    totalRowCount: null,
+                    warehouseExecutionTimeMs: null,
+                    error: null,
+                },
+                rowCapRefused: false,
+            }),
+        ).toEqual({ kind: 'cancelled' });
+    });
+
     it('is a failure carrying the stored error otherwise', () => {
         expect(
             resolveComposeMergeOutcome({

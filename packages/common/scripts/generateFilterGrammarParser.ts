@@ -76,6 +76,8 @@ const PARITY_CORPUS = [
     'inThePast 7 days',
     'inTheNext 3 months',
     'inThePast 1 year',
+    'inTheCurrent month to date',
+    'notInTheCurrent  weeks   to   date  excluding  today',
     'inTheNext 12 weeks',
     // lists
     'a,b,c',
@@ -131,6 +133,8 @@ const PARITY_CORPUS = [
     '>= ',
     'inThePast days',
     'inThePast 7',
+    'inTheCurrent day to date',
+    'inTheCurrent month to',
 ];
 
 const HEADER = `/* eslint-disable */

@@ -7,8 +7,10 @@ import {
     type PersistedRunQueryPayload,
     type DataAppVizChart,
 } from '@lightdash/common';
+import { useMemo } from 'react';
 import { useCompiledSqlFromMetricQuery } from '../../../../hooks/useCompiledSql';
 import { useAiMergeCompiledSql } from './useAiMergeCompiledSql';
+import { useCanViewAiAgentSql } from './useCanViewAiAgentSql';
 
 type AiArtifactChartSource = {
     isMergeArtifact: boolean;
@@ -73,6 +75,7 @@ export const useAiArtifactCompiledSql = ({
     isMergeArtifact: boolean;
     vizQueryData: ApiAiAgentThreadMessageVizQuery | undefined;
 }): string | undefined => {
+    const canViewSql = useCanViewAiAgentSql();
     const { data: compiledSql } = useCompiledSqlFromMetricQuery({
         tableName: isMergeArtifact
             ? undefined
@@ -81,13 +84,19 @@ export const useAiArtifactCompiledSql = ({
         metricQuery: isMergeArtifact
             ? undefined
             : vizQueryData?.query.metricQuery,
+        enabled: canViewSql,
     });
     const { data: mergeCompiledSql } = useAiMergeCompiledSql(
         projectUuid,
-        isMergeArtifact ? vizQueryData : undefined,
+        isMergeArtifact && canViewSql ? vizQueryData : undefined,
     );
-    return isMergeArtifact
-        ? ((mergeCompiledSql && getMergeCompiledSqlText(mergeCompiledSql)) ??
-              undefined)
-        : compiledSql?.query;
+    const mergeSqlText = useMemo(
+        () =>
+            (mergeCompiledSql &&
+                getMergeCompiledSqlText(mergeCompiledSql, undefined)) ??
+            undefined,
+        [mergeCompiledSql],
+    );
+    if (!canViewSql) return undefined;
+    return isMergeArtifact ? mergeSqlText : compiledSql?.query;
 };

@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
-    FeatureFlags,
     type Notification,
     NotificationResourceType,
     ValidationErrorType,
@@ -19,7 +18,6 @@ import {
     DashboardCommentsNotifications,
     useGetNotifications,
 } from '../../../features/notifications';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
     useValidation,
     useValidationNotificationChecker,
@@ -81,11 +79,8 @@ export const NotificationsMenu: FC<{
                 organizationUuid: user.data.organizationUuid,
             }),
         ) ?? false;
-    const { data: aiCreditsFlag } = useServerFeatureFlag(
-        FeatureFlags.AiCredits,
-        { enabled: isOrgAdmin },
-    );
-    const canViewAiCreditAlerts = isOrgAdmin && !!aiCreditsFlag?.enabled;
+    // Allowance alerts only exist for organizations with a credit contract, so admins can always fetch them.
+    const canViewAiCreditAlerts = isOrgAdmin;
     const { data: aiCreditAllowanceNotifications } = useGetNotifications(
         NotificationResourceType.AiCreditAllowance,
         canViewAiCreditAlerts,

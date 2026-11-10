@@ -1,20 +1,24 @@
 import {
-    ContentType,
     contentToResourceViewItem,
     type SummaryContent,
 } from '@lightdash/common';
-import { Skeleton, Stack } from '@mantine/core';
-import {
-    IconChartBar,
-    IconClock,
-    IconLayoutDashboard,
-} from '@tabler/icons-react';
+import { Group, Skeleton, Stack } from '@mantine/core';
+import { IconClock } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
-import { getResourceUrl } from '../../../../components/common/ResourceView/resourceUtils';
+import { FavoriteActionIcon } from '../../../../components/common/FavoriteActionIcon';
+import { ResourceIcon } from '../../../../components/common/ResourceIcon';
+import {
+    getResourceUrl,
+    getResourceName,
+} from '../../../../components/common/ResourceView/resourceUtils';
 import TruncatedText from '../../../../components/common/TruncatedText';
 import { useProjectUrlIdentifier } from '../../../../hooks/useProjectRoute';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
+import {
+    useHomepageFavorites,
+    type HomepageFavorite,
+} from '../hooks/useHomepageFavorites';
 import { useRecentContents } from '../hooks/useRecentContents';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
@@ -24,10 +28,10 @@ const RecentRow: FC<{
     content: SummaryContent;
     projectUuid: string;
     viewedAt: Date | undefined;
-}> = ({ content, projectUuid, viewedAt }) => {
+    star: HomepageFavorite | undefined;
+}> = ({ content, projectUuid, viewedAt, star }) => {
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const timeAgo = useTimeAgo(viewedAt ?? new Date(0));
-    const isDashboard = content.contentType === ContentType.DASHBOARD;
     return (
         <Link
             to={getResourceUrl(
@@ -36,22 +40,42 @@ const RecentRow: FC<{
                 projectUrlIdentifier,
             )}
             className={`${classes.listRow} ${classes.clickable} ${classes.plainLink}`}
+            onClick={(event) => {
+                if (
+                    event.target instanceof Element &&
+                    event.target.closest('button')
+                ) {
+                    event.preventDefault();
+                }
+            }}
         >
             <div className={classes.iconSquare}>
-                {isDashboard ? (
-                    <IconLayoutDashboard size={16} />
-                ) : (
-                    <IconChartBar size={16} />
-                )}
+                <ResourceIcon item={contentToResourceViewItem(content)} />
             </div>
             <div className={classes.flexFill}>
-                <div className={classes.rowName}>
-                    <TruncatedText maxWidth="100%" inline fz="inherit">
-                        {content.name}
-                    </TruncatedText>
-                </div>
+                <Group gap={4} wrap="nowrap">
+                    <div className={classes.rowName}>
+                        <TruncatedText maxWidth="100%" inline fz="inherit">
+                            {content.name}
+                        </TruncatedText>
+                    </div>
+                    {star && (
+                        <FavoriteActionIcon
+                            size="sm"
+                            name={content.name}
+                            isFavorite={star.isFavorite}
+                            disabled={star.isLoading}
+                            className={classes.favoriteAction}
+                            onToggle={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                star.onToggle();
+                            }}
+                        />
+                    )}
+                </Group>
                 <div className={classes.rowMeta}>
-                    {isDashboard ? 'Dashboard' : 'Chart'}
+                    {getResourceName(content.contentType)}
                 </div>
             </div>
             {viewedAt ? (
@@ -63,6 +87,7 @@ const RecentRow: FC<{
 
 export const RecentList: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const { recents, contents, isLoading } = useRecentContents(projectUuid);
+    const starFor = useHomepageFavorites(projectUuid);
 
     if (isLoading) {
         return (
@@ -76,7 +101,7 @@ export const RecentList: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     if (contents.length === 0) {
         return (
             <div className={classes.dashedEmpty}>
-                Charts and dashboards you open will show up here.
+                Charts, dashboards and data apps you open will show up here.
             </div>
         );
     }
@@ -91,6 +116,7 @@ export const RecentList: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     content={content}
                     projectUuid={projectUuid}
                     viewedAt={viewedAtByUuid.get(content.uuid)}
+                    star={starFor(content)}
                 />
             ))}
         </div>
@@ -117,6 +143,7 @@ export const RecentBlockView: FC<BlockComponentProps> = ({
 export const RecentBlockBuild: FC<BuildComponentProps> = ({
     block,
     projectUuid,
+    onChange,
 }) => {
     if (block.type !== 'recent') return null;
     return (
@@ -124,13 +151,12 @@ export const RecentBlockBuild: FC<BuildComponentProps> = ({
             <BlockHeader
                 icon={IconClock}
                 title={block.config.title}
-                pill="Personal per viewer"
+                pill="Each viewer sees their own"
+                onTitleChange={(title) =>
+                    onChange({ ...block, config: { ...block.config, title } })
+                }
             />
             <RecentList projectUuid={projectUuid} />
-            <div className={classes.buildHint}>
-                Showing your recent activity as a sample — every viewer sees
-                their own.
-            </div>
         </Stack>
     );
 };

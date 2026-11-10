@@ -1,22 +1,57 @@
-import { type FC } from 'react';
+import { useEffect, useSyncExternalStore, type FC } from 'react';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
+import { useWhiteLabelBrand } from '../../hooks/organization/useWhiteLabelBrand';
 
 type Props = {
     title?: string;
 };
 
-const APP_NAME = 'Lightdash';
+const DEFAULT_APP_NAME = 'Lightdash';
 const PREFIX = import.meta.env.DEV ? '(DEV) ' : '';
 
+// Module-level store: the root DocumentTitle renders outside the query provider.
+let appName: string | null = null;
+const listeners = new Set<() => void>();
+const subscribe = (listener: () => void) => {
+    listeners.add(listener);
+    return () => {
+        listeners.delete(listener);
+    };
+};
+const getAppName = () => appName;
+
+const setAppName = (name: string | null) => {
+    if (name === appName) return;
+    appName = name;
+    listeners.forEach((listener) => listener());
+};
+
+export const BrandedAppNameSync: FC = () => {
+    const { name, isResolved } = useWhiteLabelBrand();
+    const brandName = isResolved ? name || DEFAULT_APP_NAME : null;
+    useEffect(() => {
+        setAppName(brandName);
+    }, [brandName]);
+    return null;
+};
+
 export const DocumentTitle: FC<Props> = ({ title }) => {
-    // The SDK renders inside the host's document, whose title is not ours.
+    // SDK embeds share the host's document, so leave its title alone.
     const { mode } = useEmbed();
+    const currentAppName = useSyncExternalStore(subscribe, getAppName);
     if (mode === 'sdk') {
         return null;
     }
+    // Iframe embeds are white-labelled: page title only, never the app name.
+    // The root title renders outside EmbedProvider, so detect them by route.
+    if (window.location.pathname.startsWith('/embed')) {
+        return title ? <title>{`${PREFIX}${title}`}</title> : null;
+    }
 
-    const fullTitle = title
-        ? `${PREFIX}${title} - ${APP_NAME}`
-        : `${PREFIX}${APP_NAME}`;
+    const fullTitle = currentAppName
+        ? title
+            ? `${PREFIX}${title} - ${currentAppName}`
+            : `${PREFIX}${currentAppName}`
+        : `${PREFIX}${title || 'Loading…'}`;
     return <title>{fullTitle}</title>;
 };

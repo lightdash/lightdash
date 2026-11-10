@@ -98,6 +98,12 @@
  * Titles come from the anchors' hints and the docs page; nothing else is
  * authored. The lesson compile test proves each snippet compiles.
  *
+ * Content-as-code lessons are not markers either. They are declared per scope
+ * in packages/frontend/src/features/learn/codeLessons.ts and become that
+ * scope's tour from a second fixed template (lessons.ts): download a seeded
+ * chart, open the file the download wrote and, with an edit, rename the
+ * chart in it, upload it and find it under its new name.
+ *
  * Titles come from the scope registry in @lightdash/common; explanatory text
  * comes from the docs page the marker cites. Nothing is invented at build time.
  * The recipe for adding a walkthrough is the repo skill
@@ -107,11 +113,18 @@
  */
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { CONTENT_AS_CODE_LESSONS } from '../../packages/frontend/src/features/learn/codeLessons';
 import { SANDBOX_LESSONS } from '../../packages/frontend/src/features/learn/sandboxLessons';
-import { buildTours, outputPath, root } from './lib';
+import { buildAllTours } from './lessons';
+import { outputPath, root } from './lib';
+import { releaseDays, releasedPath, renderReleased } from './released';
 
 const main = () => {
-    const { tours, markers } = buildTours(undefined, SANDBOX_LESSONS);
+    const { tours, markers } = buildAllTours(
+        undefined,
+        SANDBOX_LESSONS,
+        CONTENT_AS_CODE_LESSONS,
+    );
     const body = tours
         .map(
             (tour) =>
@@ -166,6 +179,14 @@ export type ScopeTourDefinition = {
     /** Frontend files whose markers produced the steps. */
     sources: string[];
     steps: ScopeTourStepDefinition[];
+    /**
+     * Other scopes this lesson teaches with the same controls
+     * (data-tour-covers). The library shows the lesson once, under this
+     * scope, and completing it completes every scope listed here.
+     */
+    covers?: string[];
+    /** The scope whose lesson this entry is a copy of; the library shows that one. */
+    coveredBy?: string;
 };
 
 export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = ${body ? `{\n${body}\n}` : '{}'};
@@ -174,6 +195,13 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = ${body ? `{\n${b
     console.log(
         `Wrote ${tours.length} scope tour(s) from ${markers.length} marker(s) to ${path.relative(root, outputPath)}`,
     );
+    // When each walkthrough was released, for the homepage's Newest modules:
+    // recorded days kept, new ones read from git (released.ts).
+    writeFileSync(
+        releasedPath,
+        renderReleased(releaseDays(tours.map((tour) => tour.scope))),
+    );
+    console.log(`Wrote release days to ${path.relative(root, releasedPath)}`);
 };
 
 main();

@@ -3,7 +3,12 @@ import moment from 'moment/moment';
 import { SupportedDbtAdapter } from '../types/dbt';
 import { CompileError } from '../types/errors';
 import { DimensionType, type TimestampDomain } from '../types/field';
-import { FilterOperator, UnitOfTime, type FilterRule } from '../types/filter';
+import {
+    FilterOperator,
+    UnitOfTime,
+    type DateFilterSettings,
+    type FilterRule,
+} from '../types/filter';
 import { TimeFrames } from '../types/timeFrames';
 import { WeekDay } from '../utils/timeFrames';
 import {
@@ -2847,6 +2852,192 @@ describe('Number Filter SQL Injection Prevention', () => {
     });
 });
 
+describe('in the current period bounds (toDate / excludeToday)', () => {
+    beforeAll(() => {
+        vi.useFakeTimers();
+    });
+    afterAll(() => {
+        vi.useRealTimers();
+    });
+
+    const render = ({
+        operator,
+        settings,
+        adapter,
+    }: {
+        operator: FilterOperator;
+        settings: DateFilterSettings;
+        adapter: SupportedDbtAdapter;
+    }) =>
+        renderDateFilterSql({
+            dimensionSql: DimensionSqlMock,
+            filter: {
+                id: 'id',
+                target: { fieldId: 'fieldId' },
+                operator,
+                values: [1],
+                settings,
+            },
+            adapterType: adapter,
+            timezone: 'UTC',
+            boundaryDateFormatter: formatTimestamp,
+        });
+
+    const monthStart = "('2020-04-01 00:00:00+00:00')";
+    const monthEnd = "('2020-04-30 23:59:59+00:00')";
+    const todayEnd = "('2020-04-04 23:59:59+00:00')";
+    const yesterdayEnd = "('2020-04-03 23:59:59+00:00')";
+    const range = (from: string, until: string) =>
+        `((customers.created) >= ${from} AND (customers.created) <= ${until})`;
+
+    describe.each([
+        ['postgres', SupportedDbtAdapter.POSTGRES],
+        ['bigquery', SupportedDbtAdapter.BIGQUERY],
+    ] as const)('on %s', (_name, adapter) => {
+        beforeEach(() => {
+            vi.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
+        });
+
+        test.each([
+            ['toDate off', { unitOfTime: UnitOfTime.months }, monthEnd],
+            [
+                'toDate explicitly false',
+                { unitOfTime: UnitOfTime.months, toDate: false },
+                monthEnd,
+            ],
+            [
+                'toDate on',
+                { unitOfTime: UnitOfTime.months, toDate: true },
+                todayEnd,
+            ],
+            [
+                'toDate on and excludeToday',
+                {
+                    unitOfTime: UnitOfTime.months,
+                    toDate: true,
+                    excludeToday: true,
+                },
+                yesterdayEnd,
+            ],
+            [
+                'excludeToday without toDate is the whole period',
+                { unitOfTime: UnitOfTime.months, excludeToday: true },
+                monthEnd,
+            ],
+        ] as const)(
+            'in the current month, %s',
+            (_label, settings, expectedUntil) => {
+                expect(
+                    render({
+                        operator: FilterOperator.IN_THE_CURRENT,
+                        settings,
+                        adapter,
+                    }),
+                ).toStrictEqual(range(monthStart, expectedUntil));
+                expect(
+                    render({
+                        operator: FilterOperator.NOT_IN_THE_CURRENT,
+                        settings,
+                        adapter,
+                    }),
+                ).toStrictEqual(`(NOT ${range(monthStart, expectedUntil)})`);
+            },
+        );
+
+        test('in the current year to date', () => {
+            expect(
+                render({
+                    operator: FilterOperator.IN_THE_CURRENT,
+                    settings: { unitOfTime: UnitOfTime.years, toDate: true },
+                    adapter,
+                }),
+            ).toStrictEqual(range("('2020-01-01 00:00:00+00:00')", todayEnd));
+        });
+
+        test('toDate is ignored for units of a day or finer', () => {
+            expect(
+                render({
+                    operator: FilterOperator.IN_THE_CURRENT,
+                    settings: {
+                        unitOfTime: UnitOfTime.hours,
+                        toDate: true,
+                        excludeToday: true,
+                    },
+                    adapter,
+                }),
+            ).toStrictEqual(
+                range(
+                    "('2020-04-04 06:00:00+00:00')",
+                    "('2020-04-04 06:59:59+00:00')",
+                ),
+            );
+        });
+
+        test('week to date uses the configured start of week', () => {
+            expect(
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: {
+                        id: 'id',
+                        target: { fieldId: 'fieldId' },
+                        operator: FilterOperator.IN_THE_CURRENT,
+                        values: [1],
+                        settings: {
+                            unitOfTime: UnitOfTime.weeks,
+                            toDate: true,
+                        },
+                    },
+                    adapterType: adapter,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                    startOfWeek: WeekDay.SUNDAY,
+                }),
+            ).toStrictEqual(range("('2020-03-29 00:00:00+00:00')", todayEnd));
+        });
+
+        test('first day of the month with excludeToday emits an empty range', () => {
+            vi.setSystemTime(new Date('01 Apr 2020 06:12:30 GMT').getTime());
+            expect(
+                render({
+                    operator: FilterOperator.IN_THE_CURRENT,
+                    settings: {
+                        unitOfTime: UnitOfTime.months,
+                        toDate: true,
+                        excludeToday: true,
+                    },
+                    adapter,
+                }),
+            ).toStrictEqual(range(monthStart, "('2020-03-31 23:59:59+00:00')"));
+        });
+    });
+
+    test('today is computed in the query timezone', () => {
+        vi.setSystemTime(new Date('04 Apr 2020 23:30:00 GMT').getTime());
+        expect(
+            renderDateFilterSql({
+                dimensionSql: 'event_date',
+                filter: {
+                    id: 'id',
+                    target: {},
+                    operator: FilterOperator.IN_THE_CURRENT,
+                    values: [1],
+                    settings: {
+                        unitOfTime: UnitOfTime.months,
+                        toDate: true,
+                        excludeToday: true,
+                    },
+                },
+                adapterType: SupportedDbtAdapter.POSTGRES,
+                timezone: 'Asia/Tokyo',
+                boundaryDateFormatter:
+                    createBoundaryDateFormatter('Asia/Tokyo'),
+            }),
+        ).toBe(
+            "((event_date) >= ('2020-04-01') AND (event_date) <= ('2020-04-04'))",
+        );
+    });
+});
+
 describe('DATE dimension filters are server-timezone-independent', () => {
     // Regression: the default boundaryFormatter (formatDate) used moment(date)
     // which formats in the server's local timezone. On a server with a positive
@@ -3978,5 +4169,108 @@ describe('resolveTimestampFilterContext', () => {
                 ).toStrictEqual({ mode: 'legacy', instantLhs: false });
             },
         );
+    });
+});
+
+describe('blank date and timestamp filter values', () => {
+    const valueOperators = [
+        FilterOperator.EQUALS,
+        FilterOperator.NOT_EQUALS,
+        FilterOperator.GREATER_THAN,
+        FilterOperator.GREATER_THAN_OR_EQUAL,
+        FilterOperator.LESS_THAN,
+        FilterOperator.LESS_THAN_OR_EQUAL,
+        FilterOperator.IN_BETWEEN,
+    ];
+    const blankValues: Record<string, unknown[] | undefined> = {
+        'missing values': undefined,
+        'empty array': [],
+        'null value': [null],
+        'empty string': [''],
+    };
+    const cases = valueOperators.flatMap((operator) =>
+        Object.entries(blankValues).map(([label, values]) => ({
+            operator,
+            label,
+            values,
+        })),
+    );
+
+    test.each(cases)(
+        'date $operator with $label does not filter rows',
+        ({ operator, values }) => {
+            expect(
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: { id: 'id', target: {}, operator, values },
+                    adapterType: adapterType.default,
+                    timezone: 'UTC',
+                }),
+            ).toBe('true');
+        },
+    );
+
+    test.each(cases)(
+        'timestamp $operator with $label does not filter rows',
+        ({ operator, values }) => {
+            expect(
+                renderTimestampFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: { id: 'id', target: {}, operator, values },
+                    adapterType: adapterType.default,
+                    timezone: 'UTC',
+                    timestampFormatter: formatTimestamp,
+                }),
+            ).toBe('true');
+        },
+    );
+
+    test('selected period equals with a blank value does not filter rows', () => {
+        expect(
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: {
+                    id: 'id',
+                    target: {},
+                    operator: FilterOperator.EQUALS,
+                    values: [],
+                    settings: { selectedPeriod: UnitOfTime.months },
+                },
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
+        ).toBe('true');
+    });
+
+    test('blank entries in a multi-value equals are ignored', () => {
+        expect(
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: {
+                    id: 'id',
+                    target: {},
+                    operator: FilterOperator.EQUALS,
+                    values: ['2020-04-03', null, ''],
+                },
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
+        ).toBe(`(${DimensionSqlMock}) = ('2020-04-03')`);
+    });
+
+    test('in between with only one bound does not filter rows', () => {
+        expect(
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: {
+                    id: 'id',
+                    target: {},
+                    operator: FilterOperator.IN_BETWEEN,
+                    values: ['2020-04-03'],
+                },
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
+        ).toBe('true');
     });
 });

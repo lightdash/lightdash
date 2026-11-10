@@ -131,7 +131,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                             Edit category
                         </Text>
                         <CloseButton
-                            size={44}
+                            mod="touch-dismiss"
                             aria-label={getUiString(
                                 'metrics.closeCategoryEditor',
                             )}
@@ -264,9 +264,7 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
                 >
                     <Box
                         p="xxs"
-                        style={{
-                            visibility: hovered ? 'visible' : 'hidden',
-                        }}
+                        className={hovered ? undefined : styles.hiddenIcon}
                     >
                         <MantineIcon icon={IconCode} color="dimmed" size={14} />
                     </Box>

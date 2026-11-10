@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    getCellUrls,
     hasCustomBinDimension,
     isCustomDimension,
     isDimension,
@@ -9,11 +10,15 @@ import {
     type ResultValue,
     type TableCalculation,
 } from '@lightdash/common';
-import { Menu } from '@mantine/core';
+import { Menu, Text } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
-import mapValues from 'lodash/mapValues';
+import { mapValues } from 'es-toolkit/compat';
 import { useCallback, useMemo, type FC } from 'react';
+import {
+    NOT_ON_LIVE_SOURCES,
+    useApiSourceExplore,
+} from '../../../features/externalConnections/liveSources/apiSourceExplore';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { useMergeQuickFilter } from '../../../features/mergeQuery/hooks/useMergeQuickFilter';
 import { useMergeSourceCell } from '../../../features/mergeQuery/hooks/useMergeSourceCell';
@@ -39,7 +44,6 @@ import UrlMenuItems from './UrlMenuItems';
 const CellContextMenu: FC<
     Pick<CellContextMenuProps, 'cell' | 'isEditMode' | 'onViewJsonCell'> & {
         itemsMap: Record<string, Field | TableCalculation>;
-        onExpand: (name: string, data: object) => void;
     }
 > = ({ cell, isEditMode, itemsMap, onViewJsonCell }) => {
     const merge = useMergeSafe();
@@ -47,8 +51,9 @@ const CellContextMenu: FC<
     const mergeQuickFilter = useMergeQuickFilter();
     const { openUnderlyingDataModal, metricQuery, tableName } =
         useMetricQueryDataContext();
+    const isLiveSource = useApiSourceExplore(tableName) !== null;
     const { track } = useTracking();
-    const { showToastError, showToastSuccess } = useToaster();
+    const { showToastSuccess } = useToaster();
     const clipboard = useClipboard({ timeout: 2000 });
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
@@ -77,12 +82,16 @@ const CellContextMenu: FC<
         [cell],
     );
 
+    const urls = useMemo(
+        () => getCellUrls(isField(item) ? item.urls : undefined, value.raw),
+        [item, value],
+    );
+
     const fieldValues = useMemo(
         () => mapValues(cell.row.original, (v) => v?.value) || {},
         [cell.row.original],
     );
-    const { prepareUnderlyingData, resolve: resolveMergeSourceCell } =
-        useMergeSourceCell();
+    const { resolve: resolveMergeSourceCell } = useMergeSourceCell();
     const resolvedSourceCell = useMemo(
         () =>
             isMerged && item && isField(item)
@@ -98,32 +107,9 @@ const CellContextMenu: FC<
         showToastSuccess({ title: 'Copied to clipboard!' });
     }, [value, clipboard, showToastSuccess]);
 
-    const handleViewUnderlyingData = useCallback(async () => {
+    const handleViewUnderlyingData = useCallback(() => {
         if (meta?.item === undefined) return;
-        if (isMerged) {
-            if (!resolvedSourceCell) return;
-            try {
-                const prepared =
-                    await prepareUnderlyingData(resolvedSourceCell);
-                openUnderlyingDataModal({
-                    item: prepared.item,
-                    value,
-                    fieldValues: prepared.fieldValues,
-                    source: prepared.source,
-                });
-            } catch {
-                showToastError({
-                    title: 'Could not open underlying data',
-                });
-                return;
-            }
-        } else {
-            openUnderlyingDataModal({
-                item: meta.item,
-                value,
-                fieldValues,
-            });
-        }
+        openUnderlyingDataModal({ item: meta.item, value, fieldValues });
         track({
             name: EventName.VIEW_UNDERLYING_DATA_CLICKED,
             properties: {
@@ -140,10 +126,6 @@ const CellContextMenu: FC<
         track,
         user,
         projectUuid,
-        isMerged,
-        prepareUnderlyingData,
-        resolvedSourceCell,
-        showToastError,
     ]);
 
     const jsonValue =
@@ -151,14 +133,12 @@ const CellContextMenu: FC<
 
     return (
         <>
-            {value.raw !== undefined && value.raw !== null && isField(item) && (
-                <UrlMenuItems
-                    urls={item.urls}
-                    cell={cell}
-                    itemsMap={itemsMap}
-                />
+            {urls.length > 0 && (
+                <>
+                    <UrlMenuItems urls={urls} cell={cell} itemsMap={itemsMap} />
+                    <Menu.Divider />
+                </>
             )}
-            {isField(item) && (item.urls || []).length > 0 && <Menu.Divider />}
             <Menu.Item
                 leftSection={<MantineIcon icon={IconCopy} />}
                 onClick={handleCopyToClipboard}
@@ -185,6 +165,7 @@ const CellContextMenu: FC<
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconStack} />}
                             onClick={handleViewUnderlyingData}
+                            disabled={isLiveSource}
                             // Walkthrough action for view:UnderlyingData:
                             // the records behind a number. See
                             // scripts/scope-tours.
@@ -198,6 +179,11 @@ const CellContextMenu: FC<
                             data-tour-docs="explore/dashboards/interact.mdx#view-underlying-data:1"
                         >
                             View underlying data
+                            {isLiveSource && (
+                                <Text fz="xs" c="dimmed">
+                                    {NOT_ON_LIVE_SOURCES}
+                                </Text>
+                            )}
                         </Menu.Item>
                     </Can>
                 )}

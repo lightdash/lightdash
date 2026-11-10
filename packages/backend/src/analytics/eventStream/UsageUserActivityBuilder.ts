@@ -11,11 +11,15 @@ import Logger from '../../logging/logger';
 import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import type { StreamName } from './projection';
 import { compactedStreamSchemas } from './registry';
+import {
+    MAX_HISTORY_PARTITIONS_PER_RUN,
+    MAX_PARTITIONS_PER_RUN,
+} from './usageProcessingLimits';
+import { usageProcessingStartDate } from './usageProcessingWindow';
 import { analyticsStreams, userActivityKey } from './userActivity';
 
 const literal = (value: string) => `'${value.replace(/'/g, "''")}'`;
 const MAX_FILES_PER_DAY = 10_000;
-const MAX_CHANGED_PARTITIONS = 500;
 const DAY_MS = 86_400_000;
 const MODEL_VERSION = '1';
 export type UserActivitySummary = {
@@ -68,7 +72,7 @@ export const validateUserActivityRange = (
     );
 };
 
-const buildUserActivitySql = (
+export const buildUserActivitySql = (
     orgId: string,
     stream: StreamName,
     date: string,
@@ -97,6 +101,7 @@ const buildUserActivitySql = (
             ${tokens.map((name) => `${stream === 'ai_usage' ? `sum("${name}")` : 'NULL'}::BIGINT AS "${name}"`).join(', ')}
         FROM (${input}) events
         WHERE org_id = ${literal(orgId)}
+            ${stream === 'data_app_events' ? "AND event_name <> 'data_app.view_outcome'" : ''}
             AND event_ts >= ${literal(date)}::TIMESTAMP
             AND event_ts < ${literal(date)}::TIMESTAMP + INTERVAL 1 DAY
         GROUP BY org_id, project_id, user_id, event_name${stream === 'export_events' ? ', format' : ''}
@@ -160,32 +165,70 @@ export class UsageUserActivityBuilder extends S3BaseClient {
     }
 
     /** Discover stored partitions directly; empty organizations require no requests. */
-    async runAll(now = new Date()): Promise<UserActivitySummary> {
+    async runAll(
+        now: Date,
+        orgIds: string[],
+        onOrganizationFinished?: (
+            organizationUuid: string,
+            summary: UserActivitySummary,
+            completed: boolean,
+        ) => void,
+        includeHistory = false,
+    ): Promise<UserActivitySummary> {
         const summary = emptySummary();
+        const limit = includeHistory
+            ? MAX_HISTORY_PARTITIONS_PER_RUN
+            : MAX_PARTITIONS_PER_RUN;
         try {
-            // eslint-disable-next-line no-restricted-syntax
-            for await (const { orgId, stream, date } of this.closedPartitions(
-                now,
-            )) {
-                if (
-                    summary.published + summary.failed >=
-                    MAX_CHANGED_PARTITIONS
-                ) {
-                    Logger.warn(
-                        'User activity refresh reached its 500-partition work limit; remaining partitions will be retried on the next run',
-                    );
-                    summary.limitReached = true;
-                    break;
-                }
+            for (const orgId of orgIds) {
+                const organizationSummary = emptySummary();
+                let completed = false;
                 try {
-                    // eslint-disable-next-line no-await-in-loop
-                    const outcome = await this.refresh(orgId, stream, date);
-                    summary[outcome] += 1;
-                } catch {
-                    summary.failed += 1;
-                    // Native/SDK error messages can include credentials or SQL data.
-                    Logger.error(
-                        `User activity failed for org_id=${orgId}/stream=${stream}/dt=${date}; previous output retained`,
+                    if (summary.limitReached) {
+                        organizationSummary.limitReached = true;
+                    } else {
+                        // eslint-disable-next-line no-restricted-syntax, no-await-in-loop
+                        for await (const {
+                            stream,
+                            date,
+                        } of this.closedPartitions(
+                            now,
+                            [orgId],
+                            includeHistory,
+                        )) {
+                            if (summary.published + summary.failed >= limit) {
+                                Logger.warn(
+                                    `User activity refresh reached its ${limit}-partition work limit; remaining partitions will be retried on the next run`,
+                                );
+                                summary.limitReached = true;
+                                organizationSummary.limitReached = true;
+                                break;
+                            }
+                            try {
+                                // eslint-disable-next-line no-await-in-loop
+                                const outcome = await this.refresh(
+                                    orgId,
+                                    stream,
+                                    date,
+                                );
+                                summary[outcome] += 1;
+                                organizationSummary[outcome] += 1;
+                            } catch {
+                                summary.failed += 1;
+                                organizationSummary.failed += 1;
+                                // Native/SDK errors can include credentials or SQL data.
+                                Logger.error(
+                                    `User activity failed for org_id=${orgId}/stream=${stream}/dt=${date}; previous output retained`,
+                                );
+                            }
+                        }
+                        completed = true;
+                    }
+                } finally {
+                    onOrganizationFinished?.(
+                        orgId,
+                        organizationSummary,
+                        completed,
                     );
                 }
             }
@@ -196,48 +239,63 @@ export class UsageUserActivityBuilder extends S3BaseClient {
         }
     }
 
-    private async *closedPartitions(now: Date) {
-        const prefix = 'events/compacted/';
+    private async *closedPartitions(
+        now: Date,
+        orgIds: string[],
+        includeHistory: boolean,
+    ) {
         const today = now.toISOString().slice(0, 10);
-        let token: string | undefined;
-        let pages = 0;
-        let previousPartition: string | undefined;
-        // General-purpose S3/GCS listings are ordered by key. Keep only the last
-        // partition across pages; never materialize the bucket inventory in JS.
-        do {
-            // eslint-disable-next-line no-await-in-loop
-            const page = await this.s3!.listObjectsV2({
-                Bucket: this.storage.bucket,
-                Prefix: prefix,
-                MaxKeys: 1000,
-                ContinuationToken: token,
-            });
-            for (const { Key: key } of page.Contents ?? []) {
-                if (!key?.startsWith(prefix))
-                    throw new Error('Unexpected user activity source scope');
-                const match =
-                    /^org_id=([^/]+)\/stream=([^/]+)\/dt=(\d{4}-\d{2}-\d{2})\/[^/]+\.parquet$/.exec(
-                        key.slice(prefix.length),
-                    );
-                if (
-                    match &&
-                    match[3] < today &&
-                    analyticsStreams.some((stream) => stream === match[2])
-                ) {
-                    const [, orgId, stream, date] = match;
-                    const partition = `${orgId}/${stream}/${date}`;
-                    if (partition !== previousPartition) {
-                        validateUserActivityRange(orgId, date, date, now);
-                        previousPartition = partition;
-                        yield { orgId, stream: stream as StreamName, date };
+        const start = usageProcessingStartDate(now);
+        for (const orgId of orgIds) {
+            validateUserActivityRange(orgId, start, start, now);
+            for (const stream of analyticsStreams) {
+                const prefix = `events/compacted/org_id=${orgId}/stream=${stream}/`;
+                let token: string | undefined;
+                let pages = 0;
+                let previousDate: string | undefined;
+                do {
+                    // eslint-disable-next-line no-await-in-loop
+                    const page = await this.s3!.listObjectsV2({
+                        Bucket: this.storage.bucket,
+                        Prefix: prefix,
+                        StartAfter: includeHistory
+                            ? undefined
+                            : `${prefix}dt=${start}/`,
+                        MaxKeys: 1000,
+                        ContinuationToken: token,
+                    });
+                    for (const { Key: key } of page.Contents ?? []) {
+                        if (!key?.startsWith(prefix))
+                            throw new Error(
+                                'Unexpected user activity source scope',
+                            );
+                        const match =
+                            /^dt=(\d{4}-\d{2}-\d{2})\/[^/]+\.parquet$/.exec(
+                                key.slice(prefix.length),
+                            );
+                        if (
+                            match &&
+                            (includeHistory || match[1] >= start) &&
+                            match[1] < today &&
+                            match[1] !== previousDate
+                        ) {
+                            const date = match[1];
+                            validateUserActivityRange(orgId, date, date, now);
+                            previousDate = date;
+                            yield { orgId, stream, date };
+                        }
                     }
-                }
+                    pages += 1;
+                    token = page.IsTruncated
+                        ? page.NextContinuationToken
+                        : undefined;
+                    if (page.IsTruncated && (!token || pages >= 10_000))
+                        throw new Error(
+                            'Incomplete user activity partition listing',
+                        );
+                } while (token);
             }
-            pages += 1;
-            token = page.IsTruncated ? page.NextContinuationToken : undefined;
-            if (page.IsTruncated && (!token || pages >= 10_000))
-                throw new Error('Incomplete user activity partition listing');
-        } while (token);
+        }
     }
 
     private async refresh(

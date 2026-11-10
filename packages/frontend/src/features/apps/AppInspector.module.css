@@ -7,15 +7,8 @@
     border-radius: var(--mantine-radius-md);
     overflow: hidden;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
-
-    @mixin light {
-        background-color: var(--mantine-color-white);
-        border: 1px solid var(--mantine-color-ldGray-2);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-dark-7);
-        border: 1px solid var(--mantine-color-ldDark-4);
-    }
+    background-color: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-default-border);
 }
 
 /* Collapsed: size to the title-bar content (tabs + actions), anchored
@@ -28,17 +21,50 @@
     );
 }
 
+/* In flow below the preview, so it never covers app content. */
+.containerDocked {
+    position: relative;
+    inset: auto;
+    flex-shrink: 0;
+    border: none;
+    border-top: 1px solid var(--mantine-color-default-border);
+    border-radius: 0;
+    box-shadow: none;
+}
+
+/* Collapsed docked bar: the whole row toggles the inspector open. */
+.dockedToggle {
+    display: flex;
+    align-items: center;
+    gap: rem(6px);
+    width: 100%;
+    min-height: rem(36px);
+    padding: 0 var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-sm);
+    font-size: var(--mantine-font-size-xs);
+    line-height: rem(20px);
+    color: var(--mantine-color-dimmed);
+
+    &:hover {
+        color: var(--mantine-color-text);
+        background-color: var(--mantine-color-default-hover);
+    }
+}
+
+.dockedChevron {
+    margin-left: auto;
+}
+
+.containerDocked .titleBar {
+    padding: rem(4px) 0;
+    border-bottom-color: transparent;
+}
+
 .titleBar {
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
     cursor: pointer;
     user-select: none;
-
-    @mixin light {
-        border-bottom: 1px solid var(--mantine-color-ldGray-1);
-    }
-    @mixin dark {
-        border-bottom: 1px solid var(--mantine-color-ldDark-4);
-    }
+    border-bottom: 1px solid var(--mantine-color-ldGray-1);
 }
 
 /* Segmented-control-style tab switcher: a subtle track holding two pills,
@@ -49,13 +75,7 @@
     min-width: 0;
     padding: 2px;
     border-radius: var(--mantine-radius-md);
-
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-1);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-dark-8);
-    }
+    background-color: var(--mantine-color-ldGray-1);
 }
 
 .tab {
@@ -81,47 +101,24 @@
         box-shadow 120ms ease;
 
     &:hover:not(.tabActive) {
-        @mixin light {
-            color: var(--mantine-color-dark-6);
-        }
-        @mixin dark {
-            color: var(--mantine-color-gray-3);
-        }
+        color: var(--mantine-color-text);
     }
 }
 
 .tabActive {
-    @mixin light {
-        background-color: var(--mantine-color-white);
-        color: var(--mantine-color-dark-9);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-dark-5);
-        color: var(--mantine-color-white);
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-    }
+    background-color: var(--mantine-color-body);
+    color: var(--mantine-color-text);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
 .resizeHandle {
     height: 4px;
     cursor: ns-resize;
     flex-shrink: 0;
-
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-1);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-ldDark-4);
-    }
+    background-color: var(--mantine-color-ldGray-1);
 
     &:hover {
-        @mixin light {
-            background-color: var(--mantine-color-ldGray-3);
-        }
-        @mixin dark {
-            background-color: var(--mantine-color-ldDark-3);
-        }
+        background-color: var(--mantine-color-ldGray-3);
     }
 }
 
@@ -138,12 +135,7 @@
 }
 
 .queryRow {
-    @mixin light {
-        border-bottom: 1px solid var(--mantine-color-ldGray-1);
-    }
-    @mixin dark {
-        border-bottom: 1px solid var(--mantine-color-ldDark-4);
-    }
+    border-bottom: 1px solid var(--mantine-color-ldGray-1);
 
     &:last-child {
         border-bottom: none;
@@ -174,22 +166,12 @@
     user-select: none;
 
     &:hover {
-        @mixin light {
-            background-color: var(--mantine-color-ldGray-0);
-        }
-        @mixin dark {
-            background-color: var(--mantine-color-dark-6);
-        }
+        background-color: var(--mantine-color-default-hover);
     }
 }
 
 .queryDetailsRow {
-    @mixin light {
-        background-color: var(--mantine-color-ldGray-0);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-dark-8);
-    }
+    background-color: var(--mantine-color-ldGray-0);
 }
 
 .queryDetails {
@@ -207,13 +189,7 @@
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
     flex-shrink: 0;
     width: 30%;
-
-    @mixin light {
-        border-left: 1px solid var(--mantine-color-ldGray-2);
-    }
-    @mixin dark {
-        border-left: 1px solid var(--mantine-color-ldDark-4);
-    }
+    border-left: 1px solid var(--mantine-color-default-border);
 }
 
 .rawJsonToggle {

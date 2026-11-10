@@ -11,6 +11,7 @@ import {
     ApiAiAgentArtifactResponseTSOACompat,
     ApiAiAgentArtifactVizQueryResponse,
     ApiAiAgentAvatarUploadResponse,
+    ApiAiAgentComposerArtifactVizQueryResponse,
     ApiAiAgentEvaluationResponse,
     ApiAiAgentEvaluationRunResponse,
     ApiAiAgentEvaluationRunResultsResponse,
@@ -20,11 +21,13 @@ import {
     ApiAiAgentMcpServerToolListResponse,
     ApiAiAgentMemoryResponse,
     ApiAiAgentModelOptionsResponse,
+    ApiAiAgentNodeCitationPipelineResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentResponse,
     ApiAiAgentSqlApprovalRequest,
     ApiAiAgentSqlApprovalResponse,
     ApiAiAgentSummaryResponse,
+    ApiAiAgentThreadComposerNodesResponse,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadCreateResponse,
     ApiAiAgentThreadDataAppRestoreRequest,
@@ -46,6 +49,7 @@ import {
     ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
+    ApiAiAgentVisualizeSlackPreviewRequest,
     ApiAiMcpGithubAvailabilityResponse,
     ApiAiMcpOAuthCredentialRequest,
     ApiAiMcpServerListResponse,
@@ -72,6 +76,7 @@ import {
     ApiUpdateAiAgent,
     ApiUpdateAiAgentMcpServerToolsRequest,
     ApiUpdateAiMcpServerCredentialBody,
+    ApiUpdateComposerVizConfigRequest,
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
     ApiUpdateUserAgentPreferencesResponse,
@@ -79,7 +84,9 @@ import {
     assertRegisteredAccount,
     ForbiddenError,
     KnexPaginateArgs,
+    LightdashClientHeader,
     ParameterError,
+    QueryNodeId,
     type UUID,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -99,14 +106,18 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { Readable } from 'stream';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
     unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
+import { type ApiGetAsyncQueryResultsResponse } from '../../controllers/v2/QueryController';
 import Logger from '../../logging/logger';
+import { parseLightdashClient } from '../../utils/clientHeader';
 import { type AiAgentCoderService } from '../services/AiAgentCoderService/AiAgentCoderService';
 import { type AiAgentMemoryService } from '../services/AiAgentMemoryService/AiAgentMemoryService';
 import { type AiAgentService } from '../services/AiAgentService/AiAgentService';
@@ -124,7 +135,11 @@ const parseSuggestionContext = (context: string | undefined) => {
 @Route('/api/v1/projects/{projectUuid}/aiAgents')
 @Response<ApiErrorPayload>('default', 'Error')
 export class AiAgentController extends BaseController {
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.listAgents'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/')
     @OperationId('listAgents')
@@ -155,6 +170,30 @@ export class AiAgentController extends BaseController {
         };
     }
 
+    /**
+     * Draw rows with a visualize-tool viz config as the Slack chart image, for debugging the Slack renderer.
+     * @summary Preview visualize Slack chart
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/visualize/slack-preview')
+    @OperationId('previewVisualizeSlackChart')
+    async previewVisualizeSlackChart(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: ApiAiAgentVisualizeSlackPreviewRequest,
+    ): Promise<Readable> {
+        assertRegisteredAccount(req.account);
+        const image = await this.getAiAgentService().previewVisualizeSlackChart(
+            req.account,
+            projectUuid,
+            body,
+        );
+        this.setStatus(200);
+        this.setHeader('Content-Type', 'image/png');
+        return Readable.from(image);
+    }
+
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/preferences')
@@ -177,7 +216,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.setUserDefaultAgent'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/preferences')
     @OperationId('updateUserAgentPreferences')
@@ -199,7 +242,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.deleteUserAgentPreferences',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Delete('/preferences')
     @OperationId('deleteUserAgentPreferences')
@@ -344,7 +393,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.getGithubMcpAvailability',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/mcpServers/github/availability')
     @OperationId('getGithubMcpAvailability')
@@ -516,7 +571,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.listProjectThreads'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/threads')
     @OperationId('listProjectThreads')
@@ -553,7 +612,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.getAgentThreadLiveStatuses',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/threads/live-statuses')
     @OperationId('getAgentThreadLiveStatuses')
@@ -579,7 +644,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getAgent'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}')
     @OperationId('getAgent')
@@ -638,7 +707,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.listAgentMcpServers'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/mcpServers')
     @OperationId('listAgentMcpServers')
@@ -711,7 +784,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getModelOptions'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/models')
     @OperationId('getModelOptions')
@@ -747,7 +824,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getAgentSuggestions'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/suggestions')
     @OperationId('getAgentSuggestions')
@@ -771,7 +852,7 @@ export class AiAgentController extends BaseController {
             );
             return {
                 status: 'ok',
-                results: { chips: [] },
+                results: { chips: [], source: 'none' },
             };
         }
 
@@ -785,6 +866,10 @@ export class AiAgentController extends BaseController {
                 afterMessageUuid,
                 enableSqlMode,
                 context: parseSuggestionContext(context),
+                client: parseLightdashClient({
+                    header: req.header(LightdashClientHeader),
+                    userAgent: req.header('user-agent'),
+                }),
             },
         );
         return {
@@ -816,7 +901,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getVerifiedArtifacts'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/verified-artifacts')
     @OperationId('getVerifiedArtifacts')
@@ -1016,7 +1105,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.listAgentThreads'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/threads')
     @OperationId('listAgentThreads')
@@ -1051,7 +1144,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getAgentThread'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/threads/{threadUuid}')
     @OperationId('getAgentThread')
@@ -1207,7 +1304,13 @@ export class AiAgentController extends BaseController {
      * agent opened in this thread, or the PR a verification thread verifies.
      * @summary Get AI agent thread pull request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.getAgentThreadPullRequest',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/threads/{threadUuid}/pull-request')
     @OperationId('getAgentThreadPullRequest')
@@ -1235,7 +1338,13 @@ export class AiAgentController extends BaseController {
      * can drive several PRs across one or more repos.
      * @summary List AI agent thread pull requests
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.listAgentThreadWorkstreams',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/threads/{threadUuid}/pull-requests')
     @OperationId('listAgentThreadWorkstreams')
@@ -1257,7 +1366,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.createAgentThread'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/threads')
     @OperationId('createAgentThread')
@@ -1294,7 +1407,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.createAgentThreadMessage',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/threads/{threadUuid}/messages')
     @OperationId('createAgentThreadMessage')
@@ -1398,7 +1517,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.streamAgentThreadResponse',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/threads/{threadUuid}/stream')
     @OperationId('streamAgentThreadResponse')
@@ -1489,7 +1614,13 @@ export class AiAgentController extends BaseController {
         req.on('aborted', handleClientDisconnect);
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.interruptAgentThreadMessage',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/interrupt')
     @OperationId('interruptAgentThreadMessage')
@@ -1500,14 +1631,9 @@ export class AiAgentController extends BaseController {
         @Path() threadUuid: string,
         @Path() messageUuid: string,
     ): Promise<ApiAiAgentThreadMessageInterruptResponse> {
-        assertRegisteredAccount(req.account);
         await this.getAiAgentService().interruptAgentThreadMessage(
-            toSessionUser(req.account),
-            {
-                agentUuid,
-                threadUuid,
-                messageUuid,
-            },
+            req.account!,
+            { projectUuid, agentUuid, threadUuid, messageUuid },
         );
         this.setStatus(200);
         return {
@@ -1516,7 +1642,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.createAgentThreadMessageSteer',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/steers')
     @OperationId('createAgentThreadMessageSteer')
@@ -1528,11 +1660,11 @@ export class AiAgentController extends BaseController {
         @Path() messageUuid: string,
         @Body() body: ApiCreateAiAgentThreadMessageSteer,
     ): Promise<ApiAiAgentThreadMessageSteerResponse> {
-        assertRegisteredAccount(req.account);
         const steer =
             await this.getAiAgentService().createAgentThreadMessageSteer(
-                toSessionUser(req.account),
+                req.account!,
                 {
+                    projectUuid,
                     agentUuid,
                     threadUuid,
                     messageUuid,
@@ -1546,7 +1678,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.generateAgentThreadResponse',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/threads/{threadUuid}/generate')
     @OperationId('generateAgentThreadResponse')
@@ -1577,7 +1715,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.generateAgentThreadTitle',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/threads/{threadUuid}/generate-title')
     @OperationId('generateAgentThreadTitle')
@@ -1606,7 +1750,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.cloneAgentThread'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/threads/{threadUuid}/clone/{promptUuid}')
     @OperationId('cloneAgentThread')
@@ -1635,7 +1783,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.updateAgentThreadMessageSavedQuery',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Patch(
         '/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/savedQuery',
@@ -1682,7 +1836,206 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    /**
+     * List the composer query node ids registered in a thread, used to resolve node citations.
+     * @summary Get AI agent thread composer node ids
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.getAgentThreadComposerNodes',
+        ),
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get('/{agentUuid}/threads/{threadUuid}/nodes')
+    @OperationId('getAgentThreadComposerNodes')
+    async getAgentThreadComposerNodes(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() threadUuid: UUID,
+    ): Promise<ApiAiAgentThreadComposerNodesResponse> {
+        this.setStatus(200);
+        const args = { agentUuid, threadUuid };
+
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            return {
+                status: 'ok',
+                results:
+                    await this.getAiAgentService().getEmbedThreadComposerNodes(
+                        req.account,
+                        projectUuid,
+                        args,
+                    ),
+            };
+        }
+
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getThreadComposerNodes(
+                toSessionUser(req.account),
+                { ...args, projectUuid, runtimeOptions: null },
+            ),
+        };
+    }
+
+    /**
+     * Get a cited node's pipeline: the node and everything it reads.
+     * @summary Get AI agent node citation pipeline
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.getAgentThreadNodeCitationPipeline',
+        ),
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/nodes/{nodeId}',
+    )
+    @OperationId('getAgentThreadNodeCitationPipeline')
+    async getAgentThreadNodeCitationPipeline(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() threadUuid: UUID,
+        @Path() messageUuid: UUID,
+        @Path() nodeId: QueryNodeId,
+    ): Promise<ApiAiAgentNodeCitationPipelineResponse> {
+        this.setStatus(200);
+        const args = { agentUuid, threadUuid, messageUuid, nodeId };
+
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            return {
+                status: 'ok',
+                results:
+                    await this.getAiAgentService().getEmbedNodeCitationPipeline(
+                        req.account,
+                        projectUuid,
+                        args,
+                    ),
+            };
+        }
+
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getNodeCitationPipeline(
+                toSessionUser(req.account),
+                { ...args, projectUuid, runtimeOptions: null },
+            ),
+        };
+    }
+
+    /**
+     * Run a cited node and what it reads for preview; returns each node's queryUuid.
+     * @summary Get AI agent node citation viz query
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.getAgentThreadNodeCitationVizQuery',
+        ),
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/nodes/{nodeId}/viz-query',
+    )
+    @OperationId('getAgentThreadNodeCitationVizQuery')
+    async getAgentThreadNodeCitationVizQuery(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() threadUuid: UUID,
+        @Path() messageUuid: UUID,
+        @Path() nodeId: QueryNodeId,
+    ): Promise<ApiAiAgentComposerArtifactVizQueryResponse> {
+        this.setStatus(200);
+        const args = { agentUuid, threadUuid, messageUuid, nodeId };
+
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            return {
+                status: 'ok',
+                results:
+                    await this.getAiAgentService().getEmbedNodeCitationVizQuery(
+                        req.account,
+                        projectUuid,
+                        args,
+                    ),
+            };
+        }
+
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getNodeCitationVizQuery(
+                toSessionUser(req.account),
+                { ...args, projectUuid, runtimeOptions: null },
+                req.account,
+            ),
+        };
+    }
+
+    /**
+     * Read a node result of a node citation's run.
+     * @summary Get AI agent node citation query results
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.getAgentThreadNodeCitationQueryResults',
+        ),
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/nodes/{nodeId}/query-results',
+    )
+    @OperationId('getAgentThreadNodeCitationQueryResults')
+    async getAgentThreadNodeCitationQueryResults(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() threadUuid: UUID,
+        @Path() messageUuid: UUID,
+        @Path() nodeId: QueryNodeId,
+        @Query() resultQueryUuid: UUID,
+        @Query() page?: number,
+        @Query() pageSize?: number,
+    ): Promise<ApiGetAsyncQueryResultsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getNodeCitationQueryResults(
+                toSessionUser(req.account),
+                {
+                    projectUuid,
+                    agentUuid,
+                    threadUuid,
+                    messageUuid,
+                    nodeId,
+                    resultQueryUuid,
+                    page: page ?? null,
+                    pageSize: pageSize ?? null,
+                },
+                req.account,
+            ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.updatePromptFeedback'),
+    ])
     @SuccessResponse('200', 'Success')
     @Patch('/{agentUuid}/threads/{threadUuid}/messages/{messageUuid}/feedback')
     @OperationId('updatePromptFeedback')
@@ -1728,7 +2081,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.getAgentExploreAccessSummary',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/explore-access-summary')
     @OperationId('getAgentExploreAccessSummary')
@@ -1750,7 +2109,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getArtifact'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/artifacts/{artifactUuid}')
     @OperationId('getArtifact')
@@ -1787,7 +2150,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getArtifactVersion'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}')
     @OperationId('getArtifactVersion')
@@ -1829,7 +2196,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getArtifactVizQuery'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get(
         '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/viz-query',
@@ -1883,7 +2254,52 @@ export class AiAgentController extends BaseController {
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getArtifactQueryResults'),
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get(
+        '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/query-results',
+    )
+    @OperationId('getArtifactQueryResults')
+    async getArtifactQueryResults(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() artifactUuid: string,
+        @Path() versionUuid: string,
+        @Query() queryUuid: string,
+        @Query() cached: boolean = false,
+        @Query() page?: number,
+        @Query() pageSize?: number,
+    ): Promise<ApiGetAsyncQueryResultsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getArtifactQueryResults(
+                toSessionUser(req.account),
+                {
+                    projectUuid,
+                    agentUuid,
+                    artifactUuid,
+                    versionUuid,
+                    queryUuid,
+                    cached,
+                    page: page ?? null,
+                    pageSize: pageSize ?? null,
+                },
+                req.account,
+            ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation(
+            'AiAgentController.createAiAgentThreadShare',
+        ),
     ])
     @SuccessResponse('201', 'Created')
     @Post('/{agentUuid}/threads/{threadUuid}/shares')
@@ -1987,7 +2403,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.updateArtifactVersionSavedDashboard',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Patch(
         '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/savedDashboard',
@@ -2020,7 +2442,13 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.updateArtifactVersionSavedSql',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Patch(
         '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/savedSql',
@@ -2094,6 +2522,48 @@ export class AiAgentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation(
+            'AiAgentController.updateArtifactVersionVizConfig',
+        ),
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch(
+        '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/viz-config',
+    )
+    @OperationId('updateArtifactVersionVizConfig')
+    async updateArtifactVersionVizConfig(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() artifactUuid: UUID,
+        @Path() versionUuid: UUID,
+        @Body() body: ApiUpdateComposerVizConfigRequest,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        await this.getAiAgentService().updateComposerArtifactVizConfig(
+            toSessionUser(req.account),
+            {
+                projectUuid,
+                agentUuid,
+                artifactUuid,
+                versionUuid,
+                vizConfig: body.vizConfig,
+            },
+        );
+
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+        requireOAuthScopeOperation('AiAgentController.createEvaluation'),
     ])
     @SuccessResponse('201', 'Created')
     @Post('/{agentUuid}/evaluations')
@@ -2124,6 +2594,7 @@ export class AiAgentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('AiAgentController.runEvaluation'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/evaluations/{evalUuid}/run')
@@ -2150,7 +2621,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getEvaluations'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/evaluations')
     @OperationId('getEvaluations')
@@ -2174,7 +2649,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getEvaluation'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/evaluations/{evalUuid}')
     @OperationId('getEvaluation')
@@ -2200,7 +2679,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getEvaluationRuns'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/evaluations/{evalUuid}/runs')
     @OperationId('getEvaluationRuns')
@@ -2237,7 +2720,11 @@ export class AiAgentController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiAgentController.getEvaluationRunResults'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}/evaluations/{evalUuid}/runs/{runUuid}')
     @OperationId('getEvaluationRunResults')
@@ -2269,6 +2756,7 @@ export class AiAgentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('AiAgentController.updateEvaluation'),
     ])
     @SuccessResponse('200', 'Success')
     @Patch('/{agentUuid}/evaluations/{evalUuid}')
@@ -2302,6 +2790,7 @@ export class AiAgentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('AiAgentController.appendToEvaluation'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/{agentUuid}/evaluations/{evalUuid}/append')
@@ -2334,6 +2823,7 @@ export class AiAgentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('AiAgentController.deleteEvaluation'),
     ])
     @SuccessResponse('200', 'Success')
     @Delete('/{agentUuid}/evaluations/{evalUuid}')

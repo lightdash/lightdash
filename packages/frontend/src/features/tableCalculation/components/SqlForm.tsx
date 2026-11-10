@@ -26,6 +26,13 @@ import { useAmbientAiEnabled } from '../../../ee/features/ambientAi/hooks/useAmb
 import useIsEmbedded from '../../../ee/providers/Embed/useIsEmbedded';
 import { useEditorTheme } from '../../../hooks/useEditorTheme';
 import { useTableCalculationAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
+import {
+    useExploreWarehouseConnection,
+    useMixedWarehouseConnectionsEnabled,
+} from '../../../hooks/useExploreWarehouseConnection';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { getWarehouseSqlCaption } from '../../../utils/mixedWarehouseConnections';
+import { selectTableName, useExplorerSelector } from '../../explorer/store';
 import { type TableCalculationForm } from '../types';
 import FormulaConversionPreviewBody from './FormulaConversionPreview';
 import 'ace-builds/src-noconflict/mode-sql';
@@ -85,6 +92,7 @@ export const SqlEditor: FC<SqlEditorProps> = ({
         ]
             .filter(Boolean)
             .join(' ')}
+        // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
         style={
             {
                 '--ace-gutter-background': gutterBackgroundColor,
@@ -113,7 +121,17 @@ export const SqlForm: FC<Props> = ({
     });
 
     const { setAceEditor } = useTableCalculationAceEditorCompleter();
-    const isAmbientAiEnabled = useAmbientAiEnabled();
+    const projectUuid = useProjectUuid();
+    const tableName = useExplorerSelector(selectTableName);
+    const { warehouseType } = useExploreWarehouseConnection(
+        tableName,
+        projectUuid,
+    );
+    const sqlCaption = getWarehouseSqlCaption(
+        warehouseType,
+        useMixedWarehouseConnectionsEnabled(),
+    );
+    const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid);
     const isEmbedded = useIsEmbedded();
 
     const handleEditorLoad = useCallback(
@@ -207,6 +225,11 @@ export const SqlForm: FC<Props> = ({
                 flex={1}
                 className={conversionState ? classes.editorBlurred : undefined}
             >
+                {sqlCaption !== null && (
+                    <Text size="xs" c="dimmed">
+                        {sqlCaption}
+                    </Text>
+                )}
                 <SqlEditor
                     mode="sql"
                     theme={aceTheme}
@@ -217,7 +240,7 @@ export const SqlForm: FC<Props> = ({
                     setOptions={{
                         autoScrollEditorIntoView: true,
                     }}
-                    style={{ zIndex: 0 }}
+                    className={classes.editorLayer}
                     onLoad={handleEditorLoad}
                     enableLiveAutocompletion={!readOnly}
                     enableBasicAutocompletion={!readOnly}
@@ -256,14 +279,9 @@ export const SqlForm: FC<Props> = ({
                             </Text>
                         }
                         color="violet"
-                        styles={{
-                            root: {
-                                paddingBottom: theme.spacing.sm,
-                                paddingTop: theme.spacing.sm,
-                            },
-                            wrapper: {
-                                alignItems: 'center',
-                            },
+                        classNames={{
+                            root: classes.templatesAlert,
+                            wrapper: classes.templatesAlertWrapper,
                         }}
                     />
                 ) : (

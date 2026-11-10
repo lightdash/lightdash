@@ -1,10 +1,10 @@
 .panelGroup {
-    @mixin light {
-        background-color: var(--mantine-color-white);
-    }
-    @mixin dark {
-        background-color: var(--mantine-color-dark-8);
-    }
+    background-color: var(--mantine-color-body);
+}
+
+/* Handle hit areas overflow the row; clip so scrolling into view can't shift the layout. */
+.workspace .panelGroup {
+    overflow: clip;
 }
 
 .sidebar {
@@ -13,13 +13,13 @@
     height: 100%;
     overflow: hidden;
 
-    padding: var(--mantine-spacing-sm);
-    @mixin light {
-        background: var(--mantine-color-ldGray-0);
-    }
-    @mixin dark {
-        background: var(--mantine-color-ldDark-1);
-    }
+    /* Tight sides so thread titles get the width. */
+    padding: var(--mantine-spacing-sm) rem(8px);
+    /* A tad lighter than ldGray-0 in light mode, still off the chat surface. */
+    background: light-dark(
+        color-mix(in srgb, var(--mantine-color-ldGray-0) 50%, white),
+        var(--mantine-color-ldGray-0)
+    );
     &[data-collapsed] {
         min-width: 3rem;
     }
@@ -33,13 +33,10 @@
 .mobileSidebarContent {
     display: flex;
     flex-direction: column;
-
-    @mixin light {
-        background: var(--mantine-color-ldGray-0);
-    }
-    @mixin dark {
-        background: var(--mantine-color-ldDark-1);
-    }
+    background: light-dark(
+        color-mix(in srgb, var(--mantine-color-ldGray-0) 50%, white),
+        var(--mantine-color-ldGray-0)
+    );
 }
 
 .mobileSidebarHeader {
@@ -62,8 +59,13 @@
 }
 
 .sidebarHeader {
-    min-height: rem(32px);
+    flex-shrink: 0;
     margin-bottom: var(--mantine-spacing-xs);
+
+    &[data-collapsed] {
+        flex-direction: column-reverse;
+        gap: var(--mantine-spacing-sm);
+    }
 }
 
 .sidebarTitle {
@@ -83,32 +85,20 @@
     z-index: 1;
     min-height: rem(52px);
     padding: rem(6px) var(--mantine-spacing-md);
-    border-bottom: 1px solid var(--mantine-color-ldGray-2);
-
-    @mixin light {
-        background-color: var(--mantine-color-white);
-    }
-
-    @mixin dark {
-        background-color: var(--mantine-color-dark-8);
-    }
+    background-color: var(--mantine-color-body);
 }
 
-@media (max-width: 48em) {
-    .chatHeader {
-        min-height: rem(44px);
-        padding: rem(4px) var(--mantine-spacing-sm);
-        border-bottom: 0;
-    }
+/* Compact follows the agent's container width, not the viewport */
+.chatHeader[data-compact='true'] {
+    min-height: rem(44px);
+    padding: rem(4px) var(--mantine-spacing-sm);
+    border-bottom: 0;
 }
 
 .chatContent {
     flex: 1;
     overflow-y: auto;
-    background-color: light-dark(
-        var(--mantine-color-white),
-        var(--mantine-color-dark-8)
-    );
+    background-color: var(--mantine-color-body);
 }
 
 .resizeHandle {
@@ -134,14 +124,7 @@
     min-height: 0;
     overflow: hidden;
     height: calc(100dvh - var(--navbar-height));
-
-    @mixin light {
-        background-color: var(--mantine-color-white);
-    }
-
-    @mixin dark {
-        background-color: var(--mantine-color-dark-8);
-    }
+    background-color: var(--mantine-color-body);
 }
 
 /* Embed pages render without the app navbar */
@@ -149,29 +132,31 @@
     height: 100dvh;
 }
 
+/* SDK embeds fill the host's container, not the viewport. Layout
+   containment also makes the drawers' fixed overlays cover only this box. */
+.workspaceSdk {
+    height: 100%;
+    contain: layout;
+}
+
+/* Drawers rendered inside .workspaceSdk span the box, not their flex slot */
+.sdkDrawerInner {
+    inset: 0;
+}
+
+/* Top inset matches the chat header so both titles share one band. */
 .floatingArtifactRegion {
-    padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm)
-        var(--mantine-spacing-sm) 0;
+    padding: rem(6px) var(--mantine-spacing-sm) var(--mantine-spacing-sm) 0;
     min-height: 0;
     display: flex;
     overflow: hidden;
-
-    @mixin light {
-        background-color: var(--mantine-color-white);
-    }
-
-    @mixin dark {
-        background-color: var(--mantine-color-dark-8);
-    }
+    background-color: var(--mantine-color-body);
 }
 
 .floatingArtifactWrap {
     flex: 1;
     min-height: 0;
-    background: light-dark(
-        var(--mantine-color-white),
-        var(--mantine-color-dark-8)
-    );
+    background: var(--mantine-color-body);
     border-radius: 12px;
     overflow: hidden;
 }
@@ -181,4 +166,22 @@
     width: 0;
     background: transparent;
     z-index: 2;
+}
+
+.previewDrawerBody {
+    padding: 0 0 var(--mantine-spacing-lg);
+    height: 100%;
+}
+
+/* Focus mode: the chat stays mounted (draft, scroll) but the artifact takes its width. */
+.workspace[data-artifact-focused] {
+    .chat,
+    .resizeHandle {
+        display: none;
+    }
+
+    .floatingArtifactRegion {
+        flex-grow: 1;
+        padding-left: var(--mantine-spacing-sm);
+    }
 }

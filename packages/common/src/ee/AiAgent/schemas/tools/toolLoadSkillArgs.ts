@@ -5,7 +5,7 @@ import {
 } from '../outputMetadata';
 
 export const TOOL_LOAD_SKILL_DESCRIPTION =
-    'Load a skill by name, or one of its resources. Always load the skill itself first, then resources on demand. When the skill takes arguments, pass what the user asked for in `arguments` so its placeholders are filled.';
+    "Load a skill by name. The result lists the skill's resources; load only the one you need with `resourceName`. A skill or resource already loaded in this thread returns a pointer to the earlier result instead of a second copy.";
 
 export const toolLoadSkillArgsSchema = z.object({
     name: z.string().min(1).describe('Exact name of the skill to load.'),
@@ -20,20 +20,27 @@ export const toolLoadSkillArgsSchema = z.object({
         .min(1)
         .nullish()
         .describe(
-            'Optional sub-resource file name to load from the skill. You can find names of sub-resources by first loading the skill without this parameter.',
+            'Name of a resource listed in the loaded skill, to load that resource instead of the skill.',
         ),
 });
 
 /** Which skill and version the model was served; a thread reviewer reads this. */
+// Declared as a plain type so TSOA can resolve it in API responses.
+export type ServedSkillMetadata = {
+    name: string;
+    builtIn: boolean;
+    uuid: string | null;
+    versionNumber: number | null;
+    contentHash: string | null;
+};
+
 export const servedSkillMetadataSchema = z.object({
     name: z.string(),
     builtIn: z.boolean(),
     uuid: z.string().nullable(),
     versionNumber: z.number().nullable(),
     contentHash: z.string().nullable(),
-});
-
-export type ServedSkillMetadata = z.infer<typeof servedSkillMetadataSchema>;
+}) satisfies z.ZodType<ServedSkillMetadata>;
 const toolLoadSkillResourceReferenceSchema = z.object({
     name: z
         .string()
@@ -63,6 +70,16 @@ export const toolLoadSkillStructuredContentSchema = z.discriminatedUnion(
                 name: z.string(),
                 content: z.string().describe('The resource file contents.'),
             }),
+        }),
+        z.object({
+            kind: z.literal('already_loaded'),
+            skill: z.string().describe('Name of the skill.'),
+            resource: z
+                .string()
+                .nullable()
+                .describe(
+                    'Resource name when a resource was requested; null for the skill itself.',
+                ),
         }),
     ],
 );

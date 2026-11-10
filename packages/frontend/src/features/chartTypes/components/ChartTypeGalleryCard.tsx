@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     getAppDisplayName,
     isOfficialChartType,
     type DataAppViz,
@@ -27,9 +26,9 @@ import { FloatingActionsPill } from '../../../components/common/FloatingActionsP
 import MantineIcon from '../../../components/common/MantineIcon';
 import { PolymorphicPaperButton } from '../../../components/common/PolymorphicPaperButton';
 import { useOptionalProjectRoute } from '../../../hooks/useProjectRoute';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useCanCreateDataApp } from '../../apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
+import { useChartStudioAvailable } from '../hooks/useChartStudioAvailable';
 import { chartTypeBuilderPath } from '../utils/chartTypeBuilderPath';
 import { getChartTypeIcon } from '../utils/chartTypeIcons';
 import ChartTypeForkModal from './ChartTypeForkModal';
@@ -59,10 +58,8 @@ const ChartTypeGalleryCard: FC<Props> = ({
     const projectUrlIdentifier =
         projectRoute?.projectUrlIdentifier ?? dataAppViz.projectUuid;
     const canFork = useCanCreateDataApp(dataAppViz.projectUuid);
-    // Forking and editing are authoring, so they need data apps on.
-    const dataAppsEnabled =
-        useServerFeatureFlag(FeatureFlags.EnableDataApps).data?.enabled ===
-        true;
+    // Forking and editing are authoring, so they need Chart Studio.
+    const chartStudioAvailable = useChartStudioAvailable();
     const isOfficial = isOfficialChartType(dataAppViz);
     const [isForkOpen, setIsForkOpen] = useState(false);
     const displayName = getAppDisplayName(
@@ -75,8 +72,7 @@ const ChartTypeGalleryCard: FC<Props> = ({
             <PolymorphicPaperButton
                 component="div"
                 withBorder
-                radius="md"
-                shadow="subtle"
+                radius="lg"
                 className={classes.card}
                 onClick={onClick}
             >
@@ -87,20 +83,20 @@ const ChartTypeGalleryCard: FC<Props> = ({
                         icon={dataAppViz.icon}
                     />
                 </Box>
-                <Stack gap="xs" p="sm">
+                <Stack gap="xs" px="xs" pt="sm" pb="xs">
                     <Group gap="xs" wrap="nowrap" justify="space-between">
                         <Group gap="xs" wrap="nowrap" miw={0}>
                             <MantineIcon
                                 icon={getChartTypeIcon(dataAppViz.icon)}
                                 color="dimmed"
                             />
-                            <Text fz="sm" fw={600} truncate="end">
+                            <Text fz="sm" fw={500} truncate="end">
                                 {displayName}
                             </Text>
                         </Group>
                         {isOfficial && <OfficialChartTypeBadge />}
                     </Group>
-                    <Text fz="xs" c="dimmed" lh={1.35} lineClamp={2}>
+                    <Text fz="xs" c="dimmed" lh={1.35} lineClamp={1}>
                         {dataAppViz.description || 'No description'}
                     </Text>
                     {hasRegistryUpdate && (
@@ -111,7 +107,7 @@ const ChartTypeGalleryCard: FC<Props> = ({
                 </Stack>
                 <FloatingActionsPill className={classes.menuHost}>
                     {isOfficial
-                        ? dataAppsEnabled &&
+                        ? chartStudioAvailable &&
                           canFork && (
                               <Tooltip label="Fork to customize">
                                   <ActionIcon
@@ -126,7 +122,7 @@ const ChartTypeGalleryCard: FC<Props> = ({
                                   </ActionIcon>
                               </Tooltip>
                           )
-                        : dataAppsEnabled &&
+                        : chartStudioAvailable &&
                           canEdit && (
                               <Tooltip label="Edit">
                                   <ActionIcon

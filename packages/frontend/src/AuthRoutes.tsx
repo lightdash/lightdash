@@ -5,6 +5,16 @@ import { PageName } from './types/Events';
 
 const AUTH_ROUTES: RouteObject[] = [
     {
+        path: '/agent-connected',
+        lazy: async () => {
+            const AgentConnected = await loadLazyRouteDefault(
+                './pages/AgentConnected',
+                () => import('./pages/AgentConnected'),
+            );
+            return { Component: AgentConnected };
+        },
+    },
+    {
         path: '/auth/popup/:status',
         lazy: async () => {
             const AuthPopupResult = await loadLazyRouteDefault(

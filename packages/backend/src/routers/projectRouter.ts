@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import express, { type Router } from 'express';
 import path from 'path';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -131,13 +132,14 @@ projectRouter.get(
 projectRouter.post(
     '/field/:fieldId/search',
     allowApiKeyAuthentication,
+    requireOAuthScopeOperation('projectRouter POST /field/:fieldId/search'),
     isAuthenticated,
     async (req, res, next) => {
         try {
             const results = await req.services
                 .getProjectService()
                 .searchFieldUniqueValues(
-                    req.user!,
+                    req.account!,
                     getObjectValue(req.params, 'projectUuid'),
                     req.body.table,
                     getObjectValue(req.params, 'fieldId'),
@@ -202,6 +204,7 @@ projectRouter.post(
 projectRouter.patch(
     '/saved',
     allowApiKeyAuthentication,
+    requireOAuthScopeOperation('projectRouter PATCH /saved'),
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {

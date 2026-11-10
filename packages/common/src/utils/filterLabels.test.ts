@@ -83,6 +83,62 @@ describe('getConditionalRuleLabel composed values', () => {
         ).toEqual('3 days');
     });
 
+    it('renders the whole period when toDate is off', () => {
+        const rule: FilterRule = {
+            ...inTheCurrentRule,
+            operator: FilterOperator.NOT_IN_THE_CURRENT,
+            settings: { unitOfTime: UnitOfTime.months, excludeToday: true },
+        };
+        const label = getConditionalRuleLabel(rule, FilterType.DATE, 'Field');
+        expect(label.operator).toEqual('not in the current');
+        expect(label.value).toEqual('month');
+    });
+
+    it('renders the whole period when the unit is a day or finer', () => {
+        const rule: FilterRule = {
+            ...inTheCurrentRule,
+            settings: { unitOfTime: UnitOfTime.hours, toDate: true },
+        };
+        const label = getConditionalRuleLabel(rule, FilterType.DATE, 'Field');
+        expect(label.value).toEqual('hour');
+    });
+
+    it('renders "to date" when toDate is on', () => {
+        const rule: FilterRule = {
+            ...inTheCurrentRule,
+            settings: { unitOfTime: UnitOfTime.months, toDate: true },
+        };
+        const label = getConditionalRuleLabel(rule, FilterType.DATE, 'Field');
+        expect(label.operator).toEqual('in the current');
+        expect(label.value).toEqual('month to date');
+    });
+
+    it('renders "to date, excluding today" when excludeToday is on', () => {
+        const rule: FilterRule = {
+            ...inTheCurrentRule,
+            settings: {
+                unitOfTime: UnitOfTime.months,
+                toDate: true,
+                excludeToday: true,
+            },
+        };
+        expect(
+            getConditionalRuleLabel(rule, FilterType.DATE, 'Field').value,
+        ).toEqual('month to date, excluding today');
+        expect(
+            getConditionalRuleLabel(
+                rule,
+                FilterType.DATE,
+                'Field',
+                withOverride({
+                    'filters.currentPeriod.toDateExcludingTodayValue':
+                        "{unit} à ce jour, hors aujourd'hui",
+                    'filters.unitsOfTime.months.singular': 'mois',
+                }),
+            ).value,
+        ).toEqual("mois à ce jour, hors aujourd'hui");
+    });
+
     it('renders in-the-last values with the plural unit form', () => {
         const rule: FilterRule = {
             id: 'rule-2',

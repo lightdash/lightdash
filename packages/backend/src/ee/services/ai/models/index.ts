@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     isByoAiProvider,
     ParameterError,
+    type AiAgentModelConfig,
     type AiModelOption,
     type AiOrgModelVisibility,
     type ByoAiProvider,
@@ -9,6 +10,7 @@ import {
 import { simulateStreamingMiddleware, wrapLanguageModel } from 'ai';
 import type { AiKeyManagement } from '../../../../analytics/aiUsage';
 import {
+    DEFAULT_ANTHROPIC_FAST_MODEL_NAME,
     DEFAULT_GOOGLE_FAST_MODEL_NAME,
     DEFAULT_OPENAI_FAST_MODEL_NAME,
 } from '../../../../config/aiConfigSchema';
@@ -28,6 +30,7 @@ import {
     MODEL_PRESETS,
     ModelPreset,
     ModelPresetProvider,
+    ModelTier,
     openRouterPreset,
     ReasoningEffort,
     SelectableModelProvider,
@@ -81,9 +84,9 @@ const withKeyManagement = <P extends AiProvider>(
 
 // Fast models for lightweight tasks (text generation, summaries, etc.)
 // These are cheaper and faster than default models
-const FAST_MODELS = {
+export const FAST_MODELS = {
     openai: DEFAULT_OPENAI_FAST_MODEL_NAME,
-    anthropic: 'claude-haiku-4-5',
+    anthropic: DEFAULT_ANTHROPIC_FAST_MODEL_NAME,
     google: DEFAULT_GOOGLE_FAST_MODEL_NAME,
     bedrock: 'claude-haiku-4-5',
 } satisfies Record<ModelPresetProvider, string | undefined>;
@@ -237,23 +240,15 @@ export const getAvailableModels = (
     );
 };
 
-export const presetToModelOption = (
-    preset: ModelPreset<SelectableModelProvider>,
-    defaultModel: { name: string; provider: string } | null,
-): AiModelOption => ({
-    name: preset.name,
-    modelId: preset.modelId,
-    displayName: preset.displayName,
-    description: preset.description,
-    provider: preset.provider,
-    ...(preset.groupLabel ? { groupLabel: preset.groupLabel } : {}),
-    default:
-        defaultModel !== null &&
-        preset.provider === defaultModel.provider &&
-        matchesPreset(preset, defaultModel.name),
-    supportsReasoning: preset.supportsReasoning,
-    deprecated: preset.deprecated ?? false,
-});
+export const findPreset = (
+    presets: ModelPreset<SelectableModelProvider>[],
+    provider: string,
+    modelName: string,
+): ModelPreset<SelectableModelProvider> | undefined =>
+    presets.find(
+        (preset) =>
+            preset.provider === provider && matchesPreset(preset, modelName),
+    );
 
 export type OrgModelOverrides = {
     modelVisibility: AiOrgModelVisibility | null;
@@ -299,6 +294,142 @@ export const filterModelsForOrg = (
         return true;
     });
 
+// The presets this instance ships, and the subset an org may pick from
+export type ModelCatalogue = {
+    instancePresets: ModelPreset<SelectableModelProvider>[];
+    offeredPresets: ModelPreset<SelectableModelProvider>[];
+};
+
+export const getOrgModelCatalogue = (
+    instancePresets: ModelPreset<SelectableModelProvider>[],
+    overrides: OrgModelOverrides,
+): ModelCatalogue => ({
+    instancePresets,
+    offeredPresets: filterModelsForOrg(instancePresets, overrides),
+});
+
+const shippedPresets = (
+    provider: SelectableModelProvider,
+): ModelPreset<SelectableModelProvider>[] =>
+    provider === 'openrouter' || provider === 'vertex'
+        ? []
+        : MODEL_PRESETS[provider];
+
+// Walks every preset the code ships, not the env-filtered list, so an
+// instance `availableModels` list that omits an intermediate still reaches
+// the end of the chain; only that end must be offered to the org.
+export const resolveSupersedingPreset = (
+    preset: ModelPreset<SelectableModelProvider>,
+    { offeredPresets }: ModelCatalogue,
+): ModelPreset<SelectableModelProvider> | null => {
+    let current = preset;
+    while (current.deprecated && current.supersededBy) {
+        const next = findPreset(
+            shippedPresets(current.provider),
+            current.provider,
+            current.supersededBy,
+        );
+        if (!next) return null;
+        current = next;
+    }
+    if (current === preset || current.deprecated) return null;
+    return findPreset(offeredPresets, current.provider, current.name) ?? null;
+};
+
+export const presetToModelOption = (
+    preset: ModelPreset<SelectableModelProvider>,
+    defaultModel: { name: string; provider: string } | null,
+    catalogue: ModelCatalogue,
+): AiModelOption => ({
+    name: preset.name,
+    modelId: preset.modelId,
+    displayName: preset.displayName,
+    description: preset.description,
+    provider: preset.provider,
+    ...(preset.groupLabel ? { groupLabel: preset.groupLabel } : {}),
+    default:
+        defaultModel !== null &&
+        preset.provider === defaultModel.provider &&
+        matchesPreset(preset, defaultModel.name),
+    supportsReasoning: preset.supportsReasoning,
+    deprecated: preset.deprecated ?? false,
+    supersededBy: resolveSupersedingPreset(preset, catalogue)?.name ?? null,
+});
+
+export const getOrgModelOptions = (
+    catalogue: ModelCatalogue,
+    defaultModel: { name: string; provider: string } | null,
+): AiModelOption[] =>
+    catalogue.offeredPresets.map((preset) =>
+        presetToModelOption(preset, defaultModel, catalogue),
+    );
+
+/**
+ * An inherited organization-default model can name a provider the scoped
+ * config does not serve — a project pinned to a Bedrock credential while the
+ * organization default model points at the instance provider. An explicit
+ * agent or thread pick must fail closed in `getModelPreset`, but an inherited
+ * default was never a deliberate choice for this scope, so it falls back to
+ * the scoped config's own default model and the prompt runs inside the
+ * pinned provider.
+ */
+export const reconcileInheritedModelConfig = (
+    config: LightdashConfig['ai']['copilot'],
+    modelConfig: AiAgentModelConfig,
+): AiAgentModelConfig => {
+    if (
+        config.providers[
+            modelConfig.modelProvider as keyof typeof config.providers
+        ]
+    ) {
+        return modelConfig;
+    }
+    const fallback = getDefaultModel(config);
+    if (!fallback) return modelConfig;
+    Logger.info(
+        `Inherited default model provider "${modelConfig.modelProvider}" is not served by the resolved config, running the prompt on "${fallback.provider}/${fallback.name}"`,
+    );
+    return {
+        ...modelConfig,
+        modelProvider: fallback.provider,
+        modelName: fallback.name,
+    };
+};
+
+/** A provider's latest preset of a tier, among those the org is offered; null when it has none. */
+export const findPreferredPreset = (
+    catalogue: ModelCatalogue,
+    provider: string,
+    tier: ModelTier,
+): ModelPreset<SelectableModelProvider> | null =>
+    catalogue.offeredPresets.find(
+        (preset) =>
+            preset.provider === provider &&
+            preset.tier === tier &&
+            !preset.deprecated,
+    ) ?? null;
+
+// The returned config is what gets recorded on the prompt, so the swap must
+// happen before the prompt is stored.
+export const resolveModelConfigForPrompt = (
+    catalogue: ModelCatalogue,
+    modelConfig: AiAgentModelConfig,
+): AiAgentModelConfig => {
+    const pinned = findPreset(
+        catalogue.instancePresets,
+        modelConfig.modelProvider,
+        modelConfig.modelName,
+    );
+    const replacement = pinned
+        ? resolveSupersedingPreset(pinned, catalogue)
+        : null;
+    if (!pinned || !replacement) return modelConfig;
+    Logger.info(
+        `Model preset "${pinned.name}" is deprecated, running the prompt on "${replacement.name}"`,
+    );
+    return { ...modelConfig, modelName: replacement.name };
+};
+
 export const getModelPreset = <T extends ModelPresetProvider>(
     provider: T,
     config: LightdashConfig['ai']['copilot'],
@@ -316,9 +447,7 @@ export const getModelPreset = <T extends ModelPresetProvider>(
 
     const modelNameToFind = modelName ?? providerConfig.modelName;
     const availableModels = getAvailableModels(config);
-    let preset = availableModels.find(
-        (p) => p.provider === provider && matchesPreset(p, modelNameToFind),
-    );
+    let preset = findPreset(availableModels, provider, modelNameToFind);
 
     // Fallback to first available model for provider if requested model not found
     // This handles deprecated models in env vars or stored in conversations
@@ -385,6 +514,8 @@ export const getModel = (
          * (text generation, summaries, simple structured output)
          */
         useFastModel?: boolean;
+        /** For latency-bound calls; Anthropic and OpenAI presets only. */
+        minimalReasoning?: boolean;
     },
 ) => {
     const provider = options?.provider ?? config.defaultProvider;
@@ -408,6 +539,7 @@ export const getModel = (
                 applyStreamingCapability(
                     getOpenaiGptmodel(openaiConfig, preset, {
                         enableReasoning: options?.enableReasoning,
+                        minimalReasoning: options?.minimalReasoning,
                     }),
                     openaiConfig.supportsStreaming,
                 ),
@@ -444,6 +576,7 @@ export const getModel = (
                     getAnthropicModel(anthropicConfig, preset, {
                         enableReasoning: options?.enableReasoning,
                         reasoningEffort: options?.reasoningEffort,
+                        minimalReasoning: options?.minimalReasoning,
                     }),
                     anthropicConfig.supportsStreaming,
                 ),

@@ -9,7 +9,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { DuckDBInstance } from '@duckdb/node-api';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { randomUUID } from 'crypto';
-import { mkdtemp, readFile, rm, rmdir } from 'fs/promises';
+import fs, { mkdtemp, readFile, rm, rmdir } from 'fs/promises';
 import { tmpdir } from 'os';
 import path from 'path';
 import { createS3ClientFromConfig } from '../../../clients/Aws/S3BaseClient';
@@ -45,12 +45,21 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 `events/compacted/org_id=${org}/stream=ai_usage/dt=2026-09-07/part.parquet`,
                 `events/compacted/org_id=${otherOrg}/stream=query_events/dt=2026-09-07/part.parquet`,
                 `events/compacted/org_id=${org}/stream=query_events/dt=2025-09-07/part.parquet`,
+                ...['charts', 'dashboards', 'content', 'users', 'people'].map(
+                    (dimension) =>
+                        `events/compacted/org_id=${org}/dim=${dimension}/${dimension}.parquet`,
+                ),
             ];
             const client = createS3ClientFromConfig(storage);
             const directory = await mkdtemp(
                 path.join(tmpdir(), 'ld-analytics-auth-'),
             );
             const fixture = path.join(directory, 'fixture.parquet');
+            const replacement = path.join(directory, 'replacement.parquet');
+            const legacyDimensions = path.join(
+                directory,
+                'legacy-dimensions.parquet',
+            );
             const historicalFixture = path.join(
                 directory,
                 'historical.parquet',
@@ -61,10 +70,16 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 const db = await instance.connect();
                 try {
                     await db.run(
+                        `COPY (SELECT '${org}' AS org_id, 'legacy' AS name, 'legacy' AS content_name, 'chart' AS chart_id, 'dashboard' AS dashboard_id, 'content' AS content_id) TO '${legacyDimensions}' (FORMAT PARQUET)`,
+                    );
+                    await db.run(
                         `COPY (SELECT 42::INTEGER AS tokens, TIMESTAMP '2026-09-07' AS event_ts, 7::INTEGER AS new_metric) TO '${fixture.replace(/'/g, "''")}' (FORMAT PARQUET)`,
                     );
                     await db.run(
                         `COPY (SELECT 42::INTEGER AS tokens, TIMESTAMP '2025-09-07' AS event_ts) TO '${historicalFixture.replace(/'/g, "''")}' (FORMAT PARQUET)`,
+                    );
+                    await db.run(
+                        `COPY (SELECT 99::INTEGER AS tokens, TIMESTAMP '2026-09-07' AS event_ts) TO '${replacement}' (FORMAT PARQUET)`,
                     );
                 } finally {
                     db.closeSync();
@@ -76,18 +91,23 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 created = true;
                 const body = await readFile(fixture);
                 const historicalBody = await readFile(historicalFixture);
+                const legacyDimensionsBody = await readFile(legacyDimensions);
                 await Promise.all(
-                    keys.map((Key) =>
-                        client.send(
+                    keys.map((Key) => {
+                        let snapshotBody = body;
+                        if (Key.includes('/dim=')) {
+                            snapshotBody = legacyDimensionsBody;
+                        } else if (Key.includes('/dt=2025-09-07/')) {
+                            snapshotBody = historicalBody;
+                        }
+                        return client.send(
                             new PutObjectCommand({
                                 Bucket: storage.bucket,
                                 Key,
-                                Body: Key.includes('/dt=2025-09-07/')
-                                    ? historicalBody
-                                    : body,
+                                Body: snapshotBody,
                             }),
-                        ),
-                    ),
+                        );
+                    }),
                 );
                 const resolveSource = vi.fn(
                     createS3AnalyticsSourceResolver({
@@ -115,6 +135,7 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                     'query_events',
                 ]);
                 expect(resolved.tables[0].urls).toHaveLength(2);
+                expect(resolved.fileBuffers?.size).toBe(2);
                 // Nested CTEs/unions must retain both streams and old partitions.
                 expect(
                     (
@@ -209,7 +230,9 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 ).rejects.toThrow(/catalog access/);
                 const source = await resolveSource();
                 expect(source).not.toHaveProperty('s3Config');
-                const url = source.tables[0].urls[0];
+                const [url] = await source.getSignedUrls!([
+                    source.tables[0].urls[0],
+                ]);
                 const otherPath = url.replace(org, otherOrg);
                 const denied = await fetch(otherPath);
                 expect(denied.status).toBe(403);
@@ -242,7 +265,7 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 await expect(
                     failedReader.runQuery('SELECT count(*) FROM query_events'),
                 ).rejects.toThrow(
-                    /^Internal analytics query failed\. Check storage access and query permissions\.$/,
+                    /^(?:Access to analytics storage was denied\.|Could not read analytics data from storage\. Try again or contact your administrator\.)$/,
                 );
                 // Neither denied attempt modified the original object.
                 expect(
@@ -252,6 +275,91 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                         )
                     ).rows,
                 ).toEqual([{ total: '84' }]);
+                // Cache staging is optional: disk failure retains exact remote reads.
+                const failedWrite = vi
+                    .spyOn(fs, 'writeFile')
+                    .mockRejectedValueOnce(new Error('ENOSPC'));
+                try {
+                    expect(
+                        (
+                            await reader.runQuery(
+                                'SELECT sum(tokens) AS total FROM query_events',
+                            )
+                        ).rows,
+                    ).toEqual([{ total: '84' }]);
+                } finally {
+                    failedWrite.mockRestore();
+                }
+                // Listing versions invalidate replacements; deleted objects leave the manifest.
+                await client.send(
+                    new PutObjectCommand({
+                        Bucket: storage.bucket,
+                        Key: keys[0],
+                        Body: await readFile(replacement),
+                    }),
+                );
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT sum(tokens) AS total FROM query_events',
+                        )
+                    ).rows,
+                ).toEqual([{ total: '141' }]);
+                expect(
+                    (
+                        await otherReader.runQuery(
+                            'SELECT sum(tokens) AS total FROM query_events',
+                        )
+                    ).rows,
+                ).toEqual([{ total: '42' }]);
+                await client.send(
+                    new DeleteObjectCommand({
+                        Bucket: storage.bucket,
+                        Key: keys[0],
+                    }),
+                );
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT sum(tokens) AS total FROM query_events',
+                        )
+                    ).rows,
+                ).toEqual([{ total: '42' }]);
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT name, url FROM lightdash_charts',
+                        )
+                    ).rows,
+                ).toEqual([{ name: 'legacy', url: null }]);
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT name, url FROM lightdash_dashboards',
+                        )
+                    ).rows,
+                ).toEqual([{ name: 'legacy', url: null }]);
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT content_name, content_url FROM lightdash_content',
+                        )
+                    ).rows,
+                ).toEqual([{ content_name: 'legacy', content_url: null }]);
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT name, email FROM lightdash_users',
+                        )
+                    ).rows,
+                ).toEqual([{ name: 'legacy', email: null }]);
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT name, email FROM lightdash_people',
+                        )
+                    ).rows,
+                ).toEqual([{ name: 'legacy', email: null }]);
             } finally {
                 if (created) {
                     await Promise.all(
@@ -270,6 +378,8 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 }
                 client.destroy();
                 await rm(fixture, { force: true });
+                await rm(replacement, { force: true });
+                await rm(legacyDimensions, { force: true });
                 await rm(historicalFixture, { force: true });
                 await rmdir(directory);
             }

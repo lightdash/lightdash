@@ -15,8 +15,18 @@ import {
     waitFor,
 } from '@testing-library/react';
 import { type ReactNode } from 'react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import {
+    createMemoryRouter,
+    RouterProvider,
+    type InitialEntry,
+} from 'react-router';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
+import { LEAVING_COPY_STATE } from '../scopeTours/trainingCopy';
 import DocumentEditor from './DocumentEditor';
+
+const { LINKED_CHART_UUID } = vi.hoisted(() => ({
+    LINKED_CHART_UUID: 'a5632229-9bb1-4e73-9c57-553f0b5915f8',
+}));
 
 const mocks = vi.hoisted(() => ({
     api: vi.fn(),
@@ -30,6 +40,37 @@ vi.mock('../../providers/Tracking/useTracking', () => ({
 }));
 vi.mock('../../hooks/useContextMenuPermissions', () => ({
     useContextMenuPermissions: () => ({ canDrillInto: mocks.canAuthorCharts }),
+}));
+vi.mock('./DocumentSavedChartPickerModal', () => ({
+    default: ({
+        onLink,
+        onCopy,
+    }: {
+        onLink: (kind: 'chart' | 'sqlChart', uuid: string) => void;
+        onCopy: (chart: SemanticChartAsCode) => void;
+    }) => (
+        <div role="dialog" aria-label="Saved chart picker">
+            <button onClick={() => onLink('chart', LINKED_CHART_UUID)}>
+                Link Revenue
+            </button>
+            <button
+                onClick={() => {
+                    const original = report.version.content.charts.c1;
+                    if (original.source !== 'semantic') {
+                        throw new Error('Expected a semantic chart');
+                    }
+                    onCopy({ ...original.chart, name: 'Revenue' });
+                }}
+            >
+                Copy Revenue
+            </button>
+        </div>
+    ),
+}));
+vi.mock('./DocumentLinkedChart', () => ({
+    default: ({ attributes }: { attributes: Record<string, string> }) => (
+        <div>Linked chart: {attributes.uuid}</div>
+    ),
 }));
 vi.mock('./DocumentChartEditorModal', () => ({
     default: ({
@@ -46,6 +87,9 @@ vi.mock('./DocumentChartEditorModal', () => ({
             <button
                 onClick={() => {
                     const original = report.version.content.charts.c1;
+                    if (original.source !== 'semantic') {
+                        throw new Error('Expected a semantic chart');
+                    }
                     onApply({
                         ...(chart ?? original.chart),
                         name: chart ? 'Edited chart' : 'New chart',
@@ -86,7 +130,7 @@ vi.mock('./DocumentChart', () => ({
         );
     },
 }));
-vi.mock('../../api', () => ({ lightdashApi: mocks.api }));
+vi.mock('../../api');
 vi.mock('../../hooks/useContent', () => ({ invalidateContent: vi.fn() }));
 vi.mock('./DocumentPageLayout', () => ({
     default: ({
@@ -105,6 +149,7 @@ vi.mock('./DocumentPageLayout', () => ({
 
 const report: Document = {
     pinnedListUuid: null,
+    verification: null,
     createdBy: null,
     owner: null,
     ownerUserUuid: null,
@@ -171,7 +216,11 @@ beforeAll(() => {
 });
 
 const clients: QueryClient[] = [];
-const renderEditor = (document = report, newerVersionSaved = false) => {
+const renderEditor = (
+    document = report,
+    newerVersionSaved = false,
+    history?: { initialEntries: InitialEntry[]; initialIndex: number },
+) => {
     const client = new QueryClient({
         defaultOptions: {
             queries: { retry: false },
@@ -180,19 +229,22 @@ const renderEditor = (document = report, newerVersionSaved = false) => {
         logger: { log: vi.fn(), warn: vi.fn(), error: vi.fn() },
     });
     clients.push(client);
-    const router = createMemoryRouter([
-        {
-            path: '/',
-            element: (
-                <DocumentEditor
-                    document={document}
-                    newerVersionSaved={newerVersionSaved}
-                    onClose={mocks.close}
-                />
-            ),
-        },
-        { path: '/away', element: <div>Away</div> },
-    ]);
+    const router = createMemoryRouter(
+        [
+            {
+                path: '/',
+                element: (
+                    <DocumentEditor
+                        document={document}
+                        newerVersionSaved={newerVersionSaved}
+                        onClose={mocks.close}
+                    />
+                ),
+            },
+            { path: '/away', element: <div>Away</div> },
+        ],
+        history,
+    );
     return {
         router,
         ...render(
@@ -206,13 +258,13 @@ const renderEditor = (document = report, newerVersionSaved = false) => {
 };
 
 const savedContent = (): DocumentContent =>
-    JSON.parse(mocks.api.mock.calls[0][0].body).content;
+    JSON.parse(mockedLightdashApi.mock.calls[0][0].body).content;
 const savedBlocks = () => getDocumentChartBlocks(savedContent());
 
 beforeEach(() => {
     vi.clearAllMocks();
     mocks.canAuthorCharts = true;
-    mocks.api.mockResolvedValue({
+    mockedLightdashApi.mockResolvedValue({
         ...report,
         version: { ...report.version, versionUuid: 'saved' },
     });
@@ -260,9 +312,9 @@ it('applies chart edits in place, keeps the surrounding text and chart id, and s
             mode: 'edit',
         },
     });
-    expect(mocks.api).not.toHaveBeenCalled();
+    expect(mockedLightdashApi).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
-    await waitFor(() => expect(mocks.api).toHaveBeenCalledOnce());
+    await waitFor(() => expect(mockedLightdashApi).toHaveBeenCalledOnce());
     const [findings, edited, recommendations] = savedBlocks();
     expect(findings.type === 'markdown' && findings.markdown).toContain(
         '# Findings',
@@ -278,9 +330,9 @@ it('applies chart edits in place, keeps the surrounding text and chart id, and s
         type: 'markdown',
         markdown: '# Recommendations\n\nShip it.',
     });
-    expect(JSON.parse(mocks.api.mock.calls[0][0].body).baseVersionUuid).toBe(
-        'version',
-    );
+    expect(
+        JSON.parse(mockedLightdashApi.mock.calls[0][0].body).baseVersionUuid,
+    ).toBe('version');
     await waitFor(() => expect(mocks.close).toHaveBeenCalledOnce());
 });
 
@@ -307,6 +359,7 @@ it('adds a chart as a draft node without touching saved charts', async () => {
     renderEditor();
     await screen.findByText('Live chart: Orders');
     fireEvent.click(screen.getByRole('button', { name: 'Add chart' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'New chart' }));
     expect(await screen.findByTestId('editing-chart')).toHaveTextContent('');
     fireEvent.click(screen.getByRole('button', { name: 'Apply to Document' }));
     expect(
@@ -324,8 +377,43 @@ it('adds a chart as a draft node without touching saved charts', async () => {
     });
     expect(screen.getByText('Live chart: Orders')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
-    await waitFor(() => expect(mocks.api).toHaveBeenCalledOnce());
+    await waitFor(() => expect(mockedLightdashApi).toHaveBeenCalledOnce());
     expect(Object.keys(savedContent().charts)).toStrictEqual(['c1', 'new-1']);
+});
+
+it('links a saved chart and saves it as a tag', async () => {
+    renderEditor();
+    await screen.findByText('Live chart: Orders');
+    fireEvent.click(screen.getByRole('button', { name: 'Add chart' }));
+    fireEvent.click(
+        await screen.findByRole('menuitem', { name: 'Saved chart' }),
+    );
+    fireEvent.click(
+        await screen.findByRole('button', { name: 'Link Revenue' }),
+    );
+    expect(
+        await screen.findByText(`Linked chart: ${LINKED_CHART_UUID}`),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
+    await waitFor(() => expect(mockedLightdashApi).toHaveBeenCalledOnce());
+    expect(savedContent().markdown).toContain(
+        `<saved-chart uuid="${LINKED_CHART_UUID}">`,
+    );
+});
+
+it('opens a copied saved chart in the chart editor before adding it', async () => {
+    renderEditor();
+    await screen.findByText('Live chart: Orders');
+    fireEvent.click(screen.getByRole('button', { name: 'Add chart' }));
+    fireEvent.click(
+        await screen.findByRole('menuitem', { name: 'Saved chart' }),
+    );
+    fireEvent.click(
+        await screen.findByRole('button', { name: 'Copy Revenue' }),
+    );
+    expect(await screen.findByTestId('editing-chart')).toHaveTextContent(
+        'Revenue',
+    );
 });
 
 it('removes a chart from the body and the saved content', async () => {
@@ -339,7 +427,7 @@ it('removes a chart from the body and the saved content', async () => {
         ).not.toBeInTheDocument(),
     );
     fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
-    await waitFor(() => expect(mocks.api).toHaveBeenCalledOnce());
+    await waitFor(() => expect(mockedLightdashApi).toHaveBeenCalledOnce());
     expect(savedContent()).toStrictEqual({
         markdown:
             '# Findings\n\n| Metric | Value |\n| --- | --- |\n| Orders | 10 |\n\n# Recommendations\n\nShip it.',
@@ -351,8 +439,12 @@ it('hides chart authoring without independent Explore permission', async () => {
     mocks.canAuthorCharts = false;
     renderEditor();
     expect(await screen.findByText('Live chart: Orders')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Add chart' }));
     expect(
-        screen.queryByRole('button', { name: 'Add chart' }),
+        await screen.findByRole('menuitem', { name: 'Saved chart' }),
+    ).toBeInTheDocument();
+    expect(
+        screen.queryByRole('menuitem', { name: 'New chart' }),
     ).not.toBeInTheDocument();
     expect(
         screen.queryByRole('button', { name: 'Edit chart Orders' }),
@@ -378,7 +470,7 @@ it('shows no newer-version warning while the draft is current', async () => {
 });
 
 it('keeps the draft on a stale save and explains the conflict', async () => {
-    mocks.api.mockRejectedValue({
+    mockedLightdashApi.mockRejectedValue({
         error: { statusCode: 409, message: 'Stale version' },
     });
     renderEditor();
@@ -440,7 +532,7 @@ describe('title', () => {
         fireEvent.change(titleInput(), { target: { value: '  Renamed ' } });
         fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
         await waitFor(() => expect(mocks.close).toHaveBeenCalledOnce());
-        expect(mocks.api).toHaveBeenCalledExactlyOnceWith(
+        expect(mockedLightdashApi).toHaveBeenCalledExactlyOnceWith(
             expect.objectContaining({
                 url: '/projects/project/documents/document',
                 method: 'PATCH',
@@ -459,12 +551,12 @@ describe('title', () => {
         fireEvent.change(titleInput(), { target: { value: 'Renamed' } });
         fireEvent.click(screen.getByRole('button', { name: 'Save document' }));
         await waitFor(() => expect(mocks.close).toHaveBeenCalledOnce());
-        expect(mocks.api.mock.calls.map(([call]) => call.method)).toEqual([
-            'PATCH',
-            'POST',
-        ]);
         expect(
-            JSON.parse(mocks.api.mock.calls[1][0].body).baseVersionUuid,
+            mockedLightdashApi.mock.calls.map(([call]) => call.method),
+        ).toEqual(['PATCH', 'POST']);
+        expect(
+            JSON.parse(mockedLightdashApi.mock.calls[1][0].body)
+                .baseVersionUuid,
         ).toBe('version');
     });
 
@@ -478,7 +570,7 @@ describe('title', () => {
     });
 
     it('keeps editing and skips the content write when the rename fails', async () => {
-        mocks.api.mockRejectedValueOnce({
+        mockedLightdashApi.mockRejectedValueOnce({
             error: {
                 statusCode: 400,
                 message: 'Document name must contain 1–255 characters',
@@ -497,7 +589,7 @@ describe('title', () => {
                 'Document name must contain 1–255 characters',
             ),
         ).toBeInTheDocument();
-        expect(mocks.api).toHaveBeenCalledOnce();
+        expect(mockedLightdashApi).toHaveBeenCalledOnce();
         expect(mocks.close).not.toHaveBeenCalled();
     });
 
@@ -555,5 +647,56 @@ describe('drag handle', () => {
         expect(
             await screen.findByRole('button', { name: 'Drag chart Orders' }),
         ).toBeInTheDocument();
+    });
+});
+
+describe('leaving a training copy mid-edit', () => {
+    const makeDirty = async () =>
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'Remove chart Orders' }),
+        );
+
+    it('lets a walkthrough leave its copy without asking', async () => {
+        const { router } = renderEditor();
+        await makeDirty();
+        await act(async () => {
+            await router.navigate('/away', { state: LEAVING_COPY_STATE });
+        });
+        await waitFor(() =>
+            expect(router.state.location.pathname).toBe('/away'),
+        );
+        expect(
+            screen.queryByText('Discard unsaved changes?'),
+        ).not.toBeInTheDocument();
+    });
+
+    it('still asks on Back to a history entry that kept the walkthrough flag', async () => {
+        const { router } = renderEditor(report, false, {
+            initialEntries: [
+                { pathname: '/away', state: LEAVING_COPY_STATE },
+                '/',
+            ],
+            initialIndex: 1,
+        });
+        await makeDirty();
+        await act(async () => {
+            await router.navigate(-1);
+        });
+        expect(
+            await screen.findByText('Discard unsaved changes?'),
+        ).toBeInTheDocument();
+        expect(router.state.location.pathname).toBe('/');
+    });
+
+    it('still asks on an ordinary navigation', async () => {
+        const { router } = renderEditor();
+        await makeDirty();
+        await act(async () => {
+            await router.navigate('/away');
+        });
+        expect(
+            await screen.findByText('Discard unsaved changes?'),
+        ).toBeInTheDocument();
+        expect(router.state.location.pathname).toBe('/');
     });
 });

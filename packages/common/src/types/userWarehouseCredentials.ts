@@ -23,12 +23,19 @@ export type UserWarehouseCredentialsProject = {
     type: ProjectType;
 };
 
+export enum UserWarehouseCredentialPurpose {
+    DEFAULT = 'default',
+    AI = 'ai',
+}
+
 export type UserWarehouseCredentials = {
     uuid: string;
+    purpose: UserWarehouseCredentialPurpose;
     userUuid: string;
     name: string;
     createdAt: Date;
     updatedAt: Date;
+    expiresAt: Date | null;
     credentials:
         | Pick<
               CreateRedshiftCredentials,
@@ -51,9 +58,13 @@ export type UserWarehouseCredentials = {
     project: UserWarehouseCredentialsProject | null;
 };
 
+export interface UserWarehouseCredentialsWithAgentStatus extends UserWarehouseCredentials {
+    agentClientCurrent: boolean | null;
+}
+
 export type UserWarehouseCredentialsWithSecrets = Pick<
     UserWarehouseCredentials,
-    'uuid'
+    'uuid' | 'expiresAt'
 > & {
     credentials:
         | Pick<CreateRedshiftCredentials, 'type' | 'user' | 'password'>

@@ -2,6 +2,7 @@ import {
     getSdkFeaturesForTarget,
     getSdkFixesForTarget,
     SDK_FEATURES,
+    SDK_FIX_KEYS,
     type SdkFix,
     type SdkFeatureTarget,
 } from '@lightdash/common';
@@ -83,7 +84,7 @@ describe('useSdkUpgradeStatus', () => {
             result.current.onSdkManifest({
                 sdkVersion: '1.6.0',
                 features: MISSING_APP_FEATURE_KEYS,
-                fixes: [],
+                fixes: SDK_FIX_KEYS,
             });
         });
         expect(result.current.offer.status).toBe('stale');
@@ -93,7 +94,7 @@ describe('useSdkUpgradeStatus', () => {
             result.current.onSdkManifest({
                 sdkVersion: '2.0.0',
                 features: ALL_FEATURES,
-                fixes: [],
+                fixes: SDK_FIX_KEYS,
             });
         });
         expect(result.current.offer.status).toBe('current');
@@ -124,7 +125,7 @@ describe('useSdkUpgradeStatus', () => {
                 features: ALL_FEATURES.filter(
                     (key) => !APP_ONLY_KEYS.includes(key),
                 ),
-                fixes: [],
+                fixes: SDK_FIX_KEYS,
             });
         });
 
@@ -143,7 +144,7 @@ describe('useSdkUpgradeStatus', () => {
                 features: ALL_FEATURES.filter(
                     (key) => !CHART_TYPE_ONLY_KEYS.includes(key),
                 ),
-                fixes: [],
+                fixes: SDK_FIX_KEYS,
             });
         });
 
@@ -219,7 +220,7 @@ describe('useSdkUpgradeStatus', () => {
                         !CHART_TYPE_ONLY_KEYS.includes(key) &&
                         key !== 'gsheet-export',
                 ),
-                fixes: [],
+                fixes: SDK_FIX_KEYS,
             });
         });
 
@@ -250,7 +251,7 @@ describe('useSdkUpgradeStatus', () => {
             result.current.onSdkManifest({
                 sdkVersion: '2.0.0',
                 features: ALL_FEATURES,
-                fixes: [],
+                fixes: SDK_FIX_KEYS,
             });
         });
         expect(result.current.offer.status).toBe('current');
@@ -289,7 +290,7 @@ describe('useSdkUpgradeStatus', () => {
             result.current.onSdkManifest({
                 sdkVersion: '2.0.0',
                 features: ALL_FEATURES,
-                fixes: [],
+                fixes: SDK_FIX_KEYS,
             });
         });
         expect(result.current.renderedManifest?.sdkVersion).toBe('2.0.0');

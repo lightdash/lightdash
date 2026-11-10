@@ -64,6 +64,7 @@ describe('Learn search', () => {
         const comingSoon: LearnModule = {
             kind: 'scope',
             scope: 'view:FutureModule',
+            scopes: ['view:FutureModule'],
             title: 'Explore a future feature',
             group: FOUNDATIONS,
             gate: null,

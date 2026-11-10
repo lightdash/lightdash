@@ -538,7 +538,7 @@ export const MetricExploreModal: FC<Props> = (props) => {
                                 </ActionIcon>
                             </Tooltip>
                         </Group>
-                        <Text fw={600} fz="md" c="ldGray.8">
+                        <Text fw={600} fz="md">
                             {metricField?.label}
                         </Text>
                         <Tooltip
@@ -609,7 +609,7 @@ export const MetricExploreModal: FC<Props> = (props) => {
 
                                 <Stack gap="xs">
                                     <Group justify="space-between">
-                                        <Text fw={500} c="ldGray.7">
+                                        <Text fw={500} c="dimmed">
                                             Comparison
                                         </Text>
                                         <Button

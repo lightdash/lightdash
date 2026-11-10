@@ -1,8 +1,15 @@
+import { RequestMethod } from '@lightdash/common';
 import Analytics from '@rudderstack/rudder-sdk-node';
+import { EventEmitter } from 'events';
+import ExecutionContext from 'node-execution-context';
+import type { MockInstance } from 'vitest';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import Logger from '../logging/logger';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
+import { EventStreamSink } from './eventStream/EventStreamSink';
+import { eventStreamRegistry } from './eventStream/registry';
 import { LightdashAnalytics } from './LightdashAnalytics';
+import type { QueryCompletedEvent } from './LightdashAnalytics';
 
 // writeKey drives the tracking-enabled check inside flushEvents()
 const buildAnalytics = (writeKey: string) =>
@@ -23,6 +30,94 @@ const queueOf = (analytics: LightdashAnalytics, size: number) => {
 };
 
 describe('LightdashAnalytics', () => {
+    it.each([true, false])(
+        'keeps query diagnostics in the usage copy only (semantic references=%s)',
+        (withSemanticUsage) => {
+            const writer = { push: vi.fn(), flush: vi.fn(), close: vi.fn() };
+            const eventEmitter = new EventEmitter();
+            const metricEvent = vi.fn();
+            eventEmitter.on('analytics.track.query.completed', metricEvent);
+            const analytics = new LightdashAnalytics({
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    rudder: { writeKey: 'test', dataPlaneUrl: 'notrack' },
+                    prometheus: {
+                        ...lightdashConfigMock.prometheus,
+                        enabled: true,
+                        eventMetricsEnabled: true,
+                    },
+                },
+                writeKey: 'notrack',
+                dataPlaneUrl: 'notrack',
+                options: { enable: false },
+                eventEmitter,
+                eventStreamSink: new EventStreamSink(
+                    eventStreamRegistry,
+                    writer,
+                ),
+            });
+            const payload = {
+                event: 'query.completed',
+                userId: 'user',
+                properties: {
+                    organizationId: 'org',
+                    projectId: 'project',
+                    isPreviewProject: false,
+                    status: 'error',
+                    errorMessage: 'column "private_field" does not exist',
+                    ...(withSemanticUsage
+                        ? {
+                              semanticUsage: {
+                                  status: 'captured',
+                                  references: [{ fieldId: 'private_field' }],
+                              },
+                          }
+                        : {}),
+                },
+            } as QueryCompletedEvent;
+            const track = vi
+                .spyOn(Analytics.prototype, 'track')
+                .mockImplementation(() => {});
+            try {
+                analytics.track(payload);
+                expect(writer.push).toHaveBeenCalledTimes(1);
+                expect(writer.push).toHaveBeenCalledWith(
+                    'query_events',
+                    expect.objectContaining({
+                        error: payload.properties.errorMessage,
+                        semantic_lineage_status: withSemanticUsage
+                            ? 'captured'
+                            : null,
+                        semantic_field_references: withSemanticUsage
+                            ? '[{"fieldId":"private_field"}]'
+                            : null,
+                    }),
+                );
+                expect(track).toHaveBeenCalledTimes(1);
+                expect(track.mock.calls[0][0].properties).not.toHaveProperty(
+                    'semanticUsage',
+                );
+                expect(
+                    metricEvent.mock.calls[0][0].properties,
+                ).not.toHaveProperty('semanticUsage');
+                expect(track.mock.calls[0][0].properties).not.toHaveProperty(
+                    'errorMessage',
+                );
+                expect(
+                    metricEvent.mock.calls[0][0].properties,
+                ).not.toHaveProperty('errorMessage');
+                expect(payload.properties.errorMessage).toBe(
+                    'column "private_field" does not exist',
+                );
+                expect(Boolean(payload.properties.semanticUsage)).toBe(
+                    withSemanticUsage,
+                );
+            } finally {
+                track.mockRestore();
+            }
+        },
+    );
+
     it('tracks one aggregated feature flag check event per entry', () => {
         const analytics = new LightdashAnalytics({
             lightdashConfig: lightdashConfigMock,
@@ -218,7 +313,7 @@ describe('LightdashAnalytics', () => {
             options: { enable: false },
         });
 
-        let superTrackSpy: ReturnType<typeof vi.spyOn>;
+        let superTrackSpy: MockInstance<Analytics['track']>;
 
         beforeEach(() => {
             superTrackSpy = vi
@@ -252,6 +347,29 @@ describe('LightdashAnalytics', () => {
             );
             expect(warn).toHaveBeenCalledTimes(1);
             warn.mockRestore();
+        });
+
+        it('says which client made the request, and nothing outside one', () => {
+            const event = {
+                event: 'content_as_code.pulled_from_git' as const,
+                userId: 'user-uuid',
+                properties: {
+                    projectId: 'project-uuid',
+                    chartsCount: 1,
+                    dashboardsCount: 0,
+                    failureCount: 0,
+                },
+            };
+
+            ExecutionContext.run(() => analytics.track(event), {
+                request_method: RequestMethod.DESKTOP,
+            });
+            analytics.track(event);
+
+            const contexts = superTrackSpy.mock.calls.map(
+                ([message]) => message.context?.requestMethod,
+            );
+            expect(contexts).toEqual([RequestMethod.DESKTOP, undefined]);
         });
 
         it('leaves an event with a userId untouched', () => {
@@ -298,7 +416,7 @@ describe('LightdashAnalytics', () => {
             deletedUserId: 'deleted-user-uuid',
         };
 
-        let superTrackSpy: ReturnType<typeof vi.spyOn>;
+        let superTrackSpy: MockInstance<Analytics['track']>;
 
         beforeEach(() => {
             superTrackSpy = vi

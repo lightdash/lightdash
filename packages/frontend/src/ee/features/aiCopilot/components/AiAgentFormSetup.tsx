@@ -4,6 +4,7 @@ import {
     MAX_RETENTION_WINDOW_HOURS,
     MIN_RETENTION_WINDOW_HOURS,
     type AiAgentModelConfig,
+    type AiAgentUserAccessDetail,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -53,7 +54,10 @@ import { z } from 'zod';
 import { BetaBadge } from '../../../../components/common/BetaBadge';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
-import { getModelKey } from '../../../../components/common/ModelSelector/utils';
+import {
+    renderModelSelectOption,
+    toModelSelectItem,
+} from '../../../../components/common/ModelSelector/modelSelectOption';
 import { SlackChannelSelect } from '../../../../components/common/SlackChannelSelect';
 import { useGetSlack } from '../../../../hooks/slack/useSlack';
 import { useOrganizationGroups } from '../../../../hooks/useOrganizationGroups';
@@ -67,6 +71,7 @@ import {
     useDefaultAiAgentModel,
 } from '../hooks/useAiAgentModelSelection';
 import { useAiOrganizationSettings } from '../hooks/useAiOrganizationSettings';
+import { useAiProviderCredentials } from '../hooks/useAiProviderCredentials';
 import { useDeleteAiAgentMutation } from '../hooks/useProjectAiAgents';
 import { useGetAgentExploreAccessSummary } from '../hooks/useUserAgentPreferences';
 import { AgentSettingsSection } from './AgentSettingsSection';
@@ -76,6 +81,7 @@ import classes from './AiAgentFormSetup.module.css';
 import { AiAgentKnowledgeFilesSection } from './AiAgentKnowledgeFilesSection';
 import { AiAgentMcpServersInput } from './AiAgentMcpServersInput';
 import { AiAgentSkillsSection } from './AiAgentSkillsSection';
+import { DeprecatedModelNotice } from './DeprecatedModelNotice';
 import { InstructionsGuidelines } from './InstructionsSupport';
 import { SpaceAccessSelect } from './SpaceAccessSelect';
 import { ThreadRetentionSelect } from './ThreadRetentionSelect';
@@ -101,8 +107,11 @@ const formSchema = z.object({
     enableContentTools: z.boolean(),
     enableUserContext: z.boolean(),
     enableSqlMode: z.boolean(),
+    enableSqlAutoApproval: z.boolean(),
+    enableComposerQueries: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
+    providerCredentialUuid: z.string().nullable(),
     version: z.number(),
     threadRetentionHours: z
         .number()
@@ -174,6 +183,7 @@ export const AiAgentFormSetup = ({
     isSavingAgent,
     onSubmit,
     persistedMcpServerUuids,
+    userAccessDetails,
     avatarMode,
     avatarFileName,
     onAvatarFileChange,
@@ -188,6 +198,9 @@ export const AiAgentFormSetup = ({
     isSavingAgent?: boolean;
     onSubmit: () => void;
     persistedMcpServerUuids?: string[];
+    // Names for the saved user access, so pills are labelled before the
+    // org user search has loaded them.
+    userAccessDetails?: AiAgentUserAccessDetail[];
     avatarMode: 'upload' | 'link';
     avatarFileName: string | null;
     onAvatarFileChange: (file: File | null) => void;
@@ -197,6 +210,45 @@ export const AiAgentFormSetup = ({
 }) => {
     const { data: aiOrganizationSettings } = useAiOrganizationSettings();
     const modelOptions = aiOrganizationSettings?.defaultAiAgentModelOptions;
+    // Shown when there is a real choice, or when a pin is already set — a
+    // pinned agent must always offer a way to clear its pin, even when the
+    // credential is unreadable or the viewer cannot list credentials.
+    const providerCredentialsQuery = useAiProviderCredentials({ retry: false });
+    const customProvidersFlagQuery = useServerFeatureFlag(
+        FeatureFlags.OrgAiCustomProviders,
+    );
+    const pinnedCredentialUuid = form.values.providerCredentialUuid;
+    const showCredentialSelector =
+        pinnedCredentialUuid !== null ||
+        (customProvidersFlagQuery.isSuccess &&
+            customProvidersFlagQuery.data.enabled &&
+            (providerCredentialsQuery.data?.credentials.length ?? 0) > 1);
+    const credentialOptions = useMemo(() => {
+        const options: { value: string; label: string; disabled?: boolean }[] =
+            (providerCredentialsQuery.data?.credentials ?? []).map(
+                (credential) => ({
+                    value: credential.uuid,
+                    label: `${credential.label} — ${credential.region}`,
+                }),
+            );
+        if (
+            pinnedCredentialUuid &&
+            !options.some((option) => option.value === pinnedCredentialUuid)
+        ) {
+            const unreadable =
+                providerCredentialsQuery.data?.unreadableCredentials.find(
+                    (credential) => credential.uuid === pinnedCredentialUuid,
+                );
+            options.push({
+                value: pinnedCredentialUuid,
+                label: unreadable
+                    ? `${unreadable.label} — unavailable`
+                    : 'Unavailable credential',
+                disabled: true,
+            });
+        }
+        return options;
+    }, [providerCredentialsQuery.data, pinnedCredentialUuid]);
     const exploreAccessSummaryQuery = useGetAgentExploreAccessSummary(
         projectUuid!,
         {
@@ -218,12 +270,6 @@ export const AiAgentFormSetup = ({
         }),
     );
 
-    const scrollToKnowledgeAndData = useCallback(() => {
-        document
-            .getElementById('knowledge-and-data')
-            ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, []);
-
     const handleDeleteClick = useCallback(() => {
         setDeleteModalOpen(true);
     }, []);
@@ -244,6 +290,7 @@ export const AiAgentFormSetup = ({
         useDisclosure(false);
     const {
         fallbackModelLabel: organizationDefaultModelLabel,
+        modelReplacement,
         selectedModel,
         selectedModelKey,
         showReasoningDefault,
@@ -264,20 +311,15 @@ export const AiAgentFormSetup = ({
     const { data: slackInstallation, isLoading: isLoadingSlackInstallation } =
         useGetSlack();
 
-    const userGroupsFeatureFlagQuery = useServerFeatureFlag(
-        FeatureFlags.UserGroupsEnabled,
-    );
-
-    const customSkillsFlagQuery = useServerFeatureFlag(
-        FeatureFlags.AiAgentCustomSkills,
-    );
     const threadRetentionFlagQuery = useServerFeatureFlag(
         FeatureFlags.AiThreadRetention,
     );
 
-    const isGroupsEnabled =
-        userGroupsFeatureFlagQuery.isSuccess &&
-        userGroupsFeatureFlagQuery.data.enabled;
+    const composeSqlRunnerFlagQuery = useServerFeatureFlag(
+        FeatureFlags.ComposeSqlRunner,
+    );
+    const composerQueriesAvailable =
+        composeSqlRunnerFlagQuery.data?.enabled === true;
 
     const handlePersistedMcpServerChange = useCallback(
         (value: string[]) => {
@@ -303,14 +345,9 @@ export const AiAgentFormSetup = ({
         [form],
     );
 
-    const { data: groups, isLoading: isLoadingGroups } = useOrganizationGroups(
-        {
-            includeMembers: 5,
-        },
-        {
-            enabled: isGroupsEnabled,
-        },
-    );
+    const { data: groups, isLoading: isLoadingGroups } = useOrganizationGroups({
+        includeMembers: 5,
+    });
 
     const groupOptions = useMemo(
         () =>
@@ -565,7 +602,7 @@ export const AiAgentFormSetup = ({
                                 <Box>
                                     <Title
                                         order={6}
-                                        c="ldGray.7"
+                                        c="dimmed"
                                         size="sm"
                                         fw={500}
                                     >
@@ -592,8 +629,7 @@ export const AiAgentFormSetup = ({
                             </Stack>
                         </AgentSettingsSubsection>
 
-                        {customSkillsFlagQuery.data?.enabled &&
-                        user.data?.organizationUuid ? (
+                        {user.data?.organizationUuid ? (
                             <>
                                 <Divider />
                                 <AiAgentSkillsSection
@@ -621,10 +657,10 @@ export const AiAgentFormSetup = ({
                                 }
                                 placeholder={organizationDefaultModelLabel}
                                 clearable
-                                data={visibleModelOptions.map((model) => ({
-                                    value: getModelKey(model),
-                                    label: model.displayName,
-                                }))}
+                                data={visibleModelOptions.map(
+                                    toModelSelectItem,
+                                )}
+                                renderOption={renderModelSelectOption}
                                 onChange={(modelKey) => {
                                     const model = getModelOptionByKey(
                                         modelOptions,
@@ -646,6 +682,21 @@ export const AiAgentFormSetup = ({
                                     );
                                 }}
                             />
+
+                            {selectedModel?.deprecated && (
+                                <DeprecatedModelNotice
+                                    model={selectedModel}
+                                    replacement={modelReplacement}
+                                    disabled={isSavingAgent ?? false}
+                                    onSwitch={(modelConfig) => {
+                                        form.setFieldValue(
+                                            'modelConfig',
+                                            modelConfig,
+                                        );
+                                        onSubmit();
+                                    }}
+                                />
+                            )}
 
                             {showReasoningDefault && (
                                 <Switch
@@ -671,6 +722,32 @@ export const AiAgentFormSetup = ({
                                 />
                             )}
                         </AgentSettingsSubsection>
+
+                        {showCredentialSelector && (
+                            <>
+                                <Divider />
+                                <AgentSettingsSubsection
+                                    title="AI provider credential"
+                                    description="Where this agent's requests are processed. Leave empty to follow the project or organization setting."
+                                >
+                                    <Select
+                                        variant="subtle"
+                                        aria-label="AI provider credential"
+                                        value={pinnedCredentialUuid}
+                                        disabled={isSavingAgent}
+                                        placeholder="Project or organization default"
+                                        clearable
+                                        data={credentialOptions}
+                                        onChange={(value) =>
+                                            form.setFieldValue(
+                                                'providerCredentialUuid',
+                                                value ?? null,
+                                            )
+                                        }
+                                    />
+                                </AgentSettingsSubsection>
+                            </>
+                        )}
                     </AgentSettingsSection>
 
                     <AgentSettingsSection
@@ -754,7 +831,7 @@ export const AiAgentFormSetup = ({
                                                 </>
                                             )
                                         ) : (
-                                            `Loading AI access information...`
+                                            `Loading agent access information...`
                                         )
                                     }
                                     {...form.getInputProps('tags')}
@@ -856,7 +933,7 @@ export const AiAgentFormSetup = ({
                                 label={
                                     <SwitchLabel
                                         text="Create and edit content"
-                                        help="Requires reading rows to be enabled. Only works for users with content-as-code access (admins, developers, and editors)."
+                                        help="Requires reading rows to be enabled. Users only get the actions their role allows."
                                         badge={<BetaBadge />}
                                     />
                                 }
@@ -894,21 +971,44 @@ export const AiAgentFormSetup = ({
                                     type: 'checkbox',
                                 })}
                             />
+                            <Switch
+                                variant="subtle"
+                                label={
+                                    <SwitchLabel
+                                        text="Run SQL without approval"
+                                        help="Applies everywhere the agent runs, including Slack. Users still need SQL Runner access, and queries stay limited to the agent data scope."
+                                        badge={null}
+                                    />
+                                }
+                                description="Skip the approval step for SQL queries and SQL charts. Off by default."
+                                {...form.getInputProps(
+                                    'enableSqlAutoApproval',
+                                    {
+                                        type: 'checkbox',
+                                    },
+                                )}
+                            />
+                            {composerQueriesAvailable && (
+                                <Switch
+                                    variant="subtle"
+                                    label={
+                                        <SwitchLabel
+                                            text="Composer queries"
+                                            help="Requires reading rows to be enabled."
+                                            badge={<BetaBadge />}
+                                        />
+                                    }
+                                    description="Queries run through the composer pipeline instead of the classic query tools."
+                                    {...form.getInputProps(
+                                        'enableComposerQueries',
+                                        {
+                                            type: 'checkbox',
+                                        },
+                                    )}
+                                    disabled={!form.values.enableDataAccess}
+                                />
+                            )}
                         </Stack>
-
-                        <Text size="xs" c="dimmed">
-                            Which explores, spaces and documents it can read is
-                            set in{' '}
-                            <Anchor
-                                component="button"
-                                type="button"
-                                size="xs"
-                                onClick={scrollToKnowledgeAndData}
-                            >
-                                Knowledge &amp; data
-                            </Anchor>
-                            .
-                        </Text>
                     </AgentSettingsSection>
 
                     <AgentSettingsSection
@@ -982,8 +1082,8 @@ export const AiAgentFormSetup = ({
                                         />
                                         <Radio
                                             value="specific"
-                                            label={`Specific users ${isGroupsEnabled ? ' & groups' : ''}`}
-                                            description={`Only the users${isGroupsEnabled ? ' and groups ' : ' '}you choose. Admins and developers (Manage AI Agents scope) always have access.`}
+                                            label="Specific users & groups"
+                                            description="Only the users and groups you choose. Admins and developers (Manage AI Agents scope) always have access."
                                         />
                                     </Stack>
                                 </Radio.Group>
@@ -992,7 +1092,9 @@ export const AiAgentFormSetup = ({
                                     <Stack pl="xl">
                                         <UserAccessMultiSelect
                                             projectUuid={projectUuid!}
-                                            isGroupsEnabled={isGroupsEnabled}
+                                            selectedUserDetails={
+                                                userAccessDetails
+                                            }
                                             value={form.values.userAccess}
                                             onChange={(value) => {
                                                 form.setFieldValue(
@@ -1002,66 +1104,64 @@ export const AiAgentFormSetup = ({
                                             }}
                                         />
 
-                                        {isGroupsEnabled && (
-                                            <MultiSelect
-                                                variant="subtle"
-                                                label={
-                                                    <Group gap="xs">
-                                                        <Text fz="sm" fw={500}>
-                                                            Group Access
-                                                        </Text>
-                                                        <Tooltip
-                                                            label="Admins and developers (Manage AI Agents scope) will always have access to this agent."
-                                                            position="right"
-                                                            maw="250px"
-                                                        >
-                                                            <MantineIcon
-                                                                icon={
-                                                                    IconInfoCircle
-                                                                }
-                                                            />
-                                                        </Tooltip>
-                                                    </Group>
-                                                }
-                                                description="Select groups that can access this agent."
-                                                placeholder={
-                                                    isLoadingGroups
-                                                        ? 'Loading groups...'
-                                                        : groupOptions.length ===
-                                                            0
-                                                          ? 'No groups available'
-                                                          : 'Select groups or leave empty for all users'
-                                                }
-                                                data={groupOptions}
-                                                disabled={
-                                                    isLoadingGroups ||
-                                                    groupOptions.length === 0
-                                                }
-                                                comboboxProps={{
-                                                    transitionProps: {
-                                                        transition: 'pop',
-                                                        duration: 200,
-                                                    },
-                                                }}
-                                                clearable
-                                                {...form.getInputProps(
+                                        <MultiSelect
+                                            searchable
+                                            variant="subtle"
+                                            label={
+                                                <Group gap="xs">
+                                                    <Text fz="sm" fw={500}>
+                                                        Group Access
+                                                    </Text>
+                                                    <Tooltip
+                                                        label="Admins and developers (Manage AI Agents scope) will always have access to this agent."
+                                                        position="right"
+                                                        maw="250px"
+                                                    >
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconInfoCircle
+                                                            }
+                                                        />
+                                                    </Tooltip>
+                                                </Group>
+                                            }
+                                            description="Select groups that can access this agent."
+                                            placeholder={
+                                                isLoadingGroups
+                                                    ? 'Loading groups...'
+                                                    : groupOptions.length === 0
+                                                      ? 'No groups available'
+                                                      : 'Select groups or leave empty for all users'
+                                            }
+                                            data={groupOptions}
+                                            disabled={
+                                                isLoadingGroups ||
+                                                groupOptions.length === 0
+                                            }
+                                            comboboxProps={{
+                                                transitionProps: {
+                                                    transition: 'pop',
+                                                    duration: 200,
+                                                },
+                                            }}
+                                            clearable
+                                            {...form.getInputProps(
+                                                'groupAccess',
+                                            )}
+                                            value={
+                                                form.getInputProps(
                                                     'groupAccess',
-                                                )}
-                                                value={
-                                                    form.getInputProps(
-                                                        'groupAccess',
-                                                    ).value ?? []
-                                                }
-                                                onChange={(value) => {
-                                                    form.setFieldValue(
-                                                        'groupAccess',
-                                                        value.length > 0
-                                                            ? value
-                                                            : [],
-                                                    );
-                                                }}
-                                            />
-                                        )}
+                                                ).value ?? []
+                                            }
+                                            onChange={(value) => {
+                                                form.setFieldValue(
+                                                    'groupAccess',
+                                                    value.length > 0
+                                                        ? value
+                                                        : [],
+                                                );
+                                            }}
+                                        />
                                     </Stack>
                                 )}
                             </Stack>
@@ -1192,7 +1292,7 @@ export const AiAgentFormSetup = ({
                                 <Box>
                                     <Title
                                         order={6}
-                                        c="ldGray.7"
+                                        c="dimmed"
                                         size="sm"
                                         fw={500}
                                     >

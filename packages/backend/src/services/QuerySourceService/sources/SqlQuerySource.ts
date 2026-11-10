@@ -2,6 +2,7 @@ import {
     assertRegisteredAccount,
     ParameterError,
     QuerySourceType,
+    type FeatureFlags,
     type QuerySourceDefinition,
     type QuerySourceSchema,
     type QuerySourceSchemaTable,
@@ -37,6 +38,8 @@ export class SqlQuerySource implements QuerySourceClient {
     };
 
     readonly supportsPivot = true;
+
+    readonly requiredFeatureFlags: FeatureFlags[] = [];
 
     private readonly asyncQueryService: AsyncQueryService;
 
@@ -98,6 +101,7 @@ export class SqlQuerySource implements QuerySourceClient {
         account,
         projectUuid,
         context,
+        querySurface,
         query,
         parameters,
         userAttributeOverrides,
@@ -115,6 +119,7 @@ export class SqlQuerySource implements QuerySourceClient {
             sql: sourceQuery.sql,
             limit: sourceQuery.limit,
             context,
+            querySurface,
             parameters,
             userAttributeOverrides,
             invalidateCache,

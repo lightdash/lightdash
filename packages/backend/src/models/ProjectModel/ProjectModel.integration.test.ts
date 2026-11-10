@@ -636,3 +636,123 @@ describe('ProjectModel preview credential push', () => {
         expect(await storedRefreshToken(previewUuid)).toBe('token-a');
     });
 });
+
+describe('ProjectModel results cache clear schedule', () => {
+    const past = new Date('2026-01-15T07:00:00Z');
+    const next = new Date('2026-01-16T07:00:00Z');
+    let db: Knex;
+    let model: ProjectModel;
+    let projectUuid: string;
+
+    const setNextRunAt = (nextRunAt: Date | string | null) =>
+        db(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .update({
+                results_cache_clear_cron: '0 7 * * *',
+                results_cache_clear_next_run_at: nextRunAt as Date | null,
+            });
+    const readRow = () =>
+        db(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .select(
+                'results_cache_generation',
+                'results_cache_clear_next_run_at',
+            )
+            .first();
+
+    beforeAll(() => {
+        const context = getTestContext();
+        db = context.db;
+        projectUuid = context.testProjectUuid;
+        model = new ProjectModel({
+            database: db,
+            lightdashConfig: lightdashConfigMock,
+            encryptionUtil: encryptionUtilMock,
+        });
+    });
+
+    afterEach(async () => {
+        await db(ProjectTableName).where('project_uuid', projectUuid).update({
+            results_cache_clear_cron: null,
+            results_cache_clear_next_run_at: null,
+        });
+    });
+
+    it('lists only enabled schedules that are due', async () => {
+        await setNextRunAt(next);
+        expect(await model.getDueResultsCacheClears(past)).toEqual([]);
+        expect(await model.getDueResultsCacheClears(next)).toEqual([
+            expect.objectContaining({
+                projectUuid,
+                cron: '0 7 * * *',
+                nextRunAt: next,
+            }),
+        ]);
+        await setNextRunAt(null);
+        expect(await model.getDueResultsCacheClears(next)).toEqual([]);
+    });
+
+    it('clears once when two sweeps claim the same run', async () => {
+        await setNextRunAt(past);
+        const before = await readRow();
+        const claim = {
+            expectedNextRunAt: past,
+            nextRunAt: next,
+            clear: true,
+        };
+
+        const claims = await Promise.all([
+            model.claimDueResultsCacheClear(projectUuid, claim),
+            model.claimDueResultsCacheClear(projectUuid, claim),
+        ]);
+
+        expect(claims.filter(Boolean)).toHaveLength(1);
+        const after = await readRow();
+        expect(after?.results_cache_generation).toEqual(
+            before!.results_cache_generation + 1,
+        );
+        expect(after?.results_cache_clear_next_run_at).toEqual(next);
+    });
+
+    it('advances without a new generation when not clearing', async () => {
+        await setNextRunAt(past);
+        const before = await readRow();
+
+        await model.claimDueResultsCacheClear(projectUuid, {
+            expectedNextRunAt: past,
+            nextRunAt: next,
+            clear: false,
+        });
+
+        const after = await readRow();
+        expect(after?.results_cache_generation).toEqual(
+            before!.results_cache_generation,
+        );
+        expect(after?.results_cache_clear_next_run_at).toEqual(next);
+    });
+
+    it('claims a stored timestamp with microsecond precision', async () => {
+        await setNextRunAt('2026-01-15T07:00:00.123456Z');
+        const [due] = await model.getDueResultsCacheClears(next);
+
+        await expect(
+            model.claimDueResultsCacheClear(projectUuid, {
+                expectedNextRunAt: due.nextRunAt,
+                nextRunAt: next,
+                clear: false,
+            }),
+        ).resolves.toBe(true);
+    });
+
+    it('does not claim a run edited since it was read', async () => {
+        await setNextRunAt(next);
+
+        await expect(
+            model.claimDueResultsCacheClear(projectUuid, {
+                expectedNextRunAt: past,
+                nextRunAt: next,
+                clear: true,
+            }),
+        ).resolves.toBe(false);
+    });
+});

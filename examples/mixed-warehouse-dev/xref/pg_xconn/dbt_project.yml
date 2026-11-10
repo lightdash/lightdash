@@ -1,0 +1,9 @@
+name: pg_xconn
+version: '1.0.0'
+config-version: 2
+profile: mixed_xref_postgres
+model-paths: ['models']
+models:
+  pg_xconn:
+    +materialized: view
+    +schema: xref

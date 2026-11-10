@@ -7,6 +7,7 @@ import { mockSavedChartResponse } from '../testing/savedChartResponse.mock';
 const mocks = vi.hoisted(() => ({
     savedChart: undefined as SavedChart | undefined,
     queryError: null as Error | null,
+    exploreError: null as { error: { message: string } } | null,
 }));
 
 vi.mock('../hooks/useSavedQuery', () => ({
@@ -59,6 +60,7 @@ vi.mock('../hooks/useExplorerQuery', () => ({
             error: mocks.queryError,
         },
         explore: undefined,
+        exploreError: mocks.exploreError,
     }),
 }));
 vi.mock('../providers/App/useApp', () => ({
@@ -99,6 +101,7 @@ const renderPage = () =>
 describe('MinimalSavedExplorer screenshot readiness', () => {
     beforeEach(() => {
         mocks.queryError = null;
+        mocks.exploreError = null;
         mocks.savedChart = mockSavedChartResponse({
             chartConfig: {
                 type: ChartType.DATA_APP_VIZ,
@@ -143,6 +146,26 @@ describe('MinimalSavedExplorer screenshot readiness', () => {
         renderPage();
 
         await waitFor(() => expect(getReadyIndicator()).not.toBeNull());
+        expect(getReadyIndicator()).toHaveAttribute(
+            'data-status',
+            'completed-with-errors',
+        );
+    });
+
+    it('shows the explore error and releases the ready indicator instead of loading forever', async () => {
+        mocks.savedChart = mockSavedChartResponse();
+        mocks.exploreError = {
+            error: {
+                message: "You don't have authorization to access this explore",
+            },
+        };
+        renderPage();
+
+        expect(
+            await screen.findByText(
+                "You don't have authorization to access this explore",
+            ),
+        ).toBeInTheDocument();
         expect(getReadyIndicator()).toHaveAttribute(
             'data-status',
             'completed-with-errors',

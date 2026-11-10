@@ -50,7 +50,7 @@ const OmnibarPreview: FC<Props> = ({ item, spaceName }) => {
     const hasError = itemHasValidationError(item);
     const hasVerification = itemHasVerification(item);
 
-    const displaySpaceName = spaceName ?? item.recentContent?.space.name;
+    const displaySpaceName = spaceName ?? item.recentContent?.space?.name;
     const viewsCount =
         item.recentContent?.views ??
         (item.item && 'viewsCount' in item.item

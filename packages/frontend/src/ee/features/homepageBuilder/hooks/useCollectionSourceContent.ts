@@ -76,9 +76,9 @@ export const useCollectionSourceContent = (
     const derivedUuids = useMemo(() => {
         switch (source) {
             case 'most-viewed':
-                return (popular.data?.mostPopular ?? []).map(
-                    (item) => item.uuid,
-                );
+                return (popular.data?.mostPopular ?? [])
+                    .filter((item) => !('contentType' in item))
+                    .map((item) => item.uuid);
             case 'recently-updated':
                 return (popular.data?.recentlyUpdated ?? []).map(
                     (item) => item.uuid,
@@ -129,6 +129,14 @@ export const useCollectionSourceContent = (
     const resolved = useMemo<SummaryContent[]>(() => {
         if (source === 'manual') return manual.data ?? [];
         if (source === 'recently-viewed') return recent.contents;
+        if (source === 'most-viewed') {
+            const byUuid = new Map(
+                (derived.data ?? []).map((content) => [content.uuid, content]),
+            );
+            return (popular.data?.mostPopular ?? []).flatMap((item) =>
+                'contentType' in item ? [item] : (byUuid.get(item.uuid) ?? []),
+            );
+        }
         if (source === 'favorites' || source === 'pinned') {
             const byUuid = new Map(
                 [...(derived.data ?? []), ...(documents.data ?? [])].map(
@@ -144,6 +152,7 @@ export const useCollectionSourceContent = (
         source,
         manual.data,
         recent.contents,
+        popular.data,
         derived.data,
         documents.data,
         favorites.data,

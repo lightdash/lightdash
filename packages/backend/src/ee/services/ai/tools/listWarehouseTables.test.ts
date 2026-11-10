@@ -1,4 +1,5 @@
 import {
+    PartitionType,
     toolListWarehouseTablesOutputSchema,
     type ToolListWarehouseTablesOutput,
     type WarehouseTablesCatalog,
@@ -201,6 +202,12 @@ const execute = async (
 };
 
 describe('listWarehouseTables tool', () => {
+    test('passes the AI context to warehouse table discovery', async () => {
+        const list = vi.fn().mockResolvedValue({});
+        await execute(list, { limit: 100 });
+        expect(list).toHaveBeenCalledWith('ai');
+    });
+
     test('renders matched tables grouped by schema and as structured content', async () => {
         const output = await execute(async () => structuredCatalog, {
             limit: 100,
@@ -228,24 +235,28 @@ describe('listWarehouseTables tool', () => {
                     schema: 'jaffle',
                     table: 'customers',
                     qualifiedName: 'analytics.jaffle.customers',
+                    partitionColumn: null,
                 },
                 {
                     database: 'analytics',
                     schema: 'jaffle',
                     table: 'orders',
                     qualifiedName: 'analytics.jaffle.orders',
+                    partitionColumn: null,
                 },
                 {
                     database: 'analytics',
                     schema: 'jaffle',
                     table: 'payments',
                     qualifiedName: 'analytics.jaffle.payments',
+                    partitionColumn: null,
                 },
                 {
                     database: 'analytics',
                     schema: 'raw',
                     table: 'raw_orders',
                     qualifiedName: 'analytics.raw.raw_orders',
+                    partitionColumn: null,
                 },
             ],
         });
@@ -272,6 +283,7 @@ describe('listWarehouseTables tool', () => {
                     schema: 'jaffle',
                     table: 'orders',
                     qualifiedName: 'analytics.jaffle.orders',
+                    partitionColumn: null,
                 },
             ],
         });
@@ -308,9 +320,49 @@ describe('listWarehouseTables tool', () => {
         expect(output.metadata).toEqual({ status: 'error' });
         expect(output.result).toContain('Error listing warehouse tables.');
         expect(output.result).toContain('warehouse unreachable');
-        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(output.structuredContent).toEqual({
+            error: output.result,
+        });
         expect(
             toolListWarehouseTablesOutputSchema.safeParse(output).success,
         ).toBe(true);
+    });
+});
+
+describe('warehouse table partitions', () => {
+    it('marks partitioned tables in the text and structured content', async () => {
+        const { result } = await run(null, {
+            enabled: false,
+            limit: 10,
+            catalog: {
+                'example-project': {
+                    analytics: {
+                        fact_orders: {
+                            partitionColumn: {
+                                field: 'created_at',
+                                partitionType: PartitionType.DATE,
+                            },
+                        },
+                        dim_customer: {},
+                    },
+                },
+            },
+        });
+
+        expect(result.result).toContain(
+            '  - example-project.analytics.fact_orders (partitioned by created_at)',
+        );
+        expect(result.result.split('\n')).toContain(
+            '  - example-project.analytics.dim_customer',
+        );
+        expect(result.structuredContent).toMatchObject({
+            tables: [
+                {
+                    table: 'fact_orders',
+                    partitionColumn: 'created_at',
+                },
+                { table: 'dim_customer', partitionColumn: null },
+            ],
+        });
     });
 });

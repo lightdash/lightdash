@@ -2,10 +2,6 @@ import { LightdashConfig } from '../../config/parseConfig';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { BufferedEventStreamWriter } from './BufferedEventStreamWriter';
 
-/**
- * Creates the usage event stream writer when the feature is enabled,
- * otherwise returns null so consumers can skip it cheaply.
- */
 export const createEventStreamWriter = (
     lightdashConfig: LightdashConfig,
     prometheusMetrics: PrometheusMetrics,

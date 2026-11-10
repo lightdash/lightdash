@@ -49,6 +49,7 @@ import ScreenshotReadyIndicator from '../common/ScreenshotReadyIndicator';
 import { DrillDownModal } from '../MetricQueryData/DrillDownModal';
 import MetricQueryDataProvider from '../MetricQueryData/MetricQueryDataProvider';
 import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
+import { ExplorerQueryCostConfirmModal } from '../QueryCostEstimate/ExplorerQueryCostEstimate';
 import RefreshDbtButton from '../RefreshDbtButton';
 import { CustomDimensionModal } from './CustomDimensionModal';
 import { CustomMetricModal } from './CustomMetricModal';
@@ -273,6 +274,7 @@ const Explorer: FC<{ hideHeader?: boolean; chartView?: boolean }> = memo(
             >
                 <Stack className={classes.stack}>
                     <MergeAutoRun />
+                    <ExplorerQueryCostConfirmModal />
                     {!hideHeader &&
                         (isEditMode ? (
                             <ExplorerHeader />

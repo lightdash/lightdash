@@ -1,0 +1,72 @@
+version: 2
+
+models:
+  - name: trino_orders
+    description: TPC-H orders served from a Trino memory catalog.
+    meta:
+      joins:
+        - join: trino_customers
+          sql_on: ${trino_orders.customer_id} = ${trino_customers.customer_id}
+    columns:
+      - name: order_id
+        meta:
+          dimension:
+            type: number
+          metrics:
+            order_count:
+              type: count_distinct
+      - name: customer_id
+        meta:
+          dimension:
+            type: number
+      - name: order_status
+        meta:
+          dimension:
+            type: string
+      - name: total_price
+        meta:
+          dimension:
+            type: number
+          metrics:
+            total_revenue:
+              type: sum
+              format: usd
+            average_order_value:
+              type: average
+              round: 2
+      - name: order_date
+        meta:
+          dimension:
+            type: date
+            time_intervals: ['DAY', 'WEEK', 'MONTH', 'QUARTER', 'YEAR']
+      - name: order_priority
+        meta:
+          dimension:
+            type: string
+
+  - name: trino_customers
+    description: TPC-H customers with their nation.
+    columns:
+      - name: customer_id
+        meta:
+          dimension:
+            type: number
+          metrics:
+            customer_count:
+              type: count_distinct
+      - name: customer_name
+        meta:
+          dimension:
+            type: string
+      - name: nation_name
+        meta:
+          dimension:
+            type: string
+      - name: market_segment
+        meta:
+          dimension:
+            type: string
+      - name: account_balance
+        meta:
+          dimension:
+            type: number

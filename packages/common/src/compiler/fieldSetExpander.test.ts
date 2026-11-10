@@ -3,6 +3,7 @@ import { DimensionType, FieldType, MetricType } from '../types/field';
 import {
     expandFieldsWithSets,
     expandFieldsWithSetsLenient,
+    expandJoinFields,
 } from './fieldSetExpander';
 
 const createMockTable = (
@@ -192,6 +193,77 @@ describe('expandFieldsWithSets', () => {
             );
 
             expect(result).toEqual(['created_at', 'order_id', 'updated_at']);
+        });
+
+        it('should exclude every field in an excluded set', () => {
+            const table = createMockTable(
+                'users',
+                ['user_id', 'name', 'email', 'phone'],
+                [],
+                { contact_fields: { fields: ['email', 'phone'] } },
+            );
+
+            expect(
+                expandFieldsWithSets(
+                    ['user_id', 'name', 'email', 'phone', '-contact_fields*'],
+                    table,
+                ),
+            ).toEqual(['user_id', 'name']);
+        });
+
+        it('should support excluded sets inside a set definition', () => {
+            const table = createMockTable(
+                'users',
+                ['user_id', 'name', 'email', 'phone'],
+                [],
+                {
+                    contact_fields: { fields: ['email', 'phone'] },
+                    all_fields: {
+                        fields: ['user_id', 'name', 'email', 'phone'],
+                    },
+                    public_fields: {
+                        fields: ['all_fields*', '-contact_fields*'],
+                    },
+                },
+            );
+
+            expect(expandFieldsWithSets(['public_fields*'], table)).toEqual([
+                'user_id',
+                'name',
+            ]);
+        });
+
+        it('should throw for an excluded set that does not exist', () => {
+            const table = createMockTable('users', ['user_id'], []);
+
+            expect(() =>
+                expandFieldsWithSets(['user_id', '-missing*'], table),
+            ).toThrow(/Set "missing" not found/);
+        });
+    });
+
+    describe('expandJoinFields', () => {
+        const table = createMockTable(
+            'users',
+            ['user_id', 'name', 'email', 'phone'],
+            [],
+            { contact_fields: { fields: ['email', 'phone'] } },
+        );
+
+        it('should treat an exclusion-only list as everything except those fields', () => {
+            expect(
+                expandJoinFields(['-name', '-contact_fields*'], table),
+            ).toEqual({ mode: 'exclude', fields: ['name', 'email', 'phone'] });
+        });
+
+        it('should treat any list with an inclusion as an include list', () => {
+            expect(
+                expandJoinFields(['name', 'email', '-email'], table),
+            ).toEqual({ mode: 'include', fields: ['name'] });
+            expect(expandJoinFields([], table)).toEqual({
+                mode: 'include',
+                fields: [],
+            });
         });
     });
 

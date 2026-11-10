@@ -20,6 +20,7 @@ const buildStatus = (
         projectUuid: 'project-1',
         appUuid: APP_UUID,
         slug: 'quarterly-review',
+        isCustomChartType: false,
         ...version,
     });
 
@@ -157,5 +158,26 @@ describe('getDataAppBuildStatusResponse', () => {
                 name: '',
             }).name,
         ).toBe('Untitled app 11111111');
+    });
+
+    it('links a custom chart type to Chart Studio and names it as one', () => {
+        expect(
+            getDataAppBuildStatusResponse({
+                siteUrl: 'https://lightdash.example',
+                projectUuid: 'project-1',
+                appUuid: APP_UUID,
+                slug: 'sankey-flow',
+                isCustomChartType: true,
+                status: 'ready',
+                error: null,
+                statusMessage: null,
+                version: 2,
+                name: 'Sankey Flow',
+            }),
+        ).toMatchObject({
+            statusMessage:
+                'Version 2 of the chart type "Sankey Flow" is ready.',
+            href: 'https://lightdash.example/projects/project-1/chart-studio/sankey-flow',
+        });
     });
 });

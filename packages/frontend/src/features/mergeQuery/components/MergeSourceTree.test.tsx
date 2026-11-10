@@ -1,3 +1,4 @@
+import { DimensionType, FieldType, type Dimension } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ComponentProps, type ReactNode } from 'react';
@@ -7,6 +8,8 @@ import { MergeSourceTree } from './MergeSourceTree';
 
 const state = vi.hoisted(() => ({
     setSourceExplore: vi.fn(),
+    addSourceFilter: vi.fn(),
+    exploreName: 'subscriptions' as string | null,
     exploreTreeProps: undefined as
         | ComponentProps<typeof ExploreTree>
         | undefined,
@@ -17,14 +20,38 @@ vi.mock('../context/useMerge', () => ({
         additionalSources: [
             {
                 id: 'combined',
-                exploreName: 'subscriptions',
+                exploreName: state.exploreName,
                 dimensions: ['subscriptions_started_at'],
                 metrics: ['subscriptions_count'],
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'rule',
+                                target: { fieldId: 'subscriptions_plan' },
+                                operator: 'equals',
+                                values: ['pro'],
+                            },
+                        ],
+                    },
+                },
             },
         ],
         setSourceExplore: state.setSourceExplore,
         toggleSourceField: vi.fn(),
     }),
+}));
+
+vi.mock('../hooks/useMergeSourceNames', () => ({
+    useMergeSourceNames: () => ({
+        nameByHandle: { a: 'orders', combined: 'payments' },
+        handleByName: {},
+    }),
+}));
+
+vi.mock('../hooks/useMergeSourceFilter', () => ({
+    useMergeSourceFilter: () => state.addSourceFilter,
 }));
 
 vi.mock('../../../hooks/useExplore', () => ({
@@ -91,6 +118,7 @@ describe('MergeSourceTree table picker', () => {
     beforeEach(() => {
         state.setSourceExplore.mockReset();
         state.exploreTreeProps = undefined;
+        state.exploreName = 'subscriptions';
     });
 
     it('returns to the selected fields without changing the source', async () => {
@@ -103,6 +131,19 @@ describe('MergeSourceTree table picker', () => {
 
         expect(setIsChoosingExplore).toHaveBeenCalledWith(false);
         expect(state.setSourceExplore).not.toHaveBeenCalled();
+    });
+
+    // There are no fields to go back to until the source has a table
+    it('offers no way back before the source has a table', () => {
+        state.exploreName = null;
+        renderPicker({ isChoosingExplore: false });
+
+        expect(
+            screen.queryByRole('button', { name: 'Back to fields' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Customers' }),
+        ).toBeInTheDocument();
     });
 
     it('does not clear fields when the current table is selected again', async () => {
@@ -124,6 +165,7 @@ describe('MergeSourceTree table picker', () => {
         expect(state.setSourceExplore).toHaveBeenCalledWith(
             'combined',
             'customers',
+            { a: 'orders', combined: 'payments' },
         );
         expect(setIsChoosingExplore).toHaveBeenCalledWith(false);
     });
@@ -132,5 +174,26 @@ describe('MergeSourceTree table picker', () => {
         renderPicker({ isChoosingExplore: false });
 
         expect(state.exploreTreeProps?.customMetricSourceId).toBe('combined');
+    });
+
+    it('adds filters from its field tree to its own source', () => {
+        renderPicker({ isChoosingExplore: false });
+        const field: Dimension = {
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.STRING,
+            name: 'status',
+            label: 'Status',
+            table: 'subscriptions',
+            tableLabel: 'Subscriptions',
+            sql: '${TABLE}.status',
+            hidden: false,
+        };
+
+        state.exploreTreeProps?.filterTarget?.addFilter(field);
+
+        expect(state.addSourceFilter).toHaveBeenCalledWith('combined', field);
+        expect([
+            ...(state.exploreTreeProps?.filterTarget?.filteredFieldIds ?? []),
+        ]).toEqual(['subscriptions_plan']);
     });
 });

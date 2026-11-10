@@ -1,10 +1,9 @@
 import {
-    convertExplores,
+    convertTable,
     DEFAULT_SPOTLIGHT_CONFIG,
-    isExploreError,
     type DbtModelNode,
     type DbtModelLightdashConfig,
-    type DbtColumnLightdashConfig,
+    type DbtColumnMetadata,
     CustomDimensionType,
     DimensionType,
     FieldType,
@@ -20,8 +19,6 @@ import {
 } from '@lightdash/common';
 import { load } from 'js-yaml';
 import demoYaml from '../../../../../../../../examples/full-jaffle-shop-demo/dbt/models/combined_fields_demo.yml?raw';
-import { warehouseClientMock } from '../../../../../../../common/src/compiler/exploreCompiler.mock';
-import { model as dbtModel } from '../../../../../../../common/src/compiler/translator.mock';
 import { isGroupNode, type NodeMap } from '../Tree/types';
 import { getSearchResults } from '../Tree/utils';
 import {
@@ -386,19 +383,34 @@ describe('combined tree virtualization', () => {
 });
 
 describe('compiled demo combined fields', () => {
-    it('keeps date groups from the real demo separate and searchable', async () => {
+    it('keeps date groups from the real demo separate and searchable', () => {
         const demo = load(demoYaml) as {
             models: {
                 name: string;
                 config: { meta: DbtModelLightdashConfig };
                 columns: {
                     name: string;
-                    config: { meta: DbtColumnLightdashConfig };
+                    config: { meta: DbtColumnMetadata };
                 }[];
             }[];
         };
         const models: DbtModelNode[] = demo.models.map((entry) => ({
-            ...dbtModel,
+            alias: entry.name,
+            checksum: { name: '', checksum: '' },
+            fqn: [],
+            language: 'sql',
+            path: '',
+            raw_code: '',
+            compiled: true,
+            description: '',
+            resource_type: 'model',
+            database: 'db',
+            schema: 'public',
+            tags: [],
+            relation_name: entry.name,
+            depends_on: { nodes: [] },
+            patch_path: null,
+            original_file_path: '',
             name: entry.name,
             unique_id: `model.jaffle.${entry.name}`,
             package_name: 'jaffle',
@@ -416,18 +428,30 @@ describe('compiled demo combined fields', () => {
                 ]),
             ),
         }));
-        const results = await convertExplores(
-            models,
-            false,
-            SupportedDbtAdapter.POSTGRES,
-            warehouseClientMock,
-            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
-        );
-        const compiled = results.find(
-            (result) => result.name === 'combined_fields_orders',
-        )!;
-        if (isExploreError(compiled))
-            throw new Error(JSON.stringify(compiled.errors));
+        const tables = models.map((model) => {
+            const translated = convertTable(
+                SupportedDbtAdapter.POSTGRES,
+                model,
+                DEFAULT_SPOTLIGHT_CONFIG,
+            );
+            return {
+                ...table(
+                    model.name,
+                    Object.values(translated.dimensions).map((field) => ({
+                        ...field,
+                        compiledSql: field.sql,
+                        tablesReferences: [field.table],
+                    })),
+                ),
+                label: translated.label,
+                groupDetails: translated.groupDetails,
+            };
+        });
+        const compiled = {
+            ...explore(tables),
+            name: 'combined_fields_orders',
+            baseTable: 'combined_fields_orders',
+        };
         const original = structuredClone(compiled);
         const tree = build(compiled);
         const dimensions = tree.nodeMaps.get(`${compiled.name}-dimensions`)!;

@@ -31,7 +31,7 @@ const RUNTIME_ENVIRONMENT_VARIABLE_KEYS = [
 // rather than from the generated profiles.yml. Exact names rather than
 // prefixes, since an AWS_ or AZURE_ prefix would also share Lightdash's own
 // AZURE_AI_API_KEY and friends.
-const CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS = [
+export const CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS = [
     'AWS_ACCESS_KEY_ID',
     'AWS_SECRET_ACCESS_KEY',
     'AWS_SESSION_TOKEN',
@@ -87,6 +87,7 @@ type DbtProcessEnvironmentArgs = {
     targetPath: string;
     partialParse: boolean;
     gitConfigGlobalPath?: string;
+    explicitCredentials: boolean;
 };
 
 const inheritKeys = (
@@ -105,15 +106,24 @@ export const getDbtProcessEnvironment = ({
     targetPath,
     partialParse,
     gitConfigGlobalPath,
+    explicitCredentials,
 }: DbtProcessEnvironmentArgs): Record<string, string> => ({
     // Ambient cloud credentials sit below the project, because profiles.ts
     // injects the warehouse's own AWS_* keys through projectEnvironment and
     // those must beat whatever identity the host happens to carry.
     ...inheritKeys(
         processEnvironment,
-        CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS,
+        explicitCredentials ? [] : CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS,
     ),
-    ...inheritKeys(processEnvironment, environmentVariableAllowlist),
+    ...inheritKeys(
+        processEnvironment,
+        explicitCredentials
+            ? environmentVariableAllowlist.filter(
+                  (key) =>
+                      !CLOUD_CREDENTIAL_ENVIRONMENT_VARIABLE_KEYS.includes(key),
+              )
+            : environmentVariableAllowlist,
+    ),
     ...projectEnvironment,
     // Runtime plumbing sits above it: PATH decides which binary runs, and the
     // proxy and CA settings decide where dbt deps fetches from, so a project

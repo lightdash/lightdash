@@ -1,7 +1,12 @@
 import { ComparisonDiffTypes } from '@lightdash/common';
-import { cleanup, screen } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+    FakeResizeObserver,
+    resizeObservers,
+    resizeTarget,
+} from '../../../testing/fakeResizeObserver';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { BigNumberDisplay } from './BigNumberDisplay';
 
@@ -137,6 +142,136 @@ describe('BigNumberDisplay', () => {
         await userEvent.hover(screen.getByTestId('big-number-value'));
 
         expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    });
+
+    describe('truncated value tooltip', () => {
+        const longValue = 'A very long value that does not fit in the tile';
+        let clientWidth: number;
+        let scrollWidth: number;
+        let originalResizeObserver: typeof ResizeObserver;
+
+        beforeEach(() => {
+            clientWidth = 120;
+            scrollWidth = 600;
+            originalResizeObserver = window.ResizeObserver;
+            window.ResizeObserver = FakeResizeObserver;
+            vi.spyOn(
+                Element.prototype,
+                'clientWidth',
+                'get',
+            ).mockImplementation(function (this: Element) {
+                return this.getAttribute('data-testid') === 'big-number-value'
+                    ? clientWidth
+                    : 0;
+            });
+            vi.spyOn(
+                Element.prototype,
+                'scrollWidth',
+                'get',
+            ).mockImplementation(function (this: Element) {
+                return this.getAttribute('data-testid') === 'big-number-value'
+                    ? scrollWidth
+                    : 0;
+            });
+        });
+
+        afterEach(() => {
+            cleanup();
+            resizeObservers.clear();
+            window.ResizeObserver = originalResizeObserver;
+            vi.restoreAllMocks();
+        });
+
+        it('shows the full overflowing value alongside its description', async () => {
+            renderWithProviders(
+                <BigNumberDisplay
+                    {...baseProps}
+                    value={longValue}
+                    description="Description remains available"
+                />,
+            );
+
+            await userEvent.hover(screen.getByTestId('big-number-value'));
+
+            const tooltip = await screen.findByRole('tooltip');
+            expect(within(tooltip).getByText(longValue)).toBeInTheDocument();
+            expect(
+                within(tooltip).getByText('Description remains available'),
+            ).toBeInTheDocument();
+        });
+
+        it('rechecks overflow when the value changes in the same container', async () => {
+            scrollWidth = 80;
+            const { rerender } = renderWithProviders(
+                <BigNumberDisplay {...baseProps} />,
+            );
+            const valueElement = screen.getByTestId('big-number-value');
+            await userEvent.hover(valueElement);
+            expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+            await userEvent.unhover(valueElement);
+
+            scrollWidth = 600;
+            rerender(<BigNumberDisplay {...baseProps} value={longValue} />);
+            expect(screen.getByTestId('big-number-value')).toBe(valueElement);
+            await userEvent.hover(valueElement);
+            expect(await screen.findByRole('tooltip')).toHaveTextContent(
+                longValue,
+            );
+        });
+
+        it('updates overflow after resizing without changing the value', async () => {
+            renderWithProviders(
+                <BigNumberDisplay {...baseProps} value={longValue} />,
+            );
+            const valueElement = screen.getByTestId('big-number-value');
+            await userEvent.hover(valueElement);
+            expect(await screen.findByRole('tooltip')).toHaveTextContent(
+                longValue,
+            );
+            await userEvent.unhover(valueElement);
+            await waitFor(() => {
+                expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+            });
+
+            clientWidth = 800;
+            resizeTarget(valueElement, clientWidth, 80);
+            await userEvent.hover(valueElement);
+            expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+            await userEvent.unhover(valueElement);
+
+            clientWidth = 120;
+            resizeTarget(valueElement, clientWidth, 80);
+            await userEvent.hover(valueElement);
+            expect(await screen.findByRole('tooltip')).toHaveTextContent(
+                longValue,
+            );
+        });
+
+        it('measures the replacement value element when a context menu is added', async () => {
+            clientWidth = 800;
+            const { rerender } = renderWithProviders(
+                <BigNumberDisplay {...baseProps} value={longValue} />,
+            );
+            const originalValueElement = screen.getByTestId('big-number-value');
+
+            clientWidth = 120;
+            rerender(
+                <BigNumberDisplay
+                    {...baseProps}
+                    value={longValue}
+                    renderValue={(value) => (
+                        <button type="button">{value}</button>
+                    )}
+                />,
+            );
+
+            const valueElement = screen.getByTestId('big-number-value');
+            expect(valueElement).not.toBe(originalValueElement);
+            await userEvent.hover(valueElement);
+            expect(await screen.findByRole('tooltip')).toHaveTextContent(
+                longValue,
+            );
+        });
     });
 
     it('colours an increase green and a decrease red', () => {

@@ -12,6 +12,8 @@ import {
     postInsightAction,
     registerMountedQuery,
     resetInsightsState,
+    setInsightAnalyseOnLoad,
+    setInsightInstructions,
     subscribeInsights,
     insightIsForField,
     rowMatchesInsight,
@@ -98,6 +100,74 @@ describe('insights channel', () => {
         expect(requests()).toEqual([
             { type: INSIGHTS_REQUEST_MESSAGE, inUse: true },
         ]);
+    });
+
+    it('announces author instructions and repeats them on every request', () => {
+        mountInsights(host);
+        posted.length = 0;
+        setInsightInstructions('  Use British English.  ');
+        expect(requests()).toEqual([
+            {
+                type: INSIGHTS_REQUEST_MESSAGE,
+                instructions: 'Use British English.',
+            },
+        ]);
+        posted.length = 0;
+        // Unchanged value: no extra message.
+        setInsightInstructions('Use British English.');
+        expect(requests()).toEqual([]);
+        dispatch(host, { type: 'lightdash:sdk:ready' });
+        expect(requests()).toEqual([
+            {
+                type: INSIGHTS_REQUEST_MESSAGE,
+                instructions: 'Use British English.',
+            },
+        ]);
+    });
+
+    it('carries instructions on the mount request when set first, and clears them', () => {
+        setInsightInstructions('Amounts are EUR.');
+        subscribeInsights(() => {});
+        mountInsights(host);
+        expect(requests()).toEqual([
+            {
+                type: INSIGHTS_REQUEST_MESSAGE,
+                inUse: true,
+                instructions: 'Amounts are EUR.',
+            },
+        ]);
+        posted.length = 0;
+        setInsightInstructions('   ');
+        expect(requests()).toEqual([
+            { type: INSIGHTS_REQUEST_MESSAGE, inUse: true },
+        ]);
+        setInsightInstructions('Amounts are EUR.');
+        posted.length = 0;
+        // A hook that stops declaring instructions clears them with undefined.
+        setInsightInstructions(undefined);
+        expect(requests()).toEqual([
+            { type: INSIGHTS_REQUEST_MESSAGE, inUse: true },
+        ]);
+    });
+
+    it('announces analyse-on-load, including an explicit false, and clears it', () => {
+        mountInsights(host);
+        posted.length = 0;
+        setInsightAnalyseOnLoad(true);
+        expect(requests()).toEqual([
+            { type: INSIGHTS_REQUEST_MESSAGE, analyseOnLoad: true },
+        ]);
+        posted.length = 0;
+        setInsightAnalyseOnLoad(true);
+        expect(requests()).toEqual([]);
+        setInsightAnalyseOnLoad(false);
+        expect(requests()).toEqual([
+            { type: INSIGHTS_REQUEST_MESSAGE, analyseOnLoad: false },
+        ]);
+        posted.length = 0;
+        // Not declared: the field is absent so the host falls back.
+        setInsightAnalyseOnLoad(undefined);
+        expect(requests()).toEqual([{ type: INSIGHTS_REQUEST_MESSAGE }]);
     });
 
     it('is unavailable until the host pushes, then stores the payload', () => {
@@ -255,5 +325,78 @@ describe('insights channel', () => {
         expect(
             parseInsightsPayload({ ...payload, status: 'weird' }),
         ).toBeNull();
+    });
+});
+
+describe('instruction investigations', () => {
+    let host: Window;
+    let posted: unknown[];
+
+    beforeEach(() => {
+        resetInsightsState();
+        posted = [];
+        host = { postMessage: (m: unknown) => posted.push(m) } as never;
+    });
+    afterEach(() => resetInsightsState());
+
+    const running = {
+        status: 'running' as const,
+        explanation: null,
+        partial: false,
+        threadUuid: null,
+        error: null,
+    };
+
+    it('parses the instructionInvestigations map when the host sends one', () => {
+        const parsed = parseInsightsPayload({
+            ...payload,
+            instructionInvestigations: {
+                'req-1': running,
+                'req-2': { malformed: true },
+            },
+        });
+        // Malformed entries are dropped; well-formed ones survive.
+        expect(parsed?.instructionInvestigations).toEqual({ 'req-1': running });
+    });
+
+    it('leaves instructionInvestigations undefined on hosts without it', () => {
+        const parsed = parseInsightsPayload(payload);
+        expect(parsed?.instructionInvestigations).toBeUndefined();
+    });
+
+    it('posts the investigate-instruction action to the host', () => {
+        mountInsights(host);
+        posted.length = 0;
+        postInsightAction({
+            action: 'investigate-instruction',
+            requestId: 'req-1',
+            instruction: 'What drove the peak?',
+            sources: [{ queryUuid: 'q1', label: 'Revenue' }],
+        });
+        expect(posted).toEqual([
+            {
+                type: INSIGHT_ACTION_MESSAGE,
+                action: 'investigate-instruction',
+                requestId: 'req-1',
+                instruction: 'What drove the peak?',
+                sources: [{ queryUuid: 'q1', label: 'Revenue' }],
+            },
+        ]);
+    });
+
+    it('posts the continue-instruction action to the host', () => {
+        mountInsights(host);
+        posted.length = 0;
+        postInsightAction({
+            action: 'continue-instruction',
+            requestId: 'req-1',
+        });
+        expect(posted).toEqual([
+            {
+                type: INSIGHT_ACTION_MESSAGE,
+                action: 'continue-instruction',
+                requestId: 'req-1',
+            },
+        ]);
     });
 });

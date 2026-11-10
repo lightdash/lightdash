@@ -29,6 +29,7 @@ import {
     type MetricFilterRule,
     type TimestampDomain,
 } from '@lightdash/common';
+import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import {
     BuildQueryProps,
     CompiledQuery,
@@ -3200,6 +3201,94 @@ LIMIT 10`;
                 'CROSS JOIN dd_orders_total_revenue',
             );
         });
+
+        test.each([
+            {
+                name: 'default date sort',
+                sorts: [],
+                orderBy: 'ORDER BY "orders_order_date" DESC',
+            },
+            {
+                name: 'explicit dimension sorts',
+                sorts: [
+                    { fieldId: 'orders_payment_method', descending: false },
+                    { fieldId: 'orders_order_date', descending: true },
+                ],
+                orderBy:
+                    'ORDER BY "orders_payment_method", "orders_order_date" DESC',
+            },
+        ])(
+            'ClickHouse distinct metrics should keep joined dimension names separate for $name',
+            ({ sorts, orderBy }) => {
+                const { orders } = EXPLORE_WITH_SUM_DISTINCT.tables;
+                const result = buildQuery({
+                    explore: {
+                        ...EXPLORE_WITH_SUM_DISTINCT,
+                        targetDatabase: SupportedDbtAdapter.CLICKHOUSE,
+                        tables: {
+                            orders: {
+                                ...orders,
+                                dimensions: {
+                                    ...orders.dimensions,
+                                    order_date: {
+                                        ...orders.dimensions.status,
+                                        name: 'order_date',
+                                        type: DimensionType.DATE,
+                                        sql: '${TABLE}.order_date',
+                                        compiledSql: '"orders".order_date',
+                                    },
+                                },
+                                metrics: {
+                                    ...orders.metrics,
+                                    ...EXPLORE_WITH_AVERAGE_DISTINCT.tables
+                                        .orders.metrics,
+                                },
+                            },
+                        },
+                    },
+                    compiledMetricQuery: {
+                        ...METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
+                        dimensions: [
+                            'orders_order_date',
+                            'orders_payment_method',
+                        ],
+                        metrics: [
+                            'orders_total_revenue',
+                            'orders_avg_shipping_cost',
+                        ],
+                        sorts,
+                    },
+                    warehouseSqlBuilder: warehouseSqlBuilderFromType(
+                        SupportedDbtAdapter.CLICKHOUSE,
+                    ),
+                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
+                });
+
+                expect(result.query).toContain(
+                    '"orders_order_date" AS "__dd_dimension_0"',
+                );
+                expect(result.query).toContain(
+                    '"orders_payment_method" AS "__dd_dimension_1"',
+                );
+                expect(result.query).toContain(
+                    'dd_base."orders_order_date" <=> dd_orders_total_revenue."__dd_dimension_0"',
+                );
+                expect(result.query).toContain(
+                    'dd_base."orders_payment_method" <=> dd_orders_avg_shipping_cost."__dd_dimension_1"',
+                );
+                expect(result.query).not.toContain(
+                    'dd_orders_total_revenue."orders_order_date"',
+                );
+                expect(result.query).toContain(orderBy);
+                expect(Object.keys(result.fields)).toEqual([
+                    'orders_order_date',
+                    'orders_payment_method',
+                    'orders_total_revenue',
+                    'orders_avg_shipping_cost',
+                ]);
+            },
+        );
 
         test('sum_distinct should replace user attributes in the dedup CTE', () => {
             const explore: Explore = {

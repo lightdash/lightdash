@@ -33,7 +33,7 @@ Don't verify your own output. **After you Write or Edit a file, do not Read it b
 
 ### Approved packages
 
-`react`, `react-dom`, `@lightdash/query-sdk`, `recharts`, `d3`, `d3-sankey`, `d3-cloud`, `@tanstack/react-query`, `@tanstack/react-table`, `@tanstack/react-virtual`, `react-resizable-panels`, `date-fns`, `html-to-image`, `jspdf`, `lodash-es`, `lucide-react`, `clsx`, `tailwind-merge`, `class-variance-authority`
+`react`, `react-dom`, `@lightdash/query-sdk`, `recharts`, `d3`, `d3-sankey`, `d3-cloud`, `three`, `@tanstack/react-query`, `@tanstack/react-table`, `@tanstack/react-virtual`, `react-resizable-panels`, `date-fns`, `html-to-image`, `jspdf`, `lodash-es`, `lucide-react`, `clsx`, `tailwind-merge`, `class-variance-authority`
 
 ### Pre-installed shadcn/ui components
 
@@ -68,6 +68,8 @@ Projects range from a handful of models to well over a thousand, so the director
 1. **Read `/tmp/dbt-repo/models/_index.md` first.** It lists every model, most-queried first, with its file name, dimension/metric counts, joined tables, and description.
 2. **Read only the model files the app actually needs**, e.g. `Read /tmp/dbt-repo/models/orders.yml`. Each file holds that model's complete dimensions, metrics, joins, parameters, and model-level filters.
 3. **Grep when the index isn't enough.** If you know a field name but not its model, `Grep` the directory for it. A wide model may be split across `<name>.yml`, `<name>.part2.yml`, … — the last line of each part points at the next.
+
+**Prefer modelled fields before defining custom metrics or dimensions.** Check the relevant model and joined-table fields by name, label, description, type, and `ai_hints`. Reuse a field when its business meaning, aggregation, grain, and filters match the request; do not recreate it just to change its label. The model context does not include field SQL, so do not claim SQL equivalence or guess a definition from its name. When no suitable field exists, custom SQL remains supported. Suggest modelling a reusable business definition as an optional follow-up, not a prerequisite for building the app.
 
 **Never read every model file, and never page through a file with `offset`/`limit`** — pick the model from the index and read that one file whole.
 
@@ -128,6 +130,44 @@ A field's position in the YAML determines whether it goes in `.dimensions()` or 
 
 Use the **metric key name**, not the label. YAML `label: "Order Count"` → SDK field name is `order_count`.
 
+### Field links — `urls`
+
+A dimension or metric may declare `urls:` — link patterns for its values:
+
+```yaml
+columns:
+    - name: account_number
+      meta:
+          dimension:
+              type: string
+              urls:
+                  - label: Open account
+                    url: "https://portal.example.com/accounts/${value.raw | url_encode }"
+                  - label: Open owner
+                    url: "https://portal.example.com/users/${row.accounts.owner_id.raw }"
+```
+
+**When a field you display declares `urls`, render its values as links built from those patterns** — in tables, underlying-data views, and anywhere the raw value is shown. Dashboards already do this; the app must match.
+
+Every query result's `columns` carry the patterns too (`column.urls`), and the SDK resolves them per cell — prefer this over hand-rolling, especially in generic column loops:
+
+```tsx
+import { resolveColumnUrls } from '@lightdash/query-sdk';
+
+const links = resolveColumnUrls({ column, row, columns, format });
+// → [{ label, href }] with unresolvable patterns already skipped
+```
+
+When you hand-roll instead (e.g. a hard-coded table where you know the field), resolve placeholders with simple substitution:
+
+- `${value.raw}` / `${value.formatted}` — the cell's own raw/formatted value.
+- `${row.<model>.<field>.raw}` (or `.formatted`) — another field in the same result row. **Add that field to the query** so it's present in the row.
+- A `| url_encode` filter means URL-encode the substituted value (`encodeURIComponent`).
+
+One pattern → the cell is a plain link (open in a new tab). Several → a primary link plus a menu, or a small dropdown. Skip the link for null/empty values. Never invent patterns for fields without `urls`.
+
+**Links must look like links at rest, not only on hover**: underline them (e.g. `underline underline-offset-4`) and/or use a distinct link color that fits the app's theme, plus a hover state. A viewer should spot the clickable cells without mousing over the table.
+
 ### Joined table fields — dot notation
 
 When a model has `joins`, the joined table's dimensions and metrics are available in your query. **Use dot notation** (`table.field`) to reference fields from joined tables:
@@ -180,6 +220,8 @@ These metrics are **not additive over time**. A balance on Monday plus the balan
 
 If the prompt lists referenced charts (files under `/tmp/metric-queries/*.json`), read `/app/references/chart-references.md` before writing any query code — it defines the JSON shape, linked-vs-copied chart semantics (`savedChart`), and the field-id mapping rules.
 
+If the user asks for a page that lists or renders **whatever charts a Lightdash space contains** (a gallery, "my charts", "charts from the Sales space") — i.e. the set should grow as charts are saved, without rebuilding the app — use `useSpaceCharts('<space slug or uuid>')` and read "Discovering charts at runtime" in `/app/references/chart-references.md`. Never hardcode a UUID list for that ask.
+
 ## Attached dashboard blueprint
 
 If the prompt announces an attached dashboard (blueprint at `/tmp/dashboard/blueprint.json`), read `/app/references/dashboard-blueprint.md` before designing any layout — the blueprint defines the dashboard's tabs, tile grid, and filters, and it is the layout spec to recreate unless the user asks for a different design.
@@ -187,6 +229,10 @@ If the prompt announces an attached dashboard (blueprint at `/tmp/dashboard/blue
 ## Linked external connections
 
 If the prompt lists external connections (files under `/tmp/external-data/`), read `/app/references/external-apis.md` before calling any external API — it documents each connection file and the `externalFetch` rules.
+
+## Saved app state
+
+If the prompt says saved app state is available, read `/app/references/app-state.md` before building anything that should survive a reload: a person's inputs are remembered with `useAppState` by default, without being asked; shared values (comments, targets, annotations, "everyone", "the team", "who changed") use `useSharedAppState`. Without that line in the prompt, do not use these hooks.
 
 ## Attached images
 
@@ -272,7 +318,9 @@ which query produced it. One spread per query block is enough.
 
 ### Table calculations
 
-Table calculations are computed columns evaluated after the warehouse query returns. They can reference dimensions and metrics using `${table.field}` syntax in their SQL expression.
+Table calculations are computed columns evaluated in SQL over the aggregated query results. They can reference dimensions and metrics using `${table.field}` syntax in their SQL expression.
+
+Use client-side arithmetic only when the returned inputs preserve the intended meaning. For a percentage of total, the denominator must cover the intended population: the SDK defaults to 500 rows, so summing a limited or paginated result gives a percentage of those rows, not necessarily the overall total. Use a SQL calculation or a separately queried total with matching filters when needed. Keep calculations in the query when server-side sorting, filtering, or exports depend on them.
 
 ```ts
 query('orders')
@@ -322,6 +370,10 @@ Each additional metric needs:
 **When to use additional metrics vs regular `.metrics()`:**
 - If the metric exists in the dbt YAML → use `.metrics(['metric_name'])`
 - If you need a custom aggregation not in the YAML → define it with `.additionalMetrics()` AND include its name in `.metrics()`
+
+### Custom SQL and viewer access
+
+Before using `.additionalMetrics()`, `.customDimensions()`, or `.tableCalculations()`, read `/app/references/custom-sql.md`. The build pipeline checks that custom SQL can be statically extracted and sends unresolved definitions back for repair. This lets registered viewers run the recorded SQL without granting SQL-authoring permissions; normal data-access checks still apply.
 
 ### Parameters
 
@@ -470,7 +522,9 @@ When the user asks for "Open in Google Sheets" (or any Sheets destination), read
 
 A PDF or printable report app always includes a visible **Download PDF** button — the export action is part of the report shape, not an optional extra, and `window.print()` is only ever a secondary Print action. This applies whenever the app is report-shaped, whatever the request's wording: the PDF Report starter template, a "printable" / "document" / "report to share" ask, or an app that already renders `.pdf-page` sections. On edit turns, keep the existing Download PDF button working — an edit that removes it is a regression.
 
-Before wiring the button, read `/app/references/pdf-downloads.md` — it has the required `html-to-image` + `jspdf` pattern and page-capture rules.
+Every app with a Download PDF button also registers the same builder for scheduled deliveries via `registerPdfExport` from `@/lib/pdfExport` (builder resolves to `pdf.output('blob')`). The button and the registration always ship together — an app with one but not the other is incomplete, on first generation and after every edit.
+
+Before wiring the button, read `/app/references/pdf-downloads.md` — it has the required `html-to-image` + `jspdf` pattern, page-capture rules, and the `registerPdfExport` wiring.
 
 ### Underlying data
 
@@ -487,6 +541,27 @@ Rules:
 - Whenever you show an underlying-data table/dialog, include a Download button in that table/dialog header. It should call `downloadUnderlyingData({ row, metric, fileType, values, limit, filename })`, track export state, and show a spinner or "Exporting..." label until the promise settles.
 - For underlying-data downloads, `limit: 'table'` uses the backend default underlying-data row limit, `limit: 'all'` exports all matching rows allowed by backend export caps, and a number requests that many rows.
 - This works for grouped SDK query rows. If you have heavily transformed or pivoted data client-side, keep the original source row around and pass that original row.
+- **Render field links in the dialog's generic column loop.** Underlying-data columns carry `urls` (the field's link patterns), and `resolveColumnUrls` resolves them per cell — a cell with resolved links renders as a link (see [Field links — `urls`](#field-links--urls)):
+
+```tsx
+import { resolveColumnUrls } from '@lightdash/query-sdk';
+
+{result.columns.map((c) => {
+    const links = resolveColumnUrls({ column: c, row: r, columns: result.columns, format: result.format });
+    return (
+        <TableCell key={c.name}>
+            {links.length > 0 ? (
+                <a href={links[0].href} target="_blank" rel="noreferrer"
+                   className="text-primary underline underline-offset-4">
+                    {result.format(r, c.name)}
+                </a>
+            ) : (
+                result.format(r, c.name)
+            )}
+        </TableCell>
+    );
+})}
+```
 
 ```tsx
 const revenueQuery = query('orders')
@@ -533,6 +608,8 @@ function RevenueTable() {
 
 ### Formatting
 
+**Trust Lightdash's values for date/time display — never re-convert them.** Date and timestamp values arrive as the correct wall-clock reading with a `Z` suffix (e.g. a March 1st date is `'2025-03-01T00:00:00Z'`). Rendering them through anything timezone-aware — `new Date(value).toLocaleDateString()`, `Intl.DateTimeFormat`, `date-fns-tz`, or manual offset math — shifts them into the viewer's local timezone, so a viewer behind UTC sees Feb 28 where Lightdash shows Mar 1. Always display dates via `format(row, fieldName)` or the `@/lib/format` helpers below (they render the server's wall-clock components as-is); when formatting manually, format the date's own Y/M/D components, never a locale/timezone conversion of them.
+
 Every Lightdash row carries two views of each value:
 
 - `row[fieldName]` — the **raw** value. Numbers are real numbers; **dates and timestamps are full ISO strings** (e.g. `'2025-03-01T00:00:00Z'`) regardless of the truncation grain. Pass these to charts as data, not as axis labels.
@@ -561,16 +638,14 @@ import { formatField, formatDate, formatNumber, getColumn } from '@/lib/format';
 - number — server-formatted (currency / % / suffix preserved via the SDK `format()` you pass in)
 - timestamp without grain — `Jun 16, 2025 14:00`
 
-**Override** by passing `opts.pattern` to `formatDate`, or by formatting yourself with `date-fns`/`Intl.NumberFormat`:
+**Override** by passing `opts.pattern` to `formatDate` — this keeps the server's wall-clock reading while changing the pattern:
 
 ```tsx
-import { format as formatDateFns, parseISO } from 'date-fns';
-
 formatDate(row.order_date_month, getColumn(columns, 'order_date_month'), 'axis', { pattern: 'MMM yyyy' });
-
-// Or fully manual:
-formatDateFns(parseISO(row.order_date as string), 'EEEE, MMM d');
+formatDate(row.order_date, undefined, 'cell', { pattern: 'EEEE, MMM d' });
 ```
+
+Avoid `parseISO`/`new Date` + `format` from `date-fns` for display: the `Z` suffix makes them shift the value into the viewer's timezone, moving midnight dates to the previous day for viewers behind UTC.
 
 #### Chart axes
 
@@ -625,6 +700,8 @@ Use `formatField` for cells so dates render `Jun 16, 2025` instead of `2025-06-1
 ```
 
 For the action-menu label and clipboard copy on a cell, the same helper applies — pass `format` so the per-field server format wins for currency/percent.
+
+**Before writing any table or value display, check each displayed field's model YAML for a `urls:` block.** A field with `urls` MUST render its values as links, not plain text — see [Field links — `urls`](#field-links--urls). This applies to joined-table fields too: `customers.first_name` queried through `orders` is defined in `customers.yml`, so check the joined model's file (the index marks models whose fields carry links with `urls=…`). This is not optional polish: dashboards render these links, and an app that drops them loses functionality the user already relies on.
 
 ### Filters
 
@@ -696,6 +773,9 @@ const [period, setPeriod] = useUrlState('period', 'last_month');
 - Ephemeral UI state (open dropdowns, hover, modal visibility, in-progress form input)
   stays in plain `useState` — only state that defines *which view* the user is looking
   at belongs in the URL.
+- When the prompt says saved app state is available, view controls use
+  `useAppState(key, default, { url: true })` instead, which keeps the URL in sync and
+  also remembers the value for the person. See `/app/references/app-state.md`.
 
 ### External APIs
 
@@ -703,7 +783,7 @@ For any external HTTP API call, read `/app/references/external-apis.md` and use 
 
 ### AI analysis — executive summary and anomalies
 
-When the user asks for AI analysis, an executive summary, "what changed and why", anomaly callouts, or any AI-generated insight about the data on the page, read `/app/references/ai-analysis.md` and build its **Default build** with the shipped components in `src/components/insights/` (`InsightsSummary`, `InsightMarker` / `insightCellProps`, `InvestigateMenuItem`, `InvestigationCard`): summary block at the top, markers on every query-bound chart, Investigate in every point menu, the investigation card under the chart. A short ask gets the whole set; only a narrower ask ("just a summary") gets a subset. Never rewrite those components. Lightdash runs the analysis over the queries the app already loaded and pushes the result in; the app renders it and never sends rows or keys. The components render nothing when the host has no analysis to offer. For an author-written question over loaded results (a takeaway under a chart, "explain this row"), use `useAiPrompt` from the same reference.
+When the user asks for AI analysis, an executive summary, "what changed and why", anomaly callouts, or any AI-generated insight about the data on the page, read `/app/references/ai-analysis.md` and build its **Default build** with the shipped components in `src/components/insights/` (`InsightsSummary`, `InsightMarker` / `insightCellProps`, `InvestigateMenuItem`, `InvestigationCard`): summary block at the top, markers on every query-bound chart, Investigate in every point menu, the investigation card under the chart. A short ask gets the whole set; only a narrower ask ("just a summary") gets a subset. Never rewrite those components. Lightdash runs the analysis over the queries the app already loaded and pushes the result in; the app renders it and never sends rows or keys. The components render nothing when the host has no analysis to offer. For an author-written question over loaded results (a takeaway under a chart, "explain this row"), use `useAiPrompt` from the same reference. For a button that sends an author-written brief to the AI agent so it can investigate using data beyond the page ("investigate what drove this", "act on this recommendation"), use `useInvestigation` from the same reference ("Agent investigations on demand"); `useAiPrompt` cannot look at other explores. When the user wants the summaries written a certain way (language, currency, domain vocabulary), pass it via the `instructions` prop on `InsightsSummary` — see "Author instructions" in the same reference. When the user wants the analysis to run as soon as the app loads, set the `analyseOnLoad` prop on `InsightsSummary` — see "Analyse on load" in the same reference; never set it unasked. When the user wants generated commentary **saved and shared** — "save the summary for the team", "everyone sees the same commentary", "let people edit the AI text" — and the prompt says saved app state is available, use `useSharedAiCommentary` from the same reference ("Saved commentary shared between viewers") instead of `useAiPrompt`; it keys the text to the current selection so later viewers read and edit the saved version instead of regenerating.
 
 ## Visual Design
 
@@ -1255,6 +1335,10 @@ If a Recharts component covers it, **use Recharts** — even if a D3 version wou
 
 When you do need D3, **read `/app/references/d3.md` first.** It contains the React-19 + D3 integration pattern, five worked examples (bar, sankey, sunburst, word cloud, geo choropleth/globe), the cross-cutting rules (`CHART_COLORS`, `filtersFor`, action menu, no-cross-refetch animation), and a common-mistakes table. Don't try to wire D3 from memory — load the reference.
 
+## When to use Three.js
+
+`three` is available for genuinely 3D visualizations **only when the user explicitly asks for 3D** — 3D scatter/surface plots, point clouds, globes with extruded data. Never pick it over Recharts/D3 for a chart that works in 2D. Rules when you do use it: create the renderer/scene in a `useEffect`, drive data updates through refs rather than re-creating the scene, and dispose of geometries, materials, and the renderer in the effect cleanup — leaked WebGL contexts crash the tab after a few remounts. Cap `devicePixelRatio` at 2 and stop the animation loop when the canvas is off-screen.
+
 ## `drillDown()` Reference
 
 The action-menu example above shows typical `drillDown()` usage. For the full API (argument semantics, choosing the drill dimension, and the results-dialog pattern), read `/app/references/drilldown.md`.
@@ -1264,6 +1348,7 @@ The action-menu example above shows typical `drillDown()` usage. For the full AP
 | Mistake | Why it breaks | Fix |
 |---|---|---|
 | Guessing field names | API returns opaque errors | Read the dbt YAML first — always |
+| Rendering a `urls` field's values as plain text | Dashboards render those values as links; the app silently drops functionality the user relies on | Check every displayed field's model YAML — including joined models (`customers.first_name` lives in `customers.yml`) — for `urls:` and render links per [Field links — `urls`](#field-links--urls) |
 | `.metrics()` on a pre-aggregated model | Re-aggregates already-aggregated values → wrong numbers | If `wins` is a dimension in the YAML, use `.dimensions(['wins'])` |
 | `.metrics(['max_cumulative_points'])` instead of `.dimensions(['cumulative_points'])` | Aggregates per-row data into a single value — collapses line charts | Check YAML: is it under `columns[].name` (dimension) or `meta.metrics` (metric)? |
 | Unused dimensions in `.dimensions()` | Changes GROUP BY → wrong numbers | Only include dimensions you render or require for sorting; hidden sort fields stay selected but can be omitted from the UI |
@@ -1294,6 +1379,7 @@ The action-menu example above shows typical `drillDown()` usage. For the full AP
 | Skipping `tickFormatter` on a year axis because "year is just a number" | Year dimensions (`*_year`) are still full ISO timestamps at the data layer, so the axis renders `2025-01-01T00:00:00Z` | Apply the same `formatDate(...)` `tickFormatter` to year axes — `formatDate` will collapse to `2025` for year-grain columns |
 | Using `format(row, 'order_date')` for a date column in a table cell | Renders `2025-03-17` (zero-padded tabular) — readable but ugly in dashboards | `formatField(row, col, format, 'cell')` from `@/lib/format` — renders `Mar 17, 2025` while still routing currency/% metrics through the server format |
 | Treating `row.order_date_month` as a `Date` or short string | It's a full ISO timestamp string (`2025-03-01T00:00:00Z`) for every grain | Pass through `formatDate` / `formatField`, or `parseISO` it before doing date math |
+| Displaying dates via `toLocaleDateString()`, `Intl.DateTimeFormat`, or `parseISO` + `format` | The `Z` suffix makes these convert to the viewer's timezone — viewers behind UTC see the previous day (e.g. Feb 28 instead of Mar 1) | Render through `format(row, field)` or `@/lib/format` helpers; they display the server's wall-clock value as-is |
 | Wrong `.parameters()` key scope | Value silently ignored — query returns the default | Project-level → bare name (`{ region }`); model-level → `model.param` (`{ 'orders.region' }`), matching the `${lightdash.parameters.…}` reference |
 | Inventing a parameter not declared in the YAML | Backend ignores unknown params; nothing changes | Only pass parameters that exist in a model's `meta.parameters` or `lightdash.config.yml`. Use `.filters()` for row restriction instead |
 | Applying `.parameters()` at module scope for a UI-driven value | Value never updates when the control changes | Apply `.parameters()` in a `useMemo` keyed on the state value; keep the base query at module scope |

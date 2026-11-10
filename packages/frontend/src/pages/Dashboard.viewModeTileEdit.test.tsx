@@ -7,17 +7,23 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
 import { AbilityContext } from '../providers/Ability/context';
+import {
+    createDashboardTestStore,
+    seedDashboardEditState,
+} from '../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../testing/DashboardStoreTestProvider';
 import { manageChartRule } from '../testing/savedChartResponse.mock';
 import { renderWithProviders } from '../testing/testUtils';
 
-const mockedApi = vi.mocked(lightdashApi);
+const mockedApi = mockedLightdashApi;
 
 // Mock factories are hoisted above module scope, so the fixtures they share
 // with the tests are hoisted too.
 const fixtures = await vi.hoisted(async () => {
-    const { DashboardTileTypes: TileTypes } = await import('@lightdash/common');
+    const { DashboardTileTypes: TileTypes, FilterOperator } =
+        await import('@lightdash/common');
     const savedTile: DashboardChartTile = {
         uuid: 'tile-1',
         type: TileTypes.SAVED_CHART,
@@ -44,7 +50,8 @@ const fixtures = await vi.hoisted(async () => {
                         fieldId: 'payments_status',
                         tableName: 'payments',
                     },
-                    operator: 'equals',
+                    operator: FilterOperator.EQUALS,
+                    label: undefined,
                     values: ['paid'],
                 },
             ],
@@ -59,7 +66,8 @@ const fixtures = await vi.hoisted(async () => {
                         fieldId: 'payments_method',
                         tableName: 'payments',
                     },
-                    operator: 'equals',
+                    operator: FilterOperator.EQUALS,
+                    label: undefined,
                     values: ['card'],
                 },
             ],
@@ -76,7 +84,7 @@ const state = vi.hoisted(() => ({
     setHaveTilesChanged: vi.fn(),
 }));
 
-vi.mock('../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../api');
 vi.mock('../hooks/useContentAuthoringEnabled', () => ({
     useContentAuthoringEnabled: () => true,
 }));
@@ -109,32 +117,19 @@ vi.mock('../providers/Dashboard/useDashboardContext', async () => {
             },
         },
         dashboardError: undefined,
-        dashboardFilters: fixtures.savedFilters,
-        dashboardTemporaryFilters: fixtures.temporaryFilters,
         dashboardTiles: [fixtures.savedTile],
         dashboardTabs: [],
         dashboardCustomMetrics: [],
-        dashboardParameters: {},
-        dashboardParameterReferences: new Set<string>(),
-        parameterDefinitions: {},
-        parameterValues: {},
-        parameterOrder: [],
-        pinnedParameters: [],
-        missingRequiredParameters: [],
         dateZoomGranularities: [],
         defaultDateZoomGranularity: undefined,
         dateZoomConfig: { controls: [], tileTargets: {} },
         activeTab: undefined,
         haveTilesChanged: false,
-        haveFiltersChanged: false,
         haveTabsChanged: false,
         haveCustomMetricsChanged: false,
-        havePinnedParametersChanged: false,
         haveDateZoomGranularitiesChanged: false,
-        hasParameterOrderChanged: false,
         hasDefaultDateZoomGranularityChanged: false,
         hasDateZoomConfigChanged: false,
-        parametersHaveChanged: false,
         hasTilesThatSupportFilters: false,
         isDateZoomDisabled: false,
         isAddFilterDisabled: false,
@@ -295,6 +290,7 @@ vi.mock(
     () => ({ AskAiAgentMenuItem: () => null }),
 );
 
+import { mockedLightdashApi } from '../testing/mockedLightdashApi';
 // eslint-disable-next-line import/first
 import DashboardPage from './Dashboard';
 
@@ -328,9 +324,19 @@ const renderDashboard = (mode: 'view' | 'edit') => {
         },
     );
     renderWithProviders(
-        <AbilityContext.Provider value={ability}>
-            <RouterProvider router={router} />
-        </AbilityContext.Provider>,
+        <DashboardStoreTestProvider
+            store={seedDashboardEditState(
+                createDashboardTestStore({
+                    dashboardFilters: savedFilters,
+                    dashboardTemporaryFilters: fixtures.temporaryFilters,
+                }),
+                { dashboardTiles: [fixtures.savedTile] },
+            )}
+        >
+            <AbilityContext.Provider value={ability}>
+                <RouterProvider router={router} />
+            </AbilityContext.Provider>
+        </DashboardStoreTestProvider>,
         { user: { abilityRules: ability.rules } },
     );
 };
@@ -356,7 +362,7 @@ describe('Dashboard tile edits from view mode', () => {
                 };
             }
             return new Promise(() => {});
-        }) as typeof lightdashApi);
+        }) as LightdashApi);
     });
 
     it('saves the edited tile against the stored dashboard without staging it', async () => {

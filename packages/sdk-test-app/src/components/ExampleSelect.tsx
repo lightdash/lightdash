@@ -6,6 +6,7 @@ type ExampleSelectOption = {
 };
 
 type ExampleSelectProps = {
+    disabled?: boolean;
     helperText?: string;
     label: string;
     onChange: (value: string) => void;
@@ -48,6 +49,7 @@ const selectStyle: CSSProperties = {
 };
 
 export function ExampleSelect({
+    disabled,
     helperText,
     label,
     onChange,
@@ -59,6 +61,7 @@ export function ExampleSelect({
             <label style={labelStyle}>{label}</label>
             <select
                 value={value}
+                disabled={disabled}
                 onChange={(event) => onChange(event.target.value)}
                 style={selectStyle}
             >

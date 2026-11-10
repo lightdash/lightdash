@@ -1,15 +1,29 @@
+import { Ability } from '@casl/ability';
 import {
     AI_DEEP_RESEARCH_DEFAULT_LIMITS,
     AiOrganizationSettings,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
+    ForbiddenError,
     ParameterError,
+    type McpProjectAccess,
 } from '@lightdash/common';
+import {
+    fromOauth,
+    fromSession,
+    toSessionUser,
+} from '../../auth/account/account';
+import { aiCopilotConfigSchema } from '../../config/aiConfigSchema';
+import * as auditLogger from '../../logging/winston';
+import { AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { ModelPreset, ModelPresetProvider } from './ai/models/presets';
 import {
     AiOrganizationSettingsService,
     areReviewsEnabledForSettings,
+    findBaseUrlRemovalsBlockedByInstanceGateway,
     findUnconfiguredProviderKeyWrites,
     isModelConfigAvailable,
+    normalizeAnalysisDefaultInstructions,
     pickReplacementDefaultModelConfig,
     validateDataAppAnalysisLimits,
     validateDeepResearchLimits,
@@ -40,6 +54,7 @@ const settingsWithKeys: AiOrganizationSettings = {
         bedrock: null,
     },
     bedrockConfig: null,
+    providerBaseUrls: { anthropic: null, google: null, openai: null },
 };
 
 describe('validateDeepResearchLimits', () => {
@@ -119,6 +134,76 @@ describe('validateDataAppAnalysisLimits', () => {
                 extra: 1,
             } as never),
         ).toThrow('Unknown limit extra');
+    });
+});
+
+describe('normalizeAnalysisDefaultInstructions', () => {
+    it('trims and maps blank input to null (cleared)', () => {
+        expect(
+            normalizeAnalysisDefaultInstructions('  British English.  '),
+        ).toBe('British English.');
+        expect(normalizeAnalysisDefaultInstructions('   ')).toBeNull();
+        expect(normalizeAnalysisDefaultInstructions(null)).toBeNull();
+    });
+
+    it('rejects instructions beyond the length cap', () => {
+        expect(() =>
+            normalizeAnalysisDefaultInstructions('x'.repeat(2001)),
+        ).toThrow('limited to 2000 characters');
+        expect(() =>
+            normalizeAnalysisDefaultInstructions('x'.repeat(2000)),
+        ).not.toThrow();
+    });
+});
+
+describe('findBaseUrlRemovalsBlockedByInstanceGateway', () => {
+    const { providers } = aiCopilotConfigSchema.parse({
+        enabled: true,
+        requiresFeatureFlag: false,
+        telemetryEnabled: false,
+        threadDumpEnabled: false,
+        debugLoggingEnabled: false,
+        askAiButtonEnabled: false,
+        embeddingEnabled: false,
+        maxQueryLimit: 100,
+        runSqlMaxLimit: 100,
+        defaultProvider: 'openai',
+        defaultEmbeddingModelProvider: 'openai',
+        providers: {
+            anthropic: {
+                apiKey: 'instance-anthropic-key',
+                baseUrl: 'https://llm-gateway.example',
+            },
+            google: { apiKey: 'instance-google-key' },
+            openai: {
+                apiKey: 'instance-openai-key',
+                baseUrl: 'https://openai-gateway.example',
+            },
+        },
+    });
+
+    it('blocks clearing an Anthropic or Google URL when the instance has a gateway', () => {
+        expect(
+            findBaseUrlRemovalsBlockedByInstanceGateway(
+                { providerBaseUrls: { anthropic: null, google: null } },
+                providers,
+            ),
+        ).toEqual(['anthropic']);
+    });
+
+    it('never blocks OpenAI, setting a URL, or removing the key itself', () => {
+        expect(
+            findBaseUrlRemovalsBlockedByInstanceGateway(
+                {
+                    anthropic: null,
+                    providerBaseUrls: {
+                        openai: null,
+                        anthropic: 'https://litellm.example.com',
+                    },
+                },
+                providers,
+            ),
+        ).toEqual([]);
     });
 });
 
@@ -351,16 +436,42 @@ describe('upsertSettings model validation', () => {
     const buildService = ({
         storedVisibility = null,
         storedDefault = null,
+        storedMcpAgentsEnabled,
+        storedMcpContentWritesEnabled,
+        organizationMcpEnabled = null,
+        storedMcpProjectAccess,
+        canManageAi = true,
     }: {
         storedVisibility?: unknown;
         storedDefault?: unknown;
+        storedMcpAgentsEnabled?: boolean;
+        storedMcpContentWritesEnabled?: boolean;
+        organizationMcpEnabled?: boolean | null;
+        storedMcpProjectAccess?: McpProjectAccess;
+        canManageAi?: boolean;
     } = {}) => {
         const upsert = vi.fn(async (_org: string, data: unknown) => data);
+        const findMcpEnabled = vi.fn(async () => organizationMcpEnabled);
+        const findAiOrganizationSettings = vi.fn(async () => ({
+            defaultAiAgentModelConfig: storedDefault,
+            mcpProjectAccess: storedMcpProjectAccess,
+            mcpAgentsEnabled: storedMcpAgentsEnabled,
+            mcpContentWritesEnabled: storedMcpContentWritesEnabled,
+        }));
+        const getAllByOrganizationUuid = vi
+            .fn()
+            .mockResolvedValue([
+                { projectUuid: 'project-a' },
+                { projectUuid: 'project-b' },
+            ]);
         const service = new AiOrganizationSettingsService({
+            projectModel: { getAllByOrganizationUuid },
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
-                findByOrganizationUuid: async () => ({
-                    defaultAiAgentModelConfig: storedDefault,
-                }),
+                findByOrganizationUuid: findAiOrganizationSettings,
+                findMcpEnabled,
                 upsert,
             },
             organizationModel: {
@@ -386,11 +497,262 @@ describe('upsertSettings model validation', () => {
         // Bypass real CASL — this covers validation flow, not authorization.
         (
             service as unknown as { createAuditedAbility: () => unknown }
-        ).createAuditedAbility = () => ({ can: () => true });
-        return { service, upsert };
+        ).createAuditedAbility = () => ({ can: () => canManageAi });
+        return {
+            service,
+            upsert,
+            findMcpEnabled,
+            findAiOrganizationSettings,
+            getAllByOrganizationUuid,
+        };
     };
 
-    const user = { organizationUuid: 'org-uuid' } as never;
+    const user = fromSession({
+        organizationUuid: 'org-uuid',
+        ability: new Ability([{ action: 'manage', subject: 'all' }]),
+        abilityRules: [{ action: 'manage', subject: 'all' }],
+    } as never);
+
+    it('requires AI settings management before validating project selections', async () => {
+        const { service, upsert, getAllByOrganizationUuid } = buildService({
+            canManageAi: false,
+        });
+        await expect(
+            service.upsertSettings(user, {
+                mcpProjectAccess: {
+                    mode: 'selected',
+                    projectUuids: ['project-a'],
+                },
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(upsert).not.toHaveBeenCalled();
+        expect(getAllByOrganizationUuid).not.toHaveBeenCalled();
+    });
+
+    it('rejects a foreign project without writing any settings', async () => {
+        const { service, upsert } = buildService();
+        await expect(
+            service.upsertSettings(user, {
+                mcpProjectAccess: {
+                    mode: 'selected',
+                    projectUuids: ['foreign-project'],
+                },
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it('deduplicates the allow-list and audits the saved policy', async () => {
+        const audit = vi
+            .spyOn(auditLogger, 'logAuditEvent')
+            .mockImplementation(() => undefined);
+        try {
+            const { service, upsert } = buildService();
+            const policy = {
+                mode: 'selected' as const,
+                projectUuids: ['project-a'],
+            };
+            await service.upsertSettings(user, {
+                mcpProjectAccess: {
+                    mode: 'selected',
+                    projectUuids: ['project-a', 'project-a'],
+                },
+            });
+            expect(upsert).toHaveBeenCalledWith('org-uuid', {
+                mcpProjectAccess: policy,
+            });
+            expect(audit).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    resource: expect.objectContaining({
+                        metadata: { mcpProjectAccess: policy },
+                    }),
+                    status: 'allowed',
+                }),
+            );
+        } finally {
+            audit.mockRestore();
+        }
+    });
+
+    it('allows a selected-policy echo with reordered and duplicate stored UUIDs while MCP is disabled', async () => {
+        const { service } = buildService({
+            organizationMcpEnabled: false,
+            storedMcpProjectAccess: {
+                mode: 'selected',
+                projectUuids: ['project-b', 'project-a', 'project-a'],
+            },
+        });
+        await expect(
+            service.upsertSettings(user, {
+                mcpProjectAccess: {
+                    mode: 'selected',
+                    projectUuids: ['project-a', 'project-b'],
+                },
+            }),
+        ).resolves.toMatchObject({
+            mcpProjectAccess: {
+                mode: 'selected',
+                projectUuids: ['project-a', 'project-b'],
+            },
+        });
+    });
+
+    it('rejects policy changes while MCP is disabled, allowing a default policy echo', async () => {
+        const { service, upsert } = buildService({
+            organizationMcpEnabled: false,
+        });
+        await expect(
+            service.upsertSettings(user, {
+                mcpProjectAccess: { mode: 'selected', projectUuids: [] },
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(upsert).not.toHaveBeenCalled();
+        await expect(
+            service.upsertSettings(user, { mcpProjectAccess: { mode: 'all' } }),
+        ).resolves.toMatchObject({ mcpProjectAccess: { mode: 'all' } });
+    });
+
+    it.each(
+        (['mcpAgentsEnabled', 'mcpContentWritesEnabled'] as const).flatMap(
+            (setting) => [false, true].map((enabled) => ({ setting, enabled })),
+        ),
+    )(
+        'rejects $setting=$enabled while organization MCP is disabled',
+        async ({ setting, enabled }) => {
+            const { service, upsert } = buildService({
+                organizationMcpEnabled: false,
+                storedMcpAgentsEnabled: !enabled,
+                storedMcpContentWritesEnabled: !enabled,
+            });
+            await expect(
+                service.upsertSettings(user, {
+                    [setting]: enabled,
+                    deepResearchRawSqlEnabled: true,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(upsert).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([true, false, undefined])(
+        'allows unchanged MCP preferences with unrelated changes when stored values are %s',
+        async (stored) => {
+            const { service, upsert } = buildService({
+                organizationMcpEnabled: false,
+                storedMcpAgentsEnabled: stored,
+                storedMcpContentWritesEnabled: stored,
+            });
+            const update = {
+                mcpAgentsEnabled: stored ?? true,
+                mcpContentWritesEnabled: stored ?? true,
+                aiAgentsVisible: false,
+            };
+            await service.upsertSettings(user, update);
+            expect(upsert).toHaveBeenCalledExactlyOnceWith('org-uuid', update);
+        },
+    );
+
+    it('rejects a mixed patch when only one MCP preference changes', async () => {
+        const { service, upsert } = buildService({
+            organizationMcpEnabled: false,
+            storedMcpAgentsEnabled: true,
+            storedMcpContentWritesEnabled: true,
+        });
+        await expect(
+            service.upsertSettings(user, {
+                mcpAgentsEnabled: true,
+                mcpContentWritesEnabled: false,
+                aiAgentsVisible: false,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it('does not write preferences when the saved AI settings cannot be read', async () => {
+        const { service, upsert, findAiOrganizationSettings } = buildService({
+            organizationMcpEnabled: false,
+        });
+        findAiOrganizationSettings.mockRejectedValueOnce(
+            new Error('AI settings read failed'),
+        );
+        await expect(
+            service.upsertSettings(user, { mcpAgentsEnabled: true }),
+        ).rejects.toThrow('AI settings read failed');
+        expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it.each([true, null])(
+        'allows MCP preferences when organization consent is %s',
+        async (organizationMcpEnabled) => {
+            const { service, upsert } = buildService({
+                organizationMcpEnabled,
+            });
+            await service.upsertSettings(user, { mcpAgentsEnabled: false });
+            expect(upsert).toHaveBeenCalledExactlyOnceWith('org-uuid', {
+                mcpAgentsEnabled: false,
+            });
+        },
+    );
+
+    it('keeps unrelated AI settings writable while MCP is disabled', async () => {
+        const { service, upsert, findMcpEnabled } = buildService({
+            organizationMcpEnabled: false,
+        });
+        await service.upsertSettings(user, { aiAgentsVisible: false });
+        expect(upsert).toHaveBeenCalledExactlyOnceWith('org-uuid', {
+            aiAgentsVisible: false,
+        });
+        expect(findMcpEnabled).not.toHaveBeenCalled();
+    });
+
+    it('does not write MCP preferences when organization settings cannot be read', async () => {
+        const { service, upsert, findMcpEnabled } = buildService();
+        findMcpEnabled.mockRejectedValueOnce(new Error('Read failed'));
+        await expect(
+            service.upsertSettings(user, { mcpContentWritesEnabled: true }),
+        ).rejects.toThrow('Read failed');
+        expect(upsert).not.toHaveBeenCalled();
+    });
+
+    it('checks AI permissions before reporting organization MCP consent', async () => {
+        const { service, upsert, findMcpEnabled } = buildService({
+            organizationMcpEnabled: false,
+            canManageAi: false,
+        });
+        await expect(
+            service.upsertSettings(user, { mcpAgentsEnabled: true }),
+        ).rejects.toThrow(
+            'Insufficient permissions to manage AI agent settings',
+        );
+        expect(findMcpEnabled).not.toHaveBeenCalled();
+        expect(upsert).not.toHaveBeenCalled();
+    });
+    it('refuses an OAuth admin enabling agent admission without OAuth scope metadata', async () => {
+        const { service, upsert } = buildService();
+        const policy = vi
+            .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
+            .mockResolvedValue({
+                allowedGroupUuids: null,
+                mode: 'managed',
+                version: 1,
+                allowedCapabilities: null,
+            });
+        const account = fromOauth(toSessionUser(user), {
+            accessToken: 'token',
+            client: { id: 'client' },
+        });
+        await expect(
+            service.upsertSettings(account, { mcpAgentsEnabled: true }),
+        ).rejects.toMatchObject({
+            refusal: {
+                reason: 'agent_capability_denied',
+                settingsUrl: '/generalSettings/agentIdentity',
+            },
+        });
+        expect(upsert).not.toHaveBeenCalled();
+        policy.mockRestore();
+    });
+
     const restrictToSonnet = {
         anthropic: { enabled: true, allowedModels: ['claude-sonnet-5'] },
     };
@@ -662,7 +1024,11 @@ describe('converting a legacy Bedrock configuration', () => {
                 'new-cred-uuid',
         );
         const updateSettings = vi.fn(async () => undefined);
+        const upsertSettings = vi.fn(async () => undefined);
         const service = new AiOrganizationSettingsService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findDecryptedProviderApiKeys: async () =>
                     legacy ? { bedrock: legacy } : null,
@@ -673,6 +1039,7 @@ describe('converting a legacy Bedrock configuration', () => {
                     },
                 }),
                 update: updateSettings,
+                upsert: upsertSettings,
             },
             aiOrganizationProviderCredentialModel: {
                 countByOrganizationUuid: async () => existingCount,
@@ -721,7 +1088,7 @@ describe('converting a legacy Bedrock configuration', () => {
         (
             service as unknown as { createAuditedAbility: () => unknown }
         ).createAuditedAbility = () => ({ can: () => true });
-        return { service, createCredential, updateSettings };
+        return { service, createCredential, updateSettings, upsertSettings };
     };
 
     const user = {
@@ -732,7 +1099,7 @@ describe('converting a legacy Bedrock configuration', () => {
     // Without this an org that configured Bedrock before named credentials
     // could see its configuration but never edit or remove it.
     it('converts the legacy config into a managed credential', async () => {
-        const { service, createCredential, updateSettings } = buildService();
+        const { service, createCredential, upsertSettings } = buildService();
         await service.adoptLegacyProviderCredential(user);
 
         expect(createCredential).toHaveBeenCalledTimes(1);
@@ -744,7 +1111,7 @@ describe('converting a legacy Bedrock configuration', () => {
             apiKey: 'ABSKlegacy-key',
         });
         // Mirrored, not cleared — an N-1 pod reads only this blob.
-        expect(updateSettings).toHaveBeenCalledWith('org-uuid', {
+        expect(upsertSettings).toHaveBeenCalledWith('org-uuid', {
             providerApiKeys: { bedrock: LEGACY },
         });
     });
@@ -771,9 +1138,15 @@ describe('converting a legacy Bedrock configuration', () => {
 describe('pinning a project to a credential', () => {
     const buildService = ({
         resolution = { status: 'ok' as const, credential: {} },
+        customProvidersEnabled = true,
     } = {}) => {
         const setProjectCredential = vi.fn(async () => undefined);
         const service = new AiOrganizationSettingsService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({
+                    enabled: customProvidersEnabled,
+                }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {},
             aiOrganizationProviderCredentialModel: {
                 findDecrypted: async () => resolution,
@@ -842,6 +1215,242 @@ describe('pinning a project to a credential', () => {
         await service.setProjectProviderCredential(user, 'project-1', null);
         expect(setProjectCredential).toHaveBeenCalledWith('project-1', null);
     });
+
+    // A pin saved while the flag is off would be inert at best and rerouted
+    // at worst, so the write is refused outright — same contract as agent pins.
+    it('rejects a pin while custom providers are disabled', async () => {
+        const { service, setProjectCredential } = buildService({
+            customProvidersEnabled: false,
+        });
+        await expect(
+            service.setProjectProviderCredential(user, 'project-1', 'cred-1'),
+        ).rejects.toThrow(/not enabled/);
+        expect(setProjectCredential).not.toHaveBeenCalled();
+    });
+
+    // Cleanup must stay possible for a flag-off organization.
+    it('clears the pin while custom providers are disabled', async () => {
+        const { service, setProjectCredential } = buildService({
+            customProvidersEnabled: false,
+        });
+        await service.setProjectProviderCredential(user, 'project-1', null);
+        expect(setProjectCredential).toHaveBeenCalledWith('project-1', null);
+    });
+});
+
+describe('credential writes while custom providers are disabled', () => {
+    const buildService = () => {
+        const credentialModel = {
+            create: vi.fn(async () => 'new-cred-uuid'),
+            update: vi.fn(async () => undefined),
+            replace: vi.fn(async () => undefined),
+            setDefault: vi.fn(async () => undefined),
+            delete: vi.fn(async () => undefined),
+            countByOrganizationUuid: vi.fn(async () => 0),
+            findDefaultDecrypted: vi.fn(async () => ({
+                status: 'none' as const,
+            })),
+            findAllByOrganizationUuid: vi.fn(async () => ({
+                credentials: [],
+                unreadable: [],
+            })),
+        };
+        const service = new AiOrganizationSettingsService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: false }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
+            aiOrganizationSettingsModel: {
+                findDecryptedProviderApiKeys: async () => null,
+                findByOrganizationUuid: async () => null,
+                update: vi.fn(async () => undefined),
+            },
+            aiOrganizationProviderCredentialModel: credentialModel,
+            organizationModel: {},
+            projectModel: {},
+            commercialFeatureFlagModel: {
+                get: async () => ({ enabled: true }),
+            },
+            lightdashConfig: { ai: { copilot: { providers: {} } } },
+            orgAiCopilotConfigResolver: {},
+        } as never);
+        (
+            service as unknown as { createAuditedAbility: () => unknown }
+        ).createAuditedAbility = () => ({ can: () => true });
+        return { service, credentialModel };
+    };
+
+    const user = {
+        organizationUuid: 'org-uuid',
+        userUuid: 'user-uuid',
+    } as never;
+
+    const credentialData = {
+        provider: 'bedrock' as const,
+        label: 'Japan (Tokyo)',
+        region: 'ap-northeast-1',
+        allowedModels: ['claude-sonnet-4-5'],
+        apiKey: 'ABSKkey',
+    };
+
+    // Stored org provider config is inert while the flag is off, so these
+    // writes would save successfully and then silently do nothing.
+    it('rejects creating a credential', async () => {
+        const { service, credentialModel } = buildService();
+        await expect(
+            service.createProviderCredential(user, credentialData),
+        ).rejects.toThrow(/not enabled/);
+        expect(credentialModel.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects updating a credential', async () => {
+        const { service, credentialModel } = buildService();
+        await expect(
+            service.updateProviderCredential(user, 'cred-1', {
+                label: 'renamed',
+            }),
+        ).rejects.toThrow(/not enabled/);
+        expect(credentialModel.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects replacing a credential', async () => {
+        const { service, credentialModel } = buildService();
+        await expect(
+            service.replaceProviderCredential(user, 'cred-1', credentialData),
+        ).rejects.toThrow(/not enabled/);
+        expect(credentialModel.replace).not.toHaveBeenCalled();
+    });
+
+    it('rejects changing the default credential', async () => {
+        const { service, credentialModel } = buildService();
+        await expect(
+            service.setDefaultProviderCredential(user, 'cred-1'),
+        ).rejects.toThrow(/not enabled/);
+        expect(credentialModel.setDefault).not.toHaveBeenCalled();
+    });
+
+    it('rejects adopting the legacy configuration', async () => {
+        const { service, credentialModel } = buildService();
+        await expect(
+            service.adoptLegacyProviderCredential(user),
+        ).rejects.toThrow(/not enabled/);
+        expect(credentialModel.create).not.toHaveBeenCalled();
+    });
+
+    // Deletion stays allowed so a flag-off organization can clean up.
+    it('still deletes a credential', async () => {
+        const { service, credentialModel } = buildService();
+        await service.deleteProviderCredential(user, 'cred-1');
+        expect(credentialModel.delete).toHaveBeenCalledWith(
+            'org-uuid',
+            'cred-1',
+        );
+    });
+});
+
+describe('validating an agent credential pin', () => {
+    const credential = {
+        uuid: 'cred-1',
+        organizationUuid: 'org-uuid',
+        provider: 'bedrock' as const,
+        label: 'Japan (Tokyo)',
+        isDefault: false,
+        config: {
+            apiKey: 'key',
+            region: 'ap-northeast-1',
+            allowedModels: ['claude-sonnet-4-5'],
+        },
+    };
+
+    const buildService = ({
+        resolution = { status: 'ok' as const, credential },
+        customProvidersEnabled = true,
+    } = {}) =>
+        new AiOrganizationSettingsService({
+            aiOrganizationSettingsModel: {},
+            aiOrganizationProviderCredentialModel: {
+                findDecrypted: async () => resolution,
+            },
+            organizationModel: {},
+            projectModel: {},
+            commercialFeatureFlagModel: {},
+            featureFlagModel: {
+                get: async () => ({ enabled: customProvidersEnabled }),
+            },
+            lightdashConfig: { ai: { copilot: { providers: {} } } },
+            orgAiCopilotConfigResolver: {},
+        } as never);
+
+    // A pin saved while the flag is off would be inert at best and rerouted
+    // at worst, so the write is refused outright.
+    it('rejects a pin while custom providers are disabled', async () => {
+        await expect(
+            buildService({
+                customProvidersEnabled: false,
+            }).validateAgentProviderCredential('org-uuid', 'cred-1', null),
+        ).rejects.toThrow(/not enabled/);
+    });
+
+    it('accepts a readable credential when the agent pins no model', async () => {
+        await expect(
+            buildService().validateAgentProviderCredential(
+                'org-uuid',
+                'cred-1',
+                null,
+            ),
+        ).resolves.toBeUndefined();
+    });
+
+    it('rejects a credential that does not exist', async () => {
+        await expect(
+            buildService({
+                resolution: { status: 'none' } as never,
+            }).validateAgentProviderCredential('org-uuid', 'cred-1', null),
+        ).rejects.toThrow(/not found/);
+    });
+
+    // Caught at save time, not at the agent's first prompt, which would
+    // otherwise fail with no obvious cause.
+    it('rejects an unreadable credential', async () => {
+        await expect(
+            buildService({
+                resolution: {
+                    status: 'unreadable',
+                    uuid: 'cred-1',
+                    label: 'Japan (Tokyo)',
+                } as never,
+            }).validateAgentProviderCredential('org-uuid', 'cred-1', null),
+        ).rejects.toThrow(/cannot be read/);
+    });
+
+    it("rejects a model from another provider than the credential's", async () => {
+        await expect(
+            buildService().validateAgentProviderCredential(
+                'org-uuid',
+                'cred-1',
+                { modelName: 'gpt-5.4', modelProvider: 'openai' },
+            ),
+        ).rejects.toThrow(/bedrock/);
+    });
+
+    it("rejects a model outside the credential's allowed models", async () => {
+        await expect(
+            buildService().validateAgentProviderCredential(
+                'org-uuid',
+                'cred-1',
+                { modelName: 'claude-opus-4-8', modelProvider: 'bedrock' },
+            ),
+        ).rejects.toThrow(/not in the allowed models/);
+    });
+
+    it('accepts a model the credential can serve', async () => {
+        await expect(
+            buildService().validateAgentProviderCredential(
+                'org-uuid',
+                'cred-1',
+                { modelName: 'claude-sonnet-4-5', modelProvider: 'bedrock' },
+            ),
+        ).resolves.toBeUndefined();
+    });
 });
 
 describe('legacy Bedrock adoption', () => {
@@ -863,7 +1472,11 @@ describe('legacy Bedrock adoption', () => {
                 'new-cred-uuid',
         );
         const updateSettings = vi.fn(async () => undefined);
+        const upsertSettings = vi.fn(async () => undefined);
         const service = new AiOrganizationSettingsService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findDecryptedProviderApiKeys: async () =>
                     legacy ? { bedrock: legacy } : null,
@@ -874,6 +1487,7 @@ describe('legacy Bedrock adoption', () => {
                     },
                 }),
                 update: updateSettings,
+                upsert: upsertSettings,
             },
             aiOrganizationProviderCredentialModel: {
                 countByOrganizationUuid: async () => existingCount,
@@ -922,7 +1536,7 @@ describe('legacy Bedrock adoption', () => {
         (
             service as unknown as { createAuditedAbility: () => unknown }
         ).createAuditedAbility = () => ({ can: () => true });
-        return { service, createCredential, updateSettings };
+        return { service, createCredential, updateSettings, upsertSettings };
     };
 
     const user = {
@@ -960,13 +1574,13 @@ describe('legacy Bedrock adoption', () => {
     // another provider — a residency break, not just an outage. The blob is
     // mirrored to the default credential instead.
     it('keeps the legacy blob as a mirror of the default credential', async () => {
-        const { service, updateSettings } = buildService();
+        const { service, updateSettings, upsertSettings } = buildService();
         await service.createProviderCredential(user, newCredential);
 
         expect(updateSettings).not.toHaveBeenCalledWith('org-uuid', {
             providerApiKeys: { bedrock: null },
         });
-        expect(updateSettings).toHaveBeenCalledWith('org-uuid', {
+        expect(upsertSettings).toHaveBeenCalledWith('org-uuid', {
             providerApiKeys: { bedrock: LEGACY_BEDROCK },
         });
     });
@@ -1001,19 +1615,83 @@ describe('legacy Bedrock adoption', () => {
     });
 
     it('does nothing to adopt when there is no legacy blob', async () => {
-        const { service, createCredential, updateSettings } = buildService({
-            legacy: null,
-        });
+        const { service, createCredential, updateSettings, upsertSettings } =
+            buildService({
+                legacy: null,
+            });
         await service.createProviderCredential(user, newCredential);
 
         expect(createCredential).toHaveBeenCalledTimes(1);
         expect(updateSettings).not.toHaveBeenCalled();
+        expect(upsertSettings).not.toHaveBeenCalled();
+    });
+
+    // Regression for lightdash/lightdash#31001: an org that has never saved
+    // AI settings has no settings row, so mirroring with `update` threw
+    // NotFoundError after the credential row was already inserted — the API
+    // returned 404 while the credential silently persisted.
+    it('creates the settings row when the org has never saved AI settings', async () => {
+        const { service, upsertSettings } = buildService({ legacy: null });
+        const notFound = new Error('AI organization settings not found');
+        // Simulate the missing-row org: update would throw, upsert must be
+        // used instead.
+        const updateThrowing = vi.fn(async () => {
+            throw notFound;
+        });
+        const internals = service as unknown as {
+            aiOrganizationSettingsModel: {
+                update: typeof updateThrowing;
+                findByOrganizationUuid: () => Promise<null>;
+                findDecryptedProviderApiKeys: () => Promise<null>;
+            };
+            aiOrganizationProviderCredentialModel: {
+                findDefaultDecrypted: () => Promise<unknown>;
+            };
+        };
+        internals.aiOrganizationSettingsModel.update = updateThrowing;
+        internals.aiOrganizationSettingsModel.findByOrganizationUuid =
+            async () => null;
+        internals.aiOrganizationSettingsModel.findDecryptedProviderApiKeys =
+            async () => null;
+        internals.aiOrganizationProviderCredentialModel.findDefaultDecrypted =
+            async () => ({
+                status: 'ok',
+                credential: {
+                    uuid: 'new-cred-uuid',
+                    organizationUuid: 'org-uuid',
+                    provider: 'bedrock',
+                    label: newCredential.label,
+                    isDefault: true,
+                    config: {
+                        apiKey: newCredential.apiKey,
+                        region: newCredential.region,
+                        allowedModels: newCredential.allowedModels,
+                    },
+                },
+            });
+
+        await expect(
+            service.createProviderCredential(user, newCredential),
+        ).resolves.toEqual({ uuid: 'new-cred-uuid' });
+        expect(updateThrowing).not.toHaveBeenCalled();
+        expect(upsertSettings).toHaveBeenCalledWith('org-uuid', {
+            providerApiKeys: {
+                bedrock: {
+                    apiKey: newCredential.apiKey,
+                    region: newCredential.region,
+                    allowedModels: newCredential.allowedModels,
+                },
+            },
+        });
     });
 });
 
 describe('isAiAgentMemoryEnabled', () => {
     const buildService = (settingEnabled: boolean | null) =>
         new AiOrganizationSettingsService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             organizationModel: {
                 getAiAgentMemoryEnabled: vi
                     .fn()
@@ -1047,6 +1725,9 @@ describe('isAiAgentMemoryEnabled', () => {
 describe('isDeepResearchRawSqlEnabled', () => {
     const buildService = (settings: AiOrganizationSettings | null) =>
         new AiOrganizationSettingsService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findByOrganizationUuid: vi.fn().mockResolvedValue(settings),
             },
@@ -1078,6 +1759,9 @@ describe('isDeepResearchRawSqlEnabled', () => {
 describe('isExplicitSlackChannelLinkingRequired', () => {
     const buildService = (settings: AiOrganizationSettings | null) =>
         new AiOrganizationSettingsService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findByOrganizationUuid: vi.fn().mockResolvedValue(settings),
             },
@@ -1117,6 +1801,9 @@ describe('isDataAppContinueInAskAiEnabled', () => {
         stored: { dataAppContinueInAskAiEnabled?: boolean } | null,
     ) =>
         new AiOrganizationSettingsService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findByOrganizationUuid: vi.fn().mockResolvedValue(stored),
             },
@@ -1134,36 +1821,14 @@ describe('isDataAppContinueInAskAiEnabled', () => {
     });
 });
 
-describe('isDataAppAutoAnalysisEnabled', () => {
-    const buildService = (
-        stored: { dataAppAutoAnalysisEnabled?: boolean } | null,
-    ) =>
-        new AiOrganizationSettingsService({
-            aiOrganizationSettingsModel: {
-                findByOrganizationUuid: vi.fn().mockResolvedValue(stored),
-            },
-        } as never);
-
-    it.each([
-        [null, false],
-        [{}, false],
-        [{ dataAppAutoAnalysisEnabled: true }, true],
-        [{ dataAppAutoAnalysisEnabled: false }, false],
-    ])(
-        'resolves stored=%j as %s (off by default)',
-        async (stored, expected) => {
-            await expect(
-                buildService(stored).isDataAppAutoAnalysisEnabled('org-uuid'),
-            ).resolves.toBe(expected);
-        },
-    );
-});
-
 describe('isDataAppRuntimeAiEnabled', () => {
     const buildService = (
         stored: { dataAppRuntimeAiEnabled?: boolean } | null,
     ) =>
         new AiOrganizationSettingsService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findByOrganizationUuid: vi.fn().mockResolvedValue(stored),
             },

@@ -1,8 +1,9 @@
 import { type ApiError, type Organization } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
-const getOrganization = async () =>
+const getOrganization = async (lightdashApi: LightdashApi) =>
     lightdashApi<Organization>({
         url: `/org`,
         method: 'GET',
@@ -11,9 +12,11 @@ const getOrganization = async () =>
 
 export const useOrganization = (
     useQueryOptions?: UseQueryOptions<Organization, ApiError>,
-) =>
-    useQuery<Organization, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<Organization, ApiError>({
         queryKey: ['organization'],
-        queryFn: getOrganization,
+        queryFn: () => getOrganization(lightdashApi),
         ...useQueryOptions,
     });
+};

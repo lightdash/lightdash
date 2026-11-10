@@ -14,7 +14,7 @@
         opacity: 1 !important;
     }
 
-    .actions :global(.mantine-ActionIcon-root) {
+    .actions > * {
         min-width: 44px;
         min-height: 44px;
     }

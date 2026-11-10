@@ -21,6 +21,7 @@ const ERROR_KIND_BY_NAME: Record<string, FieldValueSearchErrorKind> = {
     NonCompiledModelError: 'configuration',
     MissingCatalogEntryError: 'configuration',
     WarehouseQueryError: 'warehouse',
+    WarehouseQueryTimeoutError: 'warehouse',
     WarehouseConnectionError: 'warehouse',
     MissingWarehouseCredentialsError: 'warehouse',
 };

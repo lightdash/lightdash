@@ -9,23 +9,43 @@ import {
     Switch,
     Text,
 } from '@mantine/core';
-import { IconAsterisk, IconPlus } from '@tabler/icons-react';
+import {
+    IconAlertTriangle,
+    IconAsterisk,
+    IconCircleDashed,
+    IconPlus,
+} from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../../components/common/MantineIcon';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import {
+    selectDashboardFilters,
+    useDashboardSelector,
+} from '../../dashboard/store';
 import FilterSelect, { type SelectableFilter } from './FilterSelect';
 import classes from './RequiredFilterCard.module.css';
 import { useDashboardFilterField } from './useDashboardFilterField';
 import { useUpdateDashboardFilterRule } from './useUpdateDashboardFilterRule';
-import { getDashboardFilterRuleLabel, getSelectableFilters } from './utils';
+import {
+    getDashboardFilterRuleLabel,
+    getRequiredGroupMemberUpdates,
+    getSelectableFilters,
+} from './utils';
 
 type Props = {
     filterRule: DashboardFilterRule;
     onToggleRequired: (checked: boolean) => void;
     onChangeFilterRule: (filterRule: DashboardFilterRule) => void;
     onEditRules?: () => void;
+    /** Writes the other filter an alternative changes; default: the dashboard filters. */
+    onChangeOtherFilterRule?: (filterRule: DashboardFilterRule) => void;
+    /** Disables the switch and says why under it; default: enabled. */
+    disabledReason?: string;
+    /** Renders the alternative picker's list in a portal; default false. */
+    isListInPortal?: boolean;
+    /** Draws the bordered card, tinted while required; default true. */
+    withCard?: boolean;
 };
 
 const RequiredFilterCard: FC<Props> = ({
@@ -33,12 +53,18 @@ const RequiredFilterCard: FC<Props> = ({
     onToggleRequired,
     onChangeFilterRule,
     onEditRules,
+    onChangeOtherFilterRule,
+    disabledReason,
+    isListInPortal = false,
+    withCard = true,
 }) => {
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const updateFilterRule = useUpdateDashboardFilterRule();
     const [isAddingAlternative, setIsAddingAlternative] = useState(false);
 
     const isActive = !!filterRule.required || !!filterRule.requiredGroupId;
+    // withCard=false is the flag-on settings view, which marks required with an asterisk
+    const requiredIcon = withCard ? IconCircleDashed : IconAsterisk;
 
     const getField = useDashboardFilterField();
 
@@ -82,36 +108,40 @@ const RequiredFilterCard: FC<Props> = ({
             // Rule members are valueless by definition; both filters get the
             // full conversion immediately so cancelling the popover cannot
             // leave a group member with values
-            updateFilterRule(siblingId, {
-                requiredGroupId: groupId,
-                required: false,
-                disabled: true,
-                values: [],
-            });
-            updateFilterRule(filterRule.id, {
-                required: false,
-                requiredGroupId: groupId,
-                disabled: true,
-                values: [],
-            });
-            onChangeFilterRule({
-                ...filterRule,
-                required: false,
-                requiredGroupId: groupId,
-                disabled: true,
-                values: [],
-            });
+            const updates = getRequiredGroupMemberUpdates(groupId);
+            if (onChangeOtherFilterRule) {
+                const sibling = allFilterRules.find(
+                    (rule) => rule.id === siblingId,
+                );
+                if (sibling)
+                    onChangeOtherFilterRule({ ...sibling, ...updates });
+            } else {
+                updateFilterRule(siblingId, updates);
+                updateFilterRule(filterRule.id, updates);
+            }
+            onChangeFilterRule({ ...filterRule, ...updates });
             setIsAddingAlternative(false);
         },
-        [filterRule, updateFilterRule, onChangeFilterRule],
+        [
+            filterRule,
+            allFilterRules,
+            updateFilterRule,
+            onChangeFilterRule,
+            onChangeOtherFilterRule,
+        ],
     );
 
     return (
-        <Box className={clsx(classes.card, isActive && classes.cardActive)}>
+        <Box
+            className={clsx(
+                withCard && classes.card,
+                withCard && isActive && classes.cardActive,
+            )}
+        >
             <Group justify="space-between" wrap="nowrap">
                 <Group gap={6} wrap="nowrap">
                     <MantineIcon
-                        icon={IconAsterisk}
+                        icon={requiredIcon}
                         size="sm"
                         color={isActive ? 'yellow.7' : 'ldGray.6'}
                     />
@@ -124,20 +154,40 @@ const RequiredFilterCard: FC<Props> = ({
                     color="yellow.6"
                     aria-label="Required"
                     checked={isActive}
+                    disabled={!!disabledReason}
                     onChange={(e) => onToggleRequired(e.currentTarget.checked)}
                 />
             </Group>
+            {disabledReason && (
+                <Group gap={6} mt={6} wrap="nowrap" align="flex-start">
+                    <MantineIcon
+                        icon={IconAlertTriangle}
+                        size={14}
+                        color="yellow.6"
+                    />
+                    <Text size="xs" c="dimmed">
+                        {disabledReason}
+                    </Text>
+                </Group>
+            )}
             {isOnlyMember && (
                 <Stack gap={6} mt="xs">
-                    <Text size="xs" c="ldGray.7">
+                    <Text size="xs" c="dimmed">
                         Viewers must set this filter to load the dashboard.
                     </Text>
+                    {isSavedFilter && selectableFilters.length === 0 && (
+                        <Text size="xs" c="dimmed">
+                            Add another filter to use it as an alternative.
+                        </Text>
+                    )}
                     {isSavedFilter &&
+                        selectableFilters.length > 0 &&
                         (isAddingAlternative ? (
                             <FilterSelect
                                 selectableFilters={selectableFilters}
                                 placeholder="+ Add a filter"
                                 onSelect={handleAddAlternative}
+                                withinPortal={isListInPortal}
                             />
                         ) : (
                             <Button

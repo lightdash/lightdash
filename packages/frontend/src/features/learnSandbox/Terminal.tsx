@@ -23,6 +23,7 @@ const QUICK_COMMANDS = [
     'dbt parse',
     'lightdash compile',
     'lightdash deploy',
+    'lightdash start-preview --name my-preview',
     'lightdash validate',
 ];
 
@@ -88,9 +89,7 @@ type TerminalProps = {
 
 /**
  * The sandbox terminal: a command input with quick-pick chips over a
- * streamed output pane. Follow-scroll logic copied from
- * `ee/features/agentOnboarding/AgentOnboardingActivity.tsx` (do not import
- * from `ee/` here) — the viewport auto-scrolls to the newest chunk unless
+ * streamed output pane. The viewport auto-scrolls to the newest chunk unless
  * the learner has scrolled up to read earlier output.
  */
 const Terminal: FC<TerminalProps> = ({

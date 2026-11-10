@@ -53,7 +53,7 @@ describe('getSearchFieldValues', () => {
             expect(output.result).toContain('```json\n[]\n```');
             expect(
                 output.result.includes(
-                    'Preserve an explicitly requested literal exclusion',
+                    'keep an explicitly requested exclusion',
                 ),
             ).toBe(enabled);
             expect(output.result).not.toContain('Matching value for');
@@ -208,7 +208,9 @@ describe('getSearchFieldValues', () => {
             },
           }
         `);
-        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(output.structuredContent).toEqual({
+            error: output.result,
+        });
         expect(
             toolSearchFieldValuesOutputSchema.safeParse(output).success,
         ).toBe(true);
@@ -234,7 +236,9 @@ describe('getSearchFieldValues', () => {
         expect(output.metadata).toEqual({ status: 'error' });
         expect(output.result).toContain('Error searching field values.');
         expect(output.result).toContain('warehouse unavailable');
-        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(output.structuredContent).toEqual({
+            error: output.result,
+        });
         expect(
             toolSearchFieldValuesOutputSchema.safeParse(output).success,
         ).toBe(true);

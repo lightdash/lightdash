@@ -8,14 +8,11 @@ const serializeBaseUrl = (url: URL): string => {
     return `${url.origin}${pathname === '/' ? '' : pathname}`;
 };
 
-export const normalizeLlmGatewayBaseUrl = (
-    value: string,
-    environmentVariable: string,
-): string => {
-    const trimmed = value.trim();
-
+// Null when the value is not an HTTP(S) base URL free of credentials, query
+// parameters, and fragments.
+export const parseLlmGatewayBaseUrl = (value: string): string | null => {
     try {
-        const url = new URL(trimmed);
+        const url = new URL(value.trim());
         if (
             !['http:', 'https:'].includes(url.protocol) ||
             !url.hostname ||
@@ -24,15 +21,26 @@ export const normalizeLlmGatewayBaseUrl = (
             url.search ||
             url.hash
         ) {
-            throw new Error('unsupported gateway URL');
+            return null;
         }
         return serializeBaseUrl(url);
     } catch {
+        return null;
+    }
+};
+
+export const normalizeLlmGatewayBaseUrl = (
+    value: string,
+    environmentVariable: string,
+): string => {
+    const normalized = parseLlmGatewayBaseUrl(value);
+    if (normalized === null) {
         throw new ParseError(
             `Cannot parse environment variable "${environmentVariable}". Value must be an HTTP(S) base URL without credentials, query parameters, or a fragment.`,
             {},
         );
     }
+    return normalized;
 };
 
 /**
@@ -40,8 +48,11 @@ export const normalizeLlmGatewayBaseUrl = (
  * trailing /v1 segment because Claude Code appends /v1/messages itself.
  * Accept a trailing /v1 for backwards compatibility and normalize it away.
  */
-export const normalizeAnthropicGatewayBaseUrl = (value: string): string => {
-    const normalized = normalizeLlmGatewayBaseUrl(value, 'ANTHROPIC_BASE_URL');
+export const normalizeAnthropicGatewayBaseUrl = (
+    value: string,
+    environmentVariable = 'ANTHROPIC_BASE_URL',
+): string => {
+    const normalized = normalizeLlmGatewayBaseUrl(value, environmentVariable);
     const url = new URL(normalized);
     const pathname = url.pathname.replace(/\/v1$/, '');
     url.pathname = pathname || '/';

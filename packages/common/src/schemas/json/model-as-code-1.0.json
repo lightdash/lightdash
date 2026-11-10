@@ -896,7 +896,7 @@
                     "items": {
                         "type": "string"
                     },
-                    "description": "Specific fields to include from the joined model"
+                    "description": "Specific fields to include from the joined model. Use set references (ending with *) to include sets and a - prefix to exclude fields or sets. A list containing only exclusions includes every field except those excluded."
                 },
                 "always": {
                     "type": "boolean",

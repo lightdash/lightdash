@@ -1,6 +1,9 @@
 import {
+    getComposerSemanticExploreNames,
     isAiComposerChartArtifactConfig,
     isAiSqlChartArtifactConfig,
+    parseToolVisualizeSuccessMetadata,
+    QuerySourceType,
     type AiAgentToolResult,
     type AiArtifact,
     type ItemsMap,
@@ -33,22 +36,49 @@ const tableCallArgsSchema = z.object({
         .nullish(),
 });
 
-export const isSlackTableArtifact = (artifact: AiArtifact): boolean => {
-    const { chartConfig } = artifact;
-    if (
-        !chartConfig ||
-        isAiSqlChartArtifactConfig(chartConfig) ||
-        isAiComposerChartArtifactConfig(chartConfig)
-    ) {
-        return false;
+const getExploreNames = (args: z.infer<typeof tableCallArgsSchema>) => [
+    ...new Set([
+        args.queryConfig.exploreName,
+        ...(args.mergeConfig?.additionalSources.map(
+            (source) => source.queryConfig.exploreName,
+        ) ?? []),
+    ]),
+];
+
+/** A version saved as a table, with the semantic explores its query reads. */
+const getTableArtifact = (
+    artifact: AiArtifact | undefined,
+): { title: string | null; exploreNames: string[] } | null => {
+    const chartConfig = artifact?.chartConfig;
+    if (!artifact || !chartConfig || isAiSqlChartArtifactConfig(chartConfig)) {
+        return null;
+    }
+    const title = artifact.title || null;
+    if (isAiComposerChartArtifactConfig(chartConfig)) {
+        if (
+            chartConfig.schemaVersion !== 2 ||
+            chartConfig.vizConfig?.type !== 'table'
+        ) {
+            return null;
+        }
+        return {
+            title,
+            exploreNames: getComposerSemanticExploreNames(chartConfig.queries),
+        };
     }
     const args = tableCallArgsSchema.safeParse(chartConfig.config);
-    return (
-        args.success &&
-        (!args.data.chartConfig ||
-            args.data.chartConfig.defaultVizType === 'table')
-    );
+    if (
+        !args.success ||
+        (args.data.chartConfig &&
+            args.data.chartConfig.defaultVizType !== 'table')
+    ) {
+        return null;
+    }
+    return { title, exploreNames: getExploreNames(args.data) };
 };
+
+export const isSlackTableArtifact = (artifact: AiArtifact): boolean =>
+    getTableArtifact(artifact) !== null;
 
 export const getSlackTablePreviews = async ({
     enableDataAccess,
@@ -94,8 +124,7 @@ export const getSlackTablePreviews = async ({
     }>;
     onLoadError: (toolCallId: string) => void;
 }): Promise<Array<SlackTablePreview & { artifactVersionUuid?: string }>> => {
-    if (!enableDataAccess || slackLinksOnly || selectedQueryUuids.length === 0)
-        return [];
+    if (!enableDataAccess || slackLinksOnly) return [];
 
     const resultsByCall = new Map(
         toolResults
@@ -105,13 +134,41 @@ export const getSlackTablePreviews = async ({
     const artifactsByVersion = new Map(
         artifacts.map((artifact) => [artifact.versionUuid, artifact]),
     );
-    const tableCalls = toolCalls.flatMap((call) => {
+    type TableCall = {
+        call: (typeof toolCalls)[number];
+        title: string | null;
+        exploreNames: string[];
+        // Null when visualize could not run the node; the table links to the thread.
+        metadata: { queryUuid: string | null };
+        artifact: AiArtifact | undefined;
+    };
+    // A visualize call presents its table; no marker selects it.
+    const visualizedTables = toolCalls.flatMap((call): TableCall[] => {
+        if (call.tool_name !== 'visualize') return [];
+        const metadata = parseToolVisualizeSuccessMetadata(
+            resultsByCall.get(call.tool_call_id)?.metadata,
+        );
+        if (!metadata) return [];
+        const table = getTableArtifact(
+            artifactsByVersion.get(metadata.versionUuid),
+        );
+        if (!table) return [];
+        return [
+            {
+                call,
+                title: table.title,
+                exploreNames: table.exploreNames,
+                metadata: { queryUuid: metadata.queryUuid },
+                artifact: undefined,
+            },
+        ];
+    });
+    const tableCalls = toolCalls.flatMap((call): TableCall[] => {
         if (!['runQuery', 'generateVisualization'].includes(call.tool_name)) {
             return [];
         }
-        const metadata = queryResultMetadataSchema.safeParse(
-            resultsByCall.get(call.tool_call_id)?.metadata,
-        );
+        const toolMetadata = resultsByCall.get(call.tool_call_id)?.metadata;
+        const metadata = queryResultMetadataSchema.safeParse(toolMetadata);
         if (!metadata.success) return [];
         const artifact = metadata.data.artifactVersionUuid
             ? artifactsByVersion.get(metadata.data.artifactVersionUuid)
@@ -136,7 +193,15 @@ export const getSlackTablePreviews = async ({
         ) {
             return [];
         }
-        return [{ call, args: args.data, metadata: metadata.data, artifact }];
+        return [
+            {
+                call,
+                title: artifact?.title || args.data.title || null,
+                exploreNames: getExploreNames(args.data),
+                metadata: metadata.data,
+                artifact,
+            },
+        ];
     });
 
     const callsByQuery = new Map(
@@ -147,42 +212,39 @@ export const getSlackTablePreviews = async ({
     );
     // Only the final answer's selected executions are shared. Bound previews
     // and preserve presentation order, including when a query was reused.
-    const selectedCalls = [...new Set(selectedQueryUuids)].flatMap(
-        (queryUuid) => {
+    const selectedCalls = [
+        ...[...new Set(selectedQueryUuids)].flatMap((queryUuid) => {
             const tableCall = callsByQuery.get(queryUuid);
             return tableCall ? [tableCall] : [];
-        },
-    );
+        }),
+        ...visualizedTables,
+    ];
     return Promise.all(
         selectedCalls
             .slice(0, 10)
-            .map(async ({ call, args, metadata, artifact }) => {
+            .map(async ({ call, title, exploreNames, metadata, artifact }) => {
                 const preview = {
                     blockId: `ai_agent_table_${call.tool_call_id}`,
-                    title: artifact?.title || args.title || 'Query results',
+                    title: title || 'Query results',
                     url,
                     ...(artifact
                         ? { artifactVersionUuid: artifact.versionUuid }
                         : {}),
                 };
+                const { queryUuid } = metadata;
+                if (queryUuid === null) {
+                    return { ...preview, status: 'unavailable' as const };
+                }
                 try {
-                    const exploreNames = [
-                        ...new Set([
-                            args.queryConfig.exploreName,
-                            ...(args.mergeConfig?.additionalSources.map(
-                                (source) => source.queryConfig.exploreName,
-                            ) ?? []),
-                        ]),
-                    ];
                     await authorize({
-                        queryUuid: metadata.queryUuid,
+                        queryUuid,
                         exploreNames,
                     });
                     // Approval resumes and retries have a new runtime context.
                     const queryResults =
-                        runtimeResults.get(metadata.queryUuid) ??
+                        runtimeResults.get(queryUuid) ??
                         (await getResults({
-                            queryUuid: metadata.queryUuid,
+                            queryUuid,
                             exploreNames,
                             maxRows: SLACK_TABLE_MAX_ROWS,
                         }));

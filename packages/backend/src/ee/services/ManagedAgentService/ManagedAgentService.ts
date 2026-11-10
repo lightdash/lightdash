@@ -1,7 +1,12 @@
 import { subject } from '@casl/ability';
 import {
     AGENT_SUGGESTIONS_SPACE_SLUG,
+    AgentActorSurface,
+    AiAccessRefusedError,
+    AiCreditsPausedError,
+    applyNewChartDefaults,
     assertUnreachable,
+    CommercialFeatureFlags,
     computeAutopilotExcludedSpaceUuids,
     ConflictError,
     DEFAULT_MANAGED_AGENT_POLICY,
@@ -18,6 +23,7 @@ import {
     ParameterError,
     ProjectType,
     QueryExecutionContext,
+    QuerySurface,
     ValidationErrorType,
     ValidationSourceType,
     type ChartConfig,
@@ -46,6 +52,7 @@ import { fromSession } from '../../../auth/account';
 import type { SlackClient } from '../../../clients/Slack/SlackClient';
 import { getAutopilotCleanupMode } from '../../../config/autopilotConfig';
 import type { LightdashConfig } from '../../../config/parseConfig';
+import type { AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import type { AnalyticsModel } from '../../../models/AnalyticsModel';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import type { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
@@ -56,12 +63,18 @@ import type { SpaceModel } from '../../../models/SpaceModel';
 import type { UserModel } from '../../../models/UserModel';
 import type { ValidationModel } from '../../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../../scheduler/SchedulerClient';
+import type { AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+    getContentWriteAgentIdentity,
+} from '../../../services/AiAccessService/agentExecutionContext';
 import type { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { ValidationService } from '../../../services/ValidationService/ValidationService';
 import { ManagedAgentModel } from '../../models/ManagedAgentModel';
-import { resolveAiDecisionClient } from '../ai/decisions/AiDecisionClient';
+import { isPreAggregatesEnabled } from '../../preAggregates/isPreAggregatesEnabled';
 import {
     filterModelsForOrg,
     getAvailableModels,
@@ -83,8 +96,14 @@ import {
 } from '../ai/utils/aiCallTelemetry';
 import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import type { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
+import type { AiCreditService } from '../AiCreditService';
 import type { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { runAutopilotAgent } from './AutopilotAgentRunner';
+import {
+    createAutopilotAuthority,
+    getAutopilotAuthorityError,
+    type AutopilotAuthority,
+} from './autopilotAuthority';
 import {
     captureAutopilotFailure,
     type AutopilotFailureStage,
@@ -130,6 +149,7 @@ type HeartbeatContext = {
     triggeredBy: ManagedAgentRunTriggeredBy;
     startedAtMs: number;
     analyticsUserId: string | null;
+    authority: AutopilotAuthority | null;
     summaryContext: HeartbeatSummaryContext;
     // Snapshot from the actual run resolver, never re-resolved on completion.
     modelAttribution: Pick<
@@ -213,6 +233,8 @@ type ManagedAgentServiceDependencies = {
     spaceModel: SpaceModel;
     spacePermissionService: SpacePermissionService;
     userModel: UserModel;
+    agentPermissionService: AgentPermissionService;
+    agentActionLogModel: AgentActionLogModel;
     featureFlagModel: FeatureFlagModel;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
@@ -220,6 +242,7 @@ type ManagedAgentServiceDependencies = {
     aiAgentToolsService: AiAgentToolsService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
     asyncQueryService: AsyncQueryService;
+    aiCreditService: Pick<AiCreditService, 'assertAiCreditsAvailable'>;
 };
 
 type AutopilotToolCallHandler = (
@@ -266,6 +289,10 @@ export class ManagedAgentService extends BaseService {
 
     private readonly userModel: UserModel;
 
+    private readonly agentPermissionService: AgentPermissionService;
+
+    private readonly agentActionLogModel: AgentActionLogModel;
+
     private readonly featureFlagModel: FeatureFlagModel;
 
     private readonly schedulerClient: SchedulerClient;
@@ -280,6 +307,11 @@ export class ManagedAgentService extends BaseService {
 
     private readonly asyncQueryService: AsyncQueryService;
 
+    private readonly aiCreditService: Pick<
+        AiCreditService,
+        'assertAiCreditsAvailable'
+    >;
+
     constructor(deps: ManagedAgentServiceDependencies) {
         super();
         this.lightdashConfig = deps.lightdashConfig;
@@ -293,6 +325,8 @@ export class ManagedAgentService extends BaseService {
         this.spaceModel = deps.spaceModel;
         this.spacePermissionService = deps.spacePermissionService;
         this.userModel = deps.userModel;
+        this.agentPermissionService = deps.agentPermissionService;
+        this.agentActionLogModel = deps.agentActionLogModel;
         this.featureFlagModel = deps.featureFlagModel;
         this.schedulerClient = deps.schedulerClient;
         this.slackClient = deps.slackClient;
@@ -300,9 +334,38 @@ export class ManagedAgentService extends BaseService {
         this.aiAgentToolsService = deps.aiAgentToolsService;
         this.aiOrganizationSettingsService = deps.aiOrganizationSettingsService;
         this.asyncQueryService = deps.asyncQueryService;
+        this.aiCreditService = deps.aiCreditService;
     }
 
     // --- Validation helpers ---
+
+    private async withAutopilotScope<T>(
+        actor: SessionUser,
+        execute: (agentIdentityEnabled: boolean) => Promise<T>,
+    ): Promise<T> {
+        const account = fromSession(actor);
+        const current = getContentWriteAgentIdentity({
+            userUuid: actor.userUuid,
+            organizationUuid: actor.organizationUuid,
+        });
+        if (current?.act.client_id === 'lightdash-autopilot')
+            return execute(true);
+        const { enabled: agentIdentityEnabled } =
+            await this.featureFlagModel.get({
+                user: actor,
+                featureFlagId: FeatureFlags.AgentIdentity,
+            });
+        return agentExecutionContext.run(
+            createAgentExecutionContext({
+                account,
+                surface: AgentActorSurface.IN_APP_AGENT,
+                clientId: 'lightdash-autopilot',
+                agentUuid: null,
+                agentIdentityEnabled,
+            }),
+            () => execute(agentIdentityEnabled),
+        );
+    }
 
     // Runs the chart query at limit 1 so a bad field or SQL fails here, not
     // on the next validation pass after the version is already saved.
@@ -314,15 +377,17 @@ export class ManagedAgentService extends BaseService {
         abortSignal?: AbortSignal,
     ): Promise<void> {
         try {
-            await this.asyncQueryService.executeMetricQueryAndGetResults(
-                {
-                    account: fromSession(actor),
-                    projectUuid,
-                    context: QueryExecutionContext.AI,
-                    metricQuery: { ...metricQuery, limit: 1 },
-                    parameters,
-                },
-                { abortSignal },
+            await this.withAutopilotScope(actor, () =>
+                this.asyncQueryService.executeMetricQueryAndGetResults(
+                    {
+                        account: fromSession(actor),
+                        projectUuid,
+                        context: QueryExecutionContext.AI,
+                        metricQuery: { ...metricQuery, limit: 1 },
+                        parameters,
+                    },
+                    { abortSignal },
+                ),
             );
         } catch (error) {
             abortSignal?.throwIfAborted();
@@ -437,6 +502,7 @@ export class ManagedAgentService extends BaseService {
                     this.orgAiCopilotConfigResolver.getCopilotConfig({
                         organizationUuid,
                         projectUuid,
+                        credentialUuid: null,
                     }),
                     this.aiOrganizationSettingsService.getDefaultModelConfig(
                         organizationUuid,
@@ -1472,7 +1538,9 @@ export class ManagedAgentService extends BaseService {
         return { runs, nextCursor: encodeRunsCursor(nextCursor) };
     }
 
-    async isAiAutopilotEnabledForProject(
+    // Autopilot is available wherever AI is: the AI copilot flag or an AI
+    // trial, resolved for the admin who enabled it, as for AI agents.
+    async isAutopilotAvailableForProject(
         settings: ManagedAgentSettings,
     ): Promise<boolean> {
         const project = await this.projectModel.getSummary(
@@ -1484,12 +1552,15 @@ export class ManagedAgentService extends BaseService {
                   project.organizationUuid,
               )
             : undefined;
-        const featureFlag = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.AiAutopilot,
+        const { enabled: copilotEnabled } = await this.featureFlagModel.get({
+            user: user ?? { organizationUuid: project.organizationUuid },
+            featureFlagId: CommercialFeatureFlags.AiCopilot,
         });
-
-        return featureFlag.enabled;
+        if (copilotEnabled) return true;
+        return this.aiOrganizationSettingsService.isEligibleForTrial(
+            copilotEnabled,
+            project.organizationUuid,
+        );
     }
 
     // --- Actions API ---
@@ -1655,6 +1726,7 @@ export class ManagedAgentService extends BaseService {
                 input,
                 abortSignal,
                 allowContentDeletion,
+                ctx.authority,
             );
 
         const onSessionCreated = (id: string) => {
@@ -1684,8 +1756,15 @@ export class ManagedAgentService extends BaseService {
             this.logger.error(
                 `Heartbeat session error for project ${projectUuid}: ${error instanceof Error ? error.message : 'Unknown'}`,
             );
-            this.reportHeartbeatFailure(ctx, 'session', error);
+            const authorityFailure = ctx.authority?.guard.getFailure();
+            if (
+                !ctx.authority?.isStoppingError(error) &&
+                !(error instanceof AiCreditsPausedError)
+            )
+                this.reportHeartbeatFailure(ctx, 'session', error);
             runError = error instanceof Error ? error.message : 'Unknown';
+            if (authorityFailure && ctx.authority?.isStoppingError(error))
+                runError = getAutopilotAuthorityError(authorityFailure.error);
         } finally {
             let savedActions: ManagedAgentAction[] | null = null;
             try {
@@ -1711,6 +1790,13 @@ export class ManagedAgentService extends BaseService {
                 : await this.managedAgentModel
                       .getActionCountsByTypeForRun(runUuid)
                       .catch(() => ({}) as Record<string, number>);
+            if (ctx.authority) {
+                try {
+                    await ctx.authority.assert();
+                } catch (error) {
+                    runError ||= getAutopilotAuthorityError(error);
+                }
+            }
             const narrative =
                 reportInputs !== null &&
                 savedActions !== null &&
@@ -1723,6 +1809,13 @@ export class ManagedAgentService extends BaseService {
                               this.reportHeartbeatFailure(ctx, 'report', error),
                       })
                     : null;
+            if (ctx.authority) {
+                try {
+                    await ctx.authority.assertIfStale();
+                } catch (error) {
+                    runError ||= getAutopilotAuthorityError(error);
+                }
+            }
             const report = renderHeartbeatSummary({
                 actions: savedActions,
                 interrupted: runError !== null,
@@ -1772,6 +1865,31 @@ export class ManagedAgentService extends BaseService {
         }
     }
 
+    private createHeartbeatAuthority(
+        ctx: HeartbeatContext,
+        actor: SessionUser,
+        initialFailure: { error: unknown } | null,
+    ): AutopilotAuthority {
+        return createAutopilotAuthority(
+            {
+                userModel: this.userModel,
+                agentPermissionService: this.agentPermissionService,
+                agentActionLogModel: this.agentActionLogModel,
+            },
+            {
+                userUuid: actor.userUuid,
+                organizationUuid: ctx.organizationUuid,
+                projectUuid: ctx.projectUuid,
+                surface: AgentActorSurface.IN_APP_AGENT,
+            },
+            {
+                initialFailure,
+                onFailure: (error) =>
+                    this.reportHeartbeatFailure(ctx, 'run', error),
+            },
+        );
+    }
+
     private reportHeartbeatFailure(
         ctx: HeartbeatContext,
         stage: AutopilotFailureStage,
@@ -1805,6 +1923,13 @@ export class ManagedAgentService extends BaseService {
                 this.projectModel.getSummary(projectUuid),
                 this.resolveAutopilotModel(organizationUuid, projectUuid),
             ]);
+        // Refuse the run while the organization's AI credits are paused, as
+        // agents and data apps do. Runs on the organization's own key never pause.
+        await this.aiCreditService.assertAiCreditsAvailable({
+            user: actor,
+            resolveKeyManagement: async () => resolvedModel.keyManagement,
+            isEmbedViewer: false,
+        });
         const runtimeInfo = this.describeAiSdkRuntime(policy, resolvedModel);
         // Persist before tools or model execution: a crash must not erase the
         // selected model, and later configuration changes must not rewrite it.
@@ -1828,7 +1953,7 @@ export class ManagedAgentService extends BaseService {
         const agent = renderAutopilotAgent({
             toolSettings,
             policy: { ...policy, aggression: runtimeInfo.effectiveCleanupMode },
-            preAggregatesEnabled: this.lightdashConfig.preAggregates.enabled,
+            preAggregatesEnabled: isPreAggregatesEnabled(this.lightdashConfig),
         });
         const {
             copilotConfig,
@@ -1841,6 +1966,14 @@ export class ManagedAgentService extends BaseService {
             actor,
             projectUuid,
             organizationUuid,
+            () => ctx.authority,
+            (error) => {
+                if (ctx.authority) return;
+                ctx.authority = this.createHeartbeatAuthority(ctx, actor, {
+                    error,
+                });
+                void ctx.authority.assert().catch(() => undefined);
+            },
         );
         const telemetry = getAiCallTelemetry({
             functionId: 'autopilotHeartbeat',
@@ -1856,26 +1989,36 @@ export class ManagedAgentService extends BaseService {
         const { sessionTimeoutMs, maxSteps } =
             this.lightdashConfig.managedAgent;
 
-        const result = await runAutopilotAgent({
-            model,
-            callOptions,
-            providerOptions,
-            agent,
-            dataTools,
-            executeTool: (name, input, signal) =>
-                onToolCall(
-                    name,
-                    input,
-                    signal,
-                    runtimeInfo.effectiveCleanupMode === 'cleanup',
-                ),
-            projectName: project.name,
-            maxSteps,
-            timeoutMs: sessionTimeoutMs,
-            telemetry,
+        const result = await this.withAutopilotScope(actor, async (enabled) => {
+            if (enabled) {
+                ctx.authority = this.createHeartbeatAuthority(ctx, actor, null);
+                await ctx.authority.assert();
+            }
+            return runAutopilotAgent({
+                model,
+                callOptions,
+                providerOptions,
+                agent,
+                dataTools,
+                executeTool: (name, input, signal) =>
+                    onToolCall(
+                        name,
+                        input,
+                        signal,
+                        runtimeInfo.effectiveCleanupMode === 'cleanup',
+                    ),
+                projectName: project.name,
+                maxSteps,
+                timeoutMs: sessionTimeoutMs,
+                telemetry,
+                abortSignal: ctx.authority?.abortSignal,
+            });
         });
 
-        if (result.cause !== null) {
+        if (
+            result.cause !== null &&
+            !ctx.authority?.isStoppingError(result.cause)
+        ) {
             this.reportHeartbeatFailure(
                 ctx,
                 result.stopReason === 'timeout' ? 'timeout' : 'run',
@@ -1916,6 +2059,8 @@ export class ManagedAgentService extends BaseService {
         actor: SessionUser,
         projectUuid: string,
         organizationUuid: string,
+        getAuthority?: () => AutopilotAuthority | null,
+        onPreparationRefusal?: (error: AiAccessRefusedError) => void,
     ): Promise<{ tools: ToolSet; availableExplores: Explore[] }> {
         const [spaces, excludedSpaces] = await Promise.all([
             this.spaceModel.find({ projectUuid }),
@@ -1933,25 +2078,38 @@ export class ManagedAgentService extends BaseService {
             organizationUuid,
             projectUuid,
             source: 'ai_agent',
+            querySurface: QuerySurface.APP,
             catalogSearchContext: CatalogSearchContext.AI_AGENT,
             defaultQueryExecutionContext: QueryExecutionContext.AI,
             tags: null,
             spaceAccess: allowedSpaceUuids,
+            readOnlySpaceUuids: [],
+            threadBinding: null,
         });
+        const reportRefusal = (error: unknown) => {
+            if (error instanceof AiAccessRefusedError)
+                onPreparationRefusal?.(error);
+        };
+        const exploresRead = runtime.listExplores();
+        const parametersRead = runtime.getProjectParameterDefinitions();
+        exploresRead.catch(reportRefusal);
+        parametersRead.catch(reportRefusal);
         const [availableExplores, projectParameterDefinitions, fastDecisions] =
             await Promise.all([
-                runtime.listExplores(),
-                runtime.getProjectParameterDefinitions(),
-                resolveAiDecisionClient(this.lightdashConfig.ai.decisions, () =>
-                    this.featureFlagModel.get({
-                        user: { organizationUuid },
-                        featureFlagId: FeatureFlags.AiAgentFastDecisions,
-                    }),
+                exploresRead,
+                parametersRead,
+                this.orgAiCopilotConfigResolver.getDecisionClient(
+                    organizationUuid,
+                    projectUuid,
                 ),
             ]);
         const verifiedFieldUsage = await runtime
             .getVerifiedFieldUsage()
-            .catch(() => new Map<string, number>());
+            .catch((error) => {
+                reportRefusal(error);
+                if (error instanceof AiAccessRefusedError) throw error;
+                return new Map<string, number>();
+            });
         const { siteUrl } = this.lightdashConfig;
         const { maxQueryLimit, toolDescriptionMaxChars } =
             this.lightdashConfig.ai.copilot;
@@ -2005,6 +2163,16 @@ export class ManagedAgentService extends BaseService {
             }),
         };
 
+        for (const dataTool of Object.values(tools)) {
+            const { execute } = dataTool;
+            if (execute)
+                dataTool.execute = (input, options) =>
+                    this.withAutopilotScope(actor, async () => {
+                        const authority = getAuthority?.();
+                        if (authority) await authority.assertIfStale();
+                        return execute(input, options);
+                    });
+        }
         return { tools, availableExplores };
     }
 
@@ -2029,6 +2197,7 @@ export class ManagedAgentService extends BaseService {
             triggeredBy: run.triggeredBy,
             startedAtMs: run.startedAt.getTime(),
             analyticsUserId: settings?.enabledByUserUuid ?? null,
+            authority: null,
             summaryContext: { attribution: null, notice: null },
             modelAttribution: null,
         };
@@ -2127,7 +2296,8 @@ export class ManagedAgentService extends BaseService {
         this.logger.info(
             `Slack notification check: slackChannelId=${slackChannelId ?? 'null'}, sessionId=${sessionId || 'empty'}`,
         );
-        if (!slackChannelId || !sessionId) return false;
+        if (!slackChannelId || !sessionId || ctx.authority?.guard.getFailure())
+            return false;
         try {
             await this.postHeartbeatSummaryToSlack(
                 ctx.projectUuid,
@@ -2135,6 +2305,7 @@ export class ManagedAgentService extends BaseService {
                 slackChannelId,
                 agentSummary,
                 compactSummary,
+                ctx.authority,
             );
             return true;
         } catch (e) {
@@ -2218,10 +2389,19 @@ export class ManagedAgentService extends BaseService {
         slackChannelId: string,
         agentSummary: string,
         compactSummary: string,
+        authority: AutopilotAuthority | null,
     ): Promise<void> {
         this.logger.info(
             `Posting Slack summary: project=${projectUuid}, session=${sessionId}, channel=${slackChannelId}, summaryLength=${agentSummary.length}`,
         );
+        const postMessage = (
+            message: Parameters<SlackClient['postMessage']>[0],
+        ) =>
+            authority
+                ? authority
+                      .assertIfStale()
+                      .then(() => this.slackClient.postMessage(message))
+                : this.slackClient.postMessage(message);
         try {
             const { organizationUuid } =
                 await this.projectModel.getSummary(projectUuid);
@@ -2250,7 +2430,7 @@ export class ManagedAgentService extends BaseService {
                 } as KnownBlock,
             ];
 
-            const mainMessage = await this.slackClient.postMessage({
+            const mainMessage = await postMessage({
                 organizationUuid,
                 channel: slackChannelId,
                 text: `Autopilot: ${compactSummary}`,
@@ -2269,7 +2449,7 @@ export class ManagedAgentService extends BaseService {
 
                 for (const chunk of chunks) {
                     // eslint-disable-next-line no-await-in-loop
-                    await this.slackClient.postMessage({
+                    await postMessage({
                         organizationUuid,
                         channel: slackChannelId,
                         thread_ts: mainMessage.ts,
@@ -2288,6 +2468,7 @@ export class ManagedAgentService extends BaseService {
                 `Posted heartbeat summary to Slack channel ${slackChannelId}`,
             );
         } catch (error) {
+            if (authority?.guard.getFailure()) throw error;
             this.logger.warn(
                 `Failed to post heartbeat summary to Slack: ${error instanceof Error ? error.message : 'Unknown error'}`,
             );
@@ -2304,6 +2485,7 @@ export class ManagedAgentService extends BaseService {
         input: Record<string, unknown>,
         abortSignal?: AbortSignal,
         allowContentDeletion = true,
+        authority: AutopilotAuthority | null = null,
     ): Promise<string> {
         if (
             !allowContentDeletion &&
@@ -2331,7 +2513,9 @@ export class ManagedAgentService extends BaseService {
                     ),
                 );
         }
-        const actor = await this.getAutopilotActor(projectUuid);
+        const actor = authority
+            ? await authority.loadToolUser()
+            : await this.getAutopilotActor(projectUuid);
         await this.assertActorCanViewProject(actor, projectUuid);
         abortSignal?.throwIfAborted();
         switch (call.name) {
@@ -2453,6 +2637,7 @@ export class ManagedAgentService extends BaseService {
                     runUuid,
                     call.input,
                     abortSignal,
+                    authority,
                 );
             case 'get_user_questions':
                 return this.handleGetUserQuestions(
@@ -2486,6 +2671,7 @@ export class ManagedAgentService extends BaseService {
                     call.input,
                     abortSignal,
                     allowContentDeletion,
+                    authority,
                 );
             case 'write_slack_summary':
                 return JSON.stringify({
@@ -3119,6 +3305,7 @@ chartConfig:
     private async getOrCreateAgentSpace(
         actor: SessionUser,
         projectUuid: string,
+        authority: AutopilotAuthority | null,
     ): Promise<string> {
         const existingSpace = await this.findAgentSpace(projectUuid);
         if (existingSpace) {
@@ -3130,9 +3317,13 @@ chartConfig:
             'Agent Suggestions',
         );
 
-        // Get the user who enabled the agent to use as the space creator
         const settings = await this.managedAgentModel.getSettings(projectUuid);
-        const enabledByUserUuid = settings?.enabledByUserUuid;
+        const enabledByUserUuid = getContentWriteAgentIdentity({
+            userUuid: actor.userUuid,
+            organizationUuid: actor.organizationUuid,
+        })
+            ? actor.userUuid
+            : settings?.enabledByUserUuid;
         if (!enabledByUserUuid) {
             throw new Error(
                 'Cannot create Agent Suggestions space: no user has enabled the agent for this project',
@@ -3146,6 +3337,7 @@ chartConfig:
         // Audience 'admins' keeps the space restricted to its admin creator
         const audience =
             settings?.policy.audience ?? DEFAULT_MANAGED_AGENT_POLICY.audience;
+        authority?.abortSignal.throwIfAborted();
         const space = await this.spaceModel.createSpace(
             {
                 name: 'Agent Suggestions',
@@ -3163,7 +3355,8 @@ chartConfig:
         sessionId: string,
         runUuid: string,
         input: AutopilotToolInput<'create_content_from_code'>,
-        abortSignal?: AbortSignal,
+        abortSignal: AbortSignal | undefined,
+        authority: AutopilotAuthority | null,
     ): Promise<string> {
         const { chart_as_code: chartAsCode, description } = input;
         const chartName = (chartAsCode.name as string) ?? 'Untitled';
@@ -3252,7 +3445,11 @@ chartConfig:
         );
         // Get or create the Agent Suggestions space
         abortSignal?.throwIfAborted();
-        const spaceUuid = await this.getOrCreateAgentSpace(actor, projectUuid);
+        const spaceUuid = await this.getOrCreateAgentSpace(
+            actor,
+            projectUuid,
+            authority,
+        );
         await this.assertActorCanCreateChart(
             actor,
             projectUuid,
@@ -3260,9 +3457,13 @@ chartConfig:
             chartName,
         );
 
-        // Use the user who enabled the agent
         const settings = await this.managedAgentModel.getSettings(projectUuid);
-        const userUuid = settings?.enabledByUserUuid;
+        const userUuid = getContentWriteAgentIdentity({
+            userUuid: actor.userUuid,
+            organizationUuid: actor.organizationUuid,
+        })
+            ? actor.userUuid
+            : settings?.enabledByUserUuid;
         if (!userUuid) {
             throw new Error(
                 'Cannot create content: no user has enabled the agent for this project',
@@ -3276,8 +3477,9 @@ chartConfig:
             description: description ?? null,
             tableName: chartAsCode.tableName as string,
             metricQuery: chartAsCode.metricQuery as MetricQuery,
-            chartConfig: (chartConfig ??
-                chartAsCode.chartConfig) as ChartConfig,
+            chartConfig: applyNewChartDefaults(
+                (chartConfig ?? chartAsCode.chartConfig) as ChartConfig,
+            ),
             tableConfig: (chartAsCode.tableConfig as {
                 columnOrder: string[];
             }) ?? {
@@ -3780,7 +3982,12 @@ chartConfig:
 
         // Use the admin who enabled the agent as the actor
         const settings = await this.managedAgentModel.getSettings(projectUuid);
-        const actorUuid = settings?.enabledByUserUuid ?? projectUuid;
+        const actorUuid = getContentWriteAgentIdentity({
+            userUuid: actor.userUuid,
+            organizationUuid: actor.organizationUuid,
+        })
+            ? actor.userUuid
+            : (settings?.enabledByUserUuid ?? projectUuid);
         const policy = settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY;
 
         // Hard guardrail: aggression below 'cleanup' never deletes
@@ -3911,7 +4118,12 @@ chartConfig:
 
         await this.assertActorCanManageProject(actor, projectUuid);
         const settings = await this.managedAgentModel.getSettings(projectUuid);
-        const actorUuid = settings?.enabledByUserUuid ?? projectUuid;
+        const actorUuid = getContentWriteAgentIdentity({
+            userUuid: actor.userUuid,
+            organizationUuid: actor.organizationUuid,
+        })
+            ? actor.userUuid
+            : (settings?.enabledByUserUuid ?? projectUuid);
         const policy = settings?.policy ?? DEFAULT_MANAGED_AGENT_POLICY;
 
         // Hard guardrail: aggression below 'cleanup' never deletes
@@ -4306,7 +4518,7 @@ chartConfig:
         projectUuid: string,
         input: AutopilotToolInput<'get_preagg_candidates'>,
     ): Promise<string> {
-        if (!this.lightdashConfig.preAggregates.enabled) {
+        if (!isPreAggregatesEnabled(this.lightdashConfig)) {
             return JSON.stringify({
                 enabled: false,
                 message:
@@ -4435,8 +4647,9 @@ chartConfig:
         projectUuid: string,
         runUuid: string,
         input: AutopilotToolInput<'reverse_own_action'>,
-        abortSignal?: AbortSignal,
-        allowContentDeletion = true,
+        abortSignal: AbortSignal | undefined,
+        allowContentDeletion: boolean,
+        authority: AutopilotAuthority | null,
     ): Promise<string> {
         const { action_uuid: actionUuid, reason } = input;
 
@@ -4500,8 +4713,12 @@ chartConfig:
                     await this.assertActorCanDeleteChart(actor, chart);
                     const settings =
                         await this.managedAgentModel.getSettings(projectUuid);
-                    const actorUuid =
-                        settings?.enabledByUserUuid ?? projectUuid;
+                    const actorUuid = getContentWriteAgentIdentity({
+                        userUuid: actor.userUuid,
+                        organizationUuid: actor.organizationUuid,
+                    })
+                        ? actor.userUuid
+                        : (settings?.enabledByUserUuid ?? projectUuid);
                     abortSignal?.throwIfAborted();
                     await this.savedChartModel.softDelete(
                         action.targetUuid,
@@ -4515,8 +4732,14 @@ chartConfig:
         }
 
         const settings = await this.managedAgentModel.getSettings(projectUuid);
-        const actorUuid = settings?.enabledByUserUuid ?? projectUuid;
+        const actorUuid = getContentWriteAgentIdentity({
+            userUuid: actor.userUuid,
+            organizationUuid: actor.organizationUuid,
+        })
+            ? actor.userUuid
+            : (settings?.enabledByUserUuid ?? projectUuid);
 
+        authority?.abortSignal.throwIfAborted();
         const reversed = await this.managedAgentModel.reverseAction(
             actionUuid,
             actorUuid,

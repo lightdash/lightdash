@@ -23,7 +23,7 @@ export const AgentSettingsSubsection: FC<Props> = ({
         <Group align="flex-start" justify="space-between" gap="md" wrap="wrap">
             <Stack gap={2} flex={1} miw={0}>
                 <Group gap="xs" align="center">
-                    <Title order={6} c="ldGray.7" size="sm" fw={500}>
+                    <Title order={6} c="dimmed" size="sm" fw={500}>
                         {title}
                     </Title>
                     {badge}

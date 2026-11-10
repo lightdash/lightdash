@@ -1,5 +1,5 @@
 import { Ability } from '@casl/ability';
-import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
+import { FeatureFlags } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
@@ -8,9 +8,7 @@ import { type FC, type PropsWithChildren } from 'react';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
-vi.mock('../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../api');
 
 vi.mock('../providers/App/useApp', () => ({
     default: () => ({
@@ -31,13 +29,18 @@ vi.mock('../providers/App/useApp', () => ({
     }),
 }));
 
-import { lightdashApi } from '../api';
+import { sharedLightdashApi } from '../api';
 import { createQueryClient } from '../providers/ReactQuery/createQueryClient';
 import AppRoute from './AppRoute';
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 
 const ORG_URL = '/org';
+const HOMEPAGE_OFF = {
+    organizationUuid: 'org',
+    enabled: false,
+    opening: null,
+};
 const PROJECT_ROUTE = '/projects/project-1/home';
 
 const organization = (needsProject: boolean) => ({
@@ -86,11 +89,8 @@ const setup = ({
                 enabled: true,
             });
         }
-        if (url === `/feature-flag/${CommercialFeatureFlags.HomepageBuilder}`) {
-            return Promise.resolve({
-                id: CommercialFeatureFlags.HomepageBuilder,
-                enabled: false,
-            });
+        if (url === '/org/homepage-settings') {
+            return Promise.resolve(HOMEPAGE_OFF);
         }
         return Promise.resolve(null);
     });
@@ -102,10 +102,7 @@ const setup = ({
         { updatedAt: Date.now() - cacheAgeMs },
     );
     if (primeFlagCache) {
-        queryClient.setQueryData(
-            ['feature-flag', CommercialFeatureFlags.HomepageBuilder],
-            { id: CommercialFeatureFlags.HomepageBuilder, enabled: false },
-        );
+        queryClient.setQueryData(['org_homepage_settings'], HOMEPAGE_OFF);
         queryClient.setQueryData(['feature-flag', FeatureFlags.NewOnboarding], {
             id: FeatureFlags.NewOnboarding,
             enabled: true,

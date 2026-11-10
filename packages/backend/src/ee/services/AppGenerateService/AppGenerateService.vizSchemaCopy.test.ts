@@ -1,6 +1,7 @@
 // Version metadata stored outside S3 must move with source snapshots so copied
 // versions preserve viz contracts and extracted data references.
 import { type AppVersionDependencies } from '@lightdash/common';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -151,6 +152,7 @@ function buildService() {
     };
 
     const service = new AppGenerateService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
             appRuntime: {},
@@ -161,6 +163,7 @@ function buildService() {
         userModel: {} as never,
         appModel: appModel as never,
         featureFlagModel: featureFlagModel as never,
+        organizationSettingsModel: {} as never,
         organizationDesignModel: organizationDesignModel as never,
         pinnedListModel: {} as never,
         projectModel: projectModel as never,
@@ -189,6 +192,7 @@ function buildService() {
         orgAiCopilotConfigResolver: {} as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        appThumbnailClient: buildAppThumbnailClientMock(),
         chartRegistryClient: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,
@@ -196,6 +200,7 @@ function buildService() {
             unverify: async () => undefined,
         } as never,
     });
+    vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(true);
 
     vi.spyOn(
         service as unknown as { createAuditedAbility: () => unknown },

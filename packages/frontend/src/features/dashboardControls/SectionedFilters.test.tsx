@@ -1,0 +1,4112 @@
+import type * as DndKitCore from '@dnd-kit/core';
+import {
+    type DragEndEvent,
+    type DragMoveEvent,
+    type DragStartEvent,
+} from '@dnd-kit/core';
+import {
+    DashboardControlRefKind,
+    DashboardTileTypes,
+    FieldType,
+    FilterOperator,
+    type DashboardControlRef,
+    type DashboardControlSection,
+    type DashboardFilterRule,
+    type DashboardFilterableField,
+    type DashboardFilters,
+    type DashboardParameterControl,
+    type DashboardTile,
+} from '@lightdash/common';
+import { act, fireEvent, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { type ComponentProps, type ReactNode } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+    createDashboardTestStore,
+    seedDashboardEditState,
+} from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
+import { renderWithProviders } from '../../testing/testUtils';
+import { EventName } from '../../types/Events';
+import {
+    dashboardEditActions,
+    dashboardFiltersActions,
+    dashboardParametersActions,
+    selectControlOrder,
+    selectControlSections,
+    selectHasControlOrderChanged,
+    selectHaveControlSectionsChanged,
+    selectOrderedControls,
+} from '../dashboard/store';
+import type * as AddControlModule from './AddControl';
+import type * as FilterEditorModule from './FilterEditor';
+import { ParameterEditorProvider } from './ParameterEditorProvider';
+import { SectionedFilters } from './SectionedFilters';
+import { besidePointer } from './sections';
+
+const mockDashboardContext = vi.hoisted(() => ({
+    current: {} as Record<string, unknown>,
+}));
+const pillsProps = vi.hoisted(() => ({
+    current: [] as {
+        sectionId: string | null | undefined;
+        triggerClassName?: string;
+    }[],
+}));
+const mockSidebar = vi.hoisted(() => ({
+    current: { isViewer: false, isSidebarOpen: false } as {
+        isViewer: boolean;
+        isSidebarOpen: boolean;
+        editing?: { filterId: string } | null;
+        isNew?: boolean;
+        isPlaceholder?: boolean;
+        editingRule?: DashboardFilterRule | null;
+    },
+}));
+const mockOpenNew = vi.hoisted(() => vi.fn());
+const mockTileHoverOwner = vi.hoisted(() => ({
+    current: null as string | null,
+}));
+// Whether each draggable, by id, was last rendered disabled
+const mockDraggableDisabled = vi.hoisted(() => new Map<unknown, boolean>());
+const mockDragEnd = vi.hoisted(() => ({
+    handlers: [] as ((event: DragEndEvent) => void)[],
+}));
+const mockDragMove = vi.hoisted(() => ({
+    handlers: [] as ((event: DragMoveEvent) => void)[],
+}));
+const mockDragStart = vi.hoisted(() => ({
+    handlers: [] as ((event: DragStartEvent) => void)[],
+}));
+const mockOverlay = vi.hoisted(() => ({
+    modifiers: undefined as unknown,
+}));
+const mockCollision = vi.hoisted(() => ({
+    detect: null as null | ((args: unknown) => unknown),
+}));
+// A drop state dnd-kit would report mid-drag, without the gesture
+const mockDroppable = vi.hoisted(() => ({
+    current: null as null | {
+        activeId: string;
+        overId: string;
+        isSection?: boolean;
+    },
+}));
+
+vi.mock('../../providers/Dashboard/useDashboardContext', () => ({
+    default: vi.fn((selector: (context: Record<string, unknown>) => unknown) =>
+        selector(mockDashboardContext.current),
+    ),
+}));
+
+const mockTrack = vi.hoisted(() => vi.fn());
+vi.mock('../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track: mockTrack }),
+}));
+
+vi.mock('./useControlsSidebar', () => ({
+    useControlsSidebarSelector: (
+        selector: (
+            value: typeof mockSidebar.current & {
+                openNew: typeof mockOpenNew;
+                requestSwitch: (proceed: () => void) => void;
+                tileHoverOwner: { current: string | null };
+            },
+        ) => unknown,
+    ) =>
+        selector({
+            ...mockSidebar.current,
+            openNew: mockOpenNew,
+            requestSwitch: (proceed: () => void) => proceed(),
+            tileHoverOwner: mockTileHoverOwner,
+        }),
+}));
+// The drag gesture is dnd-kit's; the drop handler is captured
+vi.mock('@dnd-kit/core', async (importOriginal) => {
+    const actual = await importOriginal<typeof DndKitCore>();
+    return {
+        ...actual,
+        DndContext: (props: Parameters<typeof actual.DndContext>[0]) => {
+            if (props.onDragEnd) mockDragEnd.handlers.push(props.onDragEnd);
+            if (props.onDragMove) mockDragMove.handlers.push(props.onDragMove);
+            if (props.onDragStart)
+                mockDragStart.handlers.push(props.onDragStart);
+            if (props.collisionDetection)
+                mockCollision.detect = props.collisionDetection as (
+                    args: unknown,
+                ) => unknown;
+            return <actual.DndContext {...props} />;
+        },
+        DragOverlay: (props: Parameters<typeof actual.DragOverlay>[0]) => {
+            mockOverlay.modifiers = props.modifiers;
+            return <actual.DragOverlay {...props} />;
+        },
+        useDraggable: (args: Parameters<typeof actual.useDraggable>[0]) => {
+            mockDraggableDisabled.set(args.id, args.disabled ?? false);
+            return actual.useDraggable(args);
+        },
+        useDroppable: (args: Parameters<typeof actual.useDroppable>[0]) => {
+            const real = actual.useDroppable(args);
+            const state = mockDroppable.current;
+            if (!state) return real;
+            return {
+                ...real,
+                isOver: args.id === state.overId,
+                active: {
+                    id: state.activeId,
+                    rect: { current: {} },
+                    data: {
+                        current: state.isSection
+                            ? { kind: 'section' }
+                            : undefined,
+                    },
+                },
+                over: { id: state.overId },
+            };
+        },
+    };
+});
+
+// The pills have their own tests; the mock pins what each pass is asked for
+// and gives each of its rules a draggable, as the real pass does in the bar's drag context
+vi.mock('./AddControl', async (importOriginal) => {
+    const actual = await importOriginal<typeof AddControlModule>();
+    return {
+        ...actual,
+        AddControl: (props: Parameters<typeof actual.AddControl>[0]) =>
+            props.section ? (
+                <actual.AddControl {...props} />
+            ) : (
+                <div data-filter-actions>
+                    <button data-dashboard-filter-control>Add</button>
+                </div>
+            ),
+    };
+});
+// Marks which target the new-filter editor is open on
+vi.mock('./FilterEditor', async (importOriginal) => ({
+    ...(await importOriginal<typeof FilterEditorModule>()),
+    EditorPopover: ({
+        isOpen,
+        children,
+    }: {
+        isOpen: boolean;
+        children: ReactNode;
+    }) => (
+        <>
+            {children}
+            {isOpen && <span data-testid="editor-anchor" />}
+        </>
+    ),
+}));
+vi.mock('./FilterPills', async () => {
+    const { useDraggable } = await import('@dnd-kit/core');
+    const {
+        selectDashboardFilters,
+        selectControlSections,
+        useDashboardSelector,
+    } = await import('../dashboard/store');
+    const { isRuleInSection } = await import('./sections');
+    const { useBarSelection } = await import('./barSelection');
+    // A modified click picks, as the real pill does
+    const Draggable = ({ id }: { id: string }) => {
+        const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+            id,
+        });
+        const selection = useBarSelection();
+        return (
+            <div
+                ref={setNodeRef}
+                data-dragging={isDragging || undefined}
+                {...listeners}
+                {...attributes}
+                data-controls-pill={id}
+                aria-pressed={selection?.selectedIds.includes(id) ?? false}
+                onClick={(event) => {
+                    if (event.metaKey || event.ctrlKey || event.shiftKey)
+                        selection?.pick(id, event.shiftKey);
+                }}
+            >
+                pill {id}
+            </div>
+        );
+    };
+    return {
+        FilterPills: ({
+            sectionId,
+            triggerClassName,
+            ruleIds,
+        }: {
+            sectionId: string | null | undefined;
+            triggerClassName?: string;
+            ruleIds?: string[];
+        }) => {
+            pillsProps.current.push({
+                sectionId,
+                triggerClassName,
+            });
+            const sections = useDashboardSelector(selectControlSections);
+            const inPass = useDashboardSelector(
+                selectDashboardFilters,
+            ).dimensions.filter((r) => isRuleInSection(r, sectionId, sections));
+            // With a stored order, each run of pills in its order
+            const rules =
+                ruleIds === undefined
+                    ? inPass
+                    : ruleIds.flatMap((id) =>
+                          inPass.filter((r) => r.id === id),
+                      );
+            return (
+                <div
+                    data-testid={
+                        ruleIds === undefined
+                            ? `pills-${sectionId ?? 'unsectioned'}`
+                            : undefined
+                    }
+                >
+                    {rules.map((r) => (
+                        <Draggable key={r.id} id={r.id} />
+                    ))}
+                </div>
+            );
+        },
+    };
+});
+
+const regionField = {
+    name: 'region',
+    table: 'orders',
+    tableLabel: 'Orders',
+    label: 'Region',
+    fieldType: FieldType.DIMENSION,
+    type: 'string',
+    sql: '${TABLE}.region',
+    hidden: false,
+} as DashboardFilterableField;
+
+const tiles = [
+    {
+        uuid: 'tile-1',
+        type: DashboardTileTypes.SAVED_CHART,
+        x: 0,
+        y: 0,
+        h: 1,
+        w: 1,
+        tabUuid: 'tab-1',
+        properties: { savedChartUuid: 'chart-1', title: 'Chart 1' },
+    },
+    {
+        uuid: 'tile-2',
+        type: DashboardTileTypes.SAVED_CHART,
+        x: 0,
+        y: 0,
+        h: 1,
+        w: 1,
+        tabUuid: 'tab-2',
+        properties: { savedChartUuid: 'chart-2', title: 'Chart 2' },
+    },
+] satisfies DashboardTile[];
+
+const rule = (
+    id: string,
+    sectionId: string | undefined,
+    overrides: Partial<DashboardFilterRule> = {},
+): DashboardFilterRule => ({
+    id,
+    ...(sectionId !== undefined && { sectionId }),
+    target: { fieldId: 'orders_region', tableName: 'orders' },
+    operator: FilterOperator.EQUALS,
+    values: ['emea'],
+    label: id,
+    ...overrides,
+});
+
+// Only on tab-1
+const onTabOne = {
+    tileTargets: {
+        'tile-1': { fieldId: 'orders_region', tableName: 'orders' },
+        'tile-2': false as const,
+    },
+};
+
+// An editor's chevron is the fold, apart from the name; a viewer's toggle is
+// the name
+const foldOf = (name: string) =>
+    screen.getByRole('button', {
+        name: new RegExp(`^(Expand|Collapse) section ${name}$`),
+    });
+const capsuleOf = (name: string) => screen.getByRole('group', { name });
+
+const renderSectioned = (
+    dimensions: DashboardFilterRule[],
+    activeTabUuid: string | undefined,
+    controlSections: DashboardControlSection[] = [
+        { id: 'a', name: 'Dates' },
+        { id: 'b', name: 'Regions' },
+        { id: 'c', name: 'Empty' },
+    ],
+    metrics: DashboardFilterRule[] = [],
+    embedProps: Partial<ComponentProps<typeof SectionedFilters>> = {},
+) => {
+    const store = createDashboardTestStore({
+        dashboardFilters: { dimensions, metrics, tableCalculations: [] },
+    });
+    const onTab = (tab: string | undefined) => (
+        <DashboardStoreTestProvider store={store}>
+            <SectionedFilters activeTabUuid={tab} {...embedProps} />
+        </DashboardStoreTestProvider>
+    );
+    seedDashboardEditState(store, {
+        dashboard: {
+            config: {
+                isDateZoomDisabled: false,
+                controlSections,
+            },
+        },
+        dashboardTiles: tiles,
+        dashboardTabs: [
+            { uuid: 'tab-1', name: 'Tab 1', order: 0 },
+            { uuid: 'tab-2', name: 'Tab 2', order: 1 },
+        ],
+    });
+    const result = renderWithProviders(onTab(activeTabUuid));
+    return {
+        ...result,
+        store,
+        switchTab: (tab: string | undefined) => result.rerender(onTab(tab)),
+    };
+};
+
+describe('SectionedFilters', () => {
+    beforeEach(() => {
+        pillsProps.current = [];
+        mockDragEnd.handlers = [];
+        mockDragMove.handlers = [];
+        mockDragStart.handlers = [];
+        mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+        mockDashboardContext.current = {
+            filterableFieldsByTileUuid: {
+                'tile-1': [regionField],
+                'tile-2': [regionField],
+            },
+            allFilterableFieldsMap: { orders_region: regionField },
+            allFilterableMetricsMap: {},
+            isLoadingDashboardFilters: false,
+            isFetchingDashboardFilters: false,
+        };
+    });
+
+    it('renders Add, then the unsectioned pass, then a capsule per section in order', () => {
+        // A viewer's bar: only the sections with a member on this tab
+        mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+        renderSectioned([rule('two', 'b'), rule('one', 'a')], 'tab-1');
+
+        const order = screen
+            .getAllByTestId(/^pills-/)
+            .map((node) => node.getAttribute('data-testid'));
+        expect(order).toEqual(['pills-unsectioned', 'pills-a', 'pills-b']);
+        expect(pillsProps.current.map((p) => p.sectionId)).toEqual([
+            null,
+            'a',
+            'b',
+        ]);
+        const add = screen.getByRole('button', { name: 'Add' });
+        expect(
+            add.compareDocumentPosition(
+                screen.getByTestId('pills-unsectioned'),
+            ) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+        // One capsule per section, its toggle and its pills inside it
+        const capsule = capsuleOf('Dates');
+        expect(capsule.className).toContain('capsule');
+        expect(capsule).toContainElement(
+            screen.getByRole('button', { name: 'Dates' }),
+        );
+        expect(capsule).toContainElement(screen.getByTestId('pills-a'));
+        expect(capsule).not.toContainElement(screen.getByTestId('pills-b'));
+        expect(capsuleOf('Regions')).toContainElement(
+            screen.getByTestId('pills-b'),
+        );
+        expect(document.querySelectorAll('[class*="capsule"]')).toHaveLength(2);
+    });
+
+    it("takes an embed's own actions and class contract on a viewer's bar, and folds locally", () => {
+        mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+        renderSectioned(
+            [rule('loose', undefined), rule('one', 'a')],
+            'tab-1',
+            undefined,
+            [],
+            {
+                viewerActions: <button type="button">Embed add</button>,
+                triggerClassName: 'ld-dashboard-filter',
+            },
+        );
+        expect(
+            screen.getByRole('button', { name: 'Embed add' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Add' }),
+        ).not.toBeInTheDocument();
+        // Every pass, loose and sectioned, carries the contract
+        expect(pillsProps.current.length).toBeGreaterThan(1);
+        for (const props of pillsProps.current) {
+            expect(props.triggerClassName).toBe('ld-dashboard-filter');
+        }
+        const toggle = screen.getByRole('button', { name: 'Dates' });
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        fireEvent.click(toggle);
+        expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.queryByTestId('pills-a')).not.toBeInTheDocument();
+    });
+
+    it('keeps Add, the loose pills, the capsules and New section in one flow, in that order, ending on New section', () => {
+        renderSectioned([rule('one', 'a')], 'tab-1');
+        // In edit mode Add sits in its drop-target wrapper inside the flow
+        const add = screen.getByRole('button', { name: 'Add' });
+        const flow = add.closest('[class*="flow"]');
+        expect(flow).not.toBeNull();
+        const inOrder = [
+            add,
+            screen.getByTestId('pills-unsectioned'),
+            screen.getByTestId('pills-a'),
+            screen.getByRole('button', { name: 'New section' }),
+        ];
+        inOrder.slice(1).forEach((node, i) => {
+            expect(flow).toContainElement(node);
+            expect(
+                inOrder[i].compareDocumentPosition(node) &
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+        });
+        expect(flow?.lastElementChild).toContainElement(
+            screen.getByRole('button', { name: 'New section' }),
+        );
+        // The capsule is the only entry: no folder icon
+        expect(document.querySelector('[data-add-section]')).toBeNull();
+        // Below the loose pills, with New section among the capsules
+        const sections = capsuleOf('Dates').closest('[class*="sections"]');
+        expect(sections).not.toContainElement(
+            screen.getByTestId('pills-unsectioned'),
+        );
+        expect(sections).toContainElement(
+            screen.getByRole('button', { name: 'New section' }),
+        );
+        // At the end of the last section line, inline with its capsules
+        const sectionLines = document.querySelectorAll(
+            '[class*="sectionLine"]',
+        );
+        expect(sectionLines[sectionLines.length - 1]).toContainElement(
+            screen.getByRole('button', { name: 'New section' }),
+        );
+        expect(
+            screen.queryByRole('button', { name: 'Filter rules' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('starts the capsules on a line below the filters, with unsectioned pills or without', () => {
+        const sectionsLine = () =>
+            screen
+                .getByRole('button', { name: 'New section' })
+                .closest('[class*="sections"]');
+        const { unmount } = renderSectioned([rule('one', 'a')], 'tab-1');
+        expect(sectionsLine()).toHaveAttribute('data-own-line');
+        expect(sectionsLine()).toContainElement(capsuleOf('Dates'));
+        unmount();
+
+        renderSectioned([rule('one', 'a'), rule('loose', undefined)], 'tab-1');
+        expect(sectionsLine()).toHaveAttribute('data-own-line');
+        expect(sectionsLine()).toContainElement(capsuleOf('Dates'));
+    });
+
+    it('names a first section on the line its capsule lands on', async () => {
+        renderSectioned([rule('loose', undefined)], 'tab-1', []);
+        const ghost = screen.getByRole('button', { name: 'New section' });
+        // No sections yet: New section stays inline after the pills
+        expect(ghost.closest('[class*="sections"]')).not.toHaveAttribute(
+            'data-own-line',
+        );
+        await userEvent.click(ghost);
+        expect(
+            screen
+                .getByRole('textbox', { name: 'Section name' })
+                .closest('[class*="sections"]'),
+        ).toHaveAttribute('data-own-line');
+    });
+
+    it('puts each section on a line of its own without a stored order, whatever its fold', () => {
+        const saved = [
+            { id: 'a', name: 'Dates' },
+            { id: 'b', name: 'Regions', collapsed: true },
+            { id: 'c', name: 'Status', collapsed: true },
+            { id: 'd', name: 'Totals' },
+        ];
+        renderSectioned(
+            [
+                rule('one', 'a'),
+                rule('two', 'b'),
+                rule('three', 'c'),
+                rule('four', 'd'),
+            ],
+            'tab-1',
+            saved,
+        );
+        const lineOf = (name: string) =>
+            capsuleOf(name).parentElement as HTMLElement;
+        expect(lineOf('Dates').className).toMatch(/sectionLine/);
+        const sectionsLine = lineOf('Dates').parentElement;
+        expect(sectionsLine?.className).toMatch(/sections/);
+        expect([...(sectionsLine?.children ?? [])].slice(0, 4)).toEqual(
+            ['Dates', 'Regions', 'Status', 'Totals'].map(lineOf),
+        );
+    });
+
+    it("starts a viewer's capsules on a line below the filters", () => {
+        mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+        renderSectioned([rule('one', 'a')], 'tab-1');
+        expect(capsuleOf('Dates').parentElement?.parentElement).toHaveAttribute(
+            'data-own-line',
+        );
+    });
+
+    it('renders sections and an unsectioned filter while a filter is edited', () => {
+        mockSidebar.current = {
+            isViewer: false,
+            isSidebarOpen: true,
+            editing: { filterId: 'one' },
+        };
+        renderSectioned([rule('one', 'a'), rule('loose', undefined)], 'tab-1');
+        expect(capsuleOf('Dates').parentElement?.parentElement).toHaveAttribute(
+            'data-own-line',
+        );
+    });
+
+    it('renders a capsule only for the sections that have a visible member', () => {
+        // A viewer's bar: only the sections with a member on this tab
+        mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+        renderSectioned(
+            [rule('one', 'a', onTabOne), rule('two', 'b')],
+            'tab-2',
+        );
+        expect(document.querySelectorAll('[class*="capsule"]')).toHaveLength(1);
+    });
+
+    it('folds by its member count, not the tab, so a flip holds across tabs', () => {
+        const members = [
+            ...Array.from({ length: 5 }, (_, i) =>
+                rule(`only-one-${i}`, 'a', onTabOne),
+            ),
+            rule('both-1', 'a'),
+            rule('both-2', 'a'),
+        ];
+        const { switchTab } = renderSectioned(members, 'tab-1');
+        const toggle = () => foldOf('Dates');
+        expect(toggle()).toHaveAttribute('aria-expanded', 'false');
+        fireEvent.click(toggle());
+        expect(toggle()).toHaveAttribute('aria-expanded', 'true');
+
+        // Two visible here, still seven members: it stays as flipped
+        switchTab('tab-2');
+        expect(toggle()).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    it('keeps focus on the fold as the capsule moves between lines', async () => {
+        mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+        renderSectioned([rule('a', 'a', onTabOne), rule('b', 'b')], 'tab-1');
+        await userEvent.click(screen.getByRole('button', { name: 'Dates' }));
+        expect(screen.getByRole('button', { name: 'Dates' })).toHaveFocus();
+    });
+
+    it('starts as the saved choice says, over the member count', () => {
+        const members = (count: number) =>
+            Array.from({ length: count }, (_, i) => rule(`a-${i}`, 'a'));
+        const sectionA = (collapsed: boolean) => ({
+            id: 'a',
+            name: 'Dates',
+            collapsed,
+        });
+        const { unmount } = renderSectioned(members(2), 'tab-1', [
+            sectionA(true),
+        ]);
+        expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.queryByTestId('pills-a')).not.toBeInTheDocument();
+        unmount();
+
+        renderSectioned(members(7), 'tab-1', [sectionA(false)]);
+        expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByTestId('pills-a')).toBeInTheDocument();
+    });
+
+    it('starts folded above six members on the tab and open at six', () => {
+        const members = (count: number) =>
+            Array.from({ length: count }, (_, i) => rule(`a-${i}`, 'a'));
+        const { unmount } = renderSectioned(members(7), 'tab-1');
+        const folded = foldOf('Dates');
+        expect(folded).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.queryByTestId('pills-a')).not.toBeInTheDocument();
+        expect(screen.getByText('7 filters')).toBeInTheDocument();
+        unmount();
+
+        renderSectioned(members(6), 'tab-1');
+        expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByTestId('pills-a')).toBeInTheDocument();
+    });
+
+    it('leaves out a section whose members are all hidden on the active tab', () => {
+        // A viewer's bar: only the sections with a member on this tab
+        mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+        renderSectioned(
+            [rule('one', 'a', onTabOne), rule('two', 'b')],
+            'tab-2',
+        );
+
+        expect(
+            screen.queryByRole('button', { name: 'Dates' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Regions', expanded: true }),
+        ).toBeInTheDocument();
+    });
+
+    it('keeps the capsules through a background refetch of the filters', () => {
+        mockDashboardContext.current.isFetchingDashboardFilters = true;
+        renderSectioned([rule('one', 'a')], 'tab-1');
+
+        expect(screen.getByTestId('pills-a')).toBeInTheDocument();
+        expect(screen.getByTestId('pills-unsectioned')).toBeInTheDocument();
+    });
+
+    it('renders no capsule while the filters first load', () => {
+        mockDashboardContext.current.isLoadingDashboardFilters = true;
+        renderSectioned([rule('one', 'a')], 'tab-1');
+
+        expect(screen.getByTestId('pills-unsectioned')).toBeInTheDocument();
+        expect(screen.queryByTestId('pills-a')).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Dates' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("folds a section to its visible member count: an editor's values are the defaults", async () => {
+        renderSectioned(
+            [
+                rule('set', 'a'),
+                rule('unset', 'a', { values: [], disabled: true }),
+                rule('hidden', 'a', { ...onTabOne, values: ['apac'] }),
+            ],
+            'tab-2',
+        );
+        const toggle = foldOf('Dates');
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        expect(toggle).not.toHaveAttribute('aria-describedby');
+
+        await userEvent.click(toggle);
+
+        expect(toggle).toHaveAttribute('aria-expanded', 'false');
+        const summary = screen.getByText('2 filters');
+        expect(toggle).toHaveAttribute('aria-describedby', summary.id);
+        expect(screen.queryByTestId('pills-a')).not.toBeInTheDocument();
+
+        await userEvent.click(toggle);
+
+        expect(toggle).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByTestId('pills-a')).toBeInTheDocument();
+        expect(screen.queryByText('2 filters')).not.toBeInTheDocument();
+    });
+
+    it('sets the title and its fold summary in xs, like the pills, with a small chevron', async () => {
+        const xs = { fontSize: 'var(--mantine-font-size-xs)' };
+        mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+        const { unmount } = renderSectioned([rule('one', 'a')], 'tab-1');
+        expect(screen.getByText('Dates')).toHaveStyle(xs);
+        await userEvent.click(screen.getByRole('button', { name: 'Dates' }));
+        expect(screen.getByText('1 filter')).toHaveStyle(xs);
+        unmount();
+
+        mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+        renderSectioned([rule('one', 'a')], 'tab-1');
+        expect(screen.getByRole('button', { name: 'Dates' })).toHaveStyle(xs);
+        expect(foldOf('Dates')).toHaveAttribute('data-size', 'sm');
+        await userEvent.click(foldOf('Dates'));
+        expect(screen.getByText('1 filter')).toHaveStyle(xs);
+    });
+
+    it('folds to its member count while nothing differs from its default', async () => {
+        renderSectioned(
+            [
+                rule('one', 'a', { values: [], disabled: true }),
+                rule('two', 'a', { values: [], disabled: true }),
+            ],
+            'tab-1',
+        );
+        await userEvent.click(foldOf('Dates'));
+        expect(screen.getByText('2 filters')).toBeInTheDocument();
+    });
+
+    it("counts a viewer's saved pills as changed once Apply wrote an override", async () => {
+        mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+        const { store } = renderSectioned(
+            [rule('one', 'a'), rule('two', 'a')],
+            'tab-1',
+        );
+        await userEvent.click(screen.getByRole('button', { name: 'Dates' }));
+        // Values alone do not count for a viewer: the saved rule has them
+        expect(screen.getByText('2 filters')).toBeInTheDocument();
+
+        // As the shipped popover's Apply writes a saved filter in view mode
+        act(() => {
+            store.dispatch(
+                dashboardFiltersActions.updateFilter({
+                    filter: rule('one', 'a', { values: ['apac'] }),
+                    index: 0,
+                    isTemporary: false,
+                    isInEditMode: false,
+                    isFilterSaved: true,
+                    originalFilter: rule('one', 'a'),
+                    category: 'dimensions',
+                }),
+            );
+        });
+        expect(screen.getByText('1 changed')).toBeInTheDocument();
+        mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+    });
+
+    describe('drag in edit mode', () => {
+        const setDashboardFilters = vi.fn();
+        const setHaveFiltersChanged = vi.fn();
+        const dragEvent = (activeId: string, overId: string) =>
+            ({
+                active: { id: activeId },
+                over: { id: overId },
+            }) as DragEndEvent;
+        const sectionIdsOf = (filters: DashboardFilters) =>
+            filters.dimensions.map((r) => [r.id, r.sectionId ?? null]);
+        const tick = () => act(() => new Promise((r) => setTimeout(r)));
+
+        beforeEach(() => {
+            vi.clearAllMocks();
+            mockDroppable.current = null;
+            mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                setDashboardFilters,
+                setHaveFiltersChanged,
+            };
+        });
+
+        it('runs one drag context over the bar, none for a viewer', () => {
+            renderSectioned([rule('one', 'a'), rule('two', 'b')], 'tab-1');
+            expect(mockDragEnd.handlers).toHaveLength(1);
+            expect(
+                screen.getByRole('button', { name: 'Add' }).parentElement
+                    ?.parentElement?.className,
+            ).toContain('unsectionTarget');
+        });
+
+        it('drops a pill on another capsule by keyboard: it joins that section last', async () => {
+            renderSectioned(
+                [rule('one', 'a'), rule('two', 'b'), rule('three', 'b')],
+                'tab-1',
+            );
+            // jsdom lays nothing out: stack every element in document order
+            // so the keyboard sensor has somewhere to go. The overlay (which
+            // dnd-kit collides with) takes the dragged pill's place
+            const rect = vi
+                .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+                .mockImplementation(function (this: HTMLElement) {
+                    const isOverlay =
+                        this.closest('[class*="dragPreview"]') !== null ||
+                        this.querySelector(
+                            ':scope > [class*="dragPreview"]',
+                        ) !== null;
+                    const measured = isOverlay
+                        ? (document.querySelector('[data-dragging]') ?? this)
+                        : this;
+                    // A capsule's trailing actions take no room, so the
+                    // next capsule stays next
+                    const top =
+                        [...document.querySelectorAll('*')]
+                            .filter(
+                                (node) =>
+                                    node.closest('[class*="actions"]') === null,
+                            )
+                            .indexOf(measured) * 10;
+                    return {
+                        top,
+                        bottom: top + 10,
+                        left: 0,
+                        right: 300,
+                        width: 300,
+                        height: 10,
+                        x: 0,
+                        y: top,
+                        toJSON: () => ({}),
+                    };
+                });
+            const pill = screen.getByText('pill one');
+            const capsuleA = capsuleOf('Dates');
+            const capsuleB = capsuleOf('Regions');
+            act(() => {
+                pill.focus();
+                fireEvent.keyDown(pill, { code: 'Space', key: ' ' });
+            });
+            await tick();
+            expect(pill).toHaveAttribute('data-dragging');
+            // The keyboard sensor falls back to the nearest centre: the next
+            // thing down in document order is capsule b, never its own
+            expect(capsuleA).not.toHaveAttribute('data-over');
+            expect(capsuleB).toHaveAttribute('data-over');
+            fireEvent.keyDown(pill, { code: 'Space', key: ' ' });
+            rect.mockRestore();
+            await tick();
+
+            expect(setDashboardFilters).toHaveBeenCalledTimes(1);
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['two', 'b'],
+                ['three', 'b'],
+                ['one', 'b'],
+            ]);
+            expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
+            // The drop is a reorder: the bar now follows the stored order
+            expect(screen.getByText('pill one')).not.toHaveAttribute(
+                'data-dragging',
+            );
+        });
+
+        it('marks a capsule only under a pill from elsewhere, folded too, adding nothing to it', () => {
+            const over = (activeId: string) =>
+                act(() =>
+                    mockDragMove.handlers.at(-1)!({
+                        active: { id: activeId, data: { current: undefined } },
+                        over: { id: 'a' },
+                    } as unknown as DragMoveEvent),
+                );
+            const { unmount } = renderSectioned(
+                [rule('one', 'a'), rule('two', 'b')],
+                'tab-1',
+            );
+            over('one');
+            expect(capsuleOf('Dates')).not.toHaveAttribute('data-over');
+            unmount();
+
+            renderSectioned(
+                [
+                    ...Array.from({ length: 7 }, (_, i) => rule(`a-${i}`, 'a')),
+                    rule('two', 'b'),
+                ],
+                'tab-1',
+            );
+            const folded = capsuleOf('Dates');
+            expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'false');
+            const childrenBefore = folded.children.length;
+            over('two');
+            expect(folded).toHaveAttribute('data-over');
+            // The shared drop line, before its actions, so nothing moves
+            expect(
+                folded.querySelector('[data-section-end] > [data-drop-line]'),
+            ).toHaveAttribute('data-drop-line', 'before');
+            expect(folded.children).toHaveLength(childrenBefore);
+        });
+
+        it('renders every section, an empty one with its count, and takes a drop on it', () => {
+            renderSectioned(
+                [rule('one', 'a'), rule('two', 'b', onTabOne)],
+                'tab-2',
+            );
+            const count = screen.getByText('0 filters');
+            expect(capsuleOf('Empty')).toContainElement(count);
+            expect(foldOf('Empty')).toHaveAttribute(
+                'aria-describedby',
+                count.id,
+            );
+            // Members all hidden on this tab: the plain total
+            expect(capsuleOf('Regions')).toContainElement(
+                screen.getByText('1 filter'),
+            );
+            expect(
+                document.querySelectorAll('[class*="capsule"]'),
+            ).toHaveLength(3);
+
+            act(() => mockDragEnd.handlers[0](dragEvent('one', 'c')));
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['one', 'c'],
+                ['two', 'b'],
+            ]);
+        });
+
+        it('drops a pill on the first button: it leaves its section', () => {
+            renderSectioned([rule('one', 'a'), rule('two', 'b')], 'tab-1');
+            act(() =>
+                mockDragEnd.handlers[0](dragEvent('two', 'unsectioned-target')),
+            );
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['one', 'a'],
+                ['two', null],
+            ]);
+            expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
+        });
+
+        it('takes a pill out of its section on the first button by keyboard', () => {
+            renderSectioned([rule('one', 'a'), rule('two', 'b')], 'tab-1');
+            act(() =>
+                mockDragEnd.handlers[0](dragEvent('one', 'unsectioned-target')),
+            );
+            expect(setDashboardFilters).toHaveBeenCalledTimes(1);
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['one', null],
+                ['two', 'b'],
+            ]);
+            expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
+        });
+
+        it('starts a line below a bar of loose pills only, with a gap that shows only under a drag', () => {
+            const { store } = renderSectioned(
+                [rule('one', undefined), rule('two', undefined)],
+                'tab-1',
+                [],
+            );
+            const gap = document.querySelector('[class*="lineGap"]');
+            expect(gap).toHaveAttribute('data-end');
+            expect(gap).not.toHaveAttribute('data-over');
+            expect(document.querySelector('[class*="orderLine"]')).toBeNull();
+            act(() =>
+                mockDragMove.handlers.at(-1)!({
+                    active: { id: 'one', data: { current: undefined } },
+                    over: { id: 'line-gap:' },
+                } as unknown as DragMoveEvent),
+            );
+            expect(gap).toHaveAttribute('data-over');
+            act(() =>
+                mockDragEnd.handlers.at(-1)!(dragEvent('one', 'line-gap:')),
+            );
+            // A reorder like any other: the order is written
+            expect(selectControlOrder(store.getState())).toEqual([
+                { kind: 'filter', id: 'two' },
+                { kind: 'filter', id: 'one', newLine: true },
+            ]);
+        });
+
+        it('still moves a pill into a capsule, and writes nothing for an unsectioned pill on the first button', () => {
+            renderSectioned(
+                [rule('one', 'a'), rule('loose', undefined)],
+                'tab-1',
+            );
+            act(() =>
+                mockDragEnd.handlers[0](
+                    dragEvent('loose', 'unsectioned-target'),
+                ),
+            );
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+            act(() => mockDragEnd.handlers[0](dragEvent('loose', 'a')));
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['one', 'a'],
+                ['loose', 'a'],
+            ]);
+        });
+
+        describe('by pointer: the insertion point nearest the pointer', () => {
+            const box = (left: number, right: number, top: number) =>
+                ({
+                    left,
+                    right,
+                    top,
+                    bottom: top + 28,
+                    width: right - left,
+                    height: 28,
+                    x: left,
+                    y: top,
+                    toJSON: () => ({}),
+                }) as DOMRect;
+            // Add and "loose" on the first line; Dates (holding "one"),
+            // Regions and Empty on a line each
+            const rectOf = (element: Element): DOMRect => {
+                const attr = (name: string) => element.getAttribute(name);
+                if (element.hasAttribute('data-bar-start'))
+                    return box(0, 60, 0);
+                if (attr('data-controls-pill') === 'loose')
+                    return box(70, 150, 0);
+                if (attr('data-controls-pill') === 'one')
+                    return box(235, 290, 48);
+                const capsule = attr('data-section-capsule');
+                if (capsule !== null)
+                    return box(0, 400, { a: 44, b: 92, c: 140 }[capsule] ?? 0);
+                if (element.hasAttribute('data-section-head'))
+                    return box(3, 230, 48);
+                if (element.hasAttribute('data-section-end'))
+                    return box(360, 396, 48);
+                if (element.hasAttribute('data-new-section'))
+                    return box(0, 120, 188);
+                return box(0, 0, 0);
+            };
+            const pointerEvent = (
+                x: number,
+                y: number,
+                active: { id: string; data: { current: unknown } } = {
+                    id: 'loose',
+                    data: { current: undefined },
+                },
+            ) =>
+                ({
+                    active: {
+                        ...active,
+                        rect: { current: { translated: null } },
+                    },
+                    over: null,
+                    activatorEvent: { clientX: 0, clientY: 0 },
+                    delta: { x, y },
+                }) as unknown as DragEndEvent;
+            const drop = (
+                x: number,
+                y: number,
+                active?: { id: string; data: { current: unknown } },
+            ) => {
+                const rect = vi
+                    .spyOn(Element.prototype, 'getBoundingClientRect')
+                    .mockImplementation(function (this: Element) {
+                        return rectOf(this);
+                    });
+                act(() =>
+                    mockDragMove.handlers.at(-1)!(pointerEvent(x, y, active)),
+                );
+                const lines = [
+                    ...document.querySelectorAll('[data-drop-line]'),
+                ].map((line) => line.getAttribute('data-drop-line'));
+                act(() =>
+                    mockDragEnd.handlers.at(-1)!(pointerEvent(x, y, active)),
+                );
+                rect.mockRestore();
+                return lines;
+            };
+            const renderBar = () =>
+                renderSectioned(
+                    [rule('one', 'a'), rule('loose', undefined)],
+                    'tab-1',
+                );
+            const orderOf = (store: ReturnType<typeof renderBar>['store']) =>
+                selectControlOrder(store.getState())?.map(
+                    ({ id, newLine }) => `${newLine ? '/' : ''}${id}`,
+                );
+
+            it('lands before a capsule over its head, outside the section, with one line', () => {
+                const { store } = renderBar();
+                expect(drop(150, 60)).toEqual(['before']);
+                expect(orderOf(store)).toEqual([
+                    '/loose',
+                    'a',
+                    'one',
+                    '/b',
+                    '/c',
+                ]);
+                expect(setDashboardFilters).not.toHaveBeenCalled();
+            });
+
+            it('lands after a capsule over its actions', () => {
+                const { store } = renderBar();
+                expect(drop(380, 60)).toEqual(['after']);
+                expect(orderOf(store)).toEqual([
+                    '/a',
+                    'one',
+                    'loose',
+                    '/b',
+                    '/c',
+                ]);
+            });
+
+            it('lands inside a capsule over its members', () => {
+                const { store } = renderBar();
+                // The pills are mocked here: a pill draws its own line (`BarDroppable`)
+                drop(300, 60);
+                expect(orderOf(store)).toEqual([
+                    '/a',
+                    'one',
+                    'loose',
+                    '/b',
+                    '/c',
+                ]);
+                expect(
+                    sectionIdsOf(setDashboardFilters.mock.calls[0][0]),
+                ).toContainEqual(['loose', 'a']);
+            });
+
+            it('names a new section only for a control dropped right on "New section", never a section, nor during an edit', () => {
+                const { store, unmount } = renderBar();
+                drop(60, 200, {
+                    id: 'b',
+                    data: { current: { kind: 'section' } },
+                });
+                expect(
+                    screen.queryByRole('textbox', { name: 'Section name' }),
+                ).toBeNull();
+                // A section there takes the line below the last, as anywhere
+                expect(orderOf(store)?.at(-1)).toBe('/b');
+                unmount();
+
+                mockSidebar.current = { isViewer: false, isSidebarOpen: true };
+                const edited = renderBar();
+                drop(60, 200);
+                expect(
+                    screen.queryByRole('textbox', { name: 'Section name' }),
+                ).toBeNull();
+                expect(orderOf(edited.store)?.at(-1)).toBe('/loose');
+                edited.unmount();
+
+                mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+                renderBar();
+                drop(60, 200);
+                expect(
+                    screen.getByRole('textbox', { name: 'Section name' }),
+                ).toBeInTheDocument();
+            });
+
+            it('draws the line beside a capsule of several rows on the row by the pointer', () => {
+                const { store } = renderBar();
+                // Dates now spans two rows: "one" and its actions on the second
+                const tall = (element: Element): DOMRect => {
+                    if (element.getAttribute('data-section-capsule') === 'a')
+                        return {
+                            x: 0,
+                            y: 44,
+                            toJSON: () => ({}),
+                            left: 0,
+                            right: 400,
+                            top: 44,
+                            bottom: 120,
+                            width: 400,
+                            height: 76,
+                        } as DOMRect;
+                    if (element.getAttribute('data-controls-pill') === 'one')
+                        return box(235, 290, 84);
+                    if (element.hasAttribute('data-section-end'))
+                        return box(360, 396, 84);
+                    return rectOf(element);
+                };
+                const rect = vi
+                    .spyOn(Element.prototype, 'getBoundingClientRect')
+                    .mockImplementation(function (this: Element) {
+                        return tall(this);
+                    });
+                act(() => mockDragMove.handlers.at(-1)!(pointerEvent(380, 96)));
+                const line = capsuleOf('Dates').querySelector(
+                    ':scope > [data-drop-line]',
+                ) as HTMLElement;
+                expect(line).toHaveAttribute('data-drop-line', 'after');
+                // The second row's top, from inside the 1px border
+                expect(line.style.getPropertyValue('--drop-line-top')).toBe(
+                    '39px',
+                );
+                act(() => mockDragEnd.handlers.at(-1)!(pointerEvent(380, 96)));
+                rect.mockRestore();
+                // Landing is the same: after the section
+                expect(orderOf(store)).toEqual([
+                    '/a',
+                    'one',
+                    'loose',
+                    '/b',
+                    '/c',
+                ]);
+            });
+
+            it('floats the dragged copy beside the pointer', () => {
+                renderBar();
+                expect(mockOverlay.modifiers).toEqual([besidePointer]);
+            });
+
+            it('follows the pointer collision detection saw, scroll included, over the drag delta', () => {
+                const { store } = renderBar();
+                // dnd-kit's delta says the head; the pointer is on the actions
+                mockCollision.detect!({
+                    active: { id: 'loose', data: { current: undefined } },
+                    collisionRect: box(370, 390, 50),
+                    droppableRects: new Map(),
+                    droppableContainers: [],
+                    pointerCoordinates: { x: 380, y: 60 },
+                });
+                drop(150, 60);
+                expect(orderOf(store)).toEqual([
+                    '/a',
+                    'one',
+                    'loose',
+                    '/b',
+                    '/c',
+                ]);
+            });
+
+            it('drops nothing where it already is, and starts a line between lines', () => {
+                const { store } = renderBar();
+                expect(drop(100, 14)).toEqual([]);
+                expect(orderOf(store)).toBeUndefined();
+                drop(300, 86);
+                expect(
+                    document.querySelector('[class*="lineGap"][data-over]'),
+                ).toBeNull();
+                expect(orderOf(store)).toEqual([
+                    '/a',
+                    'one',
+                    '/loose',
+                    '/b',
+                    '/c',
+                ]);
+            });
+        });
+
+        it('lands a loose pill dragged by keyboard onto Add filter first on the bar, with the line after Add', () => {
+            const { store } = renderSectioned(
+                [
+                    rule('first', undefined),
+                    rule('second', undefined),
+                    rule('one', 'a'),
+                ],
+                'tab-1',
+            );
+            const event = {
+                active: { id: 'second', data: { current: undefined } },
+                over: { id: 'unsectioned-target' },
+            } as unknown as DragMoveEvent;
+            act(() => mockDragMove.handlers.at(-1)!(event));
+            expect(
+                document.querySelector('[data-bar-start] > [data-drop-line]'),
+            ).toHaveAttribute('data-drop-line', 'after');
+            expect(document.querySelectorAll('[data-drop-line]')).toHaveLength(
+                1,
+            );
+            act(() =>
+                mockDragEnd.handlers.at(-1)!(event as unknown as DragEndEvent),
+            );
+            expect(
+                selectControlOrder(store.getState())?.map(({ id }) => id),
+            ).toEqual(['second', 'first', 'a', 'one', 'b', 'c']);
+        });
+
+        it('draws the line after the section a member leaves by keyboard, in the shared drop line', () => {
+            renderSectioned(
+                [rule('one', 'a'), rule('loose', undefined)],
+                'tab-1',
+            );
+            act(() => {
+                mockDragStart.handlers.at(-1)!({
+                    active: { id: 'one' },
+                } as DragStartEvent);
+                mockDragMove.handlers.at(-1)!({
+                    active: { id: 'one', data: { current: undefined } },
+                    over: { id: 'unsectioned-target' },
+                } as unknown as DragMoveEvent);
+            });
+            expect(capsuleOf('Dates')).toHaveAttribute(
+                'data-section-drop',
+                'after',
+            );
+            expect(
+                capsuleOf('Dates').querySelector(':scope > [data-drop-line]'),
+            ).toHaveAttribute('data-drop-line', 'after');
+            expect(document.querySelectorAll('[data-drop-line]')).toHaveLength(
+                1,
+            );
+        });
+
+        it('writes the order when a pill leaves its section: right after that section', () => {
+            const { store } = renderSectioned(
+                [rule('one', 'a'), rule('loose', undefined), rule('two', 'b')],
+                'tab-1',
+            );
+            act(() =>
+                mockDragEnd.handlers[0](dragEvent('one', 'unsectioned-target')),
+            );
+            expect(
+                selectControlOrder(store.getState())?.map(({ id }) => id),
+            ).toEqual(['loose', 'a', 'one', 'b', 'two', 'c']);
+        });
+
+        it('writes the order when a section is removed keeping its members: where the section was', async () => {
+            const { store } = renderSectioned(
+                [rule('loose', undefined), rule('one', 'a'), rule('two', 'a')],
+                'tab-1',
+            );
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Dates menu' }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Remove section, keep controls',
+                }),
+            );
+            expect(selectHasControlOrderChanged(store.getState())).toBe(true);
+            expect(
+                selectOrderedControls(store.getState()).map(({ id }) => id),
+            ).toEqual(['loose', 'one', 'two', 'b', 'c']);
+        });
+
+        it('writes nothing for a drop on its own capsule, or on the first button while unsectioned', () => {
+            renderSectioned(
+                [rule('one', 'a'), rule('loose', undefined)],
+                'tab-1',
+            );
+            act(() => {
+                mockDragEnd.handlers[0](dragEvent('one', 'a'));
+                mockDragEnd.handlers[0](
+                    dragEvent('loose', 'unsectioned-target'),
+                );
+                mockDragEnd.handlers[0]({
+                    active: { id: 'one' },
+                    over: null,
+                } as DragEndEvent);
+            });
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+            expect(setHaveFiltersChanged).not.toHaveBeenCalled();
+        });
+
+        it('takes a drop on a folded capsule', () => {
+            const many = Array.from({ length: 7 }, (_, i) =>
+                rule(`a-${i}`, 'a'),
+            );
+            renderSectioned([...many, rule('two', 'b')], 'tab-1');
+            expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'false');
+            act(() => mockDragEnd.handlers[0](dragEvent('two', 'a')));
+            const ids = sectionIdsOf(setDashboardFilters.mock.calls[0][0]);
+            expect(ids.at(-1)).toEqual(['two', 'a']);
+            expect(ids.every(([, section]) => section === 'a')).toBe(true);
+        });
+
+        it('moves the edited filter as any other while it is edited', () => {
+            mockSidebar.current = {
+                isViewer: false,
+                isSidebarOpen: true,
+                editing: { filterId: 'one' },
+            };
+            renderSectioned([rule('one', 'a'), rule('two', 'b')], 'tab-1');
+            act(() =>
+                mockDragEnd.handlers[0](dragEvent('one', 'unsectioned-target')),
+            );
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['one', null],
+                ['two', 'b'],
+            ]);
+            expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
+        });
+
+        it('moves another filter as the bar does while one is edited', () => {
+            mockSidebar.current = {
+                isViewer: false,
+                isSidebarOpen: true,
+                editing: { filterId: 'one' },
+            };
+            renderSectioned([rule('one', 'a'), rule('two', 'b')], 'tab-1');
+            act(() =>
+                mockDragEnd.handlers[0](dragEvent('two', 'unsectioned-target')),
+            );
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['one', 'a'],
+                ['two', null],
+            ]);
+            expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
+        });
+
+        it("keeps the capsules' drag off while a filter is edited", () => {
+            mockSidebar.current = { isViewer: false, isSidebarOpen: true };
+            const { switchTab } = renderSectioned([rule('one', 'a')], 'tab-1');
+            expect(mockDraggableDisabled.get('a')).toBe(true);
+            expect(mockDraggableDisabled.get('one')).toBe(false);
+
+            mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+            switchTab('tab-1');
+            expect(mockDraggableDisabled.get('a')).toBe(false);
+        });
+
+        it('drops a pill on a pill: it takes that place and section', () => {
+            const { store } = renderSectioned(
+                [rule('one', 'a'), rule('two', 'b'), rule('three', 'b')],
+                'tab-1',
+            );
+            act(() => mockDragEnd.handlers[0](dragEvent('one', 'two')));
+            expect(
+                sectionIdsOf(setDashboardFilters.mock.calls[0][0]),
+            ).toContainEqual(['one', 'b']);
+            // The place is the order's: after "two", the side it moved towards
+            expect(
+                selectControlOrder(store.getState())?.map(({ id }) => id),
+            ).toEqual(['a', 'b', 'two', 'one', 'three', 'c']);
+        });
+    });
+
+    describe('selection in edit mode', () => {
+        const setDashboardFilters = vi.fn();
+        const setHaveFiltersChanged = vi.fn();
+        const grid = document.createElement('div');
+        grid.className = 'react-grid-layout';
+        const pillOf = (id: string) => screen.getByText(`pill ${id}`);
+        const pickedIds = () =>
+            screen
+                .queryAllByText(/^pill /)
+                .filter((el) => el.getAttribute('aria-pressed') === 'true')
+                .map((el) => el.textContent?.replace('pill ', ''));
+        const bar = () =>
+            screen.queryByRole('region', { name: 'Selected controls' });
+        const sectionIdsOf = (filters: DashboardFilters) =>
+            filters.dimensions.map((r) => [r.id, r.sectionId ?? null]);
+        const sectionsOf = (store: { getState: () => unknown }) =>
+            selectControlSections(
+                store.getState() as Parameters<typeof selectControlSections>[0],
+            );
+        const rules = () => [
+            rule('loose', undefined),
+            rule('one', 'a'),
+            rule('two', 'a'),
+            rule('three', 'b'),
+        ];
+
+        beforeEach(() => {
+            vi.clearAllMocks();
+            mockDroppable.current = null;
+            document.body.appendChild(grid);
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                setDashboardFilters,
+                setHaveFiltersChanged,
+            };
+        });
+        afterEach(() => grid.remove());
+
+        it.each([
+            { loose: 7, moved: 7, saved: [] },
+            {
+                loose: 2,
+                moved: 2,
+                saved: [
+                    { id: 'b', name: 'Regions', collapsed: true },
+                    { id: 'c', name: 'Empty', collapsed: true },
+                ],
+            },
+            { loose: 3, moved: 2, saved: [] },
+        ])(
+            "names a section below the filters, on the last section's line ($loose loose, $moved moved)",
+            async ({ loose, moved, saved }) => {
+                const ids = Array.from({ length: loose }, (_, i) => `p${i}`);
+                const { store } = renderSectioned(
+                    ids.map((id) => rule(id, undefined)),
+                    'tab-1',
+                    saved,
+                );
+                setDashboardFilters.mockImplementation(
+                    (filters: DashboardFilters) =>
+                        store.dispatch(
+                            dashboardFiltersActions.setDashboardFilters(
+                                filters,
+                            ),
+                        ),
+                );
+                ids.slice(0, moved).forEach((id) =>
+                    fireEvent.click(pillOf(id), { metaKey: true }),
+                );
+                await userEvent.click(
+                    await screen.findByRole('button', {
+                        name: 'Move to new section',
+                    }),
+                );
+                const input = screen.getByRole('textbox', {
+                    name: 'Section name',
+                });
+                expect(input.closest('[class*="sections"]')).toHaveAttribute(
+                    'data-own-line',
+                );
+                // A first section is named on the sections' line; a later one
+                // at the end of the last section line
+                expect(input.closest('[class*="sectionLine"]') !== null).toBe(
+                    saved.length > 0,
+                );
+                await userEvent.keyboard('Misc{Enter}');
+                // Moving pills in is a reorder: the bar follows the stored order
+                const line = capsuleOf('Misc').closest(
+                    '[class*="orderLine"]',
+                ) as HTMLElement;
+                expect(
+                    [...line.querySelectorAll('[role="group"]')].filter(
+                        (group) =>
+                            group.parentElement?.closest('[role="group"]') ===
+                            null,
+                    ),
+                ).toEqual(
+                    saved.length > 0
+                        ? [capsuleOf('Empty'), capsuleOf('Misc')]
+                        : [capsuleOf('Misc')],
+                );
+                expect(
+                    selectControlOrder(store.getState())?.find(
+                        ({ id }) => id === 'p0',
+                    ),
+                ).toBeDefined();
+            },
+        );
+
+        it('keeps a new section on its line when it is folded before a save', async () => {
+            const { store } = renderSectioned(
+                [rule('p0', undefined), rule('p1', undefined)],
+                'tab-1',
+                [],
+            );
+            setDashboardFilters.mockImplementation(
+                (filters: DashboardFilters) =>
+                    store.dispatch(
+                        dashboardFiltersActions.setDashboardFilters(filters),
+                    ),
+            );
+            fireEvent.click(pillOf('p0'), { metaKey: true });
+            fireEvent.click(pillOf('p1'), { metaKey: true });
+            await userEvent.click(
+                await screen.findByRole('button', {
+                    name: 'Move to new section',
+                }),
+            );
+            await userEvent.keyboard('Misc{Enter}');
+            // Alone on its line, folded or open
+            const ownLine = () =>
+                [...(capsuleOf('Misc').parentElement?.children ?? [])].filter(
+                    (child) => child.getAttribute('role') === 'group',
+                ).length === 1;
+            expect(ownLine()).toBe(true);
+            await userEvent.click(foldOf('Misc'));
+            expect(foldOf('Misc')).toHaveAttribute('aria-expanded', 'false');
+            expect(foldOf('Misc')).toHaveFocus();
+            expect(ownLine()).toBe(true);
+        });
+
+        it('toggles with Cmd or Ctrl and shows the selection bar', async () => {
+            renderSectioned(rules(), 'tab-1');
+            expect(bar()).not.toBeInTheDocument();
+
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            fireEvent.click(pillOf('three'), { ctrlKey: true });
+            expect(pickedIds()).toEqual(['one', 'three']);
+            expect(await screen.findByText('2 selected')).toBeInTheDocument();
+            // The range hint is for the first pick only
+            expect(
+                within(bar()!).queryByText('Shift click for a range'),
+            ).not.toBeInTheDocument();
+
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            expect(pickedIds()).toEqual(['three']);
+            expect(
+                within(bar()!).getByText('Shift click for a range'),
+            ).toBeInTheDocument();
+        });
+
+        it('offers in Move to only the moves that change something', async () => {
+            const user = userEvent.setup();
+            renderSectioned(rules(), 'tab-1');
+            const menuItems = async () => {
+                await user.click(
+                    await screen.findByRole('button', { name: 'Move to' }),
+                );
+                const names = screen
+                    .getAllByRole('menuitem')
+                    .map((item) => item.textContent);
+                await user.keyboard('{Escape}');
+                return names;
+            };
+
+            // Both in Dates: Dates is left out
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            fireEvent.click(pillOf('two'), { metaKey: true });
+            expect(await menuItems()).toEqual([
+                'New section',
+                'Regions · 1',
+                'Empty · 0',
+                'No section',
+            ]);
+
+            // In two sections: both are moves
+            fireEvent.click(pillOf('three'), { metaKey: true });
+            expect(await menuItems()).toEqual([
+                'New section',
+                'Dates · 2',
+                'Regions · 1',
+                'Empty · 0',
+                'No section',
+            ]);
+
+            // None in a section: No section is no move
+            await user.click(
+                screen.getByRole('button', { name: 'Clear selection' }),
+            );
+            fireEvent.click(pillOf('loose'), { metaKey: true });
+            expect(await menuItems()).toEqual([
+                'New section',
+                'Dates · 2',
+                'Regions · 1',
+                'Empty · 0',
+            ]);
+        });
+
+        it('selects a Shift range in bar order, leaving out a folded capsule', async () => {
+            const user = userEvent.setup();
+            renderSectioned(rules(), 'tab-1');
+
+            // The unsectioned pills come first on the bar, then the capsules
+            fireEvent.click(pillOf('loose'), { metaKey: true });
+            fireEvent.click(pillOf('two'), { shiftKey: true });
+            expect(pickedIds()).toEqual(['loose', 'one', 'two']);
+
+            await user.click(
+                screen.getByRole('button', { name: 'Clear selection' }),
+            );
+            expect(pickedIds()).toEqual([]);
+            await user.click(foldOf('Dates'));
+            fireEvent.click(pillOf('loose'), { metaKey: true });
+            fireEvent.click(pillOf('three'), { shiftKey: true });
+            expect(pickedIds()).toEqual(['loose', 'three']);
+        });
+
+        it('clears on Escape', async () => {
+            const user = userEvent.setup();
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            expect(await screen.findByText('1 selected')).toBeInTheDocument();
+
+            await user.keyboard('{Escape}');
+            expect(pickedIds()).toEqual([]);
+            expect(bar()).not.toBeInTheDocument();
+        });
+
+        it('clears on Escape from Remove until it is armed', async () => {
+            const user = userEvent.setup();
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            const remove = await screen.findByRole('button', {
+                name: 'Remove',
+            });
+            remove.focus();
+            await user.click(remove);
+            await user.keyboard('{Escape}');
+            expect(remove).toHaveTextContent('Remove');
+            expect(pickedIds()).toEqual(['one']);
+
+            await user.keyboard('{Escape}');
+            expect(pickedIds()).toEqual([]);
+        });
+
+        it('moves the selection to a section or out of its section, then clears', async () => {
+            const user = userEvent.setup();
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            fireEvent.click(pillOf('loose'), { metaKey: true });
+
+            await user.click(
+                await screen.findByRole('button', { name: 'Move to' }),
+            );
+            await user.click(
+                screen.getByRole('menuitem', { name: 'Regions · 1' }),
+            );
+            // In display order: the unsectioned rule first
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['two', 'a'],
+                ['three', 'b'],
+                ['loose', 'b'],
+                ['one', 'b'],
+            ]);
+            expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
+            expect(bar()).not.toBeInTheDocument();
+
+            fireEvent.click(pillOf('two'), { metaKey: true });
+            await user.click(
+                await screen.findByRole('button', { name: 'Move to' }),
+            );
+            await user.click(
+                screen.getByRole('menuitem', { name: 'No section' }),
+            );
+            // After the last unsectioned rule, as joining a section
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[1][0])).toEqual([
+                ['loose', null],
+                ['two', null],
+                ['one', 'a'],
+                ['three', 'b'],
+            ]);
+        });
+
+        it('focuses the first moved pill after Move to, and Add filter after Remove', async () => {
+            const user = userEvent.setup();
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            fireEvent.click(pillOf('loose'), { metaKey: true });
+            await user.click(
+                await screen.findByRole('button', { name: 'Move to' }),
+            );
+            await user.click(
+                screen.getByRole('menuitem', { name: 'Regions · 1' }),
+            );
+            expect(pillOf('loose')).toHaveFocus();
+
+            fireEvent.click(pillOf('two'), { metaKey: true });
+            const remove = await screen.findByRole('button', {
+                name: 'Remove',
+            });
+            await user.click(remove);
+            await user.click(remove);
+            expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
+        });
+
+        it('ends the selection when an edit starts, and hides the bar meanwhile', async () => {
+            const { switchTab } = renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            expect(await screen.findByText('1 selected')).toBeInTheDocument();
+
+            mockSidebar.current = { isViewer: false, isSidebarOpen: true };
+            switchTab('tab-1');
+            expect(bar()).not.toBeInTheDocument();
+            mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+            switchTab('tab-1');
+            expect(pickedIds()).toEqual([]);
+            expect(bar()).not.toBeInTheDocument();
+        });
+
+        it('names a new section on the bar and moves the selection in on commit, from Move to or its own button', async () => {
+            const user = userEvent.setup();
+            const { store } = renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('loose'), { metaKey: true });
+
+            await user.click(
+                await screen.findByRole('button', { name: 'Move to' }),
+            );
+            await user.click(
+                screen.getByRole('menuitem', { name: 'New section' }),
+            );
+            const input = screen.getByRole('textbox', { name: 'Section name' });
+            expect(input).toHaveFocus();
+            await user.type(input, '{Escape}');
+            // A cancelled name moves nothing and keeps the selection
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+            expect(pickedIds()).toEqual(['loose']);
+
+            await user.click(
+                screen.getByRole('button', { name: 'Move to new section' }),
+            );
+            await user.type(
+                screen.getByRole('textbox', { name: 'Section name' }),
+                'Misc{Enter}',
+            );
+            const added = sectionsOf(store).at(-1);
+            expect(added?.name).toBe('Misc');
+            expect(
+                sectionIdsOf(setDashboardFilters.mock.calls[0][0])[0],
+            ).toEqual(['loose', added?.id]);
+            expect(bar()).not.toBeInTheDocument();
+        });
+
+        it('removes the selection on the second click', async () => {
+            const user = userEvent.setup();
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            fireEvent.click(pillOf('three'), { metaKey: true });
+
+            const remove = await screen.findByRole('button', {
+                name: 'Remove',
+            });
+            await user.click(remove);
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+            expect(remove).toHaveTextContent('Remove 2 filters');
+            expect(remove).toHaveAttribute('aria-pressed', 'true');
+            await user.click(remove);
+            const write = setDashboardFilters.mock.calls[0][0] as (
+                filters: DashboardFilters,
+            ) => DashboardFilters;
+            expect(
+                write({
+                    dimensions: rules(),
+                    metrics: [],
+                    tableCalculations: [],
+                }).dimensions.map((r) => r.id),
+            ).toEqual(['loose', 'two']);
+            expect(bar()).not.toBeInTheDocument();
+        });
+
+        it('drags the whole selection when a picked pill is dragged', () => {
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('loose'), { metaKey: true });
+            fireEvent.click(pillOf('one'), { metaKey: true });
+
+            act(() =>
+                mockDragEnd.handlers.at(-1)!({
+                    active: { id: 'one' },
+                    over: { id: 'b' },
+                } as DragEndEvent),
+            );
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['two', 'a'],
+                ['three', 'b'],
+                ['loose', 'b'],
+                ['one', 'b'],
+            ]);
+            expect(pickedIds()).toEqual([]);
+        });
+
+        it('lands a selection dragged by keyboard beside the pill its line is on, in bar order', () => {
+            const { store } = renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            fireEvent.click(pillOf('loose'), { metaKey: true });
+            act(() =>
+                mockDragEnd.handlers.at(-1)!({
+                    active: { id: 'one', data: { current: undefined } },
+                    over: { id: 'three' },
+                } as unknown as DragEndEvent),
+            );
+            expect(
+                selectControlOrder(store.getState())?.map(({ id }) => id),
+            ).toEqual(['a', 'two', 'b', 'three', 'loose', 'one', 'c']);
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual(
+                expect.arrayContaining([
+                    ['loose', 'b'],
+                    ['one', 'b'],
+                ]),
+            );
+        });
+
+        it('takes the whole selection out of its sections on the first button', () => {
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            fireEvent.click(pillOf('three'), { metaKey: true });
+
+            act(() =>
+                mockDragEnd.handlers.at(-1)!({
+                    active: { id: 'three' },
+                    over: { id: 'unsectioned-target' },
+                } as DragEndEvent),
+            );
+            expect(setDashboardFilters).toHaveBeenCalledTimes(1);
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['loose', null],
+                ['one', null],
+                ['three', null],
+                ['two', 'a'],
+            ]);
+            expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
+            expect(pickedIds()).toEqual([]);
+        });
+
+        it('moves nothing when a picked pill is dropped back on itself', () => {
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('loose'), { metaKey: true });
+            fireEvent.click(pillOf('one'), { metaKey: true });
+
+            act(() =>
+                mockDragEnd.handlers.at(-1)!({
+                    active: { id: 'one' },
+                    over: { id: 'one' },
+                } as DragEndEvent),
+            );
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+            expect(pickedIds()).toEqual(['loose', 'one']);
+        });
+
+        it('drags an unpicked pill alone', () => {
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('loose'), { metaKey: true });
+
+            act(() =>
+                mockDragEnd.handlers.at(-1)!({
+                    active: { id: 'one' },
+                    over: { id: 'b' },
+                } as DragEndEvent),
+            );
+            expect(sectionIdsOf(setDashboardFilters.mock.calls[0][0])).toEqual([
+                ['loose', null],
+                ['two', 'a'],
+                ['three', 'b'],
+                ['one', 'b'],
+            ]);
+            expect(pickedIds()).toEqual(['loose']);
+        });
+
+        it("gives a viewer's bar no selection", () => {
+            mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(pillOf('one'), { metaKey: true });
+            expect(pickedIds()).toEqual([]);
+            expect(bar()).not.toBeInTheDocument();
+            mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+        });
+
+        it('adds a section last from a selection, named in the New section slot, and drops it on Escape or an empty name', async () => {
+            const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
+            const user = userEvent.setup();
+            const addFilter = () => screen.getByRole('button', { name: 'Add' });
+            // A cancelled name keeps the selection, so it is picked once
+            fireEvent.click(screen.getByText('pill one'), { metaKey: true });
+            const moveToNewSection = async () => {
+                await user.click(
+                    await screen.findByRole('button', {
+                        name: 'Move to new section',
+                    }),
+                );
+            };
+            // No caret on "Add filter"
+            expect(
+                screen.queryByRole('button', { name: 'More ways to add' }),
+            ).not.toBeInTheDocument();
+
+            await moveToNewSection();
+            const input = screen.getByRole('textbox', { name: 'Section name' });
+            expect(input).toHaveFocus();
+            expect(input).toHaveAttribute('placeholder', 'Section name');
+            // In New section's slot: the bar's end, after the last capsule
+            expect(
+                screen.queryByRole('button', { name: 'New section' }),
+            ).not.toBeInTheDocument();
+            expect(
+                capsuleOf('Empty').compareDocumentPosition(input) &
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+            expect(
+                input.closest('[class*="flow"]')?.lastElementChild,
+            ).toContainElement(input);
+            await user.type(input, 'Late{Escape}');
+            expect(sectionsOf(store)).toHaveLength(3);
+            expect(addFilter()).toHaveFocus();
+
+            await moveToNewSection();
+            await user.keyboard('{Enter}');
+            expect(sectionsOf(store)).toHaveLength(3);
+            expect(addFilter()).toHaveFocus();
+
+            await moveToNewSection();
+            await user.keyboard('Late{Enter}');
+            const added = sectionsOf(store).at(-1);
+            // Appended, so saved and shown order agree
+            expect(sectionsOf(store).map((s) => s.name)).toEqual([
+                'Dates',
+                'Regions',
+                'Empty',
+                'Late',
+            ]);
+            expect(
+                (
+                    setDashboardFilters.mock.calls[0][0] as DashboardFilters
+                ).dimensions.map((r) => [r.id, r.sectionId]),
+            ).toEqual([['one', added?.id]]);
+        });
+    });
+
+    describe('New section entry with sections, in edit mode', () => {
+        const setDashboardFilters = vi.fn();
+        const setHaveFiltersChanged = vi.fn();
+        const addSection = () =>
+            screen.queryByRole('button', { name: 'New section' });
+        const sectionsOf = (store: { getState: () => unknown }) =>
+            selectControlSections(
+                store.getState() as Parameters<typeof selectControlSections>[0],
+            );
+
+        beforeEach(() => {
+            vi.clearAllMocks();
+            mockDroppable.current = null;
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                setDashboardFilters,
+                setHaveFiltersChanged,
+            };
+        });
+
+        it('shows last on the bar once there is a filter, sections or not', () => {
+            const empty = renderSectioned([], 'tab-1', []);
+            expect(addSection()).not.toBeInTheDocument();
+            empty.unmount();
+
+            renderSectioned([rule('one', undefined)], 'tab-1');
+            const button = addSection() as HTMLElement;
+            expect(button).toBeInTheDocument();
+            expect(
+                capsuleOf('Empty').compareDocumentPosition(button) &
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+            expect(
+                button.closest('[class*="flow"]')?.lastElementChild,
+            ).toContainElement(button);
+        });
+
+        it('names an empty section with nothing picked, hiding meanwhile; a cancel returns to it', async () => {
+            const user = userEvent.setup();
+            const { store } = renderSectioned(
+                [rule('one', undefined)],
+                'tab-1',
+            );
+
+            await user.click(addSection() as HTMLElement);
+            expect(addSection()).not.toBeInTheDocument();
+            const input = screen.getByRole('textbox', { name: 'Section name' });
+            expect(input).toHaveFocus();
+            // In the button's place, after the capsules
+            expect(
+                capsuleOf('Empty').compareDocumentPosition(input) &
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+            await user.type(input, 'Late{Escape}');
+            expect(sectionsOf(store)).toHaveLength(3);
+            expect(addSection()).toHaveFocus();
+
+            await user.click(addSection() as HTMLElement);
+            await user.keyboard('Late{Enter}');
+            expect(sectionsOf(store).map((s) => s.name)).toEqual([
+                'Dates',
+                'Regions',
+                'Empty',
+                'Late',
+            ]);
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+            expect(addSection()).toBeInTheDocument();
+        });
+
+        it('keeps a new name with the check and drops it with the X, without a blur commit', async () => {
+            const user = userEvent.setup();
+            const { store } = renderSectioned(
+                [rule('one', undefined)],
+                'tab-1',
+            );
+
+            await user.click(addSection() as HTMLElement);
+            const keep = screen.getByRole('button', { name: 'Keep name' });
+            expect(keep).toBeDisabled();
+            await user.type(
+                screen.getByRole('textbox', { name: 'Section name' }),
+                'Late',
+            );
+            await user.click(screen.getByRole('button', { name: 'Discard' }));
+            expect(sectionsOf(store)).toHaveLength(3);
+            expect(addSection()).toHaveFocus();
+
+            await user.click(addSection() as HTMLElement);
+            await user.keyboard('Late');
+            const focus = vi.spyOn(HTMLElement.prototype, 'focus');
+            await user.click(screen.getByRole('button', { name: 'Keep name' }));
+            expect(sectionsOf(store).map((s) => s.name)).toContain('Late');
+            expect(sectionsOf(store)).toHaveLength(4);
+            const add = screen.getByRole('button', {
+                name: 'Add filter to Late',
+            });
+            expect(add).toHaveFocus();
+            // A pointer kept the name: no keyboard ring on the +
+            expect(
+                focus.mock.contexts.indexOf(add) >= 0 &&
+                    focus.mock.calls[focus.mock.contexts.indexOf(add)][0],
+            ).toEqual({ focusVisible: false });
+            focus.mockRestore();
+        });
+
+        it("hands focus to the new section's + after Enter, or a blur to the page", async () => {
+            const user = userEvent.setup();
+            renderSectioned([rule('one', undefined)], 'tab-1');
+
+            await user.click(addSection() as HTMLElement);
+            await user.keyboard('Late');
+            const focus = vi.spyOn(HTMLElement.prototype, 'focus');
+            await user.keyboard('{Enter}');
+            const add = screen.getByRole('button', {
+                name: 'Add filter to Late',
+            });
+            expect(add).toHaveFocus();
+            expect(
+                focus.mock.calls[focus.mock.contexts.indexOf(add)][0],
+            ).toBeUndefined();
+            focus.mockRestore();
+
+            await user.click(addSection() as HTMLElement);
+            await user.keyboard('Later');
+            act(() =>
+                screen.getByRole('textbox', { name: 'Section name' }).blur(),
+            );
+            expect(
+                screen.getByRole('button', { name: 'Add filter to Later' }),
+            ).toHaveFocus();
+        });
+
+        it('moves on in tab order from a new name: Tab commits and skips the check and X', async () => {
+            const user = userEvent.setup();
+            const { store } = renderSectioned(
+                [rule('one', undefined)],
+                'tab-1',
+            );
+
+            // What follows the bar on the page (date zoom and the rest)
+            const next = document.body.appendChild(
+                document.createElement('button'),
+            );
+
+            await user.click(addSection() as HTMLElement);
+            await user.keyboard('Late');
+            await user.tab();
+            expect(sectionsOf(store).map((s) => s.name)).toContain('Late');
+            // Natural order: no pull back to the new section
+            expect(next).toHaveFocus();
+            next.remove();
+            expect(
+                screen.queryByRole('button', { name: 'Keep name' }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('hands focus to the first moved pill when the new section takes pills', async () => {
+            const user = userEvent.setup();
+            renderSectioned(
+                [rule('one', undefined), rule('two', 'a')],
+                'tab-1',
+            );
+            fireEvent.click(screen.getByText('pill one'), { metaKey: true });
+
+            await user.click(addSection() as HTMLElement);
+            await user.keyboard('Misc{Enter}');
+            expect(screen.getByText('pill one')).toHaveFocus();
+        });
+
+        it('makes a section holding the picked pills', async () => {
+            const user = userEvent.setup();
+            const { store } = renderSectioned(
+                [rule('one', undefined), rule('two', 'a')],
+                'tab-1',
+            );
+            fireEvent.click(screen.getByText('pill one'), { metaKey: true });
+
+            await user.click(addSection() as HTMLElement);
+            await user.keyboard('Misc{Enter}');
+            const added = sectionsOf(store).at(-1);
+            expect(added?.name).toBe('Misc');
+            expect(
+                (
+                    setDashboardFilters.mock.calls[0][0] as DashboardFilters
+                ).dimensions.map((r) => [r.id, r.sectionId ?? null]),
+            ).toEqual([
+                ['one', added?.id],
+                ['two', 'a'],
+            ]);
+        });
+
+        it('is inert while a filter is edited', () => {
+            mockSidebar.current = { isViewer: false, isSidebarOpen: true };
+            renderSectioned([rule('one', undefined)], 'tab-1');
+            expect(
+                screen
+                    .getByRole('button', { name: 'New section', hidden: true })
+                    .closest('[inert]'),
+            ).not.toBeNull();
+        });
+    });
+
+    describe('New section capsule in edit mode', () => {
+        const setDashboardFilters = vi.fn();
+        const setHaveFiltersChanged = vi.fn();
+        const ghost = () =>
+            screen.queryByRole('button', { name: 'New section' });
+        const folderIcon = () => document.querySelector('[data-add-section]');
+        const sectionsOf = (store: { getState: () => unknown }) =>
+            selectControlSections(
+                store.getState() as Parameters<typeof selectControlSections>[0],
+            );
+        const twoLoose = () => [rule('one', undefined), rule('two', undefined)];
+
+        beforeEach(() => {
+            vi.clearAllMocks();
+            mockDroppable.current = null;
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                setDashboardFilters,
+                setHaveFiltersChanged,
+            };
+        });
+
+        it('is the bar end from the first filter, with sections or without, and never a folder icon', () => {
+            const empty = renderSectioned([], 'tab-1', []);
+            expect(ghost()).not.toBeInTheDocument();
+            empty.unmount();
+
+            const one = renderSectioned([rule('one', undefined)], 'tab-1', []);
+            expect(ghost()).toBeInTheDocument();
+            expect(folderIcon()).toBeNull();
+            one.unmount();
+
+            const sectioned = renderSectioned(twoLoose(), 'tab-1');
+            expect(ghost()).toBeInTheDocument();
+            expect(folderIcon()).toBeNull();
+            sectioned.unmount();
+
+            renderSectioned(twoLoose(), 'tab-1', []);
+            const button = ghost() as HTMLElement;
+            expect(button).toBeInTheDocument();
+            // After the loose pills, the bar's last item
+            expect(
+                screen
+                    .getByTestId('pills-unsectioned')
+                    .compareDocumentPosition(button) &
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+            expect(
+                button.closest('[class*="flow"]')?.lastElementChild,
+            ).toContainElement(button);
+        });
+
+        it('is never on a viewer bar', () => {
+            mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+            renderSectioned(twoLoose(), 'tab-1', []);
+            expect(ghost()).not.toBeInTheDocument();
+        });
+
+        it('starts a section named in its place, and stays the entry after it', async () => {
+            const user = userEvent.setup();
+            const { store } = renderSectioned(twoLoose(), 'tab-1', []);
+            await user.click(ghost() as HTMLElement);
+            expect(ghost()).not.toBeInTheDocument();
+            const input = screen.getByRole('textbox', { name: 'Section name' });
+            expect(input).toHaveFocus();
+            await user.keyboard('Late{Escape}');
+            expect(sectionsOf(store)).toHaveLength(0);
+            expect(ghost()).toHaveFocus();
+
+            await user.click(ghost() as HTMLElement);
+            await user.keyboard('Late{Enter}');
+            expect(sectionsOf(store).map((s) => s.name)).toEqual(['Late']);
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+            expect(ghost()).toBeInTheDocument();
+            expect(folderIcon()).toBeNull();
+            expect(mockTrack).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: EventName.DASHBOARD_SECTION_CREATED,
+                    properties: expect.objectContaining({
+                        source: 'new_section_capsule',
+                        filtersMoved: 0,
+                    }),
+                }),
+            );
+        });
+
+        it('adds a section after the first on the line of the one before it', async () => {
+            const user = userEvent.setup();
+            const { store } = renderSectioned(twoLoose(), 'tab-1', []);
+            await user.click(ghost() as HTMLElement);
+            await user.keyboard('First{Enter}');
+            await user.click(ghost() as HTMLElement);
+            await user.keyboard('Second{Enter}');
+            const [first, second] = sectionsOf(store);
+            expect(
+                selectOrderedControls(store.getState()).map(
+                    ({ id, newLine }) => [id, newLine],
+                ),
+            ).toEqual([
+                ['one', false],
+                ['two', false],
+                [first.id, true],
+                [second.id, false],
+            ]);
+            expect(capsuleOf('Second').closest('[class*="orderLine"]')).toBe(
+                capsuleOf('First').closest('[class*="orderLine"]'),
+            );
+        });
+
+        it('adds a section to the last line of a stored order', async () => {
+            const user = userEvent.setup();
+            const { store } = renderSectioned(twoLoose(), 'tab-1', []);
+            act(() => {
+                store.dispatch(
+                    dashboardEditActions.syncControlOrder([
+                        { kind: DashboardControlRefKind.FILTER, id: 'one' },
+                        {
+                            kind: DashboardControlRefKind.FILTER,
+                            id: 'two',
+                            newLine: true,
+                        },
+                    ]),
+                );
+            });
+            await user.click(ghost() as HTMLElement);
+            await user.keyboard('Late{Enter}');
+            const added = sectionsOf(store)[0];
+            expect(
+                selectOrderedControls(store.getState()).map(
+                    ({ id, newLine }) => [id, newLine],
+                ),
+            ).toEqual([
+                ['one', false],
+                ['two', true],
+                [added.id, false],
+            ]);
+        });
+
+        it('takes a dropped pill into a new section named in its place', async () => {
+            const user = userEvent.setup();
+            const { store } = renderSectioned(twoLoose(), 'tab-1', []);
+            act(() =>
+                mockDragEnd.handlers[0]({
+                    active: { id: 'two' },
+                    over: { id: 'new-section-target' },
+                } as DragEndEvent),
+            );
+            const input = screen.getByRole('textbox', { name: 'Section name' });
+            expect(input).toHaveFocus();
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+            await user.keyboard('Misc{Enter}');
+            const added = sectionsOf(store)[0];
+            expect(added?.name).toBe('Misc');
+            expect(
+                (
+                    setDashboardFilters.mock.calls[0][0] as DashboardFilters
+                ).dimensions.map((r) => [r.id, r.sectionId ?? null]),
+            ).toEqual([
+                ['one', null],
+                ['two', added?.id],
+            ]);
+            expect(mockTrack).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: EventName.DASHBOARD_SECTION_CREATED,
+                    properties: expect.objectContaining({
+                        source: 'new_section_drop',
+                        filtersMoved: 1,
+                    }),
+                }),
+            );
+        });
+
+        it('takes the whole selection when a picked pill is dropped on it', async () => {
+            const user = userEvent.setup();
+            const { store } = renderSectioned(
+                [...twoLoose(), rule('three', undefined)],
+                'tab-1',
+                [],
+            );
+            fireEvent.click(screen.getByText('pill one'), { metaKey: true });
+            fireEvent.click(screen.getByText('pill three'), { metaKey: true });
+            // The latest render's handler holds the selection
+            act(() =>
+                mockDragEnd.handlers.at(-1)!({
+                    active: { id: 'three' },
+                    over: { id: 'new-section-target' },
+                } as DragEndEvent),
+            );
+            await user.keyboard('Misc{Enter}');
+            const added = sectionsOf(store)[0];
+            expect(
+                (
+                    setDashboardFilters.mock.calls[0][0] as DashboardFilters
+                ).dimensions.map((r) => [r.id, r.sectionId ?? null]),
+                // Both picked pills move in together, ahead of the unsectioned
+            ).toEqual([
+                ['one', added?.id],
+                ['three', added?.id],
+                ['two', null],
+            ]);
+            expect(mockTrack).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: EventName.DASHBOARD_SECTION_CREATED,
+                    properties: expect.objectContaining({
+                        source: 'new_section_drop',
+                        filtersMoved: 2,
+                    }),
+                }),
+            );
+        });
+
+        it('takes nothing dropped while a filter is edited', () => {
+            mockSidebar.current = { isViewer: false, isSidebarOpen: true };
+            renderSectioned(twoLoose(), 'tab-1', []);
+            act(() =>
+                mockDragEnd.handlers[0]({
+                    active: { id: 'two' },
+                    over: { id: 'new-section-target' },
+                } as DragEndEvent),
+            );
+            expect(
+                screen.queryByRole('textbox', { name: 'Section name' }),
+            ).not.toBeInTheDocument();
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+        });
+
+        it('lights up under a dragged pill', () => {
+            mockDroppable.current = {
+                activeId: 'one',
+                overId: 'new-section-target',
+            };
+            renderSectioned(twoLoose(), 'tab-1', []);
+            expect(ghost()).toHaveAttribute('data-over');
+            mockDroppable.current = null;
+        });
+    });
+
+    describe('section controls in edit mode', () => {
+        const setDashboardFilters = vi.fn();
+        const setHaveFiltersChanged = vi.fn();
+        const sectionsOf = (store: { getState: () => unknown }) =>
+            selectControlSections(
+                store.getState() as Parameters<typeof selectControlSections>[0],
+            );
+
+        beforeEach(() => {
+            vi.clearAllMocks();
+            mockDroppable.current = null;
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                setDashboardFilters,
+                setHaveFiltersChanged,
+            };
+        });
+
+        it('renames in place: Enter keeps, Escape restores, empty keeps the old name', async () => {
+            const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
+            const user = userEvent.setup();
+
+            await user.click(screen.getByRole('button', { name: 'Dates' }));
+            const input = screen.getByRole('textbox', { name: 'Section name' });
+            expect(input).toHaveFocus();
+            await user.clear(input);
+            await user.type(input, 'When{Enter}');
+            expect(sectionsOf(store)[0].name).toBe('When');
+            expect(screen.getByRole('button', { name: 'When' })).toHaveFocus();
+
+            await user.click(screen.getByRole('button', { name: 'When' }));
+            await user.type(
+                screen.getByRole('textbox', { name: 'Section name' }),
+                'ever{Escape}',
+            );
+            expect(sectionsOf(store)[0].name).toBe('When');
+            expect(screen.getByRole('button', { name: 'When' })).toHaveFocus();
+
+            await user.click(screen.getByRole('button', { name: 'When' }));
+            await user.clear(
+                screen.getByRole('textbox', { name: 'Section name' }),
+            );
+            await user.keyboard('{Enter}');
+            expect(sectionsOf(store)[0].name).toBe('When');
+        });
+
+        it('renames from the section menu as a click on the name does', async () => {
+            const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
+            const user = userEvent.setup();
+
+            await user.click(
+                screen.getByRole('button', { name: 'Dates menu' }),
+            );
+            await user.click(
+                await screen.findByRole('menuitem', { name: 'Rename' }),
+            );
+            const input = screen.getByRole('textbox', { name: 'Section name' });
+            expect(input).toHaveFocus();
+            await user.clear(input);
+            await user.type(input, 'When{Enter}');
+            expect(sectionsOf(store)[0].name).toBe('When');
+        });
+
+        it('renames with the check and keeps the old name with the X; an empty name disables the check', async () => {
+            const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
+            const user = userEvent.setup();
+
+            await user.click(screen.getByRole('button', { name: 'Dates' }));
+            const input = screen.getByRole('textbox', { name: 'Section name' });
+            await user.type(input, ' later');
+            await user.click(screen.getByRole('button', { name: 'Discard' }));
+            expect(sectionsOf(store)[0].name).toBe('Dates');
+            expect(screen.getByRole('button', { name: 'Dates' })).toHaveFocus();
+
+            await user.click(screen.getByRole('button', { name: 'Dates' }));
+            await user.clear(
+                screen.getByRole('textbox', { name: 'Section name' }),
+            );
+            expect(
+                screen.getByRole('button', { name: 'Keep name' }),
+            ).toBeDisabled();
+            await user.keyboard('When');
+            await user.click(screen.getByRole('button', { name: 'Keep name' }));
+            expect(sectionsOf(store)[0].name).toBe('When');
+            expect(screen.getByRole('button', { name: 'When' })).toHaveFocus();
+        });
+
+        it('moves on in tab order from a rename: Tab commits and skips the check and X', async () => {
+            const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
+            const user = userEvent.setup();
+
+            await user.click(screen.getByRole('button', { name: 'Dates' }));
+            await user.type(
+                screen.getByRole('textbox', { name: 'Section name' }),
+                ' later',
+            );
+            await user.tab();
+            expect(sectionsOf(store)[0].name).toBe('Dates later');
+            expect(document.activeElement).not.toBe(document.body);
+            expect(
+                screen.getByRole('button', { name: 'Dates later' }),
+            ).not.toHaveFocus();
+            expect(
+                screen.queryByRole('button', { name: 'Discard' }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('sizes the rename input to its text, the placeholder when empty', async () => {
+            renderSectioned([rule('one', 'a')], 'tab-1');
+            const user = userEvent.setup();
+
+            await user.click(screen.getByRole('button', { name: 'Dates' }));
+            const input = screen.getByRole('textbox', { name: 'Section name' });
+            const sizer = input.closest('[data-size-to]');
+            expect(sizer).toHaveAttribute('data-size-to', 'Dates');
+            await user.type(input, ' and times');
+            expect(sizer).toHaveAttribute('data-size-to', 'Dates and times');
+            await user.clear(input);
+            expect(sizer).toHaveAttribute('data-size-to', 'Section name');
+        });
+
+        it('keeps the chevron to folding alone', async () => {
+            renderSectioned([rule('one', 'a')], 'tab-1');
+            await userEvent.click(foldOf('Dates'));
+            expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'false');
+            expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+        });
+
+        it('makes the name, + and menu inert while a filter is edited; the fold and pills stay', () => {
+            mockSidebar.current = { isViewer: false, isSidebarOpen: true };
+            renderSectioned([rule('one', 'a')], 'tab-1');
+            const isInert = (element: Element) =>
+                element.closest('[inert]') !== null;
+
+            const dates = screen.getByRole('group', { name: 'Dates' });
+            expect(
+                isInert(within(dates).getByRole('button', { name: 'Dates' })),
+            ).toBe(true);
+            expect(
+                isInert(
+                    screen.getByRole('button', {
+                        name: 'Add filter to Dates',
+                        hidden: true,
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                isInert(
+                    screen.getByRole('button', {
+                        name: 'Dates menu',
+                        hidden: true,
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                isInert(
+                    screen.getByRole('button', {
+                        name: 'Collapse section Dates',
+                    }),
+                ),
+            ).toBe(false);
+            expect(isInert(screen.getByTestId('pills-a'))).toBe(false);
+        });
+
+        it('never dots a section that differs from the saved dashboard', () => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboard: {
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlSections: [
+                            { id: 'a', name: 'Dates' },
+                            { id: 'b', name: 'Places' },
+                        ],
+                    },
+                },
+            };
+            renderSectioned([rule('one', 'a')], 'tab-1');
+            // Renamed, and not saved at all: Save is the only unsaved signal
+            expect(
+                screen.queryByRole('img', { name: 'Changed' }),
+            ).not.toBeInTheDocument();
+        });
+
+        // A capsule dragged with its copy's centre at `x`, over a target 100px wide at 0
+        const sectionDrag = (id: string, overId: string, x = 500) => ({
+            active: {
+                id,
+                data: { current: { kind: 'section' } },
+                rect: { current: { translated: { left: x, width: 0 } } },
+            },
+            over: { id: overId, rect: { left: 0, width: 100 } },
+        });
+
+        it('places a section by dragging its capsule beside another or onto a line of its own, and with Alt and an arrow on the name', async () => {
+            const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
+            // The stored order's sections, `/` where one starts a line
+            const lines = () =>
+                (selectControlOrder(store.getState()) ?? [])
+                    .filter(({ kind }) => kind === 'section')
+                    .map(({ id, newLine }) => `${newLine ? '/' : ''}${id}`);
+            // After Empty, on its line
+            act(() =>
+                mockDragEnd.handlers.at(-1)!(
+                    sectionDrag('a', 'c') as unknown as DragEndEvent,
+                ),
+            );
+            expect(lines()).toEqual(['/b', '/c', 'a']);
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+            // Before Regions, taking the start of its line
+            act(() =>
+                mockDragEnd.handlers.at(-1)!(
+                    sectionDrag('c', 'b', 10) as unknown as DragEndEvent,
+                ),
+            );
+            expect(lines()).toEqual(['/c', 'b', '/a']);
+            // The gap above the first section line: a line of its own there
+            act(() =>
+                mockDragEnd.handlers.at(-1)!(
+                    sectionDrag('a', 'line-gap:c') as unknown as DragEndEvent,
+                ),
+            );
+            expect(lines()).toEqual(['/a', '/c', 'b']);
+
+            // Alt and an arrow: along the bar, then to a line of its own below
+            fireEvent.keyDown(screen.getByRole('button', { name: 'Dates' }), {
+                key: 'ArrowRight',
+                altKey: true,
+            });
+            expect(lines()).toEqual(['/c', 'a', 'b']);
+            expect(
+                screen.getByText('Dates moved to line 2, position 2'),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: 'Dates' }),
+            ).toHaveAttribute('aria-keyshortcuts');
+            fireEvent.keyDown(screen.getByRole('button', { name: 'Dates' }), {
+                key: 'ArrowDown',
+                altKey: true,
+            });
+            expect(lines()).toEqual(['/c', 'b', '/a']);
+            expect(
+                screen.getByText('Dates moved to line 3, position 1'),
+            ).toBeInTheDocument();
+            // Up joins the line above; the first line is "Add filter"'s
+            fireEvent.keyDown(screen.getByRole('button', { name: 'Dates' }), {
+                key: 'ArrowUp',
+                altKey: true,
+            });
+            fireEvent.keyDown(screen.getByRole('button', { name: 'Dates' }), {
+                key: 'ArrowUp',
+                altKey: true,
+            });
+            expect(lines()).toEqual(['a', '/c', 'b']);
+            expect(
+                capsuleOf('Dates').closest('[class*="orderLine"]'),
+            ).toContainElement(screen.getByRole('button', { name: 'Add' }));
+        });
+
+        it('draws a line on the side a dragged capsule would land, or across a gap between lines, never a pill line', () => {
+            renderSectioned([rule('one', 'a')], 'tab-1');
+            act(() =>
+                mockDragMove.handlers.at(-1)!(
+                    sectionDrag('a', 'c') as unknown as DragMoveEvent,
+                ),
+            );
+            expect(capsuleOf('Empty')).toHaveAttribute(
+                'data-section-drop',
+                'after',
+            );
+            expect(capsuleOf('Empty')).not.toHaveAttribute('data-over');
+
+            act(() =>
+                mockDragMove.handlers.at(-1)!(
+                    sectionDrag('c', 'a', 10) as unknown as DragMoveEvent,
+                ),
+            );
+            expect(capsuleOf('Dates')).toHaveAttribute(
+                'data-section-drop',
+                'before',
+            );
+            expect(capsuleOf('Empty')).not.toHaveAttribute('data-section-drop');
+
+            const gaps = () =>
+                document.querySelectorAll('[class*="lineGap"][data-over]');
+            act(() =>
+                mockDragMove.handlers.at(-1)!(
+                    sectionDrag('c', 'line-gap:b') as unknown as DragMoveEvent,
+                ),
+            );
+            expect(gaps()).toHaveLength(1);
+            expect(capsuleOf('Dates')).not.toHaveAttribute('data-section-drop');
+            // Its own line's gaps move nothing: no line
+            act(() =>
+                mockDragMove.handlers.at(-1)!(
+                    sectionDrag('c', 'line-gap:c') as unknown as DragMoveEvent,
+                ),
+            );
+            expect(gaps()).toHaveLength(0);
+        });
+
+        it('hands focus to Add filter once a section is removed', async () => {
+            const user = userEvent.setup();
+            renderSectioned([rule('one', 'a')], 'tab-1');
+            await user.click(
+                screen.getByRole('button', { name: 'Empty menu' }),
+            );
+            // Empty: one click, as "Remove section", neutral like its sibling
+            const remove = await screen.findByRole('menuitem', {
+                name: 'Remove section',
+            });
+            expect(remove.getAttribute('style') ?? '').not.toContain('red');
+            await user.click(remove);
+            expect(screen.getByRole('button', { name: 'Add' })).toHaveFocus();
+        });
+
+        it('opens a new filter in the section from its +', async () => {
+            renderSectioned([rule('one', 'a')], 'tab-1');
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Add filter to Regions' }),
+            );
+            expect(mockOpenNew).toHaveBeenCalledWith('b');
+        });
+
+        it("anchors a new filter's editor on the + it was started from, until its field is picked", () => {
+            const placeholder = rule('new', 'b', {
+                target: { fieldId: '', tableName: '' },
+            });
+            mockSidebar.current = {
+                isViewer: false,
+                isSidebarOpen: true,
+                editing: { filterId: 'new' },
+                isNew: true,
+                isPlaceholder: true,
+                editingRule: placeholder,
+            };
+            const { unmount } = renderSectioned([rule('one', 'a')], 'tab-1');
+            const anchor = screen.getByTestId('editor-anchor');
+            expect(capsuleOf('Regions')).toContainElement(anchor);
+            expect(anchor.previousElementSibling).toHaveAttribute(
+                'data-section-add',
+                'b',
+            );
+            unmount();
+
+            // Picked: the editor moves to the new filter's pill
+            mockSidebar.current = {
+                ...mockSidebar.current,
+                isPlaceholder: false,
+            };
+            const { unmount: unmountPicked } = renderSectioned(
+                [rule('one', 'a'), rule('new', 'b')],
+                'tab-1',
+            );
+            expect(screen.queryByTestId('editor-anchor')).toBeNull();
+            unmountPicked();
+
+            // Started from "Add filter": no section's + takes it
+            mockSidebar.current = {
+                ...mockSidebar.current,
+                isPlaceholder: true,
+                editingRule: rule('new', undefined, {
+                    target: { fieldId: '', tableName: '' },
+                }),
+            };
+            renderSectioned([rule('one', 'a')], 'tab-1');
+            expect(screen.queryByTestId('editor-anchor')).toBeNull();
+        });
+
+        it("keeps the editor on a folded section's + once the field is picked, where no pill renders", () => {
+            const sections = [
+                { id: 'a', name: 'Dates', collapsed: true },
+                { id: 'b', name: 'Regions', collapsed: false },
+            ];
+            mockSidebar.current = {
+                isViewer: false,
+                isSidebarOpen: true,
+                editing: { filterId: 'new' },
+                isNew: true,
+                isPlaceholder: false,
+                editingRule: rule('new', 'a'),
+            };
+            const { unmount } = renderSectioned(
+                [rule('one', 'a'), rule('new', 'a')],
+                'tab-1',
+                sections,
+            );
+            expect(screen.queryByTestId('pills-a')).not.toBeInTheDocument();
+            expect(
+                screen.getByTestId('editor-anchor').previousElementSibling,
+            ).toHaveAttribute('data-section-add', 'a');
+            unmount();
+
+            // An open section renders the draft pill, which takes the editor
+            mockSidebar.current = {
+                ...mockSidebar.current,
+                editingRule: rule('new', 'b'),
+            };
+            renderSectioned(
+                [rule('one', 'b'), rule('new', 'b')],
+                'tab-1',
+                sections,
+            );
+            expect(screen.getByTestId('pills-b')).toBeInTheDocument();
+            expect(screen.queryByTestId('editor-anchor')).toBeNull();
+        });
+
+        it("saves the editor's fold as the way the section starts", async () => {
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboard: {
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlSections: [
+                            { id: 'a', name: 'Dates' },
+                            { id: 'b', name: 'Regions' },
+                            { id: 'c', name: 'Empty' },
+                        ],
+                    },
+                },
+            };
+            const { store } = renderSectioned([rule('one', 'a')], 'tab-1');
+            expect(selectHaveControlSectionsChanged(store.getState())).toBe(
+                false,
+            );
+            // A fold moves no line
+            const line = capsuleOf('Dates').parentElement;
+            await userEvent.click(foldOf('Dates'));
+            expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'false');
+            expect(foldOf('Dates')).toHaveFocus();
+            expect(capsuleOf('Dates').parentElement).toBe(line);
+            expect(sectionsOf(store)[0].collapsed).toBe(true);
+            expect(selectHaveControlSectionsChanged(store.getState())).toBe(
+                true,
+            );
+            // Back to the size rule's value with nothing saved: it follows the rule again
+            await userEvent.click(foldOf('Dates'));
+            expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'true');
+            expect(foldOf('Dates')).toHaveFocus();
+            expect(capsuleOf('Dates').parentElement).toBe(line);
+            expect(sectionsOf(store)[0]).not.toHaveProperty('collapsed');
+        });
+
+        it.each([false, true])(
+            'keeps sections sharing a line on it through a fold (viewer: %s)',
+            async (isViewer) => {
+                mockSidebar.current = { isViewer, isSidebarOpen: false };
+                const saved = [
+                    { id: 'a', name: 'Dates' },
+                    { id: 'b', name: 'Regions', collapsed: true },
+                ];
+                const { store } = renderSectioned(
+                    [rule('one', 'a'), rule('two', 'b')],
+                    'tab-1',
+                    saved,
+                );
+                act(() => {
+                    store.dispatch(
+                        dashboardEditActions.syncControlOrder([
+                            {
+                                kind: DashboardControlRefKind.SECTION,
+                                id: 'a',
+                                newLine: true,
+                            },
+                            { kind: DashboardControlRefKind.SECTION, id: 'b' },
+                        ]),
+                    );
+                });
+                const toggleOf = (name: string) =>
+                    isViewer
+                        ? screen.getByRole('button', { name })
+                        : foldOf(name);
+                const line = capsuleOf('Dates').closest('[class*="orderLine"]');
+                expect(
+                    capsuleOf('Regions').closest('[class*="orderLine"]'),
+                ).toBe(line);
+
+                await userEvent.click(toggleOf('Regions'));
+                expect(toggleOf('Regions')).toHaveAttribute(
+                    'aria-expanded',
+                    'true',
+                );
+                expect(toggleOf('Regions')).toHaveFocus();
+                expect(
+                    capsuleOf('Regions').closest('[class*="orderLine"]'),
+                ).toBe(line);
+
+                await userEvent.click(toggleOf('Dates'));
+                expect(capsuleOf('Dates').closest('[class*="orderLine"]')).toBe(
+                    line,
+                );
+            },
+        );
+
+        it('keeps an explicit value when the saved section has one', async () => {
+            const saved = [{ id: 'a', name: 'Dates', collapsed: false }];
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboard: {
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlSections: saved,
+                    },
+                },
+            };
+            const { store } = renderSectioned(
+                [rule('one', 'a')],
+                'tab-1',
+                saved,
+            );
+            await userEvent.click(foldOf('Dates'));
+            expect(sectionsOf(store)[0].collapsed).toBe(true);
+            await userEvent.click(foldOf('Dates'));
+            expect(sectionsOf(store)[0].collapsed).toBe(false);
+        });
+
+        it('gives a section folded by its size an explicit value once toggled', async () => {
+            const members = Array.from({ length: 7 }, (_, i) =>
+                rule(`a-${i}`, 'a'),
+            );
+            const { store } = renderSectioned(members, 'tab-1');
+            expect(sectionsOf(store)[0].collapsed).toBeUndefined();
+            expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'false');
+            await userEvent.click(foldOf('Dates'));
+            expect(sectionsOf(store)[0].collapsed).toBe(false);
+            await userEvent.click(foldOf('Dates'));
+            expect(sectionsOf(store)[0]).not.toHaveProperty('collapsed');
+        });
+
+        it("forgets a viewer's flips on a mode change, so view mode starts as saved", async () => {
+            mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+            const { switchTab } = renderSectioned([rule('one', 'a')], 'tab-1');
+            const viewerToggle = () =>
+                screen.getByRole('button', { name: 'Dates' });
+            // Open by default; the viewer folds it for this visit
+            await userEvent.click(viewerToggle());
+            expect(viewerToggle()).toHaveAttribute('aria-expanded', 'false');
+
+            mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+            switchTab('tab-1');
+            // The editor folds it: saved collapsed
+            await userEvent.click(foldOf('Dates'));
+            expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'false');
+
+            mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+            switchTab('tab-1');
+            expect(viewerToggle()).toHaveAttribute('aria-expanded', 'false');
+        });
+
+        it("keeps a viewer's fold off the saved state, and opens edit mode as saved", async () => {
+            mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+            const { store, switchTab } = renderSectioned(
+                [rule('one', 'a')],
+                'tab-1',
+            );
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Dates' }),
+            );
+            expect(
+                screen.getByRole('button', { name: 'Dates' }),
+            ).toHaveAttribute('aria-expanded', 'false');
+            expect(sectionsOf(store)[0].collapsed).toBeUndefined();
+            expect(selectHaveControlSectionsChanged(store.getState())).toBe(
+                false,
+            );
+
+            mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+            switchTab('tab-1');
+            expect(foldOf('Dates')).toHaveAttribute('aria-expanded', 'true');
+        });
+
+        it('offers no line item in the section menu: lines change by drag and keyboard', async () => {
+            renderSectioned([rule('one', 'a')], 'tab-1', [
+                { id: 'a', name: 'Dates' },
+                { id: 'b', name: 'Regions' },
+            ]);
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Regions menu' }),
+            );
+            expect(
+                await screen.findByRole('menuitem', { name: 'Rename' }),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByRole('menuitem', {
+                    name: 'Move to its own line',
+                }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('removes a section with members in one click, keeping them on the bar in one write', async () => {
+            const { store } = renderSectioned(
+                [rule('one', 'a'), rule('two', 'a'), rule('three', 'b')],
+                'tab-1',
+            );
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Dates menu' }),
+            );
+            expect(
+                screen.queryByRole('menuitem', { name: 'Remove section' }),
+            ).not.toBeInTheDocument();
+            const item = await screen.findByRole('menuitem', {
+                name: 'Remove section, keep controls',
+            });
+            // Neutral: it deletes nothing
+            expect(item.getAttribute('style') ?? '').not.toContain('red');
+            expect(item).not.toHaveAttribute('aria-pressed');
+            await userEvent.click(item);
+
+            expect(sectionsOf(store).map((s) => s.id)).toEqual(['b', 'c']);
+            expect(setDashboardFilters).toHaveBeenCalledTimes(1);
+            const update = setDashboardFilters.mock.calls[0][0] as (
+                filters: DashboardFilters,
+            ) => DashboardFilters;
+            const stripped = update({
+                dimensions: [
+                    rule('one', 'a'),
+                    rule('two', 'a'),
+                    rule('three', 'b'),
+                ],
+                metrics: [],
+                tableCalculations: [],
+            });
+            expect(
+                stripped.dimensions.map((r) => [r.id, r.sectionId ?? null]),
+            ).toEqual([
+                ['one', null],
+                ['two', null],
+                ['three', 'b'],
+            ]);
+            expect(setHaveFiltersChanged).toHaveBeenCalledWith(true);
+        });
+
+        it("gives a viewer's bar none of these controls", () => {
+            mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+            renderSectioned([rule('one', 'a')], 'tab-1');
+            expect(
+                screen.getByRole('button', { name: 'Dates', expanded: true }),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: /Add filter to|menu$/ }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'New section' }),
+            ).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: /^(Expand|Collapse)/ }),
+            ).not.toBeInTheDocument();
+        });
+    });
+
+    describe('tracking', () => {
+        const setDashboardFilters = vi.fn();
+        const setHaveFiltersChanged = vi.fn();
+        const grid = document.createElement('div');
+        grid.className = 'react-grid-layout';
+        const dragEvent = (activeId: string, overId: string) =>
+            ({
+                active: { id: activeId },
+                over: { id: overId },
+            }) as DragEndEvent;
+        const tracksOf = (name: EventName) =>
+            mockTrack.mock.calls
+                .map(([event]) => event)
+                .filter((event) => event.name === name);
+        const rules = () => [
+            rule('loose', undefined),
+            rule('one', 'a'),
+            rule('two', 'a'),
+            rule('three', 'b'),
+        ];
+
+        beforeEach(() => {
+            vi.clearAllMocks();
+            mockDroppable.current = null;
+            document.body.appendChild(grid);
+            mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboard: { uuid: 'dash-1' },
+                setDashboardFilters,
+                setHaveFiltersChanged,
+            };
+        });
+        // Counts, booleans and fixed values only: no filter or section names
+        const expectNoNames = () => {
+            const allowed = new Set([
+                'dash-1',
+                'new_section_capsule',
+                'new_section_drop',
+                'selection_bar',
+                'move_to_menu',
+                'drag',
+            ]);
+            mockTrack.mock.calls.forEach(([{ properties }]) =>
+                Object.values(properties).forEach((value) => {
+                    if (typeof value === 'string')
+                        expect(allowed.has(value)).toBe(true);
+                    else expect(['number', 'boolean']).toContain(typeof value);
+                }),
+            );
+        };
+        afterEach(() => {
+            expectNoNames();
+            grid.remove();
+        });
+
+        it("tracks a viewer's fold with the section's counts, never an editor's", () => {
+            mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+            const { unmount } = renderSectioned(
+                [rule('one', 'a'), rule('two', 'a'), rule('three', 'b')],
+                'tab-1',
+            );
+            fireEvent.click(screen.getByRole('button', { name: 'Dates' }));
+            expect(mockTrack).toHaveBeenCalledTimes(1);
+            expect(mockTrack).toHaveBeenCalledWith({
+                name: EventName.DASHBOARD_SECTION_TOGGLED,
+                properties: {
+                    dashboardUuid: 'dash-1',
+                    filtersCount: 2,
+                    expanded: false,
+                    collapsedByDefault: false,
+                },
+            });
+            unmount();
+
+            mockSidebar.current = { isViewer: false, isSidebarOpen: false };
+            renderSectioned([rule('one', 'a')], 'tab-1');
+            fireEvent.click(foldOf('Dates'));
+            expect(mockTrack).toHaveBeenCalledTimes(1);
+        });
+
+        it('tracks a section made from the New section capsule', async () => {
+            const user = userEvent.setup();
+            renderSectioned(
+                [rule('one', undefined), rule('two', undefined)],
+                'tab-1',
+                [],
+            );
+            await user.click(
+                screen.getByRole('button', { name: 'New section' }),
+            );
+            await user.keyboard('Misc{Enter}');
+            expect(mockTrack).toHaveBeenCalledTimes(1);
+            expect(mockTrack).toHaveBeenCalledWith({
+                name: EventName.DASHBOARD_SECTION_CREATED,
+                properties: {
+                    dashboardUuid: 'dash-1',
+                    filtersCount: 2,
+                    source: 'new_section_capsule',
+                    filtersMoved: 0,
+                },
+            });
+        });
+
+        it('tracks a cancelled name as nothing', async () => {
+            const user = userEvent.setup();
+            renderSectioned([rule('one', undefined)], 'tab-1');
+            await user.click(
+                screen.getByRole('button', { name: 'New section' }),
+            );
+            await user.keyboard('{Escape}');
+            expect(mockTrack).not.toHaveBeenCalled();
+        });
+
+        it('tracks a section made from the selection bar and its Move to menu, with the move', async () => {
+            const user = userEvent.setup();
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(screen.getByText('pill loose'), { metaKey: true });
+            fireEvent.click(screen.getByText('pill one'), { metaKey: true });
+            await user.click(
+                await screen.findByRole('button', {
+                    name: 'Move to new section',
+                }),
+            );
+            await user.keyboard('Misc{Enter}');
+            const base = { dashboardUuid: 'dash-1', filtersCount: 4 };
+            expect(tracksOf(EventName.DASHBOARD_SECTION_CREATED)).toEqual([
+                {
+                    name: EventName.DASHBOARD_SECTION_CREATED,
+                    properties: {
+                        ...base,
+                        source: 'selection_bar',
+                        filtersMoved: 2,
+                    },
+                },
+            ]);
+            // The creation is the one event: its moves are in filtersMoved
+            expect(tracksOf(EventName.DASHBOARD_FILTERS_MOVED)).toEqual([]);
+
+            mockTrack.mockClear();
+            fireEvent.click(screen.getByText('pill three'), { metaKey: true });
+            await user.click(
+                await screen.findByRole('button', { name: 'Move to' }),
+            );
+            await user.click(
+                screen.getByRole('menuitem', { name: 'New section' }),
+            );
+            await user.keyboard('More{Enter}');
+            expect(
+                tracksOf(EventName.DASHBOARD_SECTION_CREATED).map(
+                    ({ properties }) => properties.source,
+                ),
+            ).toEqual(['move_to_menu']);
+        });
+
+        it("tracks the selection bar's Move to with the filters that changed section", async () => {
+            const user = userEvent.setup();
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(screen.getByText('pill loose'), { metaKey: true });
+            fireEvent.click(screen.getByText('pill one'), { metaKey: true });
+            fireEvent.click(screen.getByText('pill three'), { metaKey: true });
+            await user.click(
+                await screen.findByRole('button', { name: 'Move to' }),
+            );
+            await user.click(
+                screen.getByRole('menuitem', { name: 'Regions · 1' }),
+            );
+            // three was in Regions already
+            expect(mockTrack).toHaveBeenCalledTimes(1);
+            expect(mockTrack).toHaveBeenCalledWith({
+                name: EventName.DASHBOARD_FILTERS_MOVED,
+                properties: {
+                    dashboardUuid: 'dash-1',
+                    filtersCount: 4,
+                    method: 'selection_bar',
+                    count: 2,
+                    whileEditing: false,
+                },
+            });
+        });
+
+        it("tracks the selection bar's No section as a move", async () => {
+            const user = userEvent.setup();
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(screen.getByText('pill one'), { metaKey: true });
+            await user.click(
+                await screen.findByRole('button', { name: 'Move to' }),
+            );
+            await user.click(
+                screen.getByRole('menuitem', { name: 'No section' }),
+            );
+            expect(tracksOf(EventName.DASHBOARD_FILTERS_MOVED)).toEqual([
+                expect.objectContaining({
+                    properties: expect.objectContaining({
+                        method: 'selection_bar',
+                        count: 1,
+                    }),
+                }),
+            ]);
+        });
+
+        it('tracks no move for a pill with a dangling section reordered among the unsectioned', () => {
+            const { store } = renderSectioned(
+                [rule('gone', 'deleted'), rule('loose', undefined)],
+                'tab-1',
+            );
+            act(() => mockDragEnd.handlers[0](dragEvent('gone', 'loose')));
+            // A reorder writes the order alone
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+            expect(selectControlOrder(store.getState())).toBeDefined();
+            expect(mockTrack).not.toHaveBeenCalled();
+        });
+
+        it('tracks a drag into another section, never a reorder or the edited pill', () => {
+            renderSectioned(rules(), 'tab-1');
+            act(() => mockDragEnd.handlers[0](dragEvent('one', 'two')));
+            expect(mockTrack).not.toHaveBeenCalled();
+
+            act(() => mockDragEnd.handlers[0](dragEvent('one', 'b')));
+            expect(mockTrack).toHaveBeenCalledTimes(1);
+            expect(mockTrack).toHaveBeenCalledWith({
+                name: EventName.DASHBOARD_FILTERS_MOVED,
+                properties: {
+                    dashboardUuid: 'dash-1',
+                    filtersCount: 4,
+                    method: 'drag',
+                    count: 1,
+                    whileEditing: false,
+                },
+            });
+        });
+
+        it('tracks a drag while a filter is edited, the edited pill moving as any other', () => {
+            mockSidebar.current = {
+                isViewer: false,
+                isSidebarOpen: true,
+                editing: { filterId: 'one' },
+            };
+            renderSectioned(rules(), 'tab-1');
+            act(() => mockDragEnd.handlers[0](dragEvent('one', 'b')));
+            expect(tracksOf(EventName.DASHBOARD_FILTERS_MOVED)).toEqual([
+                expect.objectContaining({
+                    properties: expect.objectContaining({
+                        method: 'drag',
+                        count: 1,
+                        whileEditing: true,
+                    }),
+                }),
+            ]);
+        });
+
+        it('tracks no move for a drag of the new filter being created', () => {
+            mockSidebar.current = {
+                isViewer: false,
+                isSidebarOpen: true,
+                editing: { filterId: 'one' },
+                isNew: true,
+            };
+            renderSectioned(rules(), 'tab-1');
+            act(() => mockDragEnd.handlers[0](dragEvent('one', 'b')));
+            expect(setDashboardFilters).toHaveBeenCalledTimes(1);
+            expect(tracksOf(EventName.DASHBOARD_FILTERS_MOVED)).toEqual([]);
+        });
+
+        it('tracks a dragged selection once, counting what changed section', () => {
+            renderSectioned(rules(), 'tab-1');
+            fireEvent.click(screen.getByText('pill loose'), { metaKey: true });
+            fireEvent.click(screen.getByText('pill three'), { metaKey: true });
+            act(() => mockDragEnd.handlers[0](dragEvent('loose', 'b')));
+            expect(mockTrack).toHaveBeenCalledTimes(1);
+            expect(mockTrack).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: EventName.DASHBOARD_FILTERS_MOVED,
+                    properties: expect.objectContaining({
+                        method: 'drag',
+                        count: 1,
+                    }),
+                }),
+            );
+        });
+    });
+    describe('parameter controls', () => {
+        const parameterControl = (
+            id: string,
+            sectionId?: string,
+        ): DashboardParameterControl => ({
+            id,
+            label: id.toUpperCase(),
+            value: 'EMEA',
+            valueType: { type: 'string', multiple: false },
+            parameters: { [id]: 'all' },
+            ...(sectionId !== undefined && { sectionId }),
+        });
+        const renderWithParameters = (
+            controls: DashboardParameterControl[],
+            dimensions: DashboardFilterRule[],
+            controlSections: DashboardControlSection[] = [
+                { id: 'a', name: 'Dates' },
+                { id: 'b', name: 'Regions' },
+            ],
+        ) => {
+            const store = createDashboardTestStore({
+                dashboardFilters: {
+                    dimensions,
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                parameterDefinitions: Object.fromEntries(
+                    controls.map(({ id }) => [
+                        id,
+                        { label: id.toUpperCase(), type: 'string' as const },
+                    ]),
+                ),
+                tileParameterReferences: {
+                    'tile-1': controls.map(({ id }) => id),
+                },
+            });
+            seedDashboardEditState(store, {
+                dashboard: {
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlSections,
+                    },
+                },
+                dashboardTiles: tiles,
+                dashboardTabs: [
+                    { uuid: 'tab-1', name: 'Tab 1', order: 0 },
+                    { uuid: 'tab-2', name: 'Tab 2', order: 1 },
+                ],
+            });
+            store.dispatch(
+                dashboardParametersActions.syncParameterControls({
+                    controls,
+                    isSaved: true,
+                }),
+            );
+            renderWithProviders(
+                <DashboardStoreTestProvider store={store}>
+                    <ParameterEditorProvider
+                        isViewer={mockSidebar.current.isViewer}
+                    >
+                        <SectionedFilters activeTabUuid="tab-1" />
+                    </ParameterEditorProvider>
+                </DashboardStoreTestProvider>,
+            );
+            return store;
+        };
+        const parameterDrag = (activeId: string, overId: string) =>
+            ({
+                active: {
+                    id: activeId,
+                    data: { current: { kind: 'parameter' } },
+                },
+                over: { id: overId },
+            }) as unknown as DragEndEvent;
+        const controlsOf = (store: ReturnType<typeof renderWithParameters>) =>
+            store
+                .getState()
+                .parameters.parameterControls?.map(
+                    ({ id, sectionId }) =>
+                        `${id}${sectionId ? `@${sectionId}` : ''}`,
+                );
+        const setDashboardFilters = vi.fn();
+
+        beforeEach(() => {
+            mockDroppable.current = null;
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                setDashboardFilters,
+                setHaveFiltersChanged: vi.fn(),
+            };
+            setDashboardFilters.mockReset();
+        });
+
+        it('draws each pass as its filters, then its parameter controls in list order', () => {
+            renderWithParameters(
+                [
+                    parameterControl('week', 'a'),
+                    parameterControl('region'),
+                    parameterControl('currency'),
+                ],
+                [
+                    rule('loose', undefined, onTabOne),
+                    rule('one', 'a', onTabOne),
+                ],
+            );
+            const loose = screen.getByTestId('pills-unsectioned');
+            const region = document.querySelector(
+                '[data-parameter-pill="region"]',
+            );
+            expect(
+                loose.compareDocumentPosition(region as Node) &
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+            expect(
+                [
+                    ...document.querySelectorAll<HTMLElement>(
+                        '[data-parameter-pill]',
+                    ),
+                ].map((pill) => pill.dataset.parameterPill),
+            ).toEqual(['region', 'currency', 'week']);
+            expect(capsuleOf('Dates')).toContainElement(
+                document.querySelector<HTMLElement>(
+                    '[data-parameter-pill="week"]',
+                ),
+            );
+        });
+
+        it('labels removal of a parameter-only section as keeping its controls', async () => {
+            renderWithParameters([parameterControl('week', 'b')], []);
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Regions menu' }),
+            );
+            expect(
+                await screen.findByRole('menuitem', {
+                    name: 'Remove section, keep controls',
+                }),
+            ).toBeEnabled();
+        });
+
+        it("keeps a parameter-only section's controls where the section was when removed", async () => {
+            const store = renderWithParameters(
+                [parameterControl('week', 'b')],
+                [],
+                [
+                    { id: 'a', name: 'Dates' },
+                    { id: 'b', name: 'Regions' },
+                    { id: 'c', name: 'Empty' },
+                ],
+            );
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Regions menu' }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Remove section, keep controls',
+                }),
+            );
+            expect(
+                selectOrderedControls(store.getState()).map(({ id }) => id),
+            ).toEqual(['a', 'week', 'c']);
+        });
+
+        it('shows a viewer a section that holds only a parameter control', () => {
+            mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+            renderWithParameters([parameterControl('week', 'b')], []);
+            expect(capsuleOf('Regions')).toContainElement(
+                document.querySelector<HTMLElement>(
+                    '[data-parameter-pill="week"]',
+                ),
+            );
+        });
+
+        it('shows a viewer no capsule for a section of only hidden controls', () => {
+            mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+            renderWithParameters(
+                [{ ...parameterControl('week', 'b'), hidden: true }],
+                [],
+            );
+            expect(
+                document.querySelector('[data-parameter-pill="week"]'),
+            ).toBeNull();
+            expect(
+                screen.queryByRole('group', { name: 'Regions' }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('drags a control onto another to reorder, onto a section to join it, out to the bar to leave it', () => {
+            const store = renderWithParameters(
+                [
+                    parameterControl('region'),
+                    parameterControl('currency'),
+                    parameterControl('week', 'a'),
+                ],
+                [rule('one', 'b', onTabOne)],
+            );
+            const handleDragEnd = (event: DragEndEvent) =>
+                mockDragEnd.handlers.at(-1)!(event);
+            const orderIds = () =>
+                selectControlOrder(store.getState())?.map(({ id }) => id);
+            // The order is the place; the list keeps the sections
+            act(() => handleDragEnd(parameterDrag('region', 'currency')));
+            expect(orderIds()).toEqual([
+                'currency',
+                'region',
+                'a',
+                'week',
+                'b',
+                'one',
+            ]);
+            expect(controlsOf(store)).toEqual(['region', 'currency', 'week@a']);
+            // Onto a capsule: last in that section
+            act(() => handleDragEnd(parameterDrag('region', 'a')));
+            expect(orderIds()).toEqual([
+                'currency',
+                'a',
+                'week',
+                'region',
+                'b',
+                'one',
+            ]);
+            expect(controlsOf(store)).toEqual([
+                'currency',
+                'week@a',
+                'region@a',
+            ]);
+            // Out of it: right after that section
+            act(() =>
+                handleDragEnd(parameterDrag('region', 'unsectioned-target')),
+            );
+            expect(orderIds()).toEqual([
+                'currency',
+                'a',
+                'week',
+                'region',
+                'b',
+                'one',
+            ]);
+            expect(controlsOf(store)).toEqual(['currency', 'week@a', 'region']);
+            // Beside a filter: its place and section
+            act(() => handleDragEnd(parameterDrag('currency', 'one')));
+            expect(orderIds()).toEqual([
+                'a',
+                'week',
+                'region',
+                'b',
+                'one',
+                'currency',
+            ]);
+            expect(controlsOf(store)).toEqual([
+                'week@a',
+                'region',
+                'currency@b',
+            ]);
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+        });
+
+        it('opens a folded section while the parameter edited is moved into it', async () => {
+            const store = renderWithParameters(
+                [parameterControl('region')],
+                [rule('one', 'a', onTabOne)],
+                [{ id: 'a', name: 'Dates', collapsed: true }],
+            );
+            const regionPill = () =>
+                document.querySelector('[data-parameter-pill="region"]');
+            await userEvent.click(regionPill() as HTMLElement);
+            // The popover's Section setting writes the dashboard at once
+            act(() => {
+                store.dispatch(
+                    dashboardParametersActions.setParameterControls([
+                        parameterControl('region', 'a'),
+                    ]),
+                );
+            });
+            expect(capsuleOf('Dates')).toContainElement(
+                regionPill() as HTMLElement,
+            );
+            expect(regionPill()).toHaveAttribute('aria-pressed', 'true');
+        });
+
+        it('starts a section from a parameter control dropped on New section, with no filter', async () => {
+            const user = userEvent.setup();
+            const store = renderWithParameters(
+                [parameterControl('region')],
+                [],
+                [],
+            );
+            expect(
+                screen.getByRole('button', { name: 'New section' }),
+            ).toBeInTheDocument();
+            const [handleDragEnd] = mockDragEnd.handlers;
+            act(() =>
+                handleDragEnd(parameterDrag('region', 'new-section-target')),
+            );
+            await user.type(
+                screen.getByRole('textbox', { name: 'Section name' }),
+                'Region{Enter}',
+            );
+            const [added] = selectControlSections(
+                store.getState() as Parameters<typeof selectControlSections>[0],
+            );
+            expect(added?.name).toBe('Region');
+            expect(controlsOf(store)).toEqual([`region@${added?.id}`]);
+            expect(setDashboardFilters).not.toHaveBeenCalled();
+            expect(
+                document.querySelector('[data-parameter-pill="region"]'),
+            ).toHaveFocus();
+        });
+
+        it('counts its parameter controls in a folded section, as controls', () => {
+            mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+            renderWithParameters(
+                [parameterControl('week', 'a')],
+                [rule('one', 'a', onTabOne)],
+                [
+                    { id: 'a', name: 'Dates', collapsed: true },
+                    { id: 'b', name: 'Regions', collapsed: true },
+                ],
+            );
+            expect(capsuleOf('Dates')).toHaveTextContent('2 controls');
+        });
+
+        it('says one control for a folded section holding one parameter control', () => {
+            mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+            renderWithParameters(
+                [parameterControl('week', 'b')],
+                [],
+                [{ id: 'b', name: 'Regions', collapsed: true }],
+            );
+            expect(capsuleOf('Regions')).toHaveTextContent(/1 control(?!s)/);
+        });
+
+        it('makes the section controls and New section inert while a parameter control is edited', async () => {
+            renderWithParameters(
+                [parameterControl('region')],
+                [rule('one', 'a', onTabOne)],
+            );
+            const isInert = (element: Element) =>
+                element.closest('[inert]') !== null;
+            const sectionName = () =>
+                within(capsuleOf('Dates')).getByRole('button', {
+                    name: 'Dates',
+                    hidden: true,
+                });
+            expect(isInert(sectionName())).toBe(false);
+            await userEvent.click(
+                document.querySelector<HTMLElement>(
+                    '[data-parameter-pill="region"]',
+                ) as HTMLElement,
+            );
+            expect(
+                document.querySelector('[data-parameter-pill="region"]'),
+            ).toHaveAttribute('aria-pressed', 'true');
+            expect(isInert(sectionName())).toBe(true);
+            expect(
+                isInert(
+                    screen.getByRole('button', {
+                        name: 'Dates menu',
+                        hidden: true,
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                isInert(
+                    screen.getByRole('button', {
+                        name: 'New section',
+                        hidden: true,
+                    }),
+                ),
+            ).toBe(true);
+        });
+
+        describe('picked with filters', () => {
+            // The selection bar floats over the tile grid
+            const grid = document.createElement('div');
+            grid.className = 'react-grid-layout';
+            beforeEach(() => {
+                document.body.appendChild(grid);
+            });
+            afterEach(() => grid.remove());
+            // The bar's latest drop handler, with the selection as it is
+            const dropNow = (event: DragEndEvent) =>
+                act(() => mockDragEnd.handlers.at(-1)?.(event));
+            const filterPill = (id: string) =>
+                document.querySelector(
+                    `[data-controls-pill="${id}"]`,
+                ) as HTMLElement;
+            const parameterPill = (id: string) =>
+                document.querySelector(
+                    `[data-parameter-pill="${id}"]`,
+                ) as HTMLElement;
+            const filterSections = () =>
+                (
+                    setDashboardFilters.mock.calls.at(-1)?.[0] as
+                        | DashboardFilters
+                        | undefined
+                )?.dimensions.map((r) => [r.id, r.sectionId ?? null]);
+
+            it('moves a picked parameter and filter to a section together', async () => {
+                const user = userEvent.setup();
+                const store = renderWithParameters(
+                    [parameterControl('region')],
+                    [rule('one', 'a', onTabOne)],
+                );
+                fireEvent.click(parameterPill('region'), { metaKey: true });
+                fireEvent.click(filterPill('one'), { metaKey: true });
+                expect(parameterPill('region')).toHaveAttribute(
+                    'aria-pressed',
+                    'true',
+                );
+                expect(
+                    await screen.findByText('2 selected'),
+                ).toBeInTheDocument();
+                await user.click(
+                    screen.getByRole('button', { name: 'Move to' }),
+                );
+                await user.click(
+                    screen.getByRole('menuitem', { name: /^Regions/ }),
+                );
+                expect(filterSections()).toEqual([['one', 'b']]);
+                expect(controlsOf(store)).toEqual(['region@b']);
+            });
+
+            it('takes a Shift range across both kinds, in bar order', () => {
+                renderWithParameters(
+                    [parameterControl('region')],
+                    [
+                        rule('loose', undefined, onTabOne),
+                        rule('one', 'a', onTabOne),
+                    ],
+                );
+                fireEvent.click(filterPill('loose'), { metaKey: true });
+                fireEvent.click(filterPill('one'), { shiftKey: true });
+                expect(parameterPill('region')).toHaveAttribute(
+                    'aria-pressed',
+                    'true',
+                );
+                expect(filterPill('one')).toHaveAttribute(
+                    'aria-pressed',
+                    'true',
+                );
+            });
+
+            it('removes both on the confirmed second click, naming each kind', async () => {
+                const user = userEvent.setup();
+                const store = renderWithParameters(
+                    [parameterControl('region'), parameterControl('week')],
+                    [rule('one', 'a', onTabOne)],
+                );
+                fireEvent.click(parameterPill('region'), { metaKey: true });
+                fireEvent.click(filterPill('one'), { metaKey: true });
+                const remove = await screen.findByRole('button', {
+                    name: 'Remove',
+                });
+                await user.click(remove);
+                expect(remove).toHaveTextContent(
+                    'Remove 1 filter and 1 parameter',
+                );
+                expect(controlsOf(store)).toEqual(['region', 'week']);
+                await user.click(remove);
+                expect(controlsOf(store)).toEqual(['week']);
+                const write = setDashboardFilters.mock.calls[0][0] as (
+                    filters: DashboardFilters,
+                ) => DashboardFilters;
+                expect(
+                    write({
+                        dimensions: [rule('one', 'a')],
+                        metrics: [],
+                        tableCalculations: [],
+                    }).dimensions,
+                ).toEqual([]);
+            });
+
+            it('drags the mixed selection into a section', () => {
+                const store = renderWithParameters(
+                    [parameterControl('region')],
+                    [rule('one', 'a', onTabOne)],
+                );
+                fireEvent.click(parameterPill('region'), { metaKey: true });
+                fireEvent.click(filterPill('one'), { metaKey: true });
+                dropNow(parameterDrag('region', 'b'));
+                expect(filterSections()).toEqual([['one', 'b']]);
+                expect(controlsOf(store)).toEqual(['region@b']);
+            });
+
+            it("a filter selection dropped on a parameter pill joins that pill's section, never its id", () => {
+                renderWithParameters(
+                    [parameterControl('region', 'b')],
+                    [rule('one', 'a', onTabOne), rule('two', 'a', onTabOne)],
+                );
+                fireEvent.click(filterPill('one'), { metaKey: true });
+                fireEvent.click(filterPill('two'), { metaKey: true });
+                dropNow({
+                    active: { id: 'one' },
+                    over: { id: 'region' },
+                } as DragEndEvent);
+                expect(filterSections()).toEqual([
+                    ['one', 'b'],
+                    ['two', 'b'],
+                ]);
+            });
+        });
+
+        describe('with a stored order', () => {
+            const { FILTER, PARAMETER, SECTION } = DashboardControlRefKind;
+            const renderOrdered = (order: DashboardControlRef[]) => {
+                const store = renderWithParameters(
+                    [parameterControl('region'), parameterControl('week', 'b')],
+                    [
+                        rule('one', 'a', onTabOne),
+                        rule('loose', undefined, onTabOne),
+                        rule('two', 'a', onTabOne),
+                        rule('extra', undefined, onTabOne),
+                    ],
+                );
+                act(() => {
+                    store.dispatch(
+                        dashboardEditActions.syncControlOrder(order),
+                    );
+                });
+                return store;
+            };
+            const order: DashboardControlRef[] = [
+                { kind: PARAMETER, id: 'region' },
+                { kind: SECTION, id: 'a', newLine: true },
+                { kind: FILTER, id: 'one' },
+                { kind: FILTER, id: 'loose' },
+                { kind: SECTION, id: 'b' },
+            ];
+            const lineOf = (element: Element | null) =>
+                element?.closest('[class*="orderLine"]');
+            const parameterPill = (id: string) =>
+                document.querySelector(`[data-parameter-pill="${id}"]`);
+
+            it('renders kinds mixed, its line starts, members in order and unlisted controls trailing', () => {
+                renderOrdered(order);
+                const add = screen.getByRole('button', { name: 'Add' });
+                expect(lineOf(add)).toContainElement(
+                    parameterPill('region') as HTMLElement,
+                );
+                expect(lineOf(add)).not.toContainElement(capsuleOf('Dates'));
+                const second = lineOf(capsuleOf('Dates'));
+                expect(second).toContainElement(screen.getByText('pill loose'));
+                expect(second).toContainElement(capsuleOf('Regions'));
+                // An unlisted control trails its container, on its last line
+                expect(second).toContainElement(screen.getByText('pill extra'));
+                expect(capsuleOf('Regions')).toContainElement(
+                    parameterPill('week') as HTMLElement,
+                );
+                const shown = [
+                    ...document.querySelectorAll(
+                        '[data-controls-pill], [role="group"][aria-label]',
+                    ),
+                ].map(
+                    (node) =>
+                        node.getAttribute('data-controls-pill') ??
+                        node.getAttribute('aria-label'),
+                );
+                expect(shown).toEqual([
+                    'Dates',
+                    'one',
+                    'two',
+                    'loose',
+                    'Regions',
+                    'extra',
+                ]);
+            });
+
+            it("renders a viewer's bar from an order with no sections: kinds mixed, its line starts", () => {
+                mockSidebar.current = { isViewer: true, isSidebarOpen: false };
+                const store = renderWithParameters(
+                    [parameterControl('region')],
+                    [
+                        rule('loose', undefined, onTabOne),
+                        rule('next', undefined, onTabOne),
+                    ],
+                    [],
+                );
+                act(() => {
+                    store.dispatch(
+                        dashboardEditActions.syncControlOrder([
+                            { kind: FILTER, id: 'loose' },
+                            { kind: PARAMETER, id: 'region' },
+                            { kind: FILTER, id: 'next', newLine: true },
+                        ]),
+                    );
+                });
+                const first = lineOf(
+                    screen.getByRole('button', { name: 'Add' }),
+                );
+                expect(first).toContainElement(screen.getByText('pill loose'));
+                expect(first).toContainElement(
+                    parameterPill('region') as HTMLElement,
+                );
+                expect(first).not.toContainElement(
+                    screen.getByText('pill next'),
+                );
+                expect(lineOf(screen.getByText('pill next'))).not.toBeNull();
+            });
+
+            it('names a line gap by its first control, even one hidden on this tab', () => {
+                const store = renderWithParameters(
+                    [],
+                    [
+                        rule('first', undefined, onTabOne),
+                        rule('hidden', undefined, {
+                            tileTargets: {
+                                'tile-1': false,
+                                'tile-2': {
+                                    fieldId: 'orders_region',
+                                    tableName: 'orders',
+                                },
+                            },
+                        }),
+                        rule('shown', undefined, onTabOne),
+                    ],
+                    [],
+                );
+                act(() => {
+                    store.dispatch(
+                        dashboardEditActions.syncControlOrder([
+                            { kind: FILTER, id: 'first' },
+                            { kind: FILTER, id: 'hidden', newLine: true },
+                            { kind: FILTER, id: 'shown' },
+                        ]),
+                    );
+                });
+                expect(screen.queryByText('pill hidden')).toBeNull();
+                act(() =>
+                    mockDragMove.handlers.at(-1)!({
+                        active: { id: 'first', data: { current: undefined } },
+                        over: { id: 'line-gap:hidden' },
+                    } as unknown as DragMoveEvent),
+                );
+                expect(
+                    lineOf(screen.getByText('pill shown'))?.querySelector(
+                        '[class*="lineGap"][data-over]',
+                    ),
+                ).not.toBeNull();
+                act(() =>
+                    mockDragEnd.handlers.at(-1)!({
+                        active: { id: 'first' },
+                        over: { id: 'line-gap:hidden' },
+                    } as DragEndEvent),
+                );
+                // Its own line, before the hidden line start, not between them
+                expect(
+                    selectControlOrder(store.getState())?.map(
+                        ({ id, newLine }) => `${newLine ? '/' : ''}${id}`,
+                    ),
+                ).toEqual(['/first', '/hidden', 'shown']);
+            });
+
+            it('draws one drop line, the same element, beside a pill or in a capsule', () => {
+                renderOrdered(order);
+                const moveOver = (overId: string) =>
+                    act(() =>
+                        mockDragMove.handlers.at(-1)!({
+                            active: {
+                                id: 'loose',
+                                data: { current: undefined },
+                            },
+                            over: { id: overId },
+                        } as unknown as DragMoveEvent),
+                    );
+                const lines = () => [
+                    ...document.querySelectorAll('[data-drop-line]'),
+                ];
+                moveOver('region');
+                expect(lines()).toHaveLength(1);
+                const besidePill = lines()[0];
+                expect(
+                    parameterPill('region')?.closest('[class*="barDroppable"]'),
+                ).toContainElement(besidePill as HTMLElement);
+                moveOver('b');
+                expect(lines()).toHaveLength(1);
+                expect(capsuleOf('Regions')).toContainElement(
+                    lines()[0] as HTMLElement,
+                );
+                expect(lines()[0].className).toBe(besidePill.className);
+            });
+
+            it('renders an empty order as no order', () => {
+                renderOrdered([]);
+                expect(
+                    document.querySelector('[class*="orderLine"]'),
+                ).toBeNull();
+                expect(screen.getByTestId('pills-unsectioned')).toBeDefined();
+            });
+
+            it('moves a pill by keyboard across kinds, stepping over a section, and up a line', () => {
+                const store = renderOrdered(order);
+                const ids = () =>
+                    selectControlOrder(store.getState())?.map(
+                        ({ id, newLine }) => `${newLine ? '/' : ''}${id}`,
+                    );
+                fireEvent.keyDown(parameterPill('region') as HTMLElement, {
+                    key: 'ArrowRight',
+                    altKey: true,
+                });
+                expect(ids()).toEqual([
+                    '/a',
+                    'one',
+                    'two',
+                    'region',
+                    'loose',
+                    'b',
+                    'week',
+                    'extra',
+                ]);
+                expect(
+                    screen.getByText('REGION moved to line 2, position 2'),
+                ).toBeInTheDocument();
+                fireEvent.keyDown(parameterPill('region') as HTMLElement, {
+                    key: 'ArrowUp',
+                    altKey: true,
+                });
+                expect(ids()?.slice(0, 2)).toEqual(['region', '/a']);
+            });
+
+            it('drops on a line gap: a line of its own', () => {
+                const store = renderOrdered(order);
+                act(() =>
+                    mockDragEnd.handlers.at(-1)!(
+                        parameterDrag('region', 'line-gap:'),
+                    ),
+                );
+                expect(selectControlOrder(store.getState())?.at(-1)).toEqual({
+                    kind: PARAMETER,
+                    id: 'region',
+                    newLine: true,
+                });
+            });
+        });
+
+        it('drops a filter beside a parameter control, across kinds', () => {
+            const store = renderWithParameters(
+                [parameterControl('region')],
+                [rule('one', 'a', onTabOne)],
+            );
+            act(() =>
+                mockDragEnd.handlers[0]({
+                    active: { id: 'one' },
+                    over: { id: 'region' },
+                } as DragEndEvent),
+            );
+            // Out of its section, before the control it moved towards
+            expect(
+                selectControlOrder(store.getState())?.map(({ id }) => id),
+            ).toEqual(['one', 'region', 'a', 'b']);
+            expect(
+                (
+                    setDashboardFilters.mock.calls[0][0] as DashboardFilters
+                ).dimensions.map((r) => r.sectionId ?? null),
+            ).toEqual([null]);
+            expect(controlsOf(store)).toEqual(['region']);
+        });
+    });
+});

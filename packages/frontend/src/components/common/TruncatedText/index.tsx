@@ -1,4 +1,10 @@
-import { getDefaultZIndex, Text, Tooltip, type TextProps } from '@mantine/core';
+import {
+    getDefaultZIndex,
+    Text,
+    Tooltip,
+    type TextProps,
+    type TooltipProps,
+} from '@mantine/core';
 import { type FC } from 'react';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
 
@@ -12,6 +18,10 @@ interface TruncatedTextProps extends Omit<TextProps, 'truncate'> {
     /** Caps the tooltip label at this many characters and wraps it, so long
      *  values don't stretch the tooltip across the page. */
     tooltipMaxLength?: number;
+    /** Wraps the full tooltip text within this width. */
+    tooltipMaxWidth?: number;
+    tooltipOpenDelay?: number;
+    tooltipPosition?: TooltipProps['position'];
 }
 
 const TOOLTIP_MAX_WIDTH = 400;
@@ -25,6 +35,9 @@ const TruncatedText: FC<TruncatedTextProps> = ({
     maxWidth,
     inline,
     tooltipMaxLength,
+    tooltipMaxWidth,
+    tooltipOpenDelay,
+    tooltipPosition,
     ...textProps
 }) => {
     const { ref, isTruncated } = useIsTruncated<HTMLParagraphElement>();
@@ -38,9 +51,11 @@ const TruncatedText: FC<TruncatedTextProps> = ({
         <Tooltip
             label={label}
             disabled={!isTruncated}
-            multiline={isCapped}
-            maw={isCapped ? TOOLTIP_MAX_WIDTH : undefined}
+            multiline={isCapped || tooltipMaxWidth !== undefined}
+            maw={tooltipMaxWidth ?? (isCapped ? TOOLTIP_MAX_WIDTH : undefined)}
             zIndex={getDefaultZIndex('max')}
+            openDelay={tooltipOpenDelay}
+            position={tooltipPosition}
         >
             <Text
                 ref={ref}

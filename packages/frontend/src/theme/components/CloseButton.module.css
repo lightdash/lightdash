@@ -10,3 +10,18 @@
     color: var(--mantine-color-text);
     background-color: var(--mantine-color-default-hover);
 }
+
+@media (width < $mantine-breakpoint-sm), (pointer: coarse) {
+    .root:is([data-touch-target], [data-touch-dismiss]) {
+        --cb-icon-size: calc(var(--cb-size) * 0.7);
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
+
+/* Mouse users dismiss popovers by clicking outside. */
+@media (width >= $mantine-breakpoint-sm) and (pointer: fine) {
+    .root[data-touch-dismiss] {
+        display: none;
+    }
+}

@@ -394,6 +394,8 @@ const MantineModal: React.FC<MantineModalProps> = ({
                 <Modal.Content
                     {...modalContentProps}
                     ref={contentRef}
+                    // A form inside the modal must not submit a form around it
+                    onSubmit={(event) => event.stopPropagation()}
                     role={isAlertDialog ? 'alertdialog' : undefined}
                     className={clsx(
                         !fullScreen && !mobileFullScreen && classes.content,

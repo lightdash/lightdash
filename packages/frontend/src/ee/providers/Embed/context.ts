@@ -15,10 +15,15 @@ const EmbedProviderContext = createContext<EmbedContext>({
     onExplore: (_options: { chart: EmbedExploreChart }) => {},
     savedChart: undefined,
     onBackToDashboard: undefined,
+    backDestination: 'dashboard',
+    dispatchEmbedEvent: () => false,
+    isEmbedEventReady: false,
     mode: 'direct',
     theme: 'light',
     backgroundColor: null,
     timezone: null,
+    aiAgentThreadSetup: null,
+    aiAgentNavigationDisabled: false,
 });
 
 export default EmbedProviderContext;

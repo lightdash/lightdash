@@ -16,7 +16,6 @@ import {
 import {
     ActionIcon,
     Box,
-    Button,
     FileButton,
     Group,
     Menu,
@@ -25,15 +24,14 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
 import {
     IconArrowUp,
-    IconBolt,
+    IconAlertTriangle,
     IconCheck,
     IconFileText,
     IconFolderSearch,
     IconPaperclip,
-    IconPlayerStop,
+    IconPlayerStopFilled,
     IconPlus,
     IconTelescope,
     IconTerminal2,
@@ -50,18 +48,24 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
+import {
+    ModelSelector,
+    type AgentDefaultOption,
+} from '../../../../../components/common/ModelSelector/ModelSelector';
 import {
     ComposerSubmitButton,
     PromptComposer,
 } from '../../../../../components/common/PromptComposer';
+import { useAiAccessGate } from '../../../../../features/aiAccess/useAiAccessGate';
 import { useCanCreateDataApp } from '../../../../../features/apps/hooks/useCanCreateDataApp';
 import { useOrganizationDesigns } from '../../../../../features/organizationDesigns/hooks/useOrganizationDesigns';
 import useUser from '../../../../../hooks/user/useUser';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
+import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
 import { subscribeToDeepResearchComposerPrompt } from '../../deepResearch/deepResearchRegistry';
 import {
@@ -71,9 +75,8 @@ import {
     markDeepResearchNudgeShown,
 } from '../../deepResearch/draftNudge';
 import { type StartDeepResearchArgs } from '../../deepResearch/types';
-import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
+import { useAgentMaxWidth } from '../../hooks/useAgentMaxWidth';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
-import { useAiAgentFastMode } from '../../hooks/useAiAgentFastMode';
 import { useAgentSkills } from '../../hooks/useAiAgentSkills';
 import { useCsvSourceAttachment } from '../../hooks/useCsvSourceAttachment';
 import { useHasActiveDeepResearchRun } from '../../hooks/useDeepResearch';
@@ -89,13 +92,22 @@ import {
     type ThreadFileAttachment,
 } from '../../hooks/useThreadFileAttachment';
 import {
+    clearThreadComposerNodes,
+    removeThreadComposerNode,
+    selectThreadComposerNodes,
+    type ThreadComposerNode,
+} from '../../store/aiAgentThreadComposerNodesSlice';
+import {
     clearThreadElementReferences,
     removeThreadElementReference,
     selectThreadElementReferences,
     type ThreadElementReference,
 } from '../../store/aiAgentThreadElementRefsSlice';
 import { isAiAgentThreadStreamActive } from '../../store/aiAgentThreadStreamSlice';
-import { setElementPickerEnabled } from '../../store/aiArtifactSlice';
+import {
+    selectPreviewForThreads,
+    setElementPickerEnabled,
+} from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -105,6 +117,7 @@ import { AgentSelector } from '../AgentSelector';
 import { type Agent } from '../AgentSelector/AgentSelectorUtils';
 import styles from './AgentChatInput.module.css';
 import { AgentSuggestionChips } from './AgentSuggestionChips';
+import { AiAccessGate } from './AiAccessGate';
 import {
     ComposerThemeButton,
     ComposerThemeMenuEntry,
@@ -149,12 +162,14 @@ const buildSubmitContext = ({
     externalSources,
     threadFiles,
     elementReferences,
+    composerNodes,
     theme,
 }: {
     mentionContext: SubmitContext;
     externalSources: ExternalSourceAttachment[];
     threadFiles: ThreadFileAttachment[];
     elementReferences: ThreadElementReference[];
+    composerNodes: ThreadComposerNode[];
     theme: ComposerTheme | null;
 }): SubmitContext => {
     const context: AiPromptContextItemInput[] = [
@@ -174,6 +189,12 @@ const buildSubmitContext = ({
             tag,
             text,
             loc,
+        })),
+        ...composerNodes.map(({ artifactUuid, versionUuid, nodeId }) => ({
+            type: 'composer_node' as const,
+            artifactUuid,
+            versionUuid,
+            nodeId,
         })),
         ...(theme
             ? [{ type: 'design' as const, designUuid: theme.designUuid }]
@@ -203,6 +224,10 @@ const buildSubmitContext = ({
                 displayName: appDisplayName,
             }),
         ),
+        ...composerNodes.map((node) => ({
+            type: 'composer_node' as const,
+            ...node,
+        })),
         ...(theme
             ? [
                   {
@@ -257,6 +282,7 @@ interface AgentChatInputProps {
     disabledReason?: string;
     placeholder?: string;
     messageCount?: number;
+    accessCalloutVariant?: 'card' | 'inline';
     projectUuid?: string;
     agentUuid?: string;
     threadUuid?: string;
@@ -268,6 +294,7 @@ interface AgentChatInputProps {
     onModelChange?: (modelId: string) => void;
     extendedThinking?: boolean;
     onExtendedThinkingChange?: (enabled: boolean) => void;
+    agentDefault?: AgentDefaultOption;
     sqlMode?: boolean;
     onSqlModeChange?: (enabled: boolean) => void;
     defaultValue?: string;
@@ -275,6 +302,8 @@ interface AgentChatInputProps {
     fullWidth?: boolean;
     clearOnSubmit?: boolean;
     showSuggestions?: boolean;
+    // 'list' shows empty-state suggestions as roomy rows instead of chips.
+    suggestionLayout?: 'chips' | 'list';
     contentMentionPriorityItems?: ContentMentionSuggestionItem[];
     // Reveals the deep research and agent controls on first focus instead of
     // showing them always.
@@ -283,8 +312,13 @@ interface AgentChatInputProps {
     dense?: boolean;
     // Rendered below the input, right-aligned like the disabled-reason banner.
     footerNotice?: ReactNode;
-    // Battle threads fix fast decisions per side, so the toggle would do nothing there.
-    showFastMode?: boolean;
+    // Rendered in the toolbar after the attach menu, e.g. a starter prompt.
+    toolbarStart?: ReactNode;
+    // Rendered directly under the card composer, before suggestions.
+    composerTray?: ReactNode;
+    // Thread model shown in the status row under the inline composer.
+    threadModelName?: string | null;
+    threadModelWarning?: string | null;
 }
 
 const extractToolHints = (editor: Editor | null): string[] => {
@@ -324,10 +358,11 @@ export const AgentChatInput = ({
     onSubmit,
     onStartDeepResearch,
     loading = false,
-    disabled = false,
+    disabled: disabledProp = false,
     disabledReason,
     placeholder = 'Ask anything',
     messageCount = 0,
+    accessCalloutVariant,
     projectUuid,
     agentUuid,
     threadUuid,
@@ -339,6 +374,7 @@ export const AgentChatInput = ({
     onModelChange,
     extendedThinking = false,
     onExtendedThinkingChange,
+    agentDefault,
     sqlMode = false,
     onSqlModeChange,
     defaultValue,
@@ -346,15 +382,27 @@ export const AgentChatInput = ({
     fullWidth = false,
     clearOnSubmit = true,
     showSuggestions = true,
+    suggestionLayout = 'chips',
     contentMentionPriorityItems = [],
     revealControlsOnFocus = false,
     dense = false,
     footerNotice,
-    showFastMode = true,
+    toolbarStart,
+    composerTray,
+    threadModelName,
+    threadModelWarning = null,
 }: AgentChatInputProps) => {
+    const lightdashApi = useLightdashApi();
+    const accessGate = useAiAccessGate(projectUuid);
+    const accessRefused = accessGate.disabled;
+    const disabled = disabledProp || accessRefused;
     const user = useUser(true);
     const app = useApp();
-    const isPhoneLayout = useMediaQuery('(max-width: 32em)', undefined, {
+    const isEmbedded = useIsEmbedded();
+    const isPhoneLayout = useAgentMaxWidth(512, {
+        getInitialValueInEffect: false,
+    });
+    const isCompactLayout = useAgentMaxWidth(768, {
         getInitialValueInEffect: false,
     });
     const [value, setValueState] = useState(defaultValue ?? '');
@@ -366,6 +414,10 @@ export const AgentChatInput = ({
     const elementReferences = useAiAgentStoreSelector(
         selectThreadElementReferences(threadUuid),
     );
+    // Picked in the thread's composer pipeline panel.
+    const composerNodes = useAiAgentStoreSelector(
+        selectThreadComposerNodes(threadUuid),
+    );
     const disableElementPicker = useCallback(() => {
         if (threadUuid) {
             storeDispatch(
@@ -376,14 +428,12 @@ export const AgentChatInput = ({
     const clearElementReferences = useCallback(() => {
         if (threadUuid) {
             storeDispatch(clearThreadElementReferences({ threadUuid }));
+            storeDispatch(clearThreadComposerNodes({ threadUuid }));
         }
     }, [storeDispatch, threadUuid]);
     const resetCsvFileInputRef = useRef<() => void>(null);
     const { data: externalSourcesFlag } = useServerFeatureFlag(
         FeatureFlags.ExternalSources,
-    );
-    const { data: multiSourceQueryFlag } = useServerFeatureFlag(
-        FeatureFlags.MultiSourceQuery,
     );
     const { data: composeSqlRunnerFlag } = useServerFeatureFlag(
         FeatureFlags.ComposeSqlRunner,
@@ -466,12 +516,9 @@ export const AgentChatInput = ({
     clearOnSubmitRef.current = clearOnSubmit;
     const projectUuidRef = useRef(projectUuid);
     projectUuidRef.current = projectUuid;
-    // Skills come with the agent, so the / menu needs no skill scope; the
-    // whole menu, built-ins included, exists only while the flag is on.
-    const { data: customSkillsFlag } = useServerFeatureFlag(
-        FeatureFlags.AiAgentCustomSkills,
-    );
-    const skillsEnabled = customSkillsFlag?.enabled === true;
+    // Skills come with the agent, so the / menu needs no skill scope. Embeds
+    // cannot list or invoke skills yet.
+    const skillsEnabled = !isEmbedded;
     const skillsEnabledRef = useRef(skillsEnabled);
     skillsEnabledRef.current = skillsEnabled;
     const uiStrings = useUiStrings();
@@ -569,9 +616,15 @@ export const AgentChatInput = ({
         };
         measure();
         scrollEl.addEventListener('scroll', onScroll, { passive: true });
+        // Content can grow without a scroll event (late chips, expanding steps).
+        const resizeObserver = new ResizeObserver(onScroll);
+        for (const child of scrollEl.firstElementChild?.children ?? []) {
+            resizeObserver.observe(child);
+        }
         return () => {
             if (raf !== null) window.cancelAnimationFrame(raf);
             scrollEl?.removeEventListener('scroll', onScroll);
+            resizeObserver.disconnect();
         };
     }, []);
 
@@ -585,10 +638,23 @@ export const AgentChatInput = ({
         projectUuid &&
         agents.length > 0
     );
+    const showModelSelectorControl = Boolean(
+        (showModelSelector || onExtendedThinkingChange) &&
+        models &&
+        onModelChange,
+    );
     const isMinimalMode = !showModelSelector && !showAgentSelector;
 
+    const selectThreadPreview = useMemo(
+        () => selectPreviewForThreads(threadUuid ? [threadUuid] : []),
+        [threadUuid],
+    );
+    const isArtifactPanelOpen =
+        useAiAgentStoreSelector(selectThreadPreview) !== null;
+
     const { emptyStateMode, postResponseMode } = getAgentSuggestionModes({
-        disabled,
+        disabled: disabledProp,
+        isArtifactPanelOpen,
         isMinimalMode,
         loading,
         messageCount,
@@ -598,6 +664,7 @@ export const AgentChatInput = ({
     });
 
     const suggestionsQuery = useAgentSuggestions({
+        surface: postResponseMode ? 'followup' : 'ask',
         projectUuid,
         agentUuid,
         enableSqlMode: sqlMode,
@@ -626,7 +693,7 @@ export const AgentChatInput = ({
                         : '',
                 ],
             }),
-            createContentMentionExtension({
+            createContentMentionExtension(lightdashApi, {
                 getProjectUuid: () => projectUuidRef.current,
                 getPriorityItems: () => contentMentionPriorityItemsRef.current,
                 getHidePersonalDataApps: () => hidePersonalDataAppsRef.current,
@@ -643,7 +710,7 @@ export const AgentChatInput = ({
                 },
             }),
         ],
-        [],
+        [lightdashApi],
     );
 
     // An @-mention dropdown with something to select owns Enter — it selects
@@ -674,6 +741,16 @@ export const AgentChatInput = ({
             editor.commands.focus('end');
         });
     }, [editor, threadUuid]);
+
+    // A step added from the Queries panel puts the cursor here to ask about it.
+    const composerNodeCount = composerNodes.length;
+    const prevComposerNodeCount = useRef(composerNodeCount);
+    useEffect(() => {
+        if (editor && composerNodeCount > prevComposerNodeCount.current) {
+            editor.commands.focus('end');
+        }
+        prevComposerNodeCount.current = composerNodeCount;
+    }, [editor, composerNodeCount]);
 
     const isAgentActive = threadStream
         ? isAiAgentThreadStreamActive(threadStream.connection)
@@ -754,6 +831,7 @@ export const AgentChatInput = ({
                     externalSources: externalSourceAttachments,
                     threadFiles: threadFileAttachments,
                     elementReferences,
+                    composerNodes,
                     theme: selectedTheme,
                 }),
             });
@@ -781,6 +859,7 @@ export const AgentChatInput = ({
             externalSourceAttachments,
             threadFileAttachments,
             elementReferences,
+            composerNodes,
             clearElementReferences,
             disableElementPicker,
             isPreparingAttachments,
@@ -809,9 +888,7 @@ export const AgentChatInput = ({
     const hasValue = value.trim().length > 0;
     const showDisabledBanner = disabled && disabledReason;
     const isThreadInput = Boolean(threadUuid);
-    const canStartDeepResearch = Boolean(
-        onStartDeepResearch && !isEmbedAiAgentRoute(),
-    );
+    const canStartDeepResearch = Boolean(onStartDeepResearch && !isEmbedded);
     const hasActiveDeepResearchRun = useHasActiveDeepResearchRun({
         projectUuid,
         threadUuid,
@@ -826,12 +903,9 @@ export const AgentChatInput = ({
             onStart: onStartDeepResearch,
         });
     const showSqlModeControl = Boolean(onSqlModeChange && !disabled);
-    const fastMode = useAiAgentFastMode();
-    const showFastModeControl =
-        showFastMode &&
-        fastMode.available &&
-        !disabled &&
-        !isEmbedAiAgentRoute();
+    // Inside a thread the composer is a card with its controls on a bottom row.
+    const isThreadComposer = threadModelName !== undefined;
+    const showThreadToolbar = isThreadComposer && !disabled;
     const activeMessageUuid = isAgentActive
         ? threadStream?.messageUuid
         : undefined;
@@ -846,9 +920,11 @@ export const AgentChatInput = ({
     const canAttachExternalSource = Boolean(
         projectUuid &&
         externalSourcesFlag?.enabled &&
-        multiSourceQueryFlag?.enabled &&
+        app.health.data?.externalSources.engineAvailable &&
         composeSqlRunnerFlag?.enabled &&
-        !isEmbedAiAgentRoute() &&
+        // Hidden only when the agent is known to have composer queries off.
+        agent?.enableComposerQueries !== false &&
+        !isEmbedded &&
         app.user.data?.ability.can(
             'manage',
             subject('ExternalSource', {
@@ -864,7 +940,7 @@ export const AgentChatInput = ({
             }),
         ),
     );
-    const canAttachThreadFile = Boolean(projectUuid && !isEmbedAiAgentRoute());
+    const canAttachThreadFile = Boolean(projectUuid && !isEmbedded);
     const showAttachControl = Boolean(
         (canAttachExternalSource || canAttachThreadFile) &&
         !disabled &&
@@ -973,6 +1049,7 @@ export const AgentChatInput = ({
                 externalSources: externalSourceAttachments,
                 threadFiles: threadFileAttachments,
                 elementReferences,
+                composerNodes,
                 theme: selectedTheme,
             }),
         });
@@ -1086,14 +1163,22 @@ export const AgentChatInput = ({
         return (
             <AgentSuggestionChips
                 chips={chips}
+                disabled={accessRefused}
                 onChipClick={handleChipClick}
                 onImpression={handleImpression}
-                align={isThreadInput ? 'left' : 'center'}
-                showPromptAffordance={isThreadInput}
-                maxVisible={isPhoneLayout ? 2 : undefined}
+                layout={isThreadInput ? 'compact' : suggestionLayout}
+                maxVisible={
+                    isPhoneLayout
+                        ? 2
+                        : !isThreadInput && suggestionLayout === 'list'
+                          ? 3
+                          : undefined
+                }
             />
         );
     }, [
+        suggestionLayout,
+        accessRefused,
         emptyStateMode,
         postResponseMode,
         suggestionsQuery.isError,
@@ -1338,29 +1423,109 @@ export const AgentChatInput = ({
         );
     };
 
-    const renderFastModeButton = () =>
-        showFastModeControl ? (
-            <Tooltip
-                label="Jev picks the quickest way to answer, so simple questions come back faster"
-                multiline
-                w={240}
-                position="top"
-                openDelay={300}
-            >
-                <Button
-                    variant={fastMode.enabled ? 'light' : 'subtle'}
-                    color={fastMode.enabled ? 'indigo' : 'gray'}
-                    c={fastMode.enabled ? undefined : 'dimmed'}
-                    size="compact-xs"
-                    radius="xl"
-                    aria-pressed={fastMode.enabled}
-                    onClick={() => fastMode.setEnabled(!fastMode.enabled)}
-                    leftSection={<MantineIcon icon={IconBolt} size={14} />}
+    // Mid-thread the mode is fixed, so SQL, deep research and the model are labels.
+    const renderThreadToolbarStart = () => (
+        <Group gap="sm" align="center" wrap="wrap">
+            {canAttachThreadFile && showAttachControl && (
+                <FileButton
+                    accept={AI_THREAD_FILE_PICKER_EXTENSIONS.filter(
+                        (ext) => ext !== '.csv' && ext !== '.tsv',
+                    ).join(',')}
+                    multiple
+                    resetRef={resetDocumentFileInputRef}
+                    onChange={(files) => {
+                        resetDocumentFileInputRef.current?.();
+                        if (files.length > 0) {
+                            void attachThreadFiles(files);
+                        }
+                    }}
                 >
-                    Fast
-                </Button>
-            </Tooltip>
-        ) : null;
+                    {(fileButtonProps) => (
+                        <Tooltip
+                            label="Attach a document"
+                            position="top"
+                            openDelay={300}
+                        >
+                            <ActionIcon
+                                {...fileButtonProps}
+                                size="xs"
+                                variant="transparent"
+                                aria-label={
+                                    canUseAttachControl
+                                        ? 'Attach a document'
+                                        : 'Attach a document unavailable in deep research'
+                                }
+                                disabled={
+                                    isUploadingThreadFile ||
+                                    !canUseAttachControl
+                                }
+                            >
+                                <MantineIcon
+                                    icon={IconPaperclip}
+                                    size={14}
+                                    color="dimmed"
+                                />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+                </FileButton>
+            )}
+            {sqlMode && (
+                <Group gap={4} wrap="nowrap">
+                    <MantineIcon
+                        icon={IconTerminal2}
+                        size={14}
+                        color="dimmed"
+                    />
+                    <Text size="xs" c="dimmed">
+                        Can run SQL
+                    </Text>
+                </Group>
+            )}
+            {composerMode === 'deep_research' && (
+                <Group gap={4} wrap="nowrap">
+                    <MantineIcon
+                        icon={IconTelescope}
+                        size={14}
+                        color="dimmed"
+                    />
+                    <Text size="xs" c="dimmed">
+                        Deep research
+                    </Text>
+                </Group>
+            )}
+        </Group>
+    );
+
+    const renderThreadToolbarEnd = () =>
+        threadModelName && (
+            <Group gap={4} wrap="nowrap">
+                {threadModelWarning ? (
+                    <Tooltip
+                        label={threadModelWarning}
+                        multiline
+                        w={240}
+                        position="top"
+                    >
+                        <Group gap={4} wrap="nowrap">
+                            <MantineIcon
+                                icon={IconAlertTriangle}
+                                size={14}
+                                color="yellow.7"
+                                aria-label={threadModelWarning}
+                            />
+                            <Text size="xs" c="dimmed">
+                                {threadModelName}
+                            </Text>
+                        </Group>
+                    </Tooltip>
+                ) : (
+                    <Text size="xs" c="dimmed">
+                        {threadModelName}
+                    </Text>
+                )}
+            </Group>
+        );
 
     const renderThemeButton = () =>
         showThemeButton ? (
@@ -1377,13 +1542,15 @@ export const AgentChatInput = ({
         pendingCsvFiles.length > 0 ||
         threadFileAttachments.length > 0 ||
         pendingThreadFiles.length > 0 ||
-        elementReferences.length > 0 ? (
+        elementReferences.length > 0 ||
+        composerNodes.length > 0 ? (
             <PromptAttachments
                 externalSources={externalSourceAttachments}
                 pendingCsvFiles={pendingCsvFiles}
                 threadFiles={threadFileAttachments}
                 pendingThreadFiles={pendingThreadFiles}
                 elementRefs={elementReferences}
+                composerNodes={composerNodes}
                 onRemoveExternalSource={(sourceUuid) => {
                     setExternalSourceAttachments((attachments) =>
                         attachments.filter(
@@ -1410,6 +1577,12 @@ export const AgentChatInput = ({
                         }),
                     );
                 }}
+                onRemoveComposerNode={(node) => {
+                    if (!threadUuid) return;
+                    storeDispatch(
+                        removeThreadComposerNode({ threadUuid, node }),
+                    );
+                }}
             />
         ) : undefined;
 
@@ -1429,9 +1602,8 @@ export const AgentChatInput = ({
         if (canInterrupt) {
             return (
                 <ComposerSubmitButton
-                    icon={IconPlayerStop}
+                    icon={IconPlayerStopFilled}
                     label="Stop agent"
-                    destructive
                     size={size}
                     disabled={hasRequestedInterrupt}
                     loading={
@@ -1458,7 +1630,7 @@ export const AgentChatInput = ({
                 data-tour-title="Ask an AI agent"
                 data-tour-interactive="true"
                 data-tour-via='[data-tour-nav="ask-ai"] >> [data-tour-anchor="ai-suggestion"]'
-                data-tour-docs="agents.mdx#intro:2"
+                data-tour-docs="agents/data-access.mdx#who-can-see-what:p4:2-3"
                 disabled={
                     disabled ||
                     !hasValue ||
@@ -1493,38 +1665,65 @@ export const AgentChatInput = ({
                     fullWidth ? styles.minimalContainerFullWidth : ''
                 }`}
                 ref={rootRef}
+                data-layout="minimal"
             >
-                {isThreadInput && renderChipRow(styles.threadChipFlow)}
+                <AiAccessGate
+                    projectUuid={projectUuid}
+                    refusal={accessGate.refusal}
+                    isLoading={accessGate.isLoading}
+                    isError={accessGate.isError}
+                    refetch={accessGate.refetch}
+                    variant={
+                        accessCalloutVariant ??
+                        (messageCount === 0 ? 'card' : 'inline')
+                    }
+                >
+                    {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
-                <Box className={styles.threadInputStack}>
                     <Box className={styles.dropTarget} {...dropTargetProps}>
                         <PromptComposer
                             {...composerCommonProps}
-                            variant="inline"
+                            variant={isThreadComposer ? 'card' : 'inline'}
+                            size="sm"
+                            className={
+                                isThreadComposer
+                                    ? styles.agentComposer
+                                    : undefined
+                            }
                             attachments={renderedAttachments}
                             toolbarLeft={
-                                <Group gap={4} align="center" wrap="nowrap">
+                                // Wraps in a thread so labels never push send out of a narrow card.
+                                <Group
+                                    gap={4}
+                                    align="center"
+                                    wrap={isThreadComposer ? 'wrap' : 'nowrap'}
+                                >
                                     {renderComposerActionsMenu()}
-                                    {renderFastModeButton()}
                                     {renderThemeButton()}
+                                    {toolbarStart}
+                                    {showThreadToolbar &&
+                                        renderThreadToolbarStart()}
                                 </Group>
                             }
                             toolbarRight={
-                                <Group gap={4} align="center" wrap="nowrap">
+                                <Group gap="sm" align="center" wrap="nowrap">
+                                    {showThreadToolbar &&
+                                        renderThreadToolbarEnd()}
                                     {renderComposerAction('sm')}
                                 </Group>
                             }
                         />
-                        {renderDropOverlay('inline')}
+                        {renderDropOverlay(
+                            isThreadComposer ? 'card' : 'inline',
+                        )}
                     </Box>
-                </Box>
 
-                {!isThreadInput &&
-                    renderChipRow(
-                        styles.chipTray,
-                        shouldReserveEmptyStateSuggestions,
-                    )}
-
+                    {!isThreadInput &&
+                        renderChipRow(
+                            styles.chipTray,
+                            shouldReserveEmptyStateSuggestions,
+                        )}
+                </AiAccessGate>
                 {showDisabledBanner && (
                     <Text size="xs" c="dimmed" ta="right" mt="xs" px="sm">
                         {disabledReason}
@@ -1545,83 +1744,107 @@ export const AgentChatInput = ({
                 showDisabledBanner ? styles.disabledBannerVisible : ''
             }`}
             data-dense={dense}
+            data-layout="card"
         >
-            {isThreadInput && renderChipRow(styles.threadChipFlow)}
+            <AiAccessGate
+                projectUuid={projectUuid}
+                refusal={accessGate.refusal}
+                isLoading={accessGate.isLoading}
+                isError={accessGate.isError}
+                refetch={accessGate.refetch}
+                variant={
+                    accessCalloutVariant ??
+                    (messageCount === 0 ? 'card' : 'inline')
+                }
+            >
+                {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
-            <Box className={styles.dropTarget} {...dropTargetProps}>
-                <PromptComposer
-                    {...composerCommonProps}
-                    variant="card"
-                    size={dense ? 'sm' : 'lg'}
-                    className={styles.agentComposer}
-                    onMouseDown={handleInputCardMouseDown}
-                    attachments={renderedAttachments}
-                    toolbarLeft={
-                        <Group gap="xs" align="center" wrap="nowrap">
-                            {renderComposerActionsMenu()}
-                            {renderFastModeButton()}
-                            {renderThemeButton()}
-                        </Group>
-                    }
-                    toolbarRight={
-                        <Group gap="xs" align="center" wrap="nowrap">
-                            <Box className={styles.toolbarSelectors}>
-                                {showAgentSelector && (
-                                    <Box
-                                        className={styles.controlsReveal}
-                                        data-visible={hasClickedInput}
-                                    >
-                                        <Group
-                                            gap="xs"
-                                            align="center"
-                                            wrap="nowrap"
+                <Box className={styles.dropTarget} {...dropTargetProps}>
+                    <PromptComposer
+                        {...composerCommonProps}
+                        variant="card"
+                        size={dense ? 'sm' : 'lg'}
+                        resizeHandle={isThreadInput ? 'top' : 'bottom'}
+                        className={styles.agentComposer}
+                        onMouseDown={handleInputCardMouseDown}
+                        attachments={renderedAttachments}
+                        toolbarLeft={
+                            <Group gap="xs" align="center" wrap="nowrap">
+                                {renderComposerActionsMenu()}
+                                {renderThemeButton()}
+                                {toolbarStart}
+                            </Group>
+                        }
+                        toolbarRight={
+                            <Group gap="xs" align="center" wrap="nowrap">
+                                <Box
+                                    className={styles.toolbarSelectors}
+                                    data-compact={isCompactLayout}
+                                >
+                                    {showAgentSelector && (
+                                        <Box
+                                            className={styles.controlsReveal}
+                                            data-visible={hasClickedInput}
                                         >
-                                            <AgentSelector
-                                                projectUuid={projectUuid!}
-                                                agents={agents!}
-                                                selectedAgent={selectedAgent!}
-                                                compact
-                                            />
-                                        </Group>
-                                    </Box>
-                                )}
-
-                                {(showModelSelector ||
-                                    onExtendedThinkingChange) &&
-                                    models &&
-                                    onModelChange && (
-                                        <Box className={styles.modelGroup}>
-                                            <ModelSelector
-                                                models={models}
-                                                value={selectedModelId ?? null}
-                                                onChange={onModelChange}
-                                                variant="subtle"
-                                                color="gray"
-                                                size="xs"
-                                                reasoningEnabled={
-                                                    extendedThinking
-                                                }
-                                                onReasoningChange={
-                                                    onExtendedThinkingChange
-                                                }
-                                            />
+                                            <Group
+                                                gap="xs"
+                                                align="center"
+                                                wrap="nowrap"
+                                            >
+                                                <AgentSelector
+                                                    projectUuid={projectUuid!}
+                                                    agents={agents!}
+                                                    selectedAgent={
+                                                        selectedAgent!
+                                                    }
+                                                    compact
+                                                />
+                                            </Group>
                                         </Box>
                                     )}
-                            </Box>
 
-                            {renderComposerAction('lg')}
-                        </Group>
-                    }
-                />
-                {renderDropOverlay('card')}
-            </Box>
+                                    {showModelSelectorControl &&
+                                        models &&
+                                        onModelChange && (
+                                            <Box className={styles.modelGroup}>
+                                                <ModelSelector
+                                                    disabled={accessRefused}
+                                                    models={models}
+                                                    value={
+                                                        selectedModelId ?? null
+                                                    }
+                                                    onChange={onModelChange}
+                                                    variant="subtle"
+                                                    color="gray"
+                                                    size="xs"
+                                                    reasoningEnabled={
+                                                        extendedThinking
+                                                    }
+                                                    onReasoningChange={
+                                                        onExtendedThinkingChange
+                                                    }
+                                                    agentDefault={agentDefault}
+                                                />
+                                            </Box>
+                                        )}
+                                </Box>
 
-            {!isThreadInput &&
-                renderChipRow(
-                    styles.chipTray,
-                    shouldReserveEmptyStateSuggestions,
-                )}
+                                {renderComposerAction('lg')}
+                            </Group>
+                        }
+                    />
+                    {renderDropOverlay('card')}
+                </Box>
+                {composerTray}
 
+                {!isThreadInput &&
+                    renderChipRow(
+                        suggestionLayout === 'list'
+                            ? styles.suggestionListTray
+                            : styles.chipTray,
+                        shouldReserveEmptyStateSuggestions,
+                    )}
+            </AiAccessGate>
             {showDisabledBanner && (
                 <Paper className={styles.disabledBanner} px="md" py="xs">
                     <Text size="xs" c="dimmed" ta="right">

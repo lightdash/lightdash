@@ -13,6 +13,7 @@ import {
 } from '@lightdash/common';
 import { Readable } from 'node:stream';
 import { pack } from 'tar-stream';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import {
     MockSandbox,
     MockSandboxManager,
@@ -276,6 +277,14 @@ async function buildScenario() {
             if (!app) throw new Error('App not found');
             app.sandbox_id = sandboxUuid;
         },
+        clearSandboxUuidIfCurrent: async (
+            appUuid: string,
+            sandboxUuid: string,
+        ) => {
+            const app = apps.get(appUuid);
+            if (!app) throw new Error('App not found');
+            if (app.sandbox_id === sandboxUuid) app.sandbox_id = null;
+        },
         syncPromotedApp: async () => undefined,
         updateStatusMessage: async () => undefined,
         touchVersionIfInProgress: async () => undefined,
@@ -301,6 +310,7 @@ async function buildScenario() {
         }),
     });
     const service = new AppGenerateService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
             appRuntime: {
@@ -327,6 +337,7 @@ async function buildScenario() {
             unverify: async () => undefined,
         } as never,
         featureFlagModel: { get: async () => ({ enabled: true }) } as never,
+        organizationSettingsModel: {} as never,
         organizationDesignModel: {
             findInOrganization: async () => null,
         } as never,
@@ -394,6 +405,7 @@ async function buildScenario() {
         } as never,
         sandboxManager,
         appRuntimeS3: { client: s3Client as never, bucket: 'test-bucket' },
+        appThumbnailClient: buildAppThumbnailClientMock(),
     });
 
     return {

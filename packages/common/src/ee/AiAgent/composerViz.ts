@@ -5,10 +5,12 @@ import { ChartKind } from '../../types/savedCharts';
 import assertUnreachable from '../../utils/assertUnreachable';
 import {
     getColumnAxisType,
+    SortByDirection,
     VizAggregationOptions,
     type AllVizChartConfig,
     type PivotChartData,
     type PivotChartLayout,
+    type VizSortBy,
 } from '../../visualizations/types';
 
 /** How a displayed node result renders: the table or a chart kind. */
@@ -146,10 +148,13 @@ const getColumnTypeVizPlan = (
     return { availableKinds, defaultKind, axes };
 };
 
-const getComposerChartKind = (
-    vizConfig: Exclude<AllVizChartConfig, { type: ChartKind.TABLE }>,
-): ComposerChartKind => {
-    switch (vizConfig.type) {
+/** The chart kind of a chart viz config; only its type is read. */
+export const getComposerChartKind = ({
+    type,
+}: {
+    type: Exclude<AllVizChartConfig, { type: ChartKind.TABLE }>['type'];
+}): ComposerChartKind => {
+    switch (type) {
         case ChartKind.VERTICAL_BAR:
             return 'bar';
         case ChartKind.LINE:
@@ -159,7 +164,7 @@ const getComposerChartKind = (
         case ChartKind.BIG_NUMBER:
             return 'big_number';
         default:
-            return assertUnreachable(vizConfig, 'Unknown viz config type');
+            return assertUnreachable(type, 'Unknown viz config type');
     }
 };
 
@@ -263,29 +268,41 @@ export const getComposerVizPlan = ({
     return seedFromVizConfig(plan, vizConfig, columns, rows) ?? plan;
 };
 
-/** Field config for axes: x typed by its column; y as-is (node results are already aggregated) unless series split. */
-export const getComposerFieldConfig = ({
-    x,
-    y,
-    seriesSplit,
-}: ComposerVizAxes): PivotChartLayout => ({
-    x: x
-        ? { reference: x.reference, type: getColumnAxisType(x.type) }
-        : undefined,
-    y: [
-        {
-            reference: y.reference,
-            aggregation: seriesSplit?.aggregation ?? VizAggregationOptions.ANY,
-        },
-    ],
-    groupBy: seriesSplit ? [{ reference: seriesSplit.groupBy.reference }] : [],
-});
+/**
+ * The x sort a kind opens with: a line always reads left to right, and a bar
+ * over dates reads in time. Categorical bars and pies keep the query order.
+ */
+export const getComposerDefaultSort = (
+    kind: ComposerChartKind,
+    x: ResultColumn | null,
+): VizSortBy[] | undefined =>
+    x && (kind === 'line' || (kind === 'bar' && isTemporal(x)))
+        ? [{ reference: x.reference, direction: SortByDirection.ASC }]
+        : undefined;
 
-/** Field config for the pivoted re-run of a series split; null without one. */
-export const getComposerSeriesSplitLayout = (
-    axes: ComposerVizAxes,
-): PivotChartLayout | null =>
-    axes.x && axes.seriesSplit ? getComposerFieldConfig(axes) : null;
+/** Field config for axes: x typed by its column; y as-is (node results are already aggregated) unless series split. */
+export const getComposerFieldConfig = (
+    { x, y, seriesSplit }: ComposerVizAxes,
+    kind: ComposerChartKind,
+): PivotChartLayout => {
+    const sortBy = getComposerDefaultSort(kind, x);
+    return {
+        x: x
+            ? { reference: x.reference, type: getColumnAxisType(x.type) }
+            : undefined,
+        y: [
+            {
+                reference: y.reference,
+                aggregation:
+                    seriesSplit?.aggregation ?? VizAggregationOptions.ANY,
+            },
+        ],
+        groupBy: seriesSplit
+            ? [{ reference: seriesSplit.groupBy.reference }]
+            : [],
+        ...(sortBy ? { sortBy } : {}),
+    };
+};
 
 export const buildComposerVizConfig = ({
     kind,
@@ -329,51 +346,86 @@ export const buildComposerVizConfig = ({
     }
 };
 
-/** Chart data straight from the fetched rows: x as the index (none for a big number), y as the value. No aggregation, no server call. */
+const isMissing = (value: unknown) => value === null || value === undefined;
+
+const compareValues = (a: unknown, b: unknown, temporal: boolean) => {
+    if (temporal) {
+        const [ta, tb] = [a, b].map((v) =>
+            v instanceof Date ? v.getTime() : Date.parse(String(v)),
+        );
+        if (Number.isFinite(ta) && Number.isFinite(tb)) return ta - tb;
+    }
+    if (typeof a === 'number' && typeof b === 'number') return a - b;
+    return String(a).localeCompare(String(b));
+};
+
+/** Rows ordered by x; nulls last either way. */
+const sortRowsByX = (
+    rows: RawResultRow[],
+    x: ResultColumn,
+    direction: SortByDirection,
+): RawResultRow[] => {
+    const sign = direction === SortByDirection.ASC ? 1 : -1;
+    const temporal = isTemporal(x);
+    return [...rows].sort((a, b) => {
+        const [va, vb] = [a[x.reference], b[x.reference]];
+        if (isMissing(va) || isMissing(vb))
+            return Number(isMissing(va)) - Number(isMissing(vb));
+        return sign * compareValues(va, vb, temporal);
+    });
+};
+
+/** Chart data straight from the fetched rows: x as the index (none for a big number), each y as a value. No aggregation, no server call. */
 export const buildComposerChartData = ({
     rows,
     x,
     y,
+    sort,
 }: {
     rows: RawResultRow[];
-} & Pick<ComposerVizAxes, 'x' | 'y'>): {
+    x: ResultColumn | null;
+    y: ResultColumn[];
+    /** Order of the x axis; null keeps the rows as they come. */
+    sort: SortByDirection | null;
+}): {
     data: PivotChartData;
     layout: PivotChartLayout;
 } => {
     const index = x
         ? { reference: x.reference, type: getColumnAxisType(x.type) }
         : undefined;
+    const ordered = x && sort ? sortRowsByX(rows, x, sort) : rows;
     return {
         data: {
             queryUuid: undefined,
             fileUrl: undefined,
-            results: rows.map((row) => ({
-                ...(x ? { [x.reference]: row[x.reference] } : {}),
-                [y.reference]: row[y.reference],
-            })),
+            results: ordered.map((row) =>
+                Object.fromEntries(
+                    [...(x ? [x] : []), ...y].map((column) => [
+                        column.reference,
+                        row[column.reference],
+                    ]),
+                ),
+            ),
             indexColumn: index,
-            valuesColumns: [
-                {
-                    referenceField: y.reference,
-                    pivotColumnName: y.reference,
-                    aggregation: VizAggregationOptions.ANY,
-                    pivotValues: [],
-                },
-            ],
-            columns: [
-                ...(x ? [{ reference: x.reference, type: x.type }] : []),
-                { reference: y.reference, type: y.type },
-            ],
-            columnCount: x ? 2 : 1,
+            valuesColumns: y.map((column) => ({
+                referenceField: column.reference,
+                pivotColumnName: column.reference,
+                aggregation: VizAggregationOptions.ANY,
+                pivotValues: [],
+            })),
+            columns: [...(x ? [x] : []), ...y].map((column) => ({
+                reference: column.reference,
+                type: column.type,
+            })),
+            columnCount: (x ? 1 : 0) + y.length,
         },
         layout: {
             x: index,
-            y: [
-                {
-                    reference: y.reference,
-                    aggregation: VizAggregationOptions.ANY,
-                },
-            ],
+            y: y.map((column) => ({
+                reference: column.reference,
+                aggregation: VizAggregationOptions.ANY,
+            })),
             groupBy: [],
         },
     };

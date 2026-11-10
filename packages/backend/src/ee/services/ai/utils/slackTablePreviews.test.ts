@@ -1,4 +1,10 @@
-import { parseAiArtifactChartConfig, type AiArtifact } from '@lightdash/common';
+import {
+    parseAiArtifactChartConfig,
+    QuerySourceType,
+    type AiArtifact,
+    type ComposerStoredChartVizConfig,
+    type SourceQuery,
+} from '@lightdash/common';
 import {
     getSlackTableBlocks,
     type SlackTableQueryResults,
@@ -113,7 +119,178 @@ const artifact = (
     };
 };
 
+const revenueNode: SourceQuery = {
+    sourceType: QuerySourceType.SEMANTIC_LAYER,
+    nodeId: 'revenue',
+    title: 'Revenue',
+    exploreName: 'payments',
+    dimensions: ['payments_month'],
+    metrics: ['payments_total_revenue'],
+};
+
+const ordersNode: SourceQuery = {
+    sourceType: QuerySourceType.SEMANTIC_LAYER,
+    nodeId: 'orders',
+    title: 'Orders',
+    exploreName: 'orders',
+    dimensions: ['orders_month'],
+    metrics: ['orders_count'],
+};
+
+const joinedNode: SourceQuery = {
+    sourceType: QuerySourceType.DUCKDB,
+    nodeId: 'joined',
+    title: 'Joined',
+    sql: 'SELECT * FROM revenue JOIN orders USING (month)',
+    references: ['revenue', 'orders'],
+};
+
+const composerArtifact = (
+    type: ComposerStoredChartVizConfig['type'],
+): AiArtifact => ({
+    ...artifact('composer-version', 'table'),
+    title: 'Revenue pipeline',
+    chartConfig: {
+        source: 'composer',
+        schemaVersion: 2,
+        queries: [revenueNode, ordersNode, joinedNode],
+        terminalNodeId: 'joined',
+        vizConfig: { type } as ComposerStoredChartVizConfig,
+    },
+});
+
+// A visualize call presents the node; Slack needs no marker to post it.
+const visualizeCall = (
+    type: ComposerStoredChartVizConfig['type'],
+    queryUuid: string | null = 'query-composer',
+) => ({
+    selectedQueryUuids: [],
+    toolCalls: [
+        {
+            tool_call_id: 'visualize',
+            tool_name: 'visualize',
+            tool_args: { nodeId: 'joined' },
+        },
+    ],
+    toolResults: [
+        {
+            toolCallId: 'visualize',
+            toolType: 'built-in' as const,
+            toolName: 'visualize',
+            metadata: {
+                status: 'success',
+                nodeId: 'joined',
+                artifactUuid: 'artifact',
+                versionUuid: 'composer-version',
+                queryUuid,
+            },
+        },
+    ],
+    artifacts: [composerArtifact(type)],
+});
+
+const authorizeExplores =
+    (allowed: string[]) =>
+    async ({ exploreNames }: { exploreNames: string[] }) => {
+        if (exploreNames.some((name) => !allowed.includes(name))) {
+            throw new Error('Forbidden');
+        }
+    };
+
 describe('getSlackTablePreviews', () => {
+    it('posts a visualized composer table without a marker', async () => {
+        const input = { ...setup(), ...visualizeCall('table') };
+
+        const previews = await getSlackTablePreviews(input);
+
+        expect(previews).toEqual([
+            expect.objectContaining({
+                status: 'ready',
+                title: 'Revenue pipeline',
+                queryResults: expect.objectContaining({
+                    rows: [{ month: 'September', customers: 100 }],
+                }),
+            }),
+        ]);
+        expect(input.getResults).toHaveBeenCalledWith(
+            expect.objectContaining({ queryUuid: 'query-composer' }),
+        );
+    });
+
+    it('hides a composer table from users who cannot access every semantic explore it reads', async () => {
+        const authorize = vi.fn(authorizeExplores(['payments']));
+
+        const [preview] = await getSlackTablePreviews({
+            ...setup(),
+            ...visualizeCall('table'),
+            authorize,
+        });
+
+        expect(authorize).toHaveBeenCalledWith({
+            queryUuid: 'query-composer',
+            exploreNames: ['payments', 'orders'],
+        });
+        expect(preview).toEqual(
+            expect.objectContaining({
+                status: 'unavailable',
+                url: 'https://lightdash.test/threads/thread',
+            }),
+        );
+        expect(preview).not.toHaveProperty('queryResults');
+    });
+
+    it('posts a lone semantic node visualized as a table, authorized against its explore', async () => {
+        const input = {
+            ...setup(),
+            ...visualizeCall('table'),
+            artifacts: [artifact('composer-version', 'table')],
+        };
+
+        expect(await getSlackTablePreviews(input)).toEqual([
+            expect.objectContaining({
+                status: 'ready',
+                title: 'Saved presentation',
+            }),
+        ]);
+        expect(input.authorize).toHaveBeenCalledWith({
+            queryUuid: 'query-composer',
+            exploreNames: ['orders'],
+        });
+    });
+
+    it('posts no table for a visualized composer chart', async () => {
+        expect(
+            await getSlackTablePreviews({
+                ...setup(),
+                ...visualizeCall('bar'),
+            }),
+        ).toEqual([]);
+    });
+
+    it('links a visualized composer table whose run failed to the thread', async () => {
+        const input = { ...setup(), ...visualizeCall('table', null) };
+
+        expect(await getSlackTablePreviews(input)).toEqual([
+            expect.objectContaining({
+                status: 'unavailable',
+                title: 'Revenue pipeline',
+                url: 'https://lightdash.test/threads/thread',
+            }),
+        ]);
+        expect(input.authorize).not.toHaveBeenCalled();
+    });
+
+    it('posts no composer table for links-only organizations', async () => {
+        const input = {
+            ...setup(),
+            ...visualizeCall('table'),
+            slackLinksOnly: true,
+        };
+
+        expect(await getSlackTablePreviews(input)).toEqual([]);
+        expect(input.getResults).not.toHaveBeenCalled();
+    });
+
     it('omits all table results when the final answer selects none', async () => {
         const input = { ...setup(), selectedQueryUuids: [] };
         expect(await getSlackTablePreviews(input)).toEqual([]);

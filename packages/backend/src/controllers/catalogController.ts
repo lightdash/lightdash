@@ -49,6 +49,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../auth/account';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import { CatalogSearchContext } from '../models/CatalogModel/CatalogModel';
 import {
     allowApiKeyAuthentication,
@@ -873,6 +874,7 @@ export class CatalogController extends BaseController {
             suffixMessage:
                 'Superseded by saved metrics trees (`/metrics/trees/{uuidOrSlug}`).',
         }),
+        requireOAuthScopeOperation('CatalogController.getMetricsTree'),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/metrics/tree')
@@ -997,6 +999,30 @@ export class CatalogController extends BaseController {
         const results = await this.services
             .getCatalogService()
             .hasMetricsInCatalog(toSessionUser(req.account), projectUuid);
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get the tables that have metrics visible in the metrics catalog, for the tables filter dropdown
+     * @summary List metrics catalog tables
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/metrics/tables')
+    @OperationId('getMetricTables')
+    async getMetricTables(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<{ status: 'ok'; results: string[] }> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getCatalogService()
+            .getMetricTables(req.account!, projectUuid);
 
         return {
             status: 'ok',

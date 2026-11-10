@@ -4,10 +4,13 @@ import {
     LightdashRequestMethodHeader,
     ParameterError,
     RequestMethod,
+    type ApiContentVerificationDeleteResponse,
+    type ApiContentVerificationResponse,
     type ApiDocumentAsCodeResponse,
     type ApiDocumentChartQueryResponse,
     type ApiDocumentListResponse,
     type ApiDocumentResponse,
+    type ApiDocumentsLinkingChartResponse,
     type ApiDocumentVersionListResponse,
     type ApiErrorPayload,
     type ApiJobScheduledResponse,
@@ -24,6 +27,7 @@ import {
 } from '@lightdash/common';
 import {
     Body,
+    Delete,
     Get,
     Middlewares,
     OperationId,
@@ -37,6 +41,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import type { DocumentChangeContext } from '../services/DocumentService/DocumentService';
 import {
     allowApiKeyAuthentication,
@@ -60,7 +65,11 @@ const getDocumentChange = (req: express.Request): DocumentChangeContext => ({
 export class DocumentController extends BaseController {
     @Post('{documentUuid}/charts/{chartId}/query')
     @OperationId('ExecuteDocumentChartQuery')
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('DocumentController.executeChartQuery'),
+    ])
     async executeChartQuery(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
@@ -115,6 +124,56 @@ export class DocumentController extends BaseController {
         };
     }
 
+    /**
+     * Verify a Document
+     * @summary Verify Document
+     */
+    @Post('{documentUuid}/verification')
+    @OperationId('VerifyDocument')
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+        requireOAuthScopeOperation('DocumentController.verify'),
+    ])
+    async verify(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() documentUuid: UUID,
+    ): Promise<ApiContentVerificationResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDocumentService()
+                .verify(req.account, projectUuid, documentUuid),
+        };
+    }
+
+    /**
+     * Remove verification from a Document
+     * @summary Unverify Document
+     */
+    @Delete('{documentUuid}/verification')
+    @OperationId('UnverifyDocument')
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+        requireOAuthScopeOperation('DocumentController.unverify'),
+    ])
+    async unverify(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() documentUuid: UUID,
+    ): Promise<ApiContentVerificationDeleteResponse> {
+        assertRegisteredAccount(req.account);
+        await this.services
+            .getDocumentService()
+            .unverify(req.account, projectUuid, documentUuid);
+        return { status: 'ok', results: undefined };
+    }
+
     @Post()
     @OperationId('CreateDocument')
     @Middlewares([
@@ -142,6 +201,7 @@ export class DocumentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('DocumentController.duplicate'),
     ])
     async duplicate(
         @Request() req: express.Request,
@@ -166,7 +226,11 @@ export class DocumentController extends BaseController {
      */
     @Post('{documentUuidOrSlug}/exports/pdf')
     @OperationId('ExportDocumentPdf')
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('DocumentController.exportPdf'),
+    ])
     async exportPdf(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
@@ -217,6 +281,7 @@ export class DocumentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('DocumentController.promote'),
     ])
     async promote(
         @Request() req: express.Request,
@@ -239,6 +304,7 @@ export class DocumentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('DocumentController.updateMetadata'),
     ])
     async updateMetadata(
         @Request() req: express.Request,
@@ -263,6 +329,7 @@ export class DocumentController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        requireOAuthScopeOperation('DocumentController.updateContent'),
     ])
     async updateContent(
         @Request() req: express.Request,
@@ -329,7 +396,11 @@ export class DocumentController extends BaseController {
 
     @Get()
     @OperationId('ListDocuments')
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('DocumentController.list'),
+    ])
     async list(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
@@ -359,6 +430,41 @@ export class DocumentController extends BaseController {
             results: await this.services
                 .getDocumentService()
                 .getAsCode(req.account, projectUuid, documentUuidOrSlug),
+        };
+    }
+
+    /**
+     * The Documents you can view whose current version links a saved chart or saved SQL chart
+     * @summary Documents linking a chart
+     * @param savedChartUuid The saved chart; pass this or savedSqlUuid
+     * @param savedSqlUuid The saved SQL chart; pass this or savedChartUuid
+     */
+    @Get('linking-chart')
+    @OperationId('ListDocumentsLinkingChart')
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    async listDocumentsLinkingChart(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Query() savedChartUuid?: UUID,
+        @Query() savedSqlUuid?: UUID,
+    ): Promise<ApiDocumentsLinkingChartResponse> {
+        assertRegisteredAccount(req.account);
+        const chartUuid = savedChartUuid ?? savedSqlUuid;
+        if (!chartUuid || (savedChartUuid && savedSqlUuid)) {
+            throw new ParameterError(
+                'Pass exactly one of savedChartUuid or savedSqlUuid',
+            );
+        }
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDocumentService()
+                .listDocumentsLinkingChart(
+                    req.account,
+                    projectUuid,
+                    savedChartUuid ? 'chart' : 'sqlChart',
+                    chartUuid,
+                ),
         };
     }
 

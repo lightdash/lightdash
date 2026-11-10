@@ -1,0 +1,26 @@
+{
+    "base": "semantic_studio",
+    "addOns": [
+        "projectContext",
+        "sqlCatalog"
+    ],
+    "toolNames": [
+        "analyzeFieldImpact",
+        "describeWarehouseTable",
+        "getMetadata",
+        "grepFields",
+        "listWarehouseTables",
+        "loadProjectContext",
+        "proposeSemanticLayerChange",
+        "readSemanticModel",
+        "runSql",
+        "searchFieldValues",
+        "searchSemanticLayer"
+    ],
+    "promptSections": [
+        "projectContext",
+        "runSql",
+        "semanticStudio"
+    ],
+    "skills": []
+}

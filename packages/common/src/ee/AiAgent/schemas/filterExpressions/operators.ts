@@ -65,10 +65,17 @@ export const isFilterExpressionRelativeDateOperator = (
         (relativeDateOperator) => relativeDateOperator === operator,
     );
 
-const currentDateOperators = [
+export const filterExpressionCurrentDateOperators = [
     FilterOperator.IN_THE_CURRENT,
     FilterOperator.NOT_IN_THE_CURRENT,
 ] as const;
+
+export const isFilterExpressionCurrentDateOperator = (
+    operator: FilterOperator,
+): operator is (typeof filterExpressionCurrentDateOperators)[number] =>
+    filterExpressionCurrentDateOperators.some(
+        (currentDateOperator) => currentDateOperator === operator,
+    );
 
 export const filterExpressionDateUnits = [
     UnitOfTime.days,
@@ -150,7 +157,7 @@ export const filterExpressionOperatorDefinitions = [
                 },
             }) satisfies FilterExpressionOperatorDefinition,
     ),
-    ...currentDateOperators.map(
+    ...filterExpressionCurrentDateOperators.map(
         (operator) =>
             ({
                 operator,

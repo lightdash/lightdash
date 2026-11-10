@@ -300,9 +300,11 @@ const subtractModelUsage = (
  * A run's own share of what the CLI reported. Claude Code keeps
  * `total_cost_usd`, `duration_api_ms` and `modelUsage` for the life of a
  * session, so a resumed run reports them since the session began; the token
- * counts and `num_turns` on the same event are the run's own. Totals below
- * the previous snapshot mean the CLI restarted its count (or never kept
- * one), so the run is taken as reported.
+ * counts and `num_turns` on the same event are the run's own. A cost below
+ * the previous snapshot means the CLI restarted its count (or never kept
+ * one), so the run is taken as reported. `/compact` reports cumulative cost
+ * with `duration_api_ms: 0`, so a lower duration alone does not break the
+ * session: the run is charged no API time and the snapshot keeps the larger.
  */
 export const codingAgentSessionUsageDelta = (args: {
     sessionId: string;
@@ -313,19 +315,20 @@ export const codingAgentSessionUsageDelta = (args: {
     snapshot: CodingAgentSessionUsageSnapshot;
 } => {
     const { sessionId, result, previous } = args;
-    const snapshot: CodingAgentSessionUsageSnapshot = {
-        sessionId,
-        costUsd: result.costUsd,
-        durationApiMs: result.durationApiMs,
-        modelUsage: result.modelUsage ?? null,
-    };
     const continuesSession =
         previous !== null &&
         previous.sessionId === sessionId &&
-        result.costUsd >= previous.costUsd &&
-        result.durationApiMs >= previous.durationApiMs;
+        result.costUsd >= previous.costUsd;
     if (!continuesSession) {
-        return { usage: result, snapshot };
+        return {
+            usage: result,
+            snapshot: {
+                sessionId,
+                costUsd: result.costUsd,
+                durationApiMs: result.durationApiMs,
+                modelUsage: result.modelUsage ?? null,
+            },
+        };
     }
     const { modelUsage: reportedModelUsage, ...ownCounts } = result;
     const modelUsage = subtractModelUsage(
@@ -336,10 +339,21 @@ export const codingAgentSessionUsageDelta = (args: {
         usage: {
             ...ownCounts,
             costUsd: result.costUsd - previous.costUsd,
-            durationApiMs: result.durationApiMs - previous.durationApiMs,
+            durationApiMs: Math.max(
+                result.durationApiMs - previous.durationApiMs,
+                0,
+            ),
             ...(modelUsage ? { modelUsage } : {}),
         },
-        snapshot,
+        snapshot: {
+            sessionId,
+            costUsd: result.costUsd,
+            durationApiMs: Math.max(
+                previous.durationApiMs,
+                result.durationApiMs,
+            ),
+            modelUsage: result.modelUsage ?? null,
+        },
     };
 };
 

@@ -94,10 +94,7 @@ export const PreviewAndCustomizeScreenshot: FC<
                                         w={350}
                                         h={350}
                                         fit="cover"
-                                        style={{
-                                            objectPosition: 'top',
-                                            cursor: 'pointer',
-                                        }}
+                                        className={classes.previewThumbnail}
                                     />
                                 ) : (
                                     <Flex

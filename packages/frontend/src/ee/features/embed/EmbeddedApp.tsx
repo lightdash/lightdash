@@ -1,21 +1,8 @@
-import { type CreateEmbedJwt, type UUID } from '@lightdash/common';
-import { useEffect, useState, type FC } from 'react';
-import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
+import { useEffect, type FC } from 'react';
+import { Outlet, useParams } from 'react-router';
 import EmbedProvider from '../../providers/Embed/EmbedProvider';
-import {
-    type EmbedExploreChart,
-    type EmbedExploreOptions,
-} from '../../providers/Embed/types';
 import useEmbed from '../../providers/Embed/useEmbed';
-import {
-    EMBED_BACK_URL_PARAM,
-    getEmbedBackUrl,
-    getEmbedExploreSearch,
-} from './embedNavigation';
-
-type EmbedExploreLocationState = {
-    embedBackUrl?: string;
-};
+import { useEmbedRouteNavigation } from './useEmbedRouteNavigation';
 
 /**
  * Applies the embed's custom background color if provided.
@@ -73,57 +60,12 @@ const EmbedBackgroundColorSync: FC<React.PropsWithChildren> = ({
  */
 const EmbeddedApp: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const [savedChart, setSavedChart] = useState<EmbedExploreChart>();
-    const [customSqlProvenanceChartUuid, setCustomSqlProvenanceChartUuid] =
-        useState<UUID>();
-    const navigate = useNavigate();
-    const location = useLocation();
-
-    // Set when exploring from an Explore, e.g. a drill-down, so Back still
-    // returns to the content the viewer started from.
-    const getCurrentBackUrl = () => {
-        const state = location.state as EmbedExploreLocationState | null;
-        return (
-            state?.embedBackUrl ??
-            new URLSearchParams(location.search).get(EMBED_BACK_URL_PARAM)
-        );
-    };
-
-    const handleExplore = (options: EmbedExploreOptions) => {
-        setSavedChart(options.chart);
-        setCustomSqlProvenanceChartUuid(
-            options.customSqlProvenanceChartUuid ??
-                ('uuid' in options.chart ? options.chart.uuid : undefined),
-        );
-        const backUrl =
-            getCurrentBackUrl() ?? `${location.pathname}${location.search}`;
-        void navigate(
-            {
-                pathname: `/embed/${projectUuid}/explore/${options.chart.tableName}`,
-                search: getEmbedExploreSearch('', backUrl),
-            },
-            {
-                state: {
-                    embedBackUrl: backUrl,
-                } satisfies EmbedExploreLocationState,
-            },
-        );
-    };
-
-    const handleBackToDashboard = async (
-        content: CreateEmbedJwt['content'] | undefined,
-    ) => {
-        if (!projectUuid) {
-            return;
-        }
-        await navigate(
-            getEmbedBackUrl({
-                projectUuid,
-                content,
-                backUrl: getCurrentBackUrl(),
-            }),
-        );
-    };
+    const {
+        savedChart,
+        customSqlProvenanceChartUuid,
+        handleExplore,
+        handleBackToDashboard,
+    } = useEmbedRouteNavigation(projectUuid);
 
     return (
         <EmbedProvider

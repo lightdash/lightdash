@@ -1,5 +1,5 @@
 import Lightdash from '@lightdash/sdk';
-import { useState } from 'react';
+import { useState, type ComponentProps } from 'react';
 import { ExampleLayout } from '../components/ExampleLayout';
 import { ExampleSelect } from '../components/ExampleSelect';
 import type { EmbedConfigState } from '../hooks/useEmbedConfig';
@@ -18,17 +18,20 @@ type ThemeExamplePageProps = {
     embedConfig: EmbedConfigState;
 };
 
-const THEME_OPTIONS = [
+type Theme = NonNullable<ComponentProps<typeof Lightdash.Dashboard>['theme']>;
+
+const THEME_OPTIONS: { value: Theme; label: string }[] = [
     { value: 'light', label: 'Light' },
     { value: 'dark', label: 'Dark' },
-] as const;
+    { value: 'system', label: 'System' },
+];
 
 const sourceUrl = getRepoSourceUrl(
     'packages/sdk-test-app/src/examples/ThemeExamplePage.tsx',
 );
 
 export function ThemeExamplePage({ embedConfig }: ThemeExamplePageProps) {
-    const [theme, setTheme] = useState<'light' | 'dark'>('light');
+    const [theme, setTheme] = useState<Theme>('light');
 
     return (
         <ExampleLayout
@@ -38,10 +41,10 @@ export function ThemeExamplePage({ embedConfig }: ThemeExamplePageProps) {
             description={
                 <>
                     This example shows how to switch the embedded{' '}
-                    <code>Lightdash.Dashboard</code> between light and dark mode
-                    via the <code>theme</code> prop. The host app picks the
-                    value — typically based on its own theme state — and the
-                    SDK applies the matching Mantine color scheme.
+                    <code>Lightdash.Dashboard</code> between light, dark and the
+                    OS scheme via the <code>theme</code> prop. The host app
+                    picks the value — typically based on its own theme state —
+                    and the SDK applies the matching Mantine color scheme.
                 </>
             }
         >
@@ -56,10 +59,10 @@ export function ThemeExamplePage({ embedConfig }: ThemeExamplePageProps) {
                                     label="Theme"
                                     value={theme}
                                     onChange={(value) =>
-                                        setTheme(value as 'light' | 'dark')
+                                        setTheme(value as Theme)
                                     }
-                                    options={[...THEME_OPTIONS]}
-                                    helperText="In a real host app, this would match the parent app's light/dark setting."
+                                    options={THEME_OPTIONS}
+                                    helperText="In a real host app, this would match the parent app's theme setting; System follows the OS."
                                 />
                             </div>
 

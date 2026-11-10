@@ -197,7 +197,7 @@ organization resources will use the same root.
 | Dashboards           | Project      | Slug                             | `lightdash/dashboards/` or nested spaces |
 | Spaces               | Project      | Full hierarchy path              | `.space.yml` files                       |
 | Virtual views        | Project      | Slug                             | `lightdash/virtual-views/`               |
-| AI agents            | Project      | Slug                             | `lightdash/ai-agents/`                   |
+| AI agents            | Project      | Slug                             | `lightdash/ai-agents/` (+ `<slug>/knowledge-documents/`) |
 | Scheduled deliveries | Project      | Project-scoped slug              | `lightdash/scheduled-deliveries/`        |
 | Alerts               | Project      | Project-scoped slug              | `lightdash/alerts/`                      |
 | Google Sheets syncs  | Project      | Project-scoped slug              | `lightdash/google-sheets/`               |
@@ -224,6 +224,56 @@ used by new clients.
 Organization themes use the organization-design package endpoints instead of a
 `/code/{resource}` endpoint because their portable representation is an
 uncompressed tar archive rather than one JSON document.
+
+## AI agent knowledge documents
+
+An agent's knowledge documents travel with the agent. The YAML lists them
+under `knowledgeDocuments`, and each document's text lives in its own file
+beside the YAML so a change in Git is a readable diff:
+
+```
+lightdash/ai-agents/
+  revenue-agent.yml
+  revenue-agent/
+    knowledge-documents/
+      revenue-definitions.md
+      refund-policy.md
+```
+
+```yaml
+knowledgeDocuments:
+    - name: Revenue definitions
+      file: revenue-agent/knowledge-documents/revenue-definitions.md
+      alwaysIncludeInContext: true
+    - name: Refund policy
+      file: revenue-agent/knowledge-documents/refund-policy.md
+      alwaysIncludeInContext: false
+```
+
+`file` is relative to the YAML's directory and must stay inside it; `.md`
+files are markdown documents and `.txt` files plain text, and download writes
+each document back with the matching extension. The CLI inlines the content
+for the API; the server never sees file paths. Download
+writes only the documents the agent owns alone: documents shared with other
+agents or with the whole organization are not exported and an upload never
+touches them.
+
+The list follows the same rule as `skills`: omitted means "leave the agent's
+documents as they are", present means authoritative. Upload matches by
+document name, creates the missing ones, rewrites changed content, toggles
+`alwaysIncludeInContext`, and deletes the agent-owned documents the list no
+longer names. Unchanged content is skipped, so a repeat upload does not
+regenerate the document's AI summary. The per-document size limit and the
+organization quota apply as in the UI; a document that fails them fails only
+its agent.
+
+With `content_as_code.sync: true`, every uploaded document is recorded as
+Git-backed. The agent settings page then shows it as managed by Content as
+Code and refuses edits, usage changes and deletion from the UI for everyone;
+the repo is the only writer until the document is removed from the repo and
+uploaded again. Documents nobody uploaded stay editable, so one agent can mix
+repo-managed and UI-managed documents. Without sync, upload is a plain copy
+and the UI stays editable, like charts.
 
 ## Optional project resources
 
@@ -492,6 +542,8 @@ Organization users are stored under `lightdash/users/*.yml`:
 ```yaml
 version: 1
 email: analyst@example.com
+firstName: Alex
+lastName: Example
 disabled: false
 role:
   type: system
@@ -505,9 +557,13 @@ The endpoints are:
 
 Email is the portable identity and is normalized to lowercase. An upload
 creates a missing organization member or reconciles the existing member's
-organization role and disabled state. A custom role is referenced by its exact
-organization-level role name, so organization uploads process custom roles
-before users.
+organization role, disabled state, and supplied names. `firstName` and
+`lastName` are independently optional: omitting either preserves that name on
+an existing user, so older version 1 files remain valid. Supplied names are
+trimmed; an explicit empty string clears that name. Downloads include both
+names, including empty strings when a name is unset. A custom role is
+referenced by its exact organization-level role name, so organization uploads
+process custom roles before users.
 
 Credentials are not portable, so authentication status is not written to user
 files. A missing user is staged without an authentication method and reported
@@ -685,6 +741,85 @@ pnpm -F backend exec vitest run \
 This is a schema coverage contract, not a replacement for behavior tests. It
 catches unclassified top-level fields; resource adapters and round-trip tests
 must still prove that portable fields download, compare, and upload correctly.
+
+### Dashboard control sections
+
+When `dashboard-controls` is enabled, `config.controlSections` downloads each
+section with a readable `slug`. Filters, parameter controls and date zoom
+controls refer to it with `sectionSlug`. A section written without a `slug`
+takes the slug of its name. Files never hold section or control ids.
+
+Section slugs come from the name on every download and are never saved, like
+tab slugs; repeated names are all suffixed `-1`, `-2` in list order. A slug in
+an uploaded file only resolves references inside that file. An upload keeps a
+saved section's internal UUID only when no other section shares its slug base
+(the name) on the saved dashboard or in the file; a renamed or repeated section
+gets a new UUID v4. Invalid section slugs are rejected with the allowed
+characters, duplicate section slugs with the positions and names of the
+sections that share them, and unknown `sectionSlug` references with the valid
+slugs listed (or a hint to add `config.controlSections` when the file has
+none).
+
+With the flag off, downloads keep saved sections without their IDs, write
+`sectionSlug` references and omit parameter controls. Uploads resolve section
+slugs with either flag state, without enabling parameter controls or replacing
+their saved values while the flag is off. With the flag off, uploads match a
+saved section by its saved slug, else the slug of its name, never giving two
+sections the same saved section, and save each section's slug.
+
+### Dashboard parameter controls
+
+When dashboard controls are enabled, dashboard files can save controls under
+`config.parameterControls`. Each control has a unique lowercase `slug`, a
+`label`, `value`, `valueType` (`type` and `multiple`), and a `parameters` map.
+Downloads derive the slug from the label, else the first parameter key, and
+never save it; repeats are all suffixed `-1`, `-2`. An upload keeps a saved
+control's internal ID only when no other control shares its slug base on the
+saved dashboard or in the file; a relabelled or repeated control gets a new ID. Duplicate slugs are rejected.
+
+Each parameter rule is `all`, `{ only: [tile-slug] }`, or
+`{ except: [tile-slug] }`. A key has at most one default (`all` or `except`),
+and explicit assignments cannot overlap another assignment. `only: []` assigns
+no tiles. Hidden controls still apply their assignments and values. A present
+empty list means no saved controls and an empty parameter mirror; an absent list
+uses legacy top-level parameters. With a saved list, upload derives that mirror
+from control values.
+
+### Dashboard control order
+
+`config.controlOrder` is the order of filters, parameter controls and sections
+on the bar, as `{ kind, slug }` refs (`kind` is `filter`,
+`parameter` or `section`) to controls in the same file. With
+`dashboard-controls` enabled, a dashboard with a saved order downloads its full
+reconciled order and a `slug` on every dimension and metric filter; a
+never-reordered dashboard downloads without either. Filter slugs come from the
+field id on every download, suffixed `-1`, `-2` when several filters share a
+field, and are never saved.
+
+The bar follows `controlOrder` entry by entry, whatever the order of
+`filters.dimensions`, `filters.metrics`, `parameterControls` or
+`controlSections`; a section's members follow their entries inside the
+section. An entry with `newLine: true` starts a new bar line, and
+every other entry shares the line of the entry before it. A line start on a
+section member passes to the next entry in the list outside a section; it is
+dropped if there is none. Without a saved
+order, every section starts its own line. Controls left out of
+`controlOrder` go to the end of their container, inline; to place a new
+control, add its entry. With dashboard controls enabled, AI agent reads match
+downloads but always include filter slugs, so an agent can write a list. An
+upload, from the CLI or an AI agent, stores a non-empty list as given.
+
+Slugs in an uploaded file only resolve `controlOrder` refs inside that file.
+An upload keeps a dimension filter's ID only when it is the only filter on its
+table and field on the saved dashboard and in the file; filters sharing a field
+get new IDs, never each other's. Unknown, duplicate and `dateZoom`
+refs are rejected with the valid slugs listed, and refs with the wrong shape
+fail validation; parameter refs need
+`config.parameterControls` in the file. When dashboard controls are on, a file
+without `controlOrder`, or with an empty one, resets the bar to the default
+order. With the flag off,
+downloads omit filter slugs and `controlOrder`, and uploads ignore them,
+keeping the saved order. Scheduled delivery filters carry no slugs.
 
 Charts, dashboards, SQL Runner charts, spaces, and data apps reserve slugs
 within their project, including slugs owned by soft-deleted rows. The database

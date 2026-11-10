@@ -1,4 +1,4 @@
-import { CallSettings } from 'ai';
+import { LanguageModelCallOptions, type RequestOptions } from 'ai';
 import { ProviderOptionsMap } from './types';
 
 export type ModelPresetProvider = 'openai' | 'anthropic' | 'google' | 'bedrock';
@@ -13,9 +13,17 @@ export type ReasoningStyle = 'budget' | 'adaptive';
 export type ReasoningEffort = 'medium' | 'xhigh';
 export const XHIGH_THINKING_BUDGET_TOKENS = 16_000;
 export const XHIGH_MAX_OUTPUT_TOKENS = 24_000;
+// Default explicit cap. Without one, budget-style thinking falls back to
+// `budget + 4096` and other Bedrock requests omit the output cap entirely.
+export const BEDROCK_MAX_OUTPUT_TOKENS = 24_000;
+
+/** What a preset is for. Within a provider, presets are listed newest first, so the first of a tier is its latest. */
+export type ModelTier = 'frontier' | 'balanced' | 'fast';
 
 export type ModelPreset<P extends SelectableModelProvider> = {
     name: string;
+    // Unset on a deprecated or instance-configured model, which nothing should prefer.
+    tier?: ModelTier;
     provider: P;
     modelId: string;
     displayName: string;
@@ -30,8 +38,12 @@ export type ModelPreset<P extends SelectableModelProvider> = {
     hiddenUnlessKeyAccess?: boolean;
     // Kept resolvable for existing configurations, but hidden from new selections
     deprecated?: boolean;
-    callOptions: CallSettings;
+    // Name of the same-provider preset that replaces a deprecated one
+    supersededBy?: string;
+    callOptions: LanguageModelCallOptions & Omit<RequestOptions, 'timeout'>;
     providerOptions: ProviderOptionsMap[P] | undefined;
+    // Merged in for latency-bound calls that opt into minimal reasoning
+    minimalReasoningProviderOptions?: ProviderOptionsMap[P];
 } & (
     | { custom?: false; contextWindowTokens: number }
     // Instance-configured models may have an unknown context window.
@@ -46,10 +58,11 @@ export const MODEL_PRESETS: {
 } = {
     openai: [
         {
-            name: 'gpt-6-sol',
+            name: 'gpt-6.1-sol',
+            tier: 'frontier',
             provider: 'openai',
-            modelId: 'gpt-6-sol',
-            displayName: 'GPT-6 Sol',
+            modelId: 'gpt-6.1-sol',
+            displayName: 'GPT-6.1 Sol',
             description: 'Frontier model for complex professional work',
             contextWindowTokens: 1050000,
             supportsReasoning: true,
@@ -60,13 +73,46 @@ export const MODEL_PRESETS: {
             },
         },
         {
+            name: 'gpt-6.1-terra',
+            tier: 'balanced',
+            provider: 'openai',
+            modelId: 'gpt-6.1-terra',
+            displayName: 'GPT-6.1 Terra',
+            description: 'Balances speed and intelligence',
+            contextWindowTokens: 1050000,
+            supportsReasoning: true,
+            callOptions: {},
+            providerOptions: {
+                parallelToolCalls: false,
+            },
+        },
+        {
             name: 'gpt-6-luna',
+            tier: 'fast',
             provider: 'openai',
             modelId: 'gpt-6-luna',
             displayName: 'GPT-6 Luna',
             description: 'Fast, cost-effective model for lightweight tasks',
             contextWindowTokens: 1050000,
             supportsReasoning: true,
+            callOptions: {},
+            providerOptions: {
+                // strictJsonSchema: provider default is true
+                parallelToolCalls: false,
+            },
+            // Low effort still reasons past a 5 s budget on field mapping
+            minimalReasoningProviderOptions: { reasoningEffort: 'none' },
+        },
+        {
+            name: 'gpt-6-sol',
+            provider: 'openai',
+            modelId: 'gpt-6-sol',
+            displayName: 'GPT-6 Sol',
+            description: 'Frontier model for complex professional work',
+            contextWindowTokens: 1050000,
+            supportsReasoning: true,
+            deprecated: true,
+            supersededBy: 'gpt-6.1-sol',
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -82,6 +128,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 1050000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'gpt-6-sol',
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -97,6 +144,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 1050000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'gpt-6-luna',
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -114,6 +162,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 265000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'gpt-5.6-sol',
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -131,6 +180,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 265000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'gpt-5.5',
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -146,6 +196,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 400000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'gpt-5.4',
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -161,6 +212,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 400000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'gpt-5.2',
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -176,6 +228,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 400000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'gpt-5.6-luna',
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
@@ -187,6 +240,7 @@ export const MODEL_PRESETS: {
     anthropic: [
         {
             name: 'claude-opus-5-5',
+            tier: 'frontier',
             provider: 'anthropic',
             modelId: 'claude-opus-5-5',
             displayName: 'Claude Opus 5.5',
@@ -200,6 +254,7 @@ export const MODEL_PRESETS: {
         },
         {
             name: 'claude-sonnet-5-5',
+            tier: 'balanced',
             provider: 'anthropic',
             modelId: 'claude-sonnet-5-5',
             displayName: 'Claude Sonnet 5.5',
@@ -220,6 +275,7 @@ export const MODEL_PRESETS: {
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
             deprecated: true,
+            supersededBy: 'claude-sonnet-5-5',
             callOptions: {},
             providerOptions: undefined,
         },
@@ -233,6 +289,7 @@ export const MODEL_PRESETS: {
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
             deprecated: true,
+            supersededBy: 'claude-opus-5-5',
             callOptions: {},
             providerOptions: undefined,
         },
@@ -247,6 +304,7 @@ export const MODEL_PRESETS: {
             reasoningStyle: 'adaptive',
             hiddenUnlessKeyAccess: true,
             deprecated: true,
+            supersededBy: 'claude-opus-5',
             callOptions: {},
             providerOptions: undefined,
         },
@@ -260,6 +318,7 @@ export const MODEL_PRESETS: {
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
             deprecated: true,
+            supersededBy: 'claude-opus-4-8',
             callOptions: {},
             providerOptions: undefined,
         },
@@ -272,6 +331,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'claude-opus-4-7',
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -284,6 +344,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'claude-sonnet-5',
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -296,6 +357,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'claude-opus-4-6',
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -308,8 +370,28 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'claude-sonnet-4-6',
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
+        },
+        {
+            name: 'claude-haiku-5-5',
+            tier: 'fast',
+            provider: 'anthropic',
+            modelId: 'claude-haiku-5-5',
+            displayName: 'Claude Haiku 5.5',
+            description: 'Newest fast model for lightweight tasks',
+            contextWindowTokens: 200000,
+            supportsReasoning: true,
+            reasoningStyle: 'adaptive',
+            callOptions: {},
+            providerOptions: undefined,
+            // Thinks by default and spends short caps on thinking; low-effort
+            // adaptive thinking still did on field mapping
+            minimalReasoningProviderOptions: {
+                thinking: { type: 'disabled' },
+                effort: 'low',
+            },
         },
         {
             name: 'claude-haiku-4-5',
@@ -331,6 +413,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'claude-sonnet-4-5',
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -377,6 +460,7 @@ export const MODEL_PRESETS: {
         },
         {
             name: 'claude-opus-5-5',
+            tier: 'frontier',
             provider: 'bedrock',
             modelId: 'anthropic.claude-opus-5-5',
             displayName: 'Claude Opus 5.5',
@@ -390,6 +474,7 @@ export const MODEL_PRESETS: {
         },
         {
             name: 'claude-sonnet-5-5',
+            tier: 'balanced',
             provider: 'bedrock',
             modelId: 'anthropic.claude-sonnet-5-5',
             displayName: 'Claude Sonnet 5.5',
@@ -410,6 +495,7 @@ export const MODEL_PRESETS: {
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
             deprecated: true,
+            supersededBy: 'claude-sonnet-5-5',
             callOptions: {},
             providerOptions: undefined,
         },
@@ -423,6 +509,7 @@ export const MODEL_PRESETS: {
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
             deprecated: true,
+            supersededBy: 'claude-opus-5-5',
             callOptions: {},
             providerOptions: undefined,
         },
@@ -446,7 +533,21 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'claude-sonnet-5',
             callOptions: { temperature: 0.2 },
+            providerOptions: undefined,
+        },
+        {
+            name: 'claude-haiku-5-5',
+            tier: 'fast',
+            provider: 'bedrock',
+            modelId: 'anthropic.claude-haiku-5-5',
+            displayName: 'Claude Haiku 5.5',
+            description: 'Newest fast model for lightweight tasks',
+            contextWindowTokens: 200000,
+            supportsReasoning: true,
+            reasoningStyle: 'adaptive',
+            callOptions: {},
             providerOptions: undefined,
         },
         {
@@ -469,6 +570,7 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             deprecated: true,
+            supersededBy: 'claude-sonnet-4-5',
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
         },
@@ -674,14 +776,16 @@ export function matchesPreset(
 // Whether a provider's /v1/models listing grants access to a base model id.
 // Matches the exact id or a dated variant of it — e.g. "claude-opus-4-8" is
 // granted by "claude-opus-4-8" or "claude-opus-4-8-20260115", but not by
-// "claude-opus-4-80".
+// "claude-opus-4-80". Gateways list models as "vendor/model", so a path
+// prefix is ignored.
 export function keyGrantsModel(
     accessibleModelIds: readonly string[],
     baseModelId: string,
 ): boolean {
-    return accessibleModelIds.some(
-        (id) => id === baseModelId || id.startsWith(`${baseModelId}-`),
-    );
+    return accessibleModelIds.some((listedId) => {
+        const id = listedId.slice(listedId.lastIndexOf('/') + 1);
+        return id === baseModelId || id.startsWith(`${baseModelId}-`);
+    });
 }
 
 export function getModelPreset<T extends ModelPresetProvider>(

@@ -9,7 +9,12 @@ import { useCallback, type FC } from 'react';
 import ExportDataModal from '../../../../../components/DashboardTiles/ExportDataModal';
 import { type Limit } from '../../../../../components/ExportResults/types';
 import { isTableVisualizationConfig } from '../../../../../components/LightdashVisualization/types';
-import { useVisualizationContext } from '../../../../../components/LightdashVisualization/useVisualizationContext';
+import {
+    useEditedChartConfig,
+    useVisualizationConfig,
+    useVisualizationInputs,
+} from '../../../../../components/LightdashVisualization/useVisualizationContext';
+import { useLightdashApi } from '../../../../../providers/LightdashApi/useLightdashApi';
 import { executeAiChartDownloadQuery } from '../../utils/executeAiChartDownloadQuery';
 
 type Props = {
@@ -18,6 +23,8 @@ type Props = {
     projectUuid: string;
     chartName: string | null;
     mergeQuery: MergeQuery | null;
+    /** Downloads this already-executed query as shown, without re-running it. */
+    executedQueryUuid: string | null;
 };
 
 export const AiChartDownloadModal: FC<Props> = ({
@@ -26,16 +33,13 @@ export const AiChartDownloadModal: FC<Props> = ({
     projectUuid,
     chartName,
     mergeQuery,
+    executedQueryUuid,
 }) => {
-    const {
-        chartConfig,
-        columnOrder,
-        itemsMap,
-        parameters,
-        pivotDimensions,
-        resultsData,
-        visualizationConfig,
-    } = useVisualizationContext();
+    const lightdashApi = useLightdashApi();
+    const visualizationConfig = useVisualizationConfig();
+    const chartConfig = useEditedChartConfig();
+    const { columnOrder, itemsMap, parameters, pivotDimensions, resultsData } =
+        useVisualizationInputs();
 
     const metricQuery = resultsData?.metricQuery;
     const tableConfig = isTableVisualizationConfig(visualizationConfig)
@@ -64,11 +68,13 @@ export const AiChartDownloadModal: FC<Props> = ({
             _limitType: Limit,
             exportPivotedData: boolean = true,
         ) => {
+            if (executedQueryUuid) return executedQueryUuid;
+
             if (!metricQuery || !itemsMap) {
                 throw new Error('Missing artifact query data');
             }
 
-            return executeAiChartDownloadQuery({
+            return executeAiChartDownloadQuery(lightdashApi, {
                 projectUuid,
                 metricQuery,
                 parameters,
@@ -82,12 +88,14 @@ export const AiChartDownloadModal: FC<Props> = ({
         },
         [
             chartConfig,
+            executedQueryUuid,
             itemsMap,
             mergeQuery,
             metricQuery,
             parameters,
             pivotDimensions,
             projectUuid,
+            lightdashApi,
         ],
     );
 
@@ -100,7 +108,8 @@ export const AiChartDownloadModal: FC<Props> = ({
             getDownloadQueryUuid={getDownloadQueryUuid}
             columnOrder={columnOrder}
             chartName={chartName ?? undefined}
-            pivotConfig={downloadPivotConfig}
+            pivotConfig={executedQueryUuid ? undefined : downloadPivotConfig}
+            hideLimitSelection={!!executedQueryUuid}
             customLabels={
                 tableConfig
                     ? getCustomLabelsFromColumnProperties(

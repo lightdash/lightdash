@@ -1,7 +1,8 @@
 import Lightdash from '@lightdash/sdk';
 import { useEffect, useState } from 'react';
 import { ExampleLayout } from '../components/ExampleLayout';
-import type { EmbedConfigState } from '../hooks/useEmbedConfig';
+import { ExampleSelect } from '../components/ExampleSelect';
+import { parseEmbedUrl, type EmbedConfigState } from '../hooks/useEmbedConfig';
 import { getRepoSourceUrl } from '../lib/repo';
 import { emptyStateBoxStyle, emptyStateStyle } from '../styles';
 import {
@@ -18,16 +19,42 @@ const sourceUrl = getRepoSourceUrl(
     'packages/sdk-test-app/src/examples/DashboardBuilderExamplePage.tsx',
 );
 
+const sourceSpacesEmbedUrl =
+    import.meta.env.VITE_DASHBOARD_BUILDER_SOURCE_SPACES_EMBED_URL ?? '';
+
+type ChartSources = 'write-space' | 'source-spaces';
+
+const CHART_SOURCE_OPTIONS = [
+    { label: 'Write space only', value: 'write-space' },
+    {
+        label: 'Write space and writeActions.sourceSpaceUuids',
+        value: 'source-spaces',
+    },
+];
+
 export function DashboardBuilderExamplePage({
     embedConfig,
 }: DashboardBuilderExamplePageProps) {
     const [isEditMode, setIsEditMode] = useState(false);
     const [isDashboardReady, setIsDashboardReady] = useState(false);
+    const [chartSources, setChartSources] =
+        useState<ChartSources>('write-space');
+    const sourceSpacesEmbedConfig = parseEmbedUrl(sourceSpacesEmbedUrl);
+    const isSourceSpaces = chartSources === 'source-spaces';
+    const instanceUrl = isSourceSpaces
+        ? sourceSpacesEmbedConfig.instanceUrl
+        : embedConfig.instanceUrl;
+    const token = isSourceSpaces
+        ? sourceSpacesEmbedConfig.token
+        : embedConfig.token;
+    const remountKey = isSourceSpaces
+        ? sourceSpacesEmbedUrl
+        : embedConfig.remountKey;
 
     useEffect(() => {
         setIsEditMode(false);
         setIsDashboardReady(false);
-    }, [embedConfig.remountKey]);
+    }, [remountKey]);
 
     return (
         <ExampleLayout
@@ -38,12 +65,13 @@ export function DashboardBuilderExamplePage({
                 <>
                     This example creates a new embedded dashboard in the
                     configured <code>writeActions.spaceUuid</code>, then lets
-                    the embedded user add saved charts from that same space and
+                    the embedded user add saved charts from that space, or from
+                    the extra <code>writeActions.sourceSpaceUuids</code>, and
                     save layout changes.
                 </>
             }
         >
-            {embedConfig.instanceUrl && embedConfig.token ? (
+            {instanceUrl && token ? (
                 <section>
                     <h3 style={sectionTitleStyle}>New dashboard</h3>
                     <p style={sectionDescStyle}>
@@ -51,6 +79,26 @@ export function DashboardBuilderExamplePage({
                         mode, add a saved chart, move or resize tiles, then
                         save.
                     </p>
+                    <div style={{ maxWidth: '360px', marginBottom: '20px' }}>
+                        <ExampleSelect
+                            label="Chart sources"
+                            value={chartSources}
+                            disabled={!sourceSpacesEmbedUrl}
+                            onChange={(value) =>
+                                setChartSources(
+                                    value === 'source-spaces'
+                                        ? 'source-spaces'
+                                        : 'write-space',
+                                )
+                            }
+                            options={CHART_SOURCE_OPTIONS}
+                            helperText={
+                                sourceSpacesEmbedUrl
+                                    ? 'Source space charts can be added to the dashboard but stay read-only.'
+                                    : 'Run generate-embed-token to set VITE_DASHBOARD_BUILDER_SOURCE_SPACES_EMBED_URL.'
+                            }
+                        />
+                    </div>
                     {isDashboardReady && !isEditMode && (
                         <button
                             type="button"
@@ -69,9 +117,9 @@ export function DashboardBuilderExamplePage({
                     )}
                     <div style={dashboardContainerStyle}>
                         <Lightdash.DashboardBuilder
-                            key={embedConfig.remountKey}
-                            instanceUrl={embedConfig.instanceUrl}
-                            token={embedConfig.token}
+                            key={remountKey}
+                            instanceUrl={instanceUrl}
+                            token={token}
                             isEditMode={isEditMode}
                             onEditModeChange={setIsEditMode}
                             onDashboardReady={() => setIsDashboardReady(true)}

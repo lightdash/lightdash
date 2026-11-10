@@ -32,7 +32,9 @@ values also combine. Generated date interval groups remain table-qualified.
 The base model's `order_fields_by` controls the combined view. Index ordering
 places base fields first, followed by each join's fields in their declared order.
 Duplicate field labels show source-table labels; aliased tables with the same
-label also show their alias. Field hover details always expose the source table.
+label also show their alias. Field hover details always expose the source table. The Selected list stays
+combined and retains source details, including aliases for duplicate table labels.
+Search matches displayed group names and source aliases as well as field labels.
 
 This changes presentation only. Original field IDs, SQL, metric ownership, join
 field restrictions, and visibility rules remain unchanged. No database migration

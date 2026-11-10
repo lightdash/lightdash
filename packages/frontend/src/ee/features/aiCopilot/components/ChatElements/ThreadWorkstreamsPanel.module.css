@@ -1,11 +1,11 @@
 /* Match the composer's centered column (AgentChatInput .minimalContainer:
-   max-width 62rem, centered, horizontal spacing-sm) so the panel lines up with
+   max-width 48rem, centered, horizontal spacing-md) so the panel lines up with
    the input box instead of spanning edge-to-edge against the sidebar/window. */
 .container {
     width: 100%;
-    max-width: 62rem;
+    max-width: 48rem;
     margin: 0 auto;
-    padding: 0 var(--mantine-spacing-sm);
+    padding: 0 var(--mantine-spacing-md);
 }
 
 .row {

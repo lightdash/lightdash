@@ -13,6 +13,10 @@ import { WarehouseClient, WarehouseTableSchema } from '@lightdash/warehouses';
 import execa from 'execa';
 import inquirer from 'inquirer';
 import * as path from 'path';
+import {
+    getAgentConnectionChildEnvironment,
+    getAgentConnectionSelection,
+} from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { searchForModel } from './schema';
@@ -417,20 +421,54 @@ export const getCompiledModels = async (
     if (args.select || args.exclude) {
         const spinner = GlobalState.startSpinner(`Filtering models`);
         try {
-            const { stdout } = await execa('dbt', [
-                'ls',
-                ...(args.projectDir ? ['--project-dir', args.projectDir] : []),
-                ...(args.profilesDir
-                    ? ['--profiles-dir', args.profilesDir]
-                    : []),
-                ...(args.target ? ['--target', args.target] : []),
-                ...(args.profile ? ['--profile', args.profile] : []),
-                ...(args.select ? ['--select', args.select.join(' ')] : []),
-                ...(args.exclude ? ['--exclude', args.exclude.join(' ')] : []),
-                ...(args.vars ? ['--vars', args.vars] : []),
-                '--resource-type=model',
-                '--output=json',
-            ]);
+            const { stdout } = await (getAgentConnectionSelection() !== null
+                ? execa(
+                      'dbt',
+                      [
+                          'ls',
+                          ...(args.projectDir
+                              ? ['--project-dir', args.projectDir]
+                              : []),
+                          ...(args.profilesDir
+                              ? ['--profiles-dir', args.profilesDir]
+                              : []),
+                          ...(args.target ? ['--target', args.target] : []),
+                          ...(args.profile ? ['--profile', args.profile] : []),
+                          ...(args.select
+                              ? ['--select', args.select.join(' ')]
+                              : []),
+                          ...(args.exclude
+                              ? ['--exclude', args.exclude.join(' ')]
+                              : []),
+                          ...(args.vars ? ['--vars', args.vars] : []),
+                          '--resource-type=model',
+                          '--output=json',
+                      ],
+                      {
+                          extendEnv: false,
+                          env: await getAgentConnectionChildEnvironment(),
+                      },
+                  )
+                : execa('dbt', [
+                      'ls',
+                      ...(args.projectDir
+                          ? ['--project-dir', args.projectDir]
+                          : []),
+                      ...(args.profilesDir
+                          ? ['--profiles-dir', args.profilesDir]
+                          : []),
+                      ...(args.target ? ['--target', args.target] : []),
+                      ...(args.profile ? ['--profile', args.profile] : []),
+                      ...(args.select
+                          ? ['--select', args.select.join(' ')]
+                          : []),
+                      ...(args.exclude
+                          ? ['--exclude', args.exclude.join(' ')]
+                          : []),
+                      ...(args.vars ? ['--vars', args.vars] : []),
+                      '--resource-type=model',
+                      '--output=json',
+                  ]));
             const filteredModelIds = stdout
                 .split('\n')
                 .map((l) => l.trim())

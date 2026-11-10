@@ -1,49 +1,79 @@
-import { type ComposerVizKind, type ComposerVizPlan } from '@lightdash/common';
+import {
+    ChartKind,
+    type AllVizChartConfig,
+    type ApiError,
+} from '@lightdash/common';
 import { type FC, type ReactNode } from 'react';
+import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
-import { AiComposerResultsExpired } from './AiComposerResultsExpired';
-import { AiVizSwitchedResult } from './AiVizSwitchedResult';
+import { useUiStrings } from '../../../../providers/Embed/useUiStrings';
+import { AiAccessCallout } from './AiAccessCallout';
+import { AiComposerChartVisualization } from './AiComposerChartVisualization';
+import { AiComposerResultError } from './AiComposerResultError';
+import { AiComposerResultTable } from './AiComposerResultTable';
 
-const LOADING_MESSAGE = 'Loading composer query results...';
-
-type ContentProps = {
+type Props = {
     projectUuid: string;
     results: InfiniteQueryResults;
-    /** The displayed node's stored result; null when the artifact has none. */
+    /** The displayed node's result in the run; null until the run has one. */
     queryUuid: string | null;
-    plan: ComposerVizPlan;
-    kind: ComposerVizKind;
-    onKindChange: (kind: ComposerVizKind) => void;
+    /** The run itself failed to start, so no node has a result. */
+    runError: ApiError | null;
+    onRerun: () => void;
+    vizConfig: AllVizChartConfig;
     headerContent: ReactNode;
-    flush?: boolean;
 };
 
-// A displayed node result with its viz switcher.
-export const AiComposerArtifactVisualization: FC<ContentProps> = ({
+// A displayed node result drawn as its viz config says: the table or a chart.
+export const AiComposerArtifactVisualization: FC<Props> = ({
     projectUuid,
     results,
     queryUuid,
-    plan,
-    kind,
-    onKindChange,
+    runError,
+    onRerun,
+    vizConfig,
     headerContent,
-    flush = false,
 }) => {
-    if (results.error) {
-        return <AiComposerResultsExpired headerContent={headerContent} />;
+    const uiStrings = useUiStrings();
+    const error = runError ?? results.error;
+    const refusal = getAiAccessRefusal(error?.error);
+    if (refusal) {
+        return (
+            <AiAccessCallout
+                projectUuid={projectUuid}
+                refusal={refusal}
+                onRerun={onRerun}
+                variant="inline"
+            />
+        );
     }
 
+    if (error) {
+        return (
+            <AiComposerResultError
+                headerContent={headerContent}
+                message={error.error?.message ?? null}
+            />
+        );
+    }
+    const loadingMessage = uiStrings('aiAgent.composer.loadingResult');
+    if (vizConfig.type === ChartKind.TABLE) {
+        return (
+            <AiComposerResultTable
+                projectUuid={projectUuid}
+                results={results}
+                headerContent={headerContent}
+                loadingMessage={loadingMessage}
+            />
+        );
+    }
     return (
-        <AiVizSwitchedResult
+        <AiComposerChartVisualization
             projectUuid={projectUuid}
             results={results}
-            seriesSplitQueryUuid={queryUuid}
-            plan={plan}
-            kind={kind}
-            onKindChange={onKindChange}
+            pivotQueryUuid={queryUuid}
+            vizConfig={vizConfig}
             headerContent={headerContent}
-            loadingMessage={LOADING_MESSAGE}
-            flush={flush}
         />
     );
 };

@@ -20,7 +20,7 @@ import {
 import { useForm } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconChartAreaLine } from '@tabler/icons-react';
-import uniqBy from 'lodash/uniqBy';
+import { uniqBy } from 'es-toolkit/compat';
 import React, {
     useEffect,
     useLayoutEffect,
@@ -30,12 +30,17 @@ import React, {
     type FC,
 } from 'react';
 import { v4 as uuid4 } from 'uuid';
+import {
+    selectDashboardTiles,
+    useDashboardSelector,
+} from '../../../features/dashboard/store';
 import { useChartSummariesV2 } from '../../../hooks/useChartSummariesV2';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import MantineModal from '../../common/MantineModal';
 import { MultiSelectCombobox } from '../../common/MultiSelectCombobox/MultiSelectCombobox';
 import { ChartIcon } from '../../common/ResourceIcon';
+import classes from './AddChartTilesModal.module.css';
 
 type Props = {
     onAddTiles: (
@@ -44,7 +49,7 @@ type Props = {
         tileUuidMapping?: Record<string, string>,
     ) => void;
     onClose: () => void;
-    spaceUuid?: string;
+    spaceUuids?: string[];
 };
 
 type ItemProps = {
@@ -76,7 +81,7 @@ const SelectItem: FC<ItemProps> = ({
     </Stack>
 );
 
-const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuid }) => {
+const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuids }) => {
     const projectUuid = useProjectUuid();
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
@@ -89,7 +94,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuid }) => {
     } = useChartSummariesV2(
         {
             projectUuid,
-            spaceUuid,
+            spaceUuids,
             page: 1,
             pageSize: 25,
             search: debouncedSearchQuery,
@@ -109,7 +114,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuid }) => {
     }, [chartPages?.pages]);
 
     const dashboard = useDashboardContext((c) => c.dashboard);
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
+    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
 
     const form = useForm<{ savedChartsUuids: string[] }>({
         initialValues: {
@@ -258,7 +263,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuid }) => {
             <form
                 id="add-saved-charts-to-dashboard"
                 onSubmit={handleSubmit}
-                style={{ minHeight: 360 }}
+                className={classes.form}
             >
                 <MultiSelectCombobox
                     radius="md"
@@ -292,20 +297,9 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose, spaceUuid }) => {
                     comboboxProps={{
                         withinPortal: true,
                         zIndex: getDefaultZIndex('modal'),
-                        styles: {
-                            groupLabel: {
-                                position: 'sticky',
-                                top: 0,
-                                zIndex: getDefaultZIndex('modal'),
-                                color: 'var(--mantine-color-ldGray-6)',
-                                fontWeight: 500,
-                                backgroundColor:
-                                    'light-dark(var(--mantine-color-white), var(--mantine-color-dark-6))',
-                            },
-                            option: {
-                                paddingTop: 4,
-                                paddingBottom: 4,
-                            },
+                        classNames: {
+                            groupLabel: classes.comboboxGroupLabel,
+                            option: classes.comboboxOption,
                         },
                     }}
                     scrollAreaProps={{ viewportRef: selectScrollRef }}

@@ -1,6 +1,7 @@
 import {
     AdditionalMetric,
     assertUnreachable,
+    CompiledDimension,
     CompiledMetric,
     CompiledMetricQuery,
     CompiledTableCalculation,
@@ -11,9 +12,14 @@ import {
     detectCircularDependencies,
     Explore,
     ExploreCompiler,
+    FieldType,
+    getDimensionMapFromTables,
+    getFilterRules,
     getItemId,
+    getItemMap,
     getReservedParameterNames,
     isCustomBinDimension,
+    isCustomSqlDimension,
     isFormulaTableCalculation,
     isPeriodOverPeriodAdditionalMetric,
     isPostCalculationMetricType,
@@ -34,6 +40,8 @@ import {
 } from '@lightdash/formula';
 import { mapAdapterToFormulaDialect } from './formulaDialectMapper';
 import { compileTableCalculationFromTemplate } from './tableCalculationTemplateQueryCompiler';
+import { resolveAdditionalMetricsSql } from './utils/embedCompiledSql';
+import { getDimensionFromId } from './utils/QueryBuilder/utils';
 
 const formatFormulaError = (displayName: string, error: unknown): string => {
     const message = error instanceof Error ? error.message : String(error);
@@ -502,16 +510,6 @@ export const compileMetricQuery = ({
         ...popMetricIds,
     ];
 
-    const compiledAdditionalMetrics = (metricQuery.additionalMetrics || []).map(
-        (additionalMetric) =>
-            compileAdditionalMetric({
-                additionalMetric,
-                explore,
-                warehouseSqlBuilder,
-                availableParameters: availableParametersWithReserved,
-            }),
-    );
-
     const compiler = new ExploreCompiler(warehouseSqlBuilder);
     const compiledCustomDimensions = (metricQuery.customDimensions || []).map(
         (customDimension) =>
@@ -521,6 +519,42 @@ export const compileMetricQuery = ({
                 availableParametersWithReserved,
             ),
     );
+    const metricTables = { ...explore.tables };
+    compiledCustomDimensions.forEach((dimension) => {
+        if (!isCustomSqlDimension(dimension)) return;
+        const table = metricTables[dimension.table];
+        // Model fields retain precedence, including in existing copied SQL.
+        if (!table || table.dimensions[dimension.id]) return;
+        const metricDimension: CompiledDimension = {
+            ...dimension,
+            name: dimension.id,
+            label: dimension.name,
+            type: dimension.dimensionType,
+            fieldType: FieldType.DIMENSION,
+            tableLabel: table.label,
+            hidden: false,
+        };
+        metricTables[dimension.table] = {
+            ...table,
+            dimensions: {
+                ...table.dimensions,
+                [dimension.id]: metricDimension,
+            },
+        };
+    });
+
+    const compiledAdditionalMetrics = resolveAdditionalMetricsSql(
+        metricQuery.additionalMetrics || [],
+        explore.tables,
+    ).map((additionalMetric) =>
+        compileAdditionalMetric({
+            additionalMetric,
+            explore: { ...explore, tables: metricTables },
+            warehouseSqlBuilder,
+            availableParameters: availableParametersWithReserved,
+        }),
+    );
+
     const customBinDimensionIds = new Set(
         (metricQuery.customDimensions || [])
             .filter(isCustomBinDimension)
@@ -542,4 +576,49 @@ export const compileMetricQuery = ({
         compiledAdditionalMetrics,
         compiledCustomDimensions,
     };
+};
+
+export const validateMetricQueryFields = (
+    args: CompileMetricQueryArgs & { explore: Explore },
+): void => {
+    const query = compileMetricQuery(args);
+    const fields = getItemMap(
+        args.explore,
+        query.compiledAdditionalMetrics,
+        query.compiledTableCalculations,
+        query.compiledCustomDimensions,
+    );
+    const ids = [
+        ...query.dimensions,
+        ...query.metrics,
+        ...query.sorts.map(({ fieldId }) => fieldId),
+        ...getFilterRules(query.filters).map(({ target }) => target.fieldId),
+        ...query.compiledCustomDimensions
+            .filter(isCustomBinDimension)
+            .map(({ dimensionId }) => dimensionId),
+        ...query.compiledCustomDimensions.map(getItemId),
+        ...query.compiledAdditionalMetrics.map(getItemId),
+        ...query.compiledTableCalculations.map(getItemId),
+    ];
+    const dimensions = getDimensionMapFromTables(args.explore.tables);
+    ids.forEach((id) => {
+        try {
+            const field =
+                fields[id] ??
+                getDimensionFromId({
+                    dimId: id,
+                    dimensions,
+                    adapterType: args.warehouseSqlBuilder.getAdapterType(),
+                    startOfWeek: args.warehouseSqlBuilder.getStartOfWeek(),
+                });
+            if ('compilationError' in field && field.compilationError)
+                throw new CompileError(
+                    'The query references a field that is no longer accessible',
+                );
+        } catch {
+            throw new CompileError(
+                'The query references a field that is no longer accessible',
+            );
+        }
+    });
 };

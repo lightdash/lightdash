@@ -17,6 +17,8 @@ import LightdashVisualization from '../../components/LightdashVisualization';
 import VisualizationProvider from '../../components/LightdashVisualization/VisualizationProvider';
 import MetricQueryDataProvider from '../../components/MetricQueryData/MetricQueryDataProvider';
 import { useProjectColorPalette } from '../../hooks/appearance/useProjectColorPalette';
+import { computeChartSeries } from '../../hooks/cartesianChartConfig/computeChartSeries';
+import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { useInfiniteQueryResults } from '../../hooks/useQueryResults';
 import { useResizeObserver } from '../../hooks/useResizeObserver';
 import { DocumentRenderTargetContext } from '../chartTypes/documentRenderTarget/context';
@@ -25,7 +27,7 @@ import ReportChartFrame from './presentation/ReportChartFrame';
 
 type Props = {
     projectUuid: string;
-    spaceUuid: string;
+    spaceUuid: string | null;
     chart: SemanticChartAsCode;
     query: Pick<
         UseQueryResult<ApiExecuteAsyncMetricQueryResults, ApiError>,
@@ -50,11 +52,33 @@ const DocumentChartVisualization = ({
         () => getDocumentRuntimeChartConfig(chart.chartConfig),
         [chart.chartConfig],
     );
-    const palette = useProjectColorPalette(projectUuid, { spaceUuid });
+    const palette = useProjectColorPalette(projectUuid, {
+        spaceUuid: spaceUuid ?? undefined,
+    });
     const results = useInfiniteQueryResults(
         projectUuid,
         query.data?.queryUuid,
         chart.name,
+    );
+    const { validPivotDimensions } = usePivotDimensions(
+        chart.pivotConfig?.columns,
+        query.data?.metricQuery,
+    );
+    const computedSeries = useMemo(
+        () =>
+            computeChartSeries(
+                { chartConfig, metricQuery: chart.metricQuery },
+                validPivotDimensions,
+                results,
+                query.data?.fields ?? {},
+            ),
+        [
+            chartConfig,
+            chart.metricQuery,
+            validPivotDimensions,
+            results,
+            query.data?.fields,
+        ],
     );
     const [measureRef, { width, height }] = useResizeObserver<HTMLDivElement>();
     const error = query.error ?? results.error;
@@ -124,7 +148,14 @@ const DocumentChartVisualization = ({
             }
         >
             {isLoading ? (
-                <EmptyStateLoader title="Loading live chart data" />
+                // The busy surface a walkthrough's closing step waits on; the
+                // loader's words are the status the step shows meanwhile
+                <Box data-tour-anchor="document-chart-loading">
+                    <EmptyStateLoader
+                        title="Loading live chart data"
+                        data-tour-status="true"
+                    />
+                </Box>
             ) : (
                 <MetricQueryDataProvider
                     tableName={chart.tableName}
@@ -136,9 +167,13 @@ const DocumentChartVisualization = ({
                 >
                     <VisualizationProvider
                         minimal
+                        // Documents render outside the Explorer, so there is
+                        // no explorer store for pivot tables to read
+                        hasExplorerStore={false}
                         chartConfig={chartConfig}
                         initialPivotDimensions={chart.pivotConfig?.columns}
                         initialPivotRows={chart.pivotConfig?.rows}
+                        computedSeries={computedSeries}
                         resultsData={{
                             ...results,
                             metricQuery: query.data?.metricQuery,
@@ -158,7 +193,22 @@ const DocumentChartVisualization = ({
                         <DocumentRenderTargetContext.Provider
                             value={renderTarget}
                         >
-                            <Box h="100%" ref={measureRef}>
+                            <Box
+                                h="100%"
+                                ref={measureRef}
+                                // Walkthrough: read a document. The jump
+                                // from the rail lands on a section's first
+                                // chart, so the walkthrough ends here. See
+                                // scripts/scope-tours.
+                                data-tour-scope="view:Document"
+                                data-tour-step="1"
+                                data-tour-route="/projects/:projectUuid/documents/:documentUuidOrSlug"
+                                data-tour-label="Charts show live results"
+                                data-tour-docs="explore/documents.mdx#intro:1"
+                                data-tour-return="none"
+                                data-tour-busy='[data-tour-anchor="document-chart-loading"]'
+                                data-tour-resultdocs="explore/documents.mdx#intro:3"
+                            >
                                 <LightdashVisualization
                                     enableContextMenu={false}
                                     {...screenshotCallbacks}

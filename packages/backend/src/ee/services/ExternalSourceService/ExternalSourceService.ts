@@ -14,6 +14,7 @@ import {
     OpenIdIdentityIssuerType,
     ParameterError,
     parseGoogleSheetsSpreadsheetId,
+    parseGoogleSheetsTabId,
     snakeCaseName,
     SupportedDbtAdapter,
     TimeoutError,
@@ -48,6 +49,7 @@ import Logger from '../../../logging/logger';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { type UserOAuthGrantsModel } from '../../../models/UserOAuthGrantsModel';
+import { EXTERNAL_SOURCES_OBJECT_PREFIX } from '../../../services/AsyncQueryService/ComposeEngineClient';
 import { BaseService } from '../../../services/BaseService';
 import {
     getPreAggregateDuckdbLocator,
@@ -72,6 +74,37 @@ export const shouldPublishExternalSourceExplore = (
 const externalSourceScope = (
     scope: ExternalSourceScope | null,
 ): ExternalSourceScope => scope ?? ExternalSourceScope.CATALOG;
+
+// The Sheets API drops trailing empty cells, and ragged rows defeat DuckDB's
+// delimiter sniffing, so every row is sized to the header.
+export const toSheetCsvRow = (row: unknown[], width: number): unknown[] =>
+    row.length >= width
+        ? row.slice(0, width)
+        : [...row, ...Array<string>(width - row.length).fill('')];
+
+// A label equal to the generated one is dropped so renames stay reversible.
+export const applyColumnLabels = (
+    columns: ResultColumns,
+    columnLabels: Record<string, string>,
+): ResultColumns => {
+    const unknown = Object.keys(columnLabels).find((ref) => !columns[ref]);
+    if (unknown) {
+        throw new ParameterError(`The table has no column "${unknown}"`);
+    }
+    return Object.fromEntries(
+        Object.values(columns).map((column) => {
+            const typed = columnLabels[column.reference]?.trim();
+            if (typed === undefined) return [column.reference, column];
+            const { label: _previous, ...rest } = column;
+            return [
+                column.reference,
+                typed && typed !== friendlyName(column.reference)
+                    ? { ...rest, label: typed }
+                    : rest,
+            ];
+        }),
+    );
+};
 
 export const getAttachmentTableName = (sourceUuid: UUID): string =>
     `attachment_${sourceUuid.replaceAll('-', '_')}`;
@@ -156,7 +189,7 @@ export class ExternalSourceService extends BaseService {
         executionUuid?: UUID,
     ): string {
         const executionSuffix = executionUuid ? `-${executionUuid}` : '';
-        return `external-sources/${projectUuid}/${sourceUuid}/raw/v${version}${executionSuffix}.csv`;
+        return `${EXTERNAL_SOURCES_OBJECT_PREFIX}${projectUuid}/${sourceUuid}/raw/v${version}${executionSuffix}.csv`;
     }
 
     private static parquetKey(
@@ -166,7 +199,7 @@ export class ExternalSourceService extends BaseService {
         version: number,
         executionUuid: UUID,
     ): string {
-        return `external-sources/${projectUuid}/${sourceUuid}/${tableUuid}/v${version}-${executionUuid}.parquet`;
+        return `${EXTERNAL_SOURCES_OBJECT_PREFIX}${projectUuid}/${sourceUuid}/${tableUuid}/v${version}-${executionUuid}.parquet`;
     }
 
     private getBucket(): string {
@@ -336,17 +369,11 @@ export class ExternalSourceService extends BaseService {
         userUuid: UUID;
         organizationUuid: UUID;
     }): Promise<void> {
-        const [multiSourceQuery, composeSqlRunner] = await Promise.all([
-            this.featureFlagModel.get({
-                user,
-                featureFlagId: FeatureFlags.MultiSourceQuery,
-            }),
-            this.featureFlagModel.get({
-                user,
-                featureFlagId: FeatureFlags.ComposeSqlRunner,
-            }),
-        ]);
-        if (!multiSourceQuery.enabled || !composeSqlRunner.enabled) {
+        const composeSqlRunner = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.ComposeSqlRunner,
+        });
+        if (!composeSqlRunner.enabled) {
             throw new ForbiddenError('AI data attachments are not enabled');
         }
     }
@@ -612,8 +639,15 @@ export class ExternalSourceService extends BaseService {
             refreshToken,
             spreadsheetId,
         );
-        const tabName = payload.tabName?.trim() || tabs[0];
-        if (!tabName || (payload.tabName && !tabs.includes(tabName))) {
+        const urlTabId = parseGoogleSheetsTabId(payload.url);
+        const tabName =
+            payload.tabName?.trim() ||
+            tabs.find((tab) => tab.sheetId === urlTabId)?.title ||
+            tabs[0]?.title;
+        if (
+            !tabName ||
+            (payload.tabName && !tabs.some((tab) => tab.title === tabName))
+        ) {
             throw new ParameterError(
                 'The sheet has no readable tab with that name',
             );
@@ -928,15 +962,20 @@ export class ExternalSourceService extends BaseService {
         if (!table) {
             throw new NotFoundError('External source has no table');
         }
+        const columns =
+            payload.columnLabels && table.columns
+                ? applyColumnLabels(table.columns, payload.columnLabels)
+                : table.columns;
         await this.externalSourceModel.updateTableLabel(
             table.external_source_table_uuid,
             label,
+            columns,
         );
-        if (shouldPublishExternalSourceExplore(source.scope) && table.columns) {
+        if (shouldPublishExternalSourceExplore(source.scope) && columns) {
             const explore = createExternalSourceExplore({
                 name: table.name,
                 label,
-                columns: table.columns,
+                columns,
                 externalSource: {
                     sourceUuid,
                     tableUuid: table.external_source_table_uuid,
@@ -1157,10 +1196,14 @@ export class ExternalSourceService extends BaseService {
         tabName: string;
     }): { stream: Readable; completed: Promise<number> } {
         const output = new PassThrough();
-        const csv = stringify();
+        // Default boolean cast writes false as an empty cell, which reads as NULL.
+        const csv = stringify({
+            cast: { boolean: (value) => (value ? 'true' : 'false') },
+        });
         csv.pipe(output);
         const completed = (async () => {
             let rows = 0;
+            let width = 0;
             try {
                 // eslint-disable-next-line no-restricted-syntax
                 for await (const batch of this.googleDriveClient.getSheetRowBatches(
@@ -1171,7 +1214,10 @@ export class ExternalSourceService extends BaseService {
                 )) {
                     // eslint-disable-next-line no-restricted-syntax
                     for (const row of batch) {
+                        // eslint-disable-next-line no-continue
+                        if (row.length === 0) continue;
                         rows += 1;
+                        if (rows === 1) width = row.length;
                         if (
                             rows - 1 >
                             this.lightdashConfig.externalSources.maxRows
@@ -1182,8 +1228,9 @@ export class ExternalSourceService extends BaseService {
                         }
                         // csv-stringify is one ordered stream; parallel writes
                         // would corrupt row ordering.
+                        const written = csv.write(toSheetCsvRow(row, width));
                         // eslint-disable-next-line no-await-in-loop
-                        if (!csv.write(row)) await once(csv, 'drain');
+                        if (!written) await once(csv, 'drain');
                     }
                 }
                 if (rows < 2) {
@@ -1343,7 +1390,10 @@ export class ExternalSourceService extends BaseService {
                             refreshToken,
                             source.connection.spreadsheetId,
                         )
-                    )[0];
+                    )[0]?.title;
+                if (!tabName) {
+                    throw new ParameterError('The sheet has no readable tab');
+                }
                 const sheetCsv = this.createSheetCsvStream({
                     refreshToken,
                     spreadsheetId: source.connection.spreadsheetId,
@@ -1395,9 +1445,11 @@ export class ExternalSourceService extends BaseService {
             );
             const columns = describeRows.reduce<ResultColumns>((acc, row) => {
                 const reference = String(row.column_name);
+                const label = table.columns?.[reference]?.label;
                 acc[reference] = {
                     reference,
                     type: duckdbTypeToDimensionType(String(row.column_type)),
+                    ...(label && { label }),
                 };
                 return acc;
             }, {});

@@ -25,6 +25,7 @@ const queryCompletedEvent: QueryCompletedEvent = {
     event: 'query.completed',
     userId: 'user-1',
     properties: {
+        inheritedFromProjectUuid: null,
         queryId: 'query-1',
         organizationId: 'org-1',
         projectId: 'project-1',
@@ -101,6 +102,7 @@ describe('EventStreamSink', () => {
         expect(writer.push).toHaveBeenCalledTimes(1);
         const [stream, row] = writer.push.mock.calls[0];
         expect(stream).toBe('query_events');
+        expect(row.error).toBeNull();
         expect(row).toMatchObject({
             event_name: 'query.completed',
             org_id: 'org-1',
@@ -140,6 +142,7 @@ describe('EventStreamSink', () => {
             properties: {
                 ...queryCompletedEvent.properties,
                 status: 'error',
+                errorMessage: 'syntax error near SELECT',
                 warehouseType: null,
                 connectionWarehouseType: WarehouseTypes.POSTGRES,
                 warehouseConnectionId: null,
@@ -158,6 +161,7 @@ describe('EventStreamSink', () => {
         expect(row).toMatchObject({
             event_name: 'query.completed',
             status: 'error',
+            error: 'syntax error near SELECT',
             warehouse_type: null,
             connection_warehouse_type: WarehouseTypes.POSTGRES,
             warehouse_connection_id: null,
@@ -168,6 +172,21 @@ describe('EventStreamSink', () => {
             total_row_count: null,
             columns_count: null,
         });
+    });
+
+    it('limits captured error text without changing the original event', () => {
+        const writer = createWriterMock();
+        const sink = new EventStreamSink(eventStreamRegistry, writer);
+        const properties = {
+            ...queryCompletedEvent.properties,
+            status: 'error' as const,
+            errorMessage: 'x'.repeat(1500),
+        };
+        sink.handle({ ...queryCompletedEvent, properties });
+        expect(writer.push.mock.calls[0][1].error).toBe(
+            `${'x'.repeat(987)}… [truncated]`,
+        );
+        expect(properties.errorMessage).toHaveLength(1500);
     });
 
     it('drops events from preview projects', () => {

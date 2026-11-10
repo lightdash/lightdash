@@ -8,8 +8,8 @@ export const SqlQueryBeforeSaveAlert: FC<{ withDescription?: boolean }> = ({
 }) => {
     return (
         <Alert
-            icon={<MantineIcon icon={IconAlertCircle} color="yellow" />}
-            color="yellow"
+            icon={<MantineIcon icon={IconAlertCircle} />}
+            color="orange"
             title="You haven't run your query yet"
         >
             {withDescription && (

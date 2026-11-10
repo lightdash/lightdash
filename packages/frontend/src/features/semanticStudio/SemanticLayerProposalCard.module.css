@@ -1,0 +1,70 @@
+.card {
+    overflow: hidden;
+}
+
+.card[data-settled='true'] .section {
+    opacity: 0.65;
+}
+
+.section {
+    position: relative;
+}
+
+.section + .section {
+    border-top: 1px solid var(--mantine-color-default-border);
+}
+
+.header {
+    padding: 6px var(--mantine-spacing-xs);
+}
+
+.issueDetail {
+    overflow-wrap: anywhere;
+}
+
+.actions {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+}
+
+.code {
+    position: relative;
+    border-top: 1px solid var(--mantine-color-default-border);
+    background: var(--ld-color-page);
+}
+
+.code > .reveal {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 1;
+}
+
+.reveal {
+    border-radius: var(--mantine-radius-sm);
+    background: var(--mantine-color-body);
+}
+
+.codeBody[data-open='false'] {
+    max-height: 76px;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.codeBody[data-open='false'] > * {
+    pointer-events: none;
+}
+
+@media (hover: hover) {
+    .reveal {
+        opacity: 0;
+        transition: opacity 160ms ease;
+    }
+
+    .section:hover .reveal,
+    .reveal:focus-within,
+    .reveal:focus-visible {
+        opacity: 1;
+    }
+}

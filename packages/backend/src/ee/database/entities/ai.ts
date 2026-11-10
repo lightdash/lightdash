@@ -1,5 +1,6 @@
 import {
     type AiAgentBattleProfile,
+    type AiAgentLoadoutBase,
     type AiAgentModelConfig,
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
@@ -10,6 +11,8 @@ import {
     type AiPromptThreadFileSnapshot,
     type AiPromptTokenUsage,
     type AiProviderApiKeyHints,
+    type AiProviderBaseUrls,
+    type AiThreadBinding,
     type AiThreadCreatedFrom,
     type AiWritebackRunStatus,
     type AiWritebackSource,
@@ -37,6 +40,9 @@ export type DbAiThread = {
     sql_auto_approved_at: Date | null;
     pinned_at: Date | null;
     battle_profile: AiAgentBattleProfile | null;
+    bound_entity_type: AiThreadBinding['type'] | null;
+    bound_entity_uuid: string | null;
+    thread_context: string | null;
 };
 
 export type AiThreadTable = Knex.CompositeTableType<
@@ -45,7 +51,15 @@ export type AiThreadTable = Knex.CompositeTableType<
         DbAiThread,
         'organization_uuid' | 'project_uuid' | 'created_from' | 'agent_uuid'
     > &
-        Partial<Pick<DbAiThread, 'battle_profile'>>,
+        Partial<
+            Pick<
+                DbAiThread,
+                | 'battle_profile'
+                | 'bound_entity_type'
+                | 'bound_entity_uuid'
+                | 'thread_context'
+            >
+        >,
     Partial<
         Pick<
             DbAiThread,
@@ -106,6 +120,8 @@ type DbWebAppThread = {
     ai_thread_uuid: string;
     user_uuid: string;
     embed_space_uuid: string | null;
+    embed_space_uuids: string[] | null;
+    embed_external_user_id: string | null;
 };
 
 export type AiSlackThreadTable = Knex.CompositeTableType<
@@ -123,7 +139,14 @@ export type AiSlackThreadTable = Knex.CompositeTableType<
 export type AiWebAppThreadTable = Knex.CompositeTableType<
     DbWebAppThread,
     Pick<DbWebAppThread, 'ai_thread_uuid' | 'user_uuid'> &
-        Partial<Pick<DbWebAppThread, 'embed_space_uuid'>>,
+        Partial<
+            Pick<
+                DbWebAppThread,
+                | 'embed_space_uuid'
+                | 'embed_space_uuids'
+                | 'embed_external_user_id'
+            >
+        >,
     never
 >;
 
@@ -215,6 +238,7 @@ export const AiPromptDecisionTableName = 'ai_prompt_decision';
 
 export const AI_PROMPT_TURN_DECISION_OPERATIONS = [
     'chart-intent',
+    'document-edit',
     'model-routing',
 ] as const;
 
@@ -250,24 +274,51 @@ export type DbAiPromptTurnDecision = DbAiPromptDecisionFields & {
     outcome: DbAiPromptTurnDecisionOutcome;
 };
 
-export type DbAiPromptComposerVizDecision = DbAiPromptDecisionFields & {
-    operation: 'composer-viz';
-    outcome: 'planned' | 'unresolved' | 'unavailable';
-};
-
-export type DbAiPromptDecision =
-    | DbAiPromptTurnDecision
-    | DbAiPromptComposerVizDecision;
+export type DbAiPromptDecision = DbAiPromptTurnDecision;
 
 type DbAiPromptDecisionGenerated = 'ai_prompt_decision_uuid' | 'created_at';
 
-export type DbAiPromptDecisionInsert =
-    | Omit<DbAiPromptTurnDecision, DbAiPromptDecisionGenerated>
-    | Omit<DbAiPromptComposerVizDecision, DbAiPromptDecisionGenerated>;
+export type DbAiPromptDecisionInsert = Omit<
+    DbAiPromptTurnDecision,
+    DbAiPromptDecisionGenerated
+>;
 
 export type AiPromptDecisionTable = Knex.CompositeTableType<
     DbAiPromptDecision,
     DbAiPromptDecisionInsert,
+    never
+>;
+
+export const AiPromptDecisionShadowTableName = 'ai_prompt_decision_shadow';
+
+/** A live decision paired with a second provider's answers to the same questions. */
+export type DbAiPromptDecisionShadow = {
+    ai_prompt_decision_shadow_uuid: string;
+    ai_prompt_uuid: string;
+    created_at: Date;
+    operation: string;
+    questions: object;
+    state: unknown;
+    live_provider: string;
+    live_model: string;
+    live_outcome: string;
+    live_answers: object | null;
+    live_latency_ms: number;
+    live_service_ms: number | null;
+    shadow_provider: string;
+    shadow_model: string;
+    shadow_outcome: string;
+    shadow_answers: object | null;
+    shadow_latency_ms: number;
+    shadow_service_ms: number | null;
+};
+
+export type AiPromptDecisionShadowTable = Knex.CompositeTableType<
+    DbAiPromptDecisionShadow,
+    Omit<
+        DbAiPromptDecisionShadow,
+        'ai_prompt_decision_shadow_uuid' | 'created_at'
+    >,
     never
 >;
 
@@ -312,6 +363,7 @@ export type DbAiPrompt = {
     // Hidden turn: the agent receives and responds to the prompt, but the UI
     // doesn't render the user bubble (e.g. the post-merge migration prompt).
     hidden: boolean;
+    loadout_base: AiAgentLoadoutBase | null;
 };
 
 export type AiPromptTable = Knex.CompositeTableType<
@@ -338,6 +390,7 @@ export type AiPromptTable = Knex.CompositeTableType<
             | 'execution_mode'
             | 'needs_user_input'
             | 'needs_user_input_metadata'
+            | 'loadout_base'
         > & {
             responded_at: Knex.Raw;
             retried_at?: Date | Knex.Raw;
@@ -540,7 +593,9 @@ export type AiPromptContextEntityType =
     | 'proposed_change'
     | 'review_finding'
     | 'preview_environment'
+    | 'semantic_model'
     | 'data_app_element'
+    | 'composer_node'
     | 'data_app_restore'
     | 'data_app'
     | 'document'
@@ -563,6 +618,14 @@ export type AiPromptDataAppElementSnapshot = {
     tag: string;
     text: string;
     loc: string;
+};
+
+// Composer node snapshot stored in runtime_overrides; entity_ref holds the
+// natural key and display_name the node title.
+export type AiPromptComposerNodeSnapshot = {
+    artifactUuid: string;
+    versionUuid: string;
+    nodeId: string;
 };
 
 // Restore snapshot stored in runtime_overrides; entity_uuid holds the app uuid.
@@ -595,6 +658,7 @@ export type DbAiPromptContext = {
         | AiPromptExternalSourceSnapshot
         | AiPromptThreadFileSnapshot
         | AiPromptDataAppElementSnapshot
+        | AiPromptComposerNodeSnapshot
         | AiPromptDataAppRestoreSnapshot
         | AiPromptDataAppSnapshot
         | AiPromptSkillSnapshot
@@ -626,18 +690,22 @@ export type DbAiOrganizationSettings = {
     ai_agent_reviews_enabled: boolean;
     deep_research_limits: AiDeepResearchLimits;
     deep_research_raw_sql_enabled: boolean;
+    mcp_enabled: boolean;
+    mcp_project_access_mode: 'all' | 'selected';
     mcp_content_writes_enabled: boolean;
     mcp_agents_enabled: boolean;
     data_app_runtime_ai_enabled: boolean;
     data_app_continue_in_ask_ai_enabled: boolean;
-    data_app_auto_analysis_enabled: boolean;
     data_app_analysis_limits: DataAppAnalysisLimits | null;
+    data_app_analysis_default_instructions: string | null;
     require_explicit_slack_channel_linking: boolean;
     default_ai_agent_model_config: AiAgentModelConfig | null;
     model_visibility: AiOrgModelVisibility | null;
     data_app_model_visibility: DataAppModelVisibility | null;
     encrypted_provider_api_keys: Buffer | null;
     provider_api_key_hints: Partial<AiProviderApiKeyHints> | null;
+    // Gateway base URL per key provider; not secret, so stored beside the blob.
+    provider_base_urls: Partial<AiProviderBaseUrls> | null;
     thread_retention_hours: number | null;
     created_at: Date;
     updated_at: Date;
@@ -645,25 +713,29 @@ export type DbAiOrganizationSettings = {
 
 export type AiOrganizationSettingsTable = Knex.CompositeTableType<
     DbAiOrganizationSettings,
-    Pick<DbAiOrganizationSettings, 'organization_uuid' | 'ai_agents_visible'> &
+    Pick<DbAiOrganizationSettings, 'organization_uuid'> &
         Partial<
             Pick<
                 DbAiOrganizationSettings,
+                | 'ai_agents_visible'
                 | 'ai_agent_reviews_enabled'
                 | 'deep_research_limits'
                 | 'deep_research_raw_sql_enabled'
+                | 'mcp_enabled'
+                | 'mcp_project_access_mode'
                 | 'mcp_content_writes_enabled'
                 | 'mcp_agents_enabled'
                 | 'data_app_runtime_ai_enabled'
                 | 'data_app_continue_in_ask_ai_enabled'
-                | 'data_app_auto_analysis_enabled'
                 | 'data_app_analysis_limits'
+                | 'data_app_analysis_default_instructions'
                 | 'require_explicit_slack_channel_linking'
                 | 'default_ai_agent_model_config'
                 | 'model_visibility'
                 | 'data_app_model_visibility'
                 | 'encrypted_provider_api_keys'
                 | 'provider_api_key_hints'
+                | 'provider_base_urls'
                 | 'thread_retention_hours'
             >
         >,
@@ -674,19 +746,23 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             | 'ai_agent_reviews_enabled'
             | 'deep_research_limits'
             | 'deep_research_raw_sql_enabled'
+            | 'mcp_enabled'
+            | 'mcp_project_access_mode'
             | 'mcp_content_writes_enabled'
             | 'mcp_agents_enabled'
             | 'data_app_runtime_ai_enabled'
             | 'data_app_continue_in_ask_ai_enabled'
-            | 'data_app_auto_analysis_enabled'
             | 'data_app_analysis_limits'
+            | 'data_app_analysis_default_instructions'
             | 'require_explicit_slack_channel_linking'
             | 'default_ai_agent_model_config'
             | 'model_visibility'
             | 'data_app_model_visibility'
             | 'encrypted_provider_api_keys'
             | 'provider_api_key_hints'
+            | 'provider_base_urls'
             | 'thread_retention_hours'
+            | 'updated_at'
         >
     >
 >;
@@ -773,4 +849,16 @@ export type AiSqlApprovalTable = Knex.CompositeTableType<
     Pick<DbAiSqlApproval, 'tool_call_id' | 'decision'> &
         Partial<Pick<DbAiSqlApproval, 'decided_by_user_uuid'>>,
     never
+>;
+
+export const AiOrganizationMcpProjectsTableName =
+    'ai_organization_mcp_projects';
+export type DbAiOrganizationMcpProject = {
+    organization_uuid: string;
+    project_uuid: string;
+    created_at: Date;
+};
+export type AiOrganizationMcpProjectsTable = Knex.CompositeTableType<
+    DbAiOrganizationMcpProject,
+    Omit<DbAiOrganizationMcpProject, 'created_at'>
 >;

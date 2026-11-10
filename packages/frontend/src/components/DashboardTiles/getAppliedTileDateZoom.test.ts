@@ -8,8 +8,7 @@ describe('getAppliedTileDateZoom', () => {
     it('returns undefined when there is no resolved zoom', () => {
         expect(
             getAppliedTileDateZoom({
-                tileUuid: 'tile-1',
-                tilesWithDateZoomApplied: new Set(['tile-1']),
+                isDateZoomApplied: true,
                 dateZoom: undefined,
                 dateDimension,
             }),
@@ -19,8 +18,7 @@ describe('getAppliedTileDateZoom', () => {
     it('keeps the resolved cartesian xAxisFieldId when the tile is applied', () => {
         expect(
             getAppliedTileDateZoom({
-                tileUuid: 'tile-1',
-                tilesWithDateZoomApplied: new Set(['tile-1']),
+                isDateZoomApplied: true,
                 dateZoom: {
                     granularity: DateGranularity.WEEK,
                     xAxisFieldId: 'orders_order_date',
@@ -33,11 +31,10 @@ describe('getAppliedTileDateZoom', () => {
         });
     });
 
-    it('drops xAxisFieldId when the tile is not in the applied set', () => {
+    it('drops xAxisFieldId when the tile is not applied', () => {
         expect(
             getAppliedTileDateZoom({
-                tileUuid: 'tile-1',
-                tilesWithDateZoomApplied: new Set(['other-tile']),
+                isDateZoomApplied: false,
                 dateZoom: {
                     granularity: DateGranularity.WEEK,
                     xAxisFieldId: 'orders_order_date',
@@ -53,8 +50,7 @@ describe('getAppliedTileDateZoom', () => {
     it('falls back to the backend date dimension when the resolved zoom has no xAxisFieldId', () => {
         expect(
             getAppliedTileDateZoom({
-                tileUuid: 'tile-1',
-                tilesWithDateZoomApplied: new Set(['tile-1']),
+                isDateZoomApplied: true,
                 dateZoom: { granularity: DateGranularity.MONTH },
                 dateDimension,
             }),
@@ -67,8 +63,7 @@ describe('getAppliedTileDateZoom', () => {
     it('does not invent a field for a grain-only zoom when no date dimension exists', () => {
         expect(
             getAppliedTileDateZoom({
-                tileUuid: 'tile-1',
-                tilesWithDateZoomApplied: new Set(['tile-1']),
+                isDateZoomApplied: true,
                 dateZoom: { granularity: DateGranularity.MONTH },
                 dateDimension: undefined,
             }),
@@ -78,8 +73,7 @@ describe('getAppliedTileDateZoom', () => {
     it('drops the fallback field when the tile is not applied', () => {
         expect(
             getAppliedTileDateZoom({
-                tileUuid: 'tile-1',
-                tilesWithDateZoomApplied: new Set(['other-tile']),
+                isDateZoomApplied: false,
                 dateZoom: { granularity: DateGranularity.MONTH },
                 dateDimension,
             }),

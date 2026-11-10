@@ -13,9 +13,10 @@ import { modals } from '@mantine/modals';
 import { IconIdOff } from '@tabler/icons-react';
 import html2canvas from 'html2canvas-pro';
 import { useCallback, useEffect, useState, type FC } from 'react';
-import { lightdashApi, networkHistory } from '../../api';
+import { networkHistory } from '../../api';
 import MantineIcon from '../../components/common/MantineIcon';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../LightdashApi/useLightdashApi';
 import classes from './SupportDrawerContent.module.css';
 
 type SupportDrawerContentProps = {
@@ -61,6 +62,7 @@ let logHistory: AnyType[] = [];
 })();
 
 const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
+    const lightdashApi = useLightdashApi();
     const [includeImage, setIncludeImage] = useState(true);
     const [moreDetails, setMoreDetails] = useState('');
     const [allowAccess, setAllowAccess] = useState(true);
@@ -106,7 +108,14 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
             });
         });
         modals.closeAll();
-    }, [includeImage, screenshot, allowAccess, moreDetails, showToastSuccess]);
+    }, [
+        includeImage,
+        screenshot,
+        allowAccess,
+        moreDetails,
+        showToastSuccess,
+        lightdashApi,
+    ]);
 
     return (
         <Stack gap="xs">

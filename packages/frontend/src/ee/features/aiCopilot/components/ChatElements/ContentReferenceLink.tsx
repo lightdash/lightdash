@@ -18,6 +18,8 @@ import {
     IconPencil,
     IconSearch,
     IconSend,
+    IconSitemap,
+    IconTable,
     type Icon,
 } from '@tabler/icons-react';
 import {
@@ -37,6 +39,7 @@ type ContentReferenceKind =
     | 'document'
     | 'data_app'
     | 'data_app_element'
+    | 'composer_node'
     | 'design'
     | 'thread'
     | 'file'
@@ -47,6 +50,7 @@ type ContentReferenceKind =
     | 'proposed_change'
     | 'review_finding'
     | 'preview_environment'
+    | 'semantic_model'
     | 'scheduled_delivery'
     | 'skill';
 
@@ -100,6 +104,12 @@ const getIconMeta = ({
                 color: 'violet.7',
                 fill: 'violet.4',
                 icon: IconClick,
+            };
+        case 'composer_node':
+            return {
+                color: 'indigo.7',
+                fill: 'indigo.4',
+                icon: IconSitemap,
             };
         case 'design':
             return {
@@ -166,6 +176,12 @@ const getIconMeta = ({
                 color: 'orange.7',
                 fill: 'orange.4',
                 icon: IconSearch,
+            };
+        case 'semantic_model':
+            return {
+                color: 'indigo.7',
+                fill: 'indigo.4',
+                icon: IconTable,
             };
         case 'preview_environment':
             return {
@@ -264,7 +280,6 @@ export const ContentReferenceLink = ({
                 component="span"
                 fz="xs"
                 fw={500}
-                c="ldGray.8"
                 className={`${styles.contentLink} ${styles.static}`}
                 data-content-link="true"
             >

@@ -6,11 +6,13 @@ import { convertMetricFilterToDbt } from './filterGrammarConversion';
 
 describe('convertMetricFilterToDbt', () => {
     it('should return undefined if filters are undefined', () => {
-        expect(convertMetricFilterToDbt(undefined)).toBeUndefined();
+        expect(
+            convertMetricFilterToDbt(undefined, 'customers'),
+        ).toBeUndefined();
     });
 
     it('should return an empty array if filters are an empty array', () => {
-        expect(convertMetricFilterToDbt([])).toEqual([]);
+        expect(convertMetricFilterToDbt([], 'customers')).toEqual([]);
     });
 
     it('should convert EQUALS filter correctly', () => {
@@ -25,7 +27,9 @@ describe('convertMetricFilterToDbt', () => {
         const expected: DbtColumnLightdashMetric['filters'] = [
             { customer_id: 'value1' },
         ];
-        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+        expect(convertMetricFilterToDbt(filters, 'customers')).toEqual(
+            expected,
+        );
     });
     it('should convert EQUALS with multiple values correctly', () => {
         const filters: MetricFilterRule[] = [
@@ -39,7 +43,9 @@ describe('convertMetricFilterToDbt', () => {
         const expected: DbtColumnLightdashMetric['filters'] = [
             { customer_id: ['value1', 'value2'] },
         ];
-        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+        expect(convertMetricFilterToDbt(filters, 'customers')).toEqual(
+            expected,
+        );
     });
 
     it('should convert NOT_EQUALS filter correctly', () => {
@@ -54,7 +60,9 @@ describe('convertMetricFilterToDbt', () => {
         const expected: DbtColumnLightdashMetric['filters'] = [
             { field2: '!value2' },
         ];
-        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+        expect(convertMetricFilterToDbt(filters, 'customers')).toEqual(
+            expected,
+        );
     });
     it('should convert NULL filters correctly', () => {
         const filters: MetricFilterRule[] = [
@@ -75,7 +83,9 @@ describe('convertMetricFilterToDbt', () => {
             { field1: 'null' },
             { field2: '!null' },
         ];
-        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+        expect(convertMetricFilterToDbt(filters, 'customers')).toEqual(
+            expected,
+        );
     });
 
     it('should convert boolean filters correctly', () => {
@@ -97,7 +107,9 @@ describe('convertMetricFilterToDbt', () => {
             { field2: 'false' },
             { field3: '!true' },
         ];
-        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+        expect(convertMetricFilterToDbt(filters, 'customers')).toEqual(
+            expected,
+        );
     });
 
     it('should convert INCLUDE filters correctly', () => {
@@ -112,7 +124,9 @@ describe('convertMetricFilterToDbt', () => {
         const expected: DbtColumnLightdashMetric['filters'] = [
             { field1: '%katie%' },
         ];
-        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+        expect(convertMetricFilterToDbt(filters, 'customers')).toEqual(
+            expected,
+        );
     });
 
     it('should convert STARTS_WITH and ENDS_WITH filters correctly', () => {
@@ -134,7 +148,9 @@ describe('convertMetricFilterToDbt', () => {
             { field1: 'katie%' },
             { field2: '%katie' },
         ];
-        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+        expect(convertMetricFilterToDbt(filters, 'customers')).toEqual(
+            expected,
+        );
     });
 
     it('should convert GREATER_THAN and GREATER_THAN_OR_EQUAL filters correctly', () => {
@@ -156,7 +172,9 @@ describe('convertMetricFilterToDbt', () => {
             { field1: '> 4' },
             { field2: '>= 5' },
         ];
-        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+        expect(convertMetricFilterToDbt(filters, 'customers')).toEqual(
+            expected,
+        );
     });
 
     it('should convert IN_THE_NEXT and IN_THE_PAST filters correctly', () => {
@@ -187,8 +205,93 @@ describe('convertMetricFilterToDbt', () => {
             { field1: 'inTheNext 14 days' },
             { field4: 'inThePast 14 months' },
         ];
-        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+        expect(convertMetricFilterToDbt(filters, 'customers')).toEqual(
+            expected,
+        );
     });
+
+    it('should convert IN_THE_CURRENT filters bounded to date', () => {
+        const filters: MetricFilterRule[] = [
+            {
+                target: { fieldRef: 'field1' },
+                id: '1',
+                operator: FilterOperator.IN_THE_CURRENT,
+                values: [1],
+                settings: { unitOfTime: UnitOfTime.months, toDate: true },
+            },
+            {
+                target: { fieldRef: 'field2' },
+                id: '2',
+                operator: FilterOperator.NOT_IN_THE_CURRENT,
+                values: [1],
+                settings: {
+                    unitOfTime: UnitOfTime.years,
+                    toDate: true,
+                    excludeToday: true,
+                },
+            },
+            {
+                target: { fieldRef: 'field3' },
+                id: '3',
+                operator: FilterOperator.IN_THE_CURRENT,
+                values: [1],
+                settings: {
+                    unitOfTime: UnitOfTime.weeks,
+                    toDate: false,
+                    excludeToday: true,
+                },
+            },
+            {
+                target: { fieldRef: 'field4' },
+                id: '4',
+                operator: FilterOperator.IN_THE_CURRENT,
+                values: [1],
+                settings: {
+                    unitOfTime: UnitOfTime.days,
+                    toDate: true,
+                    excludeToday: true,
+                },
+            },
+        ];
+        expect(convertMetricFilterToDbt(filters, 'customers')).toEqual([
+            { field1: 'inTheCurrent months to date' },
+            { field2: 'notInTheCurrent years to date excluding today' },
+            { field3: 'inTheCurrent weeks' },
+            { field4: 'inTheCurrent days' },
+        ]);
+    });
+
+    it.each([
+        [FilterOperator.IN_THE_CURRENT, { toDate: true }],
+        [FilterOperator.IN_THE_CURRENT, { toDate: true, excludeToday: true }],
+        [FilterOperator.NOT_IN_THE_CURRENT, { toDate: true }],
+        [
+            FilterOperator.NOT_IN_THE_CURRENT,
+            { toDate: true, excludeToday: true },
+        ],
+    ])(
+        'should round-trip %s to date %j through the dbt grammar',
+        (operator, bounds) => {
+            const filters: MetricFilterRule[] = [
+                {
+                    target: { fieldRef: 'field1' },
+                    id: '1',
+                    operator,
+                    values: [1],
+                    settings: { unitOfTime: UnitOfTime.quarters, ...bounds },
+                },
+            ];
+            const parsed = parseFilters(
+                convertMetricFilterToDbt(filters, 'customers'),
+            );
+            expect(parsed[0].operator).toEqual(operator);
+            expect(parsed[0].settings).toStrictEqual({
+                unitOfTime: UnitOfTime.quarters,
+                ...bounds,
+            });
+            expect(parsed[0].values).toEqual([1]);
+        },
+    );
 
     it('should convert IN_THE_CURRENT and NOT_IN_THE_CURRENT filters correctly', () => {
         const filters: MetricFilterRule[] = [
@@ -217,7 +320,9 @@ describe('convertMetricFilterToDbt', () => {
             { field1: 'inTheCurrent days' },
             { field2: 'notInTheCurrent quarters' },
         ];
-        expect(convertMetricFilterToDbt(filters)).toEqual(expected);
+        expect(convertMetricFilterToDbt(filters, 'customers')).toEqual(
+            expected,
+        );
     });
 
     it('should round-trip IN_THE_CURRENT through the dbt grammar', () => {
@@ -233,7 +338,7 @@ describe('convertMetricFilterToDbt', () => {
                 },
             },
         ];
-        const dbtFilters = convertMetricFilterToDbt(filters);
+        const dbtFilters = convertMetricFilterToDbt(filters, 'customers');
         const parsed = parseFilters(dbtFilters);
         expect(parsed[0].operator).toEqual(FilterOperator.IN_THE_CURRENT);
         expect(parsed[0].settings).toEqual({ unitOfTime: UnitOfTime.weeks });
@@ -254,7 +359,7 @@ describe('convertMetricFilterToDbt', () => {
             },
         ];
 
-        expect(() => convertMetricFilterToDbt(filters)).toThrow(
+        expect(() => convertMetricFilterToDbt(filters, 'customers')).toThrow(
             NotImplementedError,
         );
     });
@@ -273,7 +378,7 @@ describe('convertMetricFilterToDbt', () => {
                 values: [undefined],
             },
         ];
-        expect(convertMetricFilterToDbt(filters)).toEqual([]);
+        expect(convertMetricFilterToDbt(filters, 'customers')).toEqual([]);
     });
 
     it('should throw NotImplementedError for unsupported operators', () => {
@@ -285,15 +390,33 @@ describe('convertMetricFilterToDbt', () => {
                 values: ['value3', 'value4'],
             },
         ];
-        expect(() => convertMetricFilterToDbt(filters)).toThrow(
+        expect(() => convertMetricFilterToDbt(filters, 'customers')).toThrow(
             'No function implemented to convert custom metric filter to dbt: inBetween',
         );
     });
 });
 
+describe('metric filter references', () => {
+    it.each([
+        ['orders.status', 'status'],
+        ['status', 'status'],
+        ['customers.status', 'customers.status'],
+        ['billing_customer.status', 'billing_customer.status'],
+        ['orders.address.city', 'orders.address.city'],
+        ['customers.address.city', 'customers.address.city'],
+    ])('writes %s as %s for a metric on orders', (fieldRef, expected) => {
+        const filters = parseFilters([{ [fieldRef]: 'active' }]);
+        expect(convertMetricFilterToDbt(filters, 'orders')).toEqual([
+            { [expected]: 'active' },
+        ]);
+    });
+});
+
 describe('convert from filterGrammar', () => {
     it('should return undefined if filters are undefined', () => {
-        expect(convertMetricFilterToDbt(undefined)).toBeUndefined();
+        expect(
+            convertMetricFilterToDbt(undefined, 'customers'),
+        ).toBeUndefined();
     });
 
     it('should convert EQUALS filter correctly', () => {
@@ -302,41 +425,45 @@ describe('convert from filterGrammar', () => {
         expect(filters[0].operator).toEqual('equals');
         expect(filters[0].values).toEqual(['pedram']);
         expect(filters[0].target.fieldRef).toEqual('name');
-        expect(convertMetricFilterToDbt(filters)).toEqual(rawFilters);
+        expect(convertMetricFilterToDbt(filters, 'customers')).toEqual(
+            rawFilters,
+        );
     });
 
     it('should convert NOT_EQUALS filter correctly', () => {
         const rawFilters = [{ name: '!pedram' }];
-        expect(convertMetricFilterToDbt(parseFilters(rawFilters))).toEqual(
-            rawFilters,
-        );
+        expect(
+            convertMetricFilterToDbt(parseFilters(rawFilters), 'customers'),
+        ).toEqual(rawFilters);
     });
 
     it('should convert EQUALS with multiple values correctly', () => {
         const rawFilters = [{ customer_id: ['1', '2'] }];
         const filters = parseFilters(rawFilters);
         expect(filters[0].values).toEqual(['1', '2']);
-        expect(convertMetricFilterToDbt(filters)).toEqual(rawFilters);
+        expect(convertMetricFilterToDbt(filters, 'customers')).toEqual(
+            rawFilters,
+        );
     });
 
     it('should convert NULL filter correctly', () => {
         const rawFilters = [{ customer_id: 'null' }];
-        expect(convertMetricFilterToDbt(parseFilters(rawFilters))).toEqual(
-            rawFilters,
-        );
+        expect(
+            convertMetricFilterToDbt(parseFilters(rawFilters), 'customers'),
+        ).toEqual(rawFilters);
     });
 
     it('should convert IN_THE_NEXT filter correctly', () => {
         const rawFilters = [{ timestamp: 'inTheNext 14 days' }];
-        expect(convertMetricFilterToDbt(parseFilters(rawFilters))).toEqual(
-            rawFilters,
-        );
+        expect(
+            convertMetricFilterToDbt(parseFilters(rawFilters), 'customers'),
+        ).toEqual(rawFilters);
     });
 
     it('should convert STARTS_WITH filter correctly', () => {
         const rawFilters = [{ name: 'katie%' }];
-        expect(convertMetricFilterToDbt(parseFilters(rawFilters))).toEqual(
-            rawFilters,
-        );
+        expect(
+            convertMetricFilterToDbt(parseFilters(rawFilters), 'customers'),
+        ).toEqual(rawFilters);
     });
 });

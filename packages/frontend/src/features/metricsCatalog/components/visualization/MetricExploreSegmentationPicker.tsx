@@ -18,6 +18,7 @@ import {
 } from '@mantine/core';
 import { IconInfoCircle, IconX } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
+import { clsx } from 'clsx';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { groupComboboxItems } from '../../../../components/common/Select/utils';
@@ -56,7 +57,7 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
     return (
         <Stack gap="xs">
             <Group justify="space-between">
-                <Text fw={500} c="ldGray.7">
+                <Text fw={500} c="dimmed">
                     Segment
                 </Text>
 
@@ -66,19 +67,13 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                     rightSection={
                         <MantineIcon icon={IconX} color="ldGray.5" size={12} />
                     }
-                    className={styles.clearButton}
-                    style={{
-                        visibility:
-                            !('segmentDimension' in query) ||
-                            !query.segmentDimension
-                                ? 'hidden'
-                                : 'visible',
-                    }}
-                    styles={{
-                        section: {
-                            marginLeft: 4,
-                        },
-                    }}
+                    className={clsx(
+                        styles.clearButton,
+                        (!('segmentDimension' in query) ||
+                            !query.segmentDimension) &&
+                            styles.hidden,
+                    )}
+                    classNames={{ section: styles.clearButtonSection }}
                     onClick={() => onSegmentDimensionChange(null)}
                 >
                     Clear
@@ -135,23 +130,9 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                     py="xs"
                     px="sm"
                     color="blue"
-                    style={{
-                        border: '1px dashed var(--mantine-color-blue-4)',
-                    }}
-                    styles={{
-                        icon: {
-                            marginRight: 2,
-                        },
-                    }}
-                    icon={
-                        <MantineIcon
-                            icon={IconInfoCircle}
-                            color="blue.7"
-                            size={16}
-                        />
-                    }
+                    icon={<MantineIcon icon={IconInfoCircle} />}
                 >
-                    <Text size="xs" c="blue.7" span>
+                    <Text size="xs" span>
                         Only the first {MAX_SEGMENT_DIMENSION_UNIQUE_VALUES}{' '}
                         series are displayed to maintain a clear and readable
                         chart.

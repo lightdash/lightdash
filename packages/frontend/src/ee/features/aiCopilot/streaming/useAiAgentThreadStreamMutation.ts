@@ -13,9 +13,10 @@ import {
 } from 'ai';
 import { useCallback } from 'react';
 import { z } from 'zod';
-import { lightdashApiStream } from '../../../../api';
+import { LightdashApiStreamError, type LightdashApi } from '../../../../api';
+import { getAiAccessRefusal } from '../../../../features/aiAccess/errors';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import { getAiAgentApiBase } from '../hooks/aiAgentRouting';
-import { readAiAgentFastMode } from '../hooks/useAiAgentFastMode';
 import {
     addReasoning,
     addToolCall,
@@ -24,6 +25,7 @@ import {
     markStreamRecovering,
     markToolCallDecided,
     setError,
+    setAccessRefusal,
     setMessage,
     setParts,
     startStreaming,
@@ -94,6 +96,7 @@ type StepProgressChunk = UIMessageChunk & {
 };
 
 const getAgentThreadReadableStream = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     threadUuid: string,
@@ -104,11 +107,10 @@ const getAgentThreadReadableStream = async (
 ) => {
     const request: ApiAiAgentThreadStreamRequest = {
         enableSqlMode,
-        enableFastDecisions: readAiAgentFastMode(),
         autoApproveSql,
         toolHints,
     };
-    const res = await lightdashApiStream({
+    const res = await lightdashApi.stream({
         url: `${getAiAgentApiBase(
             projectUuid,
         )}/${agentUuid}/threads/${threadUuid}/stream`,
@@ -186,7 +188,7 @@ export const getStreamToolCallPart = (
     }
 
     // While the model is still writing the call's input, tools with a lenient
-    // partial parser (runComposerQueries) render progressively instead of
+    // partial parser (the composer query tool) render progressively instead of
     // waiting for input-available.
     if (toolPart.state === 'input-streaming') {
         const partialToolCall = parseStreamRawPartialToolCall({
@@ -318,6 +320,8 @@ const FIRST_TOKEN_CHUNK_TYPES = new Set<UIMessageChunk['type']>([
 ]);
 
 export function useAiAgentThreadStreamMutation() {
+    const lightdashApi = useLightdashApi();
+
     const dispatch = useAiAgentStoreDispatch();
     const { setAbortController, abort } =
         useAiAgentThreadStreamAbortController();
@@ -353,9 +357,18 @@ export function useAiAgentThreadStreamMutation() {
             > | null = null;
 
             try {
-                dispatch(startStreaming({ threadUuid, messageUuid }));
+                dispatch(
+                    startStreaming({
+                        threadUuid,
+                        messageUuid,
+                        projectUuid,
+                        agentUuid,
+                        autoApproveSql,
+                    }),
+                );
 
                 const response = await getAgentThreadReadableStream(
+                    lightdashApi,
                     projectUuid,
                     agentUuid,
                     threadUuid,
@@ -707,6 +720,17 @@ export function useAiAgentThreadStreamMutation() {
                     return;
                 }
 
+                const refusal = getAiAccessRefusal(
+                    error instanceof LightdashApiStreamError
+                        ? error.error
+                        : null,
+                );
+                if (refusal) {
+                    dispatch(setAccessRefusal({ threadUuid, refusal }));
+                    onError?.(refusal.message);
+                    return;
+                }
+
                 console.error('Error processing stream:', error);
                 captureException(error, {
                     tags: {
@@ -723,7 +747,7 @@ export function useAiAgentThreadStreamMutation() {
                 inactivityMonitor?.stop();
             }
         },
-        [dispatch, setAbortController],
+        [dispatch, setAbortController, lightdashApi],
     );
 
     const cancelMessageStream = useCallback(

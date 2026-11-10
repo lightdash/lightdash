@@ -18,7 +18,10 @@ import {
     MAX_RETENTION_WINDOW_HOURS,
     MIN_RETENTION_WINDOW_HOURS,
 } from '../../types/dataRetention';
+import { type QueryNodeId } from '../../types/querySources';
+import { type ResultColumn } from '../../types/results';
 import assertUnreachable from '../../utils/assertUnreachable';
+import { type AllVizChartConfig } from '../../visualizations/types';
 import { type AiAgentReviewItemStatus } from './aiAgentReviewClassifierTypes';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
 import { type AiComposerChartArtifactConfig } from './composerArtifact';
@@ -26,10 +29,13 @@ import { type AiProjectContextTypedObjectRef } from './projectContext';
 import {
     type AiAgentBattleProfile,
     type AiAgentModelConfig,
+    type AiAgentPromptLoadout,
     type AiPromptContext,
     type AiPromptContextInput,
     type AiPromptResponseTiming,
     type AiPromptTokenUsage,
+    type AiThreadBinding,
+    type AiThreadBindingSummary,
     type AiThreadCreatedFrom,
 } from './requestTypes';
 import { type AgentToolOutput } from './schemas';
@@ -48,11 +54,14 @@ export * from './chartConfig/web';
 export * from './constants';
 export * from './coder';
 export * from './composerArtifact';
+export * from './nodeCitations';
+export * from './composerChartVizConfig';
+export * from './composerSemanticArtifact';
 export * from './composerViz';
+export * from './composerVizPanel';
 export * from './dashboardContext';
 export * from './dashboardLayout';
 export * from './aiAgentReviewClassifierTypes';
-export * from './documentGuidance';
 export * from './documentTypes';
 export * from './skillTypes';
 export * from './threadFileTypes';
@@ -130,6 +139,13 @@ export type AiAgentIntegration = {
     channelId: string;
 };
 
+const aiAgentUserAccessDetailSchema = z.object({
+    userUuid: z.string(),
+    firstName: z.string(),
+    lastName: z.string(),
+    email: z.string(),
+});
+
 export const baseAgentSchema = z.object({
     uuid: z.string(),
     projectUuid: z.string(),
@@ -163,14 +179,22 @@ export const baseAgentSchema = z.object({
     model: z.string(),
     groupAccess: z.array(z.string()),
     userAccess: z.array(z.string()),
+    // The users in `userAccess`, with the name and email the settings form
+    // shows on each pill. Resolved by the server; not accepted on writes.
+    userAccessDetails: z.array(aiAgentUserAccessDetailSchema),
     spaceAccess: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
     enableContentTools: z.boolean(),
     enableUserContext: z.boolean(),
     enableSqlMode: z.boolean(),
+    enableSqlAutoApproval: z.boolean(),
+    enableComposerQueries: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
+    // AI provider credential this agent's prompts run on. Null means the
+    // project or organization selection applies.
+    providerCredentialUuid: z.string().nullable(),
     version: z.number(),
     threadRetentionHours: z
         .number()
@@ -181,6 +205,10 @@ export const baseAgentSchema = z.object({
 });
 
 export type BaseAiAgent = z.infer<typeof baseAgentSchema>;
+
+export type AiAgentUserAccessDetail = z.infer<
+    typeof aiAgentUserAccessDetailSchema
+>;
 
 export type AiAgent = Pick<
     BaseAiAgent,
@@ -198,14 +226,18 @@ export type AiAgent = Pick<
     | 'imageUrlSource'
     | 'groupAccess'
     | 'userAccess'
+    | 'userAccessDetails'
     | 'spaceAccess'
     | 'enableDataAccess'
     | 'enableSelfImprovement'
     | 'enableContentTools'
     | 'enableUserContext'
     | 'enableSqlMode'
+    | 'enableSqlAutoApproval'
+    | 'enableComposerQueries'
     | 'adminOnly'
     | 'modelConfig'
+    | 'providerCredentialUuid'
     | 'version'
     | 'threadRetentionHours'
 >;
@@ -226,14 +258,18 @@ export type AiAgentSummary = Pick<
     | 'imageUrlSource'
     | 'groupAccess'
     | 'userAccess'
+    | 'userAccessDetails'
     | 'spaceAccess'
     | 'enableDataAccess'
     | 'enableSelfImprovement'
     | 'enableContentTools'
     | 'enableUserContext'
     | 'enableSqlMode'
+    | 'enableSqlAutoApproval'
+    | 'enableComposerQueries'
     | 'adminOnly'
     | 'modelConfig'
+    | 'providerCredentialUuid'
     | 'version'
     | 'threadRetentionHours'
 >;
@@ -358,6 +394,8 @@ export type AiAgentMessageAssistant = {
     responseTiming: AiPromptResponseTiming | null;
     /** What the fast decision model did on this turn; null when it did not run. */
     jevDecision: AiAgentJevDecision | null;
+    /** Loadout the turn ran with; null for turns recorded before it was stored. */
+    loadout: AiAgentPromptLoadout | null;
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =
@@ -375,6 +413,11 @@ export type AiAgentThreadLiveStatus = {
     source: AiAgentThreadStateSource;
 };
 
+export type AiAgentThreadFirstMessage = {
+    uuid: string;
+    message: string;
+};
+
 export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     uuid: string;
     agentUuid: string;
@@ -384,12 +427,13 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     titleGeneratedAt: string | null;
     pinnedAt: string | null;
     battleProfile: AiAgentBattleProfile | null;
-    firstMessage: {
-        uuid: string;
-        message: string;
-    };
+    /** Null when the thread was created with a binding or context and no prompt yet. */
+    firstMessage: AiAgentThreadFirstMessage | null;
     user: TUser;
     liveStatus: AiAgentThreadLiveStatus | null;
+    binding: AiThreadBindingSummary | null;
+    /** Initial context set at creation. */
+    threadContext: string | null;
 };
 
 export type AiAgentThreadShare = {
@@ -649,9 +693,12 @@ export type ApiCreateAiAgent = Pick<
     enableContentTools?: boolean;
     enableUserContext?: boolean;
     enableSqlMode?: boolean;
+    enableSqlAutoApproval?: boolean;
+    enableComposerQueries?: boolean;
     adminOnly?: boolean;
     mcpServerUuids?: string[];
     modelConfig?: AiAgentModelConfig | null;
+    providerCredentialUuid?: string | null;
     threadRetentionHours?: number | null;
 };
 
@@ -679,7 +726,11 @@ export type ApiUpdateAiAgent = Partial<
 > & {
     uuid: string;
     enableSqlMode?: boolean;
+    enableSqlAutoApproval?: boolean;
+    enableComposerQueries?: boolean;
     mcpServerUuids?: string[];
+    // Omitted keeps the current pin; null clears it.
+    providerCredentialUuid?: string | null;
     threadRetentionHours?: number | null;
 };
 
@@ -850,13 +901,22 @@ export type ApiAiAgentThreadWorkstreamsResponse = ApiSuccess<
     AiAgentThreadWorkstream[]
 >;
 
+export const AI_THREAD_CONTEXT_MAX_LENGTH = 10_000;
+
 export type ApiAiAgentThreadCreateRequest = {
+    /** First message. Optional when `binding` or `threadContext` is set; the thread then starts empty. */
     prompt?: string;
     context?: AiPromptContextInput;
     modelConfig?: AiAgentModelConfig;
     originatingInstallationUuid?: string;
     /** Internal feature-speed battle; accepted only behind battle mode. */
     battleProfile?: AiAgentBattleProfile;
+    /** Binds the thread to this resource. Cannot be changed after creation. */
+    binding?: AiThreadBinding;
+    /** Initial context for the agent, up to 10,000 characters. Cannot be changed after creation. */
+    threadContext?: string;
+    /** Starts a Semantic Studio thread, whose agent drafts model changes for the person to apply. Only the app may set it. */
+    createdFrom?: Extract<AiThreadCreatedFrom, 'semantic_studio'>;
 };
 
 export type ApiAiAgentThreadCreateResponse = ApiSuccess<AiAgentThreadSummary>;
@@ -894,7 +954,7 @@ export type ApiAiAgentThreadStreamRequest = {
     /**
      * Skips the SQL human-approval gate for this stream. Used by the review
      * remediation workspace so Continue PR turns run frictionlessly. Defaults
-     * to false — normal chat still asks the user to approve SQL.
+     * to false; the agent-level `enableSqlAutoApproval` setting also skips the gate.
      */
     autoApproveSql?: boolean;
     /**
@@ -1010,13 +1070,41 @@ export type ApiAiAgentSqlArtifactVizQuery = {
     metadata: AiVizMetadata;
 };
 
+/** One run of a composer artifact's pipeline: every node's result from that run. */
+export type ApiAiAgentComposerArtifactVizQuery = {
+    source: 'composer';
+    terminalNodeId: QueryNodeId;
+    nodeQueryUuids: Record<QueryNodeId, string>;
+    metadata: AiVizMetadata;
+    /** v2 series split only: the pivot stage run over the terminal node; null without one. */
+    chartStage: ApiAiAgentComposerArtifactChartStage | null;
+};
+
+export type ApiAiAgentComposerArtifactVizQueryResponse = {
+    status: 'ok';
+    results: ApiAiAgentComposerArtifactVizQuery;
+};
+
+export type ApiAiAgentComposerArtifactChartStage =
+    | { status: 'ok'; queryUuid: string }
+    | { status: 'error'; message: string };
+
 export type ApiAiAgentArtifactVizQuery =
     | ApiAiAgentThreadMessageVizQuery
-    | ApiAiAgentSqlArtifactVizQuery;
+    | ApiAiAgentSqlArtifactVizQuery
+    | ApiAiAgentComposerArtifactVizQuery;
+
+export const isAiAgentSemanticArtifactVizQuery = (
+    query: ApiAiAgentArtifactVizQuery,
+): query is ApiAiAgentThreadMessageVizQuery => query.source === 'semantic';
 
 export const isAiAgentSqlArtifactVizQuery = (
     query: ApiAiAgentArtifactVizQuery,
 ): query is ApiAiAgentSqlArtifactVizQuery => query.source === 'sql';
+
+export const isAiAgentComposerArtifactVizQuery = (
+    query: ApiAiAgentArtifactVizQuery,
+): query is ApiAiAgentComposerArtifactVizQuery => query.source === 'composer';
 
 export type ApiAiAgentArtifactVizQueryResponse = {
     status: 'ok';
@@ -1219,6 +1307,19 @@ export type ApiAiAgentArtifactResponse = ApiSuccess<AiArtifact>;
 export type ApiAiAgentArtifactResponseTSOACompat =
     ApiSuccess<AiArtifactTSOACompat>;
 
+/** Body of the composer artifact version viz config update; the terminal node's config. */
+export type ApiUpdateComposerVizConfigRequest = {
+    vizConfig: AllVizChartConfig;
+};
+
+/** Rows and a visualize-tool viz config to draw as the Slack chart image; vizConfig is parsed server-side. */
+export type ApiAiAgentVisualizeSlackPreviewRequest = {
+    title: string;
+    columns: ResultColumn[];
+    rows: Record<string, unknown>[];
+    vizConfig: Record<string, unknown>;
+};
+
 export type AiAgentVerifiedArtifact = {
     artifactUuid: string;
     versionUuid: string;
@@ -1415,6 +1516,8 @@ export type AiModelOption = {
     default: boolean;
     supportsReasoning: boolean;
     deprecated: boolean;
+    /** Current same-provider model that replaces a deprecated one; null unless it is in this list */
+    supersededBy: string | null;
 };
 
 export type ApiAiAgentModelOptionsResponse = ApiSuccess<AiModelOption[]>;

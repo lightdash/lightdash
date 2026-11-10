@@ -14,6 +14,7 @@ import {
     type PivotConfiguration,
     type QueryExecutionContext,
     type QueryWarning,
+    type SemanticQueryUsage,
     type UserAccessControls,
     type UserAttributeValueMap,
     type WarehouseSqlBuilder,
@@ -23,6 +24,7 @@ import { wrapSentryTransactionSync } from '../../utils';
 import { updateExploreWithDateZoom } from './dateZoom';
 import { CompiledQuery, MetricQueryBuilder } from './MetricQueryBuilder';
 import { PivotQueryBuilder } from './PivotQueryBuilder';
+import { buildSemanticQueryUsage } from './semanticQueryUsage';
 import { TotalConfiguration } from './utils';
 
 export type { TotalConfiguration } from './utils';
@@ -202,6 +204,15 @@ export class QueryComposer {
     /** The explore the query runs against. */
     getExplore(): Explore {
         return this.context.explore;
+    }
+
+    /** Called only on execution, after compilation, when usage capture is enabled. */
+    getSemanticUsage(): SemanticQueryUsage {
+        return buildSemanticQueryUsage(
+            this.getMetricQuery(),
+            this.getExplore(),
+            this.getFields(),
+        );
     }
 
     /** The effective (totals-collapsed) metric query the composer compiles. */

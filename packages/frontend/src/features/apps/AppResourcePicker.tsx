@@ -8,6 +8,7 @@ import {
     type DataAppCodingAgent,
     type DataAppCodingAgentModel,
     type ExternalConnection,
+    uniqueAliasFromName,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -45,7 +46,7 @@ import {
     IconSearch,
     IconX,
 } from '@tabler/icons-react';
-import uniqBy from 'lodash/uniqBy';
+import { uniqBy } from 'es-toolkit/compat';
 import {
     useCallback,
     useMemo,
@@ -67,7 +68,6 @@ import scrollAreaClasses from '../../styles/ScrollArea.module.css';
 import { useAppExternalConnections } from '../externalConnections/hooks/useAppExternalConnections';
 import { useExternalConnections } from '../externalConnections/hooks/useExternalConnections';
 import { useUnlinkAppExternalConnection } from '../externalConnections/hooks/useUnlinkAppExternalConnection';
-import { uniqueAliasFromName } from '../externalConnections/utils/aliasFromName';
 import classes from './AppResourcePicker.module.css';
 import {
     useAttachResourceLink,
@@ -219,6 +219,7 @@ const toModelOption = (
     default: opt.isDefault === true,
     supportsReasoning: false,
     deprecated: false,
+    supersededBy: null,
 });
 
 /**
@@ -965,6 +966,7 @@ export const ConnectionPickerView: FC<{
         );
 
         for (const connection of connections ?? []) {
+            if (connection.kind === 'live_source') continue;
             byUuid.set(connection.externalConnectionUuid, connection);
         }
 
@@ -1213,6 +1215,8 @@ export const AttachButton: FC<{
     onAddFiles: () => void;
     disabled: boolean;
     filesDisabled: boolean;
+    /** Hides the Files item entirely (the org turned captures off). */
+    filesHidden?: boolean;
     linkedAppUuid?: string;
     iconOnly?: boolean;
 }> = ({
@@ -1228,6 +1232,7 @@ export const AttachButton: FC<{
     onAddFiles,
     disabled,
     filesDisabled,
+    filesHidden = false,
     linkedAppUuid,
     iconOnly = false,
 }) => {
@@ -1364,25 +1369,27 @@ export const AttachButton: FC<{
                                 </Text>
                             </Box>
                         </UnstyledButton>
-                        <UnstyledButton
-                            className={classes.attachMenuItem}
-                            onClick={handleFilesClick}
-                            disabled={filesDisabled}
-                            ff="inherit"
-                            data-disabled={filesDisabled || undefined}
-                        >
-                            <MantineIcon icon={IconPhoto} />
-                            <Box flex={1}>
-                                <Text size="sm" fw={500}>
-                                    Files
-                                </Text>
-                                <Text size="xs" c="dimmed">
-                                    {filesDisabled
-                                        ? 'Attachment limit reached'
-                                        : 'Upload images, PDFs, or text files'}
-                                </Text>
-                            </Box>
-                        </UnstyledButton>
+                        {!filesHidden && (
+                            <UnstyledButton
+                                className={classes.attachMenuItem}
+                                onClick={handleFilesClick}
+                                disabled={filesDisabled}
+                                ff="inherit"
+                                data-disabled={filesDisabled || undefined}
+                            >
+                                <MantineIcon icon={IconPhoto} />
+                                <Box flex={1}>
+                                    <Text size="sm" fw={500}>
+                                        Files
+                                    </Text>
+                                    <Text size="xs" c="dimmed">
+                                        {filesDisabled
+                                            ? 'Attachment limit reached'
+                                            : 'Upload images, PDFs, or text files'}
+                                    </Text>
+                                </Box>
+                            </UnstyledButton>
+                        )}
                         <UnstyledButton
                             className={classes.attachMenuItem}
                             onClick={() => setView('connections')}

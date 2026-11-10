@@ -3,6 +3,7 @@ import type {
     AiOrgModelVisibility,
     AiProviderApiKeyHints,
     AiProviderApiKeysSet,
+    AiProviderBaseUrls,
     ByoAiApiKeyProvider,
     ByoAiProvider,
     DataAppModelVisibility,
@@ -15,7 +16,6 @@ import {
 } from '@lightdash/common';
 import {
     Badge,
-    Box,
     Button,
     Divider,
     Group,
@@ -24,6 +24,7 @@ import {
     Stack,
     Switch,
     Text,
+    TextInput,
     Title,
 } from '@mantine/core';
 import { IconKey } from '@tabler/icons-react';
@@ -44,19 +45,29 @@ const PROVIDER_META: Record<
         label: string;
         icon: ComponentType<SVGProps<SVGSVGElement>>;
         placeholder: string;
+        // Mirrors the matching *_BASE_URL env var: Anthropic takes the host,
+        // OpenAI and Gemini need their API version in the path.
+        baseUrlPlaceholder: string;
     }
 > = {
     anthropic: {
         label: 'Anthropic',
         icon: AnthropicIcon,
         placeholder: 'sk-ant-...',
+        baseUrlPlaceholder: 'https://ai-gateway.example.com',
     },
     google: {
         label: 'Google Gemini',
         icon: GeminiIcon,
         placeholder: 'AIza...',
+        baseUrlPlaceholder: 'https://ai-gateway.example.com/v1beta',
     },
-    openai: { label: 'OpenAI', icon: OpenAiIcon, placeholder: 'sk-...' },
+    openai: {
+        label: 'OpenAI',
+        icon: OpenAiIcon,
+        placeholder: 'sk-...',
+        baseUrlPlaceholder: 'https://ai-gateway.example.com/v1',
+    },
 };
 
 type ProviderVisibility = { enabled: boolean; allowedModels?: string[] };
@@ -70,6 +81,10 @@ type ProviderRowProps = {
     providerModels: AiModelOption[];
     visibility: ProviderVisibility | undefined;
     locked: boolean;
+    // True when this is the only provider the org holds a key for. Every other
+    // provider is then locked, so turning this one off would leave no models
+    // and the backend rejects the write — removing the key is the way out.
+    onlyKeyedProvider: boolean;
     disabled: boolean;
     dataAppModels: {
         visibility: DataAppModelVisibility | null;
@@ -78,6 +93,79 @@ type ProviderRowProps = {
     onSaveKey: (key: string) => void;
     onRemoveKey: () => void;
     onUpdateVisibility: (value: ProviderVisibility) => void;
+    // Endpoint the org's key is sent to instead of the provider's public API.
+    gatewayBaseUrl: string | null;
+    onSaveGatewayBaseUrl: (baseUrl: string | null) => void;
+};
+
+// Mirrors the backend rule (parseLlmGatewayBaseUrl): HTTP(S), no
+// credentials, query or fragment. The server remains authoritative.
+const isValidGatewayBaseUrl = (value: string): boolean => {
+    try {
+        const url = new URL(value);
+        return (
+            ['http:', 'https:'].includes(url.protocol) &&
+            !url.username &&
+            !url.password &&
+            !url.search &&
+            !url.hash
+        );
+    } catch {
+        return false;
+    }
+};
+
+const GatewayUrlInput: FC<{
+    baseUrl: string | null;
+    placeholder: string;
+    disabled: boolean;
+    onSave: (baseUrl: string | null) => void;
+}> = ({ baseUrl, placeholder, disabled, onSave }) => {
+    const [value, setValue] = useState(baseUrl ?? '');
+    const trimmed = value.trim();
+    const isValid = isValidGatewayBaseUrl(trimmed);
+    const canSave = !disabled && isValid && trimmed !== baseUrl;
+    return (
+        <Group gap="xs" wrap="nowrap" align="flex-end">
+            <TextInput
+                flex={1}
+                size="xs"
+                label="Custom base URL"
+                description="Optional. Send requests for this key to a proxy or gateway that speaks this provider's API. Model names are passed through unchanged."
+                placeholder={placeholder}
+                value={value}
+                disabled={disabled}
+                error={
+                    trimmed.length > 0 && !isValid
+                        ? 'Enter an http(s) URL without credentials, query parameters or a fragment'
+                        : undefined
+                }
+                onChange={(event) => setValue(event.currentTarget.value)}
+                onKeyDown={(event) => {
+                    if (event.key === 'Enter' && canSave) onSave(trimmed);
+                }}
+            />
+            <Button
+                size="xs"
+                variant="default"
+                disabled={!canSave}
+                onClick={() => onSave(trimmed)}
+            >
+                Save
+            </Button>
+            {baseUrl && (
+                <Button
+                    size="xs"
+                    variant="subtle"
+                    color="red"
+                    disabled={disabled}
+                    onClick={() => onSave(null)}
+                >
+                    Remove
+                </Button>
+            )}
+        </Group>
+    );
 };
 
 const ProviderRow: FC<ProviderRowProps> = ({
@@ -89,13 +177,21 @@ const ProviderRow: FC<ProviderRowProps> = ({
     providerModels,
     visibility,
     locked,
+    onlyKeyedProvider,
     disabled,
     dataAppModels,
     onSaveKey,
     onRemoveKey,
     onUpdateVisibility,
+    gatewayBaseUrl,
+    onSaveGatewayBaseUrl,
 }) => {
-    const { label, icon: Icon, placeholder } = PROVIDER_META[provider];
+    const {
+        label,
+        icon: Icon,
+        placeholder,
+        baseUrlPlaceholder,
+    } = PROVIDER_META[provider];
     const [value, setValue] = useState('');
 
     // Availability controls only make sense once the org brings its own key —
@@ -103,6 +199,7 @@ const ProviderRow: FC<ProviderRowProps> = ({
     // here). The instance's model options exist regardless, so gate on the key.
     const showAvailability = hasAnyByoKey && providerModels.length > 0;
     const isEnabled = !locked && (visibility?.enabled ?? true);
+    const cannotDisable = onlyKeyedProvider && isEnabled;
 
     return (
         <Stack gap="xs">
@@ -127,7 +224,7 @@ const ProviderRow: FC<ProviderRowProps> = ({
                         size="md"
                         aria-label={`${label} available to users`}
                         checked={isEnabled}
-                        disabled={disabled || locked}
+                        disabled={disabled || locked || cannotDisable}
                         onChange={(event) =>
                             onUpdateVisibility({
                                 enabled: event.currentTarget.checked,
@@ -174,6 +271,16 @@ const ProviderRow: FC<ProviderRowProps> = ({
                 )}
             </Group>
 
+            {isSet && (
+                <GatewayUrlInput
+                    key={gatewayBaseUrl ?? ''}
+                    baseUrl={gatewayBaseUrl}
+                    placeholder={baseUrlPlaceholder}
+                    disabled={disabled}
+                    onSave={onSaveGatewayBaseUrl}
+                />
+            )}
+
             {showAvailability && isEnabled && (
                 <MultiSelect
                     size="xs"
@@ -202,6 +309,15 @@ const ProviderRow: FC<ProviderRowProps> = ({
                     disabled={disabled}
                     onUpdateVisibility={dataAppModels.onUpdate}
                 />
+            )}
+
+            {showAvailability && cannotDisable && (
+                <Text c="dimmed" fz="xs">
+                    {label} is the only provider your organization has a key
+                    for, so its models can&apos;t be turned off — that would
+                    leave no models available. Remove the key to go back to the
+                    instance&apos;s default keys.
+                </Text>
             )}
 
             {locked && (
@@ -235,6 +351,7 @@ type AiProvidersCardProps = {
     dataAppModelVisibility: DataAppModelVisibility | null;
     showDataAppModels: boolean;
     bedrockModelOptions: AiModelOption[];
+    providerBaseUrls: AiProviderBaseUrls;
     disabled: boolean;
     onUpdateKeys: (providerApiKeys: UpdateAiProviderApiKeys) => void;
     onUpdateVisibility: (modelVisibility: AiOrgModelVisibility) => void;
@@ -249,6 +366,7 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
     dataAppModelVisibility,
     showDataAppModels,
     bedrockModelOptions,
+    providerBaseUrls,
     disabled,
     onUpdateKeys,
     onUpdateVisibility,
@@ -290,25 +408,10 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
     return (
         <SettingsCard>
             <Stack gap="md">
-                <Box maw={620}>
-                    <Title order={5} mb={4}>
-                        AI providers &amp; models
-                    </Title>
-                    <Text c="dimmed" fz="xs">
-                        Use your organization&apos;s own Anthropic, Google
-                        Gemini, or OpenAI API key for AI features, and control
-                        which models users can pick. Keys are stored encrypted
-                        and never shown again after saving; when set, they take
-                        precedence over the instance-level keys. Agents already
-                        using a hidden model keep working — it just can&apos;t
-                        be selected again.
-                    </Text>
-                </Box>
-
                 {allAiOnOrgKeys && (
                     <Callout
                         variant="success"
-                        icon={<MantineIcon icon={IconKey} size="lg" />}
+                        icon={<MantineIcon icon={IconKey} />}
                         title={`AI agents run on your organization's API ${
                             setKeyCount > 1 ? 'keys' : 'key'
                         }`}
@@ -319,7 +422,7 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
                         never the instance&apos;s default keys.
                     </Callout>
                 )}
-                <Text fz="sm" c="dimmed">
+                <Text fz="xs" c="dimmed">
                     Autopilot setup shows which provider, model, and key it
                     uses. Scheduled runs can make multiple model calls and incur
                     usage on that key.
@@ -342,6 +445,10 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
                             )}
                             visibility={modelVisibility?.[provider]}
                             locked={isLockedByByok(provider)}
+                            onlyKeyedProvider={
+                                setKeyCount === 1 &&
+                                providerApiKeysSet[provider]
+                            }
                             disabled={disabled}
                             dataAppModels={
                                 showDataAppModels && provider === 'anthropic'
@@ -361,6 +468,12 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
                                 onUpdateVisibility({
                                     ...(modelVisibility ?? {}),
                                     [provider]: value,
+                                })
+                            }
+                            gatewayBaseUrl={providerBaseUrls[provider]}
+                            onSaveGatewayBaseUrl={(baseUrl) =>
+                                onUpdateKeys({
+                                    providerBaseUrls: { [provider]: baseUrl },
                                 })
                             }
                         />

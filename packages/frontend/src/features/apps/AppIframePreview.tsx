@@ -17,20 +17,27 @@ import {
     useRef,
     useState,
 } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import classes from './AppIframePreview.module.css';
 import { type DeliveryCaptureAccumulator } from './deliveryCapture/deliveryCaptureAccumulator';
 import {
     useAppSdkBridge,
     type ElementSelectedEvent,
+    type AppStateEvent,
     type ExternalRequestEvent,
     type QueryEvent,
     type SdkManifest,
 } from './hooks/useAppSdkBridge';
 import { useAppUrlStateSync } from './hooks/useAppUrlStateSync';
+import { useAppViewOutcomes } from './hooks/useAppViewOutcomes';
+import { useIframePdfExport } from './hooks/useIframePdfExport';
 import { useIframeScreenshot } from './hooks/useIframeScreenshot';
 import { withColorSchemeParam } from './utils/appIframeUrl';
 
 export type AppIframePreviewHandle = {
     captureScreenshot: () => Promise<File>;
+    /** Runs the app's registered Download PDF builder; rejects if none. */
+    exportPdf: () => Promise<Blob>;
 };
 
 type Props = {
@@ -58,6 +65,8 @@ type Props = {
      *  tab. Left undefined by hosts that don't surface the inspector (embed,
      *  dashboard tiles). */
     onExternalRequestEvent?: (event: ExternalRequestEvent) => void;
+    /** Reports app-state reads/writes for the same inspector tab. */
+    onAppStateEvent?: (event: AppStateEvent) => void;
     onElementSelected?: (event: ElementSelectedEvent) => void;
     /** When true, the iframe-side inspector overlay is active and clicks
      *  are intercepted to produce element-selected events. */
@@ -74,6 +83,8 @@ type Props = {
      *  resumed sandboxes never announce, so the Screenshot button stays
      *  hidden for them. */
     onScreenshotAvailabilityChange?: (available: boolean) => void;
+    /** Fires when the app registers a PDF export via `registerPdfExport`. */
+    onPdfExportAvailabilityChange?: (available: boolean) => void;
     /** Called when the user presses Esc to leave inspect mode. The handler
      *  lives on the parent's window because that's where focus actually
      *  sits during inspect mode (the toolbar button before any click; the
@@ -165,6 +176,8 @@ type Props = {
     insights?: DataAppInsightsPayload | null;
     onInsightAction?: (action: DataAppInsightAction) => void;
     onInsightsInUse?: () => void;
+    onInsightInstructionsChange?: (instructions: string | null) => void;
+    onInsightAnalyseOnLoadChange?: (analyseOnLoad: boolean | null) => void;
     onMountedQueriesChange?: (queryUuids: string[]) => void;
 };
 
@@ -200,10 +213,12 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             identityKey,
             onQueryEvent,
             onExternalRequestEvent,
+            onAppStateEvent,
             onElementSelected,
             inspectorEnabled,
             onInspectorAvailabilityChange,
             onScreenshotAvailabilityChange,
+            onPdfExportAvailabilityChange,
             onInspectorCancelled,
             lineageEnabled,
             onLineageAvailabilityChange,
@@ -234,6 +249,8 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             insights,
             onInsightAction,
             onInsightsInUse,
+            onInsightInstructionsChange,
+            onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
         },
         ref,
@@ -265,32 +282,55 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         const [iframeNavigation, setIframeNavigation] = useState(() => ({
             key: navigationKey,
             src,
+            id: uuidv4(),
         }));
         useEffect(() => {
             setIframeNavigation((current) =>
                 current.key === navigationKey
                     ? current
-                    : { key: navigationKey, src },
+                    : { key: navigationKey, src, id: uuidv4() },
             );
         }, [navigationKey, src]);
 
         // Seeds are re-latched exactly when the iframe navigates, never on URL
         // state changes alone — that would reload per filter click.
-        const effectiveSrc = useMemo(
-            () =>
+        const effectiveSrc = useMemo(() => {
+            const url = new URL(
                 applyColorSchemeSeed(
                     urlStateSync
                         ? applySeed(iframeNavigation.src)
                         : iframeNavigation.src,
                 ),
-            [
-                urlStateSync,
-                applySeed,
-                applyColorSchemeSeed,
-                iframeNavigation.src,
-            ],
-        );
+            );
+            url.searchParams.set('navigationId', iframeNavigation.id);
+            return url.toString();
+        }, [
+            urlStateSync,
+            applySeed,
+            applyColorSchemeSeed,
+            iframeNavigation.src,
+            iframeNavigation.id,
+        ]);
         const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+        const recordOutcome = useAppViewOutcomes({
+            projectUuid,
+            appUuid,
+            src: iframeNavigation.src,
+            previewToken,
+            navigationId: iframeNavigation.id,
+        });
+        const handleSdkManifest = useCallback(
+            (manifest: SdkManifest) => {
+                recordOutcome('sdk_started', manifest.navigationId);
+                onSdkManifest?.(manifest);
+            },
+            [recordOutcome, onSdkManifest],
+        );
+        const handleRuntimeError = useCallback(
+            (navigationId: string) =>
+                recordOutcome('runtime_error', navigationId),
+            [recordOutcome],
+        );
         // Memoized so the bridge's message listener doesn't re-attach on every
         // parent render — AppGenerate re-renders on every keystroke (editor's
         // `onUpdate` → `setIsPromptEmpty`) and we don't want to thrash listeners.
@@ -300,6 +340,9 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         const handleScreenshotAnnounce = useCallback(() => {
             onScreenshotAvailabilityChange?.(true);
         }, [onScreenshotAvailabilityChange]);
+        const handlePdfExportAnnounce = useCallback(() => {
+            onPdfExportAvailabilityChange?.(true);
+        }, [onPdfExportAvailabilityChange]);
         const handleLineageAnnounce = useCallback(() => {
             onLineageAvailabilityChange?.(true);
         }, [onLineageAvailabilityChange]);
@@ -334,6 +377,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onElementSelected,
             onInspectorAvailable: handleInspectorAnnounce,
             onScreenshotAvailable: handleScreenshotAnnounce,
+            onPdfExportAvailable: handlePdfExportAnnounce,
             dashboardFilters,
             invalidateCache,
             deliveryCapture,
@@ -343,6 +387,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onLineageAvailable: handleLineageAnnounce,
             onLineageSelected,
             onExternalRequestEvent,
+            onAppStateEvent,
             dataAppVizContext,
             dataAppVizMode,
             chartContext,
@@ -352,7 +397,8 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onVizPointMenuIntent: handleVizPointMenuIntent,
             onVizSubtotalsIntent,
             onUrlStateChange: urlStateSync ? handleUrlStateChange : undefined,
-            onSdkManifest,
+            onSdkManifest: handleSdkManifest,
+            onRuntimeError: handleRuntimeError,
             onVizRendered,
             vizRenderId,
             onVizContextRequest,
@@ -360,12 +406,16 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             insights,
             onInsightAction,
             onInsightsInUse,
+            onInsightInstructionsChange,
+            onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
         });
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
+        const { exportPdf } = useIframePdfExport(iframeRef);
 
-        useImperativeHandle(ref, () => ({ captureScreenshot }), [
+        useImperativeHandle(ref, () => ({ captureScreenshot, exportPdf }), [
             captureScreenshot,
+            exportPdf,
         ]);
 
         // Reset availability to false when the served bundle changes (new app or
@@ -379,11 +429,13 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         useEffect(() => {
             onInspectorAvailabilityChange?.(false);
             onScreenshotAvailabilityChange?.(false);
+            onPdfExportAvailabilityChange?.(false);
             onLineageAvailabilityChange?.(false);
         }, [
             identityKey,
             onInspectorAvailabilityChange,
             onScreenshotAvailabilityChange,
+            onPdfExportAvailabilityChange,
             onLineageAvailabilityChange,
         ]);
 
@@ -443,17 +495,12 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
                 data-tour-docs="data-apps.mdx#choosing-a-template:li1"
                 ref={iframeRef}
                 src={effectiveSrc}
-                style={{
-                    width: '100%',
-                    height: '100%',
-                    border: 'none',
-                    colorScheme,
-                    // Keep the host surface visible until the app applies its theme.
-                    visibility:
-                        loadedSrc === effectiveSrc ? 'visible' : 'hidden',
-                }}
+                className={classes.frame}
+                data-color-scheme={colorScheme}
+                // Keep the host surface visible until the app applies its theme.
+                data-loading={loadedSrc !== effectiveSrc || undefined}
                 title="App preview"
-                sandbox="allow-scripts allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+                sandbox="allow-scripts allow-forms allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
                 allow=""
                 onLoad={handleLoad}
             />

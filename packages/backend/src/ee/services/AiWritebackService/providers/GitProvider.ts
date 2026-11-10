@@ -22,6 +22,8 @@ export type OpenPullRequestArgs = {
     /** The Lightdash user who triggered the run, credited as a commit co-author. */
     user: SessionUser;
     setStage: SetStage;
+    assertStagedChangesAllowed: (() => Promise<void>) | null;
+    assertPublishAllowed: (() => Promise<void>) | null;
 };
 
 export type UpdatePullRequestArgs = OpenPullRequestArgs & {

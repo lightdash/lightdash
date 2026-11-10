@@ -26,7 +26,7 @@ const baseline = candidate('baseline', 0.99);
 const expanded = candidate('expanded', 0.1);
 const user = { userUuid: 'user', organizationUuid: 'org' } as SessionUser;
 
-const setup = (options?: { isOrgBedrockRouted?: boolean }) => {
+const setup = (options?: { isOrgOnOwnProviderKeys?: boolean }) => {
     vi.mocked(generateEmbedding).mockResolvedValue({
         embedding: [1, 0],
         provider: 'provider',
@@ -35,6 +35,7 @@ const setup = (options?: { isOrgBedrockRouted?: boolean }) => {
     const aiAgentModel = {
         getContextForPromptUuids: vi.fn().mockResolvedValue(new Map()),
         getToolCallsAndResultsForPrompt: vi.fn().mockResolvedValue([]),
+        findProviderCredentialUuid: vi.fn().mockResolvedValue(null),
         searchArtifactsBySimilarity: vi
             .fn()
             .mockResolvedValue([baseline, expanded]),
@@ -59,9 +60,9 @@ const setup = (options?: { isOrgBedrockRouted?: boolean }) => {
         aiAgentModel,
         analytics: { track: vi.fn() },
         orgAiCopilotConfigResolver: {
-            isOrgBedrockRouted: vi
+            isOrgOnOwnProviderKeys: vi
                 .fn()
-                .mockResolvedValue(options?.isOrgBedrockRouted ?? false),
+                .mockResolvedValue(options?.isOrgOnOwnProviderKeys ?? false),
         },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
     const authorize = vi
@@ -93,10 +94,10 @@ describe('verified answer retrieval', () => {
             await service.getRelevantVerifiedAnswerContextForAgent(user, args),
         ).toEqual({ relevantVerifiedAnswers: [expanded] });
         expect(authorize).toHaveBeenCalledWith(user, 'agent', 'project');
-        expect(getDecisions).toHaveBeenCalledWith({
-            userUuid: 'user',
-            organizationUuid: 'org',
-        });
+        expect(getDecisions).toHaveBeenCalledWith(
+            { userUuid: 'user', organizationUuid: 'org' },
+            'project',
+        );
         expect(aiAgentModel.searchArtifactsBySimilarity).toHaveBeenCalledWith({
             organizationUuid: 'org',
             projectUuid: 'project',
@@ -180,9 +181,9 @@ describe('verified answer retrieval', () => {
         expect(request).not.toHaveBeenCalled();
     });
 
-    it('does not embed for a Bedrock-routed org', async () => {
+    it('does not embed for an org on its own provider keys', async () => {
         const { service, aiAgentModel, args } = setup({
-            isOrgBedrockRouted: true,
+            isOrgOnOwnProviderKeys: true,
         });
         vi.mocked(generateEmbedding).mockClear();
         expect(

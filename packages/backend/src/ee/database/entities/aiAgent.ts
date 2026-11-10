@@ -18,8 +18,15 @@ export type DbAiAgent = {
     enable_content_tools: boolean;
     enable_user_context: boolean;
     enable_sql_mode: boolean;
+    enable_sql_auto_approval: boolean;
+    enable_composer_queries: boolean;
     admin_only: boolean;
     model_config: AiAgentModelConfig | null;
+    /**
+     * AI provider credential this agent's prompts run on. Null resolves the
+     * project pin, then the organization default. FK with ON DELETE RESTRICT.
+     */
+    ai_organization_provider_credential_uuid: string | null;
     /**
      * @deprecated Per-agent reasoning toggle was removed. The gating feature flag
      * `agent-reasoning` was never enabled so this column was effectively
@@ -27,13 +34,6 @@ export type DbAiAgent = {
      * Column kept on the table (DB default `false`); drop in a follow-up migration.
      */
     enable_reasoning?: boolean;
-    /**
-     * Built-in fallback agent used when an organization has no configured
-     * agents. Hidden from normal agent listings (so it never counts as "an
-     * agent configured") but usable as a Slack fallback. At most one per
-     * (organization, project).
-     */
-    is_system: boolean;
     version: number;
     thread_retention_hours: number | null;
     created_at: Date;

@@ -85,7 +85,7 @@ export const SelectGoogleSheetButton: FC = () => {
                         </TruncatedText>
                         <Tooltip
                             label={googleDriveId}
-                            style={{ wordBreak: 'break-word' }}
+                            classNames={{ tooltip: classes.tooltip }}
                         >
                             <MantineIcon
                                 color="dimmed"
@@ -99,8 +99,7 @@ export const SelectGoogleSheetButton: FC = () => {
                             <Anchor
                                 href={googleDriveUrl}
                                 target="_blank"
-                                display="flex"
-                                style={{ alignItems: 'center' }}
+                                className={classes.externalLink}
                             >
                                 <MantineIcon
                                     icon={IconExternalLink}

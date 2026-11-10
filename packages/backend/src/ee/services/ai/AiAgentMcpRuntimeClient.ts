@@ -32,6 +32,7 @@ import { Agent, type Dispatcher } from 'undici';
 /* eslint-enable import/extensions */
 import { LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
+import type { ConnectedAgentTool } from '../../../services/AgentPermissionService/AgentPermissionService';
 import {
     isPrivateAddress,
     validatePublicHttpUrl,
@@ -71,17 +72,20 @@ export const MCP_TOOL_OUTPUT_MAX_CHARS = 32_000;
 export const MCP_TOOL_SCHEMA_MAX_CHARS = 64_000;
 export const MCP_HTTP_RESPONSE_MAX_BYTES = 4 * 1024 * 1024;
 
-export const sanitizeUntrustedMcpText = (
-    value: string,
-    maxChars: number,
-): string => {
-    const sanitized = value
+const escapeUntrustedMcpText = (value: string): string =>
+    value
         .replace(/\p{Cc}|\p{Cf}/gu, (character) =>
             ['\t', '\n', '\r'].includes(character) ? character : '',
         )
         .replaceAll('&', '&amp;')
         .replaceAll('<', '&lt;')
         .replaceAll('>', '&gt;');
+
+export const sanitizeUntrustedMcpText = (
+    value: string,
+    maxChars: number,
+): string => {
+    const sanitized = escapeUntrustedMcpText(value);
     if (sanitized.length <= maxChars) return sanitized;
     return `${sanitized.slice(0, maxChars)}\n[truncated by Lightdash]`;
 };
@@ -101,7 +105,7 @@ const sanitizeBoundedMcpValue = (
         state.remaining -= bounded.length;
         const suffix =
             value.length > bounded.length ? '\n[truncated by Lightdash]' : '';
-        return `${sanitizeUntrustedMcpText(bounded, bounded.length)}${suffix}`;
+        return `${escapeUntrustedMcpText(bounded)}${suffix}`;
     }
     if (
         value === null ||
@@ -137,7 +141,7 @@ const sanitizeBoundedMcpValue = (
             const boundedKey = key.slice(0, state.remaining);
             // eslint-disable-next-line no-param-reassign
             state.remaining -= boundedKey.length;
-            sanitized[sanitizeUntrustedMcpText(boundedKey, boundedKey.length)] =
+            sanitized[escapeUntrustedMcpText(boundedKey)] =
                 sanitizeBoundedMcpValue(child, maxChars, state, depth + 1);
         }
         return sanitized;
@@ -177,11 +181,19 @@ const markMcpOutputAsUntrusted = (value: unknown): unknown => {
 };
 
 const hardenMcpOutput = (value: unknown): unknown => {
-    const hardened = markMcpOutputAsUntrusted(
-        sanitizeBoundedMcpValue(value, MCP_TOOL_OUTPUT_MAX_CHARS),
-    );
-    const serialized = JSON.stringify(hardened);
-    if (serialized.length <= MCP_TOOL_OUTPUT_MAX_CHARS) return hardened;
+    // Escaping and JSON encoding grow the bounded value, so shrink the raw
+    // budget until the serialized output fits.
+    let budget = MCP_TOOL_OUTPUT_MAX_CHARS;
+    for (let attempt = 0; attempt < 4 && budget > 0; attempt += 1) {
+        const hardened = markMcpOutputAsUntrusted(
+            sanitizeBoundedMcpValue(value, budget),
+        );
+        const serializedLength = JSON.stringify(hardened).length;
+        if (serializedLength <= MCP_TOOL_OUTPUT_MAX_CHARS) return hardened;
+        budget = Math.floor(
+            budget * (MCP_TOOL_OUTPUT_MAX_CHARS / serializedLength) * 0.95,
+        );
+    }
     return {
         content: [
             {
@@ -201,7 +213,10 @@ const hardenMcpInputSchema = (inputSchema: unknown): unknown => {
             if (totalChars > MCP_TOOL_SCHEMA_MAX_CHARS) {
                 throw new McpPayloadTooLargeError();
             }
-            if (/\p{Cc}|\p{Cf}/u.test(value)) {
+            // Tab, newline and carriage return are ordinary formatting in
+            // schema descriptions (Notion ships them); only other control
+            // and format characters are rejected.
+            if (/(?![\t\n\r])[\p{Cc}\p{Cf}]/u.test(value)) {
                 throw new McpPayloadTooLargeError();
             }
             if (key === '$comment') return undefined;
@@ -310,6 +325,7 @@ export const hardenMcpToolDefinition = (
 export type ResolvedMcpTools = {
     tools: ToolSet;
     mcpToolNameToServerUuid: Record<string, string>;
+    connectedToolInventory: Record<string, ConnectedAgentTool>;
     unavailableMcpServers: UnavailableMcpServer[];
     closeMcpClients: () => Promise<void>;
 };
@@ -342,28 +358,41 @@ const buildDefaultClientMetadata = (
     token_endpoint_auth_method: 'none',
 });
 
-const getOAuthClientInformation = (
-    payload: AiMcpOAuthCredentialPayload,
+// A configured client ID without a secret is a public client: PKCE only.
+const getConfiguredClientInformation = (
+    payload: Pick<
+        AiMcpOAuthCredentialPayload,
+        'configuredClientId' | 'configuredClientSecret'
+    >,
 ): OAuthClientInformationMixed | undefined => {
-    if (payload.configuredClientId && payload.configuredClientSecret) {
+    if (!payload.configuredClientId) {
+        return undefined;
+    }
+
+    if (payload.configuredClientSecret) {
         return {
             client_id: payload.configuredClientId,
             client_secret: payload.configuredClientSecret,
         };
     }
 
-    return payload.clientInformation as OAuthClientInformationMixed | undefined;
+    return {
+        client_id: payload.configuredClientId,
+        token_endpoint_auth_method: 'none',
+    };
 };
+
+const getOAuthClientInformation = (
+    payload: AiMcpOAuthCredentialPayload,
+): OAuthClientInformationMixed | undefined =>
+    getConfiguredClientInformation(payload) ??
+    (payload.clientInformation as OAuthClientInformationMixed | undefined);
 
 const toPersistedOAuthPayload = (
     payload: AiMcpOAuthCredentialPayload,
     credentialScope: AiMcpCredentialScope,
 ): AiMcpOAuthCredentialPayload => {
-    if (
-        credentialScope !== 'user' ||
-        !payload.configuredClientId ||
-        !payload.configuredClientSecret
-    ) {
+    if (credentialScope !== 'user' || !payload.configuredClientId) {
         return payload;
     }
 
@@ -396,13 +425,9 @@ export const normalizeMcpOAuthPayloadForRedirect = (
         return {
             ...payload,
             credentialScope,
-            clientInformation:
-                payload.configuredClientId && payload.configuredClientSecret
-                    ? {
-                          client_id: payload.configuredClientId,
-                          client_secret: payload.configuredClientSecret,
-                      }
-                    : undefined,
+            clientInformation: getConfiguredClientInformation(payload) as
+                | Record<string, unknown>
+                | undefined,
             clientMetadata: defaultClientMetadata,
             codeVerifier: undefined,
             state: undefined,
@@ -1224,8 +1249,7 @@ export class AiAgentMcpRuntimeClient {
             if (
                 !sharedCredential ||
                 sharedPayload?.type !== 'oauth' ||
-                !sharedPayload.configuredClientId ||
-                !sharedPayload.configuredClientSecret
+                !sharedPayload.configuredClientId
             ) {
                 return credential;
             }
@@ -1591,6 +1615,7 @@ export class AiAgentMcpRuntimeClient {
             return {
                 tools: {},
                 mcpToolNameToServerUuid: {},
+                connectedToolInventory: {},
                 unavailableMcpServers: [],
                 closeMcpClients: async () => undefined,
             };
@@ -1600,6 +1625,7 @@ export class AiAgentMcpRuntimeClient {
         const usedToolNames = new Set<string>();
         const resolvedTools: ToolSet = {};
         const mcpToolNameToServerUuid: Record<string, string> = {};
+        const connectedToolInventory: Record<string, ConnectedAgentTool> = {};
         const unavailableMcpServers: UnavailableMcpServer[] = [];
 
         const serverResults = await Promise.all(
@@ -1750,6 +1776,12 @@ export class AiAgentMcpRuntimeClient {
                     usedToolNames.add(namespacedToolName);
                     mcpToolNameToServerUuid[namespacedToolName] =
                         serverResult.mcpServer.uuid;
+                    connectedToolInventory[namespacedToolName] = {
+                        serverUuid: serverResult.mcpServer.uuid,
+                        toolName,
+                        enabledToolNames:
+                            serverResult.mcpServer.enabledToolNames ?? null,
+                    };
                     try {
                         resolvedTools[namespacedToolName] =
                             hardenMcpToolDefinition(
@@ -1762,6 +1794,7 @@ export class AiAgentMcpRuntimeClient {
                             );
                             usedToolNames.delete(namespacedToolName);
                             delete mcpToolNameToServerUuid[namespacedToolName];
+                            delete connectedToolInventory[namespacedToolName];
                             // eslint-disable-next-line no-continue
                             continue;
                         }
@@ -1774,6 +1807,7 @@ export class AiAgentMcpRuntimeClient {
         return {
             tools: resolvedTools,
             mcpToolNameToServerUuid,
+            connectedToolInventory,
             unavailableMcpServers,
             closeMcpClients: async () => {
                 const results = await Promise.allSettled(

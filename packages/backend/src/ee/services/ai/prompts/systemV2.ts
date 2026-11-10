@@ -8,43 +8,57 @@ import {
 } from '@lightdash/common';
 import { SystemModelMessage } from 'ai';
 import moment from 'moment';
+import type { DeferredPromptSection, PromptSection } from '../loadout';
 import { AiAgentSkillReference } from '../skills/types';
 import {
+    AgentLiveSource,
     AiAgentDeepResearchRunContext,
     AiAgentRequestingUser,
+    AiAgentThreadBindingContext,
 } from '../types/aiAgent';
-import { renderKnowledgeDocumentSummary } from '../utils/renderKnowledgeDocumentSummary';
 import { escapeXmlText, xmlBuilder } from '../xmlBuilder';
 import { renderAvailableCustomChartTypes } from './availableCustomChartTypes';
 import { renderAvailableExplores } from './availableExplores';
 import {
-    EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+    COMPOSER_FILTER_GUIDANCE_SECTION,
     FILTER_EXPRESSION_GUIDANCE_SECTION,
     STRUCTURED_FILTER_GUIDANCE_SECTION,
-    STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
 } from './filterGuidance';
 import { getAiWritebackSection } from './systemV2AiWriteback';
-import { getCodingAgentSection } from './systemV2CodingAgent';
 import {
+    DOCUMENT_NUDGES_GUIDANCE,
     getContentToolsSection,
     getDocumentToolsSection,
 } from './systemV2ContentTools';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
 import { GENERATE_DATA_APP_SECTION } from './systemV2DataApps';
+import { getKnowledgeDocumentsSection } from './systemV2KnowledgeDocuments';
+import { getLiveSourcesSection } from './systemV2LiveSources';
 import { MEMORIES_SECTION } from './systemV2Memories';
 import {
-    REPO_FS_SECTION,
-    repoFsRootHint,
-    repoFsSearchCaveat,
-} from './systemV2RepoFs';
+    getComposerQueryPath,
+    getQueryingComposerSection,
+} from './systemV2QueryingComposer';
+import { getRepoFsSection } from './systemV2RepoFs';
 import { getRequestingUserSection } from './systemV2RequestingUser';
 import { getRunSqlSection } from './systemV2RunSql';
 import { getSchedulingToolsSection } from './systemV2SchedulingTools';
 import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
+import { getSemanticStudioSystemPrompt } from './systemV2SemanticStudio';
 import { renderAvailableSkills } from './systemV2Skills';
 import { getSlackLinksOnlySection } from './systemV2SlackLinksOnly';
-import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
+import {
+    CLASSIC_QUERY_PATH,
+    FORECAST_LIMITATION,
+    getChartTypesLimitation,
+    SYSTEM_PROMPT_TEMPLATE,
+    type QueryPath,
+} from './systemV2Template';
+import {
+    getThreadBindingSection,
+    getThreadContextSection,
+} from './systemV2ThreadSetup';
 
 const getDataAccessSection = (
     enableDataAccess: boolean,
@@ -56,62 +70,87 @@ const getDataAccessSection = (
         : DATA_ACCESS_DISABLED_SECTION;
 };
 
-export type DeferredPromptSection =
-    | 'runSql'
-    | 'contentTools'
-    | 'schedulingTools'
-    | 'generateDataApp'
-    | 'skills';
+const NO_PROMPT_SECTIONS: ReadonlySet<PromptSection> = new Set();
+
+const getFilterGuidanceSection = (
+    composer: boolean,
+    enableFilterExpressions: boolean,
+): string => {
+    if (composer) return COMPOSER_FILTER_GUIDANCE_SECTION;
+    return enableFilterExpressions
+        ? FILTER_EXPRESSION_GUIDANCE_SECTION
+        : STRUCTURED_FILTER_GUIDANCE_SECTION;
+};
 
 export type CapabilitySectionArgs = {
+    // Sections the loadout renders; everything else in the prompt is wording.
+    promptSections?: ReadonlySet<PromptSection>;
     availableSkills?: AiAgentSkillReference[];
-    enableFastMetadata?: boolean;
-    enableContentTools?: boolean;
-    enableDocuments?: boolean;
+    // False when the content tools load for Documents alone. Defaults to true.
+    canSaveCharts?: boolean;
+    enableDocumentNudges?: boolean;
     enableDocumentCustomCharts?: boolean;
-    enableGenerateDataApp?: boolean;
     slackChannelId?: string | null;
-    canRunSql?: boolean;
-    enableComposerQueries?: boolean;
     warehouseType?: WarehouseTypes | null;
     warehouseSchema?: string | null;
+    warehouseConnections?: {
+        name: string;
+        warehouseConnectionUuid: string | null;
+        warehouseType: WarehouseTypes;
+        isOriginal: boolean;
+    }[];
     sqlScope?: AgentSqlScope | null;
-    runSqlMaxLimit?: number;
+    canRunQuery?: boolean;
 };
 
 const getCapabilitySections = (
     args: CapabilitySectionArgs,
-): Record<DeferredPromptSection, string> => ({
-    runSql: args.canRunSql
-        ? getRunSqlSection({
-              warehouseType: args.warehouseType ?? null,
-              warehouseSchema: args.warehouseSchema ?? null,
-              sqlScope: args.sqlScope ?? null,
-              runSqlMaxLimit: args.runSqlMaxLimit,
-              viaComposerQueries: args.enableComposerQueries ?? false,
-              answerWithRunQuery: args.enableFastMetadata ?? false,
-          })
-        : '',
-    contentTools: args.enableContentTools
-        ? [
-              getContentToolsSection(args.enableFastMetadata ?? false),
-              args.enableDocuments
-                  ? getDocumentToolsSection(
-                        args.enableDocumentCustomCharts ?? false,
-                    )
-                  : '',
-          ]
-              .filter(Boolean)
-              .join('\n\n')
-        : '',
-    schedulingTools: args.enableContentTools
-        ? getSchedulingToolsSection(args.slackChannelId ?? null)
-        : '',
-    generateDataApp: args.enableGenerateDataApp
-        ? GENERATE_DATA_APP_SECTION
-        : '',
-    skills: renderAvailableSkills(args.availableSkills ?? []),
-});
+): Record<DeferredPromptSection, string> => {
+    const sections = args.promptSections ?? NO_PROMPT_SECTIONS;
+    const canRunQuery = args.canRunQuery ?? false;
+    const canSaveCharts = args.canSaveCharts ?? true;
+    const composer = sections.has('queryingComposer');
+    return {
+        runSql: sections.has('runSql')
+            ? getRunSqlSection({
+                  warehouseType: args.warehouseType ?? null,
+                  warehouseSchema: args.warehouseSchema ?? null,
+                  warehouseConnections: args.warehouseConnections ?? [],
+                  sqlScope: args.sqlScope ?? null,
+                  viaComposerQueries: composer,
+              })
+            : '',
+        contentTools: sections.has('contentTools')
+            ? [
+                  canSaveCharts
+                      ? getContentToolsSection({
+                            canRunQuery,
+                            viaComposerQueries: composer,
+                        })
+                      : '',
+                  sections.has('documents')
+                      ? getDocumentToolsSection({
+                            customCharts:
+                                args.enableDocumentCustomCharts ?? false,
+                            nudges: args.enableDocumentNudges ?? false,
+                            viaComposerQueries: composer,
+                        })
+                      : '',
+              ]
+                  .filter(Boolean)
+                  .join('\n\n')
+            : '',
+        schedulingTools: sections.has('schedulingTools')
+            ? getSchedulingToolsSection(args.slackChannelId ?? null)
+            : '',
+        generateDataApp: sections.has('generateDataApp')
+            ? GENERATE_DATA_APP_SECTION
+            : '',
+        skills: sections.has('skills')
+            ? renderAvailableSkills(args.availableSkills ?? [])
+            : '',
+    };
+};
 
 /** Instructions for capabilities left out of the system prompt, returned when the agent loads the remaining tools. */
 export const getDeferredToolInstructions = (
@@ -125,133 +164,113 @@ export const getDeferredToolInstructions = (
         .join('\n\n');
 };
 
-export const getSystemPromptV2 = (args: {
-    availableExplores: Explore[];
-    // Capability sections withheld until the agent loads the matching tools.
-    deferredSections?: ReadonlySet<DeferredPromptSection>;
-    availableCustomChartTypes?: CustomChartTypeLibrary;
-    availableSkills?: AiAgentSkillReference[];
-    knowledgeDocuments?: AiAgentDocumentContext[];
-    deepResearchRuns?: AiAgentDeepResearchRunContext[];
-    hasProjectContext?: boolean;
-    projectContextPreloaded?: boolean;
-    enableFastMetadata?: boolean;
-    enableChartExport?: boolean;
-    instructions?: string;
-    agentName?: string;
-    requestingUser?: AiAgentRequestingUser | null;
-    date?: string;
-    enableDataAccess?: boolean;
-    enableFilterExpressions?: boolean;
-    enableAiWriteback?: boolean;
-    writebackAttribution?: AiWritebackAttribution | null;
-    enableCodingAgent?: boolean;
-    siteUrl?: string;
-    enableRepoDiscovery?: boolean;
-    repoFsRoot?: string | null;
-    // Whether the repo host supports server-side code search (GitHub yes,
-    // GitLab no). Defaults true; when false the prompt steers off `search`.
-    repoFsSupportsCodeSearch?: boolean;
-    enableContentTools?: boolean;
-    enableDocuments?: boolean;
-    enableDocumentCustomCharts?: boolean;
-    enableGenerateDataApp?: boolean;
-    enableAiAgentMemory?: boolean;
-    // Originating Slack channel for "this channel" scheduling targets; null on
-    // web and MCP prompts.
-    slackChannelId?: string | null;
-    // Org Slack setting: the answer may not carry query results into Slack.
-    slackLinksOnly?: boolean;
-    canRunSql?: boolean;
-    // When composer queries are on, the standalone runSql tool is withheld
-    // and raw SQL runs as `sql` nodes inside runComposerQueries instead.
-    enableComposerQueries?: boolean;
-    enableMergeQueries?: boolean;
-    warehouseType?: WarehouseTypes | null;
-    warehouseSchema?: string | null;
-    sqlScope?: AgentSqlScope | null;
-    // runSql's own max, quoted in its prompt section.
-    runSqlMaxLimit?: number;
-    unauthenticatedMcpServerNames?: string[];
-    mcpServers?: Array<{ name: string; toolNames: string[] }>;
-}): SystemModelMessage => {
+const toSystemMessage = (content: string): SystemModelMessage => ({
+    role: 'system',
+    content,
+    providerOptions: {
+        anthropic: { cacheControl: { type: 'ephemeral' } },
+        bedrock: { cachePoint: { type: 'default' } },
+    },
+});
+
+export const getSystemPromptV2 = (
+    args: CapabilitySectionArgs & {
+        availableExplores: Explore[];
+        // Capability sections withheld until the agent loads the matching tools.
+        deferredSections?: ReadonlySet<DeferredPromptSection>;
+        availableCustomChartTypes?: CustomChartTypeLibrary;
+        knowledgeDocuments?: AiAgentDocumentContext[];
+        deepResearchRuns?: AiAgentDeepResearchRunContext[];
+        hasProjectContext?: boolean;
+        projectContextPreloaded?: boolean;
+        instructions?: string;
+        agentName?: string;
+        requestingUser?: AiAgentRequestingUser | null;
+        threadBinding?: AiAgentThreadBindingContext | null;
+        threadContext?: string | null;
+        date?: string;
+        enableDataAccess?: boolean;
+        enableFilterExpressions?: boolean;
+        writebackAttribution?: AiWritebackAttribution | null;
+        siteUrl?: string;
+        repoFsRoot?: string | null;
+        // Whether the repo host supports server-side code search (GitHub yes,
+        // GitLab no). Defaults true; when false the prompt steers off `search`.
+        repoFsSupportsCodeSearch?: boolean;
+        // Org Slack setting: the answer may not carry query results into Slack.
+        slackLinksOnly?: boolean;
+        canRunSql?: boolean;
+        // Python nodes in query; only meaningful for the composer base.
+        enableComposerPythonNodes?: boolean;
+        liveSources?: AgentLiveSource[];
+        unauthenticatedMcpServerNames?: string[];
+        mcpServers?: Array<{ name: string; toolNames: string[] }>;
+    },
+): SystemModelMessage => {
     const {
         instructions,
         agentName = 'Lightdash AI Analyst',
         requestingUser = null,
+        threadBinding = null,
+        threadContext = null,
         date = moment().utc().format('YYYY-MM-DD'),
         enableDataAccess = false,
         enableFilterExpressions = false,
-        enableAiWriteback = false,
         writebackAttribution = null,
-        enableCodingAgent = false,
         siteUrl = '',
-        enableRepoDiscovery = false,
         repoFsRoot = null,
         repoFsSupportsCodeSearch = true,
-        enableContentTools = false,
-        enableAiAgentMemory = false,
+        promptSections = NO_PROMPT_SECTIONS,
         slackChannelId = null,
         slackLinksOnly = false,
         canRunSql = false,
-        enableComposerQueries = false,
-        enableMergeQueries = false,
+        canRunQuery = false,
+        enableComposerPythonNodes = false,
+        liveSources = [],
         unauthenticatedMcpServerNames = [],
         deferredSections = new Set<DeferredPromptSection>(),
         mcpServers = [],
     } = args;
 
     const capabilitySections = getCapabilitySections(args);
+    const contentToolsEnabled =
+        promptSections.has('contentTools') && (args.canSaveCharts ?? true);
+    const documentToolsEnabled =
+        promptSections.has('contentTools') && promptSections.has('documents');
+    const composer = promptSections.has('queryingComposer');
     const getCapabilitySection = (section: DeferredPromptSection) =>
         deferredSections.has(section) ? '' : capabilitySections[section];
 
     let crossExploreJoinRule: string;
-    if (enableMergeQueries) {
+    if (canRunSql && (args.warehouseConnections?.length ?? 0) > 1) {
         crossExploreJoinRule =
-            '  - To combine fields from two explores that are not joined in the semantic layer, use generateVisualization with mergeConfig. Keep the primary query in queryConfig, put exactly one additional query in mergeConfig.additionalSources, and join dimensions at the same type and grain. Do not use runSql merely to combine explores.';
-    } else if (enableComposerQueries) {
-        crossExploreJoinRule =
-            '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use runComposerQueries: one semanticLayer node per explore plus a duckdb node that joins their results.';
+            '- A query uses fields from one explore. Raw SQL combines tables only on the original connection; when the data spans connections, explain this limit.';
     } else if (canRunSql) {
         crossExploreJoinRule =
-            '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.';
+            '- A query uses fields from one explore. To combine explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.';
     } else {
-        crossExploreJoinRule =
-            '  - You can not mix fields from different explores.';
+        crossExploreJoinRule = '- A query uses fields from one explore.';
     }
+    const queryPath: QueryPath = composer
+        ? {
+              ...getComposerQueryPath(canRunSql),
+              queryLanguageSections: getQueryingComposerSection({
+                  enablePythonNodes: enableComposerPythonNodes,
+                  canRunSql,
+                  slackChannelId,
+              }),
+          }
+        : {
+              ...CLASSIC_QUERY_PATH,
+              queryLanguageSections: `${CLASSIC_QUERY_PATH.queryLanguageSections}\n${crossExploreJoinRule}`,
+          };
 
-    const customSqlLimitation = canRunSql
-        ? ''
-        : '\n- You cannot execute raw SQL or add custom SQL expressions to a query.';
-
-    const renderKnowledgeDocument = (doc: AiAgentDocumentContext): string => {
-        const { summary } = doc;
-        const children = renderKnowledgeDocumentSummary(summary);
-        const fullContent = doc.content ?? '';
-        const hasFullContent =
-            doc.alwaysIncludeInContext && fullContent.length > 0;
-        if (hasFullContent) {
-            children.push(
-                xmlBuilder('full_content', null, escapeXmlText(fullContent)),
-            );
-        }
-        return xmlBuilder(
-            'knowledge_document',
-            {
-                uuid: doc.uuid,
-                name: doc.name,
-                relevance: summary.relevance,
-                full_content_included: hasFullContent,
-            },
-            ...children,
-        );
-    };
-
-    const knowledgeDocuments = args.knowledgeDocuments ?? [];
-    const knowledgeDocumentsContent =
-        knowledgeDocuments.length === 0
-            ? 'No knowledge documents have been curated for this agent.'
-            : knowledgeDocuments.map(renderKnowledgeDocument).join('\n');
+    let customSqlLimitation = '';
+    if (!canRunSql) {
+        customSqlLimitation = composer
+            ? '\n- Warehouse data comes from semanticLayer nodes; raw SQL against the warehouse is unavailable.'
+            : '\n- You cannot execute raw SQL or add custom SQL expressions to a query.';
+    }
 
     const deepResearchRuns = args.deepResearchRuns ?? [];
     const deepResearchContent =
@@ -259,8 +278,11 @@ export const getSystemPromptV2 = (args: {
             ? ''
             : [
                   '## Deep Research in this conversation',
-                  'This state is current for this user turn. Treat active progress separately from report findings. Never claim unfinished findings are available, implicitly start a duplicate run, or offer to cancel, restart, or modify a run.',
+                  'This state is current for this user turn. Keep active progress separate from report findings: present findings only from an available report, and let a running investigation continue without implicitly starting a duplicate run or offering to cancel, restart or change it.',
                   'For questions about report findings, call `listKnowledgeDocuments`, identify the matching Deep Research report, then call `getKnowledgeDocumentContent`. If more than one report could match, ask which research question the user means.',
+                  documentToolsEnabled
+                      ? 'A published report is a Document you can update. Only when the user clearly asks to change the report itself (for example to add, extend or fix a section or chart), `readContent` it by its Document slug, then `editContent` it: change only what was asked and keep every other section and chart exactly as it is. Each edit saves a new version of the same Document. Otherwise answer in the conversation; if it is unclear whether the user wants the report updated, ask.'
+                      : 'You cannot update a published report here. If the user asks to change one, say that updating reports requires the "Create and edit content" setting on this agent, which an admin can turn on, and that they can also edit the Document directly. Do not offer to rewrite or regenerate the report.',
                   xmlBuilder(
                       'deep_research_runs',
                       { count: deepResearchRuns.length },
@@ -290,20 +312,20 @@ export const getSystemPromptV2 = (args: {
 
     let projectContextContent =
         'No project context has been configured for this project.';
-    if (args.hasProjectContext) {
+    if (promptSections.has('projectContext') && args.hasProjectContext) {
+        const projectContextDefinition =
+            'This project has curated business context: acronyms, definitions, rules and conventions that are not in the field metadata.';
         projectContextContent = args.projectContextPreloaded
-            ? 'Relevant project business context is already preloaded for this request. Apply it BEFORE field discovery; treat it as authoritative over your own assumptions. This is a partial selection: use `loadProjectContext` for missing definitions, additional scope or conflicting rules. Do not reload the same entries merely to begin discovery.'
-            : 'This project has curated business context (acronyms, definitions, rules). Call the `loadProjectContext` tool BEFORE grepFields — it can change which explore, field, or filter value you should use. Treat it as authoritative over your own assumptions.';
+            ? `${projectContextDefinition} The entries relevant to this request are already preloaded: apply them before discovery, as authoritative over your own assumptions. They are a partial selection: load more with \`loadProjectContext\` for missing definitions, additional scope or conflicting rules, not to reload the preloaded entries.`
+            : `${projectContextDefinition} Load it with \`loadProjectContext\` before discovery, since it can change which explore, field or filter value you use, and treat it as authoritative over your own assumptions.`;
     }
 
     const AVAILABLE_EXPLORES_INLINE_LIMIT = 15;
     let availableExploresContent: string;
     if (args.availableExplores.length === 0) {
         availableExploresContent = canRunSql
-            ? `No explores are available to this agent yet, but you DO have direct warehouse access. Do not tell the user there is no data. Instead, use listWarehouseTables and describeWarehouseTable to discover the schema, then answer questions with ${
-                  enableComposerQueries
-                      ? 'runComposerQueries using a sql node'
-                      : 'runSql'
+            ? `No explores are available to this agent yet, but you have direct warehouse access: rather than telling the user there is no data, discover the schema with listWarehouseTables and describeWarehouseTable, then answer questions with ${
+                  composer ? 'query using a sql node' : 'runSql'
               }.`
             : 'No explores are available to this agent. Tell the user there is no data you can query and suggest they ask an administrator to set up explores or adjust the agent configuration.';
     } else if (
@@ -316,61 +338,113 @@ export const getSystemPromptV2 = (args: {
         availableExploresContent = `This agent has access to ${args.availableExplores.length} explores. Use grepFields to discover the relevant one for each request.`;
     }
 
-    const allowMarkdownTables =
-        args.enableFastMetadata && !slackChannelId && !slackLinksOnly;
+    // Semantic Studio edits models and answers no questions, so it shares nothing below.
+    if (promptSections.has('semanticStudio')) {
+        return toSystemMessage(
+            getSemanticStudioSystemPrompt({
+                agentName,
+                date,
+                instructions,
+                // The shared wording for no explores tells the agent to answer from SQL or give up.
+                availableExplores:
+                    args.availableExplores.length === 0
+                        ? 'None yet: this project has no models.'
+                        : availableExploresContent,
+                projectContext:
+                    promptSections.has('projectContext') &&
+                    args.hasProjectContext
+                        ? projectContextContent
+                        : null,
+                warehouse: promptSections.has('runSql')
+                    ? {
+                          type: args.warehouseType ?? null,
+                          schema: args.warehouseSchema ?? null,
+                      }
+                    : null,
+            }),
+        );
+    }
+
+    const allowMarkdownTables = !slackChannelId && !slackLinksOnly;
+    // Without data access the agent never sees the rows it could tabulate.
+    const tabulateRows = allowMarkdownTables && enableDataAccess;
+    // On the composer base, visualize presents results in Slack.
     const allowSlackTableSelection =
-        !!slackChannelId && enableDataAccess && !slackLinksOnly;
-    const answerQueryGuidance = slackChannelId
-        ? 'Use runQuery when the user wants an answer from data without a chart; summarize from its rows when data access is available. Select generated tables or charts in the final response only when requested or useful. Use generateVisualization only when the user asks for a chart or visualization. Do not create a chart merely because the answer could be visualized.'
-        : 'Use runQuery when the user wants an answer from data without a chart; it returns rows as a table rather than a chart. Slack result cards are attached automatically. Use generateVisualization only when the user asks for a chart or visualization. Do not create a chart merely because the answer could be visualized.';
+        !composer && !!slackChannelId && enableDataAccess && !slackLinksOnly;
+    const chartOnlyWhenAsked =
+        'Use generateVisualization for a chart only when the user asks for a chart or visualization: an answer that could be visualized is not a request for one, nor a reason to load more tools.';
+    const tableVisualizationRule =
+        'Use generateVisualization with defaultVizType: "table" when the user requests a table visualization or a saved, interactive or downloadable table.';
+    let answerToolGuidance: string;
+    if (composer) {
+        answerToolGuidance = tabulateRows
+            ? '- Write a small tabular answer as a Markdown table.'
+            : '- When the user asks for a table, visualize the result as a table.';
+    } else if (!allowMarkdownTables) {
+        const slackTableRule =
+            'When a user asks for a "table", generate a table visualization with generateVisualization (defaultVizType: \'table\').';
+        answerToolGuidance = canRunQuery
+            ? `- Use runQuery for a data answer without a chart${allowSlackTableSelection ? ' and summarize from its rows' : ''}. ${slackTableRule} ${chartOnlyWhenAsked}`
+            : `- Answer data questions with generateVisualization. ${slackTableRule}`;
+    } else {
+        const markdownTableClause = tabulateRows
+            ? ' and present a small tabular answer as a Markdown table'
+            : '';
+        answerToolGuidance = canRunQuery
+            ? `- Use runQuery for a data answer without a chart${markdownTableClause}. ${tableVisualizationRule} ${chartOnlyWhenAsked}`
+            : `- Answer data questions with generateVisualization${markdownTableClause}. ${tableVisualizationRule}`;
+    }
+    const chartFollowupGuidance = composer
+        ? ''
+        : 'To change an existing chart, edit the last successful query input only where the user asked and call generateVisualization; say the chart was updated only after that call succeeds. Discover a requested field missing from the carried-forward ones rather than binding its value to an unrelated dimension.';
+    // Function replacers keep any `$` in the inserted text literal.
     const content = SYSTEM_PROMPT_TEMPLATE.replace(
-        '{{self_improvement_section}}',
-        '',
+        '{{internal_tool_examples}}',
+        () => queryPath.internalToolExamples,
     )
         .replace(
-            '{{table_request_guidance}}',
-            allowMarkdownTables
-                ? '- For a small tabular answer, use runQuery and present its results as a Markdown table. Use generateVisualization with defaultVizType: "table" when the user requests a table visualization or a saved, interactive or downloadable table.'
-                : '- When a user asks for a "table", generate a table visualization with generateVisualization (defaultVizType: \'table\'). Never produce markdown tables.',
+            '{{dashboard_request_guidance}}',
+            () => queryPath.dashboardRequestGuidance,
         )
+        .replace('{{discovery_outcomes}}', () => queryPath.discoveryOutcomes)
+        .replace('{{query_step}}', () => queryPath.queryStep)
+        .replace('{{query_language_sections}}', () =>
+            [
+                queryPath.queryLanguageSections,
+                getLiveSourcesSection(liveSources),
+            ]
+                .filter(Boolean)
+                .join('\n\n'),
+        )
+        .replace('{{self_improvement_section}}', '')
+        .replace('{{answer_tool_guidance}}', answerToolGuidance)
         .replace(
             '{{response_format_guidance}}',
             allowMarkdownTables
-                ? '- Use simple Markdown: bold, italics, lists, and Markdown tables with a header, separator and data rows. Use blank lines around tables. Never emit an empty table header followed by the same data as a list. Use ### headings only when needed to organize a longer answer. No # or ## headers, code blocks, images or horizontal rules.'
-                : '- Use simple Markdown: `###`, bold, italics, lists. No `#` or `##` headers, no code blocks, no markdown tables, no images, no horizontal rules.',
-        )
-        .replace(
-            '{{search_field_values_filter_guidance}}',
-            enableFilterExpressions
-                ? EXPRESSION_SEARCH_FIELD_VALUES_FILTER_GUIDANCE
-                : STRUCTURED_SEARCH_FIELD_VALUES_FILTER_GUIDANCE,
+                ? '- Use simple Markdown: bold, italics, lists, and Markdown tables with their data in the rows and a blank line before and after. Use ### headings only to organize a longer answer; no # or ## headers, code blocks, images or horizontal rules.'
+                : '- Use simple Markdown: `###` headings, bold, italics and lists, and no `#` or `##` headers, code blocks, Markdown tables, images or horizontal rules.',
         )
         .replace(
             '{{filter_guidance_section}}',
-            enableFilterExpressions
-                ? FILTER_EXPRESSION_GUIDANCE_SECTION
-                : STRUCTURED_FILTER_GUIDANCE_SECTION,
+            getFilterGuidanceSection(composer, enableFilterExpressions),
         )
         .replace(
             '{{ai_writeback_section}}',
-            enableAiWriteback
-                ? getAiWritebackSection(
-                      writebackAttribution,
+            promptSections.has('aiWriteback')
+                ? getAiWritebackSection({
+                      attribution: writebackAttribution,
                       siteUrl,
-                      enableContentTools,
-                  )
+                      canEditContent: contentToolsEnabled,
+                  })
                 : '',
         )
         .replace(
-            '{{coding_agent_section}}',
-            enableCodingAgent ? getCodingAgentSection() : '',
-        )
-        .replace(
             '{{repo_fs_section}}',
-            enableRepoDiscovery
-                ? REPO_FS_SECTION +
-                      repoFsRootHint(repoFsRoot) +
-                      repoFsSearchCaveat(repoFsSupportsCodeSearch)
+            promptSections.has('repoFs')
+                ? getRepoFsSection({
+                      root: repoFsRoot,
+                      supportsCodeSearch: repoFsSupportsCodeSearch,
+                  })
                 : '',
         )
         .replace(
@@ -380,6 +454,12 @@ export const getSystemPromptV2 = (args: {
         .replace(
             '{{data_access_section}}',
             getDataAccessSection(enableDataAccess, slackLinksOnly),
+        )
+        .replace(
+            '{{document_nudges_section}}',
+            promptSections.has('documents') && args.enableDocumentNudges
+                ? DOCUMENT_NUDGES_GUIDANCE
+                : '',
         )
         .replace('{{run_sql_section}}', getCapabilitySection('runSql'))
         .replace(
@@ -396,10 +476,23 @@ export const getSystemPromptV2 = (args: {
         )
         .replace(
             '{{memories_section}}',
-            enableAiAgentMemory ? MEMORIES_SECTION : '',
+            promptSections.has('memories') ? MEMORIES_SECTION : '',
         )
-        .replace('{{cross_explore_join_rule}}', crossExploreJoinRule)
+        .replace('{{row_limit_sql_suffix}}', canRunSql ? ', then SQL' : '')
         .replace('{{custom_sql_limitation}}', customSqlLimitation)
+        // Composer chart types come from the visualize tool's schema.
+        .replace(
+            '{{chart_types_limitation}}',
+            composer
+                ? ''
+                : getChartTypesLimitation(
+                      promptSections.has('availableCustomChartTypes'),
+                  ),
+        )
+        .replace(
+            '{{forecast_limitation}}',
+            composer && enableComposerPythonNodes ? '' : FORECAST_LIMITATION,
+        )
         .replace('{{agent_name}}', agentName)
         .replace(
             '{{instructions}}',
@@ -407,23 +500,26 @@ export const getSystemPromptV2 = (args: {
         )
         .replace(
             '{{requesting_user_section}}',
-            getRequestingUserSection(requestingUser),
+            promptSections.has('requestingUser')
+                ? getRequestingUserSection(requestingUser)
+                : '',
         )
         .replace('{{date}}', date)
         .replace('{{available_explores}}', availableExploresContent)
         .replace(
             '{{available_custom_chart_types}}',
-            renderAvailableCustomChartTypes(
-                args.availableCustomChartTypes ?? { types: [], totalCount: 0 },
-            ),
+            promptSections.has('availableCustomChartTypes')
+                ? renderAvailableCustomChartTypes(
+                      args.availableCustomChartTypes ?? {
+                          types: [],
+                          totalCount: 0,
+                      },
+                  )
+                : '',
         )
-        .replace(
-            '{{unloaded_knowledge_documents}}',
-            args.enableFastMetadata
-                ? 'other documents whose complete content has not already been preloaded for this request'
-                : 'other documents',
+        .replace('{{knowledge_documents}}', () =>
+            getKnowledgeDocumentsSection(args.knowledgeDocuments ?? []),
         )
-        .replace('{{knowledge_documents}}', knowledgeDocumentsContent)
         .replace('{{project_context}}', projectContextContent);
 
     const skillsSection = getCapabilitySection('skills');
@@ -440,12 +536,12 @@ export const getSystemPromptV2 = (args: {
         ({ toolNames }) => toolNames.length > 0,
     );
     const mcpToolsSection =
-        mcpServers.length > 0
+        promptSections.has('mcpTools') && mcpServers.length > 0
             ? [
                   '## MCP tools',
                   ...(hasLiveMcpTools
                       ? [
-                            'MCP tool definitions are loaded on demand. You MUST call `loadMcpTools` with the exact names you need before calling any unloaded MCP tool. Never guess a tool input from its name. Loaded tools remain available for this thread.',
+                            'The tools of the attached MCP servers below load on demand: before calling one whose definition is not loaded yet, load it with `loadMcpTools`, so you read its input schema instead of guessing it from the name.',
                         ]
                       : []),
                   ...mcpServers.map(
@@ -455,64 +551,30 @@ export const getSystemPromptV2 = (args: {
               ].join('\n')
             : '';
 
-    const grepFieldsSection = [
-        '## Finding fields (grepFields)',
-        'To find which explore and fields can answer a question, use the `grepFields` tool instead of any other discovery step. It greps the field catalog (names, labels, descriptions, hints, tags) with case-insensitive keyword patterns (`|` for OR, space or .* between words for AND) and returns `explore/fieldId  [kind type]` lines grouped by explore.',
-        '- The user message may already include a "Candidate fields pre-grepped from the catalog" block. Read it FIRST — if it contains the fields you need, use them directly and skip calling grepFields. Only call grepFields when those candidates do not cover the question or you need a different angle.',
-        '- When you do call grepFields, pass several patterns in ONE call (the `patterns` array) covering the different angles of the question at once — e.g. `["revenue|sales", "country|region"]`. Do not grep one pattern, wait, then grep another.',
-        '- Use meaningful keywords, not long natural-language phrases. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.',
-        "- Once you have narrowed down to the explore(s) and field(s) you intend to use, call `getMetadata` (batching all of them in one call) to get the detail you need to build a correct query — an explore's joined tables and table filters, and a field's filter type, case-sensitivity, default time dimension and hints. grepFields tells you what exists; getMetadata tells you how to use it.",
-        '- A description or hint ending in "...(truncated)" is incomplete — call getMetadata to read the full text before using that field.',
-        "- Respect a metric's default time dimension, if it has one, unless the user explicitly requests a different time dimension.",
-        "- Table filters marked `required` require every query to filter that field, but their configured operator and values are replaceable defaults, not fixed constraints on the data. When the user's requested scope differs, you MUST query the explore with a compatible filter on the same field or a derived time dimension of that field; it replaces the configured default. For example, if `created_at inThePast [4 weeks]` is required, use `created_at inThePast [10 months]` when the user asks for ten months. Never treat a required filter's default as a modelling limitation or switch to saved chart results because of it.",
-        '- Table filters marked `suggested` are soft suggestions: apply them unless the user asks for a different range or scope.',
-        '- If your literal patterns miss, grepFields automatically returns the closest catalog matches (fuzzy search, verified fields first) under "No exact grep matches" — use those rather than re-grepping a long list of synonyms.',
-        args.enableFastMetadata
-            ? 'Once the selected fields and source are validated, build the query. Reuse known definitions. After an execution error, inspect missing metadata or alternative sources when the failure indicates a source/scan problem; do not repeat nearly identical failed queries. Preserve the requested scope and report evidence gaps.'
-            : '- Once you have the fieldIds you need, build the query. Do NOT re-grep for fields you already found, and do not call grepFields again between generateVisualization attempts — if a query fails, fix the query itself (filters, metric, grain), not the discovery. If you need a filter value you are unsure of (e.g. which status string exists), use searchFieldValues rather than guessing.',
-    ].join('\n');
-
     const finalContent = [
         content,
-        args.enableFastMetadata
-            ? 'All assistant text is user-visible, including text before and between tool calls. Do not write context-preservation notes, scratchpads, field-ID inventories or summaries for yourself into the response when warned about context being cleared. Context housekeeping is handled by the application. Do not save temporary query results as durable user memories. Continue the user task using available evidence; if necessary, retrieve missing evidence with an authorized tool. Prior assistant notes are not evidence.'
-            : '',
-        args.enableFastMetadata
-            ? 'Separate observed results from explanations. Correlation, timing and subgroup differences do not establish causation: a coverage drop does not prove an automation failed, a policy changed or someone followed a different process. Support causal claims with direct evidence about the mechanism, such as documented changes or an appropriate causal analysis. A zero/null result does not prove source-wide absence when join coverage or entity attribution is unverified. The earliest observed record in one source does not establish the true first occurrence without verified source and time coverage. Partial periods neither prove nor disprove a decline; do not calculate per-day rates without a verified exposure window. Label untested explanations as hypotheses, state what evidence would test them, and do not say alternatives are ruled out by descriptive counts alone. Do not invent statistical baselines, sampling limits or query constraints from the shape of the results; use the executed query and field definitions. Compare like-for-like periods; label partial periods and mutable current-state attributes rather than treating them as historical snapshots.'
-            : '',
-        args.enableFastMetadata
-            ? 'Lead short answers with the result, not a generated title or a restatement of the request. Do not repeat the artifact title as a heading: the UI already labels the artifact. Summarize the key finding without duplicating the entire chart as both a table and a list. Include material scope and uncertainty, but avoid speculative diagnoses and unsolicited offers at the end of every answer.'
-            : '',
-        slackChannelId
-            ? 'For Slack answers, choose zero or one generated chart by default. When the user requests a chart, select the best successful chart that answers the request. Show multiple charts only when the user requests them or distinct useful views improve the answer. Omit redundant, diagnostic and superseded charts. To select a chart, add the internal marker <slack-chart versionUuid="<versionUuid>" /> on its own line in your final response, replacing <versionUuid> with the exact saved versionUuid copied from a successful chart execution in the current turn. The marker is hidden from visible text and selects that saved chart card for your answer. Select at most 10 charts. Never invent versionUuid values, reference charts from earlier turns or automatically display every generated chart.'
+        getThreadBindingSection(
+            threadBinding,
+            contentToolsEnabled,
+            promptSections.has('schedulingTools'),
+        ),
+        getThreadContextSection(threadContext),
+        'Claim a cause only with direct evidence of the mechanism (a documented change, a causal analysis), not from correlation, timing or subgroup differences; label other explanations as hypotheses and say what would test them. A zero or null result proves absence only with confirmed join coverage and entity attribution, and an earliest record is a first occurrence only with confirmed source and time coverage. Compare like-for-like periods, compute per-day rates only over a confirmed exposure window, and label partial periods (no proof of a decline either way) and current-state attributes (not historical snapshots). Take baselines, sampling limits and query constraints from the executed query and field definitions, not the shape of the results.',
+        'Lead short answers with the result, not a title or restated request; the UI already labels each artifact. Give the key finding rather than repeating the chart as a table or list, state material scope and uncertainty, leave out speculative diagnoses, and end with an offer only when it is specific to the result (e.g. related dashboards after a new chart).',
+        slackChannelId && !composer
+            ? 'For Slack answers, choose zero or one generated chart by default: the best successful chart when the user requests one; more, up to 10, only when the user asks or distinct views help, and none that are redundant, diagnostic or superseded. To select a chart, add the internal marker <slack-chart versionUuid="<versionUuid>" /> on its own line in your final response, with the exact saved versionUuid copied from a successful chart execution in the current turn. The marker is hidden from visible text and attaches that saved chart card. Every selected chart card carries an "Explore in Lightdash" button that opens the chart with its fields and filters, so a selected chart is the link or report the user asked for: say it is attached below. The row cap on the preview rows returned to you does not cap that chart.'
             : '',
         allowSlackTableSelection
-            ? 'For Slack answers, a summary is the default when it answers the question. Include a table only when the user requests one or its rows materially help explain the answer. To select a table, add the internal marker <slack-table queryUuid="<queryUuid>" /> on its own line in your final response, replacing <queryUuid> with the exact queryUuid copied from a successful semantic table execution in the current turn. The marker is hidden from visible text and renders that execution as a native Slack table in your answer; it does not send a CSV. Select at most 10 requested or useful final tables. Omit diagnostic and intermediate tables, and supporting evidence that does not improve the answer. Never automatically include every table you queried. Do not invent queryUuid values or reuse executions from earlier turns.'
+            ? 'For Slack answers, a summary is the default when it answers the question. Include a table only when the user requests one or its rows materially help, at most 10 and none diagnostic or intermediate: add the internal marker <slack-table queryUuid="<queryUuid>" /> on its own line in your final response, with the exact queryUuid copied from a successful semantic table or composer query execution in the current turn. The marker is hidden from visible text and renders that execution as a native Slack table, not a CSV.'
             : '',
         deepResearchContent,
-        grepFieldsSection,
-        args.enableFastMetadata
-            ? 'For straightforward entity trends or breakdowns, use a single matching count definition and its configured default time granularity when available. A nearby revenue or amount field alone is not a reason to ask count versus amount. Apply explicit business rules and prior scope first; ask when count definitions genuinely compete. Do not invent a date restriction; state the measure, grain and scope used. When the current request or a field-search result includes preloaded catalog metadata, use those definitions, joins, filters and defaults directly. Only call getMetadata for missing or truncated details; do not repeat a metadata lookup to confirm the same details.'
-            : '',
-        args.enableFastMetadata ? answerQueryGuidance : '',
-        args.enableFastMetadata
-            ? 'For a follow-up that changes an existing chart, reuse the preceding successful query tool input. Preserve everything the user did not ask to change. Apply the requested presentation, filter, sort, limit, segmentation, grouping or grain change and call generateVisualization; never claim the chart was updated unless that call succeeds. When the requested field is absent from the carried-forward candidates, discover that field instead of binding its value to an unrelated existing dimension.'
-            : '',
-        args.enableChartExport
-            ? 'When exportChartAsCode is available, you MUST call it for chart YAML and never write or reconstruct YAML yourself. For a chart from an earlier turn, use its exact artifactUuid and versionUuid with null queryUuid when those references are already available. Otherwise call it with null for all three source identifiers to discover conversation artifacts. Pass null for an unspecified destination slug or spaceSlug; the tool reports missing values so you can ask the user. Do not search content to infer a destination, regenerate a chart or rerun data queries just to export it.'
-            : '',
-        args.enableFastMetadata
-            ? 'When the user explicitly names a value to exclude, retain that exclusion in the executed query even if searchFieldValues finds no matching rows. A value search reports observed data, not permitted filter literals. Explain that the exclusion currently removes no rows; do not omit it or substitute a different category. If the intended category requires interpretation rather than literal matching, clarify it first.'
-            : '',
-        args.enableFastMetadata
-            ? 'When applying or restating sourced business rules, preserve the exact predicate, entity grain, exceptions and date boundaries. Do not replace numeric conditions with broader labels: an amount equal to zero does not establish absence of the associated event, and excluding nonzero amounts is not the same as excluding only positive amounts. Distinguish a reporting-date window from the time at which a mutable attribute is evaluated. Do not invent current-state, historical-snapshot or timezone conventions when the sources do not specify them. State the missing convention if it affects the answer; keep supported rules intact.'
-            : '',
-        args.enableFastMetadata
-            ? 'Category labels are values, not comparisons. A label such as "Low Cost" does not prove that its group is cheaper than another group. Use comparative or superlative wording only when the available result rows include every compared group or period and the values establish that ordering. Prior prose is not evidence; reuse or rerun the exact query when comparison rows are absent.'
-            : '',
-        args.enableFastMetadata
-            ? 'For a definition or reference-only question, give the shortest complete answer: the definition, required conditions and exceptions, plus date scope only when requested. Preserve all requested rules. Avoid repeating them under multiple headings, speculative implementation caveats and offers to run future queries. Discuss an unspecified convention when the user asks about it or the requested result depends on choosing it; merely restating a documented definition does not require the user to settle every convention for a possible future query.'
-            : '',
+        'After an execution error, fix the cause it reports rather than resubmitting a query that failed the same way; when the error points to the source or a scan, inspect the missing metadata or another source. Keep the requested scope and report evidence gaps.',
+        'For a plain entity trend or breakdown, use the single matching count definition and its configured default time granularity; a nearby revenue or amount field is no reason to ask count versus amount. Apply explicit business rules and prior scope first, and ask the user to choose only between count definitions that genuinely compete. Restrict dates only when the request or a rule does, and state the measure, grain and scope used.',
+        chartFollowupGuidance,
+        'Keep an exclusion the user explicitly names in the executed query even when no rows match it, and say it currently removes no rows. When a category needs interpretation rather than a literal match, ask the user what it means before filtering.',
+        'Apply or restate a sourced business rule with its exact predicate, entity grain, exceptions, date boundaries and numeric conditions, not a broader label: a zero amount does not mean the event is absent, and excluding nonzero amounts differs from excluding positive ones. Keep a reporting-date window distinct from when a mutable attribute is evaluated. When the sources set no current-state, snapshot or timezone convention, say so if it affects the answer instead of inventing one.',
+        'Category labels are values, not comparisons: "Low Cost" does not prove a group is cheaper. Use comparative or superlative wording only when the result rows include every compared group or period and their values establish the order; otherwise rerun the exact query.',
+        'For a definition or reference-only question, give the shortest complete answer: the definition with every required condition and exception, date scope only when asked, each rule once, without implementation caveats, unasked conventions or offers to run queries.',
         mcpToolsSection,
         mcpConnectionsSection,
         skillsSection,
@@ -520,12 +582,5 @@ export const getSystemPromptV2 = (args: {
         .filter(Boolean)
         .join('\n\n');
 
-    return {
-        role: 'system',
-        content: finalContent,
-        providerOptions: {
-            anthropic: { cacheControl: { type: 'ephemeral' } },
-            bedrock: { cachePoint: { type: 'default' } },
-        },
-    };
+    return toSystemMessage(finalContent);
 };

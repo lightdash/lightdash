@@ -7,11 +7,15 @@ import {
     SEED_PROJECT,
     SpaceMemberRole,
 } from '@lightdash/common';
-import knex, { Knex } from 'knex';
+import knex, { type Knex } from 'knex';
 import { randomUUID } from 'node:crypto';
 import { DirectAccessModel } from '../../../models/DirectAccessModel';
 import { DocumentAccessModel } from '../../../models/DocumentAccessModel';
 import { CreateDocument, DocumentModel } from '../../../models/DocumentModel';
+import {
+    createMigratedDatabase,
+    type MigratedDatabase,
+} from '../../../testing/migratedDatabase';
 import {
     DocumentsTableName,
     DocumentVersionsTableName,
@@ -24,28 +28,62 @@ import {
 import { up as provenanceUp } from '../20260916110000_add_document_space_deletion_provenance';
 import { up as ownerUp } from '../20260930150000_add_document_owner_user_uuid_to_documents';
 import { up as markdownUp } from '../20261002090000_store_documents_as_markdown_with_chart_tags';
+import {
+    down as personalDown,
+    up as personalUp,
+} from '../20261006100000_allow_personal_documents';
+
+const KNOWN_CHART = {
+    source: 'semantic',
+    chart: {
+        name: 'Orders by status',
+        description: '',
+        tableName: 'orders',
+        metricQuery: {
+            exploreName: 'orders',
+            dimensions: ['orders_status'],
+            metrics: ['orders_count'],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+        },
+        chartConfig: { type: ChartType.TABLE },
+    },
+};
+const FUTURE_KIND_CHART = { source: 'image', image: { url: 'logo.png' } };
+const FUTURE_VERSION_CHART = { ...KNOWN_CHART, version: 99 };
+const FUTURE_BLOCK_TAG = '<data-app-embed slug="monthly-revenue">';
+/** Stored content as a newer release could write it. */
+const FUTURE_DOCUMENT_CONTENT = {
+    markdown: [
+        '<document-chart id="c1">',
+        '<document-chart id="c2">',
+        '<document-chart id="c3">',
+        FUTURE_BLOCK_TAG,
+        'Closing text.',
+    ].join('\n\n'),
+    charts: {
+        c1: KNOWN_CHART,
+        c2: FUTURE_KIND_CHART,
+        c3: FUTURE_VERSION_CHART,
+    },
+};
 
 describe('DocumentModel PostgreSQL integration', () => {
+    let migrated: MigratedDatabase;
     let database: Knex;
     let transaction: Knex.Transaction;
     let model: DocumentModel;
-    let input: CreateDocument;
+    let input: CreateDocument & { spaceUuid: string };
 
-    beforeAll(() => {
-        database = knex({
-            client: 'pg',
-            connection: process.env.PGCONNECTIONURI ?? {
-                host: process.env.PGHOST,
-                port: Number(process.env.PGPORT ?? 5432),
-                user: process.env.PGUSER,
-                password: process.env.PGPASSWORD,
-                database: process.env.PGDATABASE,
-            },
-        });
+    beforeAll(async () => {
+        migrated = await createMigratedDatabase();
+        database = migrated.database;
     });
 
     afterAll(async () => {
-        await database.destroy();
+        await migrated?.destroy();
     });
 
     beforeEach(async () => {
@@ -78,6 +116,13 @@ describe('DocumentModel PostgreSQL integration', () => {
         await provenanceUp(transaction);
         await ownerUp(transaction);
         await markdownUp(transaction);
+        await personalUp(transaction);
+        await transaction.schema.alterTable(
+            DocumentVersionsTableName,
+            (table) => {
+                table.jsonb('agent_identity').nullable();
+            },
+        );
         model = new DocumentModel({ database: transaction });
         const space = await transaction('spaces')
             .join('projects', 'projects.project_id', 'spaces.project_id')
@@ -691,6 +736,33 @@ describe('DocumentModel PostgreSQL integration', () => {
         ).rejects.toThrow('Document not found');
     });
 
+    test('a taken slug conflicts unless it is only a base for a unique slug', async () => {
+        const document = await model.create({
+            ...input,
+            slug: 'weekly-review',
+        });
+        await expect(
+            model.create({ ...input, slug: document.slug }),
+        ).rejects.toThrow(
+            'A document with this slug already exists in this project',
+        );
+        const copy = await model.create({
+            ...input,
+            slug: document.slug,
+            uniqueSlug: true,
+        });
+        expect(copy.slug).toBe('weekly-review-1');
+        await expect(
+            model.getBySlug(input.projectUuid, document.slug),
+        ).resolves.toEqual(document);
+        const fresh = await model.create({
+            ...input,
+            slug: 'monthly-review',
+            uniqueSlug: true,
+        });
+        expect(fresh.slug).toBe('monthly-review');
+    });
+
     test.each(['document', 'space'] as const)(
         'slug lookup hides a deleted %s',
         async (deletedResource) => {
@@ -712,6 +784,80 @@ describe('DocumentModel PostgreSQL integration', () => {
             ).rejects.toThrow('Document not found');
         },
     );
+
+    test('content from a newer release is read, kept through edits and stored unchanged', async () => {
+        const document = await model.create(input);
+        const row = await transaction(DocumentsTableName)
+            .where('document_uuid', document.documentUuid)
+            .first('document_id');
+        if (!row) {
+            throw new Error('Created Document row missing');
+        }
+        const documentId = row.document_id;
+        await transaction(DocumentVersionsTableName).insert({
+            agent_identity: null,
+            document_id: documentId,
+            version_number: 2,
+            schema_version: 2,
+            markdown: FUTURE_DOCUMENT_CONTENT.markdown,
+            chart_data: JSON.stringify(FUTURE_DOCUMENT_CONTENT.charts),
+            created_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
+        });
+        await transaction(DocumentsTableName)
+            .where('document_uuid', document.documentUuid)
+            .update({ next_chart_number: 4 });
+
+        const future = await model.get(
+            input.projectUuid,
+            document.documentUuid,
+        );
+        expect(future.version.content.unsupportedCharts).toEqual({
+            c2: FUTURE_KIND_CHART,
+            c3: FUTURE_VERSION_CHART,
+        });
+
+        const markdown = future.version.content.markdown.replace(
+            'Closing text.',
+            'Edited closing text.',
+        );
+        const edited = await model.updateContent(
+            input.projectUuid,
+            document.documentUuid,
+            {
+                expectedSpaceUuid: input.spaceUuid,
+                baseVersionUuid: future.version.versionUuid,
+                content: { markdown, charts: future.version.content.charts },
+            },
+            SEED_ORG_1_ADMIN.user_uuid,
+        );
+        const stored = await transaction(DocumentVersionsTableName)
+            .where({
+                document_id: documentId,
+                version_number: edited.version.versionNumber,
+            })
+            .first('markdown', 'chart_data');
+        expect(stored).toEqual({
+            markdown,
+            chart_data: FUTURE_DOCUMENT_CONTENT.charts,
+        });
+        expect(markdown).toContain(FUTURE_BLOCK_TAG);
+
+        await expect(
+            model.updateContent(
+                input.projectUuid,
+                document.documentUuid,
+                {
+                    expectedSpaceUuid: input.spaceUuid,
+                    baseVersionUuid: edited.version.versionUuid,
+                    content: {
+                        ...edited.version.content,
+                        markdown: `${markdown}\n\n<another-block>`,
+                    },
+                },
+                SEED_ORG_1_ADMIN.user_uuid,
+            ),
+        ).rejects.toThrow("<another-block> isn't supported by this version");
+    });
 
     test('whole-content replacement preserves history and rejects stale writes', async () => {
         const document = await model.create(input);
@@ -1326,6 +1472,7 @@ describe('DocumentModel PostgreSQL integration', () => {
             throw new Error('Document missing');
         }
         await transaction(DocumentVersionsTableName).insert({
+            agent_identity: null,
             document_id: row.document_id,
             version_number: 2,
             schema_version: 2,
@@ -1526,6 +1673,7 @@ describe('DocumentModel PostgreSQL integration', () => {
             throw new Error('Document missing');
         }
         await transaction(DocumentVersionsTableName).insert({
+            agent_identity: null,
             document_id: row.document_id,
             version_number: 2,
             schema_version: 99,
@@ -1685,6 +1833,99 @@ describe('DocumentModel PostgreSQL integration', () => {
         expect(await model.listSpaceUuids(input.projectUuid)).toEqual([]);
     });
 
+    describe('personal Documents', () => {
+        test('are created and read without a Space', async () => {
+            const document = await model.create({ ...input, spaceUuid: null });
+
+            expect(document.spaceUuid).toBeNull();
+            expect(
+                await model.get(input.projectUuid, document.documentUuid),
+            ).toMatchObject({
+                spaceUuid: null,
+                createdByUserUuid: input.createdByUserUuid,
+            });
+        });
+
+        test('stay out of Space lists', async () => {
+            const inSpace = await model.create(input);
+            await model.create({ ...input, spaceUuid: null });
+
+            expect(await model.listSpaceUuids(input.projectUuid)).toEqual([
+                input.spaceUuid,
+            ]);
+            expect(
+                (
+                    await model.list(input.projectUuid, {
+                        spaceUuids: [input.spaceUuid],
+                        limit: 10,
+                        offset: 0,
+                    })
+                ).map(({ documentUuid }) => documentUuid),
+            ).toEqual([inSpace.documentUuid]);
+        });
+
+        test('move into a Space keeping their identity and versions', async () => {
+            const document = await model.create({ ...input, spaceUuid: null });
+            await model.updateContent(
+                input.projectUuid,
+                document.documentUuid,
+                {
+                    expectedSpaceUuid: null,
+                    baseVersionUuid: document.version.versionUuid,
+                    content: { markdown: '# Revised', charts: {} },
+                },
+                SEED_ORG_1_ADMIN.user_uuid,
+            );
+
+            const moved = await model.moveToSpace({
+                projectUuid: input.projectUuid,
+                documentUuid: document.documentUuid,
+                sourceSpaceUuid: null,
+                targetSpaceUuid: input.spaceUuid,
+            });
+
+            expect(moved).toMatchObject({
+                documentUuid: document.documentUuid,
+                spaceUuid: input.spaceUuid,
+                version: { versionNumber: 2 },
+            });
+        });
+
+        test('restore without an owning Space', async () => {
+            const document = await model.create({ ...input, spaceUuid: null });
+            await model.softDelete(
+                input.projectUuid,
+                document.documentUuid,
+                SEED_ORG_1_ADMIN.user_uuid,
+                null,
+            );
+
+            await model.restore(input.projectUuid, document.documentUuid);
+
+            expect(
+                await model.get(input.projectUuid, document.documentUuid),
+            ).toMatchObject({ spaceUuid: null });
+        });
+
+        test('block rolling the migration back until they are moved or deleted', async () => {
+            const document = await model.create({ ...input, spaceUuid: null });
+            await transaction.raw('SAVEPOINT personal_down');
+
+            await expect(personalDown(transaction)).rejects.toThrow(
+                /^irreversible:/,
+            );
+            await transaction.raw('ROLLBACK TO SAVEPOINT personal_down');
+            await transaction(DocumentsTableName)
+                .where('document_uuid', document.documentUuid)
+                .delete();
+            await personalDown(transaction);
+
+            await expect(
+                model.create({ ...input, spaceUuid: null }),
+            ).rejects.toThrow();
+        });
+    });
+
     test('database uniqueness rejects duplicate version numbers', async () => {
         const document = await model.create(input);
         const row = await transaction(DocumentsTableName)
@@ -1696,6 +1937,7 @@ describe('DocumentModel PostgreSQL integration', () => {
         await expect(
             transaction.transaction(async (savepoint) => {
                 await savepoint(DocumentVersionsTableName).insert({
+                    agent_identity: null,
                     document_id: row.document_id,
                     version_number: 1,
                     schema_version: 2,

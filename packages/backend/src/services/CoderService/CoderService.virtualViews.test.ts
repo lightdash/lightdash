@@ -12,10 +12,12 @@ import {
     type VirtualViewAsCode,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { fromOauth, fromSession } from '../../auth/account/account';
+import { grantFixture } from '../../auth/agentConnectionGrants/grant.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { CoderService } from './CoderService';
 
-const projectUuid = 'project-uuid';
+const projectUuid = '11111111-1111-4111-8111-111111111111';
 const organizationUuid = 'organization-uuid';
 
 const user: SessionUser = {
@@ -46,6 +48,8 @@ const user: SessionUser = {
         },
     ]),
 };
+
+const sessionAccount = fromSession(user);
 
 const virtualView = {
     name: 'orders_by_customer',
@@ -124,6 +128,7 @@ const buildService = (
         updateVirtualView: vi.fn(async () => ({ name: asCode.slug })),
     };
     const service = new CoderService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
         projectModel: projectModel as never,
@@ -210,7 +215,7 @@ describe('CoderService virtual views as code', () => {
 
         await expect(
             service.upsertVirtualView(
-                user as never,
+                sessionAccount,
                 projectUuid,
                 asCode.slug,
                 asCode,
@@ -233,7 +238,7 @@ describe('CoderService virtual views as code', () => {
 
         await expect(
             service.upsertVirtualView(
-                user as never,
+                sessionAccount,
                 projectUuid,
                 asCode.slug,
                 changed,
@@ -241,7 +246,7 @@ describe('CoderService virtual views as code', () => {
         ).rejects.toThrow('require force');
         await expect(
             service.upsertVirtualView(
-                user as never,
+                sessionAccount,
                 projectUuid,
                 asCode.slug,
                 changed,
@@ -256,14 +261,14 @@ describe('CoderService virtual views as code', () => {
 
         await expect(
             service.upsertVirtualView(
-                user as never,
+                sessionAccount,
                 projectUuid,
                 asCode.slug,
                 asCode,
             ),
         ).resolves.toEqual({ action: PromotionAction.CREATE });
         expect(projectService.createVirtualView).toHaveBeenCalledWith(
-            user,
+            sessionAccount,
             projectUuid,
             expect.objectContaining({
                 name: asCode.slug,
@@ -282,7 +287,7 @@ describe('CoderService virtual views as code', () => {
 
         await expect(
             service.upsertVirtualView(
-                user as never,
+                sessionAccount,
                 projectUuid,
                 asCode.slug,
                 asCode,
@@ -329,14 +334,14 @@ describe('CoderService virtual views as code', () => {
 
             await expect(
                 service.upsertVirtualView(
-                    user as never,
+                    sessionAccount,
                     projectUuid,
                     asCode.slug,
                     { ...asCode, connection: 'Finance' },
                 ),
             ).resolves.toEqual({ action: PromotionAction.CREATE });
             expect(projectService.createVirtualView).toHaveBeenCalledWith(
-                user,
+                sessionAccount,
                 projectUuid,
                 expect.objectContaining({
                     name: asCode.slug,
@@ -351,7 +356,7 @@ describe('CoderService virtual views as code', () => {
 
             await expect(
                 service.upsertVirtualView(
-                    user as never,
+                    sessionAccount,
                     projectUuid,
                     asCode.slug,
                     { ...asCode, connection: 'Warehouse B' },
@@ -370,7 +375,7 @@ describe('CoderService virtual views as code', () => {
 
             await expect(
                 service.upsertVirtualView(
-                    user as never,
+                    sessionAccount,
                     projectUuid,
                     asCode.slug,
                     { ...asCode, connection: 'Warehouse B' },
@@ -389,7 +394,7 @@ describe('CoderService virtual views as code', () => {
 
             await expect(
                 service.upsertVirtualView(
-                    user as never,
+                    sessionAccount,
                     projectUuid,
                     asCode.slug,
                     { ...asCode, connection: 'Finance' },
@@ -409,7 +414,7 @@ describe('CoderService virtual views as code', () => {
 
             await expect(
                 service.upsertVirtualView(
-                    user as never,
+                    sessionAccount,
                     projectUuid,
                     asCode.slug,
                     { ...asCode, name: 'Renamed', connection },
@@ -429,7 +434,7 @@ describe('CoderService virtual views as code', () => {
 
             await expect(
                 service.upsertVirtualView(
-                    user as never,
+                    sessionAccount,
                     projectUuid,
                     asCode.slug,
                     { ...asCode, connection: 'Warehouse' },
@@ -447,7 +452,7 @@ describe('CoderService virtual views as code', () => {
 
             await expect(
                 service.upsertVirtualView(
-                    user as never,
+                    sessionAccount,
                     projectUuid,
                     asCode.slug,
                     { ...asCode, connection: 'Warehouse' },
@@ -458,4 +463,33 @@ describe('CoderService virtual views as code', () => {
             expect(projectService.createVirtualView).not.toHaveBeenCalled();
         });
     });
+});
+
+it('refuses access policies on bound virtual-view uploads before writes', async () => {
+    const { service, projectService } = buildService(virtualView);
+    const grant = grantFixture();
+    const account = fromOauth(
+        user,
+        { accessToken: 'token', client: { id: grant.clientId } },
+        null,
+        { ...grant, revision: 1 },
+    );
+    await Promise.all(
+        [
+            { users: [], groups: [] },
+            {
+                users: [{ email: 'reader@example.com', role: 'viewer' }],
+                groups: [],
+            },
+        ].map(async (access) => {
+            await expect(
+                service.upsertVirtualView(account, projectUuid, asCode.slug, {
+                    ...asCode,
+                    access,
+                } as VirtualViewAsCode),
+            ).rejects.toThrow('access');
+        }),
+    );
+    expect(projectService.createVirtualView).not.toHaveBeenCalled();
+    expect(projectService.updateVirtualView).not.toHaveBeenCalled();
 });

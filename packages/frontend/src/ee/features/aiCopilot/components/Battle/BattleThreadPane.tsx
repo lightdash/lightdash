@@ -1,13 +1,19 @@
-import type { AiAgentThread } from '@lightdash/common';
+import type {
+    AiAgentBattleProfile,
+    AiAgentLoadoutBase,
+    AiAgentThread,
+} from '@lightdash/common';
 import { Anchor, Badge, Box, Group, Stack, Text } from '@mantine/core';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import { matchesModelConfig } from '../../../../../components/common/ModelSelector/utils';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { getAiAgentPageBase } from '../../hooks/aiAgentRouting';
 import { useModelOptions } from '../../hooks/useModelOptions';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 import { formatDurationMs } from '../../utils/responseTiming';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
+import classes from './BattleThreadPane.module.css';
 import {
     formatTokenCount,
     getBattleTotals,
@@ -34,6 +40,22 @@ const useTicking = (active: boolean) => {
     return now;
 };
 
+const battleColors: Record<AiAgentBattleProfile, string> = {
+    fast: 'violet',
+    luna: 'gray',
+    baseline: 'gray',
+    classic: 'gray',
+    composer: 'indigo',
+};
+const loadoutBaseNames: Record<AiAgentLoadoutBase, string> = {
+    classic: 'Classic',
+    composer: 'Composer',
+    no_data_access: 'No data access',
+    deep_research_worker: 'Deep research',
+    deep_research_coordinator: 'Deep research',
+    semantic_studio: 'Semantic Studio',
+};
+
 // The ticker and stream updates stay here so they never re-render the chat.
 const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
     label,
@@ -42,6 +64,7 @@ const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
     thread,
     queuedCount,
 }) => {
+    const isEmbed = useIsEmbedded();
     const stream = useAiAgentThreadStreamQuery(thread.uuid);
     const isStreaming = stream?.connection.status === 'streaming';
     const now = useTicking(isStreaming);
@@ -53,6 +76,24 @@ const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
                 .find((message) => message.role === 'assistant'),
         [thread.messages],
     );
+
+    // The loadout a query path side actually ran with can differ from its profile.
+    const loadoutBase = useMemo(
+        () =>
+            [...thread.messages]
+                .reverse()
+                .flatMap((message) =>
+                    message.role === 'assistant' && message.loadout
+                        ? [message.loadout.base]
+                        : [],
+                )[0] ?? null,
+        [thread.messages],
+    );
+    const isQueryPathSide =
+        thread.battleProfile === 'classic' ||
+        thread.battleProfile === 'composer';
+    const badgeLabel =
+        isQueryPathSide && loadoutBase ? loadoutBaseNames[loadoutBase] : label;
 
     const { data: modelOptions } = useModelOptions({ projectUuid, agentUuid });
     // The thread's model never changes, so the first persisted config wins
@@ -110,18 +151,16 @@ const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
             px="sm"
             py={6}
             wrap="nowrap"
-            style={{
-                borderBottom: '1px solid var(--mantine-color-default-border)',
-            }}
+            className={classes.header}
         >
             <Group gap="xs" wrap="nowrap" miw={0}>
                 <Badge
                     size="sm"
                     flex="none"
                     variant="light"
-                    color={thread.battleProfile === 'fast' ? 'violet' : 'gray'}
+                    color={battleColors[thread.battleProfile ?? 'baseline']}
                 >
-                    {label}
+                    {badgeLabel}
                 </Badge>
                 <Text size="sm" fw={600} truncate>
                     {modelDisplayName ?? 'Default model'}
@@ -157,9 +196,7 @@ const BattlePaneHeader: FC<Omit<Props, 'agentName' | 'onChoiceSelect'>> = ({
                 )}
                 <Anchor
                     component={Link}
-                    to={`${getAiAgentPageBase(
-                        projectUuid,
-                    )}/${agentUuid}/threads/${thread.uuid}`}
+                    to={`${getAiAgentPageBase(projectUuid, isEmbed)}/${agentUuid}/threads/${thread.uuid}`}
                     size="xs"
                 >
                     Open

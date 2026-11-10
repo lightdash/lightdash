@@ -1,7 +1,8 @@
 .bar {
     --bar-ink: var(--mantine-primary-color-filled);
     --bar-track: var(--mantine-color-ldGray-2);
-    --bar-accent: var(--mantine-color-violet-4);
+    --bar-warn: var(--mantine-color-orange-5);
+    --bar-over: var(--mantine-color-red-7);
 
     position: relative;
     height: 8px;

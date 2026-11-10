@@ -21,6 +21,7 @@ import {
     DashboardTileTypes,
     DashboardUnversionedFields,
     DashboardVersionedFields,
+    getMalformedParameterControlMessages,
     HTML_SANITIZE_MARKDOWN_TILE_RULES,
     isDashboardChartTileType,
     isDashboardDataAppTileType,
@@ -29,18 +30,26 @@ import {
     isDashboardMarkdownTileType,
     isDashboardSqlChartTile,
     LightdashUser,
+    normalizeAgentIdentityClaim,
     NotFoundError,
+    ParameterError,
+    pruneParameterControls,
     sanitizeHtml,
     SavedChart,
     SessionUser,
     UnexpectedServerError,
     UpdateMultipleDashboards,
     UserDashboardsSummary,
+    validateParameterControls,
+    type AgentIdentityClaim,
     type DashboardBasicDetailsWithTileTypes,
     type DashboardConfig,
     type DashboardFilters,
+    type DashboardParameterControl,
     type DashboardParameters,
     type DashboardVersionSummary,
+    type ParameterDefinitions,
+    type StoredAgentIdentityClaim,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
@@ -91,8 +100,10 @@ import Logger from '../../logging/logger';
 import {
     acquireProjectSlugLock,
     generateUniqueSlugScopedToProject,
+    MAX_SLUG_ALIAS_LENGTH,
 } from '../../utils/SlugUtils';
 import { ContentVerificationModel } from '../ContentVerificationModel';
+import { type OnContentVersionCreated } from '../OnContentVersionCreated';
 import Transaction = Knex.Transaction;
 import { dismissOpenContentDrafts } from '../ContentDraftModel';
 import { cancelPendingContentReviewRequests } from '../ContentReviewRequestModel';
@@ -188,6 +199,97 @@ const getDashboardSlugOwner = async (
         .first();
 };
 
+const keepSavedTiles = <T>(
+    byTileUuid: Record<string, T>,
+    savedTileUuids: Set<string>,
+): Record<string, T> =>
+    Object.fromEntries(
+        Object.entries(byTileUuid).filter(([tileUuid]) =>
+            savedTileUuids.has(tileUuid),
+        ),
+    );
+
+/** Drops date zoom targets and parameter control tile targets of tiles not in this version */
+export const pruneConfigTileTargets = (
+    config: DashboardConfig | undefined,
+    savedTileUuids: Set<string>,
+): DashboardConfig | undefined =>
+    config && {
+        ...config,
+        ...(config.dateZoomConfig && {
+            dateZoomConfig: {
+                ...config.dateZoomConfig,
+                tileTargets: keepSavedTiles(
+                    config.dateZoomConfig.tileTargets,
+                    savedTileUuids,
+                ),
+            },
+        }),
+        ...(config.parameterControls && {
+            parameterControls: pruneParameterControls(
+                config.parameterControls,
+                { isTile: (tileUuid) => savedTileUuids.has(tileUuid) },
+            ),
+        }),
+    };
+
+/** Rejects parameter controls that break the one-setter rules, naming the controls and tiles */
+export const assertValidParameterControls = (
+    controls: DashboardParameterControl[] | undefined,
+    definitions?: ParameterDefinitions,
+    tileNameOf?: (tileUuid: string) => string,
+): void => {
+    const messages = validateParameterControls(
+        controls ?? [],
+        definitions,
+        tileNameOf,
+    );
+    if (messages.length > 0) {
+        throw new ParameterError(messages.join('. '));
+    }
+};
+
+export const validateAndPruneDashboardConfig = (
+    configInput: DashboardConfig | undefined,
+    tiles: DashboardVersionedFields['tiles'],
+): DashboardConfig | undefined => {
+    const savedTileUuids = new Set(
+        tiles.map((tile) => tile.uuid).filter((uuid): uuid is string => !!uuid),
+    );
+    if (configInput?.parameterControls !== undefined) {
+        const messages = getMalformedParameterControlMessages(
+            configInput.parameterControls,
+        );
+        if (messages.length) throw new ParameterError(messages.join('. '));
+    }
+    const config = pruneConfigTileTargets(configInput, savedTileUuids);
+    if (config?.parameterControls) {
+        const tileNames = new Map(
+            tiles.flatMap((tile) => {
+                if (!tile.uuid) return [];
+                const { properties } = tile;
+                return [
+                    [
+                        tile.uuid,
+                        properties.title ||
+                            ('chartName' in properties
+                                ? properties.chartName
+                                : null) ||
+                            tile.uuid,
+                    ],
+                ];
+            }),
+        );
+        assertValidParameterControls(
+            config.parameterControls,
+            undefined,
+            (uuid) => tileNames.get(uuid) ?? uuid,
+        );
+    }
+
+    return config;
+};
+
 export class DashboardModel {
     private readonly database: Knex;
 
@@ -202,40 +304,26 @@ export class DashboardModel {
         trx: Transaction,
         dashboardId: number,
         version: DashboardVersionedFields,
-    ): Promise<void> {
-        // Narrow date-zoom control tileTargets to tiles present in this version,
-        // mirroring the filter tileTargets narrowing below. This drops targets
-        // for tiles removed on any deletion path (tile/tab/batch delete) without
-        // any frontend wiring. Control-level pruning stays a frontend concern.
-        const savedTileUuids = new Set(
-            version.tiles
-                .map((tile) => tile.uuid)
-                .filter((uuid): uuid is string => !!uuid),
+        agentIdentity: AgentIdentityClaim | null,
+    ): Promise<string> {
+        const config = validateAndPruneDashboardConfig(
+            version.config,
+            version.tiles,
         );
-        const config = version.config?.dateZoomConfig
-            ? {
-                  ...version.config,
-                  dateZoomConfig: {
-                      ...version.config.dateZoomConfig,
-                      tileTargets: Object.fromEntries(
-                          Object.entries(
-                              version.config.dateZoomConfig.tileTargets,
-                          ).filter(([tileUuid]) =>
-                              savedTileUuids.has(tileUuid),
-                          ),
-                      ),
-                  },
-              }
-            : version.config;
 
         const [versionId] = await trx(DashboardVersionsTableName).insert(
             {
+                agent_identity: agentIdentity,
                 dashboard_id: dashboardId,
                 dashboard_version_uuid: uuidv4(),
                 updated_by_user_uuid: version.updatedByUser?.userUuid,
                 config,
             },
-            ['dashboard_version_id', 'updated_by_user_uuid'],
+            [
+                'dashboard_version_id',
+                'dashboard_version_uuid',
+                'updated_by_user_uuid',
+            ],
         );
 
         await trx(DashboardViewsTableName).insert({
@@ -420,7 +508,7 @@ export class DashboardModel {
 
         const tileUuids = tilesWithUuids.map((tile) => tile.uuid);
 
-        // TODO: remove after resolving a problem with importing lodash-es in the backend
+        // Local pick keeps the stored key order of tileTargets
         const pick = <T>(object: Record<string, T>, keys: string[]) =>
             Object.keys(object)
                 .filter((key) => keys.includes(key))
@@ -466,6 +554,7 @@ export class DashboardModel {
         await trx(DashboardViewsTableName)
             .update(updateData)
             .where({ dashboard_version_id: versionId.dashboard_version_id });
+        return versionId.dashboard_version_uuid;
     }
 
     private async getDashboardVersionTileTypes(dashboardVersionId: number) {
@@ -933,8 +1022,9 @@ export class DashboardModel {
     private async resolveDashboardUuidBySlug(
         slug: string,
         projectUuid?: string,
+        trx?: Knex.Transaction,
     ): Promise<string | undefined> {
-        const dashboardQuery = this.database(DashboardsTableName)
+        const dashboardQuery = (trx ?? this.database)(DashboardsTableName)
             .select('dashboard_uuid')
             .where('slug', slug);
 
@@ -945,7 +1035,9 @@ export class DashboardModel {
         const dashboard = await dashboardQuery.first();
         if (dashboard) return dashboard.dashboard_uuid;
 
-        const aliasQuery = this.database(DashboardSlugMappingsTableName)
+        const aliasQuery = (trx ?? this.database)(
+            DashboardSlugMappingsTableName,
+        )
             .select('dashboard_uuid')
             .where('slug', slug);
 
@@ -1039,11 +1131,13 @@ export class DashboardModel {
                     .delete();
             }
 
-            await trx(DashboardSlugMappingsTableName).insert({
-                project_uuid: projectUuid,
-                dashboard_uuid: dashboardUuid,
-                slug: dashboard.slug,
-            });
+            if (dashboard.slug.length <= MAX_SLUG_ALIAS_LENGTH) {
+                await trx(DashboardSlugMappingsTableName).insert({
+                    project_uuid: projectUuid,
+                    dashboard_uuid: dashboardUuid,
+                    slug: dashboard.slug,
+                });
+            }
 
             const updated = await trx(DashboardsTableName)
                 .where('project_uuid', projectUuid)
@@ -1067,8 +1161,10 @@ export class DashboardModel {
     async getByIdOrSlug(
         dashboardUuidOrSlug: string,
         options?: { deleted?: boolean | 'any'; projectUuid?: string },
+        trx?: Knex.Transaction,
     ): Promise<DashboardDAO> {
-        const query = this.database(DashboardsTableName)
+        const database = trx ?? this.database;
+        const query = database(DashboardsTableName)
             .leftJoin(
                 DashboardVersionsTableName,
                 `${DashboardsTableName}.dashboard_id`,
@@ -1142,7 +1238,7 @@ export class DashboardModel {
                 `${ProjectTableName}.project_uuid`,
                 `${ProjectTableName}.name as project_name`,
                 `${ProjectTableName}.project_type`,
-                this.database.raw(
+                database.raw(
                     `${DashboardsTableName}.created_at::timestamp as content_created_at`,
                 ),
                 `${DashboardsTableName}.dashboard_id`,
@@ -1208,6 +1304,7 @@ export class DashboardModel {
             const resolvedDashboardUuid = await this.resolveDashboardUuidBySlug(
                 dashboardUuidOrSlug,
                 options?.projectUuid,
+                trx,
             );
             dashboard = resolvedDashboardUuid
                 ? await fetchByUuid(resolvedDashboardUuid)
@@ -1218,12 +1315,12 @@ export class DashboardModel {
             throw new NotFoundError('Dashboard not found');
         }
 
-        const viewQuery = this.database(DashboardViewsTableName)
+        const viewQuery = database(DashboardViewsTableName)
             .select('*')
             .orderBy(`${DashboardViewsTableName}.created_at`, 'desc')
             .where(`dashboard_version_id`, dashboard.dashboard_version_id);
 
-        const tilesQuery = this.database(DashboardTilesTableName)
+        const tilesQuery = database(DashboardTilesTableName)
             .select<
                 {
                     x_offset: number;
@@ -1261,13 +1358,13 @@ export class DashboardModel {
                 `${DashboardTilesTableName}.dashboard_tile_uuid`,
                 `${DashboardTilesTableName}.tab_uuid`,
                 `${SavedChartsTableName}.saved_query_uuid`,
-                this.database.raw(
+                database.raw(
                     ` COALESCE(
                         ${SavedChartsTableName}.name,
                         ${SavedSqlTableName}.name
                     ) AS name`,
                 ),
-                this.database.raw(
+                database.raw(
                     ` COALESCE(
                         ${SavedChartsTableName}.slug,
                         ${SavedSqlTableName}.slug
@@ -1275,10 +1372,10 @@ export class DashboardModel {
                 ),
                 `${SavedChartsTableName}.last_version_chart_kind`,
                 `${DashboardTileSqlChartTableName}.saved_sql_uuid`,
-                this.database.raw(
+                database.raw(
                     `${SavedChartsTableName}.dashboard_uuid IS NOT NULL AS belongs_to_dashboard`,
                 ),
-                this.database.raw(
+                database.raw(
                     `COALESCE(
                         ${DashboardTileChartTableName}.title,
                         ${DashboardTileLoomsTableName}.title,
@@ -1287,7 +1384,7 @@ export class DashboardModel {
                         ${DashboardTileDataAppsTableName}.title
                     ) AS title`,
                 ),
-                this.database.raw(
+                database.raw(
                     `COALESCE(
                         ${DashboardTileLoomsTableName}.hide_title,
                         ${DashboardTileChartTableName}.hide_title,
@@ -1301,8 +1398,8 @@ export class DashboardModel {
                 `${DashboardTileHeadingsTableName}.text`,
                 `${DashboardTileHeadingsTableName}.show_divider`,
                 `${DashboardTileDataAppsTableName}.app_uuid`,
-                this.database.raw(`${AppsTableName}.slug AS app_slug`),
-                this.database.raw(
+                database.raw(`${AppsTableName}.slug AS app_slug`),
+                database.raw(
                     `${AppsTableName}.deleted_at AS data_app_deleted_at`,
                 ),
             )
@@ -1414,7 +1511,7 @@ export class DashboardModel {
                 },
             ]);
 
-        const tabsQuery = this.database(DashboardTabsTableName)
+        const tabsQuery = database(DashboardTabsTableName)
             .select<DashboardTab[]>(
                 `${DashboardTabsTableName}.name`,
                 `${DashboardTabsTableName}.uuid`,
@@ -1433,6 +1530,7 @@ export class DashboardModel {
         const verificationQuery = this.contentVerificationModel?.getByContent(
             ContentType.DASHBOARD,
             dashboard.dashboard_uuid,
+            trx,
         );
 
         const [[view], tiles, tabs, verificationResult] = await Promise.all([
@@ -1635,11 +1733,21 @@ export class DashboardModel {
      * tiles, tabs, verification, or other dashboard metadata.
      * Used by dashboard chart query execution where only parameters are needed.
      */
-    async getDashboardParametersByIdOrSlug(
+    async getDashboardParameterStateByIdOrSlug(
         dashboardUuidOrSlug: string,
         projectUuid: string,
-    ): Promise<DashboardParameters | undefined> {
+    ): Promise<
+        {
+            parameters: DashboardParameters | undefined;
+            spaceUuid: string;
+        } & Pick<DashboardConfig, 'parameterControls'>
+    > {
         const query = this.database(DashboardsTableName)
+            .innerJoin(
+                SpaceTableName,
+                `${DashboardsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
             .innerJoin(
                 DashboardVersionsTableName,
                 `${DashboardsTableName}.dashboard_id`,
@@ -1650,8 +1758,17 @@ export class DashboardModel {
                 `${DashboardVersionsTableName}.dashboard_version_id`,
                 `${DashboardViewsTableName}.dashboard_version_id`,
             )
-            .select<{ parameters: DashboardParameters | null } | undefined>(
+            .select<
+                | {
+                      parameters: DashboardParameters | null;
+                      config: DashboardConfig | null;
+                      space_uuid: string;
+                  }
+                | undefined
+            >(
                 `${DashboardViewsTableName}.parameters`,
+                `${DashboardVersionsTableName}.config`,
+                `${SpaceTableName}.space_uuid`,
             )
             .where(`${DashboardsTableName}.project_uuid`, projectUuid)
             .whereNull(`${DashboardsTableName}.deleted_at`)
@@ -1682,7 +1799,11 @@ export class DashboardModel {
             throw new NotFoundError('Dashboard not found');
         }
 
-        return row.parameters ?? undefined;
+        return {
+            parameters: row.parameters ?? undefined,
+            parameterControls: row.config?.parameterControls,
+            spaceUuid: row.space_uuid,
+        };
     }
 
     /*
@@ -1703,19 +1824,21 @@ export class DashboardModel {
 
     // An exact slug owned by a deleted dashboard is the same content as code
     // identity, so it comes back in the requested space with the new content.
+    // It isn't new content, so it keeps its owner; ownerEmail is applied after.
     private static async reviveDeletedDashboard(
         trx: Knex.Transaction,
         deletedDashboard: DeletedDashboardSlugOwner,
         spaceId: number,
         dashboard: CreateDashboard & { slug: string },
         user: Pick<SessionUser, 'userUuid'>,
+        agentIdentity: AgentIdentityClaim | null,
+        onVersionCreated?: OnContentVersionCreated,
     ): Promise<string> {
         const [revived] = await trx(DashboardsTableName)
             .update({
                 name: dashboard.name,
                 description: dashboard.description,
                 space_id: spaceId,
-                owner_user_uuid: dashboard.ownerUserUuid ?? null,
                 deleted_at: null,
                 deleted_by_user_uuid: null,
             })
@@ -1737,12 +1860,18 @@ export class DashboardModel {
                 );
         }
 
-        await DashboardModel.createVersion(trx, revived.dashboard_id, {
-            ...dashboard,
-            tabs: dashboard.tabs || [],
-            updatedByUser: user,
-        });
+        const versionUuid = await DashboardModel.createVersion(
+            trx,
+            revived.dashboard_id,
+            {
+                ...dashboard,
+                tabs: dashboard.tabs || [],
+                updatedByUser: user,
+            },
+            agentIdentity,
+        );
 
+        await onVersionCreated?.(trx, versionUuid, revived.dashboard_uuid);
         return revived.dashboard_uuid;
     }
 
@@ -1751,6 +1880,8 @@ export class DashboardModel {
         dashboard: CreateDashboard & { slug: string; forceSlug?: boolean },
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
+        agentIdentity: AgentIdentityClaim | null = null,
+        onVersionCreated?: OnContentVersionCreated,
     ): Promise<DashboardDAO> {
         const dashboardId = await this.database.transaction(async (trx) => {
             await acquireProjectSlugLock(trx, projectUuid, dashboard.slug);
@@ -1789,6 +1920,8 @@ export class DashboardModel {
                     space.space_id,
                     dashboard,
                     user,
+                    agentIdentity,
+                    onVersionCreated,
                 );
             }
 
@@ -1809,12 +1942,22 @@ export class DashboardModel {
                 })
                 .returning(['dashboard_id', 'dashboard_uuid']);
 
-            await DashboardModel.createVersion(trx, newDashboard.dashboard_id, {
-                ...dashboard,
-                tabs: dashboard.tabs || [],
-                updatedByUser: user,
-            });
+            const versionUuid = await DashboardModel.createVersion(
+                trx,
+                newDashboard.dashboard_id,
+                {
+                    ...dashboard,
+                    tabs: dashboard.tabs || [],
+                    updatedByUser: user,
+                },
+                agentIdentity,
+            );
 
+            await onVersionCreated?.(
+                trx,
+                versionUuid,
+                newDashboard.dashboard_uuid,
+            );
             return newDashboard.dashboard_uuid;
         });
         return this.getByIdOrSlug(dashboardId);
@@ -1911,11 +2054,16 @@ export class DashboardModel {
     async update(
         dashboardUuidOrSlug: string,
         dashboard: Partial<DashboardUnversionedFields>,
+        trx?: Knex.Transaction,
     ): Promise<DashboardDAO> {
-        const existingDashboard = await this.getByIdOrSlug(dashboardUuidOrSlug);
+        const existingDashboard = await this.getByIdOrSlug(
+            dashboardUuidOrSlug,
+            undefined,
+            trx,
+        );
         let withSpaceId: { space_id: number } | Record<string, never> = {};
         if (dashboard.spaceUuid) {
-            const space = await this.database(SpaceTableName)
+            const space = await (trx ?? this.database)(SpaceTableName)
                 .innerJoin(
                     ProjectTableName,
                     `${ProjectTableName}.project_id`,
@@ -1941,7 +2089,7 @@ export class DashboardModel {
             dashboard.ownerUserUuid !== undefined
                 ? { owner_user_uuid: dashboard.ownerUserUuid }
                 : {};
-        const query = this.database(DashboardsTableName)
+        const query = (trx ?? this.database)(DashboardsTableName)
             .update({
                 project_uuid: existingDashboard.projectUuid,
                 // Owner-only updates omit name; leave it unchanged in that case
@@ -1960,9 +2108,13 @@ export class DashboardModel {
 
         await query;
 
-        return this.getByIdOrSlug(existingDashboard.uuid, {
-            projectUuid: existingDashboard.projectUuid,
-        });
+        return this.getByIdOrSlug(
+            existingDashboard.uuid,
+            {
+                projectUuid: existingDashboard.projectUuid,
+            },
+            trx,
+        );
     }
 
     async updateMultiple(
@@ -2148,6 +2300,8 @@ export class DashboardModel {
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
         tx?: Knex.Transaction,
+        agentIdentity: AgentIdentityClaim | null = null,
+        onVersionCreated?: OnContentVersionCreated,
     ): Promise<DashboardDAO> {
         const db = tx || this.database;
         const [dashboard] = await db(DashboardsTableName)
@@ -2160,11 +2314,17 @@ export class DashboardModel {
         }
 
         const doWork = async (trx: Knex.Transaction) => {
-            await DashboardModel.createVersion(trx, dashboard.dashboard_id, {
-                ...version,
-                tabs: version.tabs || [],
-                updatedByUser: user,
-            });
+            const versionUuid = await DashboardModel.createVersion(
+                trx,
+                dashboard.dashboard_id,
+                {
+                    ...version,
+                    tabs: version.tabs || [],
+                    updatedByUser: user,
+                },
+                agentIdentity,
+            );
+            await onVersionCreated?.(trx, versionUuid, dashboardUuid);
         };
 
         if (tx) {
@@ -2497,6 +2657,7 @@ export class DashboardModel {
         versionUuid: string,
     ): Promise<DashboardVersionSummary> {
         type VersionSummaryRow = {
+            agent_identity: StoredAgentIdentityClaim | null;
             dashboard_uuid: string;
             dashboard_version_uuid: string;
             created_at: Date;
@@ -2520,6 +2681,7 @@ export class DashboardModel {
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${DashboardVersionsTableName}.dashboard_version_uuid`,
                 `${DashboardVersionsTableName}.created_at`,
+                `${DashboardVersionsTableName}.agent_identity`,
                 `${UserTableName}.user_uuid`,
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
@@ -2536,6 +2698,7 @@ export class DashboardModel {
         }
 
         return {
+            agentIdentity: normalizeAgentIdentityClaim(row.agent_identity),
             dashboardUuid: row.dashboard_uuid,
             versionUuid: row.dashboard_version_uuid,
             createdAt: row.created_at,
@@ -2553,6 +2716,7 @@ export class DashboardModel {
         dashboardUuid: string,
     ): Promise<DashboardVersionSummary[]> {
         type VersionSummaryRow = {
+            agent_identity: StoredAgentIdentityClaim | null;
             dashboard_uuid: string;
             dashboard_version_uuid: string;
             created_at: Date;
@@ -2576,6 +2740,7 @@ export class DashboardModel {
                 `${DashboardsTableName}.dashboard_uuid`,
                 `${DashboardVersionsTableName}.dashboard_version_uuid`,
                 `${DashboardVersionsTableName}.created_at`,
+                `${DashboardVersionsTableName}.agent_identity`,
                 `${UserTableName}.user_uuid`,
                 `${UserTableName}.first_name`,
                 `${UserTableName}.last_name`,
@@ -2584,6 +2749,7 @@ export class DashboardModel {
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc');
 
         const mapRow = (row: VersionSummaryRow): DashboardVersionSummary => ({
+            agentIdentity: normalizeAgentIdentityClaim(row.agent_identity),
             dashboardUuid: row.dashboard_uuid,
             versionUuid: row.dashboard_version_uuid,
             createdAt: row.created_at,

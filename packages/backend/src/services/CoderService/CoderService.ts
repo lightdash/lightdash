@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    AgentCapability,
     AlertAsCode,
     AlreadyExistsError,
     ApiAlertAsCodeListResponse,
@@ -15,6 +16,7 @@ import {
     ApiSpaceAsCodeUpsertResponse,
     ApiVirtualViewAsCodeListResponse,
     ApiVirtualViewAsCodeUpsertResponse,
+    applyNewChartDefaults,
     assertUnreachable,
     ChartAsCode,
     ChartAsCodeConfig,
@@ -42,6 +44,7 @@ import {
     DashboardScheduledDeliveryAsCode,
     DashboardSqlChartTileAsCode,
     DashboardTileAsCode,
+    DashboardTileChartQuery,
     DashboardTileTarget,
     DashboardTileTypes,
     DimensionType,
@@ -52,8 +55,11 @@ import {
     ForbiddenError,
     friendlyName,
     generateSlug,
+    getAllowedParameterValue,
     getContentAsCodePathFromLtreePath,
+    getControlledKeys,
     getLtreePathFromContentAsCodePath,
+    getParameterMirror,
     getParameterReferences,
     hasChartsInDashboard,
     isChartScheduler,
@@ -63,11 +69,14 @@ import {
     isExploreError,
     isGoogleChatTarget,
     isMsTeamsTarget,
+    isParameterCompatible,
     isSchedulerCsvOptions,
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
     isSlackTarget,
+    MAX_CONTENT_SLUG_LENGTH,
     normalizeContentAsCodePath,
+    normalizeContentAsCodeSourcePath,
     normalizeSavedMergeDefinition,
     NotFoundError,
     NotificationFrequency,
@@ -98,19 +107,28 @@ import {
     type ContentAsCodeProjectSettings,
     type ContentAsCodeSettingsStamp,
     type ContentVerificationInfo,
+    type DashboardConfig,
     type DashboardTileWithSlug,
     type DirectAccessAssignment,
     type DirectAccessPrincipalRef,
     type Filters,
     type GoogleSheetsSyncAsCode,
+    type MetricQuery,
+    type ParameterDefinitions,
     type SpaceSummaryBase,
 } from '@lightdash/common';
+import { isEqual, isPlainObject, omit } from 'es-toolkit/compat';
 import type { Knex } from 'knex';
-import isEqual from 'lodash/isEqual';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { fromSession, getAccountApiAccessContext } from '../../auth/account';
+import {
+    grantUploadBodySchema,
+    uploadEffectCapabilities,
+} from '../../auth/agentConnectionGrants/operationContracts';
+import { grantAllowsCapabilities } from '../../auth/agentConnectionGrants/resourceConstraints';
 import { LightdashConfig } from '../../config/parseConfig';
+import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import { AppModel } from '../../models/AppModel';
 import { ContentAsCodeProjectSettingsModel } from '../../models/ContentAsCodeProjectSettingsModel';
 import {
@@ -118,8 +136,13 @@ import {
     type ContentAsCodeSnapshotType,
 } from '../../models/ContentAsCodeSnapshotModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
-import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import {
+    assertValidParameterControls,
+    DashboardModel,
+} from '../../models/DashboardModel/DashboardModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../../models/GroupsModel';
+import { type OnContentVersionCreated } from '../../models/OnContentVersionCreated';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -136,9 +159,19 @@ import type { RawSpaceDirectAccess } from '../../models/SpacePermissionModel';
 import { UserModel } from '../../models/UserModel';
 import { type WarehouseConnectionModel } from '../../models/WarehouseConnectionModel/WarehouseConnectionModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import {
+    assertHumanManagedMutation,
+    getManagedAgentPolicy,
+} from '../AgentPermissionService/assertHumanManagedMutation';
+import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
+import {
+    logAgentContentWrite,
+    recordAgentRefusal,
+} from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
 import { DashboardService } from '../DashboardService/DashboardService';
 import type { DirectAccessService } from '../DirectAccess/DirectAccessService';
+import { getAvailableParameterDefinitions } from '../ProjectService/parameters';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { PromoteService } from '../PromoteService/PromoteService';
 import { mergeDraftIntoChart } from '../SavedChartsService/chartDraftOverlay';
@@ -158,14 +191,26 @@ import {
     type SnapshotAsCodeContent,
 } from './contentAsCodeSnapshot';
 import {
+    assertValidFilterSlugs,
+    getControlOrderAsCode,
+    getControlOrderWithIds,
+    getFilterSlugsAsCode,
+    getUploadedControlSlugs,
+} from './controlOrder';
+import {
     getConfigWithDateZoomTileSlugs,
     getConfigWithDateZoomTileUuids,
+    getConfigWithParameterControlTileSlugs,
+    getConfigWithParameterControlTileUuids,
     getFiltersWithTileSlugs,
     getFiltersWithTileUuids,
+    getParameterControlTileSlugs,
     getTileSlugForTileUuid,
+    getTileSlugsByUuid,
     isAnyChartTile,
     withTileWarnings,
 } from './dashboardReferences';
+import { preserveDashboardTileUuids } from './dashboardTileIdentity';
 import { resolveDataAppVizBinding } from './dataAppVizBinding';
 import { normalizeFilterIds, stripFilterIds } from './filterIds';
 import {
@@ -177,6 +222,10 @@ import { ScheduledContentCoder } from './handlers/ScheduledContentCoder';
 import { VirtualViewCoder } from './handlers/VirtualViewCoder';
 import { paginateAsCode } from './pagination';
 import {
+    getParameterControlsWithIds,
+    getParameterControlsWithSlugs,
+} from './parameterControlSlugs';
+import {
     getDashboardScheduledDeliveryFiltersWithTileSlugs,
     getDashboardScheduledDeliveryFiltersWithTileUuids,
     getDashboardTabSlug,
@@ -185,6 +234,12 @@ import {
     getScheduledDeliveryTargetKey,
     getScheduledDeliveryTargetsAsCode,
 } from './scheduledContent';
+import {
+    getDashboardWithSectionIds,
+    getDashboardWithSectionSlugs,
+    withoutStoredOnlyKeys,
+    type DashboardWithSectionIds,
+} from './sectionSlugs';
 
 type RuntimeChartAsCode = Omit<ChartAsCode, 'chartConfig'> & {
     chartConfig: ChartConfig;
@@ -197,6 +252,7 @@ type ContentAsCodeSpaceContentMetadata = {
 };
 
 type CoderServiceArguments = {
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
@@ -224,22 +280,49 @@ type CoderServiceArguments = {
         WarehouseConnectionModel,
         'getProject' | 'list'
     >;
+    // Lazy accessor (not the instance): AppGenerateService depends on
+    // CoderService, so resolving it eagerly here would cycle. Only wired when
+    // EE license is active; core builds resolve undefined and data-app slug
+    // renames stay unsupported.
+    getAppGenerateService?: () => DataAppSlugRenamer | undefined;
+};
+
+type DataAppSlugRenamer = {
+    renameAppSlug(
+        user: SessionUser,
+        projectUuid: string,
+        args: { from: string; to: string },
+    ): Promise<void>;
+};
+
+type SqlChartsAsCodeResult = {
+    sqlCharts: SqlChartAsCode[];
+    missingIds: string[];
+    spaces: SpaceAsCode[];
+    total: number;
+    offset: number;
 };
 
 type UpsertContentAsCodeOptions = {
+    account?: Account;
     skipSpaceCreate?: boolean;
     publicSpaceCreate?: boolean;
     force?: boolean;
     spaceNames?: Record<string, string>;
     mode?: 'upsert' | 'create';
-    // Mirrors content_as_code.sync from the caller's lightdash.config.yml.
-    // Gates snapshot recording: a project that never opts into sync has no
-    // use for a last-applied baseline.
+    // Gates snapshot recording. true: a repo upload opted into
+    // content_as_code.sync. false: not a repo upload (agent tools, internal
+    // seeding), never record. Absent: fall back to the stamped project setting.
     syncEnabled?: boolean;
     // Repo file the document came from, relative to the project dir, so
     // write-back returns to the same place
     filePath?: string;
+    authorization?: ContentWriteAuthorization;
 };
+
+// Content as code needs the create:ContentAsCode scope on top of space
+// access; the agent surfaces mirror the app and rely on space access alone.
+type ContentWriteAuthorization = 'content_as_code' | 'space_access';
 
 export class CoderService extends BaseService {
     lightdashConfig: LightdashConfig;
@@ -303,7 +386,14 @@ export class CoderService extends BaseService {
 
     directAccessService: DirectAccessService;
 
+    private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+
+    private readonly getAppGenerateService?: () =>
+        | DataAppSlugRenamer
+        | undefined;
+
     constructor({
+        agentActionLogModel,
         lightdashConfig,
         analytics,
         projectModel,
@@ -328,8 +418,10 @@ export class CoderService extends BaseService {
         userModel,
         directAccessService,
         warehouseConnectionModel,
+        getAppGenerateService,
     }: CoderServiceArguments) {
         super();
+        this.agentActionLogModel = agentActionLogModel;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.projectModel = projectModel;
@@ -355,6 +447,7 @@ export class CoderService extends BaseService {
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.userModel = userModel;
         this.warehouseConnectionModel = warehouseConnectionModel;
+        this.getAppGenerateService = getAppGenerateService;
         this.virtualViewCoder = new VirtualViewCoder({
             projectModel,
             projectService,
@@ -386,6 +479,12 @@ export class CoderService extends BaseService {
         virtualView: VirtualViewAsCode,
         force = false,
     ): Promise<ApiVirtualViewAsCodeUpsertResponse['results']> {
+        await this.assertAgentUploadAllowed(
+            account,
+            getAccountApiAccessContext(account).user,
+            projectUuid,
+            virtualView,
+        );
         return this.virtualViewCoder.upsert(
             account,
             projectUuid,
@@ -1370,6 +1469,25 @@ export class CoderService extends BaseService {
     }
 
     /**
+     * Preflight twin of `applyDirectAccessPolicy`: raises the same
+     * authorization errors without writing, so an import can reject before
+     * it creates anything.
+     */
+    async assertCanApplyDirectAccessPolicy(
+        user: SessionUser,
+        projectUuid: string,
+        resourceType: DirectAccessResourceType,
+        resourceUuid: string,
+    ): Promise<void> {
+        await this.directAccessService.assertCanManage(
+            fromSession(user),
+            projectUuid,
+            resourceType,
+            resourceUuid,
+        );
+    }
+
+    /**
      * Apply a preflighted access block to a resource that now exists:
      * authorization, atomic replacement, and audit all run inside
      * DirectAccessService.replacePolicy. No-op for null (block absent).
@@ -1397,6 +1515,18 @@ export class CoderService extends BaseService {
             resourceUuid,
             assignments,
         );
+        await logAgentContentWrite({
+            model: this.agentActionLogModel,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            }),
+            projectUuid,
+            objectType: 'direct_access_policy',
+            objectUuid: resourceUuid,
+            versionUuid: null,
+            action: 'replace',
+        });
     }
 
     async upsertSpace(
@@ -1441,6 +1571,34 @@ export class CoderService extends BaseService {
             throw new NotFoundError(
                 `Space ${desiredSpace.slug} does not exist, skipping creation`,
             );
+        }
+
+        const managedMutationContext = {
+            organizationUuid: project.organizationUuid,
+            ability: user.ability,
+            oauth: account.authentication.type === 'oauth',
+            database: this.groupsModel.database,
+            featureFlagModel: new FeatureFlagModel({
+                database: this.groupsModel.database,
+                lightdashConfig: this.lightdashConfig,
+            }),
+        };
+        if (!existingSpace) {
+            if (
+                auditedAbility.cannot(
+                    'create',
+                    subject('Space', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid,
+                        metadata: { spaceName: desiredSpace.spaceName },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    `You don't have permission to create space "${desiredSpace.slug}"`,
+                );
+            }
+            await assertHumanManagedMutation(managedMutationContext);
         }
 
         const parentPath = path.includes('.')
@@ -1544,35 +1702,19 @@ export class CoderService extends BaseService {
                     `You don't have permission to manage space "${desiredSpace.slug}"`,
                 );
             }
-        } else {
-            if (
-                auditedAbility.cannot(
-                    'create',
-                    subject('Space', {
-                        organizationUuid: project.organizationUuid,
-                        projectUuid,
-                        metadata: { spaceName: desiredSpace.spaceName },
-                    }),
-                )
-            ) {
-                throw new ForbiddenError(
-                    `You don't have permission to create space "${desiredSpace.slug}"`,
-                );
-            }
-            if (
-                parentSpaceUuid !== null &&
-                !(await this.spacePermissionService.can(
-                    'manage',
-                    user,
-                    parentSpaceUuid,
-                ))
-            ) {
-                throw new ForbiddenError(
-                    `You don't have permission to create a child of space "${getContentAsCodePathFromLtreePath(
-                        parentPath!,
-                    )}"`,
-                );
-            }
+        } else if (
+            parentSpaceUuid !== null &&
+            !(await this.spacePermissionService.can(
+                'manage',
+                user,
+                parentSpaceUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                `You don't have permission to create a child of space "${getContentAsCodePathFromLtreePath(
+                    parentPath!,
+                )}"`,
+            );
         }
 
         const rawAccess = existingSpace
@@ -1627,9 +1769,17 @@ export class CoderService extends BaseService {
             };
             accessChanged = !isEqual(currentAccess, desiredSpace.access);
         }
+        if (accessChanged) {
+            await assertHumanManagedMutation(managedMutationContext);
+        }
         if (existingSpace && !metadataChanged && !accessChanged) {
             return { action: SpaceAsCodeAction.NO_CHANGES };
         }
+
+        const omitUnchangedAccess =
+            !accessChanged &&
+            desiredSpace.access !== undefined &&
+            (await getManagedAgentPolicy(managedMutationContext)) !== null;
 
         const applyInput = {
             projectUuid,
@@ -1649,7 +1799,9 @@ export class CoderService extends BaseService {
             ...(desiredSpace.access === undefined && parentSpaceUuid !== null
                 ? { copyParentAccessOnLegacyCreate: true }
                 : {}),
-            ...(desiredSpace.access ? { access: desiredSpace.access } : {}),
+            ...(desiredSpace.access && !omitUnchangedAccess
+                ? { access: desiredSpace.access }
+                : {}),
         };
         await this.spaceModel.applySpaceAsCode(applyInput, {
             beforeMutation: async (trx, { userAccess }) => {
@@ -1727,13 +1879,13 @@ export class CoderService extends BaseService {
                         )}"`,
                     );
                 }
-                if (desiredSpace.access) {
+                if (applyInput.access) {
                     await this.assertSpaceUploaderRetainsManage({
                         user: currentUser,
                         auditedAbility: currentAbility,
                         project,
                         parentSpaceUuid,
-                        access: desiredSpace.access!,
+                        access: applyInput.access,
                         trx,
                         resolvedUserAccess: userAccess,
                     });
@@ -1852,6 +2004,8 @@ export class CoderService extends BaseService {
         dashboard: DashboardDAO,
         spaceSummary: Pick<SpaceSummaryBase, 'uuid' | 'name' | 'path'>[],
         verificationMap: Map<string, ContentVerificationInfo>,
+        controlsEnabled = false,
+        withFilterSlugs = false,
     ): DashboardAsCode {
         const contentSpace = spaceSummary.find(
             (space) => space.uuid === dashboard.spaceUuid,
@@ -1869,6 +2023,18 @@ export class CoderService extends BaseService {
             tabs: sortedTabs,
         };
 
+        const controlTileSlugs =
+            dashboard.config?.parameterControls !== undefined
+                ? getParameterControlTileSlugs(dashboard)
+                : undefined;
+        const controlledTileUuids = new Set(
+            (dashboard.config?.parameterControls ?? []).flatMap((control) =>
+                Object.values(control.parameters).flatMap((target) => {
+                    if (target === 'all') return [];
+                    return 'only' in target ? target.only : target.except;
+                }),
+            ),
+        );
         const tilesWithoutUuids: DashboardTileAsCode[] = dashboard.tiles.map(
             (tile): DashboardTileAsCode => {
                 const tabSlug = tile.tabUuid
@@ -1882,10 +2048,12 @@ export class CoderService extends BaseService {
                             uuid: undefined,
                             tabUuid: undefined,
                             tabSlug,
-                            tileSlug: CoderService.getTileSlugForTileUuid(
-                                dashboard,
-                                tile.uuid,
-                            ),
+                            tileSlug:
+                                controlTileSlugs?.get(tile.uuid) ??
+                                CoderService.getTileSlugForTileUuid(
+                                    dashboard,
+                                    tile.uuid,
+                                ),
                             properties: {
                                 title: tile.properties.title,
                                 hideTitle: tile.properties.hideTitle,
@@ -1903,10 +2071,12 @@ export class CoderService extends BaseService {
                         uuid: undefined,
                         tabUuid: undefined,
                         tabSlug,
-                        tileSlug: CoderService.getTileSlugForTileUuid(
-                            dashboard,
-                            tile.uuid,
-                        ),
+                        tileSlug:
+                            controlTileSlugs?.get(tile.uuid) ??
+                            CoderService.getTileSlugForTileUuid(
+                                dashboard,
+                                tile.uuid,
+                            ),
                         properties: {
                             title: tile.properties.title,
                             hideTitle: tile.properties.hideTitle,
@@ -1924,7 +2094,9 @@ export class CoderService extends BaseService {
                         uuid: undefined,
                         tabUuid: undefined,
                         tabSlug,
-                        tileSlug: undefined,
+                        tileSlug: controlledTileUuids.has(tile.uuid)
+                            ? controlTileSlugs?.get(tile.uuid)
+                            : undefined,
                         properties: {
                             title: tile.properties.title,
                             content: tile.properties.content,
@@ -1941,10 +2113,12 @@ export class CoderService extends BaseService {
                         uuid: undefined,
                         tabUuid: undefined,
                         tabSlug,
-                        tileSlug: CoderService.getTileSlugForTileUuid(
-                            dashboard,
-                            tile.uuid,
-                        ),
+                        tileSlug:
+                            controlTileSlugs?.get(tile.uuid) ??
+                            CoderService.getTileSlugForTileUuid(
+                                dashboard,
+                                tile.uuid,
+                            ),
                         properties: {
                             title: tile.properties.title,
                             hideTitle: tile.properties.hideTitle,
@@ -1957,7 +2131,9 @@ export class CoderService extends BaseService {
                 // Other non-chart tiles already match the as-code shape
                 return {
                     ...tile,
-                    tileSlug: undefined,
+                    tileSlug: controlledTileUuids.has(tile.uuid)
+                        ? controlTileSlugs?.get(tile.uuid)
+                        : undefined,
                     uuid: undefined,
                     tabUuid: undefined,
                     tabSlug,
@@ -1977,13 +2153,41 @@ export class CoderService extends BaseService {
                 ),
         );
 
-        const dashboardAsCode: DashboardAsCode = {
+        const config = getConfigWithParameterControlTileSlugs(
+            dashboard,
+            CoderService.getConfigWithDateZoomTileSlugs(
+                dashboard,
+                controlTileSlugs,
+            ),
+        );
+        // A stored empty order renders as none
+        const storedOrder = config?.controlOrder?.length
+            ? config.controlOrder
+            : undefined;
+        // The order appears only once stored; agents also get filter slugs so they can write one
+        const orderedControls =
+            controlsEnabled && (withFilterSlugs || storedOrder !== undefined)
+                ? {
+                      filters: {
+                          dimensions: dashboard.filters.dimensions,
+                          // Stored filters can predate the metric list
+                          metrics: dashboard.filters.metrics ?? [],
+                      },
+                      parameterControls: config?.parameterControls ?? [],
+                      sections: config?.controlSections ?? [],
+                  }
+                : undefined;
+        const dashboardAsCode: DashboardWithSectionIds = {
             name: dashboard.name,
             description: dashboard.description,
             updatedAt: dashboard.updatedAt,
             tiles: tilesWithoutUuids,
 
-            filters: CoderService.getFiltersWithTileSlugs(dashboard),
+            filters: CoderService.getFiltersWithTileSlugs(
+                dashboard,
+                controlTileSlugs,
+                orderedControls ? getFilterSlugsAsCode(orderedControls) : null,
+            ),
             tabs: sortedTabs.map(({ uuid, name, order, hidden }) => ({
                 slug: getDashboardTabSlug(dashboardWithSortedTabs, uuid),
                 name,
@@ -1991,13 +2195,23 @@ export class CoderService extends BaseService {
                 hidden,
             })),
             slug: dashboard.slug,
-            ...(dashboard.config
-                ? {
-                      config: CoderService.getConfigWithDateZoomTileSlugs(
-                          dashboard,
-                      ),
-                  }
-                : {}),
+            ...(config && {
+                config: {
+                    ...withoutStoredOnlyKeys(config),
+                    ...(config?.parameterControls !== undefined && {
+                        parameterControls: getParameterControlsWithSlugs(
+                            config.parameterControls,
+                        ),
+                    }),
+                    ...(orderedControls &&
+                        storedOrder !== undefined && {
+                            controlOrder: getControlOrderAsCode({
+                                ...orderedControls,
+                                controlOrder: storedOrder,
+                            }),
+                        }),
+                },
+            }),
             ...(dashboard.parameters
                 ? { parameters: dashboard.parameters }
                 : {}),
@@ -2011,7 +2225,7 @@ export class CoderService extends BaseService {
             verification: verificationMap.get(dashboard.uuid) ?? null,
         };
 
-        return dashboardAsCode;
+        return getDashboardWithSectionSlugs(dashboardAsCode);
     }
 
     private static convertTabsWithSlugsToUuids(
@@ -2060,9 +2274,10 @@ export class CoderService extends BaseService {
 
     async convertTileWithSlugsToUuids(
         projectUuid: string,
-        tiles: DashboardTileAsCode[],
+        tilesAsCode: DashboardTileAsCode[],
         tabUuidsBySlug: ReadonlyMap<string, string> = new Map(),
     ): Promise<{ tiles: DashboardTileWithSlug[]; warnings: string[] }> {
+        const tiles = CoderService.withoutTileChartQuery(tilesAsCode);
         const chartSlugs: string[] = tiles.reduce<string[]>((acc, tile) => {
             if (!isAnyChartTile(tile) || tile.properties.chartSlug == null) {
                 return acc;
@@ -2386,7 +2601,76 @@ export class CoderService extends BaseService {
         projectUuid: string,
         slugs: string[],
     ): Promise<ApiDashboardAsCodeListResponse['results']> {
-        return this.findDashboardsAsCode(user, projectUuid, slugs);
+        const results = await this.findDashboardsAsCode(
+            user,
+            projectUuid,
+            slugs,
+            undefined,
+            undefined,
+            { withFilterSlugs: true },
+        );
+        const chartSlugs = [
+            ...new Set(
+                results.dashboards.flatMap((dashboard) =>
+                    dashboard.tiles.flatMap((tile) =>
+                        tile.type === DashboardTileTypes.SAVED_CHART &&
+                        tile.properties.chartSlug !== null
+                            ? [tile.properties.chartSlug]
+                            : [],
+                    ),
+                ),
+            ),
+        ];
+        const chartQueriesBySlug =
+            await this.savedChartModel.getLatestVersionQueriesBySlugs(
+                projectUuid,
+                chartSlugs,
+            );
+        return {
+            ...results,
+            dashboards: results.dashboards.map((dashboard) =>
+                CoderService.withTileChartQueries(
+                    dashboard,
+                    chartQueriesBySlug,
+                ),
+            ),
+        };
+    }
+
+    static withTileChartQueries(
+        dashboard: DashboardAsCode,
+        chartQueriesBySlug: Record<string, DashboardTileChartQuery>,
+    ): DashboardAsCode {
+        return {
+            ...dashboard,
+            tiles: dashboard.tiles.map((tile) => {
+                if (tile.type !== DashboardTileTypes.SAVED_CHART) {
+                    return tile;
+                }
+                const { chartSlug } = tile.properties;
+                const chartQuery =
+                    chartSlug === null
+                        ? null
+                        : (chartQueriesBySlug[chartSlug] ?? null);
+                return {
+                    ...tile,
+                    properties: { ...tile.properties, chartQuery },
+                };
+            }),
+        };
+    }
+
+    /** The upload schema accepts chartQuery so AI patches round-trip, but it is derived data that must not be stored. */
+    static withoutTileChartQuery(
+        tiles: DashboardTileAsCode[],
+    ): DashboardTileAsCode[] {
+        return tiles.map((tile) => {
+            if (tile.type !== DashboardTileTypes.SAVED_CHART) {
+                return tile;
+            }
+            const { chartQuery, ...properties } = tile.properties;
+            return { ...tile, properties };
+        });
     }
 
     private async assertCanDownloadContentAsCode(
@@ -2419,7 +2703,10 @@ export class CoderService extends BaseService {
         // Access blocks are export-only: the AI/MCP read path enforces
         // per-item view access, which is not enough to see who a resource
         // is shared with.
-        { includeAccess = false }: { includeAccess?: boolean } = {},
+        {
+            includeAccess = false,
+            withFilterSlugs = false,
+        }: { includeAccess?: boolean; withFilterSlugs?: boolean } = {},
     ): Promise<ApiDashboardAsCodeListResponse['results']> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
@@ -2505,13 +2792,39 @@ export class CoderService extends BaseService {
                 dashboardUuidsForVerification,
             );
 
-        const transformedDashboards = dashboardsWithAccess.map((dashboard) =>
-            CoderService.transformDashboard(
-                dashboard,
+        const controlsEnabled =
+            dashboardsWithAccess.length > 0 &&
+            (withFilterSlugs ||
+                dashboardsWithAccess.some(
+                    (dashboard) =>
+                        dashboard.config?.parameterControls !== undefined ||
+                        dashboard.config?.controlSections !== undefined ||
+                        dashboard.config?.controlOrder !== undefined,
+                ))
+                ? await this.dashboardService.areDashboardControlsEnabled(
+                      user,
+                      project.organizationUuid,
+                  )
+                : false;
+        const transformedDashboards = dashboardsWithAccess.map((dashboard) => {
+            if (controlsEnabled || !dashboard.config) {
+                return CoderService.transformDashboard(
+                    dashboard,
+                    spaces,
+                    dashboardVerificationMap,
+                    controlsEnabled,
+                    withFilterSlugs,
+                );
+            }
+            const { parameterControls: _ignored, ...config } = dashboard.config;
+            return CoderService.transformDashboard(
+                { ...dashboard, config },
                 spaces,
                 dashboardVerificationMap,
-            ),
-        );
+                controlsEnabled,
+                withFilterSlugs,
+            );
+        });
 
         const dashboardAccessByUuid = includeAccess
             ? await this.getPortableDirectAccessByUuid(
@@ -2813,7 +3126,7 @@ export class CoderService extends BaseService {
     async getCurrentContentVersionBySlug(
         user: SessionUser,
         projectUuid: string,
-        type: 'dashboard' | 'chart',
+        type: 'dashboard' | 'chart' | 'sql_chart',
         slug: string,
     ): Promise<{ contentUuid: string; versionUuid: string | null }> {
         const { name: projectName, organizationUuid } =
@@ -2873,6 +3186,21 @@ export class CoderService extends BaseService {
                     versionUuid: version?.versionUuid ?? null,
                 };
             }
+            case 'sql_chart': {
+                const [sqlChart] = await this.savedSqlModel.find({
+                    projectUuid,
+                    slugs: [slug],
+                });
+                if (!sqlChart) {
+                    throw new NotFoundError(
+                        `SQL chart with slug "${slug}" not found`,
+                    );
+                }
+                return {
+                    contentUuid: sqlChart.saved_sql_uuid,
+                    versionUuid: sqlChart.saved_sql_version_uuid,
+                };
+            }
             default:
                 return assertUnreachable(type, 'Invalid content type');
         }
@@ -2883,13 +3211,7 @@ export class CoderService extends BaseService {
         projectUuid: string,
         chartIds?: string[],
         offset?: number,
-    ): Promise<{
-        sqlCharts: SqlChartAsCode[];
-        missingIds: string[];
-        spaces: SpaceAsCode[];
-        total: number;
-        offset: number;
-    }> {
+    ): Promise<SqlChartsAsCodeResult> {
         const project = await this.projectModel.get(projectUuid);
         if (!project) {
             throw new NotFoundError(`Project ${projectUuid} not found`);
@@ -2909,6 +3231,36 @@ export class CoderService extends BaseService {
                 'You are not allowed to download SQL charts',
             );
         }
+
+        return this.findSqlChartsAsCode(user, project, chartIds, offset, {
+            includeAccess: true,
+        });
+    }
+
+    // Slug-list read for AI/MCP read_content: no export gate; private-space
+    // filtering still applies and access blocks are left out.
+    async getSqlChartsForRead(
+        user: SessionUser,
+        projectUuid: string,
+        slugs: string[],
+    ): Promise<SqlChartsAsCodeResult> {
+        const project = await this.projectModel.get(projectUuid);
+        if (!project) {
+            throw new NotFoundError(`Project ${projectUuid} not found`);
+        }
+        return this.findSqlChartsAsCode(user, project, slugs, undefined, {
+            includeAccess: false,
+        });
+    }
+
+    private async findSqlChartsAsCode(
+        user: SessionUser,
+        project: Project,
+        chartIds: string[] | undefined,
+        offset: number | undefined,
+        { includeAccess }: { includeAccess: boolean },
+    ): Promise<SqlChartsAsCodeResult> {
+        const { projectUuid } = project;
 
         // For SQL charts, we use slugs directly (no UUID to slug conversion needed)
         // since SQL charts are only identified by slug in the as-code workflow
@@ -2991,17 +3343,19 @@ export class CoderService extends BaseService {
                 : { ...sqlChart, connection };
         });
 
-        // getSqlCharts is the export path itself (gated above), so access
-        // blocks always ride along. Dashboard-owned SQL charts never reach
-        // this listing (the space join excludes them) and are not grantable.
-        const sqlChartAccessByUuid = await this.getPortableDirectAccessByUuid(
-            user,
-            project.organizationUuid,
-            DirectAccessResourceType.SQL_CHART,
-            paginatedSqlChartRows.flatMap((row) =>
-                row.space_uuid ? [row.saved_sql_uuid] : [],
-            ),
-        );
+        // Access blocks only ride along on the export path. Dashboard-owned
+        // SQL charts never reach this listing (the space join excludes them)
+        // and are not grantable.
+        const sqlChartAccessByUuid = includeAccess
+            ? await this.getPortableDirectAccessByUuid(
+                  user,
+                  project.organizationUuid,
+                  DirectAccessResourceType.SQL_CHART,
+                  paginatedSqlChartRows.flatMap((row) =>
+                      row.space_uuid ? [row.saved_sql_uuid] : [],
+                  ),
+              )
+            : new Map<string, ContentAsCodeDirectAccess>();
         const sqlChartsWithPolicies = transformedSqlCharts.map(
             (sqlChart, index) => {
                 const access = sqlChartAccessByUuid.get(
@@ -3154,6 +3508,17 @@ export class CoderService extends BaseService {
                 }),
             )
         ) {
+            await recordAgentRefusal({
+                model: this.agentActionLogModel,
+                userUuid: user.userUuid,
+                organizationUuid,
+                projectUuid,
+                objectType: 'content_verification',
+                objectUuid: contentUuid,
+                action: verified ? 'verify' : 'unverify',
+                policyLayer: 'casl',
+                reasonCode: 'content_verification_forbidden',
+            });
             // Warn and skip so CI pipelines run by non-admin deployers don't fail.
             this.logger.warn(
                 `User ${user.userUuid} cannot ${
@@ -3176,6 +3541,18 @@ export class CoderService extends BaseService {
                 projectUuid,
                 user.userUuid,
             );
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                agentIdentity: getContentWriteAgentIdentity({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+                projectUuid,
+                objectType: 'content_verification',
+                objectUuid: contentUuid,
+                versionUuid: null,
+                action: 'verify',
+            });
             this.analytics.track({
                 event: 'content_verification.created',
                 userId: user.userUuid,
@@ -3191,6 +3568,18 @@ export class CoderService extends BaseService {
                 contentType,
                 contentUuid,
             );
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                agentIdentity: getContentWriteAgentIdentity({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+                projectUuid,
+                objectType: 'content_verification',
+                objectUuid: contentUuid,
+                versionUuid: null,
+                action: 'unverify',
+            });
             this.analytics.track({
                 event: 'content_verification.deleted',
                 userId: user.userUuid,
@@ -3227,7 +3616,7 @@ export class CoderService extends BaseService {
     private static sourceFilePath(filePath: string | undefined): string | null {
         if (filePath === undefined) return null;
         try {
-            const normalized = normalizeContentAsCodePath(filePath);
+            const normalized = normalizeContentAsCodeSourcePath(filePath);
             return normalized === '' ? null : normalized;
         } catch {
             return null;
@@ -3323,7 +3712,36 @@ export class CoderService extends BaseService {
         return this.makeChartAsCodePortable(projectUuid, chartAsCode);
     }
 
+    private async transformDashboardForExport(
+        user: SessionUser,
+        dashboard: DashboardDAO,
+        spaces: Pick<SpaceSummaryBase, 'uuid' | 'name' | 'path'>[],
+        verificationMap: Map<string, ContentVerificationInfo>,
+    ): Promise<DashboardAsCode> {
+        const controlsEnabled =
+            dashboard.config?.parameterControls !== undefined ||
+            dashboard.config?.controlSections !== undefined ||
+            dashboard.config?.controlOrder !== undefined
+                ? await this.dashboardService.areDashboardControlsEnabled(
+                      user,
+                      dashboard.organizationUuid,
+                  )
+                : false;
+        const { parameterControls, ...config } = dashboard.config ?? {
+            isDateZoomDisabled: false,
+        };
+        return CoderService.transformDashboard(
+            !controlsEnabled && parameterControls !== undefined
+                ? { ...dashboard, config }
+                : dashboard,
+            spaces,
+            verificationMap,
+            controlsEnabled,
+        );
+    }
+
     async getCurrentDashboardAsCode(
+        user: SessionUser,
         dashboardUuid: string,
     ): Promise<DashboardAsCode> {
         const dashboard =
@@ -3336,7 +3754,8 @@ export class CoderService extends BaseService {
                 ContentType.DASHBOARD,
                 [dashboard.uuid],
             );
-        return CoderService.transformDashboard(
+        return this.transformDashboardForExport(
+            user,
             dashboard,
             spaces,
             verificationMap,
@@ -3368,6 +3787,7 @@ export class CoderService extends BaseService {
     // Drafts review: render the dashboard's as-code document with an
     // unpublished draft's fields applied on top of the published version
     async getDashboardAsCodeWithOverlay(
+        user: SessionUser,
         dashboardUuid: string,
         overlay: object,
     ): Promise<DashboardAsCode> {
@@ -3382,6 +3802,9 @@ export class CoderService extends BaseService {
             }),
             ...(fields.tiles !== undefined && { tiles: fields.tiles }),
             ...(fields.filters !== undefined && { filters: fields.filters }),
+            ...(fields.parameters !== undefined && {
+                parameters: fields.parameters,
+            }),
             ...(fields.tabs !== undefined && { tabs: fields.tabs }),
             ...(fields.config !== undefined && { config: fields.config }),
             ...(fields.spaceUuid !== undefined && {
@@ -3396,7 +3819,12 @@ export class CoderService extends BaseService {
                 ContentType.DASHBOARD,
                 [merged.uuid],
             );
-        return CoderService.transformDashboard(merged, spaces, verificationMap);
+        return this.transformDashboardForExport(
+            user,
+            merged,
+            spaces,
+            verificationMap,
+        );
     }
 
     // The repo's content_as_code flags travel with uploads; stamping them as
@@ -3451,7 +3879,7 @@ export class CoderService extends BaseService {
         projectUuid: string,
         options: UpsertContentAsCodeOptions,
     ): Promise<boolean> {
-        if (options.syncEnabled === true) return true;
+        if (options.syncEnabled !== undefined) return options.syncEnabled;
         try {
             const settings =
                 await this.contentAsCodeProjectSettingsModel.get(projectUuid);
@@ -3532,7 +3960,8 @@ export class CoderService extends BaseService {
             await this.recordAppliedSnapshot(
                 projectUuid,
                 ContentAsCodeType.DASHBOARD,
-                CoderService.transformDashboard(
+                await this.transformDashboardForExport(
+                    user,
                     dashboard,
                     spaces,
                     verificationMap,
@@ -3595,11 +4024,15 @@ export class CoderService extends BaseService {
      * Returns warnings when the email does not match any organization member.
      */
     private async syncDashboardOwner({
+        user,
+        projectUuid,
         organizationUuid,
         dashboardUuid,
         currentOwnerUserUuid,
         ownerEmail,
     }: {
+        user: SessionUser;
+        projectUuid: string;
         organizationUuid: string;
         dashboardUuid: string;
         currentOwnerUserUuid: string | null;
@@ -3611,6 +4044,18 @@ export class CoderService extends BaseService {
             if (currentOwnerUserUuid !== null) {
                 await this.dashboardModel.update(dashboardUuid, {
                     ownerUserUuid: null,
+                });
+                await logAgentContentWrite({
+                    model: this.agentActionLogModel,
+                    agentIdentity: getContentWriteAgentIdentity({
+                        userUuid: user.userUuid,
+                        organizationUuid: user.organizationUuid,
+                    }),
+                    projectUuid,
+                    objectType: 'dashboard_owner',
+                    objectUuid: dashboardUuid,
+                    versionUuid: null,
+                    action: 'update',
                 });
             }
             return [];
@@ -3630,8 +4075,131 @@ export class CoderService extends BaseService {
             await this.dashboardModel.update(dashboardUuid, {
                 ownerUserUuid: member.userUuid,
             });
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                agentIdentity: getContentWriteAgentIdentity({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+                projectUuid,
+                objectType: 'dashboard_owner',
+                objectUuid: dashboardUuid,
+                versionUuid: null,
+                action: 'update',
+            });
         }
         return [];
+    }
+
+    private async assertAgentUploadAllowed(
+        account: Account | null,
+        user: SessionUser,
+        projectUuid: string,
+        payload: unknown,
+    ): Promise<void> {
+        if (
+            account?.authentication.type !== 'oauth' ||
+            !account.authentication.agentConnectionGrant
+        )
+            return;
+        const grant = account.authentication.agentConnectionGrant;
+        const parsed = grantUploadBodySchema.safeParse(payload);
+        if (!parsed.success)
+            throw new ForbiddenError(
+                "This agent connection can't upload an access policy or an unresolved space.",
+            );
+        if (
+            uploadEffectCapabilities(parsed.data).some(
+                (capability) =>
+                    !grantAllowsCapabilities(
+                        grant,
+                        [projectUuid],
+                        [capability],
+                    ),
+            )
+        )
+            throw new ForbiddenError(
+                'This agent connection is not approved for Publish and share.',
+            );
+        if (
+            parsed.data.spaceSlug !== undefined &&
+            (await this.findAccessibleSpace(
+                projectUuid,
+                parsed.data.spaceSlug,
+                user,
+            )) === undefined
+        )
+            throw new ForbiddenError(
+                "This agent connection can't create a space during upload.",
+            );
+    }
+
+    private static getChangedAgentChartSqlItems(
+        incoming: Partial<
+            Pick<
+                MetricQuery,
+                'tableCalculations' | 'customDimensions' | 'additionalMetrics'
+            >
+        >,
+        current:
+            | Partial<
+                  Pick<
+                      MetricQuery,
+                      | 'tableCalculations'
+                      | 'customDimensions'
+                      | 'additionalMetrics'
+                  >
+              >
+            | undefined,
+        stripMetricUuids = false,
+    ): Pick<
+        MetricQuery,
+        'tableCalculations' | 'customDimensions' | 'additionalMetrics'
+    > {
+        // JSON transport drops undefined properties at every depth
+        const definedProperties = (item: unknown): unknown => {
+            if (Array.isArray(item)) return item.map(definedProperties);
+            if (!isPlainObject(item)) return item;
+            return Object.fromEntries(
+                Object.entries(item as object)
+                    .filter(([, value]) => value !== undefined)
+                    .map(([key, value]) => [key, definedProperties(value)]),
+            );
+        };
+        const changedItems = <T extends object>(
+            items: T[] | undefined,
+            previous: T[] | undefined,
+        ): T[] =>
+            (items ?? []).filter(
+                (item) =>
+                    !(previous ?? []).some((stored) =>
+                        isEqual(
+                            definedProperties(item),
+                            definedProperties(stored),
+                        ),
+                    ),
+            );
+        const withoutMetricUuids = (
+            metrics: MetricQuery['additionalMetrics'],
+        ) => metrics?.map(({ uuid: _uuid, ...metric }) => metric);
+        return {
+            tableCalculations: changedItems(
+                incoming.tableCalculations,
+                current?.tableCalculations,
+            ),
+            customDimensions: changedItems(
+                incoming.customDimensions,
+                current?.customDimensions,
+            ),
+            additionalMetrics: changedItems(
+                stripMetricUuids
+                    ? withoutMetricUuids(incoming.additionalMetrics)
+                    : incoming.additionalMetrics,
+                stripMetricUuids
+                    ? withoutMetricUuids(current?.additionalMetrics)
+                    : current?.additionalMetrics,
+            ),
+        };
     }
 
     async upsertChart(
@@ -3641,12 +4209,19 @@ export class CoderService extends BaseService {
         chartAsCode: ChartAsCode,
         options: UpsertContentAsCodeOptions = {},
     ) {
+        await this.assertAgentUploadAllowed(
+            options.account ?? null,
+            user,
+            projectUuid,
+            chartAsCode,
+        );
         const {
             skipSpaceCreate,
             publicSpaceCreate,
             force,
             spaceNames,
             mode = 'upsert',
+            authorization = 'content_as_code',
         } = options;
         const shouldUpdateExistingContent = mode === 'upsert';
         const shouldUseExactSlug = mode === 'upsert';
@@ -3654,13 +4229,20 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        const { canUploadAnyContent, allowSpaceCreate } =
+        const { canUploadAnyContent, allowSpaceCreate: userCanCreateSpace } =
             CoderService.checkContentAsCodeWriteAccess({
                 auditedAbility,
                 project,
                 slug,
+                authorization,
             });
 
+        const allowSpaceCreate =
+            userCanCreateSpace &&
+            !(
+                options.account?.authentication.type === 'oauth' &&
+                options.account.authentication.agentConnectionGrant
+            );
         const metricQuery = {
             ...chartAsCode.metricQuery,
             filters: normalizeFilterIds(chartAsCode.metricQuery.filters),
@@ -3719,6 +4301,80 @@ export class CoderService extends BaseService {
             );
         }
         const [chart] = existingCharts;
+        const grantAccount =
+            options.account?.authentication.type === 'oauth' &&
+            options.account.authentication.agentConnectionGrant
+                ? options.account
+                : null;
+        const currentChart =
+            chart && grantAccount
+                ? await this.savedChartModel.get(chart.uuid)
+                : undefined;
+        if (grantAccount) {
+            const { projectService } = this;
+            if (!projectService) {
+                throw new Error(
+                    'ProjectService is required to check agent chart uploads',
+                );
+            }
+            const sameChartExplore =
+                currentChart?.tableName === chartAsCode.tableName &&
+                currentChart?.metricQuery.exploreName ===
+                    metricQuery.exploreName;
+            const currentQuery = sameChartExplore
+                ? currentChart?.metricQuery
+                : undefined;
+            await projectService.assertAgentCustomSqlAuthorizedForQuery({
+                account: grantAccount,
+                projectUuid,
+                exploreName: metricQuery.exploreName,
+                metricQuery: CoderService.getChangedAgentChartSqlItems(
+                    metricQuery,
+                    currentQuery,
+                    true,
+                ),
+            });
+            if (merge) {
+                const currentMerge =
+                    sameChartExplore && currentChart?.merge
+                        ? normalizeSavedMergeDefinition(
+                              currentChart.merge,
+                              currentChart.metricQuery,
+                          )
+                        : null;
+                await Promise.all(
+                    Object.entries(merge.queries).map(([name, query]) => {
+                        const currentMergeQuery = currentMerge?.queries[name];
+                        return projectService.assertAgentCustomSqlAuthorizedForQuery(
+                            {
+                                account: grantAccount,
+                                projectUuid,
+                                exploreName: query.explore,
+                                metricQuery:
+                                    CoderService.getChangedAgentChartSqlItems(
+                                        query,
+                                        currentMergeQuery?.explore ===
+                                            query.explore
+                                            ? currentMergeQuery
+                                            : undefined,
+                                    ),
+                            },
+                        );
+                    }),
+                );
+                await projectService.assertAgentCustomSqlAuthorizedForQuery({
+                    account: grantAccount,
+                    projectUuid,
+                    exploreName: metricQuery.exploreName,
+                    metricQuery: CoderService.getChangedAgentChartSqlItems(
+                        { tableCalculations: merge.tableCalculations },
+                        {
+                            tableCalculations: currentMerge?.tableCalculations,
+                        },
+                    ),
+                });
+            }
+        }
 
         // If chart does not exist, we can't use promoteService,
         // since it relies on information that's not available in ChartAsCode, and other uuids
@@ -3802,6 +4458,10 @@ export class CoderService extends BaseService {
                         'Creating placeholder dashboard for chart within dashboard',
                         chartWithDefaults.slug,
                     );
+                    const agentIdentity = getContentWriteAgentIdentity({
+                        userUuid: user.userUuid,
+                        organizationUuid: user.organizationUuid ?? null,
+                    });
                     const newDashboard = await this.dashboardModel.create(
                         space.uuid,
                         {
@@ -3810,9 +4470,23 @@ export class CoderService extends BaseService {
                             slug: chartWithDefaults.dashboardSlug,
                             forceSlug: shouldUseExactSlug,
                             tabs: [],
+                            ownerUserUuid:
+                                DashboardService.getDefaultOwnerUserUuid(user),
                         },
                         user,
                         projectUuid,
+                        agentIdentity,
+                        (trx, versionUuid, objectUuid) =>
+                            logAgentContentWrite({
+                                trx,
+                                model: this.agentActionLogModel,
+                                projectUuid,
+                                agentIdentity,
+                                objectType: 'dashboard',
+                                objectUuid,
+                                versionUuid,
+                                action: 'create',
+                            }),
                     );
 
                     dashboardUuid = newDashboard.uuid;
@@ -3836,6 +4510,9 @@ export class CoderService extends BaseService {
                 }
                 createChart = {
                     ...chartWithDefaults,
+                    chartConfig: applyNewChartDefaults(
+                        chartWithDefaults.chartConfig,
+                    ),
                     spaceUuid: null,
                     dashboardUuid,
                     updatedByUser: user,
@@ -3844,6 +4521,9 @@ export class CoderService extends BaseService {
             } else {
                 createChart = {
                     ...chartWithDefaults,
+                    chartConfig: applyNewChartDefaults(
+                        chartWithDefaults.chartConfig,
+                    ),
                     spaceUuid: space.uuid,
                     dashboardUuid: null,
                     updatedByUser: user,
@@ -3851,10 +4531,26 @@ export class CoderService extends BaseService {
                 };
             }
 
+            const agentIdentity = getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid ?? null,
+            });
             const newChart = await this.savedChartModel.create(
                 projectUuid,
                 user.userUuid,
                 createChart,
+                agentIdentity,
+                (trx, versionUuid, objectUuid) =>
+                    logAgentContentWrite({
+                        trx,
+                        model: this.agentActionLogModel,
+                        projectUuid,
+                        agentIdentity,
+                        objectType: 'chart',
+                        objectUuid,
+                        versionUuid,
+                        action: 'create',
+                    }),
             );
 
             await this.syncVerification({
@@ -3948,11 +4644,11 @@ export class CoderService extends BaseService {
         });
 
         if (!canUploadAnyContent) {
-            const currentChart = await this.savedChartModel.get(chart.uuid);
             CoderService.handleContentAsCodeSqlPermissionChecks({
                 checks: CoderService.getChartContentAsCodePermissionChecks(
                     chartWithDefaults,
-                    currentChart,
+                    currentChart ??
+                        (await this.savedChartModel.get(chart.uuid)),
                 ),
                 auditedAbility,
                 project,
@@ -4086,14 +4782,21 @@ export class CoderService extends BaseService {
         request: ContentSlugRenameRequest,
     ): Promise<void> {
         const { resourceType, from, to } = request;
-        if (!from || from.length > 255) {
-            throw new ParameterError(
-                'The source slug must contain between 1 and 255 characters',
-            );
+        if (!from) {
+            throw new ParameterError('The source slug must not be empty');
         }
-        if (!to || to.length > 255 || generateSlug(to) !== to) {
+        // Data-app slugs follow the server's own shape check
+        // (isValidDataAppSlug, applied in AppGenerateService.renameAppSlug),
+        // which allows more than generateSlug emits — e.g. consecutive
+        // hyphens and up to 255 characters.
+        if (
+            resourceType !== ContentType.DATA_APP &&
+            (!to ||
+                to.length > MAX_CONTENT_SLUG_LENGTH ||
+                generateSlug(to) !== to)
+        ) {
             throw new ParameterError(
-                'The target slug must contain between 1 and 255 lowercase letters, numbers, or hyphen-separated words',
+                `The target slug must contain between 1 and ${MAX_CONTENT_SLUG_LENGTH} lowercase letters, numbers, or hyphen-separated words`,
             );
         }
 
@@ -4113,7 +4816,10 @@ export class CoderService extends BaseService {
                 const { inheritsFromOrgOrProject, access } =
                     await this.spacePermissionService.resolveAccess(
                         user.userUuid,
-                        { type: 'space', spaceUuid: chart.spaceUuid },
+                        {
+                            type: 'space',
+                            spaceUuid: chart.spaceUuid,
+                        },
                     );
                 if (
                     auditedAbility.cannot(
@@ -4162,8 +4868,22 @@ export class CoderService extends BaseService {
                 });
                 return;
             }
+            case ContentType.DATA_APP: {
+                // Permission checks (manage on the app, registry guard) live
+                // in AppGenerateService.renameAppSlug.
+                const appGenerateService = this.getAppGenerateService?.();
+                if (!appGenerateService) {
+                    throw new NotImplementedError(
+                        'Data apps are not available on this instance',
+                    );
+                }
+                await appGenerateService.renameAppSlug(user, projectUuid, {
+                    from,
+                    to,
+                });
+                return;
+            }
             case ContentType.SPACE:
-            case ContentType.DATA_APP:
             case ContentType.DOCUMENT:
                 throw new NotImplementedError(
                     `Slug renaming is not supported for resource type "${resourceType}" yet`,
@@ -4181,22 +4901,63 @@ export class CoderService extends BaseService {
         projectUuid: string,
         slug: string,
         sqlChartAsCode: SqlChartAsCode,
-        skipSpaceCreate?: boolean,
-        publicSpaceCreate?: boolean,
-        force?: boolean,
-        spaceNames?: Record<string, string>,
+        options: Pick<
+            UpsertContentAsCodeOptions,
+            | 'skipSpaceCreate'
+            | 'publicSpaceCreate'
+            | 'spaceNames'
+            | 'mode'
+            | 'account'
+            | 'authorization'
+        > = {},
     ): Promise<PromotionChanges> {
+        await this.assertAgentUploadAllowed(
+            options.account ?? null,
+            user,
+            projectUuid,
+            sqlChartAsCode,
+        );
+        const {
+            skipSpaceCreate,
+            publicSpaceCreate,
+            spaceNames,
+            mode = 'upsert',
+            authorization = 'content_as_code',
+        } = options;
         const project = await this.projectModel.get(projectUuid);
 
+        const agentIdentity = getContentWriteAgentIdentity({
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid,
+        });
+        const recordSqlWrite =
+            (action: string): OnContentVersionCreated =>
+            (trx, versionUuid, objectUuid) =>
+                logAgentContentWrite({
+                    trx,
+                    model: this.agentActionLogModel,
+                    projectUuid,
+                    agentIdentity,
+                    objectType: 'sql_chart',
+                    objectUuid,
+                    versionUuid,
+                    action,
+                });
         const auditedAbility = this.createAuditedAbility(user);
-        const { allowSpaceCreate } = CoderService.checkContentAsCodeWriteAccess(
-            {
+        const { allowSpaceCreate: userCanCreateSpace } =
+            CoderService.checkContentAsCodeWriteAccess({
                 auditedAbility,
                 project,
                 slug,
-            },
-        );
+                authorization,
+            });
 
+        const allowSpaceCreate =
+            userCanCreateSpace &&
+            !(
+                options.account?.authentication.type === 'oauth' &&
+                options.account.authentication.agentConnectionGrant
+            );
         // Default updatedAt to now when missing (e.g. user-authored YAML)
         const sqlChartWithDefaults = {
             ...sqlChartAsCode,
@@ -4211,11 +4972,34 @@ export class CoderService extends BaseService {
             contentLabel: `SQL chart ${slug}`,
         });
 
-        const sqlChartRows = await this.savedSqlModel.find({
-            slugs: [slug],
-            projectUuid,
-        });
+        // Create mode treats the requested slug as a base for a new unique
+        // slug instead of updating the SQL chart that already owns it.
+        const sqlChartRows =
+            mode === 'upsert'
+                ? await this.savedSqlModel.find({
+                      slugs: [slug],
+                      projectUuid,
+                  })
+                : [];
         const existingSqlChart = sqlChartRows[0];
+        const grant =
+            options.account?.authentication.type === 'oauth'
+                ? options.account.authentication.agentConnectionGrant
+                : null;
+        if (
+            grant &&
+            !grantAllowsCapabilities(
+                grant,
+                [projectUuid],
+                [AgentCapability.RawSql],
+            ) &&
+            (existingSqlChart === undefined ||
+                existingSqlChart.sql !== sqlChartAsCode.sql)
+        ) {
+            throw new ForbiddenError(
+                'This agent connection is not approved for Raw SQL.',
+            );
+        }
 
         // SQL chart uploads mirror SavedSqlService. Check CustomSql before
         // resolving the space so a rejection cannot orphan a new space.
@@ -4233,7 +5017,11 @@ export class CoderService extends BaseService {
                 }),
             )
         ) {
-            throw new ForbiddenError();
+            throw new ForbiddenError(
+                `You don't have permission to ${
+                    isUpdate ? 'update' : 'create'
+                } SQL charts in this project (content slug "${slug}")`,
+            );
         }
 
         if (existingSqlChart !== undefined) {
@@ -4326,19 +5114,16 @@ export class CoderService extends BaseService {
                 spaceUuid: space.uuid,
                 slug: sqlChartAsCode.slug, // Force the slug from the YAML file
             };
-            const { savedSqlUuid } =
-                binding === undefined
-                    ? await this.savedSqlModel.create(
-                          user.userUuid,
-                          projectUuid,
-                          sqlChartToCreate,
-                      )
-                    : await this.savedSqlModel.create(
-                          user.userUuid,
-                          projectUuid,
-                          sqlChartToCreate,
-                          binding,
-                      );
+            const created = await this.savedSqlModel.create(
+                user.userUuid,
+                projectUuid,
+                sqlChartToCreate,
+                binding,
+                { slugMode: mode === 'create' ? 'unique' : 'exact' },
+                agentIdentity,
+                recordSqlWrite('create'),
+            );
+            const { savedSqlUuid, slug: createdSlug } = created;
 
             this.logger.info(
                 `Finished creating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
@@ -4349,7 +5134,7 @@ export class CoderService extends BaseService {
             await this.stampAppliedSqlChartSnapshot(
                 user,
                 projectUuid,
-                sqlChartAsCode.slug,
+                createdSlug,
                 false,
             );
 
@@ -4362,7 +5147,7 @@ export class CoderService extends BaseService {
                         data: {
                             uuid: savedSqlUuid,
                             name: sqlChartAsCode.name,
-                            slug: sqlChartAsCode.slug,
+                            slug: createdSlug,
                             spaceSlug: sqlChartAsCode.spaceSlug,
                         } as PromotionChanges['charts'][0]['data'],
                     },
@@ -4387,6 +5172,18 @@ export class CoderService extends BaseService {
             `Updating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
         );
 
+        const versionedData = {
+            sql: sqlChartAsCode.sql,
+            limit: sqlChartAsCode.limit,
+            config: sqlChartAsCode.config,
+        };
+        const hasVersionedChanges =
+            existingSqlChart.sql !== versionedData.sql ||
+            existingSqlChart.limit !== versionedData.limit ||
+            !isEqual(existingSqlChart.config, versionedData.config) ||
+            existingSqlChart.warehouse_connection_uuid !==
+                warehouseConnectionUuid;
+
         const sqlChartUpdate = {
             userUuid: user.userUuid,
             savedSqlUuid: existingSqlChart.saved_sql_uuid,
@@ -4396,18 +5193,15 @@ export class CoderService extends BaseService {
                     description: sqlChartAsCode.description,
                     spaceUuid: space.uuid,
                 },
-                versionedData: {
-                    sql: sqlChartAsCode.sql,
-                    limit: sqlChartAsCode.limit,
-                    config: sqlChartAsCode.config,
-                },
+                ...(hasVersionedChanges ? { versionedData } : {}),
             },
         };
-        if (binding === undefined) {
-            await this.savedSqlModel.update(sqlChartUpdate);
-        } else {
-            await this.savedSqlModel.update(sqlChartUpdate, binding);
-        }
+        await this.savedSqlModel.update(
+            sqlChartUpdate,
+            binding,
+            agentIdentity,
+            recordSqlWrite('update'),
+        );
 
         this.logger.info(
             `Finished updating SQL chart "${sqlChartAsCode.name}" on project ${projectUuid}`,
@@ -4489,6 +5283,7 @@ export class CoderService extends BaseService {
         auditedAbility,
         project,
         slug,
+        authorization = 'content_as_code',
     }: {
         auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
         project: Pick<
@@ -4500,6 +5295,7 @@ export class CoderService extends BaseService {
             | 'createdByUserUuid'
         >;
         slug: string;
+        authorization?: ContentWriteAuthorization;
     }): { canUploadAnyContent: boolean; allowSpaceCreate: boolean } {
         const contentAsCodeSubject = subject('ContentAsCode', {
             projectUuid: project.projectUuid,
@@ -4513,7 +5309,10 @@ export class CoderService extends BaseService {
             'manage',
             contentAsCodeSubject,
         );
-        if (auditedAbility.cannot('create', contentAsCodeSubject)) {
+        if (
+            authorization === 'content_as_code' &&
+            auditedAbility.cannot('create', contentAsCodeSubject)
+        ) {
             throw new ForbiddenError(
                 `You don't have permission to upload content as code to this project (content slug "${slug}")`,
             );
@@ -4846,6 +5645,18 @@ export class CoderService extends BaseService {
                 },
             );
 
+            await logAgentContentWrite({
+                model: this.agentActionLogModel,
+                agentIdentity: getContentWriteAgentIdentity({
+                    userUuid: user.userUuid,
+                    organizationUuid: user.organizationUuid,
+                }),
+                projectUuid,
+                objectType: 'space',
+                objectUuid: newSpace.uuid,
+                versionUuid: null,
+                action: 'create',
+            });
             if (!newSpace.inheritParentPermissions) {
                 if (parentSpaceUuid) {
                     const [ctx, groupsAccess] = await Promise.all([
@@ -4907,6 +5718,43 @@ export class CoderService extends BaseService {
         };
     }
 
+    // Definitions of the parameters the tiles can use: project ones, plus each saved chart's explore
+    private async getTileParameterDefinitions(
+        projectUuid: string,
+        keys: string[],
+    ): Promise<ParameterDefinitions> {
+        const projectParameters = this.projectService
+            ? await this.projectService.projectParametersModel.find(projectUuid)
+            : [];
+        const tableNames = [
+            ...new Set(
+                keys.flatMap((key) => {
+                    const separator = key.indexOf('.');
+                    return separator < 0 ? [] : [key.slice(0, separator)];
+                }),
+            ),
+        ];
+        const explores = await this.projectModel.findExploresFromCache(
+            projectUuid,
+            'name',
+            [...new Set(tableNames)],
+        );
+        return Object.values(explores)
+            .filter((explore): explore is Explore => !isExploreError(explore))
+            .reduce<ParameterDefinitions>(
+                (acc, explore) => ({
+                    ...acc,
+                    ...getAvailableParameterDefinitions(
+                        projectParameters,
+                        explore,
+                    ),
+                }),
+                Object.fromEntries(
+                    projectParameters.map(({ name, config }) => [name, config]),
+                ),
+            );
+    }
+
     async upsertDashboard(
         user: SessionUser,
         projectUuid: string,
@@ -4914,11 +5762,18 @@ export class CoderService extends BaseService {
         dashboardAsCode: DashboardAsCode,
         options: UpsertContentAsCodeOptions = {},
     ): Promise<DashboardAsCodeUpsertResult> {
+        await this.assertAgentUploadAllowed(
+            options.account ?? null,
+            user,
+            projectUuid,
+            dashboardAsCode,
+        );
         const {
             skipSpaceCreate,
             publicSpaceCreate,
             spaceNames,
             mode = 'upsert',
+            authorization = 'content_as_code',
         } = options;
         const shouldUpdateExistingContent = mode === 'upsert';
         const shouldUseExactSlug = mode === 'upsert';
@@ -4926,16 +5781,22 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        const { allowSpaceCreate } = CoderService.checkContentAsCodeWriteAccess(
-            {
+        const { allowSpaceCreate: userCanCreateSpace } =
+            CoderService.checkContentAsCodeWriteAccess({
                 auditedAbility,
                 project,
                 slug,
-            },
-        );
+                authorization,
+            });
 
+        const allowSpaceCreate =
+            userCanCreateSpace &&
+            !(
+                options.account?.authentication.type === 'oauth' &&
+                options.account.authentication.agentConnectionGrant
+            );
         // Default optional fields when missing (e.g. user-authored YAML)
-        const dashboardWithDefaults = {
+        let dashboardWithDefaults = {
             ...dashboardAsCode,
             updatedAt: dashboardAsCode.updatedAt ?? new Date(),
             filters: {
@@ -4965,21 +5826,70 @@ export class CoderService extends BaseService {
         const existingDashboard = dashboardSummary
             ? await this.dashboardModel.getByIdOrSlug(dashboardSummary.uuid)
             : undefined;
+        let controlsEnabled = true;
+        const hasParameterControls =
+            dashboardWithDefaults.config?.parameterControls !== undefined ||
+            existingDashboard?.config?.parameterControls !== undefined;
+        if (
+            hasParameterControls ||
+            dashboardWithDefaults.config?.controlOrder !== undefined ||
+            existingDashboard?.config?.controlOrder !== undefined ||
+            dashboardWithDefaults.config?.controlSections !== undefined ||
+            existingDashboard?.config?.controlSections !== undefined ||
+            [
+                ...dashboardWithDefaults.filters.dimensions,
+                ...dashboardWithDefaults.filters.metrics,
+                ...dashboardWithDefaults.filters.tableCalculations,
+            ].some((filter) => filter.slug !== undefined)
+        ) {
+            const enabled =
+                await this.dashboardService.areDashboardControlsEnabled(
+                    user,
+                    project.organizationUuid,
+                );
+            controlsEnabled = enabled;
+            if (!enabled && hasParameterControls) {
+                const { parameterControls: _ignored, ...config } =
+                    dashboardWithDefaults.config ?? {
+                        isDateZoomDisabled: false,
+                    };
+                dashboardWithDefaults = {
+                    ...dashboardWithDefaults,
+                    config: {
+                        ...config,
+                        ...(existingDashboard?.config?.parameterControls !==
+                            undefined && {
+                            parameterControls:
+                                existingDashboard.config.parameterControls,
+                        }),
+                    },
+                };
+            }
+        }
+        const dashboardWithResolvedSections = getDashboardWithSectionIds(
+            dashboardWithDefaults,
+            existingDashboard?.config,
+            controlsEnabled,
+        );
         const { tabs: tabsWithUuids, tabUuidsBySlug } =
             CoderService.convertTabsWithSlugsToUuids(
-                dashboardWithDefaults.tabs,
+                dashboardWithResolvedSections.tabs,
                 existingDashboard?.tabs,
             );
-        const dashboardWithResolvedTabs = {
-            ...dashboardWithDefaults,
+        let dashboardWithResolvedTabs = {
+            ...dashboardWithResolvedSections,
             tabs: tabsWithUuids,
         };
-        const { tiles: tilesWithUuids, warnings: tileWarnings } =
+        const { tiles: resolvedTiles, warnings: tileWarnings } =
             await this.convertTileWithSlugsToUuids(
                 projectUuid,
                 dashboardWithResolvedTabs.tiles,
                 tabUuidsBySlug,
             );
+        const tilesWithUuids = preserveDashboardTileUuids(
+            resolvedTiles,
+            existingDashboard?.tiles ?? [],
+        );
         await this.assertTileChartsViewAccess({
             userUuid: user.userUuid,
             auditedAbility,
@@ -4987,16 +5897,135 @@ export class CoderService extends BaseService {
             tiles: dashboardWithDefaults.tiles,
         });
 
+        if (controlsEnabled)
+            assertValidFilterSlugs([
+                ...dashboardWithDefaults.filters.dimensions,
+                ...dashboardWithDefaults.filters.metrics,
+            ]);
         const dashboardFilters = CoderService.getFiltersWithTileUuids(
             dashboardWithResolvedTabs,
             tilesWithUuids,
+            existingDashboard?.filters.dimensions ?? [],
+            controlsEnabled,
         );
-        const dashboardConfig = dashboardWithResolvedTabs.config
-            ? CoderService.getConfigWithDateZoomTileUuids(
-                  dashboardWithResolvedTabs.config,
-                  tilesWithUuids,
-              )
-            : dashboardWithResolvedTabs.config;
+        let dashboardConfig: DashboardConfig | undefined;
+        if (dashboardWithResolvedTabs.config) {
+            const {
+                parameterControls: portableControls,
+                controlOrder: _portableOrder,
+                ...config
+            } = CoderService.getConfigWithDateZoomTileUuids(
+                dashboardWithResolvedTabs.config,
+                tilesWithUuids,
+            );
+            const existingControls =
+                existingDashboard?.config?.parameterControls;
+            dashboardConfig = controlsEnabled
+                ? getConfigWithParameterControlTileUuids(
+                      {
+                          ...config,
+                          ...(portableControls !== undefined && {
+                              parameterControls: getParameterControlsWithIds(
+                                  portableControls,
+                                  existingControls ?? [],
+                              ),
+                          }),
+                      },
+                      tilesWithUuids,
+                  )
+                : { ...config, parameterControls: existingControls };
+        }
+        // Flag on, the file's order is declarative: absent resets to the default order
+        const fileOrder = dashboardWithResolvedTabs.config?.controlOrder;
+        let controlOrder = existingDashboard?.config?.controlOrder;
+        if (controlsEnabled) {
+            const sources = {
+                filters: dashboardFilters,
+                parameterControls: dashboardConfig?.parameterControls ?? [],
+                sections: dashboardConfig?.controlSections ?? [],
+            };
+            // An empty list renders like no list, so it isn't stored
+            controlOrder =
+                fileOrder === undefined || fileOrder.length === 0
+                    ? undefined
+                    : getControlOrderWithIds(
+                          fileOrder,
+                          getUploadedControlSlugs(
+                              {
+                                  filters: [
+                                      ...(dashboardWithResolvedTabs.filters
+                                          ?.dimensions ?? []),
+                                      ...(dashboardWithResolvedTabs.filters
+                                          ?.metrics ?? []),
+                                  ],
+                                  parameterControls:
+                                      dashboardWithResolvedTabs.config
+                                          ?.parameterControls ?? [],
+                                  sections:
+                                      dashboardWithDefaults.config
+                                          ?.controlSections ?? [],
+                              },
+                              sources,
+                          ),
+                      );
+        }
+        if (dashboardConfig || controlOrder !== undefined) {
+            dashboardConfig = {
+                ...(dashboardConfig ?? { isDateZoomDisabled: false }),
+                ...(controlOrder !== undefined && { controlOrder }),
+            };
+        }
+        if (controlsEnabled && dashboardConfig?.parameterControls) {
+            const tileSlugs = getTileSlugsByUuid(tilesWithUuids);
+            const definitions = await this.getTileParameterDefinitions(
+                projectUuid,
+                [...getControlledKeys(dashboardConfig.parameterControls)],
+            );
+            assertValidParameterControls(
+                dashboardConfig.parameterControls,
+                definitions,
+                (tileUuid) => tileSlugs.get(tileUuid) ?? tileUuid,
+            );
+            for (const control of dashboardConfig.parameterControls) {
+                const known = Object.keys(control.parameters).flatMap((key) =>
+                    definitions[key] ? [definitions[key]] : [],
+                );
+                if (
+                    known.some(
+                        (definition) =>
+                            !isParameterCompatible(known[0], definition) ||
+                            !isParameterCompatible(definition, known[0]),
+                    )
+                ) {
+                    throw new ParameterError(
+                        `Parameter control ${control.label ?? control.id} has incompatible options`,
+                    );
+                }
+                if (
+                    control.value !== null &&
+                    known.some(
+                        (definition) =>
+                            !isEqual(
+                                getAllowedParameterValue(
+                                    definition,
+                                    control.value!,
+                                ),
+                                control.value,
+                            ),
+                    )
+                ) {
+                    throw new ParameterError(
+                        `Parameter control ${control.label ?? control.id} has a value outside its allowed options`,
+                    );
+                }
+            }
+            dashboardWithResolvedTabs = {
+                ...dashboardWithResolvedTabs,
+                parameters: getParameterMirror(
+                    dashboardConfig.parameterControls,
+                ),
+            };
+        }
         // If chart does not exist, we can't use promoteService,
         // since it relies on information that's not available in ChartAsCode, and other uuids
         if (dashboardSummary === undefined) {
@@ -5028,6 +6057,10 @@ export class CoderService extends BaseService {
                 errorMessage: `You don't have access to create dashboards in space "${dashboardWithDefaults.spaceSlug}"`,
             });
 
+            const agentIdentity = getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid ?? null,
+            });
             let newDashboard = await this.dashboardModel.create(
                 space.uuid,
                 {
@@ -5036,9 +6069,24 @@ export class CoderService extends BaseService {
                     forceSlug: shouldUseExactSlug,
                     filters: dashboardFilters,
                     config: dashboardConfig,
+                    // ownerEmail, synced below, can still reassign or clear it
+                    ownerUserUuid:
+                        DashboardService.getDefaultOwnerUserUuid(user),
                 },
                 user,
                 projectUuid,
+                agentIdentity,
+                (trx, versionUuid, objectUuid) =>
+                    logAgentContentWrite({
+                        trx,
+                        model: this.agentActionLogModel,
+                        projectUuid,
+                        agentIdentity,
+                        objectType: 'dashboard',
+                        objectUuid,
+                        versionUuid,
+                        action: 'create',
+                    }),
             );
 
             if (hasChartsInDashboard(newDashboard)) {
@@ -5071,6 +6119,19 @@ export class CoderService extends BaseService {
                     { ...newDashboard, tiles: copiedTiles },
                     user,
                     projectUuid,
+                    undefined,
+                    agentIdentity,
+                    (trx, versionUuid, objectUuid) =>
+                        logAgentContentWrite({
+                            trx,
+                            model: this.agentActionLogModel,
+                            projectUuid,
+                            agentIdentity,
+                            objectType: 'dashboard',
+                            objectUuid,
+                            versionUuid,
+                            action: 'update',
+                        }),
                 );
             }
 
@@ -5084,6 +6145,8 @@ export class CoderService extends BaseService {
             });
 
             const createOwnerWarnings = await this.syncDashboardOwner({
+                user,
+                projectUuid,
                 organizationUuid: project.organizationUuid,
                 dashboardUuid: newDashboard.uuid,
                 currentOwnerUserUuid: newDashboard.owner?.userUuid ?? null,
@@ -5266,6 +6329,8 @@ export class CoderService extends BaseService {
         });
 
         const ownerWarnings = await this.syncDashboardOwner({
+            user,
+            projectUuid,
             organizationUuid: project.organizationUuid,
             dashboardUuid: dashboard.uuid,
             currentOwnerUserUuid: dashboard.owner?.userUuid ?? null,

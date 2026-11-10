@@ -72,6 +72,7 @@ const buildEmbedAccount = ({
     canUseAiAgent?: boolean;
 } = {}): AnonymousAccount =>
     ({
+        isJwtUser: () => true,
         authentication: {
             type: 'jwt',
             data: {
@@ -127,9 +128,13 @@ const buildService = ({
     > | null;
 } = {}) => {
     const aiAgentModel = {
-        getWebAppThreadEmbedSpace: vi.fn<
-            AiAgentModel['getWebAppThreadEmbedSpace']
-        >(async () => embedThreadSpaceUuid),
+        isWebAppThreadInEmbedScope: vi.fn<
+            AiAgentModel['isWebAppThreadInEmbedScope']
+        >(async (_, scope) =>
+            embedThreadSpaceUuid && scope.type === 'writeSpaces'
+                ? scope.writeSpaceUuids.includes(embedThreadSpaceUuid)
+                : false,
+        ),
         findPromptContext: vi.fn<AiAgentModel['findPromptContext']>(
             async () => promptContext ?? undefined,
         ),

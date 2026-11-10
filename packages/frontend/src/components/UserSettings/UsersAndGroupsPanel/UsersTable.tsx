@@ -1,10 +1,10 @@
 import {
-    FeatureFlags,
     isOrganizationMemberProfileWithGroups,
     OrganizationMemberRole,
     OrganizationMemberRoleLabels,
     type OrganizationMemberProfile,
     type OrganizationMemberProfileWithGroups,
+    type OrganizationMemberSort,
     type OrganizationRoleSet,
     type Role,
 } from '@lightdash/common';
@@ -41,18 +41,19 @@ import {
     useUpsertOrganizationUserRoleAssignmentMutation,
 } from '../../../hooks/useOrganizationRoles';
 import { useInfiniteOrganizationUsers } from '../../../hooks/useOrganizationUsers';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import {
     ContentTable,
     useContentTable,
     type ContentTableColumnDef,
+    type ContentTableSortingState,
     type ContentTableVirtualizer,
 } from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
 import ConfirmAdminSelfDowngradeModal from './ConfirmAdminSelfDowngradeModal';
 import InviteSuccess from './InviteSuccess';
 import UsersActionMenu from './UsersActionMenu';
+import tableClasses from './UsersAndGroupsTable.module.css';
 import { UsersTopToolbar } from './UsersTopToolbar';
 
 const fetchSize = 50;
@@ -75,6 +76,7 @@ const UsersTable: FC = () => {
         );
 
     const [search, setSearch] = useState('');
+    const [sorting, setSorting] = useState<ContentTableSortingState>([]);
     const inviteLink = useCreateInviteLinkMutation();
     const [inviteSuccessFor, setInviteSuccessFor] = useState<string | null>(
         null,
@@ -87,14 +89,6 @@ const UsersTable: FC = () => {
         setInviteSuccessFor(userUuid);
     }, []);
 
-    const userGroupsFeatureFlagQuery = useServerFeatureFlag(
-        FeatureFlags.UserGroupsEnabled,
-    );
-
-    const isGroupManagementEnabled =
-        userGroupsFeatureFlagQuery.isSuccess &&
-        userGroupsFeatureFlagQuery.data.enabled;
-
     // Debounce search to avoid too many API calls
     const debouncedSearch = useMemo(() => {
         return { search };
@@ -102,12 +96,24 @@ const UsersTable: FC = () => {
 
     const [debouncedSearchValue] = useDebouncedValue(debouncedSearch, 300);
 
+    const sort = useMemo<OrganizationMemberSort | undefined>(
+        () =>
+            sorting[0]?.id === 'name'
+                ? {
+                      sortBy: 'name',
+                      sortDirection: sorting[0].desc ? 'desc' : 'asc',
+                  }
+                : undefined,
+        [sorting],
+    );
+
     // Use infinite query for pagination
     const { data, fetchNextPage, hasNextPage, isError, isFetching, isLoading } =
         useInfiniteOrganizationUsers({
             searchInput: debouncedSearchValue.search,
-            includeGroups: isGroupManagementEnabled ? 10000 : undefined,
+            includeGroups: 10000,
             pageSize: fetchSize,
+            sort,
         });
 
     const flatData = useMemo<
@@ -128,10 +134,10 @@ const UsersTable: FC = () => {
         threshold: 400,
     });
 
-    // Scroll to top when search changes
+    // Scroll to top when search or sorting changes
     useEffect(() => {
         scrollToTop();
-    }, [debouncedSearchValue, scrollToTop]);
+    }, [debouncedSearchValue, sort, scrollToTop]);
 
     const updateUserRole = useUpsertOrganizationUserRoleAssignmentMutation();
     const replaceRoleSet = useReplaceOrganizationUserRoleSetMutation();
@@ -240,9 +246,10 @@ const UsersTable: FC = () => {
             OrganizationMemberProfile | OrganizationMemberProfileWithGroups
         >[] = [
             {
+                id: 'name',
                 accessorKey: 'email',
                 header: 'User',
-                enableSorting: false,
+                enableSorting: true,
                 size: isCompact ? 180 : 300,
                 Header: ({ column }) => (
                     <Group gap="two">
@@ -348,7 +355,7 @@ const UsersTable: FC = () => {
                 },
             });
 
-            if (isGroupManagementEnabled && !isCompact) {
+            if (!isCompact) {
                 cols.push({
                     accessorKey: 'groups',
                     header: 'Groups',
@@ -435,7 +442,6 @@ const UsersTable: FC = () => {
         showActions,
         inviteLink,
         inviteSuccessFor,
-        isGroupManagementEnabled,
         handleRoleChange,
         handleRoleSetChange,
         multipleRolesEnabled,
@@ -455,57 +461,24 @@ const UsersTable: FC = () => {
         data: flatData,
         enableColumnResizing: false,
         enablePagination: false,
-        enableSorting: false,
+        enableSorting: true,
+        manualSorting: true,
+        onSortingChange: setSorting,
         enableRowVirtualization: true,
         enableTopToolbar: true,
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: { maxHeight: 'calc(100dvh - 420px)' },
+            mah: 'calc(100dvh - 420px)',
             onScroll,
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(flatData.length),
         },
-        mantineTableHeadCellProps: (props) => {
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                style: {
-                    userSelect: 'none',
-                    padding: `${theme.spacing.xs} ${
-                        isCompact ? theme.spacing.md : theme.spacing.xl
-                    }`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderTop: 'none',
-                    borderLeft: 'none',
-                },
-            };
-        },
-        mantineTableBodyCellProps: () => {
-            return {
-                style: {
-                    padding: `${theme.spacing.md} ${
-                        isCompact ? theme.spacing.md : theme.spacing.xl
-                    }`,
-                    borderRight: 'none',
-                    borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderTop: 'none',
-                },
-            };
+        mantineTableHeadCellProps: { px: isCompact ? 'md' : 'xl' },
+        mantineTableBodyCellProps: {
+            py: 'md',
+            px: isCompact ? 'md' : 'xl',
         },
         renderTopToolbar: () => (
             <UsersTopToolbar search={search} setSearch={setSearch} />
@@ -515,18 +488,13 @@ const UsersTable: FC = () => {
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 fz="xs"
                 fw={500}
-                c="ldGray.8"
-                style={{
-                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
-                }}
+                className={tableClasses.bottomToolbar}
             >
                 {isFetching ? (
-                    <Text c="ldGray.8" fz="xs">
-                        Loading more...
-                    </Text>
+                    <Text fz="xs">Loading more...</Text>
                 ) : (
                     <Group gap="two">
-                        <Text fz="xs" c="ldGray.8">
+                        <Text fz="xs">
                             {hasNextPage
                                 ? 'Scroll for more users'
                                 : 'All users loaded'}
@@ -543,6 +511,7 @@ const UsersTable: FC = () => {
         rowVirtualizerInstanceRef,
         rowVirtualizerProps: { estimateSize: () => 72, overscan: 10 },
         state: {
+            sorting,
             isLoading,
             showAlertBanner: isError,
             showProgressBars: isFetching,

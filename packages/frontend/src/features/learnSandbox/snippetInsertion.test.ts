@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { holdsEntry, insertSnippet, insertionPoint } from './snippetInsertion';
+import {
+    holdsEntry,
+    insertSnippet,
+    insertionPoint,
+    replaceLine,
+    replacementFor,
+} from './snippetInsertion';
 
 const file = [
     'columns:',
@@ -92,5 +98,64 @@ describe('holdsEntry', () => {
         expect(holdsEntry('columns:\n  - name: number_of\n', snippet)).toBe(
             false,
         );
+    });
+});
+
+describe('replaceLine', () => {
+    const chart = [
+        'contentType: chart',
+        'description: Revenue split across each payment method',
+        'name: Revenue by payment method',
+        'slug: revenue-by-payment-method',
+        'version: 1',
+        '',
+    ].join('\n');
+
+    it('sets the top-level key to the new value and leaves the rest', () => {
+        expect(replaceLine(chart, 'name: Revenue by payment type')).toBe(
+            chart.replace(
+                'name: Revenue by payment method',
+                'name: Revenue by payment type',
+            ),
+        );
+    });
+
+    it('never touches a nested key of the same name', () => {
+        const nested = 'tableConfig:\n  name: inner\nname: outer\n';
+        expect(replaceLine(nested, 'name: changed')).toBe(
+            'tableConfig:\n  name: inner\nname: changed\n',
+        );
+    });
+
+    it('does nothing when the line already reads that way', () => {
+        expect(
+            replacementFor(chart, 'name: Revenue by payment method'),
+        ).toBeNull();
+        expect(replaceLine(chart, 'name: Revenue by payment method')).toBe(
+            chart,
+        );
+    });
+
+    it('puts the line back at the end of a file that has lost the key', () => {
+        const withoutName = chart.replace(
+            'name: Revenue by payment method\n',
+            '',
+        );
+        expect(replaceLine(withoutName, 'name: Revenue by payment type')).toBe(
+            `${withoutName}name: Revenue by payment type\n`,
+        );
+        // A file that does not end in a newline gets one first.
+        expect(replaceLine('slug: a', 'name: A')).toBe('slug: a\nname: A\n');
+        expect(replaceLine('', 'name: A')).toBe('name: A\n');
+    });
+
+    it('reads a Windows file line by line too', () => {
+        expect(replaceLine('name: Old\r\nslug: a\r\n', 'name: New')).toBe(
+            'name: New\nslug: a\r\n',
+        );
+    });
+
+    it('refuses a block, which is an insertion, not a one-line edit', () => {
+        expect(replacementFor(chart, 'name: a\nslug: b')).toBeNull();
     });
 });

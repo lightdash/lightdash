@@ -1,4 +1,5 @@
 import {
+    UserWarehouseCredentialPurpose,
     WarehouseTypes,
     type Project,
     type UserWarehouseCredentials,
@@ -8,15 +9,13 @@ import {
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import { renderWithProviders } from '../../testing/testUtils';
 import ConnectionCredentialsSwitcher from './ConnectionCredentialsSwitcher';
 
-vi.mock('../../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../../api');
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 
 const CONNECTIONS_URL =
     'GET /projects/project-uuid/warehouse-connection-user-credentials';
@@ -41,9 +40,11 @@ const personal = (
 ): UserWarehouseCredentials => ({
     uuid,
     userUuid: 'user-uuid',
+    purpose: UserWarehouseCredentialPurpose.DEFAULT,
     name,
     createdAt: new Date('2026-09-01T00:00:00Z'),
     updatedAt: new Date('2026-09-01T00:00:00Z'),
+    expiresAt: null,
     credentials: { type } as UserWarehouseCredentials['credentials'],
     project: null,
 });

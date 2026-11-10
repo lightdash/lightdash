@@ -83,6 +83,7 @@ const baseItem = (
             targetRefs: [],
         },
         projectContextEntry: null,
+        skillProposal: null,
         createdAt: new Date('2026-05-26T00:00:00.000Z'),
     },
     ...overrides,

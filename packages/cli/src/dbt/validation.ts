@@ -67,6 +67,13 @@ export const validateDbtModel = async (
                     return acc;
                 }
                 const exploreError: ExploreError = {
+                    dbtModelIdentity: {
+                        sourceUuid: null,
+                        sourceName: null,
+                        packageName: model.package_name ?? '',
+                        uniqueId: model.unique_id,
+                        modelName: model.name,
+                    },
                     name: model.name,
                     label: model.meta.label || friendlyName(model.name),
                     errors: [error],

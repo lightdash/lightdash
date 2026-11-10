@@ -31,6 +31,8 @@ export const BigQueryDefaultValues: CreateBigqueryCredentials = {
     project: '',
     location: '',
     authenticationType: BigqueryAuthenticationType.PRIVATE_KEY,
+    workloadIdentityProvider: undefined,
+    workloadIdentityAudience: undefined,
     allowUserCredentials: false,
     // @ts-expect-error we need to set it as empty string to avoid overwritting saved value
     keyfileContents: '', // Not needed for sso, we will load the refresh token from the user in the backend
@@ -236,4 +238,21 @@ export const warehouseDefaultValues = {
     [WarehouseTypes.CLICKHOUSE]: ClickhouseDefaultValues,
     [WarehouseTypes.ATHENA]: AthenaDefaultValues,
     [WarehouseTypes.DUCKDB]: DuckdbDefaultValues,
+};
+
+// Onboarding prefills the conventional schema so a first connection needs fewer fields
+export const onboardingWarehouseDefaultValues: typeof warehouseDefaultValues = {
+    ...warehouseDefaultValues,
+    [WarehouseTypes.POSTGRES]: { ...PostgresDefaultValues, schema: 'public' },
+    [WarehouseTypes.REDSHIFT]: { ...RedshiftDefaultValues, schema: 'public' },
+    [WarehouseTypes.SNOWFLAKE]: { ...SnowflakeDefaultValues, schema: 'PUBLIC' },
+    [WarehouseTypes.DATABRICKS]: {
+        ...DatabricksDefaultValues,
+        database: 'default',
+    },
+    [WarehouseTypes.CLICKHOUSE]: {
+        ...ClickhouseDefaultValues,
+        schema: 'default',
+    },
+    [WarehouseTypes.ATHENA]: { ...AthenaDefaultValues, schema: 'default' },
 };

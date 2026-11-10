@@ -12,6 +12,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { subject, type Ability } from '@casl/ability';
 import {
+    AgentActorSurface,
     AlreadyExistsError,
     APP_UPGRADE_PROMPT_LABEL,
     APP_VERSION_CANCELLED_BY_USER,
@@ -27,6 +28,7 @@ import {
     DATA_APP_CODEX_MODELS,
     DATA_APP_VIZ_TEMPLATE,
     DATA_REFERENCE_EXTRACTOR_VERSION,
+    dataAppManifestRegistryProvenanceSchema,
     dataAppVizGenerationSchema,
     dataAppVizJsonSchema,
     dataAppVizSchema,
@@ -51,8 +53,8 @@ import {
     getVisibleDataAppClaudeModels,
     isChartTypeIcon,
     isDashboardChartTileType,
-    isDataAppAutoAnalysis,
     isExploreError,
+    isExploreIncludedInTableSelection,
     isExternalFetchDocumentContext,
     isSemverVersion,
     isValidDataAppSlug,
@@ -62,7 +64,6 @@ import {
     MAX_APP_VIZ_BUILD_SAMPLE_FIELDS,
     MAX_APP_VIZ_BUILD_SAMPLE_ROWS,
     MissingConfigError,
-    normalizeDataAppAutoAnalysis,
     NotFoundError,
     ParameterError,
     ProjectType,
@@ -74,6 +75,7 @@ import {
     validateDataAppCode,
     validateDataAppDependencies,
     type Account,
+    type AgentIdentityClaim,
     type AnonymousAccount,
     type ApiDuplicateAppResponse,
     type ApiGetAppResponse,
@@ -82,6 +84,7 @@ import {
     type AppChartReference,
     type AppClarification,
     type AppDashboardReference,
+    type AppExternalConnectionLink,
     type AppExternalConnectionReference,
     type AppGeneratePipelineJobPayload,
     type AppThread,
@@ -96,6 +99,7 @@ import {
     type AppVizBuildContext,
     type ChartConfig,
     type ChartReference,
+    type ChartRegistryEntry,
     type ChartSampleData,
     type ChartTypeIcon,
     type CompiledExploreJoin,
@@ -104,7 +108,6 @@ import {
     type DashboardBlueprint,
     type DataAppActivityEvent,
     type DataAppActivityFilters,
-    type DataAppAutoAnalysis,
     type DataAppClaudeEffort,
     type DataAppClaudeModel,
     type DataAppCode,
@@ -119,7 +122,9 @@ import {
     type DataAppDependencies,
     type DataAppGenerationUsage,
     type DataAppManifestExternalConnection,
+    type DataAppManifestRegistryProvenance,
     type DataAppTemplate,
+    type DataAppViewContext,
     type DataAppViz,
     type DataAppVizDeleteImpact,
     type DataAppVizListSort,
@@ -131,9 +136,11 @@ import {
     type DocumentQueryReference,
     type EmbedProjectApp,
     type Explore,
+    type ExternalConnection,
     type ExternalConnectionMethod,
     type ExternalConnectionSample,
     type ExternalFetchRequest,
+    type FieldUrl,
     type ImportAppCodeRequestBody,
     type InstallRegistryChartTypeBody,
     type KnexPaginateArgs,
@@ -145,6 +152,7 @@ import {
     type PersistedDataAppDataReferences,
     type PromoteAppAction,
     type PromoteAppDiff,
+    type RecordDataAppViewOutcome,
     type RegisteredAccount,
     type RegistryChartTypeListItem,
     type RegistryChartTypeState,
@@ -156,8 +164,8 @@ import {
     type UpgradeCandidateFeature,
 } from '@lightdash/common';
 import { generateText, Output } from 'ai';
+import { isEqual } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import isEqual from 'lodash/isEqual';
 import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';
@@ -177,7 +185,12 @@ import {
 } from '../../../analytics/LightdashAnalytics';
 import { fromSession, toSessionUser } from '../../../auth/account';
 import { createObjectUrlSigner } from '../../../clients/Aws/ObjectUrlSigner';
-import { createS3ClientFromConfig } from '../../../clients/Aws/S3BaseClient';
+import {
+    AppRuntimeConfigErrors,
+    getDataAppAzureSandboxGroup,
+    getDataAppCloudRunGateway,
+    isAppRuntimeConfigured,
+} from '../../../config/appRuntimeAvailability';
 import { LightdashConfig } from '../../../config/parseConfig';
 import {
     APP_VERSION_STAGE_ORDER,
@@ -192,6 +205,7 @@ import {
 import { isUniqueConstraintViolation } from '../../../database/errors';
 import { type CaslAuditWrapper } from '../../../logging/caslAuditWrapper';
 import { setQueryAppVersion } from '../../../logging/winston';
+import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import { AnalyticsModel } from '../../../models/AnalyticsModel';
 import {
     AppModel,
@@ -202,6 +216,7 @@ import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
+import { type OrganizationSettingsModel } from '../../../models/OrganizationSettingsModel';
 import { PinnedListModel } from '../../../models/PinnedListModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
@@ -210,8 +225,15 @@ import { SpaceModel } from '../../../models/SpaceModel';
 import { type UserModel } from '../../../models/UserModel';
 import {
     mintPreviewToken,
+    verifyPreviewToken,
     verifyPreviewTokenClaims,
 } from '../../../routers/appPreviewToken';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+    getContentWriteAgentIdentity,
+} from '../../../services/AiAccessService/agentExecutionContext';
+import { logAgentContentWrite } from '../../../services/AiAccessService/logAgentContentWrite';
 import { BaseService } from '../../../services/BaseService';
 import type { CoderService } from '../../../services/CoderService/CoderService';
 import type { DashboardService } from '../../../services/DashboardService/DashboardService';
@@ -230,6 +252,7 @@ import {
     runWithOtelSpanContext,
 } from '../../../tracing/tracing';
 import { VERSION } from '../../../version';
+import { type AppThumbnailClient } from '../../clients/AppThumbnailClient';
 import { ChartRegistryClient } from '../../clients/ChartRegistryClient';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
@@ -278,7 +301,6 @@ import {
     promptHistoryToMarkdown,
     SEMANTIC_LAYER_POINTER_FILE,
 } from './appContext';
-import { assertChartTypesEnabled } from './chartTypeFeatureGate';
 import {
     CLARIFY_APP_SYSTEM_PROMPT,
     CLARIFY_VIZ_SYSTEM_PROMPT,
@@ -369,9 +391,14 @@ import {
     type DesignSandboxCopyResult,
 } from './designSandboxCopy';
 import { assertValidDistTar } from './distTarValidation';
+import type { ConnectionSlugLookup } from './externalConnectionSlugLookup';
 import { resolveOtelExportHeaders } from './gcpOtelAuth';
 import { readDesignForDownload } from './readDesignForDownload';
-import { readS3ObjectAsBuffer } from './s3Utils';
+import {
+    createAppRuntimeS3,
+    readS3ObjectAsBuffer,
+    type AppRuntimeS3,
+} from './s3Utils';
 import { redactSandboxEnvSecrets } from './sandboxOutputRedaction';
 import {
     buildTemplateBaseline,
@@ -440,9 +467,8 @@ type AppExternalConnectionDoc = {
     samples: ExternalConnectionSample[];
 };
 
-type AppRuntimeS3 = { client: S3Client; bucket: string };
-
 type AppGenerateServiceDeps = {
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     analyticsModel: AnalyticsModel;
@@ -450,6 +476,7 @@ type AppGenerateServiceDeps = {
     appModel: AppModel;
     featureFlagModel: FeatureFlagModel;
     organizationDesignModel: OrganizationDesignModel;
+    organizationSettingsModel: Pick<OrganizationSettingsModel, 'get'>;
     pinnedListModel: PinnedListModel;
     projectModel: ProjectModel;
     projectParametersModel: ProjectParametersModel;
@@ -474,6 +501,7 @@ type AppGenerateServiceDeps = {
     /** Test seams: null in production, where both are built from config. */
     sandboxManager: SandboxManagerPort | null;
     appRuntimeS3: AppRuntimeS3 | null;
+    appThumbnailClient: AppThumbnailClient;
     chartRegistryClient: ChartRegistryClient;
     contentVerificationModel: ContentVerificationModel;
 };
@@ -510,6 +538,7 @@ export type DataAppBuildStatusSource = {
         uuid: string;
         slug: string;
         name: string;
+        template: DbApp['template'];
         spaceUuid: string | null;
     };
     version: {
@@ -633,6 +662,9 @@ type RenderedModel = {
     // Field refs of model filters left out because their value is not a list.
     skippedFilterRefs: string[];
     hasSqlFilter: boolean;
+    // Visible fields carrying `urls` link patterns; drives the index marker
+    // and the generation-prompt reminder.
+    urlFields: string[];
 };
 
 /**
@@ -743,9 +775,33 @@ const CANCELLED_PROMPT_NOTICE =
     'The working tree may contain unfinished changes from the cancelled work. ' +
     "Act only on the user's new request below.";
 
+/** Prepended to the build prompt when the builder's org has saved app state. */
+export const APP_STATE_PROMPT_BLOCK =
+    '[Saved app state is available — this app can remember what each person enters with useAppState and keep values every viewer shares, with a change history, with useSharedAppState. ' +
+    'Read /app/references/app-state.md before building anything that should survive a reload. ' +
+    'Remember a person\'s inputs by default without being asked; use shared state only when the prompt asks for comments, targets, annotations, or anything "everyone" or "the team" sees.]\n\n';
+
 // Maximum number of in-progress app builds allowed per project at one time.
 // Prevents trivial sandbox exhaustion via repeated POST /code calls.
 const MAX_CONCURRENT_APP_BUILDS_PER_PROJECT = 5;
+
+// Library chart types a new project starts with; ones that need data a new project rarely has are left out
+const STARTER_CHART_TYPE_SLUGS: readonly string[] = [
+    'big-number-with-sparkline-trend',
+    'customizable-cartesian-chart',
+    'heatmap',
+    'sortable-pivot-table',
+    'radar-chart',
+    'boxplot',
+];
+
+type ImportAppCodeResult = {
+    appUuid: string;
+    version: number;
+    action: 'create' | 'append' | 'unchanged';
+    slug: string;
+    warnings: string[];
+};
 
 export class AppGenerateService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -761,6 +817,11 @@ export class AppGenerateService extends BaseService {
     private readonly featureFlagModel: FeatureFlagModel;
 
     private readonly organizationDesignModel: OrganizationDesignModel;
+
+    private readonly organizationSettingsModel: Pick<
+        OrganizationSettingsModel,
+        'get'
+    >;
 
     private readonly pinnedListModel: PinnedListModel;
 
@@ -810,6 +871,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly contentVerificationModel: ContentVerificationModel;
 
+    private readonly appThumbnailClient: AppThumbnailClient;
+
     private sandboxManager: SandboxManagerPort | undefined;
 
     private readonly dataReferenceRefreshes = new Map<
@@ -817,7 +880,10 @@ export class AppGenerateService extends BaseService {
         Promise<PersistedDataAppDataReferences | null>
     >();
 
+    private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+
     constructor({
+        agentActionLogModel,
         lightdashConfig,
         analytics,
         analyticsModel,
@@ -825,6 +891,7 @@ export class AppGenerateService extends BaseService {
         appModel,
         featureFlagModel,
         organizationDesignModel,
+        organizationSettingsModel,
         pinnedListModel,
         projectModel,
         projectParametersModel,
@@ -845,10 +912,12 @@ export class AppGenerateService extends BaseService {
         aiCreditService,
         sandboxManager,
         appRuntimeS3,
+        appThumbnailClient,
         chartRegistryClient,
         contentVerificationModel,
     }: AppGenerateServiceDeps) {
         super();
+        this.agentActionLogModel = agentActionLogModel;
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.analyticsModel = analyticsModel;
@@ -856,6 +925,7 @@ export class AppGenerateService extends BaseService {
         this.appModel = appModel;
         this.featureFlagModel = featureFlagModel;
         this.organizationDesignModel = organizationDesignModel;
+        this.organizationSettingsModel = organizationSettingsModel;
         this.pinnedListModel = pinnedListModel;
         this.projectModel = projectModel;
         this.projectParametersModel = projectParametersModel;
@@ -878,6 +948,7 @@ export class AppGenerateService extends BaseService {
         this.appRuntimeS3 = appRuntimeS3;
         this.chartRegistryClient = chartRegistryClient;
         this.contentVerificationModel = contentVerificationModel;
+        this.appThumbnailClient = appThumbnailClient;
     }
 
     private async getDataAppProjectContext(
@@ -1173,10 +1244,24 @@ export class AppGenerateService extends BaseService {
                 organizationUuid,
             });
         if (verificationAfterUpdate === null) {
-            await this.contentVerificationModel.unverify(
+            const removed = await this.contentVerificationModel.unverify(
                 ContentType.DATA_APP,
                 appUuid,
             );
+            if (removed) {
+                await logAgentContentWrite({
+                    model: this.agentActionLogModel,
+                    agentIdentity: getContentWriteAgentIdentity({
+                        userUuid: user.userUuid,
+                        organizationUuid,
+                    }),
+                    projectUuid,
+                    objectType: 'data_app',
+                    objectUuid: appUuid,
+                    versionUuid: null,
+                    action: 'unverify',
+                });
+            }
         }
     }
 
@@ -1331,8 +1416,6 @@ export class AppGenerateService extends BaseService {
                 );
             }
         }
-        await this.assertDataAppsEnabled(user);
-
         const app = await this.appModel.getApp(
             payload.appUuid,
             payload.projectUuid,
@@ -1342,6 +1425,7 @@ export class AppGenerateService extends BaseService {
                 'Data app is not available in this organization',
             );
         }
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanManageApp(
             user,
             app,
@@ -1380,7 +1464,6 @@ export class AppGenerateService extends BaseService {
         return this.lightdashConfig.appRuntime?.dataAppCodingAgent ?? 'claude';
     }
 
-    // Resolved once per build; both levers come from one flag. Codex has neither.
     /** Refuses a build or iteration while AI credits are paused, using the key the coding agent runs on. */
     private async assertDataAppCreditsAvailable(
         user: SessionUser,
@@ -1412,27 +1495,56 @@ export class AppGenerateService extends BaseService {
     private async getCodingAgentConfig(
         organizationUuid: string | null | undefined,
     ): Promise<CodingAgentConfig> {
-        const leversOff = { promptCacheTtl: null, compactLongSessions: false };
+        // Codex has neither cost lever.
         if (this.dataAppCodingAgent === 'codex') {
             const codex =
                 await this.orgAiCopilotConfigResolver.getCodexConfig(
                     organizationUuid,
                 );
-            return { ...codex, ...leversOff };
+            return {
+                ...this.withDataAppGatewayOverrides(codex),
+                promptCacheTtl: null,
+                compactLongSessions: false,
+            };
         }
         const claude =
             await this.orgAiCopilotConfigResolver.getClaudeCodeConfig(
                 organizationUuid,
             );
-        if (!organizationUuid) return { ...claude, ...leversOff };
-        const { enabled } = await this.featureFlagModel.get({
-            user: { organizationUuid },
-            featureFlagId: FeatureFlags.DataAppAgentCostOptimizations,
-        });
         return {
-            ...claude,
-            promptCacheTtl: enabled ? '1h' : null,
-            compactLongSessions: enabled,
+            ...this.withDataAppGatewayOverrides(claude),
+            promptCacheTtl: '1h',
+            compactLongSessions: true,
+        };
+    }
+
+    private withDataAppGatewayOverrides(
+        copilot: ResolvedCopilotConfig,
+    ): ResolvedCopilotConfig {
+        const urls = this.lightdashConfig.appRuntime.dataAppGatewayBaseUrls;
+        // Instance routing must not redirect organization-owned credentials.
+        if (
+            !urls ||
+            !Object.values(urls).some(Boolean) ||
+            copilot.byoProviders.length > 0
+        ) {
+            return copilot;
+        }
+        const { anthropic, bedrock, openai } = copilot.providers;
+        return {
+            ...copilot,
+            providers: {
+                ...copilot.providers,
+                ...(anthropic && urls.anthropic
+                    ? { anthropic: { ...anthropic, baseUrl: urls.anthropic } }
+                    : {}),
+                ...(bedrock && urls.bedrock
+                    ? { bedrock: { ...bedrock, baseUrl: urls.bedrock } }
+                    : {}),
+                ...(openai && urls.openai
+                    ? { openai: { ...openai, baseUrl: urls.openai } }
+                    : {}),
+            },
         };
     }
 
@@ -1546,7 +1658,7 @@ export class AppGenerateService extends BaseService {
                 this.lightdashConfig.appRuntime.lambdaMicroVmDataAppImageArn;
             if (!imageArn) {
                 throw new MissingConfigError(
-                    'Lambda MicroVM data-app image ARN is not configured (LAMBDA_MICROVM_DATA_APP_IMAGE_ARN)',
+                    AppRuntimeConfigErrors.lambdaMicroVmDataAppImage,
                 );
             }
             return imageArn;
@@ -1556,7 +1668,7 @@ export class AppGenerateService extends BaseService {
                 this.lightdashConfig.appRuntime.azureSandboxesDataAppDiskImage;
             if (!diskImage) {
                 throw new MissingConfigError(
-                    'Azure data-app sandbox disk image is not configured (AZURE_SANDBOXES_DATA_APP_DISK_IMAGE)',
+                    AppRuntimeConfigErrors.azureSandboxesDataAppDiskImage,
                 );
             }
             return diskImage;
@@ -1577,25 +1689,17 @@ export class AppGenerateService extends BaseService {
     /** Assemble the `azure-sandboxes` provider config for the data-app pipeline
      * (the data-app sandbox group + shared subscription/region settings). */
     private getAzureSandboxesConfig(): AzureSandboxesConfig {
-        const {
-            azureSandboxes,
-            azureSandboxesDataAppGroup,
-            sandboxIdleTimeoutMs,
-        } = this.lightdashConfig.appRuntime;
-        if (
-            !azureSandboxes.subscriptionId ||
-            !azureSandboxes.resourceGroup ||
-            !azureSandboxesDataAppGroup
-        ) {
+        const { appRuntime } = this.lightdashConfig;
+        const { azureSandboxes, sandboxIdleTimeoutMs } = appRuntime;
+        const group = getDataAppAzureSandboxGroup(appRuntime);
+        if (!group) {
             throw new MissingConfigError(
-                'Azure Sandboxes is not configured (AZURE_SANDBOXES_SUBSCRIPTION_ID / AZURE_SANDBOXES_RESOURCE_GROUP / AZURE_SANDBOXES_DATA_APP_GROUP)',
+                AppRuntimeConfigErrors.azureSandboxesDataAppGroup,
             );
         }
         return {
-            subscriptionId: azureSandboxes.subscriptionId,
-            resourceGroup: azureSandboxes.resourceGroup,
+            ...group,
             region: azureSandboxes.region,
-            sandboxGroup: azureSandboxesDataAppGroup,
             apiVersion: azureSandboxes.apiVersion,
             tokenScope: azureSandboxes.tokenScope,
             resourceTier: azureSandboxes.resourceTier,
@@ -1605,16 +1709,13 @@ export class AppGenerateService extends BaseService {
 
     /** Assemble the `gcp-cloud-run` provider config (gateway URL + secret). */
     private getCloudRunSandboxesConfig(): CloudRunSandboxesConfig {
-        const { gcpCloudRun } = this.lightdashConfig.appRuntime;
-        if (!gcpCloudRun.sandboxUrl || !gcpCloudRun.sandboxSecret) {
-            throw new MissingConfigError(
-                'GCP Cloud Run sandboxes are not configured (GCP_CLOUD_RUN_SANDBOX_URL / GCP_CLOUD_RUN_SANDBOX_SECRET)',
-            );
+        const gateway = getDataAppCloudRunGateway(
+            this.lightdashConfig.appRuntime,
+        );
+        if (!gateway) {
+            throw new MissingConfigError(AppRuntimeConfigErrors.gcpCloudRun);
         }
-        return {
-            sandboxUrl: gcpCloudRun.sandboxUrl,
-            sandboxSecret: gcpCloudRun.sandboxSecret,
-        };
+        return gateway;
     }
 
     private buildSandboxSpec(
@@ -1643,19 +1744,7 @@ export class AppGenerateService extends BaseService {
     }
 
     private getS3Client(): AppRuntimeS3 {
-        if (this.appRuntimeS3) return this.appRuntimeS3;
-
-        const s3Config = this.lightdashConfig.appRuntime.s3;
-        if (!s3Config) {
-            throw new MissingConfigError(
-                'S3 is not configured for app runtime',
-            );
-        }
-
-        return {
-            client: createS3ClientFromConfig(s3Config),
-            bucket: s3Config.bucket,
-        };
+        return this.appRuntimeS3 ?? createAppRuntimeS3(this.lightdashConfig);
     }
 
     private async assertDataAppsEnabled(user: SessionUser): Promise<void> {
@@ -1665,28 +1754,111 @@ export class AppGenerateService extends BaseService {
         }
     }
 
+    /** Chart Studio is available with a valid licence (this EE service) and a configured sandbox provider. */
+    isChartStudioAvailable(): boolean {
+        return isAppRuntimeConfigured(this.lightdashConfig);
+    }
+
+    private assertChartStudioAvailable(): void {
+        if (!this.isChartStudioAvailable()) {
+            throw new ForbiddenError('Chart Studio is not available');
+        }
+    }
+
+    /** Chart type authoring follows Chart Studio; every other template follows data apps. */
+    private async assertAppsEnabled(
+        user: SessionUser,
+        template: DataAppTemplate | null,
+    ): Promise<void> {
+        if (template === DATA_APP_VIZ_TEMPLATE) {
+            this.assertChartStudioAvailable();
+            return;
+        }
+        await this.assertDataAppsEnabled(user);
+    }
+
+    /** Library installs uninstall and restore anywhere, even without Chart Studio. */
+    private async assertCanRemoveAppGate(
+        user: SessionUser,
+        app: Pick<DbApp, 'registry_slug' | 'template'>,
+    ): Promise<void> {
+        if (app.registry_slug !== null) return;
+        await this.assertAppsEnabled(user, app.template);
+    }
+
+    /** Chart types are spaceless and never built from a dashboard, so a create cannot claim either. */
+    private static assertChartTypeCreateInputs(
+        template: DataAppTemplate | null,
+        {
+            spaceUuid,
+            dashboard,
+        }: {
+            spaceUuid: string | undefined;
+            dashboard: AppDashboardReference | undefined;
+        },
+    ): void {
+        if (template !== DATA_APP_VIZ_TEMPLATE) return;
+        if (spaceUuid) {
+            throw new ParameterError(
+                'Custom chart types cannot be placed in spaces',
+            );
+        }
+        if (dashboard !== undefined) {
+            throw new ParameterError(
+                'Custom chart types cannot be built from a dashboard',
+            );
+        }
+    }
+
+    /** For requests whose template is not known yet, such as staging a file before creation. */
+    private async assertAnyAppsEnabled(user: SessionUser): Promise<void> {
+        if (this.isChartStudioAvailable()) return;
+        await this.assertDataAppsEnabled(user);
+    }
+
+    /**
+     * The org's effective "allow screenshots and attachments in data app
+     * builds" switch (org setting capped by `LIGHTDASH_APP_CAPTURES_ENABLED`).
+     * Gates every path that captures an image of a running app or hands a
+     * user file to the coding agent.
+     */
+    async areDataAppCapturesEnabled(
+        organizationUuid: string,
+    ): Promise<boolean> {
+        return this.appThumbnailClient.areCapturesEnabled(organizationUuid);
+    }
+
+    private async assertDataAppCapturesEnabled(
+        organizationUuid: string,
+    ): Promise<void> {
+        if (!(await this.areDataAppCapturesEnabled(organizationUuid))) {
+            throw new ForbiddenError(
+                'Screenshots and file attachments are disabled for this organization',
+            );
+        }
+    }
+
+    /**
+     * Attachment ids a build may use. While captures are off, files staged
+     * earlier (or by a client that skipped the UI) are dropped rather than
+     * handed to the agent, so flipping the switch takes effect immediately.
+     */
+    private async permittedFileIds(
+        organizationUuid: string,
+        fileIds: string[] | undefined,
+    ): Promise<string[]> {
+        if (!fileIds || fileIds.length === 0) return [];
+        return (await this.areDataAppCapturesEnabled(organizationUuid))
+            ? fileIds
+            : [];
+    }
+
     async dataAppsEnabledFor(user: SessionUser): Promise<boolean> {
         const { enabled } = await this.featureFlagModel.get({
             user,
             featureFlagId: FeatureFlags.EnableDataApps,
         });
         return enabled;
-    }
-
-    /**
-     * The library surface — browsing, installing, registry assets — follows
-     * the `ChartTypeRegistry` flag alone, independent of data apps.
-     */
-    private async assertChartTypeLibraryEnabled(
-        user: SessionUser,
-    ): Promise<void> {
-        const { enabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.ChartTypeRegistry,
-        });
-        if (!enabled) {
-            throw new ForbiddenError('The chart type library is not enabled');
-        }
     }
 
     /**
@@ -1707,26 +1879,23 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * Link the given external connections to the app before its catalog stage,
-     * so the generated app can call them via client.externalFetch. A connection
-     * from another project is never linked (that would expose its credentialed
-     * proxy to a foreign app). Linking is idempotent, so re-sending an
-     * already-linked connection is fine.
+     * Chart Studio's gallery gate as a boolean. Without a project it is the
+     * coarse check for surfaces that must not vary per project, e.g. MCP tools/list.
      */
-    private async linkExternalConnections(
+    async canUseChartTypes(
         user: SessionUser,
-        projectUuid: string,
-        appId: string,
-        externalConnections: AppExternalConnectionReference[] | undefined,
-    ): Promise<AppVersionExternalConnectionResource[]> {
-        const resolved = await this.resolveExternalConnectionResources(
-            user,
-            projectUuid,
-            appId,
-            externalConnections,
+        projectUuid: string | null,
+    ): Promise<boolean> {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (projectUuid === null) {
+            return auditedAbility.can('manage', 'Explore');
+        }
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        return auditedAbility.can(
+            'manage',
+            subject('Explore', { organizationUuid, projectUuid }),
         );
-        await this.linkResolvedExternalConnections(appId, resolved);
-        return resolved;
     }
 
     private async resolveExternalConnectionResources(
@@ -1826,38 +1995,120 @@ export class AppGenerateService extends BaseService {
             seenAliases.add(link.alias);
         }
 
-        const ability = this.createAuditedAbility(user);
+        const lookups = await this.lookupExternalConnectionSlugsInOrganization(
+            user,
+            projectUuid,
+            organizationUuid,
+            links.map((link) => link.connectionSlug),
+        );
         const resolvedLinks: AppExternalConnectionReference[] = [];
         const linkWarnings: string[] = [];
-        for (const link of links) {
-            // eslint-disable-next-line no-await-in-loop
-            const connection = await this.externalConnectionModel.findBySlug(
-                projectUuid,
-                organizationUuid,
-                link.connectionSlug,
-            );
-            if (!connection) {
-                linkWarnings.push(
-                    `Skipped linking external connection alias "${link.alias}": no connection with slug "${link.connectionSlug}" exists in the target project. Upload it first ('lightdash upload --external-connections ${link.connectionSlug}') or fix connectionSlug in lightdash-app.yml.`,
-                );
-                // eslint-disable-next-line no-continue
-                continue;
+        links.forEach((link, index) => {
+            const lookup = lookups[index];
+            switch (lookup.status) {
+                case 'not_found':
+                    linkWarnings.push(
+                        `Skipped linking external connection alias "${link.alias}": no connection with slug "${link.connectionSlug}" exists in the target project. Upload it first ('lightdash upload --external-connections ${link.connectionSlug}') or fix connectionSlug in lightdash-app.yml.`,
+                    );
+                    break;
+                case 'not_linkable':
+                    throw new ForbiddenError(
+                        'You do not have permission to link this external connection',
+                    );
+                case 'found':
+                    resolvedLinks.push({
+                        externalConnectionUuid:
+                            lookup.connection.externalConnectionUuid,
+                        alias: link.alias,
+                    });
+                    break;
+                default:
+                    assertUnreachable(lookup, 'Unknown connection lookup');
             }
-            // Linking attaches a credentialed connection to an app — hold the
-            // same bar as the link API and the generation pipeline.
-            if (
-                ability.cannot('view', getExternalConnectionSubject(connection))
-            ) {
-                throw new ForbiddenError(
-                    'You do not have permission to link this external connection',
-                );
-            }
-            resolvedLinks.push({
-                externalConnectionUuid: connection.externalConnectionUuid,
-                alias: link.alias,
-            });
-        }
+        });
         return { resolvedLinks, linkWarnings };
+    }
+
+    /**
+     * Resolves connection slugs in a project. Linking attaches a credentialed
+     * connection to an app, so it holds the same bar as the link API.
+     */
+    private async lookupExternalConnectionSlugsInOrganization(
+        user: SessionUser,
+        projectUuid: string,
+        organizationUuid: string,
+        slugs: string[],
+    ): Promise<ConnectionSlugLookup[]> {
+        const ability = this.createAuditedAbility(user);
+        return Promise.all(
+            slugs.map(async (slug): Promise<ConnectionSlugLookup> => {
+                const connection =
+                    await this.externalConnectionModel.findBySlug(
+                        projectUuid,
+                        organizationUuid,
+                        slug,
+                    );
+                if (!connection) return { slug, status: 'not_found' };
+                if (
+                    ability.cannot(
+                        'view',
+                        getExternalConnectionSubject(connection),
+                    )
+                ) {
+                    return { slug, status: 'not_linkable' };
+                }
+                return { slug, status: 'found', connection };
+            }),
+        );
+    }
+
+    async lookupExternalConnectionSlugs(
+        user: SessionUser,
+        projectUuid: string,
+        slugs: string[],
+    ): Promise<ConnectionSlugLookup[]> {
+        if (slugs.length === 0) return [];
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        return this.lookupExternalConnectionSlugsInOrganization(
+            user,
+            projectUuid,
+            organizationUuid,
+            slugs,
+        );
+    }
+
+    /** Project connections the user may link to a data app or chart type. */
+    async listLinkableExternalConnections(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ExternalConnection[]> {
+        await this.assertAnyAppsEnabled(user);
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const ability = this.createAuditedAbility(user);
+        const connections = await this.externalConnectionModel.list(
+            projectUuid,
+            organizationUuid,
+            { kind: 'data_app' },
+        );
+        return connections.filter((connection) =>
+            ability.can('view', getExternalConnectionSubject(connection)),
+        );
+    }
+
+    async listAppExternalConnectionLinks(
+        user: SessionUser,
+        app: AppViewAuthzApp,
+    ): Promise<AppExternalConnectionLink[]> {
+        await this.assertCanViewApp(user, app);
+        const links = await this.externalConnectionModel.listAppLinks(
+            app.app_id,
+        );
+        return links.map(({ alias, connection }) => ({
+            alias,
+            externalConnectionUuid: connection.externalConnectionUuid,
+        }));
     }
 
     /**
@@ -1941,10 +2192,6 @@ export class AppGenerateService extends BaseService {
      */
     private static fileStagingKey(appUuid: string, fileId: string): string {
         return `apps/${appUuid}/uploads/${fileId}`;
-    }
-
-    private static appThumbnailKey(appUuid: string): string {
-        return `apps/${appUuid}/thumbnail.png`;
     }
 
     private static mimeToExt(mimeType: string): string {
@@ -2292,8 +2539,6 @@ export class AppGenerateService extends BaseService {
         filename: string;
         mimeType: string;
     }> {
-        await this.assertDataAppsEnabled(user);
-
         // For iterations the app already exists — use its space + creator
         // context so a space editor or the creator can attach a file. For
         // initial creation the appUuid is generated client-side and the app
@@ -2301,19 +2546,29 @@ export class AppGenerateService extends BaseService {
         // (anyone who can create an app can stage a file for it).
         const app = await this.appModel.findApp(appUuid, projectUuid);
         if (app) {
+            await this.assertAppsEnabled(user, app.template);
+        } else {
+            await this.assertAnyAppsEnabled(user);
+        }
+        let organizationUuid: string;
+        if (app) {
             await this.assertCanManageApp(
                 user,
                 app,
                 'Insufficient permissions to upload app files',
             );
+            organizationUuid = app.organization_uuid;
         } else {
-            await this.assertDataAppAbility(
+            ({ organizationUuid } = await this.assertDataAppAbility(
                 user,
                 'create',
                 projectUuid,
                 'Insufficient permissions to upload app files',
-            );
+            ));
         }
+        // After authorization, so a caller without access gets the
+        // permissions error rather than learning the org's setting.
+        await this.assertDataAppCapturesEnabled(organizationUuid);
 
         const maxSize = 10 * 1024 * 1024; // 10 MB
         if (contentLength > maxSize) {
@@ -2414,17 +2669,22 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         imageId: string,
     ): Promise<{ imageUrl: string }> {
-        await this.assertDataAppsEnabled(user);
-
         if (!isValidUuid(imageId)) {
             throw new ParameterError('Invalid imageId: must be a valid UUID');
         }
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanManageApp(
             user,
             app,
             'Insufficient permissions to view app images',
+        );
+        // Attached screenshots and images are captures too: kept, but not
+        // served while the org's switch is off.
+        await this.assertCapturesVisible(
+            app.organization_uuid,
+            `Image not found: ${imageId}`,
         );
 
         const belongsToApp = await this.appModel.appImageExists(
@@ -2446,6 +2706,44 @@ export class AppGenerateService extends BaseService {
         return { imageUrl };
     }
 
+    // Viewing a thumbnail is a read: anyone who can view the app can see it,
+    // not just those who can manage it.
+    /** Returns the app row so callers can scope further checks to its org. */
+    private async assertCanViewAppThumbnail(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+    ) {
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        if (app.template === DATA_APP_VIZ_TEMPLATE) {
+            this.assertCanUseChartTypes(user, {
+                organizationUuid: app.organization_uuid,
+                projectUuid,
+            });
+            return app;
+        }
+        await this.assertAppsEnabled(user, app.template);
+        await this.assertCanViewApp(user, app);
+        return app;
+    }
+
+    /** Returns the app row so callers can scope further checks to its org. */
+    private async assertCanManageAppThumbnail(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+    ) {
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to update app thumbnail',
+        );
+        return app;
+    }
+
+    /** Saves a manual thumbnail; `version: null` targets the latest ready version. */
     async uploadThumbnail(
         user: SessionUser,
         projectUuid: string,
@@ -2453,15 +2751,14 @@ export class AppGenerateService extends BaseService {
         body: Readable,
         contentLength: number,
         appUuid: string,
+        version: number | null,
     ): Promise<void> {
-        await this.assertDataAppsEnabled(user);
-
-        const app = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanManageApp(
+        const app = await this.assertCanManageAppThumbnail(
             user,
-            app,
-            'Insufficient permissions to update app thumbnail',
+            projectUuid,
+            appUuid,
         );
+        await this.assertDataAppCapturesEnabled(app.organization_uuid);
 
         if (mimeType !== 'image/png') {
             throw new ParameterError('App thumbnails must be PNG images');
@@ -2480,16 +2777,12 @@ export class AppGenerateService extends BaseService {
         );
         AppGenerateService.validateUploadContent(bufferedBody, mimeType);
 
-        const { client: s3Client, bucket } = this.getS3Client();
-        await s3Client.send(
-            new PutObjectCommand({
-                Bucket: bucket,
-                Key: AppGenerateService.appThumbnailKey(appUuid),
-                Body: bufferedBody,
-                ContentLength: bufferedBody.length,
-                ContentType: 'image/png',
-            }),
-        );
+        const saved = await this.appThumbnailClient.setManualThumbnail({
+            projectUuid,
+            appUuid,
+            version,
+            image: bufferedBody,
+        });
 
         this.analytics.track({
             event: 'data_app.thumbnail_uploaded',
@@ -2498,6 +2791,7 @@ export class AppGenerateService extends BaseService {
                 organizationId: user.organizationUuid!,
                 projectId: projectUuid,
                 appUuid,
+                version: saved.version,
                 sizeBytes: bufferedBody.length,
             },
         });
@@ -2508,74 +2802,86 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
     ): Promise<{ thumbnailUrl: string }> {
-        const app = await this.appModel.getApp(appUuid, projectUuid);
-        if (app.template === DATA_APP_VIZ_TEMPLATE) {
-            await assertChartTypesEnabled(this.featureFlagModel, user);
-            this.assertCanUseChartTypes(user, {
-                organizationUuid: app.organization_uuid,
-                projectUuid,
-            });
-        } else {
-            await this.assertDataAppsEnabled(user);
-            // Viewing a thumbnail is a read: anyone who can view the app can
-            // see it (e.g. on a project homepage), not just those who can
-            // manage it.
-            await this.assertCanViewApp(user, app);
+        const app = await this.assertCanViewAppThumbnail(
+            user,
+            projectUuid,
+            appUuid,
+        );
+        await this.assertThumbnailsVisible(app.organization_uuid);
+        const thumbnailUrl = await this.appThumbnailClient.getAppThumbnailUrl({
+            projectUuid,
+            appUuid,
+        });
+        if (thumbnailUrl === null) {
+            throw new NotFoundError('App thumbnail not found');
         }
-
-        const { client: s3Client, bucket } = this.getS3Client();
-        const key = AppGenerateService.appThumbnailKey(appUuid);
-
-        try {
-            await s3Client.send(
-                new HeadObjectCommand({
-                    Bucket: bucket,
-                    Key: key,
-                }),
-            );
-        } catch (error) {
-            if (
-                error instanceof S3ServiceException &&
-                error.$metadata.httpStatusCode === 404
-            ) {
-                throw new NotFoundError('App thumbnail not found');
-            }
-            throw error;
-        }
-
-        const thumbnailUrl = await createObjectUrlSigner(
-            s3Client,
-            this.lightdashConfig.appRuntime.s3 ?? {},
-        ).getSignedDownloadUrl(bucket, key, 900);
-
         return { thumbnailUrl };
     }
 
     /**
-     * Remove an app's thumbnail. Idempotent — deleting a thumbnail that does
-     * not exist succeeds (S3 delete semantics).
+     * Stored thumbnails and attached images are kept but not served while the
+     * org's captures switch is off, so "off" means no image of the data is
+     * visible anywhere. Reads as "not found", which the hover cards and chat
+     * image chips already handle.
+     */
+    private async assertCapturesVisible(
+        organizationUuid: string,
+        message: string,
+    ): Promise<void> {
+        if (!(await this.areDataAppCapturesEnabled(organizationUuid))) {
+            throw new NotFoundError(message);
+        }
+    }
+
+    private async assertThumbnailsVisible(
+        organizationUuid: string,
+    ): Promise<void> {
+        await this.assertCapturesVisible(
+            organizationUuid,
+            'App thumbnail not found',
+        );
+    }
+
+    async getVersionThumbnailUrl(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+        version: number,
+    ): Promise<{ thumbnailUrl: string }> {
+        const app = await this.assertCanViewAppThumbnail(
+            user,
+            projectUuid,
+            appUuid,
+        );
+        await this.assertThumbnailsVisible(app.organization_uuid);
+        const thumbnailUrl =
+            await this.appThumbnailClient.getVersionThumbnailUrl({
+                projectUuid,
+                appUuid,
+                version,
+            });
+        if (thumbnailUrl === null) {
+            throw new NotFoundError('App version thumbnail not found');
+        }
+        return { thumbnailUrl };
+    }
+
+    /**
+     * Removes a version's thumbnail; `version: null` targets the latest ready
+     * version. Idempotent.
      */
     async deleteThumbnail(
         user: SessionUser,
         projectUuid: string,
         appUuid: string,
+        version: number | null,
     ): Promise<void> {
-        await this.assertDataAppsEnabled(user);
-
-        const app = await this.appModel.getApp(appUuid, projectUuid);
-        await this.assertCanManageApp(
-            user,
-            app,
-            'Insufficient permissions to update app thumbnail',
-        );
-
-        const { client: s3Client, bucket } = this.getS3Client();
-        await s3Client.send(
-            new DeleteObjectCommand({
-                Bucket: bucket,
-                Key: AppGenerateService.appThumbnailKey(appUuid),
-            }),
-        );
+        await this.assertCanManageAppThumbnail(user, projectUuid, appUuid);
+        await this.appThumbnailClient.removeThumbnail({
+            projectUuid,
+            appUuid,
+            version,
+        });
 
         this.analytics.track({
             event: 'data_app.thumbnail_deleted',
@@ -2584,8 +2890,23 @@ export class AppGenerateService extends BaseService {
                 organizationId: user.organizationUuid!,
                 projectId: projectUuid,
                 appUuid,
+                version,
             },
         });
+    }
+
+    /** Best-effort: a thumbnail must never fail the flow that copies it. */
+    private async copyVersionThumbnail(
+        from: { appUuid: string; version: number },
+        to: { appUuid: string; version: number },
+    ): Promise<void> {
+        try {
+            await this.appThumbnailClient.copyThumbnail({ from, to });
+        } catch (error) {
+            this.logger.warn(
+                `App ${to.appUuid}: could not copy thumbnail of app ${from.appUuid} version ${from.version} to version ${to.version}: ${getErrorMessage(error)}`,
+            );
+        }
     }
 
     private static truncateEnd(text: string, maxLength: number): string {
@@ -2868,17 +3189,37 @@ export class AppGenerateService extends BaseService {
      * Heartbeat: every status_message / status transition bumps
      * status_updated_at (see AppModel.updateStatusMessage etc.), including
      * Claude's per-tool-call progress updates.
+     *
+     * Also fails `pending` versions older than ORPHAN_THRESHOLD that have no
+     * live build job (orphaned by a failed request) so they stop counting
+     * against the per-project build cap.
      */
     async sweepStaleLocks(): Promise<void> {
         const STALE_THRESHOLD = '5 minutes';
-        const rowCount = await this.appModel.releaseStaleLocks(
-            APP_VERSION_TERMINAL_STATUSES,
-            STALE_THRESHOLD,
-        );
-        if (rowCount > 0) {
+        const ORPHAN_THRESHOLD = '10 minutes';
+        // Run both even if one throws: each guards a different leak.
+        const [locks, orphans] = await Promise.allSettled([
+            this.appModel.releaseStaleLocks(
+                APP_VERSION_TERMINAL_STATUSES,
+                STALE_THRESHOLD,
+            ),
+            this.appModel.failOrphanedPendingVersions(ORPHAN_THRESHOLD),
+        ]);
+        if (locks.status === 'fulfilled' && locks.value > 0) {
             this.logger.info(
-                `Released ${rowCount} stale appGeneratePipeline job(s) (no progress in ${STALE_THRESHOLD})`,
+                `Released ${locks.value} stale appGeneratePipeline job(s) (no progress in ${STALE_THRESHOLD})`,
             );
+        }
+        if (orphans.status === 'fulfilled' && orphans.value > 0) {
+            this.logger.warn(
+                `Failed ${orphans.value} pending app version(s) with no build job (older than ${ORPHAN_THRESHOLD})`,
+            );
+        }
+        const failure = [locks, orphans].find(
+            (r): r is PromiseRejectedResult => r.status === 'rejected',
+        );
+        if (failure) {
+            throw failure.reason;
         }
     }
 
@@ -3211,20 +3552,24 @@ export class AppGenerateService extends BaseService {
         return sessionTar;
     }
 
+    /** Returns whether the provider destroy succeeded. */
     private async destroySandboxAndClearReference(
         appUuid: string,
         sandboxUuid: string,
-    ): Promise<void> {
+    ): Promise<boolean> {
+        let destroyed = false;
         try {
             await this.getSandboxManager().destroy({
                 sandboxUuid,
             });
+            destroyed = true;
         } catch (error) {
             this.logger.warn(
-                `App ${appUuid}: failed to destroy sandbox before cold start: ${getErrorMessage(error)}`,
+                `App ${appUuid}: failed to destroy sandbox ${sandboxUuid}: ${getErrorMessage(error)}`,
             );
         }
-        await this.appModel.updateSandboxUuid(appUuid, null);
+        await this.appModel.clearSandboxUuidIfCurrent(appUuid, sandboxUuid);
+        return destroyed;
     }
 
     /** Best-effort restore of a carried Claude session into the new box. */
@@ -3478,6 +3823,7 @@ export class AppGenerateService extends BaseService {
         dashboardBlueprint: DashboardBlueprint | undefined,
         template: DataAppTemplate | undefined,
         isDataAppViz: boolean,
+        builder?: { userUuid: string; organizationUuid: string },
     ): Promise<{
         durationMs: number;
         tableCount: number;
@@ -3500,17 +3846,24 @@ export class AppGenerateService extends BaseService {
         let dimensionCount = 0;
         let metricCount = 0;
         let totalBytes = 0;
+        let urlModels: { model: string; fields: string[] }[] = [];
         if (!isDataAppViz) {
             // Source the synthetic schema from the compiled explore cache (not
             // the flattened catalog summary) so it carries joins, real field
             // types, and parameters. A chart type receives host rows instead.
-            const [exploresByUuid, chartUsageByTable] = await Promise.all([
-                this.projectModel.getAllExploresFromCache(projectUuid),
-                this.catalogModel.getChartUsageByTable(projectUuid),
-            ]);
-            const explores = Object.values(exploresByUuid).filter(
-                (explore): explore is Explore => !isExploreError(explore),
-            );
+            const [exploresByUuid, chartUsageByTable, { tableSelection }] =
+                await Promise.all([
+                    this.projectModel.getAllExploresFromCache(projectUuid),
+                    this.catalogModel.getChartUsageByTable(projectUuid),
+                    this.projectModel.getTablesConfiguration(projectUuid),
+                ]);
+            const explores = Object.values(exploresByUuid)
+                .filter(
+                    (explore): explore is Explore => !isExploreError(explore),
+                )
+                .filter((explore) =>
+                    isExploreIncludedInTableSelection(explore, tableSelection),
+                );
             const catalog = AppGenerateService.exploresToModelFiles(
                 explores,
                 chartUsageByTable,
@@ -3520,6 +3873,7 @@ export class AppGenerateService extends BaseService {
             dimensionCount = catalog.dimensionCount;
             metricCount = catalog.metricCount;
             totalBytes = catalog.totalBytes;
+            urlModels = catalog.urlModels;
             if (catalog.skippedFilters.length > 0) {
                 this.logger.warn(
                     `App ${appUuid}: left ${catalog.skippedFilters.length} model filter(s) out of the catalog because their value is not a list: ${catalog.skippedFilters.join(', ')}`,
@@ -3550,6 +3904,16 @@ export class AppGenerateService extends BaseService {
 
         // Write chart reference files and prepend summary to prompt
         let finalPrompt = prompt;
+
+        // Doc-level guidance alone is unreliably followed, so fields with
+        // `urls` link patterns also get a per-run reminder in the prompt.
+        if (urlModels.length > 0) {
+            const listing = urlModels
+                .map(({ model, fields }) => `${model}: ${fields.join(', ')}`)
+                .join('; ')
+                .slice(0, 2_000);
+            finalPrompt = `[Field links: these fields declare \`urls\` link patterns in their model YAML — ${listing}. Wherever the app displays one of their values (including via a join), render it as a link built from the pattern, styled visibly as a link. See "Field links — urls" in the skill.]\n\n${finalPrompt}`;
+        }
         if (chartReferences && chartReferences.length > 0) {
             const referenceBlock = await this.writeChartReferences(
                 sandbox,
@@ -3584,6 +3948,20 @@ export class AppGenerateService extends BaseService {
             );
             if (externalBlock) {
                 finalPrompt = externalBlock + finalPrompt;
+            }
+        }
+
+        // Saved app state: told to the agent only when the builder (or their
+        // organization) has the store enabled, so an app never relies on hooks
+        // that would only keep values in memory.
+        if (!isDataAppViz && builder) {
+            const { enabled: appStateEnabled } =
+                await this.featureFlagModel.get({
+                    user: builder,
+                    featureFlagId: FeatureFlags.EnableDataAppState,
+                });
+            if (appStateEnabled) {
+                finalPrompt = APP_STATE_PROMPT_BLOCK + finalPrompt;
             }
         }
 
@@ -4010,9 +4388,7 @@ export class AppGenerateService extends BaseService {
                     : '\n\nNo CSS, font, or image files were copied for this theme.';
             const omittedFontNote =
                 designCopy.omittedRestrictedFonts.length > 0
-                    ? `\n\n${omittedThemeFontGuidance(
-                          designCopy.omittedRestrictedFonts,
-                      )}`
+                    ? `\n\n${omittedThemeFontGuidance(designCopy.omittedRestrictedFonts)}`
                     : '';
 
             sections.push(
@@ -4681,6 +5057,7 @@ export class AppGenerateService extends BaseService {
         const copilot = await this.orgAiCopilotConfigResolver.getCopilotConfig({
             organizationUuid,
             projectUuid,
+            credentialUuid: null,
         });
         let modelOptions;
         try {
@@ -4804,10 +5181,9 @@ export class AppGenerateService extends BaseService {
     private static readonly MAX_BUILD_FIX_ATTEMPTS = 2;
 
     /**
-     * Run `pnpm build` and feed any failure back to Claude to fix. A failure is
-     * either a non-zero compile (the build output is fed back) or a clean
-     * compile that still renders the placeholder (see {@link detectBlankApp}) —
-     * both are silent ways to ship a broken app, so both drive the fix loop.
+     * Build and validate the generated app, feeding failures back to the coding
+     * agent. Compilation, placeholder, and custom-SQL extraction failures share
+     * the same bounded repair loop.
      * Retries up to MAX_BUILD_FIX_ATTEMPTS times before giving up and throwing.
      */
     private async runBuildWithAutoFix(
@@ -4833,17 +5209,13 @@ export class AppGenerateService extends BaseService {
         let lastResult = await this.runBuild(sandbox, appUuid);
         buildMs += lastResult.durationMs;
 
-        // A clean compile isn't enough: an app that builds but renders only the
-        // placeholder (e.g. the entry component was never authored) is a silent
-        // blank-page failure. Treat it like a build error and feed it back into
-        // the same fix loop.
-        let blankAppProblem =
+        let appProblem =
             lastResult.exitCode === 0
-                ? await this.detectBlankApp(sandbox, appUuid)
+                ? await this.detectAppProblem(sandbox, appUuid)
                 : null;
 
         while (
-            (lastResult.exitCode !== 0 || blankAppProblem !== null) &&
+            (lastResult.exitCode !== 0 || appProblem !== null) &&
             fixAttempts < AppGenerateService.MAX_BUILD_FIX_ATTEMPTS
         ) {
             // Each iteration depends on the previous one: Claude's fix must
@@ -4864,15 +5236,15 @@ export class AppGenerateService extends BaseService {
                 `App ${appUuid}: ${
                     isBuildError
                         ? `build failed (exit ${lastResult.exitCode})`
-                        : 'app renders the placeholder'
-                }, asking Claude to fix (attempt ${fixAttempts}/${AppGenerateService.MAX_BUILD_FIX_ATTEMPTS})`,
+                        : 'app failed validation'
+                }, asking the coding agent to fix (attempt ${fixAttempts}/${AppGenerateService.MAX_BUILD_FIX_ATTEMPTS})`,
             );
 
             try {
                 await this.appModel.recordBuildNarration(
                     appUuid,
                     version,
-                    isBuildError ? 'Fixing build errors' : 'Fixing blank app',
+                    isBuildError ? 'Fixing build errors' : 'Fixing app errors',
                     'stage',
                 );
             } catch (e) {
@@ -4895,8 +5267,8 @@ export class AppGenerateService extends BaseService {
                     `Build output:\n${errorOutput}`;
             } else {
                 fixPrompt =
-                    `The code you just produced compiles, but it ships a blank page. ` +
-                    `${blankAppProblem ?? ''} ` +
+                    `The code you just produced compiles, but failed app validation. ` +
+                    `${appProblem ?? ''} ` +
                     `Do not ask questions — apply the fix directly.`;
             }
             // Remove the previous prompt file first — after the Claude CLI
@@ -4964,9 +5336,9 @@ export class AppGenerateService extends BaseService {
                 fixAttempts,
                 fixGenerationMs,
             });
-            blankAppProblem =
+            appProblem =
                 lastResult.exitCode === 0
-                    ? await this.detectBlankApp(sandbox, appUuid)
+                    ? await this.detectAppProblem(sandbox, appUuid)
                     : null;
             /* eslint-enable no-await-in-loop */
         }
@@ -4977,9 +5349,9 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        if (blankAppProblem !== null) {
+        if (appProblem !== null) {
             throw new Error(
-                `App still renders the placeholder after ${fixAttempts} auto-fix attempt(s): ${blankAppProblem}`,
+                `App validation failed after ${fixAttempts} auto-fix attempt(s): ${appProblem}`,
             );
         }
 
@@ -4990,6 +5362,48 @@ export class AppGenerateService extends BaseService {
         }
 
         return { buildMs, fixAttempts, fixGenerationMs, fixUsage };
+    }
+
+    private async detectAppProblem(
+        sandbox: SandboxHandle,
+        appUuid: string,
+    ): Promise<string | null> {
+        const blankAppProblem = await this.detectBlankApp(sandbox, appUuid);
+        if (blankAppProblem !== null) return blankAppProblem;
+
+        await sandbox.commands.run('tar -cf /tmp/source.tar -C /app src', {
+            timeoutMs: 60_000,
+        });
+        const sourceTar = await sandbox.files.readBytes('/tmp/source.tar');
+        const files = await AppGenerateService.extractTarFiles(
+            Buffer.from(sourceTar),
+        );
+        const { references } =
+            AppGenerateService.extractPersistedDataReferences(files);
+        const unresolvedSql = references.filter(
+            (ref) =>
+                ref.kind === 'query' &&
+                (ref.unresolved.includes('customSql') ||
+                    (ref.explore === null &&
+                        ref.customSql &&
+                        (ref.customSql.tableCalculations.length > 0 ||
+                            ref.customSql.additionalMetrics.length > 0 ||
+                            ref.customSql.customDimensions.length > 0))),
+        );
+        if (unresolvedSql.length === 0) return null;
+
+        const locations = unresolvedSql
+            .slice(0, 20)
+            .map(({ location }) => `${location.path}:${location.line}`)
+            .join(', ');
+        return (
+            `Custom SQL could not be verified for viewer access in ${unresolvedSql.length} query reference(s): ${locations}. ` +
+            'Read /app/references/custom-sql.md when available. Prefer existing modelled fields when their business meaning matches. ' +
+            'Otherwise use plain object definitions with literal SQL strings and statically resolvable table and explore names. ' +
+            'Simple constants and arrays are supported; helper factories, .map(), and interpolated SQL are not. ' +
+            'Use SDK filters or declared parameters for interactive values. Preserve the requested calculations, filters, and denominators; ' +
+            'do not remove features or move calculations into JavaScript just to pass validation.'
+        );
     }
 
     // Heading text rendered by the shipped src/App.jsx stub. The blank-app
@@ -5443,7 +5857,10 @@ export class AppGenerateService extends BaseService {
         const { appUuid, version, projectUuid, isIteration, chartReferences } =
             payload;
         // Jobs enqueued before the fileIds rename still carry imageIds.
-        const fileIds = payload.fileIds ?? payload.imageIds;
+        const fileIds = await this.permittedFileIds(
+            payload.organizationUuid,
+            payload.fileIds ?? payload.imageIds,
+        );
 
         // Check if version was cancelled while we were dead
         const currentStatus = await this.appModel.getVersionStatus(
@@ -6083,6 +6500,10 @@ export class AppGenerateService extends BaseService {
                     payload.dashboardBlueprint,
                     template,
                     isDataAppViz,
+                    {
+                        userUuid: payload.userUuid,
+                        organizationUuid: payload.organizationUuid,
+                    },
                 );
                 durations.catalogMs = catalogResult.durationMs;
                 catalogStats = {
@@ -6727,11 +7148,31 @@ export class AppGenerateService extends BaseService {
     ): Promise<ChartSampleData> {
         const account = fromSession(user);
         try {
-            const result = await this.projectService.runViewChartQuery({
-                account,
-                chartUuid,
-                context: QueryExecutionContext.DATA_APP_SAMPLE,
+            const { enabled: agentIdentityEnabled } =
+                await this.featureFlagModel.get({
+                    user,
+                    featureFlagId: FeatureFlags.AgentIdentity,
+                });
+            const current = getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
             });
+            const scope = current
+                ? agentExecutionContext.getStore()!
+                : createAgentExecutionContext({
+                      account,
+                      surface: AgentActorSurface.DATA_APP,
+                      clientId: 'lightdash-data-app',
+                      agentUuid: null,
+                      agentIdentityEnabled,
+                  });
+            const result = await agentExecutionContext.run(scope, () =>
+                this.projectService.runViewChartQuery({
+                    account,
+                    chartUuid,
+                    context: QueryExecutionContext.DATA_APP_SAMPLE,
+                }),
+            );
             const truncated =
                 result.rows.length > AppGenerateService.SAMPLE_ROW_LIMIT;
             const rows = result.rows
@@ -6898,7 +7339,11 @@ export class AppGenerateService extends BaseService {
         dashboard?: AppDashboardReference,
         fileIds?: string[],
     ): Promise<{ questions: string[] }> {
-        await this.assertDataAppsEnabled(user);
+        await this.assertAppsEnabled(user, template ?? null);
+        AppGenerateService.assertChartTypeCreateInputs(template ?? null, {
+            spaceUuid: undefined,
+            dashboard,
+        });
         const { organizationUuid } = await this.assertDataAppAbility(
             user,
             'create',
@@ -6914,6 +7359,7 @@ export class AppGenerateService extends BaseService {
         const copilot = await this.orgAiCopilotConfigResolver.getCopilotConfig({
             organizationUuid,
             projectUuid,
+            credentialUuid: null,
         });
 
         let modelOptions;
@@ -6952,7 +7398,9 @@ export class AppGenerateService extends BaseService {
                 projectUuid,
             ),
         ]);
-        const fileCount = fileIds?.length ?? 0;
+        const fileCount = (
+            await this.permittedFileIds(organizationUuid, fileIds)
+        ).length;
 
         // No `.max()` on the array — Anthropic's structured-output mode
         // rejects `maxItems` in the schema. The prompt already pins the
@@ -7238,7 +7686,11 @@ export class AppGenerateService extends BaseService {
             vizContext,
             thread,
         } = options;
-        await this.assertDataAppsEnabled(user);
+        await this.assertAppsEnabled(user, template ?? null);
+        AppGenerateService.assertChartTypeCreateInputs(template ?? null, {
+            spaceUuid,
+            dashboard,
+        });
         const { organizationUuid } = await this.assertDataAppAbility(
             user,
             'create',
@@ -7278,6 +7730,10 @@ export class AppGenerateService extends BaseService {
         }
 
         AppGenerateService.validateFileIds(fileIds);
+        const permittedFileIds = await this.permittedFileIds(
+            organizationUuid,
+            fileIds,
+        );
 
         const appUuid = preGeneratedAppUuid ?? uuidv4();
         const version = 1;
@@ -7286,13 +7742,13 @@ export class AppGenerateService extends BaseService {
         // Resolve attachment types/filenames from the staged S3 objects so the
         // version resources can split image chips from file chips in the chat.
         let stagedFiles: StagedAppFile[] = [];
-        if (fileIds.length > 0) {
+        if (permittedFileIds.length > 0) {
             const { client: s3Client, bucket } = this.getS3Client();
             stagedFiles = await AppGenerateService.resolveStagedFiles(
                 s3Client,
                 bucket,
                 appUuid,
-                fileIds,
+                permittedFileIds,
             );
         }
 
@@ -7392,6 +7848,10 @@ export class AppGenerateService extends BaseService {
             template && template !== 'custom' ? template : null;
         let slug: string;
         try {
+            const agentIdentity = getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid ?? null,
+            });
             const created = await this.appModel.createWithVersion(
                 {
                     app_id: appUuid,
@@ -7409,6 +7869,18 @@ export class AppGenerateService extends BaseService {
                 undefined,
                 undefined,
                 { thread },
+                agentIdentity,
+                (trx, versionUuid, objectUuid) =>
+                    logAgentContentWrite({
+                        trx,
+                        model: this.agentActionLogModel,
+                        projectUuid,
+                        agentIdentity,
+                        objectType: 'data_app',
+                        objectUuid,
+                        versionUuid,
+                        action: 'create',
+                    }),
             );
             slug = created.app.slug;
         } catch (error) {
@@ -7457,7 +7929,7 @@ export class AppGenerateService extends BaseService {
             prompt: pipelinePrompt,
             ...(creationExperience ? { creationExperience } : {}),
             template,
-            fileIds: fileIds.length > 0 ? fileIds : undefined,
+            fileIds: permittedFileIds.length > 0 ? permittedFileIds : undefined,
             isIteration: false,
             claudeEffort,
             chartReferences:
@@ -7466,9 +7938,34 @@ export class AppGenerateService extends BaseService {
             ...(codexModel ? { codexModel } : { claudeModel }),
             designUuid: resolvedDesignUuid,
             ...(aiAgentToolCall ? { aiAgentToolCall } : {}),
+            ...(aiAgentToolCall &&
+            agentExecutionContext.getStore()?.agentIdentityEnabled
+                ? {
+                      agentWork: {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid!,
+                          projectUuid,
+                      },
+                  }
+                : {}),
         });
 
         return { appUuid, slug, version };
+    }
+
+    /** Runs iterateApp's feature and manage checks, so callers can refuse before revealing anything else about the app. */
+    async assertCanIterateApp(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+    ): Promise<void> {
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to modify data apps',
+        );
     }
 
     async iterateApp(
@@ -7491,11 +7988,10 @@ export class AppGenerateService extends BaseService {
             aiAgentToolCall,
             vizContext,
         } = options;
-        await this.assertDataAppsEnabled(user);
-
         AppGenerateService.validateFileIds(fileIds);
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         const { organizationUuid } = await this.assertCanManageApp(
             user,
             app,
@@ -7509,17 +8005,21 @@ export class AppGenerateService extends BaseService {
         });
         AppGenerateService.assertNotRegistryManaged(app, 'edited');
         await this.assertDataAppCreditsAvailable(user);
+        const permittedFileIds = await this.permittedFileIds(
+            organizationUuid,
+            fileIds,
+        );
 
         // Resolve attachment types/filenames from the staged S3 objects so the
         // version resources can split image chips from file chips in the chat.
         let stagedFiles: StagedAppFile[] = [];
-        if (fileIds.length > 0) {
+        if (permittedFileIds.length > 0) {
             const { client: s3Client, bucket } = this.getS3Client();
             stagedFiles = await AppGenerateService.resolveStagedFiles(
                 s3Client,
                 bucket,
                 appUuid,
-                fileIds,
+                permittedFileIds,
             );
         }
 
@@ -7539,12 +8039,14 @@ export class AppGenerateService extends BaseService {
                 : undefined;
         const codingAgentModel = codexModel ?? claudeModel;
 
-        const externalConnectionResources = await this.linkExternalConnections(
-            user,
-            projectUuid,
-            appUuid,
-            externalConnections,
-        );
+        // Validated now, linked only after every rejection check below.
+        const externalConnectionResources =
+            await this.resolveExternalConnectionResources(
+                user,
+                projectUuid,
+                appUuid,
+                externalConnections,
+            );
 
         const latestVersion = await this.appModel.getLatestVersion(appUuid);
         if (
@@ -7651,7 +8153,16 @@ export class AppGenerateService extends BaseService {
             latestVersion?.dependencies,
         );
 
-        await this.appModel.createVersion(
+        await this.linkResolvedExternalConnections(
+            appUuid,
+            externalConnectionResources,
+        );
+
+        const agentIdentity = getContentWriteAgentIdentity({
+            userUuid: user.userUuid,
+            organizationUuid: user.organizationUuid ?? null,
+        });
+        const createdVersion = await this.appModel.createVersion(
             appUuid,
             { version: newVersion, prompt },
             'pending',
@@ -7660,7 +8171,17 @@ export class AppGenerateService extends BaseService {
             carriedDependencies,
             undefined,
             { vizPreview: latestVersion?.viz_preview },
+            agentIdentity,
         );
+        await logAgentContentWrite({
+            model: this.agentActionLogModel,
+            projectUuid,
+            agentIdentity,
+            objectType: 'data_app',
+            objectUuid: appUuid,
+            versionUuid: createdVersion?.app_version_id ?? null,
+            action: 'update',
+        });
 
         await this.unverifyAppIfNotPreserved({
             user,
@@ -7715,7 +8236,7 @@ export class AppGenerateService extends BaseService {
             userUuid: user.userUuid,
             prompt: pipelinePrompt,
             ...(creationExperience ? { creationExperience } : {}),
-            fileIds: fileIds.length > 0 ? fileIds : undefined,
+            fileIds: permittedFileIds.length > 0 ? permittedFileIds : undefined,
             isIteration: true,
             claudeEffort,
             chartReferences:
@@ -7724,6 +8245,16 @@ export class AppGenerateService extends BaseService {
             ...(codexModel ? { codexModel } : { claudeModel }),
             designUuid: effectiveDesignUuid,
             ...(aiAgentToolCall ? { aiAgentToolCall } : {}),
+            ...(aiAgentToolCall &&
+            agentExecutionContext.getStore()?.agentIdentityEnabled
+                ? {
+                      agentWork: {
+                          userUuid: user.userUuid,
+                          organizationUuid: user.organizationUuid!,
+                          projectUuid,
+                      },
+                  }
+                : {}),
         });
 
         return { appUuid, slug: app.slug, version: newVersion };
@@ -7912,9 +8443,8 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         body: UpgradeAppRequestBody = {},
     ): Promise<GenerateAppResult> {
-        await this.assertDataAppsEnabled(user);
-
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         const { organizationUuid } = await this.assertCanManageApp(
             user,
             app,
@@ -8047,9 +8577,8 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         sourceVersion: number,
     ): Promise<{ appUuid: string; version: number }> {
-        await this.assertDataAppsEnabled(user);
-
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         const { organizationUuid } = await this.assertCanManageApp(
             user,
             app,
@@ -8205,6 +8734,10 @@ export class AppGenerateService extends BaseService {
                 vizPreview: source.viz_preview,
             },
         );
+        await this.copyVersionThumbnail(
+            { appUuid, version: sourceVersion },
+            { appUuid, version: newVersion },
+        );
         await this.unverifyAppIfNotPreserved({
             user,
             appUuid,
@@ -8244,16 +8777,16 @@ export class AppGenerateService extends BaseService {
 
     /**
      * Start a fresh thread on the app: the coding agent forgets the current
-     * thread; the app, its versions and its sandbox are unchanged.
+     * thread and its sandbox is destroyed, so the next prompt runs in a fresh
+     * one seeded from the latest ready version. Versions are unchanged.
      */
     async clearAgentContext(
         user: SessionUser,
         projectUuid: string,
         appUuid: string,
     ): Promise<ApiGetAppResponse['results']> {
-        await this.assertDataAppsEnabled(user);
-
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanManageApp(
             user,
             app,
@@ -8271,6 +8804,13 @@ export class AppGenerateService extends BaseService {
             );
         }
 
+        const sandboxDestroyed = app.sandbox_id
+            ? await this.destroySandboxAndClearReference(
+                  appUuid,
+                  app.sandbox_id,
+              )
+            : null;
+
         const thread = await this.appModel.createThread({
             appUuid,
             origin: 'builder',
@@ -8286,10 +8826,11 @@ export class AppGenerateService extends BaseService {
                 projectId: projectUuid,
                 appUuid,
                 threadNumber: thread.thread_number,
+                sandboxDestroyed,
             },
         });
         this.logger.info(
-            `App ${appUuid}: agent context cleared (thread=${thread.thread_number}, user=${user.userUuid})`,
+            `App ${appUuid}: agent context cleared (thread=${thread.thread_number}, sandboxDestroyed=${sandboxDestroyed}, user=${user.userUuid})`,
         );
 
         return this.getAppVersions(user, projectUuid, appUuid, {});
@@ -8650,8 +9191,8 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
     ): Promise<PromoteAppDiff> {
-        await this.assertDataAppsEnabled(user);
         const sourceApp = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, sourceApp.template);
         const sourceAuthorization = await this.assertCanManageApp(
             user,
             sourceApp,
@@ -8701,9 +9242,8 @@ export class AppGenerateService extends BaseService {
         version: number;
         action: PromoteAppAction;
     }> {
-        await this.assertDataAppsEnabled(user);
-
         const sourceApp = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, sourceApp.template);
         const sourceAuthorization = await this.assertCanManageApp(
             user,
             sourceApp,
@@ -8976,7 +9516,20 @@ export class AppGenerateService extends BaseService {
         if (appUuids.length === 0) {
             return [];
         }
-        await this.assertDataAppsEnabled(user);
+
+        const sourceApps = (
+            await Promise.all(
+                appUuids.map((appUuid) =>
+                    this.appModel.findApp(appUuid, projectUuid),
+                ),
+            )
+        ).filter((app): app is NonNullable<typeof app> => app !== undefined);
+        // Gate every app before promoting any, so a refused one leaves nothing half-promoted.
+        await Promise.all(
+            sourceApps.map((sourceApp) =>
+                this.assertAppsEnabled(user, sourceApp.template),
+            ),
+        );
 
         const results: {
             sourceAppUuid: string;
@@ -8984,19 +9537,14 @@ export class AppGenerateService extends BaseService {
             upstreamAppVersion: number;
         }[] = [];
         /* eslint-disable no-await-in-loop */
-        for (const appUuid of appUuids) {
-            const sourceApp = await this.appModel.findApp(appUuid, projectUuid);
-            if (sourceApp) {
-                const {
-                    appUuid: upstreamAppUuid,
-                    version: upstreamAppVersion,
-                } = await this.promoteApp(user, projectUuid, appUuid);
-                results.push({
-                    sourceAppUuid: appUuid,
-                    upstreamAppUuid,
-                    upstreamAppVersion,
-                });
-            }
+        for (const sourceApp of sourceApps) {
+            const { appUuid: upstreamAppUuid, version: upstreamAppVersion } =
+                await this.promoteApp(user, projectUuid, sourceApp.app_id);
+            results.push({
+                sourceAppUuid: sourceApp.app_id,
+                upstreamAppUuid,
+                upstreamAppVersion,
+            });
         }
         /* eslint-enable no-await-in-loop */
 
@@ -9018,7 +9566,6 @@ export class AppGenerateService extends BaseService {
         if (appUuids.length === 0) {
             return [];
         }
-        await this.assertDataAppsEnabled(user);
 
         const { upstreamProjectUuid } =
             await this.getUpstreamProjectForPromotion(projectUuid);
@@ -9032,6 +9579,7 @@ export class AppGenerateService extends BaseService {
                 if (!sourceApp) {
                     return null;
                 }
+                await this.assertAppsEnabled(user, sourceApp.template);
                 await this.assertCanManageApp(
                     user,
                     sourceApp,
@@ -9075,12 +9623,11 @@ export class AppGenerateService extends BaseService {
         sourceAppUuid: string,
         options?: { name?: string },
     ): Promise<ApiDuplicateAppResponse['results']> {
-        await this.assertDataAppsEnabled(user);
-
         const sourceApp = await this.appModel.getApp(
             sourceAppUuid,
             projectUuid,
         );
+        await this.assertAppsEnabled(user, sourceApp.template);
         await this.assertCanViewApp(user, sourceApp);
 
         // The duplicate lands as a personal app in the same project. We need
@@ -9199,6 +9746,11 @@ export class AppGenerateService extends BaseService {
             );
             throw error;
         }
+
+        await this.copyVersionThumbnail(
+            { appUuid: sourceApp.app_id, version: sourceVersion.version },
+            { appUuid: newAppUuid, version: newVersion },
+        );
 
         this.analytics.track({
             event: 'data_app.duplicated',
@@ -9482,8 +10034,8 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         version: number,
     ): Promise<void> {
-        await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanManageApp(
             user,
             app,
@@ -9528,6 +10080,18 @@ export class AppGenerateService extends BaseService {
             });
         }
 
+        // The sandbox is per app, not per version. Uploads do not serialize
+        // builds per app, so the version occupying it is either the one that
+        // has already moved past `pending` (a build in flight) or the latest
+        // one (about to start). Cancelling an older version that never
+        // started (e.g. an orphaned pending upload) must not interrupt a
+        // live build; cancelling one that did start must stop it.
+        const hadStarted =
+            versionRow != null && versionRow.status !== 'pending';
+        const latestVersion = await this.appModel.getLatestVersion(appUuid);
+        const isLatestVersion = latestVersion?.version === version;
+        const ownsSandbox = hadStarted || isLatestVersion;
+
         // Kill the in-flight claude process, then suspend the sandbox while
         // keeping it resumable for the next iteration (snapshot + destroy on
         // object-store backends, preserving state). The kill must happen
@@ -9538,7 +10102,7 @@ export class AppGenerateService extends BaseService {
         // a no-op since the version is already in 'error' state — and
         // pipeline catches gate `trackVersionFailed` on the markError result,
         // so no spurious failed analytics event fires on top of the cancel.
-        if (app.sandbox_id) {
+        if (app.sandbox_id && ownsSandbox) {
             try {
                 await this.getSandboxManager().suspendByUuid(app.sandbox_id, {
                     beforeSuspend: async (handle) => {
@@ -9623,6 +10187,7 @@ export class AppGenerateService extends BaseService {
         views: number;
         currentThread: AppThread;
         versions: {
+            agentIdentity?: AgentIdentityClaim | null;
             version: number;
             threadUuid: string;
             threadNumber: number;
@@ -9639,30 +10204,32 @@ export class AppGenerateService extends BaseService {
                 lastName: string;
             } | null;
             resources: AppVersionResources | null;
+            hasThumbnail: boolean;
             dependencies?: { custom: AppVersionDependencies['custom'] };
         }[];
         hasMore: boolean;
         latestReadyVersion: number | null;
+        latestReadyVersionUsesAiAnalysis: boolean | null;
+        latestReadyVersionHasAnalyzableData: boolean | null;
+        addAnalysisDismissed: boolean;
         registrySlug: string | null;
         icon: ChartTypeIcon | null;
         verification: ContentVerificationInfo | null;
-        autoAnalysis: DataAppAutoAnalysis;
     }> {
-        await this.assertDataAppsEnabled(user);
-
         // Resolve to the real uuid before any query — the raw arg may be a
         // slug and must never reach a uuid-typed filter.
         const resolvedApp = await this.appModel.getAppByUuidOrSlug(
             projectUuid,
             appUuidOrSlug,
         );
+        await this.assertAppsEnabled(user, resolvedApp.template);
         const appUuid = resolvedApp.app_id;
 
         const {
             name,
             description,
             icon,
-            autoAnalysis,
+            addAnalysisDismissedAt,
             createdByUserUuid,
             organizationUuid,
             spaceUuid,
@@ -9686,9 +10253,29 @@ export class AppGenerateService extends BaseService {
             created_by_user_uuid: createdByUserUuid,
         });
 
+        const { enabled: agentIdentityEnabled } =
+            await this.featureFlagModel.get({
+                featureFlagId: FeatureFlags.AgentIdentity,
+                user: { organizationUuid, userUuid: user.userUuid },
+            });
         // The latest ready version can be older than the returned page of
         // versions, so resolve it independently of pagination.
         const latestReady = await this.appModel.getLatestReadyVersion(appUuid);
+        // Whether that version wires up AI analysis, from the same cached
+        // source scan as data references (lazily re-extracted on extractor
+        // bumps). Null when there is no ready version or the scan failed —
+        // a scan failure must never fail the app read itself.
+        const latestReadyDataReferences = latestReady
+            ? await this.getVersionDataReferences(
+                  appUuid,
+                  latestReady.version,
+              ).catch((error) => {
+                  this.logger.warn(
+                      `App ${appUuid}: failed to read data references for version ${latestReady.version}: ${getErrorMessage(error)}`,
+                  );
+                  return null;
+              })
+            : null;
         const verification = await this.contentVerificationModel.getByContent(
             ContentType.DATA_APP,
             appUuid,
@@ -9714,6 +10301,9 @@ export class AppGenerateService extends BaseService {
                 createdAt: currentThread.created_at,
             },
             versions: versions.map((v) => ({
+                ...(agentIdentityEnabled
+                    ? { agentIdentity: v.agent_identity }
+                    : {}),
                 version: v.version,
                 threadUuid: v.app_thread_uuid,
                 threadNumber: v.thread_number,
@@ -9749,6 +10339,11 @@ export class AppGenerateService extends BaseService {
                               vizPreview: v.viz_preview ?? null,
                           }
                         : null,
+                // Only manual thumbnails are served; automatic ones are retired.
+                hasThumbnail:
+                    v.status === 'ready' &&
+                    Boolean(v.thumbnail_captured_at) &&
+                    v.thumbnail_is_manual === true,
                 createdAt: v.created_at,
                 statusUpdatedAt: v.status_updated_at,
                 // Custom-deps summary only; the lockfile hash is internal.
@@ -9770,11 +10365,22 @@ export class AppGenerateService extends BaseService {
             })),
             hasMore,
             latestReadyVersion: latestReady?.version ?? null,
+            latestReadyVersionUsesAiAnalysis:
+                latestReadyDataReferences?.usesAiAnalysis ?? null,
+            // Analysis runs over query results, so only query and saved-chart
+            // references count — an app that only calls external connections
+            // (e.g. the Lightdash API) has nothing for analysis to summarise.
+            latestReadyVersionHasAnalyzableData: latestReadyDataReferences
+                ? latestReadyDataReferences.references.some(
+                      (ref) =>
+                          ref.kind === 'query' || ref.kind === 'savedChart',
+                  )
+                : null,
+            addAnalysisDismissed: addAnalysisDismissedAt !== null,
             registrySlug,
             // An icon retired from the curated set reads back as no icon.
             icon: isChartTypeIcon(icon) ? icon : null,
             verification,
-            autoAnalysis: normalizeDataAppAutoAnalysis(autoAnalysis),
         };
     }
 
@@ -9783,22 +10389,39 @@ export class AppGenerateService extends BaseService {
      * endpoints: GET /apps ('exclude' — data apps for the embed config
      * allowlist picker and the CLI) and GET /apps/chart-types ('only' —
      * custom chart types for the CLI). Defaults to excluding chart types:
-     * they are not data apps.
+     * they are not data apps. Filtered per app to what the user can view,
+     * like the dashboard and chart pickers.
      */
     async listAppsForProject(
         user: SessionUser,
         projectUuid: string,
         dataAppVizsFilter: DataAppVizsFilter = 'exclude',
     ): Promise<EmbedProjectApp[]> {
-        await this.assertDataAppsEnabled(user);
-        const projectContext = await this.getDataAppProjectContext(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
-        if (auditedAbility.cannot('view', subject('DataApp', projectContext))) {
+        await this.assertAppsEnabled(
+            user,
+            dataAppVizsFilter === 'only' ? DATA_APP_VIZ_TEMPLATE : null,
+        );
+        const { organizationUuid } =
+            await this.getDataAppProjectContext(projectUuid);
+        // Coarse gate: roles with no view:DataApp rule at all (plain viewers)
+        // get a 403. Per-app filtering below handles space/creator conditions.
+        if (this.createAuditedAbility(user).cannot('view', 'DataApp')) {
             throw new ForbiddenError('Insufficient permissions');
         }
-        const apps = await this.appModel.listAppsByProject(projectUuid, {
+        const allApps = await this.appModel.listAppsByProject(projectUuid, {
             dataAppVizsFilter,
         });
+        const apps = await this.filterAppsUserCanView(
+            user,
+            organizationUuid,
+            projectUuid,
+            allApps.map((app) => ({
+                ...app,
+                uuid: app.app_id,
+                spaceUuid: app.space_uuid,
+                createdBy: { userUuid: app.created_by_user_uuid },
+            })),
+        );
         return apps.map((app) => ({
             appUuid: app.app_id,
             name: app.name,
@@ -9850,7 +10473,6 @@ export class AppGenerateService extends BaseService {
         search?: string,
         sort: DataAppVizListSort = DEFAULT_DATA_APP_VIZ_LIST_SORT,
     ): Promise<KnexPaginatedData<DataAppViz[]>> {
-        await assertChartTypesEnabled(this.featureFlagModel, user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         this.assertCanUseChartTypes(user, { organizationUuid, projectUuid });
@@ -9877,9 +10499,8 @@ export class AppGenerateService extends BaseService {
 
     /**
      * The catalog of installable chart types from the configured chart
-     * registry, merged with this project's install state. Gated behind the
-     * `ChartTypeRegistry` flag; the library is offered to whoever can build
-     * a chart in an explore, same as `listDataAppVisualizations`.
+     * registry, merged with this project's install state. Offered to whoever
+     * can build a chart in an explore, same as `listDataAppVisualizations`.
      */
     async listRegistryChartTypes(
         user: SessionUser,
@@ -9888,7 +10509,6 @@ export class AppGenerateService extends BaseService {
         registryEnabled: boolean;
         charts: RegistryChartTypeListItem[];
     }> {
-        await this.assertChartTypeLibraryEnabled(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         this.assertCanUseChartTypes(user, { organizationUuid, projectUuid });
@@ -9961,7 +10581,6 @@ export class AppGenerateService extends BaseService {
         action: 'installed' | 'upgraded' | 'unchanged';
         upgradedChartCount: number;
     }> {
-        await this.assertChartTypeLibraryEnabled(user);
         const { organizationUuid } = await this.assertDataAppAbility(
             user,
             'create',
@@ -9980,6 +10599,277 @@ export class AppGenerateService extends BaseService {
                 `Chart type "${chartSlug}" not found in the registry`,
             );
         }
+        return this.installRegistryEntry(
+            user,
+            projectUuid,
+            organizationUuid,
+            entry,
+            options,
+        );
+    }
+
+    /**
+     * Installs the starter chart types a new project gets during onboarding.
+     * Skips what is already installed, so repeat calls are cheap; one failed
+     * install doesn't stop the rest. Returns the slugs it installed.
+     */
+    async installStarterChartTypes(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<{ installedSlugs: string[] }> {
+        if (!this.chartRegistryClient.isEnabled()) {
+            return { installedSlugs: [] };
+        }
+        const { organizationUuid } = await this.assertDataAppAbility(
+            user,
+            'create',
+            projectUuid,
+            'Insufficient permissions to install chart types',
+        );
+        const [index, installed] = await Promise.all([
+            this.chartRegistryClient.getIndex(),
+            this.appModel.listRegistryInstalledApps(projectUuid),
+        ]);
+        const installedSlugs = new Set(installed.map((a) => a.registry_slug));
+        const entries = index.charts.filter(
+            (entry) =>
+                STARTER_CHART_TYPE_SLUGS.includes(entry.slug) &&
+                !installedSlugs.has(entry.slug) &&
+                !AppGenerateService.isRegistryEntryIncompatible(entry),
+        );
+        const newSlugs: string[] = [];
+        // Sequential: each install downloads and copies a bundle
+        for (const entry of entries) {
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                await this.installRegistryEntry(
+                    user,
+                    projectUuid,
+                    organizationUuid,
+                    entry,
+                    {},
+                );
+                newSlugs.push(entry.slug);
+            } catch (e) {
+                this.logger.warn(
+                    `Starter chart type "${entry.slug}" failed to install in project ${projectUuid}: ${getErrorMessage(e)}`,
+                );
+            }
+        }
+        return { installedSlugs: newSlugs };
+    }
+
+    /** Digest mismatches keep their own error; transport failures get a library-facing one. */
+    private static registryUnreachableError(
+        entry: Pick<ChartRegistryEntry, 'slug' | 'version'>,
+        e: unknown,
+    ): Error {
+        if (e instanceof ParameterError) return e;
+        return new ParameterError(
+            `Could not reach the chart type library to download "${entry.slug}@${entry.version}": ${getErrorMessage(e)}`,
+        );
+    }
+
+    private static normalizeRegistryUrl(url: string): string {
+        return url.trim().replace(/\/+$/, '');
+    }
+
+    /** Same `src/` path set with identical bytes; non-src entries are ignored. */
+    private static srcFilesMatch(
+        registryFiles: DataAppCodeFile[],
+        uploadedSrcFiles: DataAppCodeFile[],
+    ): boolean {
+        const registrySrc = registryFiles.filter((f) =>
+            f.path.startsWith('src/'),
+        );
+        if (registrySrc.length !== uploadedSrcFiles.length) return false;
+        const uploaded = new Map(
+            uploadedSrcFiles.map((f) => [f.path, f.contentBase64]),
+        );
+        return registrySrc.every(
+            (f) => uploaded.get(f.path) === f.contentBase64,
+        );
+    }
+
+    /**
+     * Upload of a bundle downloaded from a registry install. An unmodified
+     * bundle re-installs that exact registry version (prebuilt dist, no
+     * build, no dependency gates); anything else falls back to the custom
+     * chart type path with a warning explaining why.
+     */
+    private async tryImportRegistryChartType(
+        user: SessionUser,
+        projectUuid: string,
+        rawProvenance: DataAppManifestRegistryProvenance,
+        manifestSlug: string | undefined,
+        sourceFiles: DataAppCodeFile[],
+        body: ImportAppCodeRequestBody,
+    ): Promise<
+        | { kind: 'installed'; result: ImportAppCodeResult }
+        | { kind: 'fallthrough'; warning: string }
+    > {
+        // The block is user-editable YAML: validate it, never trust the type.
+        const parsedProvenance =
+            dataAppManifestRegistryProvenanceSchema.safeParse(rawProvenance);
+        if (!parsedProvenance.success) {
+            throw new ParameterError(
+                'Invalid registry block in the app manifest. Re-download the chart type, or remove the block from lightdash-app.yml to upload it as a custom chart type.',
+            );
+        }
+        const provenance = parsedProvenance.data;
+        const { slug, version } = provenance;
+        const { organizationUuid } = await this.assertDataAppAbility(
+            user,
+            'create',
+            projectUuid,
+            'Insufficient permissions to install chart types',
+        );
+        const baseUrl = this.chartRegistryClient.getBaseUrl();
+        if (
+            baseUrl === null ||
+            AppGenerateService.normalizeRegistryUrl(baseUrl) !==
+                AppGenerateService.normalizeRegistryUrl(provenance.url)
+        ) {
+            throw new ParameterError(
+                `Chart type "${slug}" was downloaded from a different chart registry (${provenance.url}). Remove the registry block from lightdash-app.yml to upload it as a custom chart type.`,
+            );
+        }
+        if (body.createNew) {
+            return {
+                kind: 'fallthrough',
+                warning: `createNew ignores library provenance; uploading "${slug}" as a custom chart type.`,
+            };
+        }
+        // A renamed slug is the documented way to fork: honour it even when
+        // src/ is untouched, instead of silently re-installing the original.
+        if (manifestSlug !== undefined && manifestSlug !== slug) {
+            return {
+                kind: 'fallthrough',
+                warning: `Manifest slug "${manifestSlug}" differs from the library slug "${slug}"; uploading as a custom chart type.`,
+            };
+        }
+        let entry: ChartRegistryEntry | undefined;
+        try {
+            entry = await this.chartRegistryClient.getVersionEntry(
+                slug,
+                version,
+            );
+        } catch (e) {
+            if (e instanceof ParameterError) throw e;
+            throw new ParameterError(
+                `Could not reach the chart type library to verify "${slug}@${version}": ${getErrorMessage(e)}`,
+            );
+        }
+        if (!entry) {
+            throw new ParameterError(
+                `Chart type "${slug}" version ${version} was not found in the chart type library. Re-download it, or remove the registry block from lightdash-app.yml to upload it as a custom chart type.`,
+            );
+        }
+        const existing = await this.appModel.findAppBySlug(projectUuid, slug);
+        if (existing !== undefined && existing.registry_slug === null) {
+            return {
+                kind: 'fallthrough',
+                warning: `"${slug}" already exists in this project as a custom chart type; uploading as a custom chart type.`,
+            };
+        }
+        let sourceTar: Buffer;
+        try {
+            sourceTar = await this.chartRegistryClient.downloadArtifact(
+                entry,
+                'source',
+            );
+        } catch (e) {
+            throw AppGenerateService.registryUnreachableError(entry, e);
+        }
+        const registryFiles =
+            await AppGenerateService.extractTarFiles(sourceTar);
+        if (!AppGenerateService.srcFilesMatch(registryFiles, sourceFiles)) {
+            return {
+                kind: 'fallthrough',
+                warning: `src/ differs from "${slug}@${version}" in the chart type library; uploading as a custom chart type.`,
+            };
+        }
+        const installed = await this.installRegistryEntry(
+            user,
+            projectUuid,
+            organizationUuid,
+            entry,
+            {},
+            { sourceTar },
+        );
+        let action: ImportAppCodeResult['action'];
+        switch (installed.action) {
+            case 'unchanged':
+                action = 'unchanged';
+                break;
+            case 'upgraded':
+                action = 'append';
+                break;
+            case 'installed':
+                action = 'create';
+                break;
+            default:
+                action = assertUnreachable(
+                    installed.action,
+                    'Unknown registry install action',
+                );
+        }
+        this.analytics.track({
+            event: 'data_app.uploaded',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                appUuid: installed.appUuid,
+                version: installed.version,
+                action,
+                identitySource: 'slug',
+                template: DATA_APP_VIZ_TEMPLATE,
+                sourceFileCount: sourceFiles.length,
+                sourceBytes: sourceFiles.reduce(
+                    (total, file) =>
+                        total + Buffer.byteLength(file.contentBase64, 'base64'),
+                    0,
+                ),
+                hasCustomDependencies: false,
+                customDependencyCount: 0,
+                customDependencies: [],
+                registrySlug: slug,
+                registryVersion: version,
+            },
+        });
+        return {
+            kind: 'installed',
+            result: {
+                appUuid: installed.appUuid,
+                version: installed.version,
+                action,
+                slug: installed.slug,
+                warnings: [],
+            },
+        };
+    }
+
+    /**
+     * Installs (or appends) one resolved registry version into a project.
+     * Shared by the library install (latest index entry) and content-as-code
+     * upload (pinned version). `preloaded.sourceTar` skips a second download
+     * when the caller already fetched and digest-checked the source.
+     */
+    private async installRegistryEntry(
+        user: SessionUser,
+        projectUuid: string,
+        organizationUuid: string,
+        entry: ChartRegistryEntry,
+        options: InstallRegistryChartTypeBody,
+        preloaded?: { sourceTar: Buffer },
+    ): Promise<{
+        appUuid: string;
+        slug: string;
+        version: number;
+        action: 'installed' | 'upgraded' | 'unchanged';
+        upgradedChartCount: number;
+    }> {
         if (AppGenerateService.isRegistryEntryIncompatible(entry)) {
             throw new ParameterError(
                 `Chart type "${entry.slug}" requires a newer version (>= ${entry.minLightdashVersion}); this instance is on ${VERSION}`,
@@ -9996,7 +10886,9 @@ export class AppGenerateService extends BaseService {
 
         const installedApps =
             await this.appModel.listRegistryInstalledApps(projectUuid);
-        let existing = installedApps.find((a) => a.registry_slug === chartSlug);
+        let existing = installedApps.find(
+            (a) => a.registry_slug === entry.slug,
+        );
         // Reinstall after uninstall: revive the soft-deleted install in
         // place so charts built on it heal, instead of minting a new app
         // (whose slug the deleted row would force onto a "-1" suffix).
@@ -10004,7 +10896,7 @@ export class AppGenerateService extends BaseService {
         if (!existing) {
             const deleted = await this.appModel.findNewestDeletedRegistryApp(
                 projectUuid,
-                chartSlug,
+                entry.slug,
             );
             if (deleted) {
                 try {
@@ -10062,17 +10954,24 @@ export class AppGenerateService extends BaseService {
             }
             return {
                 appUuid: existing.app_id,
-                slug: chartSlug,
+                slug: entry.slug,
                 version: latest!.version,
                 action: revived ? 'installed' : 'unchanged',
                 upgradedChartCount,
             };
         }
 
-        const [sourceTar, distTar] = await Promise.all([
-            this.chartRegistryClient.downloadArtifact(entry, 'source'),
-            this.chartRegistryClient.downloadArtifact(entry, 'dist'),
-        ]);
+        let sourceTar: Buffer;
+        let distTar: Buffer;
+        try {
+            [sourceTar, distTar] = await Promise.all([
+                preloaded?.sourceTar ??
+                    this.chartRegistryClient.downloadArtifact(entry, 'source'),
+                this.chartRegistryClient.downloadArtifact(entry, 'dist'),
+            ]);
+        } catch (e) {
+            throw AppGenerateService.registryUnreachableError(entry, e);
+        }
         // The registry is an external input — validate the dist bundle's
         // shape before any S3 write, so a malicious/malformed dist.tar (e.g.
         // an entry that would overwrite source.tar at this version prefix)
@@ -10218,16 +11117,13 @@ export class AppGenerateService extends BaseService {
     /**
      * Thin pass-through to the chart registry's index-listed images
      * (thumbnails/screenshots). No ability check beyond route auth — these
-     * are catalog metadata, not project data — but gated the same way as
-     * `listRegistryChartTypes`: the `ChartTypeRegistry` flag, before falling
-     * back to the registry client's own enabled check
-     * (`chartRegistryClient.getAsset` throws when it isn't).
+     * are catalog metadata, not project data — beyond the registry client's
+     * own enabled check (`chartRegistryClient.getAsset` throws when it isn't).
      */
     async getRegistryAsset(
         user: SessionUser,
         path: string,
     ): Promise<{ buffer: Buffer; contentType: string } | undefined> {
-        await this.assertChartTypeLibraryEnabled(user);
         if (!this.chartRegistryClient.isEnabled()) {
             return undefined;
         }
@@ -10239,12 +11135,12 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         dataAppVizUuid: string,
     ): Promise<DataAppVizDeleteImpact> {
-        await this.assertDataAppsEnabled(user);
         const dataAppViz = await resolveDataAppVisualizationForRender(
             this.appModel,
             projectUuid,
             dataAppVizUuid,
         );
+        await this.assertCanRemoveAppGate(user, dataAppViz);
         await this.assertCanManageApp(
             user,
             dataAppViz,
@@ -10269,7 +11165,6 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         dataAppVizUuid: string,
     ): Promise<DataAppVizUpgradeImpact> {
-        await this.assertChartTypeLibraryEnabled(user);
         await this.assertDataAppAbility(
             user,
             'create',
@@ -10303,7 +11198,6 @@ export class AppGenerateService extends BaseService {
         dataAppVizUuid: string,
         version?: number,
     ): Promise<DataAppViz> {
-        await assertChartTypesEnabled(this.featureFlagModel, user);
         const dataAppViz = await this.appModel.findVisualizationApp(
             dataAppVizUuid,
             projectUuid,
@@ -10347,8 +11241,6 @@ export class AppGenerateService extends BaseService {
             dataAppVizUuid,
         );
 
-        await assertChartTypesEnabled(this.featureFlagModel, user);
-
         this.assertCanUseChartTypes(user, {
             organizationUuid: dataAppViz.organization_uuid,
             projectUuid: dataAppViz.project_uuid,
@@ -10374,8 +11266,6 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             dataAppVizUuid,
         );
-
-        await assertChartTypesEnabled(this.featureFlagModel, user);
 
         await this.savedChartService.hasAccess(
             'view',
@@ -10457,16 +11347,17 @@ export class AppGenerateService extends BaseService {
             dataAppVizUuid,
         );
 
-        await assertChartTypesEnabled(this.featureFlagModel, {
-            userUuid: account.user.userUuid,
-            organizationUuid: account.organization.organizationUuid,
-        });
-
-        const { chart } = await this.documentService.getChart(
+        const content = await this.documentService.getChart(
             account,
             projectUuid,
             reference,
         );
+        if (content.source === 'sql') {
+            throw new ForbiddenError(
+                'Not authorized to access this visualization',
+            );
+        }
+        const { chart } = content;
         if (
             chart.chartConfig.type !== ChartType.DATA_APP_VIZ ||
             chart.chartConfig.config?.dataAppVizUuid !== dataAppVizUuid
@@ -10513,6 +11404,7 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         dataAppVizUuid: string,
         version: number,
+        viewContext: 'chart' | 'mcp' = 'chart',
     ): Promise<string> {
         const dataAppViz = await this.getAuthorizedDataAppVizForAuthoring(
             user,
@@ -10536,6 +11428,7 @@ export class AppGenerateService extends BaseService {
             await this.externalConnectionModel.getBrowserImageOrigins(
                 dataAppViz.app_id,
             ),
+            viewContext,
         );
     }
 
@@ -10592,6 +11485,7 @@ export class AppGenerateService extends BaseService {
             await this.externalConnectionModel.getBrowserImageOrigins(
                 dataAppViz.app_id,
             ),
+            'chart',
         );
     }
 
@@ -10646,6 +11540,7 @@ export class AppGenerateService extends BaseService {
             await this.externalConnectionModel.getBrowserImageOrigins(
                 dataAppViz.app_id,
             ),
+            'chart',
         );
     }
 
@@ -10877,17 +11772,15 @@ export class AppGenerateService extends BaseService {
             name?: string;
             description?: string;
             icon?: ChartTypeIcon | null;
-            autoAnalysis?: DataAppAutoAnalysis;
         },
     ): Promise<{
         appUuid: string;
         name: string;
         description: string;
         icon: ChartTypeIcon | null;
-        autoAnalysis: DataAppAutoAnalysis;
     }> {
-        await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         const { organizationUuid } = await this.assertCanManageApp(
             user,
             app,
@@ -10905,7 +11798,6 @@ export class AppGenerateService extends BaseService {
             name: string;
             description: string;
             icon: string | null;
-            auto_analysis: DataAppAutoAnalysis;
         }> = {};
         if (update.name !== undefined) {
             const trimmedName = update.name.trim();
@@ -10941,18 +11833,10 @@ export class AppGenerateService extends BaseService {
             }
             fieldsToUpdate.icon = update.icon;
         }
-        if (update.autoAnalysis !== undefined) {
-            if (!isDataAppAutoAnalysis(update.autoAnalysis)) {
-                throw new ParameterError(
-                    `Invalid auto analysis value: ${String(update.autoAnalysis)}`,
-                );
-            }
-            fieldsToUpdate.auto_analysis = update.autoAnalysis;
-        }
 
         if (Object.keys(fieldsToUpdate).length === 0) {
             throw new ParameterError(
-                'At least one of name, description, icon or autoAnalysis must be provided',
+                'At least one of name, description or icon must be provided',
             );
         }
 
@@ -10972,10 +11856,29 @@ export class AppGenerateService extends BaseService {
             name: updatedApp.name,
             description: updatedApp.description,
             icon: isChartTypeIcon(updatedApp.icon) ? updatedApp.icon : null,
-            autoAnalysis: normalizeDataAppAutoAnalysis(
-                updatedApp.auto_analysis,
-            ),
         };
+    }
+
+    /**
+     * Dismiss the builder-side "add AI analysis" offer for an app, so it
+     * stops reappearing for every builder (the old localStorage dismissal
+     * was per browser). Deliberately not part of `updateApp`: dismissing a
+     * nudge must not unverify the app and is allowed on registry-managed
+     * apps.
+     */
+    async dismissAddAnalysisOffer(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+    ): Promise<void> {
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to manage data apps',
+        );
+        await this.appModel.dismissAddAnalysisOffer(appUuid, projectUuid);
     }
 
     /**
@@ -11000,13 +11903,7 @@ export class AppGenerateService extends BaseService {
                 organizationUuid: app.organization_uuid,
             });
         } else {
-            if (app.registry_slug !== null) {
-                // Uninstalling a library chart type must work wherever the
-                // library does, even with data apps off.
-                await assertChartTypesEnabled(this.featureFlagModel, user);
-            } else {
-                await this.assertDataAppsEnabled(user);
-            }
+            await this.assertCanRemoveAppGate(user, app);
             await this.assertCanManageApp(
                 user,
                 app,
@@ -11067,13 +11964,7 @@ export class AppGenerateService extends BaseService {
                 organizationUuid: app.organization_uuid,
             });
         } else {
-            if (app.registry_slug !== null) {
-                // Restoring an uninstalled library chart type must work
-                // wherever uninstalling it does, even with data apps off.
-                await assertChartTypesEnabled(this.featureFlagModel, user);
-            } else {
-                await this.assertDataAppsEnabled(user);
-            }
+            await this.assertCanRemoveAppGate(user, app);
             await this.assertCanManageApp(
                 user,
                 app,
@@ -11140,7 +12031,7 @@ export class AppGenerateService extends BaseService {
                 organizationUuid: app.organization_uuid,
             });
         } else {
-            await this.assertDataAppsEnabled(user);
+            await this.assertCanRemoveAppGate(user, app);
             await this.assertCanManageApp(
                 user,
                 app,
@@ -11343,8 +12234,6 @@ export class AppGenerateService extends BaseService {
             trackEvent?: boolean;
         } = {},
     ): Promise<void> {
-        await this.assertDataAppsEnabled(user);
-
         if (targetSpaceUuid === null) {
             throw new ParameterError(
                 'You cannot move a data app outside of a space',
@@ -11352,6 +12241,7 @@ export class AppGenerateService extends BaseService {
         }
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
 
         // Vizs are project-global chart content — space semantics don't apply.
         if (app.template === DATA_APP_VIZ_TEMPLATE) {
@@ -11494,14 +12384,54 @@ export class AppGenerateService extends BaseService {
         );
     }
 
+    recordViewOutcome(
+        projectUuid: string,
+        appUuid: string,
+        version: number,
+        body: RecordDataAppViewOutcome,
+    ): void {
+        const verified = verifyPreviewToken(
+            body.previewToken,
+            this.lightdashConfig.lightdashSecrets,
+            appUuid,
+            version,
+        );
+        if (!verified.ok || verified.payload.projectUuid !== projectUuid) {
+            throw new ForbiddenError('Invalid or expired preview token');
+        }
+        if (
+            !isValidUuid(body.navigationId) ||
+            !['sdk_started', 'runtime_error'].includes(body.outcome)
+        ) {
+            throw new ParameterError('Invalid app view outcome');
+        }
+        const { payload } = verified;
+        try {
+            this.analytics.track({
+                event: 'data_app.view_outcome',
+                userId: payload.userUuid,
+                properties: {
+                    organizationId: payload.organizationUuid,
+                    projectId: payload.projectUuid,
+                    appUuid: payload.appUuid,
+                    version: payload.version,
+                    viewContext: payload.viewContext,
+                    navigationId: body.navigationId,
+                    outcome: body.outcome,
+                },
+            });
+        } catch {
+            this.logger.warn('Failed to record app view outcome');
+        }
+    }
+
     async getPreviewToken(
         user: SessionUser,
         projectUuid: string,
         appUuid: string,
         version: number,
+        viewContext: DataAppViewContext = 'unknown',
     ): Promise<string> {
-        await this.assertDataAppsEnabled(user);
-
         if (!isValidUuid(appUuid)) {
             throw new ParameterError('Invalid UUID format');
         }
@@ -11511,6 +12441,7 @@ export class AppGenerateService extends BaseService {
         }
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanViewApp(user, app);
 
         return mintPreviewToken(
@@ -11521,6 +12452,7 @@ export class AppGenerateService extends BaseService {
             user.organizationUuid!,
             projectUuid,
             await this.externalConnectionModel.getBrowserImageOrigins(appUuid),
+            viewContext,
         );
     }
 
@@ -11581,6 +12513,7 @@ export class AppGenerateService extends BaseService {
             app.organization_uuid,
             projectUuid,
             await this.externalConnectionModel.getBrowserImageOrigins(appUuid),
+            'embed',
         );
 
         return { token, version: latestReady.version };
@@ -11684,6 +12617,26 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Field link patterns (`urls`), verbatim: `${value.raw}` and
+     * `${row.<model>.<field>.raw}` placeholders are the template's own syntax,
+     * not something to resolve here. The index header explains them.
+     */
+    private static renderFieldUrlsYaml(
+        urls: FieldUrl[] | undefined,
+        indent: string,
+    ): string[] {
+        if (!urls || urls.length === 0) return [];
+        const lines: string[] = [`${indent}urls:`];
+        for (const { label, url } of urls) {
+            lines.push(
+                `${indent}  - label: ${AppGenerateService.yamlQuote(label)}`,
+                `${indent}    url: ${AppGenerateService.yamlQuote(url)}`,
+            );
+        }
+        return lines;
+    }
+
+    /**
      * Render one compiled table as a dbt-style model, carrying real
      * metric/dimension types, join relationships (`meta.joins`), AI hints,
      * model-level parameters, and model-level filters (`sql_filter`,
@@ -11763,6 +12716,12 @@ export class AppGenerateService extends BaseService {
                             );
                         }
                     }
+                    headerLines.push(
+                        ...AppGenerateService.renderFieldUrlsYaml(
+                            m.urls,
+                            '          ',
+                        ),
+                    );
                 }
             }
             if (joins.length > 0) {
@@ -11840,6 +12799,12 @@ export class AppGenerateService extends BaseService {
             block.push(`        meta:`);
             block.push(`          dimension:`);
             block.push(`            type: ${d.type}`);
+            block.push(
+                ...AppGenerateService.renderFieldUrlsYaml(
+                    d.urls,
+                    '            ',
+                ),
+            );
             return block;
         });
 
@@ -11855,6 +12820,9 @@ export class AppGenerateService extends BaseService {
             defaultFilterCount: defaultFilters.length,
             skippedFilterRefs,
             hasSqlFilter: sqlFilter !== null,
+            urlFields: [...metrics, ...dimensions]
+                .filter((f) => f.urls && f.urls.length > 0)
+                .map((f) => f.name),
         };
     }
 
@@ -12073,6 +13041,7 @@ export class AppGenerateService extends BaseService {
         metricCount: number;
         totalBytes: number;
         skippedFilters: string[];
+        urlModels: { model: string; fields: string[] }[];
     } {
         const models = AppGenerateService.exploresToRenderedModels(explores);
         const filenames = AppGenerateService.modelFilenames(models);
@@ -12107,8 +13076,14 @@ export class AppGenerateService extends BaseService {
             'A `filters=` marker means the model declares model-level filters',
             '(required/default/sql_filter) that affect every query against it —',
             'read that model file before querying it.',
+            "A `urls=N` marker means N of the model's fields declare `urls:` —",
+            'link patterns whose values MUST render as links: `${value.raw}` is',
+            "the cell's raw value; `${row.<model>.<field>.raw}` references",
+            'another field in the same row (include that field in the query).',
+            'Check the marked model file before displaying any of its fields,',
+            'including fields queried through a join.',
             '',
-            'name  file  dims/metrics  joins  [filters]  description',
+            'name  file  dims/metrics  joins  [filters]  [urls]  description',
             '',
         ].join('\n');
 
@@ -12131,12 +13106,16 @@ export class AppGenerateService extends BaseService {
                 filterParts.length > 0
                     ? `  filters=${filterParts.join(',')}`
                     : '';
+            const urls =
+                model.urlFields.length > 0
+                    ? `  urls=${model.urlFields.length}`
+                    : '';
             const description = model.description
                 ? `  ${model.description
                       .replace(/\s+/g, ' ')
                       .slice(0, AppGenerateService.INDEX_DESCRIPTION_MAX_LEN)}`
                 : '';
-            return `${model.name}  ${filename}  dims=${model.dimensionCount} metrics=${model.metricCount}  joins=${joins}${filters}${description}`;
+            return `${model.name}  ${filename}  dims=${model.dimensionCount} metrics=${model.metricCount}  joins=${joins}${filters}${urls}${description}`;
         };
 
         const compactLine = (entry: (typeof ranked)[number]): string =>
@@ -12185,6 +13164,9 @@ export class AppGenerateService extends BaseService {
             skippedFilters: models.flatMap((m) =>
                 m.skippedFilterRefs.map((fieldRef) => `${m.name}.${fieldRef}`),
             ),
+            urlModels: models
+                .filter((m) => m.urlFields.length > 0)
+                .map((m) => ({ model: m.name, fields: m.urlFields })),
         };
     }
 
@@ -12271,6 +13253,7 @@ export class AppGenerateService extends BaseService {
             references: extracted.references,
             parseErrors: extracted.parseErrors,
             stats: extracted.stats,
+            usesAiAnalysis: extracted.usesAiAnalysis,
         };
     }
 
@@ -12496,6 +13479,12 @@ export class AppGenerateService extends BaseService {
         spaceSlug: string | undefined,
     ): Promise<string | undefined> {
         if (spaceSlug === undefined) return undefined;
+        // A UUID would otherwise become a new private root space named after it.
+        if (isValidUuid(spaceSlug)) {
+            throw new ParameterError(
+                await this.describeUuidSpaceSlug(user, projectUuid, spaceSlug),
+            );
+        }
         const { space } = await this.coderService.getOrCreateSpace(
             projectUuid,
             spaceSlug,
@@ -12506,6 +13495,28 @@ export class AppGenerateService extends BaseService {
             true,
         );
         return space.uuid;
+    }
+
+    private async describeUuidSpaceSlug(
+        user: SessionUser,
+        projectUuid: string,
+        spaceUuid: string,
+    ): Promise<string> {
+        const base = `Manifest spaceSlug "${spaceUuid}" is a space UUID, but spaceSlug expects a space path like "parent/child" (as written by lightdash download).`;
+        try {
+            const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
+                projectUuid,
+            });
+            // Only name the path to someone who can already see the space.
+            if (
+                await this.spacePermissionService.can('view', user, spaceUuid)
+            ) {
+                return `${base} Use spaceSlug: ${getContentAsCodePathFromLtreePath(space.path)}`;
+            }
+        } catch (error) {
+            if (!(error instanceof NotFoundError)) throw error;
+        }
+        return base;
     }
 
     // First half of the as-code download, without downloading the source.
@@ -12579,6 +13590,47 @@ export class AppGenerateService extends BaseService {
         };
     }
 
+    /**
+     * Rename a data app's slug in place (lightdash slug-update --type app).
+     * The old slug becomes a historical alias, so existing links and stale
+     * as-code checkouts keep resolving. Slug-shape validation and conflict
+     * handling live in AppModel.renameSlug.
+     */
+    async renameAppSlug(
+        user: SessionUser,
+        projectUuid: string,
+        { from, to }: { from: string; to: string },
+    ): Promise<void> {
+        if (!isValidDataAppSlug(to)) {
+            throw new ParameterError(
+                `Invalid data app slug "${to}". Slugs must start with a lowercase letter or digit and contain only lowercase letters, digits, and hyphens, up to 255 characters.`,
+            );
+        }
+        const app = await this.appModel.findAppBySlug(projectUuid, from);
+        if (!app) {
+            throw new NotFoundError(`Data app slug "${from}" not found`);
+        }
+        await this.assertAppsEnabled(user, app.template);
+        await this.assertCanManageApp(
+            user,
+            app,
+            `You don't have access to rename data app "${from}"`,
+        );
+        // Registry-managed apps mirror library content; their slug is the
+        // install identity and must not drift.
+        if (app.registry_slug !== null) {
+            throw new ForbiddenError(
+                `"${app.slug}" is an official chart type and its slug cannot be renamed.`,
+            );
+        }
+        await this.appModel.renameSlug({
+            projectUuid,
+            appUuid: app.app_id,
+            from,
+            to,
+        });
+    }
+
     /** Any version the caller can view is reportable; no session affinity. */
     async getDataAppBuildStatus(
         user: SessionUser,
@@ -12590,6 +13642,7 @@ export class AppGenerateService extends BaseService {
         if (!app) {
             throw new NotFoundError(`Data app "${slug}" was not found`);
         }
+        await this.assertAppsEnabled(user, app.template);
         await this.assertCanViewApp(user, app);
 
         const versionRow =
@@ -12609,6 +13662,7 @@ export class AppGenerateService extends BaseService {
                 uuid: app.app_id,
                 slug: app.slug,
                 name: app.name,
+                template: app.template,
                 spaceUuid: app.space_uuid,
             },
             version: {
@@ -12617,6 +13671,27 @@ export class AppGenerateService extends BaseService {
                 error: versionRow.error,
                 statusMessage: versionRow.status_message,
             },
+        };
+    }
+
+    /**
+     * Manifest provenance for a registry-installed version. Registry installs
+     * carry no dependency files; the provenance lets an upload re-install the
+     * same version instead of building from source. Undefined for custom apps.
+     */
+    private registryProvenanceFor(
+        app: Pick<DbApp, 'registry_slug' | 'registry_url'>,
+        versionRow: Pick<DbAppVersion, 'registry_version'> | null,
+    ): DataAppManifestRegistryProvenance | undefined {
+        if (!app.registry_slug || !versionRow?.registry_version) {
+            return undefined;
+        }
+        const url = app.registry_url ?? this.chartRegistryClient.getBaseUrl();
+        if (url === null) return undefined;
+        return {
+            slug: app.registry_slug,
+            version: versionRow.registry_version,
+            url,
         };
     }
 
@@ -12721,6 +13796,8 @@ export class AppGenerateService extends BaseService {
               ).get(app.app_id)
             : undefined;
 
+        const registryProvenance = this.registryProvenanceFor(app, versionRow);
+
         const manifest = buildManifest({
             slug: app.slug,
             version: resolvedVersion,
@@ -12756,6 +13833,7 @@ export class AppGenerateService extends BaseService {
                   }
                 : {}),
             ...(appAccess ? { access: appAccess } : {}),
+            ...(registryProvenance ? { registry: registryProvenance } : {}),
             downloadedAt: new Date().toISOString(),
         });
 
@@ -12821,7 +13899,8 @@ export class AppGenerateService extends BaseService {
         slug: string,
         designUuid: string | null,
     ): Promise<DataAppContext> {
-        await this.assertDataAppsEnabled(user);
+        // The CLI fetches this for data apps and chart types alike without naming the template.
+        await this.assertAnyAppsEnabled(user);
         const { organizationUuid } = await this.assertDataAppAbility(
             user,
             'create',
@@ -12855,13 +13934,15 @@ export class AppGenerateService extends BaseService {
 
         const { semanticLayer, semanticLayerFiles } = await (async () => {
             try {
-                const exploresByUuid =
-                    await this.projectModel.getAllExploresFromCache(
-                        projectUuid,
+                const [exploresByUuid, { tableSelection }] = await Promise.all([
+                    this.projectModel.getAllExploresFromCache(projectUuid),
+                    this.projectModel.getTablesConfiguration(projectUuid),
+                ]);
+                const explores = Object.values(exploresByUuid)
+                    .filter((e): e is Explore => !isExploreError(e))
+                    .filter((e) =>
+                        isExploreIncludedInTableSelection(e, tableSelection),
                     );
-                const explores = Object.values(exploresByUuid).filter(
-                    (e): e is Explore => !isExploreError(e),
-                );
                 // Chart usage only orders the index — degrade the ranking, not
                 // the whole semantic layer, when it is unavailable.
                 const chartUsageByTable = await (async () => {
@@ -13113,19 +14194,32 @@ export class AppGenerateService extends BaseService {
         }
     }
 
+    /**
+     * A direct-access rejection raised while importing a bundle is about the
+     * manifest's `access` block, but the generic message does not say so.
+     * Name the file, the app and the two ways out, keeping the original
+     * reason (permission, or the feature being unavailable) on the end.
+     */
+    private static describeAccessBlockRejection(
+        error: unknown,
+        manifest: Pick<DataAppCode['manifest'], 'slug' | 'name'>,
+    ): unknown {
+        if (!(error instanceof ForbiddenError)) {
+            return error;
+        }
+        const label = manifest.slug ?? manifest.name;
+        return new ForbiddenError(
+            `Cannot apply the access block in lightdash-app.yml for app "${label}": ${getErrorMessage(
+                error,
+            )}. Remove the access block to keep the app's existing sharing, or ask someone who can manage sharing on this app (a space admin or project admin) to upload it.`,
+        );
+    }
+
     async importAppCode(
         user: SessionUser,
         projectUuid: string,
         body: ImportAppCodeRequestBody,
-    ): Promise<{
-        appUuid: string;
-        version: number;
-        action: 'create' | 'append' | 'unchanged';
-        slug: string;
-        warnings: string[];
-    }> {
-        await this.assertDataAppsEnabled(user);
-
+    ): Promise<ImportAppCodeResult> {
         const code = validateDataAppCode(body.code);
         const sourceFiles = code.files.filter((f) => f.path.startsWith('src/'));
         if (sourceFiles.length === 0) {
@@ -13133,6 +14227,22 @@ export class AppGenerateService extends BaseService {
                 'Uploaded bundle has no src/ files to build',
             );
         }
+        const warnings: string[] = [];
+        // A bundle downloaded from a library install re-installs that version
+        // instead of building; the library flag alone gates that path.
+        if (code.manifest.registry !== undefined) {
+            const outcome = await this.tryImportRegistryChartType(
+                user,
+                projectUuid,
+                code.manifest.registry,
+                code.manifest.slug,
+                sourceFiles,
+                body,
+            );
+            if (outcome.kind === 'installed') return outcome.result;
+            warnings.push(outcome.warning);
+        }
+        await this.assertAppsEnabled(user, code.manifest.template);
 
         const { organizationUuid } =
             await this.getDataAppProjectContext(projectUuid);
@@ -13147,7 +14257,7 @@ export class AppGenerateService extends BaseService {
                 organizationUuid,
                 manifestLinks,
             );
-        const warnings = [...linkWarnings];
+        warnings.push(...linkWarnings);
 
         // Access block preflight also runs up front: unresolvable or
         // ambiguous principals reject the bundle before anything is written.
@@ -13159,9 +14269,7 @@ export class AppGenerateService extends BaseService {
                       user,
                       organizationUuid,
                       access: code.manifest.access,
-                      contentLabel: `App ${
-                          code.manifest.slug ?? code.manifest.name
-                      }`,
+                      contentLabel: `App ${code.manifest.slug ?? code.manifest.name}`,
                   })
                 : null;
 
@@ -13280,21 +14388,17 @@ export class AppGenerateService extends BaseService {
                     });
                     throw err;
                 }
-                // The per-org rollout gate applies when uploading a new custom
-                // dependency set. Once approved and stored, background builds,
-                // iterations, and downloads must continue to use that exact set.
-                const { enabled: orgAllowsCustomDeps } =
-                    await this.featureFlagModel.get({
-                        user,
-                        featureFlagId:
-                            FeatureFlags.EnableDataAppCustomDependencies,
-                    });
+                // The org setting gates uploading a new custom dependency set.
+                // Stored sets keep building after it is turned off.
+                const {
+                    dataAppCustomDependenciesEnabled: orgAllowsCustomDeps,
+                } = await this.organizationSettingsModel.get(organizationUuid);
                 if (!orgAllowsCustomDeps) {
                     trackUploadRejected('custom_dependencies_disabled_org', {
                         customDependencies,
                     });
                     throw new ParameterError(
-                        'Custom app dependencies are not enabled for your organization. Contact your admin to request access.',
+                        'Custom app dependencies are not enabled for your organization. An organization administrator can turn them on in Settings under Data apps > General.',
                     );
                 }
                 // Minimum-release-age guard (no-op unless the instance opts in
@@ -13386,11 +14490,16 @@ export class AppGenerateService extends BaseService {
         }
         // Registry-managed apps never receive uploads, including the
         // identical-bundle short-circuit below that only patches metadata.
-        if (existingApp) {
-            AppGenerateService.assertNotRegistryManaged(
-                existingApp,
-                'updated by upload',
+        if (existingApp && existingApp.registry_slug !== null) {
+            throw new ForbiddenError(
+                `"${existingApp.slug}" is an official chart type and cannot be updated by upload. Change the slug in lightdash-app.yml to upload a modified copy as a new chart type, or fork it in the app.`,
             );
+        }
+        if (
+            existingApp !== undefined &&
+            existingApp.template !== code.manifest.template
+        ) {
+            await this.assertAppsEnabled(user, existingApp.template);
         }
         const action: 'create' | 'append' =
             existingApp !== undefined ? 'append' : 'create';
@@ -13578,6 +14687,27 @@ export class AppGenerateService extends BaseService {
                     });
                 }
             }
+            // Authorize the declared access policy before the version row
+            // is written. The apply below runs after the row exists; a 403
+            // there used to orphan a pending version that still counted
+            // against the build cap. This runs after the space move on
+            // purpose: the policy is evaluated against the app's new
+            // location, exactly as the apply is.
+            if (directAccessAssignments !== null) {
+                try {
+                    await this.coderService.assertCanApplyDirectAccessPolicy(
+                        user,
+                        projectUuid,
+                        DirectAccessResourceType.APP,
+                        existingApp.app_id,
+                    );
+                } catch (error) {
+                    throw AppGenerateService.describeAccessBlockRejection(
+                        error,
+                        code.manifest,
+                    );
+                }
+            }
             newAppUuid = existingApp.app_id;
             newAppSlug = existingApp.slug;
             const latestVersion = await this.appModel.getLatestVersion(
@@ -13701,132 +14831,154 @@ export class AppGenerateService extends BaseService {
             newAppSlug = app.slug;
         }
 
-        // Reconcile links only when the manifest carries the field — bundles
-        // downloaded before link support must leave existing links untouched.
-        if (manifestLinks !== undefined) {
-            await this.externalConnectionModel.replaceAppLinks(
-                newAppUuid,
-                resolvedLinks,
-            );
-        }
+        // Everything from here to the enqueue runs with a pending version
+        // row already committed. If any step throws, the row must not stay
+        // pending: it would count against the per-project build cap with
+        // no job behind it. Mark it error and surface the original cause.
+        try {
+            // Reconcile links only when the manifest carries the field — bundles
+            // downloaded before link support must leave existing links untouched.
+            if (manifestLinks !== undefined) {
+                await this.externalConnectionModel.replaceAppLinks(
+                    newAppUuid,
+                    resolvedLinks,
+                );
+            }
 
-        // Same reconciliation contract for the direct policy: present
-        // (including empty) → atomic replacement; absent → untouched.
-        if (directAccessAssignments !== null) {
-            await this.coderService.applyDirectAccessPolicy(
-                user,
-                projectUuid,
-                DirectAccessResourceType.APP,
-                newAppUuid,
-                directAccessAssignments,
-            );
-        }
-
-        await this.extractAndPersistVersionDataReferences(
-            newAppUuid,
-            newVersion,
-            sourceFiles,
-        );
-
-        // Re-tar the source files into a single source.tar Buffer
-        const sourceTar = await new Promise<Buffer>((resolve, reject) => {
-            const packer = tarPack();
-            const chunks: Buffer[] = [];
-            packer.on('data', (chunk: Buffer) => chunks.push(chunk));
-            packer.on('end', () => resolve(Buffer.concat(chunks)));
-            packer.on('error', reject);
-
-            const addNext = (index: number): void => {
-                if (index >= sourceFiles.length) {
-                    packer.finalize();
-                    return;
+            // Same reconciliation contract for the direct policy: present
+            // (including empty) → atomic replacement; absent → untouched.
+            if (directAccessAssignments !== null) {
+                try {
+                    await this.coderService.applyDirectAccessPolicy(
+                        user,
+                        projectUuid,
+                        DirectAccessResourceType.APP,
+                        newAppUuid,
+                        directAccessAssignments,
+                    );
+                } catch (error) {
+                    throw AppGenerateService.describeAccessBlockRejection(
+                        error,
+                        code.manifest,
+                    );
                 }
-                const file = sourceFiles[index];
-                const content = Buffer.from(file.contentBase64, 'base64');
-                packer.entry({ name: file.path }, content, (err) => {
-                    if (err) {
-                        reject(err);
+            }
+
+            await this.extractAndPersistVersionDataReferences(
+                newAppUuid,
+                newVersion,
+                sourceFiles,
+            );
+
+            // Re-tar the source files into a single source.tar Buffer
+            const sourceTar = await new Promise<Buffer>((resolve, reject) => {
+                const packer = tarPack();
+                const chunks: Buffer[] = [];
+                packer.on('data', (chunk: Buffer) => chunks.push(chunk));
+                packer.on('end', () => resolve(Buffer.concat(chunks)));
+                packer.on('error', reject);
+
+                const addNext = (index: number): void => {
+                    if (index >= sourceFiles.length) {
+                        packer.finalize();
                         return;
                     }
-                    addNext(index + 1);
-                });
-            };
-            addNext(0);
-        });
+                    const file = sourceFiles[index];
+                    const content = Buffer.from(file.contentBase64, 'base64');
+                    packer.entry({ name: file.path }, content, (err) => {
+                        if (err) {
+                            reject(err);
+                            return;
+                        }
+                        addNext(index + 1);
+                    });
+                };
+                addNext(0);
+            });
 
-        // Store source.tar in S3
-        const { client, bucket } = this.getS3Client();
-        await client.send(
-            new PutObjectCommand({
-                Bucket: bucket,
-                Key: `${versionPrefix(newAppUuid, newVersion)}source.tar`,
-                Body: sourceTar,
-                ContentType: 'application/x-tar',
-            }),
-        );
-
-        // Store the declared dependency files next to the source archive so
-        // download can round-trip them (builds consume them in a later slice).
-        // The stored package.json carries the TRUSTED template scripts, not
-        // the uploader's — the sandbox `pnpm build` and every downstream
-        // download read this file, so script commands must stay server-owned.
-        if (
-            dependencySummary !== undefined &&
-            code.dependencies !== undefined
-        ) {
-            const depsPrefix = `${versionPrefix(newAppUuid, newVersion)}deps/`;
+            // Store source.tar in S3
+            const { client, bucket } = this.getS3Client();
             await client.send(
                 new PutObjectCommand({
                     Bucket: bucket,
-                    Key: `${depsPrefix}package.json`,
-                    Body: sanitizeAppPackageJsonScripts(
-                        code.dependencies.packageJson,
-                        TEMPLATE_SCRIPTS,
-                        TEMPLATE_DEV_DEPENDENCIES,
-                    ),
-                    ContentType: 'application/json',
+                    Key: `${versionPrefix(newAppUuid, newVersion)}source.tar`,
+                    Body: sourceTar,
+                    ContentType: 'application/x-tar',
                 }),
             );
-            await client.send(
-                new PutObjectCommand({
-                    Bucket: bucket,
-                    Key: `${depsPrefix}pnpm-lock.yaml`,
-                    Body: code.dependencies.lockfile,
-                    ContentType: 'text/yaml',
-                }),
-            );
-        }
 
-        // Enqueue the build-only pipeline
-        await this.schedulerClient.appBuildFromSource({
-            appUuid: newAppUuid,
-            version: newVersion,
-            projectUuid,
-            organizationUuid,
-            userUuid: user.userUuid,
-        });
+            // Store the declared dependency files next to the source archive so
+            // download can round-trip them (builds consume them in a later slice).
+            // The stored package.json carries the TRUSTED template scripts, not
+            // the uploader's — the sandbox `pnpm build` and every downstream
+            // download read this file, so script commands must stay server-owned.
+            if (
+                dependencySummary !== undefined &&
+                code.dependencies !== undefined
+            ) {
+                const depsPrefix = `${versionPrefix(newAppUuid, newVersion)}deps/`;
+                await client.send(
+                    new PutObjectCommand({
+                        Bucket: bucket,
+                        Key: `${depsPrefix}package.json`,
+                        Body: sanitizeAppPackageJsonScripts(
+                            code.dependencies.packageJson,
+                            TEMPLATE_SCRIPTS,
+                            TEMPLATE_DEV_DEPENDENCIES,
+                        ),
+                        ContentType: 'application/json',
+                    }),
+                );
+                await client.send(
+                    new PutObjectCommand({
+                        Bucket: bucket,
+                        Key: `${depsPrefix}pnpm-lock.yaml`,
+                        Body: code.dependencies.lockfile,
+                        ContentType: 'text/yaml',
+                    }),
+                );
+            }
 
-        this.analytics.track({
-            event: 'data_app.uploaded',
-            userId: user.userUuid,
-            properties: {
-                organizationId: organizationUuid,
-                projectId: projectUuid,
+            // Enqueue the build-only pipeline
+            await this.schedulerClient.appBuildFromSource({
                 appUuid: newAppUuid,
                 version: newVersion,
-                action,
-                template: code.manifest.template,
-                sourceFileCount: sourceFiles.length,
-                sourceBytes: sourceTar.length,
-                hasCustomDependencies: dependencySummary !== undefined,
-                customDependencyCount: dependencySummary?.custom.length ?? 0,
-                customDependencies: dependencySummary?.custom ?? [],
-                identitySource,
-                ...(dependencySummary !== undefined
-                    ? { lockfileHash: dependencySummary.lockfileHash }
-                    : {}),
-            },
-        });
+                projectUuid,
+                organizationUuid,
+                userUuid: user.userUuid,
+            });
+
+            this.analytics.track({
+                event: 'data_app.uploaded',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    appUuid: newAppUuid,
+                    version: newVersion,
+                    action,
+                    template: code.manifest.template,
+                    sourceFileCount: sourceFiles.length,
+                    sourceBytes: sourceTar.length,
+                    hasCustomDependencies: dependencySummary !== undefined,
+                    customDependencyCount:
+                        dependencySummary?.custom.length ?? 0,
+                    customDependencies: dependencySummary?.custom ?? [],
+                    identitySource,
+                    ...(dependencySummary !== undefined
+                        ? { lockfileHash: dependencySummary.lockfileHash }
+                        : {}),
+                },
+            });
+        } catch (error) {
+            await this.markError(
+                newAppUuid,
+                newVersion,
+                error,
+                'Upload failed before the build started',
+            );
+            throw error;
+        }
 
         return {
             appUuid: newAppUuid,
@@ -13855,12 +15007,22 @@ export class AppGenerateService extends BaseService {
             );
             return;
         }
-        const { client, bucket } = this.getS3Client();
-        const copilot = await this.getCodingAgentConfig(organizationUuid);
-
-        // Look up the version's custom dependency set once — null means the
-        // build uses the template set only (no install step).
-        const versionRow = await this.appModel.getVersion(appUuid, version);
+        let client: S3Client;
+        let bucket: string;
+        let copilot: CodingAgentConfig;
+        let versionRow: Awaited<ReturnType<AppModel['getVersion']>>;
+        try {
+            ({ client, bucket } = this.getS3Client());
+            copilot = await this.getCodingAgentConfig(organizationUuid);
+            // Look up the version's custom dependency set once — null means
+            // the build uses the template set only (no install step).
+            versionRow = await this.appModel.getVersion(appUuid, version);
+        } catch (error) {
+            // Nothing has started yet, but the version is already pending
+            // and holding a build slot — never leave it there.
+            await this.markError(appUuid, version, error, 'Build failed');
+            return;
+        }
         const versionDeps = versionRow?.dependencies ?? null;
         const registryHosts =
             versionDeps !== null

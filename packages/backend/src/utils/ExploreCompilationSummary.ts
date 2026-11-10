@@ -21,6 +21,7 @@ export type ExploreCompilationAnalytics = {
     modelsWithSqlFiltersCount: number;
     columnAccessFiltersCount: number;
     additionalDimensionsCount: number;
+    nestedFieldsCount: number;
 };
 
 export class ExploreCompilationSummary {
@@ -37,6 +38,7 @@ export class ExploreCompilationSummary {
         modelsWithSqlFiltersCount: 0,
         columnAccessFiltersCount: 0,
         additionalDimensionsCount: 0,
+        nestedFieldsCount: 0,
     };
 
     public readonly caseSensitiveExplores: { name: string; value: boolean }[] =
@@ -142,6 +144,16 @@ export class ExploreCompilationSummary {
         this.analytics.additionalDimensionsCount += Object.values(
             explore.tables[explore.baseTable]?.dimensions ?? {},
         ).filter(({ isAdditionalDimension }) => isAdditionalDimension).length;
+        // Fields on tables unnested from a repeated column
+        this.analytics.nestedFieldsCount += Object.values(explore.tables)
+            .filter(({ nestedFrom }) => nestedFrom !== undefined)
+            .reduce(
+                (count, table) =>
+                    count +
+                    Object.keys(table.dimensions).length +
+                    Object.keys(table.metrics).length,
+                0,
+            );
     }
 
     public get report(): CompilationHistoryReport {

@@ -14,7 +14,6 @@ import ExportResults from '.';
 import { renderWithProviders } from '../../testing/testUtils';
 import {
     getExportCellEstimate,
-    DEFAULT_EXPORT_TIMEOUT_MS,
     getExportTimeoutMinutes,
     isLargeExport,
     LARGE_EXPORT_CELLS_WARNING_THRESHOLD,
@@ -271,10 +270,6 @@ describe('getExportCellEstimate', () => {
             expect(getExportTimeoutMinutes(exportTimeoutMs)).toBe(10);
         },
     );
-
-    it('matches the default scheduler job timeout', () => {
-        expect(DEFAULT_EXPORT_TIMEOUT_MS).toBe(600_000);
-    });
 });
 
 describe('ExportResults large export warning', () => {

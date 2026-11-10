@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     DirectAccessResourceType,
-    FeatureFlags,
     type ResourceViewDocumentItem,
 } from '@lightdash/common';
 import { ActionIcon, Menu, Tooltip } from '@mantine/core';
@@ -23,9 +22,9 @@ import {
     useDirectAccessAvailability,
 } from '../../../features/directAccess';
 import DocumentDuplicateModal from '../../../features/documents/DocumentDuplicateModal';
+import { getListedDocumentAccess } from '../../../features/documents/listedDocumentAccess';
 import { useCanDeleteDocument } from '../../../features/documents/useCanDeleteDocument';
 import { useDocumentCreationSpaces } from '../../../features/documents/useDocumentCreationSpaces';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
 import useFavoritesContext from '../../../providers/Favorites/useFavoritesContext';
@@ -51,7 +50,6 @@ const DocumentResourceActionMenu = ({
     const { user } = useApp();
     const favoritesContext = useFavoritesContext();
     const isFavorite = favoritesContext?.isFavorited(item.data.uuid) ?? false;
-    const flag = useServerFeatureFlag(FeatureFlags.Documents);
     const availability = useDirectAccessAvailability();
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
     const [isShareOpen, setIsShareOpen] = useState(false);
@@ -66,6 +64,9 @@ const DocumentResourceActionMenu = ({
         grantRoles: directAccessRoles,
     });
     const space = spaces.find(({ uuid }) => uuid === spaceUuid);
+    // Pinning, favorites and sharing need a Space first
+    const isPersonal = spaceUuid === null;
+    const access = getListedDocumentAccess(item.data, space?.userAccess);
     const canMove =
         user.data?.ability.can(
             'update',
@@ -74,10 +75,11 @@ const DocumentResourceActionMenu = ({
                 projectUuid,
                 inheritsFromOrgOrProject:
                     space?.inheritsFromOrgOrProject ?? false,
-                access: space?.userAccess ? [space.userAccess] : [],
+                access,
             }),
         ) === true;
     const canPin =
+        !isPersonal &&
         user.data?.ability.can(
             'manage',
             subject('PinnedItems', {
@@ -86,18 +88,20 @@ const DocumentResourceActionMenu = ({
             }),
         ) === true;
     const isPinned = !!item.data.pinnedListUuid;
-    const canShare = availability.isAvailable && canManageAccess;
-    const hasDeleteAccess = useCanDeleteDocument(item.data);
+    const canShare = !isPersonal && availability.isAvailable && canManageAccess;
+    const favorites = isPersonal ? null : favoritesContext;
+    const hasDeleteAccess = useCanDeleteDocument({
+        ...item.data,
+        access: isPersonal ? access : [],
+    });
     const canDelete = allowDelete && hasDeleteAccess;
     if (
-        flag.isError ||
-        !flag.data?.enabled ||
-        (!canPin &&
-            !canMove &&
-            !canShare &&
-            !canDelete &&
-            !canDuplicate &&
-            !favoritesContext)
+        !canPin &&
+        !canMove &&
+        !canShare &&
+        !canDelete &&
+        !canDuplicate &&
+        !favorites
     ) {
         return null;
     }
@@ -140,7 +144,7 @@ const DocumentResourceActionMenu = ({
                                 : 'Pin to homepage'}
                         </Menu.Item>
                     )}
-                    {favoritesContext && (
+                    {favorites && (
                         <Menu.Item
                             leftSection={
                                 <MantineIcon
@@ -151,7 +155,7 @@ const DocumentResourceActionMenu = ({
                                 />
                             }
                             onClick={() =>
-                                favoritesContext.toggleFavorite(
+                                favorites.toggleFavorite(
                                     item.type,
                                     item.data.uuid,
                                 )
@@ -182,7 +186,7 @@ const DocumentResourceActionMenu = ({
                                 })
                             }
                         >
-                            Move
+                            {isPersonal ? 'Save to space' : 'Move'}
                         </Menu.Item>
                     )}
                     {canShare && (

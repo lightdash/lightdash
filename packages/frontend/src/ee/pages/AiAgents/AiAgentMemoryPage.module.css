@@ -22,7 +22,7 @@
 
 .surface {
     overflow: hidden;
-    background: light-dark(#fff, var(--mantine-color-dark-7));
+    background: var(--mantine-color-body);
     box-shadow: var(--mantine-shadow-subtle);
 }
 

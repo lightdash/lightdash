@@ -372,16 +372,16 @@ describe('buildPreAggregateExplore', () => {
 
         expect(
             result.tables.orders.metrics.total_order_amount.compiledSql,
-        ).toBe('SUM(orders.orders_total_order_amount)');
+        ).toBe('SUM("orders"."orders_total_order_amount")');
         expect(result.tables.orders.metrics.order_count.compiledSql).toBe(
-            'SUM(orders.orders_order_count)',
+            'SUM("orders"."orders_order_count")',
         );
         expect(result.tables.orders.metrics.avg_order_amount.compiledSql).toBe(
-            'CAST(SUM(orders.orders_avg_order_amount__sum) AS DOUBLE) / CAST(NULLIF(SUM(orders.orders_avg_order_amount__count), 0) AS DOUBLE)',
+            'CAST(SUM("orders"."orders_avg_order_amount__sum") AS DOUBLE) / CAST(NULLIF(SUM("orders"."orders_avg_order_amount__count"), 0) AS DOUBLE)',
         );
         expect(
             result.tables.customers.metrics.max_customer_age.compiledSql,
-        ).toBe('MAX(orders.customers_max_customer_age)');
+        ).toBe('MAX("orders"."customers_max_customer_age")');
     });
 
     it('maps joined dimensions to materialized field-id columns', () => {
@@ -391,7 +391,7 @@ describe('buildPreAggregateExplore', () => {
         );
 
         expect(result.tables.customers.dimensions.first_name.compiledSql).toBe(
-            'orders.customers_first_name',
+            '"orders"."customers_first_name"',
         );
     });
 
@@ -402,11 +402,11 @@ describe('buildPreAggregateExplore', () => {
         );
 
         expect(result.tables.orders.dimensions.order_date_day.compiledSql).toBe(
-            'orders.orders_order_date_day',
+            '"orders"."orders_order_date_day"',
         );
         expect(
             result.tables.orders.dimensions.order_date_month.compiledSql,
-        ).toContain('orders.orders_order_date_day');
+        ).toContain('"orders"."orders_order_date_day"');
         expect(result.tables.orders.dimensions.order_date_hour).toBeUndefined();
     });
 
@@ -456,7 +456,7 @@ describe('buildPreAggregateExplore', () => {
 
         expect(
             result.tables.orders.dimensions.order_date_month.compiledSql,
-        ).toContain("DATE_TRUNC('MONTH', orders.orders_order_date_day)");
+        ).toContain('DATE_TRUNC(\'MONTH\', "orders"."orders_order_date_day")');
     });
 
     it('applies startOfWeek to week re-truncation', () => {
@@ -469,7 +469,7 @@ describe('buildPreAggregateExplore', () => {
         expect(
             result.tables.orders.dimensions.order_date_week.compiledSql,
         ).toBe(
-            "(DATE_TRUNC('WEEK', (orders.orders_order_date_day - interval '6 days')) + interval '6 days')",
+            "(DATE_TRUNC('WEEK', (\"orders\".\"orders_order_date_day\" - interval '6 days')) + interval '6 days')",
         );
     });
 
@@ -481,7 +481,7 @@ describe('buildPreAggregateExplore', () => {
 
         expect(
             result.tables.orders.dimensions.order_date_week.compiledSql,
-        ).toBe("DATE_TRUNC('WEEK', orders.orders_order_date_day)");
+        ).toBe('DATE_TRUNC(\'WEEK\', "orders"."orders_order_date_day")');
     });
 
     it('derives named time frames with the serving warehouse function', () => {
@@ -492,7 +492,7 @@ describe('buildPreAggregateExplore', () => {
 
         expect(
             result.tables.orders.dimensions.order_date_month_name.compiledSql,
-        ).toBe("strftime(orders.orders_order_date_day, '%B')");
+        ).toBe('strftime("orders"."orders_order_date_day", \'%B\')');
     });
 
     describe('external pre-aggregates', () => {
@@ -517,6 +517,51 @@ describe('buildPreAggregateExplore', () => {
             });
         });
 
+        it('quotes table and column references so case-sensitive warehouses resolve them', () => {
+            const result = buildExplore(
+                {
+                    ...sourceExplore(),
+                    targetDatabase: SupportedDbtAdapter.SNOWFLAKE,
+                },
+                externalDef(),
+            );
+
+            expect(result.tables.orders.dimensions.status.compiledSql).toBe(
+                '"orders"."orders_status"',
+            );
+            expect(
+                result.tables.customers.dimensions.first_name.compiledSql,
+            ).toBe('"orders"."customers_first_name"');
+            expect(
+                result.tables.orders.metrics.total_order_amount.compiledSql,
+            ).toBe('SUM("orders"."orders_total_order_amount")');
+            expect(
+                result.tables.orders.metrics.avg_order_amount.compiledSql,
+            ).toBe(
+                'CAST(SUM("orders"."orders_avg_order_amount__sum") AS FLOAT) / CAST(NULLIF(SUM("orders"."orders_avg_order_amount__count"), 0) AS FLOAT)',
+            );
+            expect(
+                result.tables.customers.metrics.max_customer_age.compiledSql,
+            ).toBe('MAX("orders"."customers_max_customer_age")');
+            expect(
+                result.tables.orders.dimensions.order_date_month.compiledSql,
+            ).toContain('"orders"."orders_order_date_day"');
+        });
+
+        it('quotes references with the project warehouse quote character', () => {
+            const result = buildExplore(
+                {
+                    ...sourceExplore(),
+                    targetDatabase: SupportedDbtAdapter.BIGQUERY,
+                },
+                externalDef(),
+            );
+
+            expect(result.tables.orders.dimensions.status.compiledSql).toBe(
+                '`orders`.`orders_status`',
+            );
+        });
+
         it('compiles average re-aggregation casts in the project warehouse dialect', () => {
             const postgresResult = buildExplore(
                 sourceExplore(), // targetDatabase: postgres
@@ -526,7 +571,7 @@ describe('buildPreAggregateExplore', () => {
                 postgresResult.tables.orders.metrics.avg_order_amount
                     .compiledSql,
             ).toBe(
-                'CAST(SUM(orders.orders_avg_order_amount__sum) AS FLOAT) / CAST(NULLIF(SUM(orders.orders_avg_order_amount__count), 0) AS FLOAT)',
+                'CAST(SUM("orders"."orders_avg_order_amount__sum") AS FLOAT) / CAST(NULLIF(SUM("orders"."orders_avg_order_amount__count"), 0) AS FLOAT)',
             );
 
             const bigqueryResult = buildExplore(
@@ -540,7 +585,7 @@ describe('buildPreAggregateExplore', () => {
                 bigqueryResult.tables.orders.metrics.avg_order_amount
                     .compiledSql,
             ).toBe(
-                'CAST(SUM(orders.orders_avg_order_amount__sum) AS FLOAT64) / CAST(NULLIF(SUM(orders.orders_avg_order_amount__count), 0) AS FLOAT64)',
+                'CAST(SUM(`orders`.`orders_avg_order_amount__sum`) AS FLOAT64) / CAST(NULLIF(SUM(`orders`.`orders_avg_order_amount__count`), 0) AS FLOAT64)',
             );
         });
 
@@ -556,7 +601,7 @@ describe('buildPreAggregateExplore', () => {
             // BigQuery argument order, not DuckDB's DATE_TRUNC('MONTH', x)
             expect(
                 result.tables.orders.dimensions.order_date_month.compiledSql,
-            ).toBe('DATE_TRUNC(orders.orders_order_date_day, MONTH)');
+            ).toBe('DATE_TRUNC(`orders`.`orders_order_date_day`, MONTH)');
         });
 
         it('derives named time frames with the project warehouse function', () => {
@@ -571,7 +616,7 @@ describe('buildPreAggregateExplore', () => {
             expect(
                 result.tables.orders.dimensions.order_date_month_name
                     .compiledSql,
-            ).toBe("FORMAT_DATE('%B', orders.orders_order_date_day)");
+            ).toBe("FORMAT_DATE('%B', `orders`.`orders_order_date_day`)");
         });
 
         it('preserves timestamp materialization types for named time frames', () => {
@@ -585,7 +630,7 @@ describe('buildPreAggregateExplore', () => {
             expect(
                 result.tables.orders.dimensions.order_date_month_name
                     .compiledSql,
-            ).toBe("FORMAT_DATETIME('%B', orders.orders_order_date_day)");
+            ).toBe("FORMAT_DATETIME('%B', `orders`.`orders_order_date_day`)");
         });
     });
 
@@ -620,13 +665,13 @@ describe('buildPreAggregateExplore', () => {
 
         expect(
             result.tables.orders.metrics.distinct_customer_count.compiledSql,
-        ).toBe('MAX(orders.orders_distinct_customer_count)');
+        ).toBe('MAX("orders"."orders_distinct_customer_count")');
         expect(
             result.tables.orders.metrics.distinct_customer_count.hidden,
         ).toBe(true);
         expect(
             result.tables.orders.metrics.median_order_amount.compiledSql,
-        ).toBe('MAX(orders.orders_median_order_amount)');
+        ).toBe('MAX("orders"."orders_median_order_amount")');
         expect(result.tables.orders.metrics.median_order_amount.hidden).toBe(
             true,
         );
@@ -689,13 +734,13 @@ describe('buildPreAggregateExplore', () => {
         });
 
         expect(result.tables.orders.metrics.gross_total.compiledSql).toBe(
-            '(SUM(orders.orders_total_order_amount)) + (SUM(orders.orders_shipping_total))',
+            '(SUM("orders"."orders_total_order_amount")) + (SUM("orders"."orders_shipping_total"))',
         );
         expect(
             result.tables.orders.metrics.total_order_amount.compiledSql,
-        ).toBe('SUM(orders.orders_total_order_amount)');
+        ).toBe('SUM("orders"."orders_total_order_amount")');
         expect(result.tables.orders.metrics.shipping_total.compiledSql).toBe(
-            'SUM(orders.orders_shipping_total)',
+            'SUM("orders"."orders_shipping_total")',
         );
     });
 
@@ -714,10 +759,10 @@ describe('buildPreAggregateExplore', () => {
             result.tables.orders.metrics
                 .total_order_amount_plus_average_customer_age.compiledSql,
         ).toBe(
-            '(SUM(orders.orders_total_order_amount)) + (CAST(SUM(orders.customers_average_age__sum) AS DOUBLE) / CAST(NULLIF(SUM(orders.customers_average_age__count), 0) AS DOUBLE))',
+            '(SUM("orders"."orders_total_order_amount")) + (CAST(SUM("orders"."customers_average_age__sum") AS DOUBLE) / CAST(NULLIF(SUM("orders"."customers_average_age__count"), 0) AS DOUBLE))',
         );
         expect(result.tables.customers.metrics.average_age.compiledSql).toBe(
-            'CAST(SUM(orders.customers_average_age__sum) AS DOUBLE) / CAST(NULLIF(SUM(orders.customers_average_age__count), 0) AS DOUBLE)',
+            'CAST(SUM("orders"."customers_average_age__sum") AS DOUBLE) / CAST(NULLIF(SUM("orders"."customers_average_age__count"), 0) AS DOUBLE)',
         );
     });
 
@@ -732,7 +777,7 @@ describe('buildPreAggregateExplore', () => {
 
         expect(result.tables.orders.dimensions.order_date_day).toBeDefined();
         expect(result.tables.orders.dimensions.order_date_day.compiledSql).toBe(
-            'orders.orders_order_date_day',
+            '"orders"."orders_order_date_day"',
         );
         expect(result.tables.orders.dimensions.status).toBeDefined();
     });
@@ -764,7 +809,7 @@ describe('buildPreAggregateExplore', () => {
 
         expect(result.tables.orders.dimensions.status_label).toBeDefined();
         expect(result.tables.orders.dimensions.status_label.compiledSql).toBe(
-            'orders.orders_status_label',
+            '"orders"."orders_status_label"',
         );
     });
 
@@ -867,7 +912,7 @@ describe('buildPreAggregateExplore', () => {
 
         expect(result.tables.orders.metrics.order_revenue).toBeDefined();
         expect(result.tables.orders.metrics.order_revenue.compiledSql).toBe(
-            'SUM(orders.orders_order_revenue)',
+            'SUM("orders"."orders_order_revenue")',
         );
     });
 
@@ -975,10 +1020,10 @@ describe('sql_filter (sqlWhere) rewrite', () => {
         );
 
         expect(result.tables.orders.sqlWhere).toBe(
-            'orders.customers_first_name = ${lightdash.attributes.name}',
+            '"orders"."customers_first_name" = ${lightdash.attributes.name}',
         );
         expect(result.tables.orders.uncompiledSqlWhere).toBe(
-            'orders.customers_first_name = ${lightdash.attributes.name}',
+            '"orders"."customers_first_name" = ${lightdash.attributes.name}',
         );
     });
 
@@ -989,7 +1034,7 @@ describe('sql_filter (sqlWhere) rewrite', () => {
         );
 
         expect(result.tables.orders.sqlWhere).toBe(
-            "orders.orders_status = 'completed'",
+            '"orders"."orders_status" = \'completed\'',
         );
     });
 
@@ -1002,10 +1047,10 @@ describe('sql_filter (sqlWhere) rewrite', () => {
         );
 
         expect(result.tables.orders.sqlWhere).toBe(
-            'orders.customers_first_name = ${lightdash.attributes.name}',
+            '"orders"."customers_first_name" = ${lightdash.attributes.name}',
         );
         expect(result.tables.orders.uncompiledSqlWhere).toBe(
-            'orders.customers_first_name = ${lightdash.attributes.name}',
+            '"orders"."customers_first_name" = ${lightdash.attributes.name}',
         );
     });
 
@@ -1029,7 +1074,7 @@ describe('sql_filter (sqlWhere) rewrite', () => {
         );
 
         expect(result.tables.orders.sqlWhere).toBe(
-            "orders.orders_order_date_day >= '2024-01-01'",
+            '"orders"."orders_order_date_day" >= \'2024-01-01\'',
         );
     });
 
@@ -1042,7 +1087,7 @@ describe('sql_filter (sqlWhere) rewrite', () => {
         );
 
         expect(result.tables.orders.sqlWhere).toBe(
-            'orders.customers_first_name = ${lightdash.attributes.name}',
+            '"orders"."customers_first_name" = ${lightdash.attributes.name}',
         );
     });
 });

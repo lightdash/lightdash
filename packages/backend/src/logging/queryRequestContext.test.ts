@@ -1,4 +1,8 @@
-import { LightdashAppUuidHeader } from '@lightdash/common';
+import {
+    LightdashAppUuidHeader,
+    LightdashRequestMethodHeader,
+    RequestMethod,
+} from '@lightdash/common';
 import type { Request, Response } from 'express';
 import {
     getQueryRequestContext,
@@ -37,4 +41,26 @@ it('isolates server-generated timing/identity and preserves app attribution per 
     expect(JSON.stringify([a, b])).not.toContain('secret');
     expect(JSON.stringify([a, b])).not.toContain('client-controlled');
     expect(getQueryRequestContext()).toEqual({});
+});
+
+it.each([
+    ['DESKTOP', RequestMethod.DESKTOP],
+    [undefined, RequestMethod.UNKNOWN],
+    ['not-a-client', RequestMethod.UNKNOWN],
+])('keeps the request method header %s as %s', (header, expected) => {
+    expect.assertions(1);
+    requestExecutionContextMiddleware(
+        {
+            account: { organization: { organizationUuid: 'org' } },
+            headers: {
+                ...(header
+                    ? { [LightdashRequestMethodHeader.toLowerCase()]: header }
+                    : {}),
+            },
+        } as unknown as Request,
+        {} as Response,
+        () => {
+            expect(getQueryRequestContext().request_method).toBe(expected);
+        },
+    );
 });

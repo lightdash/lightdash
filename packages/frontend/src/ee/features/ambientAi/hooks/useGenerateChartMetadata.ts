@@ -6,15 +6,19 @@ import {
     type Explore,
     type GenerateChartMetadataRequest,
     type GeneratedChartMetadata,
+    type ItemsMap,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
+import { useAmbientAiEnabled } from './useAmbientAiEnabled';
 
 // 5 second timeout for AI metadata generation - anything longer is too disruptive
 const METADATA_GENERATION_TIMEOUT_MS = 6000;
 
-const generateChartMetadataApi = async (
+export const generateChartMetadataApi = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     payload: GenerateChartMetadataRequest,
     signal?: AbortSignal,
@@ -25,6 +29,61 @@ const generateChartMetadataApi = async (
         body: JSON.stringify(payload),
         signal,
     });
+
+/** The parts of a chart version that its metadata is generated from. */
+export type ChartMetadataSource = Pick<
+    CreateSavedChartVersion,
+    'tableName' | 'metricQuery' | 'chartConfig'
+>;
+
+export const getChartMetadataItemsMap = (
+    explore: Explore,
+    chart: ChartMetadataSource,
+): ItemsMap =>
+    getItemMap(
+        explore,
+        chart.metricQuery.additionalMetrics,
+        chart.metricQuery.tableCalculations,
+        chart.metricQuery.customDimensions,
+    );
+
+/** Builds the generate request from the chart's query and its field labels. */
+export const buildChartMetadataRequest = (
+    chart: ChartMetadataSource,
+    itemsMap: ItemsMap,
+): GenerateChartMetadataRequest => {
+    const usedFieldIds = new Set([
+        ...chart.metricQuery.dimensions,
+        ...chart.metricQuery.metrics,
+        ...(chart.metricQuery.tableCalculations ?? []).map((tc) => tc.name),
+    ]);
+
+    const fieldsContext = Object.entries(itemsMap)
+        .filter(([id]) => usedFieldIds.has(id))
+        .map(([id, item]) => ({
+            id,
+            name: item.name,
+            label: isField(item)
+                ? item.label
+                : 'displayName' in item
+                  ? (item.displayName ?? item.name)
+                  : item.name,
+            description: isField(item) ? item.description : undefined,
+            type: item.type ?? 'unknown',
+        }));
+
+    return {
+        tableName: chart.tableName,
+        chartType: chart.chartConfig?.type ?? 'unknown',
+        dimensions: chart.metricQuery.dimensions,
+        metrics: chart.metricQuery.metrics,
+        filters: chart.metricQuery.filters,
+        fieldsContext,
+        chartConfigJson: chart.chartConfig?.config
+            ? JSON.stringify(chart.chartConfig.config)
+            : undefined,
+    };
+};
 
 export type ChartMetadata = {
     name: string;
@@ -48,6 +107,8 @@ export const useGenerateChartMetadata = ({
     explore,
     onComplete,
 }: UseGenerateChartMetadataOptions) => {
+    const lightdashApi = useLightdashApi();
+    const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid);
     const [generatedMetadata, setGeneratedMetadata] =
         useState<ChartMetadata | null>(null);
 
@@ -106,6 +167,7 @@ export const useGenerateChartMetadata = ({
             }, METADATA_GENERATION_TIMEOUT_MS);
 
             return generateChartMetadataApi(
+                lightdashApi,
                 projectUuid,
                 payload,
                 controller.signal,
@@ -133,7 +195,7 @@ export const useGenerateChartMetadata = ({
 
     // Trigger AI metadata generation
     const trigger = useCallback(() => {
-        if (!projectUuid || !itemsMap) return;
+        if (!isAmbientAiEnabled || !projectUuid || !itemsMap) return;
 
         // Skip if we already generated for this exact chart state
         if (lastGeneratedForKey.current === chartStateKey) return;
@@ -143,40 +205,17 @@ export const useGenerateChartMetadata = ({
         // Reset previous metadata
         setGeneratedMetadata(null);
 
-        const usedFieldIds = new Set([
-            ...unsavedChartVersion.metricQuery.dimensions,
-            ...unsavedChartVersion.metricQuery.metrics,
-            ...(unsavedChartVersion.metricQuery.tableCalculations ?? []).map(
-                (tc) => tc.name,
-            ),
-        ]);
-
-        const fieldsContext = Object.entries(itemsMap)
-            .filter(([id]) => usedFieldIds.has(id))
-            .map(([id, item]) => ({
-                id,
-                name: item.name,
-                label: isField(item)
-                    ? item.label
-                    : 'displayName' in item
-                      ? (item.displayName ?? item.name)
-                      : item.name,
-                description: isField(item) ? item.description : undefined,
-                type: item.type ?? 'unknown',
-            }));
-
-        mutation.mutate({
-            tableName: unsavedChartVersion.tableName,
-            chartType: unsavedChartVersion.chartConfig?.type ?? 'unknown',
-            dimensions: unsavedChartVersion.metricQuery.dimensions,
-            metrics: unsavedChartVersion.metricQuery.metrics,
-            filters: unsavedChartVersion.metricQuery.filters,
-            fieldsContext,
-            chartConfigJson: unsavedChartVersion.chartConfig?.config
-                ? JSON.stringify(unsavedChartVersion.chartConfig.config)
-                : undefined,
-        });
-    }, [projectUuid, itemsMap, chartStateKey, unsavedChartVersion, mutation]);
+        mutation.mutate(
+            buildChartMetadataRequest(unsavedChartVersion, itemsMap),
+        );
+    }, [
+        isAmbientAiEnabled,
+        projectUuid,
+        itemsMap,
+        chartStateKey,
+        unsavedChartVersion,
+        mutation,
+    ]);
 
     return {
         generatedMetadata,

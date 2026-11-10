@@ -5,9 +5,9 @@ import {
 } from '../outputMetadata';
 
 export const TOOL_LIST_PROJECTS_DESCRIPTION = [
-    'List the Lightdash projects in this organization that the current user has access to.',
-    'Use this when the user asks what projects exist, which projects they can access, or wants to know about other projects in their organization.',
-    'This is read-only and only returns projects the user is allowed to view. It does not switch the project you are currently working in.',
+    'List the projects in this organization that the user can access.',
+    'Use it when the user asks which projects exist, which they can access, or about other projects in their organization.',
+    'It does not switch the project you are working in.',
 ].join(' ');
 
 export const toolListProjectsArgsSchema = z.object({});

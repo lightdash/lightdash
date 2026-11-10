@@ -1,0 +1,44 @@
+import { ParameterError, type AiAccessForUser } from '@lightdash/common';
+import { getConfig } from '../config';
+import { getAgentConnectionSelection } from '../credentials';
+import { lightdashApi } from './dbt/apiClient';
+import { resolveProjectFlag } from './resolveProjectFlag';
+
+export type AgentOptions = {
+    project?: string;
+    verbose: boolean;
+};
+
+export const isUsingSharedAgentAccount = (access: AiAccessForUser): boolean =>
+    access.refusal === null && access.identity === 'ai_service_account';
+
+export const resolveAgentProject = async (
+    project?: string,
+): Promise<string> => {
+    if (getAgentConnectionSelection() !== null) {
+        const { resolveAgentConnectionProject } =
+            await import('../agentConnections/projectSelection');
+        return resolveAgentConnectionProject(project);
+    }
+    if (project !== undefined) return resolveProjectFlag(project);
+    const config = await (getAgentConnectionSelection() === null
+        ? getConfig()
+        : getConfig({ readOnly: true }));
+    if (!config.context?.project) {
+        throw new ParameterError(
+            'No project selected. Run `lightdash config set-project` or pass --project <uuid or slug>.',
+        );
+    }
+    return config.context.project;
+};
+
+export const getAgentAccess = (
+    projectUuid: string,
+    signal: AbortSignal | null = null,
+): Promise<AiAccessForUser> =>
+    lightdashApi<AiAccessForUser>({
+        method: 'GET',
+        url: `/api/v2/projects/${projectUuid}/ai-access/me`,
+        body: undefined,
+        ...(signal ? { signal } : {}),
+    });

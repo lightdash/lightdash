@@ -5,9 +5,11 @@ import {
     isDbtRpcManifestResults,
     SupportedDbtVersions,
     UnexpectedServerError,
+    type DbtJoinAvailability,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import { type DbtManifestFetchOptions } from '../types';
 import { CachedWarehouse, DbtClient } from '../types';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 
@@ -32,7 +34,9 @@ class ManifestDbtClient implements DbtClient {
     }
 
     // eslint-disable-next-line class-methods-use-this
-    async getDbtManifest(): Promise<DbtRpcGetManifestResults> {
+    async getDbtManifest(
+        _options?: DbtManifestFetchOptions,
+    ): Promise<DbtRpcGetManifestResults> {
         const { manifest, parsedManifest } = this.manifestInput;
         if (!manifest && !parsedManifest) {
             throw new UnexpectedServerError(
@@ -76,6 +80,7 @@ class ManifestDbtClient implements DbtClient {
 }
 
 type DbtManifestProjectAdapterArgs = ManifestInput & {
+    joinAvailability?: DbtJoinAvailability;
     warehouseClient: WarehouseClient;
     cachedWarehouse: CachedWarehouse;
     dbtVersion: SupportedDbtVersions;
@@ -97,6 +102,7 @@ export class DbtManifestProjectAdapter extends DbtBaseProjectAdapter {
         parsedManifest,
         dbtProjectDir,
         selectedModelIds,
+        joinAvailability,
     }: DbtManifestProjectAdapterArgs) {
         // Create a dummy dbt client since we don't need it for manifest-based compilation
         const manifestDbtClient = new ManifestDbtClient(
@@ -111,6 +117,7 @@ export class DbtManifestProjectAdapter extends DbtBaseProjectAdapter {
             dbtVersion,
             dbtProjectDir,
             analytics,
+            joinAvailability,
         );
     }
 }

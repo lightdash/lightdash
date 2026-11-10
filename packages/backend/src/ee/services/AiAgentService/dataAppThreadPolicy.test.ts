@@ -1,4 +1,5 @@
 import { DATA_APP_INVESTIGATE_TOOL_NAMES } from '../ai/agents/agentV2';
+import { canRunContentQuerySql } from '../ai/tools/runContentQuery';
 import {
     canStartDeepResearch,
     resolveStandardToolAllowlist,
@@ -39,5 +40,31 @@ describe('resolveStandardToolAllowlist', () => {
         ]) {
             expect(DATA_APP_INVESTIGATE_TOOL_NAMES.has(tool)).toBe(false);
         }
+    });
+});
+
+describe('canRunContentQuerySql', () => {
+    it('gives data-app threads no raw SQL through runContentQuery', () => {
+        expect(
+            canRunContentQuerySql({
+                canRunSql: true,
+                toolAllowlist: DATA_APP_INVESTIGATE_TOOL_NAMES,
+            }),
+        ).toBe(false);
+    });
+
+    it('follows SQL mode when the run allows runSql', () => {
+        expect(
+            canRunContentQuerySql({ canRunSql: true, toolAllowlist: null }),
+        ).toBe(true);
+        expect(
+            canRunContentQuerySql({ canRunSql: false, toolAllowlist: null }),
+        ).toBe(false);
+        expect(
+            canRunContentQuerySql({
+                canRunSql: true,
+                toolAllowlist: new Set(['runContentQuery', 'runSql']),
+            }),
+        ).toBe(true);
     });
 });

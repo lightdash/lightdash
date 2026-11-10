@@ -12,6 +12,7 @@ import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import type * as ReactRouter from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useChartStudioAvailable } from '../../../features/chartTypes/hooks/useChartStudioAvailable';
 import { createExplorerStore } from '../../../features/explorer/store';
 import type * as ExplorerStore from '../../../features/explorer/store';
 import { AbilityContext } from '../../../providers/Ability/context';
@@ -64,6 +65,7 @@ const registryChart = {
 
 const itemsMap = { orders_status: { name: 'status' } } as unknown as ItemsMap;
 
+vi.mock('../../../features/chartTypes/hooks/useChartStudioAvailable');
 vi.mock('../../../features/chartTypes/hooks/useDataAppVisualization', () => ({
     getDataAppVisualization: (...args: unknown[]) =>
         mocks.getDataAppVisualization(...args),
@@ -76,9 +78,15 @@ vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
         data: { enabled: featureFlags.current[flag] === true },
     }),
 }));
-vi.mock('../../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: () => ({ itemsMap }),
-}));
+vi.mock('../../LightdashVisualization/useVisualizationContext', () => {
+    const useVisualizationContext = () => ({ itemsMap });
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationInputs: useVisualizationContext,
+    };
+});
 vi.mock(
     '../../VisualizationConfigs/CustomChartType/useSelectProjectChartType',
     () => ({
@@ -136,6 +144,7 @@ vi.mock('react-router', async (importOriginal) => ({
 // Install) see an empty ability unless a test passes one.
 const renderMenu = (
     ability: Ability<PossibleAbilities> = new Ability<PossibleAbilities>(),
+    licensed = false,
 ) =>
     renderWithProviders(
         <Provider store={createExplorerStore()}>
@@ -145,6 +154,9 @@ const renderMenu = (
                 </MemoryRouter>
             </AbilityContext.Provider>
         </Provider>,
+        licensed
+            ? { health: { license: { hasLicenseKey: true, valid: true } } }
+            : undefined,
     );
 
 const expectLibraryDialog = async () => {
@@ -160,10 +172,8 @@ const expectLibraryDialog = async () => {
 describe('AddChartTypeMenu', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        featureFlags.current = {
-            [FeatureFlags.EnableDataApps]: true,
-            [FeatureFlags.ChartTypeRegistry]: true,
-        };
+        featureFlags.current = {};
+        vi.mocked(useChartStudioAvailable).mockReturnValue(true);
         mocks.canCreateDataApp.mockReturnValue(true);
         registryState.current = { registryEnabled: true, charts: [] };
     });
@@ -239,24 +249,24 @@ describe('AddChartTypeMenu', () => {
         await expectLibraryDialog();
     });
 
-    it('starts authoring directly without the library flag', async () => {
+    it('offers only the library without Chart Studio, even with data apps on', async () => {
         featureFlags.current = { [FeatureFlags.EnableDataApps]: true };
-        renderMenu();
+        vi.mocked(useChartStudioAvailable).mockReturnValue(false);
+        renderMenu(undefined, true);
 
-        const button = screen.getByRole('button', {
-            name: 'Add chart type in Chart Studio',
-        });
-        expect(button).not.toHaveAttribute('aria-haspopup');
-
-        await userEvent.click(button);
-        expect(mocks.dispatch).toHaveBeenCalledWith({
-            type: 'startChartTypeAuthoring',
-            payload: { dataAppVizUuid: null },
-        });
+        expect(
+            await screen.findByRole('button', {
+                name: 'Add chart type from the library',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Add chart type' }),
+        ).not.toBeInTheDocument();
     });
 
     it('renders nothing when neither destination is open', () => {
-        featureFlags.current = {};
+        featureFlags.current = { [FeatureFlags.EnableDataApps]: true };
+        vi.mocked(useChartStudioAvailable).mockReturnValue(false);
         renderMenu();
 
         expect(screen.queryByRole('button')).not.toBeInTheDocument();

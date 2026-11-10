@@ -5,12 +5,12 @@
 FROM duckdb/duckdb:1.5.2@sha256:5658472bf45cce867048a17201b9d38d4632507e7df4a69994f8236599f69d45 AS duckdb-extensions
 RUN ["/duckdb", "-c", "INSTALL httpfs; INSTALL aws;"]
 
-FROM ghcr.io/pnpm/pnpm:12.3.4@sha256:b81d53184f670fe19d1a33f9d5041907d314b31d596838e8133cbd83d45be043 AS pnpm-cli
+FROM ghcr.io/pnpm/pnpm:12.16.1@sha256:33081d3d2c96ba582d316cfd630f0f43961d9c60ff919b50edd1835a1462976b AS pnpm-cli
 
 # -----------------------------
 # Stage 0: pnpm setup base
 # -----------------------------
-FROM node:24-trixie-slim AS node-runtime
+FROM node:24.22.1-trixie-slim AS node-runtime
 
 # Keep Python 3.11 for the older supported dbt adapters on Debian 13.
 FROM python:3.11-slim-trixie AS pnpm-base
@@ -19,7 +19,7 @@ COPY --from=node-runtime /usr/local /usr/local
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME/bin:/opt/pnpm:$PATH"
 COPY --from=pnpm-cli /opt/pnpm /opt/pnpm
-COPY --from=pnpm-cli /pnpm /pnpm
+COPY --from=pnpm-cli --chmod=755 /pnpm /pnpm
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libatomic1 libstdc++6 \
     && groupadd --gid 1000 node \
@@ -133,6 +133,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.9.0" \
     "dbt-duckdb~=1.9.0" \
+# dbt-snowflake below 1.12.4 caps certifi under 2025.4.26, which still trusts
+# the distrusted emSign ECC Root CA - G3. certifi is only a CA bundle.
+    && /usr/local/dbt1.9/bin/pip install --no-deps "certifi>=2026.10.19" \
     && ln -s /usr/local/dbt1.9/bin/dbt /usr/local/bin/dbt1.9 \
     && python3 -m venv /usr/local/dbt1.10 \
     && /usr/local/dbt1.10/bin/pip install \
@@ -146,6 +149,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.10.0" \
     "dbt-duckdb~=1.10.0" \
+    && /usr/local/dbt1.10/bin/pip install --no-deps "certifi>=2026.10.19" \
     && ln -s /usr/local/dbt1.10/bin/dbt /usr/local/bin/dbt1.10 \
     && python3 -m venv /usr/local/dbt1.11 \
     && /usr/local/dbt1.11/bin/pip install \
@@ -159,6 +163,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.10.0" \
     "dbt-duckdb~=1.10.0" \
+    && /usr/local/dbt1.11/bin/pip install --no-deps "certifi>=2026.10.19" \
     && ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11 \
     && python3 -m venv /usr/local/dbt1.12 \
 # dbt-databricks 1.12 requires dbt-core below 1.12.1.
@@ -173,6 +178,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.10.0" \
     "dbt-duckdb~=1.10.0" \
+    && /usr/local/dbt1.12/bin/pip install --no-deps "certifi>=2026.10.19" \
     && ln -s /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12
 
 # -----------------------------
@@ -204,6 +210,7 @@ ENV TURBO_API=https://cache.depot.dev
 COPY package.json .
 COPY pnpm-workspace.yaml .
 COPY pnpm-lock.yaml .
+COPY patches ./patches
 COPY turbo.json .
 COPY tsconfig.json .
 COPY .oxlintrc.base.json .
@@ -308,6 +315,11 @@ COPY --from=build-common /usr/app/packages/common/ ./packages/common/
 COPY --from=build-visualization /usr/app/packages/visualization/ ./packages/visualization/
 COPY --from=build-formula /usr/app/packages/formula/ ./packages/formula/
 COPY packages/frontend ./packages/frontend
+# Vite resolves tsconfigs through the root tsconfig.json, which loads every project it references
+COPY packages/backend/tsconfig.json ./packages/backend/
+COPY packages/cli/tsconfig.json ./packages/cli/
+COPY packages/warehouses/tsconfig.json ./packages/warehouses/
+COPY packages/formula-tests/tsconfig.json ./packages/formula-tests/
 
 ARG SENTRY_AUTH_TOKEN=""
 ARG SENTRY_ORG=""
@@ -370,6 +382,8 @@ RUN if [ -n "${SENTRY_AUTH_TOKEN}" ] && [ -n "${SENTRY_ORG}" ] && [ -n "${SENTRY
     # Inject debug IDs into frontend artifacts \
     echo "Injecting debug IDs into frontend artifacts"; \
     sentry-cli sourcemaps inject ./packages/frontend/build/assets/; \
+    # Inject rewrites the .js files, so regenerate the precompressed copies browsers are actually served \
+    find ./packages/frontend/build/assets -name '*.js.gzip' | while read -r f; do gzip -9 -n -c "${f%.gzip}" > "$f"; done; \
     # Upload frontend sourcemaps \
     echo "Uploading frontend sourcemaps"; \
     sentry-cli sourcemaps upload --release "${SENTRY_RELEASE_VERSION}" \
@@ -421,6 +435,9 @@ RUN duckdb_version="$(cd /usr/app/packages/warehouses && node -e "process.stdout
         echo >&2 "Bundled extensions do not match @duckdb/node-api ${duckdb_version}"; \
         exit 1; \
     fi
+
+# Release build contexts can carry world-writable modes into the image.
+RUN find /usr/app ! -type l -perm -0002 -exec chmod o-w {} +
 
 # -----------------------------
 # Stage 5: runtime base
@@ -482,6 +499,12 @@ RUN ln -s /usr/local/dbt1.4/bin/dbt /usr/local/bin/dbt \
 RUN printf '#!/bin/sh\nexec node /usr/app/packages/cli/dist/index.js "$@"\n' > /usr/local/bin/lightdash \
     && chmod 755 /usr/local/bin/lightdash
 
+# Runs as the `node` user (uid 1000) created in pnpm-base; the app tree stays root-owned.
+# Writable dirs for LIGHTDASH_LOG_OUTPUTS=file (default path and docs/audit-logging.md).
+RUN mkdir -p /usr/app/packages/backend/logs /var/log/lightdash \
+    && chown 1000:1000 /usr/app/packages/backend/logs /var/log/lightdash
+ENV HOME=/home/node
+
 # The runtime working directory is set here, not after the application layers.
 # WORKDIR compiles to a mkdir even when the path already exists, and any
 # filesystem mutation after a COPY --link forces BuildKit to materialise the
@@ -503,11 +526,13 @@ FROM runtime-base AS prod
 # COPY --link also does not follow symlinks in its destination path, so every
 # destination here must stay a real directory.
 COPY --link --from=build-final /usr/app /usr/app
-COPY --link ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
+COPY --link --chmod=755 ./docker/prod-entrypoint.sh /usr/bin/prod-entrypoint.sh
 # Preserve the Yarn installation referenced by the Node image's binary links.
 COPY --link --from=node-runtime /opt /opt
 
 EXPOSE 8080
+
+USER 1000:1000
 
 ENTRYPOINT ["dumb-init", "--", "/usr/bin/prod-entrypoint.sh"]
 CMD ["node", "dist/index.js"]

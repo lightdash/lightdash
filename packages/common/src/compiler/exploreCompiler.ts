@@ -47,8 +47,8 @@ import { type WarehouseSqlBuilder } from '../types/warehouse';
 import { getItemId } from '../utils/item';
 import { timeFrameConfigs } from '../utils/timeFrames';
 import {
-    expandFieldsWithSets,
     expandFieldsWithSetsLenient,
+    expandJoinFields,
 } from './fieldSetExpander';
 import { renderFilterRuleSqlFromField } from './filtersCompiler';
 import {
@@ -342,6 +342,38 @@ export const parseAllReferences = (
 ): Reference[] =>
     getAllReferences(raw).map((ref) => getParsedReference(ref, currentTable));
 
+/**
+ * Returns the fields of `table` that `fieldNames` depend on through their SQL
+ * or metric filters, following references transitively.
+ */
+const getFieldDependenciesInTable = (
+    fieldNames: string[],
+    table: Table,
+): Set<string> => {
+    const dependencies = new Set<string>();
+    const toVisit = [...fieldNames];
+    let fieldName = toVisit.pop();
+    while (fieldName !== undefined) {
+        const field = table.dimensions[fieldName] ?? table.metrics[fieldName];
+        const references = field
+            ? [
+                  ...parseAllReferences(field.sql, table.name),
+                  ...(table.metrics[fieldName]?.filters ?? []).map((filter) =>
+                      getParsedReference(filter.target.fieldRef, table.name),
+                  ),
+              ]
+            : [];
+        references.forEach(({ refTable, refName }) => {
+            if (refTable === table.name && !dependencies.has(refName)) {
+                dependencies.add(refName);
+                toVisit.push(refName);
+            }
+        });
+        fieldName = toVisit.pop();
+    }
+    return dependencies;
+};
+
 export type UncompiledExplore = {
     name: string;
     label: string;
@@ -547,13 +579,29 @@ export class ExploreCompiler {
                     ? join.description
                     : tables[join.table].description;
 
-            // Expand field sets if join.fields contains set references
-            let expandedFields: string[] | undefined;
-            if (join.fields) {
-                expandedFields = expandFieldsWithSets(
-                    join.fields,
-                    tables[join.table],
+            const fieldSelection = join.fields
+                ? expandJoinFields(join.fields, tables[join.table])
+                : undefined;
+            const isSelected = (isListed: boolean) =>
+                fieldSelection === undefined ||
+                (fieldSelection.mode === 'include' ? isListed : !isListed);
+
+            if (fieldSelection?.mode === 'exclude') {
+                const unknownExclusions = fieldSelection.fields.filter(
+                    (field) =>
+                        !tables[join.table].dimensions[field] &&
+                        !tables[join.table].metrics[field],
                 );
+                if (unknownExclusions.length > 0) {
+                    exploreWarnings.push({
+                        type: InlineErrorType.FIELD_ERROR,
+                        message: `Join "${joinTableName}" excludes unknown field${
+                            unknownExclusions.length > 1 ? 's' : ''
+                        } ${unknownExclusions
+                            .map((field) => `"${field}"`)
+                            .join(', ')} from table "${join.table}"`,
+                    });
+                }
             }
 
             const requiredDimensionsForJoin = parseAllReferences(
@@ -567,6 +615,42 @@ export class ExploreCompiler {
             }, []);
 
             const tableDimensions = tables[join.table].dimensions;
+            const isFieldListed = (fieldName: string) =>
+                !!fieldSelection?.fields.includes(fieldName);
+            const isDimensionVisible = (dimensionKey: string) => {
+                const dimension = tableDimensions[dimensionKey];
+                // Time interval dimensions follow their base dimension
+                const isTimeIntervalBaseDimensionListed =
+                    (dimension.timeInterval || dimension.customTimeInterval) &&
+                    dimension.timeIntervalBaseDimensionName
+                        ? isFieldListed(dimension.timeIntervalBaseDimensionName)
+                        : false;
+                return isSelected(
+                    isFieldListed(dimensionKey) ||
+                        isTimeIntervalBaseDimensionListed,
+                );
+            };
+            const isMetricVisible = (metricKey: string) =>
+                isSelected(isFieldListed(metricKey));
+
+            // Fields that the join or the visible fields depend on are kept
+            // as hidden fields so they still compile
+            const requiredFieldNames = new Set(requiredDimensionsForJoin);
+            if (fieldSelection) {
+                getFieldDependenciesInTable(
+                    [
+                        ...requiredDimensionsForJoin,
+                        ...Object.keys(tableDimensions).filter(
+                            isDimensionVisible,
+                        ),
+                        ...Object.keys(tables[join.table].metrics).filter(
+                            isMetricVisible,
+                        ),
+                    ],
+                    tables[join.table],
+                ).forEach((fieldName) => requiredFieldNames.add(fieldName));
+            }
+
             includedTables[join.alias || join.table] = {
                 ...tables[join.table],
                 originalName:
@@ -589,25 +673,8 @@ export class ExploreCompiler {
                     Record<string, Dimension>
                 >((acc, dimensionKey) => {
                     const dimension = tableDimensions[dimensionKey];
-                    const isRequired =
-                        requiredDimensionsForJoin.includes(dimensionKey);
-
-                    const isTimeIntervalBaseDimensionVisible =
-                        (dimension.timeInterval ||
-                            dimension.customTimeInterval) &&
-                        dimension.timeIntervalBaseDimensionName &&
-                        expandedFields
-                            ? expandedFields.includes(
-                                  dimension.timeIntervalBaseDimensionName,
-                              )
-                            : false;
-
-                    const isVisible =
-                        expandedFields === undefined ||
-                        expandedFields.includes(dimensionKey) ||
-                        (dimension.group !== undefined &&
-                            expandedFields.includes(dimension.group)) ||
-                        isTimeIntervalBaseDimensionVisible;
+                    const isRequired = requiredFieldNames.has(dimensionKey);
+                    const isVisible = isDimensionVisible(dimensionKey);
 
                     if (isRequired || isVisible) {
                         acc[dimensionKey] = {
@@ -624,8 +691,7 @@ export class ExploreCompiler {
                     Object.keys(tables[join.table].metrics)
                         .filter(
                             (d) =>
-                                expandedFields === undefined ||
-                                expandedFields.includes(d),
+                                isMetricVisible(d) || requiredFieldNames.has(d),
                         )
                         .map((metricKey): [string, Metric] => {
                             const metric =
@@ -634,7 +700,10 @@ export class ExploreCompiler {
                                 metricKey,
                                 {
                                     ...metric,
-                                    hidden: !!join.hidden || metric.hidden,
+                                    hidden:
+                                        !!join.hidden ||
+                                        metric.hidden ||
+                                        !isMetricVisible(metricKey),
                                     table: joinTableName,
                                     tableLabel: joinTableLabel,
                                 },

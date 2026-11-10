@@ -30,6 +30,10 @@ export const INTERACTIVE_VIEWER_EMBED_SUBJECTS = [
     'EmbedDataApps',
 ] as const satisfies readonly CaslSubjectNames[];
 
+export const DEVELOPER_EMBED_SUBJECTS = [
+    'EmbedCompiledSql',
+] as const satisfies readonly CaslSubjectNames[];
+
 interface Project {
     organizationUuid: string;
     projectUuid: string;
@@ -40,12 +44,25 @@ interface Organization {
 }
 
 export type CaslSubjectNames =
+    | 'AgentReadDiscover'
+    | 'AgentQuery'
+    | 'AgentRawSql'
+    | 'AgentContentWrite'
+    | 'AgentDelete'
+    | 'AgentPublish'
+    | 'AgentDeployUpload'
+    | 'AgentDbtWriteback'
+    | 'AgentExport'
+    | 'AgentAdministration'
+    | 'AgentExternalTools'
     | 'AiAgent'
     | 'AiAgentDocument'
     | 'AiAgentSkill'
     | 'AiAgentThread'
+    | 'AiAgentThreadContext'
     | 'AiDeepResearch'
     | 'Analytics'
+    | 'SystemAnalytics'
     | 'ChangeCsvResults'
     | 'CompiledSql'
     | 'CompileProject'
@@ -64,6 +81,7 @@ export type CaslSubjectNames =
     | 'DeletedContent'
     | 'EmbedAiAgent'
     | 'EmbedAiAgentDebug'
+    | 'EmbedCompiledSql'
     | 'EmbedDashboardFilters'
     | 'EmbedDashboardFilterAddition'
     | 'EmbedDashboardParameters'

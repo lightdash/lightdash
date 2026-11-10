@@ -1,9 +1,17 @@
+import type { AiAgent } from '@lightdash/common';
+
 const FILTER_EXPRESSION_SKILL_REMINDER =
     '- Before writing filter expressions, read the shared skill referenced by run_metric_query and search_field_values';
 
 // Only offered to sessions whose tools/list actually includes run_sql
 // (gated on manage:SqlRunner).
 const RUN_SQL_GUIDANCE = `- Prefer \`run_metric_query\` for standard analysis; its semantic-layer metric definitions stay consistent. Use \`run_sql\`, in the connected warehouse's SQL dialect, only for ad-hoc queries, cross-table joins not modeled in explores, or explicit raw-SQL requests; it defaults to 500 rows (max 5000), adjustable with \`limit\`
+`;
+
+const RUN_SQL_GUIDANCE_SHORT = `- Prefer \`run_metric_query\`; use \`run_sql\`, in the warehouse's SQL dialect, for ad-hoc queries, unmodeled joins or explicit raw SQL (500 rows by default, max 5000 via \`limit\`)
+`;
+
+const AGENT_CONNECT_RULE = `- If a query tool refuses with a connect link, show it, ask the person to open it once, then retry the same call
 `;
 
 const RAW_SQL_WORKFLOW_GUIDANCE = `For a complete raw SQL query, follow step 0, then skip steps 1–3 and call \`run_sql\`. If raw SQL lacks table or column identifiers, ask for them; \`grep_fields\` and \`get_metadata\` cover only modeled Explores.
@@ -14,7 +22,7 @@ const CONTENT_ONLY_PROMPT = `# Lightdash MCP — Saved Content Mode
 
 This session cannot run queries. Answer from saved content the user can access.
 
-1. \`get_context\`: pick the project; pass its \`projectUuid\` to project-scoped tools
+1. \`get_context\`: pick the project
 2. \`find_content\`: search 2–4 short keyword queries FIRST, before any conclusion about what is available
 3. \`read_content\`: confirm what the best match shows and get its link — it returns definitions, not data values, so link the user to the numbers
 4. \`list_content\`: browse spaces when search misses
@@ -25,13 +33,15 @@ Rules:
 - If nothing matches, say so plainly
 `;
 
-const SQL_ONLY_PROMPT = `# Lightdash MCP — SQL Runner Mode
+const buildSqlOnlyPrompt = (
+    agentIdentityEnabled: boolean,
+): string => `# Lightdash MCP — SQL Runner Mode
 
 Governed metric execution (\`run_metric_query\`) is not available in this session, so the semantic layer cannot answer questions here. \`run_sql\` is the only way to execute queries.
 
 ## Query Workflow
 
-0. **Get started with context**: Call \`get_context\` first, select the relevant project, and pass its \`projectUuid\` to every project-scoped tool
+0. **Get started with context**: Call \`get_context\` first and select the relevant project
 1. **Confirm the schema**: Semantic-layer discovery tools are not available in this session. If the user's request does not include the warehouse tables and columns you need, ask for the missing identifiers — never guess or invent them
 2. **Run queries**: Call \`run_sql\` with the raw SQL
    - Defaults to 500 rows (max 5000) — use the \`limit\` parameter to control result size
@@ -42,14 +52,20 @@ Governed metric execution (\`run_metric_query\`) is not available in this sessio
 ## Rules
 
 - When an answer depends on governed metric definitions, prefer linking the user to existing saved content over re-deriving the metric in SQL
-`;
+${agentIdentityEnabled ? AGENT_CONNECT_RULE : ''}`;
 
 const buildMcpAnalystPrompt = (
     runSqlEnabled: boolean,
     filterExpressionsEnabled: boolean,
-): string => `## Query Building Workflow
+    documentsEnabled: boolean,
+    agentIdentityEnabled: boolean,
+): string => {
+    const runSqlGuidance = agentIdentityEnabled
+        ? RUN_SQL_GUIDANCE_SHORT
+        : RUN_SQL_GUIDANCE;
+    return `## Query Building Workflow
 
-${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. \`get_context\`: select scope; pass \`projectUuid\` (and \`agentUuid\` when agent-scoped) explicitly to project-scoped tools.
+${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. \`get_context\`: select the project, and the agent when agent-scoped.
 1. \`grep_fields\`: discover fields and select one explore at the right grain.
 2. \`get_metadata\`: confirm metadata before querying; use only exact field IDs returned by discovery.
 3. \`search_field_values\`: find valid filter values when needed.
@@ -57,29 +73,50 @@ ${runSqlEnabled ? RAW_SQL_WORKFLOW_GUIDANCE : ''}0. \`get_context\`: select scop
 5. \`get_query_result\`: poll running queries; never resubmit the original query.
 6. \`render_chart\`: render completed metric queries when a chart is wanted.
 7. \`list_content\`: browse accessible content.
-8. \`find_content\`: search dashboards, charts, and Data Apps.
+8. \`find_content\`: search dashboards, charts, ${documentsEnabled ? 'Data Apps, and Documents' : 'and Data Apps'}.
 
 ## Rules
 
 - \`run_metric_query\` is registered for this session; if your catalogue lacks it, your client cached an outdated tool list — say so and ask the user to reconnect${runSqlEnabled ? '; never substitute `run_sql` for it' : ''}
 - Prefer the explore whose name matches a domain word in the question if \`grep_fields\` finds relevant fields there; among several fits, choose the one whose dimensions and metrics match the intended grain. If still ambiguous, ask the user which to use; never guess
-${runSqlEnabled ? RUN_SQL_GUIDANCE : ''}${filterExpressionsEnabled ? `${FILTER_EXPRESSION_SKILL_REMINDER}\n` : ''}- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
-`;
+${runSqlEnabled ? runSqlGuidance : ''}${filterExpressionsEnabled ? `${FILTER_EXPRESSION_SKILL_REMINDER}\n` : ''}- Never mix fields from different explores in one query; sort only by selected dimensions, metrics, or table calculations; when base and joined tables have similar field names, use the one at the query's semantic level
+${agentIdentityEnabled ? AGENT_CONNECT_RULE : ''}`;
+};
 
 export const getMcpAnalystPrompt = ({
     runSqlEnabled,
     runMetricQueryEnabled,
     filterExpressionsEnabled,
+    documentsEnabled,
+    agentIdentityEnabled = false,
 }: {
     runSqlEnabled: boolean;
     runMetricQueryEnabled: boolean;
     filterExpressionsEnabled: boolean;
+    documentsEnabled: boolean;
+    agentIdentityEnabled?: boolean;
 }): string => {
     if (!runSqlEnabled && !runMetricQueryEnabled) {
         return CONTENT_ONLY_PROMPT;
     }
     if (!runMetricQueryEnabled) {
-        return SQL_ONLY_PROMPT;
+        return buildSqlOnlyPrompt(agentIdentityEnabled);
     }
-    return buildMcpAnalystPrompt(runSqlEnabled, filterExpressionsEnabled);
+    return buildMcpAnalystPrompt(
+        runSqlEnabled,
+        filterExpressionsEnabled,
+        documentsEnabled,
+        agentIdentityEnabled,
+    );
+};
+
+export const getMcpPinnedAgentPrompt = (
+    agent: Pick<AiAgent, 'uuid' | 'name' | 'instruction'>,
+): string => {
+    const instruction = agent.instruction?.trim();
+    const pin = `## Pinned agent
+This connection is pinned to the "${agent.name}" agent (agentUuid ${agent.uuid}). The server applies its scope to every project-scoped tool, so agentUuid can be omitted, and refuses any other agentUuid. route_agent and list_agents return this agent only.`;
+    return instruction
+        ? `${pin}\n\nInstructions from this agent's configuration:\n${instruction}`
+        : pin;
 };

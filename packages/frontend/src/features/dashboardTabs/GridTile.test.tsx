@@ -4,8 +4,11 @@ import {
     type Dashboard,
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
+import { type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../../testing/testUtils';
+import { createDashboardTestStore } from '../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
+import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
 import GridTile from './GridTile';
 
 const mockDashboardContext = vi.hoisted(() => ({
@@ -60,13 +63,19 @@ const renderLockedTile = () =>
     renderWithProviders(
         <GridTile
             tile={chartTile}
-            index={0}
             isEditMode={false}
             locked
             onEdit={vi.fn()}
             onDelete={vi.fn()}
             onAddTiles={vi.fn(async () => {})}
         />,
+    );
+
+const renderWithProviders = (ui: ReactElement) =>
+    renderWithAppProviders(
+        <DashboardStoreTestProvider store={createDashboardTestStore()}>
+            {ui}
+        </DashboardStoreTestProvider>,
     );
 
 describe('GridTile (locked)', () => {
@@ -91,7 +100,6 @@ describe('GridTile (locked)', () => {
         renderWithProviders(
             <GridTile
                 tile={markdownTile}
-                index={0}
                 isEditMode={false}
                 locked
                 onEdit={vi.fn()}

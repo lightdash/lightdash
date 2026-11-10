@@ -11,7 +11,9 @@ import {
     type MetricQuery,
     type ParametersValuesMap,
     type PivotConfiguration,
+    type SemanticQueryUsage,
     type SortField,
+    type UserAccessControls,
     type WarehouseClient,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
@@ -47,15 +49,19 @@ export type SqlQueryComposerArguments = {
  * the base facade so metric queries and SQL charts share one getSql() seam.
  */
 export class SqlQueryComposer extends QueryComposer {
+    override getSemanticUsage(): SemanticQueryUsage {
+        return { status: 'unavailable', references: [] };
+    }
+
     private readonly sqlQueryBuilder: SqlQueryBuilder;
 
     private readonly appliedDashboardFilters: DashboardFilters | undefined;
 
-    constructor(args: SqlQueryComposerArguments) {
+    constructor(
+        args: SqlQueryComposerArguments,
+        userAccessControls: UserAccessControls | null = null,
+    ) {
         const built = SqlQueryComposer.build(args);
-        // SQL charts override computeCompiled, so only the explore and warehouse
-        // builder (used by the inherited getSql) are needed — the metric-compile
-        // context fields are omitted. SQL charts have no display timezone.
         super(
             {
                 metricQuery: built.metricQuery,
@@ -66,6 +72,7 @@ export class SqlQueryComposer extends QueryComposer {
                 warehouseSqlBuilder: args.warehouseClient,
                 parameters: args.parameters,
                 displayTimezone: null,
+                ...userAccessControls,
             },
         );
         this.sqlQueryBuilder = built.sqlQueryBuilder;

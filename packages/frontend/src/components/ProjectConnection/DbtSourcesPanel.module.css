@@ -2,13 +2,6 @@
     position: relative;
 }
 
-/* Quiet beta marker, top-right, out of the content flow. */
-.beta {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-}
-
 .rows {
     display: flex;
     flex-direction: column;

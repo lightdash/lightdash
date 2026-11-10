@@ -16,6 +16,7 @@ const field = (id: string, label: string) => ({
     table: 'Accounts',
     description: null,
     isDate: false,
+    kind: null,
     verifiedUsage: 0,
     chartUsage: 0,
 });

@@ -1,11 +1,17 @@
 import {
-    FeatureFlags,
+    JobPriority,
+    LightdashPage,
+    SCHEDULER_TASKS,
     SchedulerAndTargets,
+    SchedulerFormat,
     TraceTaskBase,
+    type AgentConnectionExecution,
+    type NotificationPayloadBase,
+    type SendNowScheduler,
+    type UploadMetricGsheetPayload,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { type LightdashConfig } from '../config/parseConfig';
-import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { SchedulerModel } from '../models/SchedulerModel';
 import { getOrgDeliveryQueueName, SchedulerClient } from './SchedulerClient';
 
@@ -24,7 +30,7 @@ vi.mock('graphile-worker', () => ({
 
 const ORG_UUID = 'org-1';
 
-const makeClient = (allowMultiOrgs: boolean, get: import('vitest').Mock) =>
+const makeClient = (allowMultiOrgs: boolean) =>
     new SchedulerClient({
         lightdashConfig: {
             allowMultiOrgs,
@@ -34,7 +40,6 @@ const makeClient = (allowMultiOrgs: boolean, get: import('vitest').Mock) =>
         schedulerModel: {
             logSchedulerJob: vi.fn().mockResolvedValue(undefined),
         } as unknown as SchedulerModel,
-        featureFlagModel: { get } as unknown as FeatureFlagModel,
     });
 
 const scheduler = {
@@ -50,12 +55,224 @@ const scheduler = {
 
 const traceProperties: TraceTaskBase = {
     organizationUuid: ORG_UUID,
-    projectUuid: 'proj-1',
+    projectUuid: '11111111-1111-4111-8111-111111111111',
     userUuid: 'user-1',
 };
 
 // A fixed start-of-day so getDailyDatesFromCron deterministically yields jobs.
 const startingDateTime = new Date(2023, 0, 1);
+
+test('serializes catalog indexing per project so an earlier deploy cannot overwrite a later tag update', async () => {
+    graphileAddJob.mockClear();
+    const client = makeClient(false);
+    const payload = {
+        organizationUuid: ORG_UUID,
+        userUuid: 'user-1',
+        projectUuid: 'project-1',
+        prevCatalogItemsWithTags: [],
+        prevCatalogItemsWithIcons: [],
+        prevMetricTreeEdges: [],
+        prevMetricsTreeNodes: [],
+    };
+
+    await client.indexCatalog(payload);
+    await client.indexCatalog(payload);
+    await client.indexCatalog({ ...payload, projectUuid: 'project-2' });
+
+    expect(
+        graphileAddJob.mock.calls.map(([, , options]) => options.queueName),
+    ).toEqual([
+        'index-catalog-project-1',
+        'index-catalog-project-1',
+        'index-catalog-project-2',
+    ]);
+});
+
+describe('initial usage processing', () => {
+    it('deduplicates by organization and shares the serial nightly queue without retries', async () => {
+        const client = makeClient(true);
+        await client.scheduleInitialUsageProcessing(traceProperties);
+        expect(graphileAddJob).toHaveBeenCalledWith(
+            SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
+            traceProperties,
+            {
+                queueName: 'usage-events-compaction',
+                jobKey: `initial-usage-processing:${ORG_UUID}`,
+                jobKeyMode: 'unsafe_dedupe',
+                maxAttempts: 1,
+                priority: JobPriority.LOW,
+            },
+        );
+    });
+});
+
+test('schedules deferred history on the existing serial queue and permits continuation of a running job', async () => {
+    graphileAddJob.mockClear();
+    const before = Date.now();
+    await makeClient(true).scheduleUsageEventHistory(traceProperties);
+    expect(graphileAddJob).toHaveBeenCalledExactlyOnceWith(
+        SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
+        { ...traceProperties, includeHistory: true },
+        {
+            queueName: 'usage-events-compaction',
+            jobKey: `usage-event-history:${ORG_UUID}`,
+            jobKeyMode: 'preserve_run_at',
+            runAt: expect.any(Date),
+            maxAttempts: 3,
+            priority: JobPriority.LOW,
+        },
+    );
+    expect(
+        graphileAddJob.mock.calls[0][2].runAt.getTime(),
+    ).toBeGreaterThanOrEqual(before + 60_000);
+});
+
+test('revives exhausted history jobs through the queue SQL API', async () => {
+    const client = makeClient(true);
+    const query = vi.fn().mockResolvedValue({ rows: [] });
+    client.graphileUtils = Promise.resolve({
+        withPgClient: async (
+            callback: (pg: { query: typeof query }) => unknown,
+        ) => callback({ query }),
+    } as unknown as Awaited<typeof client.graphileUtils>);
+    await client.retryFailedUsageEventHistory();
+    expect(query).toHaveBeenCalledWith(
+        expect.stringContaining(
+            'attempts >= max_attempts AND locked_at IS NULL',
+        ),
+        [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS],
+    );
+    expect(query.mock.calls[0][0]).toContain('attempts := 0');
+});
+
+describe('analytics content scheduling', () => {
+    beforeEach(() => graphileAddJob.mockClear());
+
+    it.each([null, ORG_UUID])(
+        'allows reconciliation for scope %s to recover on the next processing run',
+        async (organizationUuid) => {
+            await makeClient(true).scheduleAnalyticsContentReconciliation(
+                organizationUuid,
+            );
+            expect(graphileAddJob).toHaveBeenCalledExactlyOnceWith(
+                SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT,
+                { organizationUuid: organizationUuid ?? undefined },
+                {
+                    queueName: 'analytics-content-reconciliation',
+                    jobKey: `analytics-content-reconciliation:${organizationUuid ?? 'all'}`,
+                    jobKeyMode: 'preserve_run_at',
+                    maxAttempts: 3,
+                    priority: JobPriority.LOW,
+                },
+            );
+        },
+    );
+
+    it('queues one retryable content update per organization', async () => {
+        await makeClient(true).scheduleAnalyticsContentSync({
+            organizationUuid: ORG_UUID,
+        });
+        expect(graphileAddJob).toHaveBeenCalledExactlyOnceWith(
+            SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
+            { organizationUuid: ORG_UUID },
+            {
+                queueName: 'analytics-content-sync',
+                jobKey: `analytics-content-sync:${ORG_UUID}`,
+                jobKeyMode: 'preserve_run_at',
+                maxAttempts: 3,
+                priority: JobPriority.LOW,
+            },
+        );
+    });
+});
+
+describe('query history backfill scheduling', () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    const clientWithJob = (job?: Record<string, unknown>) => {
+        const client = makeClient(false);
+        const query = vi.fn().mockResolvedValue({ rows: job ? [job] : [] });
+        client.graphileUtils = Promise.resolve({
+            addJob: graphileAddJob,
+            withPgClient: async (
+                callback: (pg: { query: typeof query }) => unknown,
+            ) => callback({ query }),
+        } as unknown as Awaited<typeof client.graphileUtils>);
+        graphileAddJob.mockClear();
+        return { client, query };
+    };
+
+    it.each([
+        [
+            { locked_at: null, attempts: 0, max_attempts: 1, last_error: null },
+            true,
+            false,
+        ],
+        [
+            {
+                locked_at: new Date(),
+                attempts: 1,
+                max_attempts: 1,
+                last_error: null,
+            },
+            true,
+            false,
+        ],
+        [
+            {
+                locked_at: null,
+                attempts: 1,
+                max_attempts: 1,
+                last_error: 'storage unavailable',
+            },
+            false,
+            true,
+        ],
+        [undefined, false, false],
+    ])(
+        'recognizes queued, locked, failed and completed jobs',
+        async (job, running, failed) => {
+            const { client, query } = clientWithJob(job);
+            await expect(
+                client.getUsageHistoryBackfillJob(ORG_UUID),
+            ).resolves.toEqual({ running, failed });
+            expect(query).toHaveBeenCalledWith(expect.any(String), [
+                `usage-query-history:${ORG_UUID}`,
+            ]);
+        },
+    );
+
+    it('does not enqueue another job while one is queued or locked', async () => {
+        const { client } = clientWithJob({
+            locked_at: null,
+            attempts: 0,
+            max_attempts: 1,
+        });
+        await client.scheduleUsageHistoryBackfill(traceProperties);
+        expect(graphileAddJob).not.toHaveBeenCalled();
+    });
+
+    it('allows manual retry of a failed job on a separate serial queue from daily compaction', async () => {
+        const { client } = clientWithJob({
+            locked_at: null,
+            attempts: 1,
+            max_attempts: 1,
+            last_error: 'failed',
+        });
+        await client.scheduleUsageHistoryBackfill(traceProperties);
+        expect(graphileAddJob).toHaveBeenCalledExactlyOnceWith(
+            SCHEDULER_TASKS.BACKFILL_USAGE_QUERY_HISTORY,
+            traceProperties,
+            {
+                queueName: 'usage-history-backfill',
+                jobKey: `usage-query-history:${ORG_UUID}`,
+                jobKeyMode: 'replace',
+                maxAttempts: 1,
+                priority: JobPriority.LOW,
+            },
+        );
+    });
+});
 
 describe('SchedulerClient per-org delivery queue', () => {
     afterEach(() => {
@@ -64,7 +281,7 @@ describe('SchedulerClient per-org delivery queue', () => {
     });
 
     it('preserves the send-now execution user in the persisted job payload', async () => {
-        const client = makeClient(false, vi.fn());
+        const client = makeClient(false);
 
         await client.addScheduledDeliveryJob(
             new Date('2026-08-03T10:00:00Z'),
@@ -91,7 +308,7 @@ describe('SchedulerClient per-org delivery queue', () => {
     // App deliveries render through the headless browser (capture render), so
     // they need the same retry budget as dashboard image jobs.
     it('gives app deliveries a retry budget', async () => {
-        const client = makeClient(false, vi.fn());
+        const client = makeClient(false);
 
         await client.addScheduledDeliveryJob(
             new Date('2026-08-03T10:00:00Z'),
@@ -113,12 +330,38 @@ describe('SchedulerClient per-org delivery queue', () => {
         );
     });
 
-    it('routes recurring deliveries into a per-org queue when multi-org + flag are on', async () => {
-        const get = vi.fn().mockResolvedValue({
-            id: FeatureFlags.ScheduledDeliveryPerOrgQueue,
-            enabled: true,
-        });
-        const client = makeClient(true, get);
+    it.each([true, false])(
+        'tags scheduler_job.created with the scheduler useCachedResults %s',
+        async (useCachedResults) => {
+            const track = vi.fn();
+            const client = new SchedulerClient({
+                lightdashConfig: {
+                    allowMultiOrgs: false,
+                    database: { connectionUri: 'postgres://noop' },
+                } as unknown as LightdashConfig,
+                analytics: { track } as unknown as LightdashAnalytics,
+                schedulerModel: {
+                    logSchedulerJob: vi.fn().mockResolvedValue(undefined),
+                } as unknown as SchedulerModel,
+            });
+
+            await client.addScheduledDeliveryJob(
+                new Date('2026-08-03T10:00:00Z'),
+                { ...scheduler, ...traceProperties, useCachedResults },
+                scheduler.schedulerUuid,
+            );
+
+            expect(track).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'scheduler_job.created',
+                    properties: expect.objectContaining({ useCachedResults }),
+                }),
+            );
+        },
+    );
+
+    it('routes recurring deliveries into a per-org queue on multi-org instances', async () => {
+        const client = makeClient(true);
         const addJob = vi
             .spyOn(client, 'addScheduledDeliveryJob')
             .mockResolvedValue({ jobId: 'j1', date: new Date() });
@@ -136,22 +379,10 @@ describe('SchedulerClient per-org delivery queue', () => {
                 (call) => call[3] === getOrgDeliveryQueueName(ORG_UUID),
             ),
         ).toBe(true);
-        // Flag evaluated per-org for the scheduler's user + organization.
-        expect(get).toHaveBeenCalledWith({
-            user: {
-                userUuid: 'user-1',
-                organizationUuid: ORG_UUID,
-            },
-            featureFlagId: FeatureFlags.ScheduledDeliveryPerOrgQueue,
-        });
     });
 
-    it('does not set a queue when the flag is off', async () => {
-        const get = vi.fn().mockResolvedValue({
-            id: FeatureFlags.ScheduledDeliveryPerOrgQueue,
-            enabled: false,
-        });
-        const client = makeClient(true, get);
+    it('does not set a queue on single-tenant instances', async () => {
+        const client = makeClient(false);
         const addJob = vi
             .spyOn(client, 'addScheduledDeliveryJob')
             .mockResolvedValue({ jobId: 'j1', date: new Date() });
@@ -163,27 +394,6 @@ describe('SchedulerClient per-org delivery queue', () => {
             startingDateTime,
         );
 
-        expect(addJob).toHaveBeenCalled();
-        expect(addJob.mock.calls.every((call) => call[3] === undefined)).toBe(
-            true,
-        );
-    });
-
-    it('skips the flag lookup entirely on single-tenant instances', async () => {
-        const get = vi.fn();
-        const client = makeClient(false, get);
-        const addJob = vi
-            .spyOn(client, 'addScheduledDeliveryJob')
-            .mockResolvedValue({ jobId: 'j1', date: new Date() });
-
-        await client.generateDailyJobsForScheduler(
-            scheduler,
-            traceProperties,
-            'UTC',
-            startingDateTime,
-        );
-
-        expect(get).not.toHaveBeenCalled();
         expect(addJob).toHaveBeenCalled();
         expect(addJob.mock.calls.every((call) => call[3] === undefined)).toBe(
             true,
@@ -196,7 +406,7 @@ describe('SchedulerClient per-org delivery queue', () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-08-03T09:57:00Z'));
         try {
-            const client = makeClient(false, vi.fn());
+            const client = makeClient(false);
             const addJob = vi
                 .spyOn(client, 'addScheduledDeliveryJob')
                 .mockResolvedValue({ jobId: 'j1', date: new Date() });
@@ -221,7 +431,7 @@ describe('SchedulerClient create project job lookup', () => {
     afterEach(() => vi.restoreAllMocks());
 
     it('finds a queued create project job by its Lightdash job UUID', async () => {
-        const client = makeClient(false, vi.fn());
+        const client = makeClient(false);
         const query = vi.fn().mockResolvedValue({
             rows: [{ exists: true }],
         });
@@ -231,19 +441,23 @@ describe('SchedulerClient create project job lookup', () => {
             ) => callback({ query }),
         } as unknown as Awaited<typeof client.graphileUtils>);
 
+        const lockedAfter = new Date('2026-10-28T14:30:00Z');
         await expect(
-            client.hasCreateProjectWithCompileJob('lightdash-job-uuid'),
+            client.hasCreateProjectWithCompileJob(
+                'lightdash-job-uuid',
+                lockedAfter,
+            ),
         ).resolves.toBe(true);
         expect(query).toHaveBeenCalledWith(
-            expect.stringContaining("payload->>'jobUuid' = $2"),
-            ['createProjectWithCompile', 'lightdash-job-uuid'],
+            expect.stringContaining('locked_at IS NULL OR locked_at > $3'),
+            ['createProjectWithCompile', 'lightdash-job-uuid', lockedAfter],
         );
     });
 });
 
 describe('SchedulerClient learn sandbox command queue', () => {
     it('routes each sandbox command into a bounded per-project queue', async () => {
-        const client = makeClient(false, vi.fn());
+        const client = makeClient(false);
         graphileAddJob.mockClear();
         const payload = {
             commandUuid: 'cmd-1',
@@ -264,5 +478,276 @@ describe('SchedulerClient learn sandbox command queue', () => {
             (graphileAddJob.mock.calls[0][2] as { maxAttempts?: number })
                 .maxAttempts,
         ).toBe(1);
+    });
+});
+
+describe('SchedulerClient connection envelope storage', () => {
+    beforeEach(() => vi.clearAllMocks());
+    afterEach(() => vi.clearAllMocks());
+
+    const execution: AgentConnectionExecution = {
+        grantUuid: 'grant-1',
+        revision: 1,
+        subjectUserUuid: 'user-1',
+        organizationUuid: ORG_UUID,
+        clientId: 'lightdash-cli',
+        resource: 'https://example.com/api',
+        refreshFamilyUuid: 'family-1',
+        scopes: ['read', 'write'],
+        operation: { kind: 'rest', key: 'ProjectController.refreshProject' },
+    };
+    const payload = {
+        ...traceProperties,
+        createdByUserUuid: 'user-1',
+        jobUuid: 'job-1',
+        requestMethod: 'POST',
+        isPreview: false,
+    };
+
+    it('stores a normalized copy of an explicit trusted envelope', async () => {
+        await makeClient(false).compileProject({
+            ...payload,
+            agentConnectionExecution: execution,
+        });
+        const stored = graphileAddJob.mock.calls[0][1].agentConnectionExecution;
+        expect(stored).toEqual(execution);
+        expect(stored).not.toBe(execution);
+        expect(stored.scopes).not.toBe(execution.scopes);
+    });
+
+    it.each([
+        'compileProject',
+        'generateValidation',
+        'replaceCustomFields',
+        'materializePreAggregate',
+    ] as const)(
+        'serializes the connection and typed effect for %s',
+        async (method) => {
+            const effect =
+                method === 'generateValidation' ? 'validateProject' : method;
+            const client = makeClient(false);
+            await client[method]({
+                ...payload,
+                agentConnectionExecution: execution,
+                agentConnectionEffect: effect,
+                context: 'dbt_refresh',
+                prevCatalogItemsWithTags: [],
+                prevCatalogItemsWithIcons: [],
+                prevMetricTreeEdges: [],
+                prevMetricsTreeNodes: [],
+                preAggregateDefinitionUuid: 'definition',
+                trigger: 'compile',
+            } as never);
+            expect(graphileAddJob).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.objectContaining({
+                    agentConnectionExecution: execution,
+                    agentConnectionEffect: effect,
+                }),
+                expect.anything(),
+            );
+            expect(
+                structuredClone(graphileAddJob.mock.calls[0][1])
+                    .agentConnectionExecution,
+            ).toEqual(execution);
+        },
+    );
+
+    it('keeps legacy unbound payloads without connection metadata', async () => {
+        await makeClient(false).compileProject(payload);
+        expect(graphileAddJob.mock.calls[0][1]).not.toHaveProperty(
+            'agentConnectionExecution',
+        );
+    });
+
+    it.each([
+        { revision: 0 },
+        { subjectUserUuid: 'another-person' },
+        { organizationUuid: 'another-org' },
+        { accessToken: 'must-not-persist' },
+        { refreshFamilyUuid: '' },
+    ])(
+        'refuses invalid envelope metadata before enqueue: %j',
+        async (change) => {
+            await expect(
+                makeClient(false).compileProject({
+                    ...payload,
+                    agentConnectionExecution: { ...execution, ...change },
+                }),
+            ).rejects.toThrow();
+            expect(graphileAddJob).not.toHaveBeenCalled();
+        },
+    );
+});
+
+describe('scheduled notification payload parity', () => {
+    afterEach(() => vi.clearAllMocks());
+    const targets = [
+        { channel: 'C123', schedulerSlackTargetUuid: 'slack' },
+        {
+            recipient: 'recipient@example.com',
+            schedulerEmailTargetUuid: 'email',
+        },
+        {
+            webhook: 'https://example.com/teams',
+            schedulerMsTeamsTargetUuid: 'teams',
+        },
+        {
+            googleChatWebhook: 'https://example.com/chat',
+            schedulerGoogleChatTargetUuid: 'chat',
+        },
+    ].map((target) => ({
+        ...target,
+        schedulerUuid: scheduler.schedulerUuid,
+        createdAt: startingDateTime,
+        updatedAt: startingDateTime,
+    }));
+    const page: NotificationPayloadBase['page'] = {
+        url: 'https://example.com/chart',
+        details: { name: 'Chart', description: undefined },
+        pageType: LightdashPage.CHART,
+        organizationUuid: ORG_UUID,
+    };
+    test.each([false, true])(
+        'preserves all eight payload key sets, AI summary=%s',
+        async (summary) => {
+            const client = makeClient(false);
+            await Promise.all(
+                [false, true].map(async (saved) => {
+                    const delivery = {
+                        ...scheduler,
+                        targets,
+                        message: summary ? 'AI summary' : 'Stored message',
+                    };
+                    const { schedulerUuid, ...unsaved } = delivery;
+                    await client.generateJobsForSchedulerTargets(
+                        startingDateTime,
+                        saved ? delivery : (unsaved as SendNowScheduler),
+                        page,
+                        'parent',
+                        traceProperties,
+                    );
+                }),
+            );
+            const common = [
+                'baggageHeader',
+                'otelBaggage',
+                'otelTraceparent',
+                'sentryMessageId',
+                'traceHeader',
+                'jobGroup',
+                'organizationUuid',
+                'page',
+                'projectUuid',
+                'scheduledTime',
+                'scheduler',
+                'schedulerUuid',
+                'userUuid',
+            ];
+            const keys = Object.fromEntries(
+                graphileAddJob.mock.calls.map(([kind, payload]) => [
+                    kind,
+                    Object.keys(payload).sort(),
+                ]),
+            );
+            expect(keys).toEqual({
+                sendSlackNotification: [
+                    ...common,
+                    'channel',
+                    'schedulerSlackTargetUuid',
+                ].sort(),
+                sendEmailNotification: [
+                    ...common,
+                    'recipient',
+                    'schedulerEmailTargetUuid',
+                ].sort(),
+                sendMsTeamsNotification: [
+                    ...common,
+                    'webhook',
+                    'schedulerMsTeamsTargetUuid',
+                ].sort(),
+                sendGoogleChatNotification: [
+                    ...common,
+                    'googleChatWebhook',
+                    'schedulerGoogleChatTargetUuid',
+                ].sort(),
+                sendSlackBatchNotification: [...common, 'targets'].sort(),
+                sendEmailBatchNotification: [...common, 'targets'].sort(),
+                sendMsTeamsBatchNotification: [...common, 'targets'].sort(),
+                sendGoogleChatBatchNotification: [...common, 'targets'].sort(),
+            });
+        },
+    );
+    test.each(['Stored message', null])(
+        'marks all eight payloads with original message %s',
+        async (message) => {
+            const client = makeClient(false);
+            const authority = {
+                agentWork: { ...traceProperties, userUuid: 'execution-user' },
+                aiSummaryOriginalMessage: message,
+            };
+            await Promise.all(
+                [false, true].map(async (saved) => {
+                    const delivery = {
+                        ...scheduler,
+                        targets,
+                        message: 'AI summary',
+                    };
+                    const { schedulerUuid, ...unsaved } = delivery;
+                    await client.generateJobsForSchedulerTargets(
+                        startingDateTime,
+                        saved ? delivery : (unsaved as SendNowScheduler),
+                        page,
+                        'parent',
+                        traceProperties,
+                        undefined,
+                        authority,
+                    );
+                }),
+            );
+            expect(graphileAddJob).toHaveBeenCalledTimes(8);
+            for (const [, payload] of graphileAddJob.mock.calls) {
+                expect(payload).toMatchObject({
+                    ...authority,
+                    userUuid: 'user-1',
+                    scheduler: { message: 'AI summary' },
+                });
+            }
+        },
+    );
+    test('does not mark Google Sheets jobs even when summary authority is supplied', async () => {
+        const client = makeClient(false);
+        await client.generateJobsForSchedulerTargets(
+            startingDateTime,
+            { ...scheduler, format: SchedulerFormat.GSHEETS },
+            undefined,
+            'parent',
+            traceProperties,
+            undefined,
+            { agentWork: traceProperties, aiSummaryOriginalMessage: null },
+        );
+        expect(graphileAddJob).toHaveBeenCalledOnce();
+        expect(graphileAddJob.mock.calls[0][0]).toBe('uploadGsheets');
+        expect(graphileAddJob.mock.calls[0][1]).not.toHaveProperty('agentWork');
+        expect(graphileAddJob.mock.calls[0][1]).not.toHaveProperty(
+            'aiSummaryOriginalMessage',
+        );
+    });
+
+    test('keeps query exports to Google Sheets unmarked', async () => {
+        const client = makeClient(false);
+        const payload = {
+            ...traceProperties,
+            exploreId: 'orders',
+            metricQuery: {},
+            source: 'metricQuery',
+        } as UploadMetricGsheetPayload;
+        await client.uploadGsheetFromQueryJob(payload);
+        expect(graphileAddJob).toHaveBeenCalledOnce();
+        expect(graphileAddJob.mock.calls[0][0]).toBe('uploadGsheetFromQuery');
+        expect(graphileAddJob.mock.calls[0][1]).not.toHaveProperty('agentWork');
+        expect(graphileAddJob.mock.calls[0][1]).not.toHaveProperty(
+            'aiSummaryOriginalMessage',
+        );
     });
 });

@@ -2,6 +2,10 @@ import { getErrorMessage, ParseError } from '@lightdash/common';
 import { Command, InvalidArgumentError } from 'commander';
 import execa from 'execa';
 import { LightdashAnalytics } from '../../analytics/analytics';
+import {
+    getAgentConnectionChildEnvironment,
+    getAgentConnectionSelection,
+} from '../../credentials';
 import GlobalState from '../../globalState';
 import { generateHandler } from '../generate';
 import { DbtCompileOptions } from './compile';
@@ -53,9 +57,16 @@ export const dbtRunHandler = async (
     GlobalState.debug(`> Running dbt command: ${commands}`);
 
     try {
-        const subprocess = execa('dbt', commands, {
-            stdio: 'inherit',
-        });
+        const subprocess =
+            getAgentConnectionSelection() !== null
+                ? execa('dbt', commands, {
+                      stdio: 'inherit',
+                      extendEnv: false,
+                      env: await getAgentConnectionChildEnvironment({}),
+                  })
+                : execa('dbt', commands, {
+                      stdio: 'inherit',
+                  });
         await subprocess;
 
         await LightdashAnalytics.track({

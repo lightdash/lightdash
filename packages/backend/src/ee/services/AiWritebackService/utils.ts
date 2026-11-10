@@ -6,6 +6,7 @@ import {
     PullRequestProvider,
     resolveDbtVersion,
     SupportedDbtVersions,
+    type AiWritebackPipelineJobPayload,
     type AiWritebackStep,
     type DbtProjectConfig,
     type DbtVersionOption,
@@ -36,6 +37,31 @@ import type {
     ResolvedPrMetadata,
     StagedFileChanges,
 } from './types';
+
+export const resolveWritebackAgentPermissionsApply = (
+    payload: Pick<
+        AiWritebackPipelineJobPayload,
+        'agentPermissionsApply' | 'source'
+    >,
+): boolean => {
+    if (payload.agentPermissionsApply !== undefined)
+        return payload.agentPermissionsApply;
+    switch (payload.source) {
+        case 'mcp':
+        case 'slack':
+        case 'web':
+            return true;
+        case 'api':
+        case 'changeset':
+        case 'admin_review':
+            return false;
+        default:
+            return assertUnreachable(
+                payload.source,
+                'Unknown writeback source',
+            );
+    }
+};
 
 const DEFAULT_GITLAB_HOST_DOMAIN = 'gitlab.com';
 
@@ -657,8 +683,8 @@ export const dbtSandboxVenvBin = (version: SupportedDbtVersions): string =>
     `${DBT_VENV_BIN_PREFIX}${version.slice(1)}/bin`;
 
 /**
- * Anthropic credentials for the sandboxed `claude` CLI. Writeback and the
- * onboarding agent share the data-apps credentials (`ANTHROPIC_API_KEY`); the
+ * Anthropic credentials for the sandboxed `claude` CLI. Writeback uses the
+ * data-apps credentials (`ANTHROPIC_API_KEY`); the
  * writeback-specific `AI_WRITEBACK_ANTHROPIC_API_KEY` is deprecated and only
  * honoured while the shared key is unset.
  */

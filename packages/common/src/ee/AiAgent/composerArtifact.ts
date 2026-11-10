@@ -1,32 +1,106 @@
+import { ParameterError } from '../../types/errors';
+import { type DimensionType } from '../../types/field';
 import {
+    isAndFilterGroup,
+    isOrFilterGroup,
+    type FilterGroupItem,
+    type Filters,
+} from '../../types/filter';
+import {
+    getSourceQueryResultReferences,
     QuerySourceType,
     type QueryNodeId,
     type SourceQuery,
 } from '../../types/querySources';
+import { type ResultColumns } from '../../types/results';
+import assertUnreachable from '../../utils/assertUnreachable';
+import { stableJson } from '../../utils/stableJson';
 import { type AllVizChartConfig } from '../../visualizations/types';
-
-/** Per node: the queryUuid of its last run. */
-export type ComposerNodeResults = Record<QueryNodeId, { queryUuid: string }>;
+import { type ComposerStoredChartVizConfig } from './schemas/tools/composerChartVizConfigSchema';
 
 /**
- * A composer query (multi-source pipeline) stored as a chart artifact. The
- * pipeline is stored replayable from day one; v0 rendering reads only the
- * terminal node's last result.
+ * A composer artifact version: a declarative pipeline, its terminal node and
+ * the viz config. Holds no results; opening it runs the pipeline.
  */
-export type AiComposerChartArtifactConfig = {
+export type AiComposerChartArtifactConfigV1 = {
     source: 'composer';
     schemaVersion: 1;
-    /** The replayable pipeline. Node ids are always pinned (resolved ids from submission). */
+    /** Self-contained pipeline: every node has a node id and reads only nodes of this pipeline. */
     queries: SourceQuery[];
-    /** Which node's result this artifact shows. */
     terminalNodeId: QueryNodeId;
-    /** Snapshot of the terminal node's last run; rendering v0 reads only this. */
-    lastQueryUuid: string;
-    /** One entry per node in `queries`; optional only for rows written before this field existed. */
-    nodeResults?: ComposerNodeResults;
-    /** The terminal node's viz config; null when not decided. Absent on rows written before it existed. */
-    vizConfig?: AllVizChartConfig | null;
+    vizConfig: AllVizChartConfig | null;
 };
+
+/** v2 draws the terminal node through the runQuery chart builders. */
+export type AiComposerChartArtifactConfigV2 = {
+    source: 'composer';
+    schemaVersion: 2;
+    queries: SourceQuery[];
+    terminalNodeId: QueryNodeId;
+    vizConfig: ComposerStoredChartVizConfig | null;
+};
+
+export type AiComposerChartArtifactConfig =
+    | AiComposerChartArtifactConfigV1
+    | AiComposerChartArtifactConfigV2;
+
+/** Arguments for saving a composer artifact version. */
+export type AiComposerArtifactVersion = {
+    artifactType: 'chart';
+    title: string;
+    description?: string;
+    vizConfig: AiComposerChartArtifactConfig;
+};
+
+export const toComposerArtifactVersion = ({
+    title,
+    description,
+    queries,
+    terminalNodeId,
+    vizConfig,
+}: {
+    title: string;
+    description: string | null;
+    queries: SourceQuery[];
+    terminalNodeId: QueryNodeId;
+    vizConfig: AllVizChartConfig | null;
+}): AiComposerArtifactVersion => ({
+    artifactType: 'chart',
+    title,
+    ...(description ? { description } : {}),
+    vizConfig: {
+        source: 'composer',
+        schemaVersion: 1,
+        queries,
+        terminalNodeId,
+        vizConfig,
+    },
+});
+
+export const toComposerChartArtifactVersion = ({
+    title,
+    description,
+    queries,
+    terminalNodeId,
+    vizConfig,
+}: {
+    title: string;
+    description: string | null;
+    queries: SourceQuery[];
+    terminalNodeId: QueryNodeId;
+    vizConfig: ComposerStoredChartVizConfig;
+}): AiComposerArtifactVersion => ({
+    artifactType: 'chart',
+    title,
+    ...(description ? { description } : {}),
+    vizConfig: {
+        source: 'composer',
+        schemaVersion: 2,
+        queries,
+        terminalNodeId,
+        vizConfig,
+    },
+});
 
 export const isAiComposerChartArtifactConfig = (
     config: unknown,
@@ -36,144 +110,214 @@ export const isAiComposerChartArtifactConfig = (
     'source' in config &&
     config.source === 'composer' &&
     'schemaVersion' in config &&
-    config.schemaVersion === 1 &&
+    (config.schemaVersion === 1 || config.schemaVersion === 2) &&
     'queries' in config &&
     Array.isArray(config.queries) &&
     'terminalNodeId' in config &&
-    typeof config.terminalNodeId === 'string' &&
-    'lastQueryUuid' in config &&
-    typeof config.lastQueryUuid === 'string';
+    typeof config.terminalNodeId === 'string';
 
-const NODE_ID_MAX_LENGTH = 63;
+/** Semantic explores a pipeline reads, the access a user needs to see its results. */
+export const getComposerSemanticExploreNames = (
+    queries: SourceQuery[],
+): string[] => [
+    ...new Set(
+        queries.flatMap((node) =>
+            node.sourceType === QuerySourceType.SEMANTIC_LAYER
+                ? [node.exploreName]
+                : [],
+        ),
+    ),
+];
 
-// Suffix grows deterministically (8, 12, 16… hex chars) until the id is free.
-const getCopiedNodeId = (
-    nodeId: QueryNodeId,
-    queryUuid: string,
-    takenIds: Set<QueryNodeId>,
-): QueryNodeId => {
-    const hex = queryUuid.replace(/[^a-zA-Z0-9]/g, '');
-    if (nodeId.endsWith(`_${hex.slice(0, 8)}`)) return nodeId;
-    for (let length = 8; ; length += 4) {
-        const suffix = `_${hex.slice(0, length)}`;
-        const candidate = `${nodeId.slice(0, NODE_ID_MAX_LENGTH - suffix.length)}${suffix}`;
-        if (!takenIds.has(candidate) || length >= hex.length) return candidate;
+// The full definition, with array references written in map form.
+// Filter group and rule ids are generated per submission, so two identical
+// filters differ only by id; compare them without.
+const filterItemDefinition = (item: FilterGroupItem): unknown => {
+    if (isAndFilterGroup(item)) {
+        return { and: item.and.map(filterItemDefinition) };
+    }
+    if (isOrFilterGroup(item)) {
+        return { or: item.or.map(filterItemDefinition) };
+    }
+    const { id, ...rule } = item;
+    return rule;
+};
+const filtersDefinition = (filters: Filters | undefined) =>
+    filters === undefined
+        ? undefined
+        : {
+              dimensions:
+                  filters.dimensions &&
+                  filterItemDefinition(filters.dimensions),
+              metrics: filters.metrics && filterItemDefinition(filters.metrics),
+              tableCalculations:
+                  filters.tableCalculations &&
+                  filterItemDefinition(filters.tableCalculations),
+          };
+
+const nodeDefinition = (node: SourceQuery): string => {
+    switch (node.sourceType) {
+        case QuerySourceType.DUCKDB:
+        case QuerySourceType.PYTHON:
+            return stableJson({
+                ...node,
+                references: getSourceQueryResultReferences(node),
+            });
+        case QuerySourceType.SEMANTIC_LAYER:
+            return stableJson({
+                ...node,
+                filters: filtersDefinition(node.filters),
+            });
+        case QuerySourceType.SQL:
+        case QuerySourceType.EXTERNAL:
+        case QuerySourceType.API:
+            return stableJson(node);
+        default:
+            return assertUnreachable(node, 'Unknown composer node');
     }
 };
 
+export const isSameComposerNodeDefinition = (
+    a: SourceQuery,
+    b: SourceQuery,
+): boolean => nodeDefinition(a) === nodeDefinition(b);
+
+/** What owns reusable nodes, as named to the model: an agent thread or an MCP composer session. */
+export type ComposerNodeScopeName = 'thread' | 'session';
+
+export const getComposerNodeConflictMessage = (
+    existing: ThreadComposerQueryNode,
+    scopeName: ComposerNodeScopeName = 'thread',
+): string =>
+    `Node id "${existing.nodeId}" already names a different node in this ${scopeName} ("${existing.title ?? existing.nodeId}"). To reuse it, read "${existing.nodeId}" without resubmitting it; to define a new node, give it a different node id.`;
+
+const describeNodes = (
+    nodes: ThreadComposerQueryNode[],
+    scopeName: ComposerNodeScopeName,
+): string =>
+    nodes.length === 0
+        ? `No nodes have been defined earlier in this ${scopeName}.`
+        : `Nodes defined earlier in this ${scopeName}: ${nodes
+              .map((node) => `${node.nodeId} ("${node.title ?? node.nodeId}")`)
+              .join(', ')}.`;
+
+/** A node of a built pipeline; building guarantees every node a node id. */
+export type ComposerPipelineNode = SourceQuery & { nodeId: QueryNodeId };
+
+/** A node a thread defined through a successful composer query. */
+export type ThreadComposerQueryNode = ComposerPipelineNode;
+
+/** A result column of a node, stored beside its definition by the run that registered it. */
+export type ComposerNodeColumn = {
+    reference: string;
+    type: DimensionType;
+};
+
+export const toComposerNodeColumns = (
+    columns: ResultColumns,
+): ComposerNodeColumn[] =>
+    Object.values(columns).map(({ reference, type }) => ({ reference, type }));
+
+const hasNodeId = (node: SourceQuery): node is ComposerPipelineNode =>
+    !!node.nodeId;
+
 /**
- * Builds the stored pipeline of a composer artifact: this run's nodes plus
- * every reused node (and its transitive reads) copied from earlier versions.
+ * Builds a submission's pipeline: submitted nodes plus every reused thread
+ * node and everything it reads, in dependency order. A node id names one
+ * definition for the whole thread.
  */
 export const buildComposerArtifactPipeline = ({
     queries,
-    submissions,
-    earlierPipelines,
+    threadNodes: threadNodeList,
+    scopeName = 'thread',
 }: {
     queries: SourceQuery[];
-    submissions: { nodeId: QueryNodeId; queryUuid: string }[];
-    earlierPipelines: AiComposerChartArtifactConfig[];
-}): { queries: SourceQuery[]; nodeResults: ComposerNodeResults } => {
-    const earlierNodesByQueryUuid = new Map<
-        string,
-        { node: SourceQuery; pipeline: AiComposerChartArtifactConfig }
-    >();
-    earlierPipelines.forEach((pipeline) => {
-        const { nodeResults } = pipeline;
-        if (!nodeResults) return;
-        pipeline.queries.forEach((node) => {
-            const result = node.nodeId ? nodeResults[node.nodeId] : undefined;
-            if (result && !earlierNodesByQueryUuid.has(result.queryUuid)) {
-                earlierNodesByQueryUuid.set(result.queryUuid, {
-                    node,
-                    pipeline,
-                });
-            }
-        });
-    });
-
-    const submittedNodeIds = new Set(
-        submissions.map((submission) => submission.nodeId),
+    threadNodes: ThreadComposerQueryNode[];
+    scopeName?: ComposerNodeScopeName;
+}): ComposerPipelineNode[] => {
+    const threadNodes = new Map<QueryNodeId, ThreadComposerQueryNode>(
+        threadNodeList.map((node) => [node.nodeId, node]),
     );
-    const takenIds = new Set(submittedNodeIds);
-    const copiedIdsByQueryUuid = new Map<string, QueryNodeId>();
-    const copiedNodes: SourceQuery[] = [];
-    const copiedNodeResults: ComposerNodeResults = {};
+    const submittedNodes = new Map<QueryNodeId, SourceQuery>(
+        queries.flatMap((node) => (node.nodeId ? [[node.nodeId, node]] : [])),
+    );
 
-    // Resolves a reference to a copied node id, or null when nothing earlier owns it.
-    const copyNode = (queryUuid: string): QueryNodeId | null => {
-        const copiedId = copiedIdsByQueryUuid.get(queryUuid);
-        if (copiedId) return copiedId;
-        const earlier = earlierNodesByQueryUuid.get(queryUuid);
-        if (!earlier?.node.nodeId) return null;
-
-        const nodeId = getCopiedNodeId(
-            earlier.node.nodeId,
-            queryUuid,
-            takenIds,
-        );
-        takenIds.add(nodeId);
-        copiedIdsByQueryUuid.set(queryUuid, nodeId);
-
-        let node: SourceQuery = { ...earlier.node, nodeId };
-        if (node.sourceType === QuerySourceType.DUCKDB && node.references) {
-            const entries = Array.isArray(node.references)
-                ? node.references.map((reference) => [reference, reference])
-                : Object.entries(node.references);
-            node = {
-                ...node,
-                references: Object.fromEntries(
-                    entries.map(([tableName, reference]) => {
-                        const localQueryUuid =
-                            earlier.pipeline.nodeResults?.[reference]
-                                ?.queryUuid;
-                        return [
-                            tableName,
-                            copyNode(localQueryUuid ?? reference) ?? reference,
-                        ];
-                    }),
-                ),
-            };
+    submittedNodes.forEach((node, nodeId) => {
+        const existing = threadNodes.get(nodeId);
+        if (existing && !isSameComposerNodeDefinition(existing, node)) {
+            throw new ParameterError(
+                getComposerNodeConflictMessage(existing, scopeName),
+            );
         }
-
-        copiedNodes.push(node);
-        copiedNodeResults[nodeId] = { queryUuid };
-        return nodeId;
-    };
-
-    const submittedQueries = queries.map((node): SourceQuery => {
-        if (
-            node.sourceType !== QuerySourceType.DUCKDB ||
-            !node.references ||
-            Array.isArray(node.references)
-        ) {
-            return node;
-        }
-        return {
-            ...node,
-            references: Object.fromEntries(
-                Object.entries(node.references).map(
-                    ([tableName, reference]) => [
-                        tableName,
-                        submittedNodeIds.has(reference)
-                            ? reference
-                            : (copyNode(reference) ?? reference),
-                    ],
-                ),
-            ),
-        };
     });
+    queries.forEach((node) =>
+        Object.values(getSourceQueryResultReferences(node)).forEach(
+            (reference) => {
+                if (
+                    !submittedNodes.has(reference) &&
+                    !threadNodes.has(reference)
+                ) {
+                    throw new ParameterError(
+                        `Node "${node.nodeId}" reads "${reference}", which is not a node of this submission or of an earlier call in this ${scopeName}. ${describeNodes(threadNodeList, scopeName)}`,
+                    );
+                }
+            },
+        ),
+    );
 
-    return {
-        queries: [...copiedNodes, ...submittedQueries],
-        nodeResults: {
-            ...copiedNodeResults,
-            ...Object.fromEntries(
-                submissions.map((submission) => [
-                    submission.nodeId,
-                    { queryUuid: submission.queryUuid },
-                ]),
-            ),
-        },
+    const emitted = new Set<QueryNodeId>();
+    const visiting = new Set<QueryNodeId>();
+    const pipeline: ComposerPipelineNode[] = [];
+    const visit = (node: SourceQuery) => {
+        if (!hasNodeId(node)) return;
+        const { nodeId } = node;
+        if (emitted.has(nodeId) || visiting.has(nodeId)) return;
+        visiting.add(nodeId);
+        Object.values(getSourceQueryResultReferences(node)).forEach(
+            (reference) => {
+                const read =
+                    submittedNodes.get(reference) ?? threadNodes.get(reference);
+                if (read) visit(read);
+            },
+        );
+        visiting.delete(nodeId);
+        emitted.add(nodeId);
+        pipeline.push(node);
     };
+    queries.forEach(visit);
+    return pipeline;
 };
+
+/** A node citation's preview: the cited node, which is terminal, and everything it reads. */
+export type AiAgentNodeCitationPipeline = {
+    nodeId: QueryNodeId;
+    title: string | null;
+    /** In dependency order, the cited node last. */
+    nodes: ComposerPipelineNode[];
+};
+
+export type ApiAiAgentNodeCitationPipelineResponse = {
+    status: 'ok';
+    results: AiAgentNodeCitationPipeline;
+};
+
+export type AiAgentThreadComposerNode = {
+    nodeId: QueryNodeId;
+    title: string | null;
+};
+
+export type ApiAiAgentThreadComposerNodesResponse = {
+    status: 'ok';
+    results: AiAgentThreadComposerNode[];
+};
+
+/** Identity of a pinned composer pipeline node as prompt context. */
+export const composerNodeContextKey = ({
+    artifactUuid,
+    versionUuid,
+    nodeId,
+}: {
+    artifactUuid: string;
+    versionUuid: string;
+    nodeId: string;
+}): string => `composer_node:${artifactUuid}:${versionUuid}:${nodeId}`;

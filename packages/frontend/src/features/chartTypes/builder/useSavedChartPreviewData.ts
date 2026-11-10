@@ -11,6 +11,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useSavedQuery } from '../../../hooks/useSavedQuery';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { getDataAppVizFieldItems } from '../utils/getDataAppVizFieldItems';
 import { type SavedChartBindingSource } from '../utils/savedChartPreviewFieldMapping';
 import {
@@ -74,6 +75,7 @@ export const useSavedChartPreviewData = ({
     savedChartUuid,
     enabled: canPreview,
 }: Args): SavedChartPreviewRun => {
+    const lightdashApi = useLightdashApi();
     const enabled =
         canPreview && Boolean(projectUuid) && savedChartUuid !== null;
     const savedChart = useSavedQuery({
@@ -88,7 +90,7 @@ export const useSavedChartPreviewData = ({
             savedChartUuid,
         ],
         queryFn: () =>
-            executeSavedChartPreviewQuery({
+            executeSavedChartPreviewQuery(lightdashApi, {
                 projectUuid: projectUuid ?? '',
                 chartUuid: savedChartUuid ?? '',
             }),

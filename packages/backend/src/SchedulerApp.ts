@@ -96,7 +96,13 @@ const schedulerWorkerFactory = (context: {
     prometheusMetrics?: PrometheusMetrics;
 }) =>
     new SchedulerWorker({
+        getAgentConnectionGrantService: () =>
+            context.serviceRepository.getAgentConnectionGrantService(),
+        agentActionLogModel: context.models.getAgentActionLogModel(),
         usageDimensionsModel: context.models.getUsageDimensionsModel(),
+        usageHistoryModel: context.models.getUsageHistoryModel(),
+        usageProcessingModel: context.models.getUsageProcessingModel(),
+        featureFlagModel: context.models.getFeatureFlagModel(),
         lightdashConfig: context.lightdashConfig,
         analytics: context.analytics,
         // SlackClient should initialize before UnfurlService and AiAgentService
@@ -130,8 +136,12 @@ const schedulerWorkerFactory = (context: {
             context.models.getOrganizationSettingsModel(),
         emailWhitelabelService:
             context.serviceRepository.getEmailWhitelabelService(),
+        mobileAppLinkModel: context.models.getMobileAppLinkModel(),
         warehouseConnectCodeModel:
             context.models.getWarehouseConnectCodeModel(),
+        mobileSignInCodeModel: context.models.getMobileSignInCodeModel(),
+        agentConnectionApprovalRequestModel:
+            context.models.getAgentConnectionApprovalRequestModel(),
         aiUsageLedgerModel: context.models.getAiUsageLedgerModel(),
         learnSandboxService: context.serviceRepository.getLearnSandboxService(),
         workerHealth: context.workerHealth,
@@ -207,6 +217,12 @@ export default class SchedulerApp {
             this.environment === 'production'
                 ? args.knexConfig.production
                 : args.knexConfig.development,
+            {
+                logRollbacks:
+                    this.lightdashConfig.database.logTransactionRollbacks,
+                slowTransactionThresholdMs:
+                    this.lightdashConfig.database.slowTransactionThresholdMs,
+            },
         );
 
         const utils = new UtilRepository({

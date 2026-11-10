@@ -5,13 +5,17 @@ import {
     type UpdateEmailWhitelabel,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import useToaster from '../toaster/useToaster';
 import { useOrganization } from './useOrganization';
 
 const QUERY_KEY = ['organization_email_whitelabel'];
 
-const getEmailWhitelabel = async (organizationUuid: string) =>
+const getEmailWhitelabel = async (
+    lightdashApi: LightdashApi,
+    organizationUuid: string,
+) =>
     lightdashApi<OrganizationEmailWhitelabel | null>({
         url: `/org/${organizationUuid}/email-whitelabel`,
         method: 'GET',
@@ -19,6 +23,7 @@ const getEmailWhitelabel = async (organizationUuid: string) =>
     });
 
 const setupEmailWhitelabel = async (
+    lightdashApi: LightdashApi,
     organizationUuid: string,
     data: CreateEmailWhitelabel,
 ) =>
@@ -28,7 +33,10 @@ const setupEmailWhitelabel = async (
         body: JSON.stringify(data),
     });
 
-const verifyEmailWhitelabel = async (organizationUuid: string) =>
+const verifyEmailWhitelabel = async (
+    lightdashApi: LightdashApi,
+    organizationUuid: string,
+) =>
     lightdashApi<OrganizationEmailWhitelabel>({
         url: `/org/${organizationUuid}/email-whitelabel/verify`,
         method: 'POST',
@@ -36,6 +44,7 @@ const verifyEmailWhitelabel = async (organizationUuid: string) =>
     });
 
 const updateEmailWhitelabel = async (
+    lightdashApi: LightdashApi,
     organizationUuid: string,
     data: UpdateEmailWhitelabel,
 ) =>
@@ -45,7 +54,10 @@ const updateEmailWhitelabel = async (
         body: JSON.stringify(data),
     });
 
-const deleteEmailWhitelabel = async (organizationUuid: string) =>
+const deleteEmailWhitelabel = async (
+    lightdashApi: LightdashApi,
+    organizationUuid: string,
+) =>
     lightdashApi<undefined>({
         url: `/org/${organizationUuid}/email-whitelabel`,
         method: 'DELETE',
@@ -58,15 +70,17 @@ const useOrganizationUuid = () => {
 };
 
 export const useEmailWhitelabel = () => {
+    const lightdashApi = useLightdashApi();
     const organizationUuid = useOrganizationUuid();
     return useQuery<OrganizationEmailWhitelabel | null, ApiError>({
         queryKey: [...QUERY_KEY, organizationUuid],
-        queryFn: () => getEmailWhitelabel(organizationUuid!),
+        queryFn: () => getEmailWhitelabel(lightdashApi, organizationUuid!),
         enabled: !!organizationUuid,
     });
 };
 
 export const useSetupEmailWhitelabel = () => {
+    const lightdashApi = useLightdashApi();
     const organizationUuid = useOrganizationUuid();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
@@ -74,7 +88,7 @@ export const useSetupEmailWhitelabel = () => {
         OrganizationEmailWhitelabel,
         ApiError,
         CreateEmailWhitelabel
-    >((data) => setupEmailWhitelabel(organizationUuid!, data), {
+    >((data) => setupEmailWhitelabel(lightdashApi, organizationUuid!, data), {
         mutationKey: ['organization_email_whitelabel', 'setup'],
         onSuccess: async (data) => {
             queryClient.setQueryData([...QUERY_KEY, organizationUuid], data);
@@ -92,11 +106,12 @@ export const useSetupEmailWhitelabel = () => {
 };
 
 export const useVerifyEmailWhitelabel = () => {
+    const lightdashApi = useLightdashApi();
     const organizationUuid = useOrganizationUuid();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess, showToastInfo } = useToaster();
     return useMutation<OrganizationEmailWhitelabel, ApiError, void>(
-        () => verifyEmailWhitelabel(organizationUuid!),
+        () => verifyEmailWhitelabel(lightdashApi, organizationUuid!),
         {
             mutationKey: ['organization_email_whitelabel', 'verify'],
             onSuccess: async (data) => {
@@ -125,6 +140,7 @@ export const useVerifyEmailWhitelabel = () => {
 };
 
 export const useUpdateEmailWhitelabel = () => {
+    const lightdashApi = useLightdashApi();
     const organizationUuid = useOrganizationUuid();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
@@ -132,7 +148,7 @@ export const useUpdateEmailWhitelabel = () => {
         OrganizationEmailWhitelabel,
         ApiError,
         UpdateEmailWhitelabel
-    >((data) => updateEmailWhitelabel(organizationUuid!, data), {
+    >((data) => updateEmailWhitelabel(lightdashApi, organizationUuid!, data), {
         mutationKey: ['organization_email_whitelabel', 'update'],
         onSuccess: async (data) => {
             queryClient.setQueryData([...QUERY_KEY, organizationUuid], data);
@@ -152,11 +168,12 @@ export const useUpdateEmailWhitelabel = () => {
 };
 
 export const useDeleteEmailWhitelabel = () => {
+    const lightdashApi = useLightdashApi();
     const organizationUuid = useOrganizationUuid();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
     return useMutation<undefined, ApiError, void>(
-        () => deleteEmailWhitelabel(organizationUuid!),
+        () => deleteEmailWhitelabel(lightdashApi, organizationUuid!),
         {
             mutationKey: ['organization_email_whitelabel', 'delete'],
             onSuccess: async () => {

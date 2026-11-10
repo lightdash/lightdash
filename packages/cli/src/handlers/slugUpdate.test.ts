@@ -153,6 +153,53 @@ describe('local dashboard slug updates', () => {
 });
 
 describe('local chart slug updates', () => {
+    test('skips YAML files that do not contain a mapping', async () => {
+        const root = await createTemporaryContent();
+        const chartFile = path.join(root, 'charts', 'my-chart.yml');
+        const contextDirectory = path.join(
+            root,
+            'chart-types',
+            'funnel',
+            '.lightdash',
+            'context',
+        );
+        await fs.mkdir(contextDirectory, { recursive: true });
+        await Promise.all([
+            fs.writeFile(
+                chartFile,
+                'contentType: chart\nslug: my-chart\nname: My chart\nmetricQuery: {}\n',
+            ),
+            fs.writeFile(
+                path.join(contextDirectory, 'semantic-layer.yml'),
+                '# The semantic layer is sharded across one YAML file per model.\n',
+            ),
+            fs.writeFile(path.join(root, 'empty.yml'), ''),
+            fs.writeFile(path.join(root, 'scalar.yml'), 'just a string\n'),
+            fs.writeFile(path.join(root, 'list.yaml'), '- one\n- two\n'),
+        ]);
+
+        const chartPlan = await planLocalSlugUpdate(
+            root,
+            'my-chart',
+            'my-chart-renamed',
+        );
+        expect(chartPlan.referencesUpdated).toBe(1);
+        expect(getLocalSlugUpdateFileChanges(chartPlan, root)).toEqual([
+            {
+                source: path.join('charts', 'my-chart.yml'),
+                target: path.join('charts', 'my-chart-renamed.yml'),
+            },
+        ]);
+
+        const dashboardPlan = await planLocalSlugUpdate(
+            root,
+            'missing',
+            'renamed',
+            ContentType.DASHBOARD,
+        );
+        expect(dashboardPlan.referencesUpdated).toBe(0);
+    });
+
     test('updates chart files, language maps, references, filenames, and metadata', async () => {
         const root = await createTemporaryContent();
         const chartFile = path.join(root, 'charts', 'copy-of-orders.yml');
@@ -292,6 +339,7 @@ describe('local chart slug updates', () => {
         expect(secondPlan).toEqual({
             fileUpdates: [],
             fileMoves: [],
+            directoryMoves: [],
             metadata: undefined,
             referencesUpdated: 0,
         });
@@ -357,6 +405,29 @@ describe('local chart slug updates', () => {
             planLocalSlugUpdate(root, 'copy-of-orders', '../../orders'),
         ).rejects.toThrow('target slug must contain');
         expect(await fs.readFile(chartFile, 'utf8')).toBe(source);
+    });
+
+    test('plans a rename for a chart whose slug was too long to download', async () => {
+        const root = await createTemporaryContent();
+        const from = `${'orders-by-'.repeat(28)}customer`;
+
+        const plan = await planLocalSlugUpdate(
+            root,
+            from,
+            'orders-by-customer',
+        );
+
+        expect(from.length).toBeGreaterThan(255);
+        expect(plan.fileMoves).toEqual([]);
+        expect(plan.fileUpdates).toEqual([]);
+    });
+
+    test('rejects target slugs that would not fit in a file name', async () => {
+        const root = await createTemporaryContent();
+
+        await expect(
+            planLocalSlugUpdate(root, 'copy-of-orders', 'a'.repeat(201)),
+        ).rejects.toThrow('target slug must contain between 1 and 200');
     });
 
     test('does not change local files when the server rejects the rename', async () => {
@@ -462,5 +533,128 @@ describe('content slug rename API', () => {
         ).rejects.toThrow(
             'This Lightdash server does not support slug-update yet',
         );
+    });
+});
+
+describe('local data app slug updates', () => {
+    const writeAppBundle = async (
+        root: string,
+        folder: string,
+        slug: string,
+    ) => {
+        const appDir = path.join(root, 'apps', folder);
+        await fs.mkdir(path.join(appDir, 'src'), { recursive: true });
+        await fs.writeFile(
+            path.join(appDir, 'lightdash-app.yml'),
+            `codeVersion: 1\nslug: ${slug}\nversion: 3\nname: Sales app\ndescription: ''\ntemplate: null\ndownloadedAt: 2026-01-01T00:00:00.000Z\n`,
+        );
+        await fs.writeFile(
+            path.join(appDir, 'src', 'App.tsx'),
+            'export default () => null;\n',
+        );
+        return appDir;
+    };
+
+    test('updates the manifest, renames the bundle folder, and rewrites dashboard tiles', async () => {
+        const root = await createTemporaryContent();
+        await writeAppBundle(root, 'duplicate-of-sales', 'duplicate-of-sales');
+        const dashboardFile = path.join(root, 'dashboards', 'overview.yml');
+        const chartFile = path.join(root, 'charts', 'sales.yml');
+        const chartSource =
+            'contentType: chart\nslug: duplicate-of-sales\nmetricQuery: {}\n';
+        await Promise.all([
+            fs.writeFile(
+                dashboardFile,
+                'contentType: dashboard\nslug: overview\ntiles:\n  - type: data_app\n    properties:\n      appSlug: duplicate-of-sales\n  - type: saved_chart\n    properties:\n      chartSlug: duplicate-of-sales\n',
+            ),
+            fs.writeFile(chartFile, chartSource),
+        ]);
+
+        const plan = await planLocalSlugUpdate(
+            root,
+            'duplicate-of-sales',
+            'sales',
+            ContentType.DATA_APP,
+        );
+        await applyLocalSlugUpdate(plan);
+
+        const manifest = parse(
+            await fs.readFile(
+                path.join(root, 'apps', 'sales', 'lightdash-app.yml'),
+                'utf8',
+            ),
+        );
+        expect(manifest.slug).toBe('sales');
+        // The whole bundle moved with the folder, not just the manifest.
+        expect(
+            await fs.readFile(
+                path.join(root, 'apps', 'sales', 'src', 'App.tsx'),
+                'utf8',
+            ),
+        ).toBe('export default () => null;\n');
+        await expect(
+            fs.access(path.join(root, 'apps', 'duplicate-of-sales')),
+        ).rejects.toThrow();
+
+        const dashboard = parse(await fs.readFile(dashboardFile, 'utf8'));
+        expect(dashboard.tiles[0].properties.appSlug).toBe('sales');
+        // A chart sharing the slug is untouched, as is its tile reference.
+        expect(dashboard.tiles[1].properties.chartSlug).toBe(
+            'duplicate-of-sales',
+        );
+        expect(await fs.readFile(chartFile, 'utf8')).toBe(chartSource);
+
+        const replay = await planLocalSlugUpdate(
+            root,
+            'duplicate-of-sales',
+            'sales',
+            ContentType.DATA_APP,
+        );
+        expect(getLocalSlugUpdateFileChanges(replay, root)).toEqual([]);
+    });
+
+    test('keeps the folder when its name does not match the old slug', async () => {
+        const root = await createTemporaryContent();
+        const appDir = await writeAppBundle(root, 'custom-folder', 'old-slug');
+
+        const plan = await planLocalSlugUpdate(
+            root,
+            'old-slug',
+            'new-slug',
+            ContentType.DATA_APP,
+        );
+        await applyLocalSlugUpdate(plan);
+
+        const manifest = parse(
+            await fs.readFile(path.join(appDir, 'lightdash-app.yml'), 'utf8'),
+        );
+        expect(manifest.slug).toBe('new-slug');
+    });
+
+    test('refuses a rename when the target bundle folder already exists', async () => {
+        const root = await createTemporaryContent();
+        await writeAppBundle(root, 'old-slug', 'old-slug');
+        await writeAppBundle(root, 'new-slug', 'something-else');
+
+        await expect(
+            planLocalSlugUpdate(
+                root,
+                'old-slug',
+                'new-slug',
+                ContentType.DATA_APP,
+            ),
+        ).rejects.toThrow('already exists');
+    });
+
+    test('rejects a target slug the server would refuse', async () => {
+        const root = await createTemporaryContent();
+        await expect(
+            planLocalSlugUpdate(
+                root,
+                'old-slug',
+                'Bad Slug!',
+                ContentType.DATA_APP,
+            ),
+        ).rejects.toThrow('Invalid data app slug');
     });
 });

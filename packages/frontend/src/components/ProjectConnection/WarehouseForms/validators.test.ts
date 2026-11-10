@@ -1,12 +1,23 @@
 import {
+    AthenaAuthenticationType,
+    AWS_IAM_ROLE_ARN_INVALID_MESSAGE,
+    BigqueryAuthenticationType,
     DbtProjectType,
+    DefaultSupportedDbtVersion,
     RedshiftAuthenticationType,
     WarehouseTypes,
     type CreateRedshiftCredentials,
 } from '@lightdash/common';
+import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { useForm } from '../formContext';
 import { type ProjectConnectionForm } from '../types';
-import { PostgresDefaultValues, RedshiftDefaultValues } from './defaultValues';
+import {
+    AthenaDefaultValues,
+    BigQueryDefaultValues,
+    PostgresDefaultValues,
+    RedshiftDefaultValues,
+} from './defaultValues';
 import {
     createWarehouseValueValidators,
     SSH_TUNNEL_PUBLIC_KEY_REQUIRED_MESSAGE,
@@ -147,4 +158,139 @@ describe('createWarehouseValueValidators[REDSHIFT]', () => {
         expect(user('', values)).toBeUndefined();
         expect(password('', values)).toBeUndefined();
     });
+});
+
+describe('athena web identity validation', () => {
+    const validators = [
+        ['update', warehouseValueValidators[WarehouseTypes.ATHENA]],
+        ['create', createWarehouseValueValidators[WarehouseTypes.ATHENA]],
+    ] as const;
+    const webIdentity = formValues({
+        ...AthenaDefaultValues,
+        authenticationType: AthenaAuthenticationType.WEB_IDENTITY,
+    });
+
+    it.each(validators)('%s form rejects a malformed role ARN', (_form, v) => {
+        expect(v.assumeRoleArn('not-an-arn', webIdentity)).toBe(
+            AWS_IAM_ROLE_ARN_INVALID_MESSAGE,
+        );
+        expect(
+            v.assumeRoleArn(
+                'arn:aws:iam::123456789012:role/lightdash-athena',
+                webIdentity,
+            ),
+        ).toBeUndefined();
+    });
+
+    it.each(validators)('%s form requires an audience', (_form, v) => {
+        expect(v.webIdentityAudience('', webIdentity)).toBe(
+            'Generate an audience to continue.',
+        );
+        expect(
+            v.webIdentityAudience('lightdash-abc', webIdentity),
+        ).toBeUndefined();
+    });
+});
+
+describe.each([
+    ['create', createWarehouseValueValidators[WarehouseTypes.BIGQUERY]],
+    ['update', warehouseValueValidators[WarehouseTypes.BIGQUERY]],
+] as const)('%s BigQuery workload identity validation', (_form, validators) => {
+    const values: ProjectConnectionForm = {
+        name: 'Test project',
+        dbt: { type: DbtProjectType.NONE },
+        dbtVersion: DefaultSupportedDbtVersion,
+        warehouse: {
+            ...BigQueryDefaultValues,
+            authenticationType:
+                BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+        },
+    };
+    const provider =
+        'projects/123456/locations/global/workloadIdentityPools/pool-id/providers/provider-id';
+
+    it.each([
+        '',
+        'invalid',
+        `https://iam.googleapis.com/${provider}`,
+        provider.replace('123456', 'project-id'),
+        provider.replace('global', 'us-east1'),
+        provider.replace('pool-id', 'abc'),
+        provider.replace('provider-id', 'a'.repeat(33)),
+        provider.replace('provider-id', 'UPPERCASE'),
+        `${provider}/extra`,
+    ])('rejects an invalid provider: %s', (value) => {
+        expect(
+            validators.workloadIdentityProvider(value, values),
+        ).toBeDefined();
+    });
+
+    it('accepts a provider resource name', () => {
+        expect(
+            validators.workloadIdentityProvider(provider, values),
+        ).toBeUndefined();
+    });
+
+    it('accepts cleared federation fields after switching to key-file authentication', () => {
+        const { result } = renderHook(() =>
+            useForm({
+                initialValues: {
+                    ...values,
+                    warehouse: {
+                        ...BigQueryDefaultValues,
+                        project: 'project-id',
+                        dataset: 'dataset',
+                        workloadIdentityProvider: undefined,
+                        workloadIdentityAudience: undefined,
+                    },
+                },
+                validate: { warehouse: validators },
+            }),
+        );
+        act(() => {
+            expect(result.current.validate()).toEqual({
+                hasErrors: false,
+                errors: {},
+            });
+        });
+    });
+
+    it.each(['with space', 'trailing\n', '\ttab', 'a'.repeat(257)])(
+        'rejects an invalid audience: %s',
+        (value) => {
+            expect(validators.workloadIdentityAudience(value, values)).toBe(
+                'Audience must be 256 characters or fewer and contain no whitespace.',
+            );
+        },
+    );
+
+    it.each(['', 'custom-audience', 'a'.repeat(256)])(
+        'accepts an optional audience: %s',
+        (value) => {
+            expect(
+                validators.workloadIdentityAudience(value, values),
+            ).toBeUndefined();
+        },
+    );
+
+    it.each([
+        BigqueryAuthenticationType.PRIVATE_KEY,
+        BigqueryAuthenticationType.ADC,
+        BigqueryAuthenticationType.SSO,
+        undefined,
+    ])(
+        'ignores federation fields for %s authentication',
+        (authenticationType) => {
+            const otherValues = {
+                ...values,
+                warehouse: { ...BigQueryDefaultValues, authenticationType },
+            };
+            expect(
+                validators.workloadIdentityProvider('invalid', otherValues),
+            ).toBeUndefined();
+            expect(
+                validators.workloadIdentityAudience('with space', otherValues),
+            ).toBeUndefined();
+        },
+    );
 });

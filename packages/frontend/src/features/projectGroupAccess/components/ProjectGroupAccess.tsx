@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    FeatureFlags,
     isGroupWithMembers,
     type CreateProjectGroupAccess,
     type GroupWithMembers,
@@ -36,7 +35,6 @@ import {
     useProjectGroupRoleAssignments,
     useUpsertProjectGroupRoleAssignmentMutation,
 } from '../../../hooks/useProjectGroupRoles';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
 import { TrackPage } from '../../../providers/Tracking/TrackingProvider';
@@ -122,17 +120,7 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
 
     const [isAddingGroupAccess, setIsAddingGroupAccess] = useState(false);
 
-    const userGroupsFeatureFlagQuery = useServerFeatureFlag(
-        FeatureFlags.UserGroupsEnabled,
-    );
-
-    const isGroupManagementEnabled =
-        userGroupsFeatureFlagQuery.data?.enabled ?? false;
-
-    const { data: groups } = useOrganizationGroups(
-        { includeMembers: 5 },
-        { enabled: isGroupManagementEnabled },
-    );
+    const { data: groups } = useOrganizationGroups({ includeMembers: 5 });
 
     const {
         data: projectGroupRoleAssignments,
@@ -428,48 +416,14 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
         enableTopToolbar: true,
         enableBottomToolbar: true,
         mantineTableContainerProps: {
-            style: { maxHeight: 'calc(100dvh - 300px)' },
+            mah: 'calc(100dvh - 300px)',
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(enrichedGroups.length),
         },
-        mantineTableHeadCellProps: (props) => {
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                style: {
-                    userSelect: 'none',
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderTop: 'none',
-                    borderLeft: 'none',
-                },
-            };
-        },
-        mantineTableBodyCellProps: () => {
-            return {
-                style: {
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderRight: 'none',
-                    borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderTop: 'none',
-                },
-            };
-        },
+        mantineTableHeadCellProps: { px: 'xl' },
+        mantineTableBodyCellProps: { py: 'xs', px: 'xl' },
         renderTopToolbar: () => (
             <Group
                 justify="flex-end"

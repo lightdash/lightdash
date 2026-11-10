@@ -3,13 +3,14 @@ import {
     type ApiError,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 export const useDataAppVizUpgradeImpact = (
     projectUuid: string,
     dataAppVizUuid: string,
-) =>
-    useQuery<ApiDataAppVizUpgradeImpactResponse['results'], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiDataAppVizUpgradeImpactResponse['results'], ApiError>({
         queryKey: ['data-app-viz-upgrade-impact', projectUuid, dataAppVizUuid],
         queryFn: () =>
             lightdashApi<ApiDataAppVizUpgradeImpactResponse['results']>({
@@ -20,3 +21,4 @@ export const useDataAppVizUpgradeImpact = (
         refetchOnMount: 'always',
         retry: false,
     });
+};

@@ -91,7 +91,7 @@ const ChartTypeUpgradeModal: FC<Props> = ({
         >
             <Stack gap="md">
                 {registryUpdate.changelog && (
-                    <Text fz="sm" c="ldGray.7">
+                    <Text fz="sm" c="dimmed">
                         {registryUpdate.changelog}
                     </Text>
                 )}

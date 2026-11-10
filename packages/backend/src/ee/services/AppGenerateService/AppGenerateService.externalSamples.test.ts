@@ -1,10 +1,13 @@
 // Stub the e2b/ai SDKs before importing AppGenerateService so the tests never
 // reach the real sandbox or model client.
 import {
+    FeatureFlags,
     ForbiddenError,
     ParameterError,
+    TableSelectionType,
     type ExternalConnectionSample,
 } from '@lightdash/common';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -38,15 +41,21 @@ type PrivateWithSamples = {
     logger: { info: import('vitest').Mock };
 };
 
+type ExternalConnectionRefs =
+    | Array<{ externalConnectionUuid: string; alias: string }>
+    | undefined;
+
 type PrivateWithLink = {
-    linkExternalConnections: (
+    resolveExternalConnectionResources: (
         user: unknown,
         projectUuid: string,
         appId: string,
-        externalConnections:
-            | Array<{ externalConnectionUuid: string; alias: string }>
-            | undefined,
-    ) => Promise<unknown>;
+        externalConnections: ExternalConnectionRefs,
+    ) => Promise<unknown[]>;
+    linkResolvedExternalConnections: (
+        appId: string,
+        connections: unknown[],
+    ) => Promise<void>;
 };
 
 function buildService() {
@@ -58,6 +67,9 @@ function buildService() {
     };
     return {
         service: new AppGenerateService({
+            agentActionLogModel: {
+                insert: vi.fn().mockResolvedValue(undefined),
+            },
             aiCreditService: {
                 assertAiCreditsAvailable: async () => undefined,
             },
@@ -70,6 +82,7 @@ function buildService() {
             userModel: {} as never,
             appModel: {} as never,
             featureFlagModel: featureFlagModel as never,
+            organizationSettingsModel: {} as never,
             organizationDesignModel: {} as never,
             pinnedListModel: {} as never,
             projectModel: {} as never,
@@ -89,6 +102,7 @@ function buildService() {
             orgAiCopilotConfigResolver: {} as never,
             sandboxManager: null,
             appRuntimeS3: null,
+            appThumbnailClient: buildAppThumbnailClientMock(),
             chartRegistryClient: {} as never,
             contentVerificationModel: {
                 getByContent: async () => null,
@@ -315,11 +329,17 @@ describe('AppGenerateService pipeline external connection samples', () => {
                 chartReferences: undefined,
                 template: undefined,
             ) => Promise<unknown>;
-            projectModel: { getAllExploresFromCache: import('vitest').Mock };
+            projectModel: {
+                getAllExploresFromCache: import('vitest').Mock;
+                getTablesConfiguration: import('vitest').Mock;
+            };
             projectParametersModel: { find: import('vitest').Mock };
         };
         privateService.projectModel = {
             getAllExploresFromCache: vi.fn().mockResolvedValue({}),
+            getTablesConfiguration: vi.fn().mockResolvedValue({
+                tableSelection: { type: TableSelectionType.ALL, value: null },
+            }),
         };
         privateService.projectParametersModel = {
             find: vi.fn().mockResolvedValue([]),
@@ -340,6 +360,79 @@ describe('AppGenerateService pipeline external connection samples', () => {
         expect(resolveSpy).toHaveBeenCalledWith('app-1');
     });
 
+    const assembleWith = async (opts: {
+        flagEnabled: boolean;
+        isDataAppViz?: boolean;
+        builder?: { userUuid: string; organizationUuid: string };
+    }) => {
+        const sandbox = makeSandbox();
+        const { service, featureFlagModel } = buildService();
+        featureFlagModel.get.mockResolvedValue({ enabled: opts.flagEnabled });
+        vi.spyOn(
+            service as unknown as PrivateWithSamples,
+            'resolveExternalConnectionSamples',
+        ).mockResolvedValue([]);
+        const privateService = service as unknown as {
+            writeCatalogAndPrompt: (...args: unknown[]) => Promise<unknown>;
+            projectModel: {
+                getAllExploresFromCache: import('vitest').Mock;
+                getTablesConfiguration: import('vitest').Mock;
+            };
+            projectParametersModel: { find: import('vitest').Mock };
+        };
+        privateService.projectModel = {
+            getAllExploresFromCache: vi.fn().mockResolvedValue({}),
+            getTablesConfiguration: vi.fn().mockResolvedValue({
+                tableSelection: { type: TableSelectionType.ALL, value: null },
+            }),
+        };
+        privateService.projectParametersModel = {
+            find: vi.fn().mockResolvedValue([]),
+        };
+        await privateService.writeCatalogAndPrompt(
+            sandbox,
+            'app-1',
+            'project-1',
+            'build me an app',
+            undefined,
+            {} as never,
+            'bucket',
+            undefined,
+            undefined,
+            undefined,
+            opts.isDataAppViz ?? false,
+            opts.builder,
+        );
+        const promptWrite = sandbox.files.write.mock.calls.find(
+            ([path]) => path === '/tmp/prompt.txt',
+        );
+        return { prompt: String(promptWrite?.[1] ?? ''), featureFlagModel };
+    };
+
+    it('tells the agent about saved app state only when the builder has the flag', async () => {
+        const builder = { userUuid: 'user-1', organizationUuid: 'org-1' };
+        const on = await assembleWith({ flagEnabled: true, builder });
+        expect(on.prompt).toContain('Saved app state is available');
+        expect(on.prompt).toContain('/app/references/app-state.md');
+        expect(on.featureFlagModel.get).toHaveBeenCalledWith({
+            user: builder,
+            featureFlagId: FeatureFlags.EnableDataAppState,
+        });
+
+        const off = await assembleWith({ flagEnabled: false, builder });
+        expect(off.prompt).not.toContain('Saved app state');
+
+        const viz = await assembleWith({
+            flagEnabled: true,
+            isDataAppViz: true,
+            builder,
+        });
+        expect(viz.prompt).not.toContain('Saved app state');
+
+        const noBuilder = await assembleWith({ flagEnabled: true });
+        expect(noBuilder.prompt).not.toContain('Saved app state');
+    });
+
     it('omits the explores catalog and stale model files for chart types', async () => {
         const sandbox = makeSandbox();
         const { service } = buildService();
@@ -355,10 +448,16 @@ describe('AppGenerateService pipeline external connection samples', () => {
                 dimensionCount: number;
                 metricCount: number;
             }>;
-            projectModel: { getAllExploresFromCache: import('vitest').Mock };
+            projectModel: {
+                getAllExploresFromCache: import('vitest').Mock;
+                getTablesConfiguration: import('vitest').Mock;
+            };
             projectParametersModel: { find: import('vitest').Mock };
         };
-        privateService.projectModel = { getAllExploresFromCache };
+        privateService.projectModel = {
+            getAllExploresFromCache,
+            getTablesConfiguration: vi.fn(),
+        };
         privateService.projectParametersModel = { find };
 
         const result = await privateService.writeCatalogAndPrompt(
@@ -391,9 +490,77 @@ describe('AppGenerateService pipeline external connection samples', () => {
             expect.anything(),
         );
     });
+
+    it('excludes explores outside the Tables configuration from the catalog', async () => {
+        const sandbox = makeSandbox();
+        const { service } = buildService();
+        vi.spyOn(
+            service as unknown as PrivateWithSamples,
+            'resolveExternalConnectionSamples',
+        ).mockResolvedValue([]);
+        const explore = (name: string, tags: string[]) => ({
+            name,
+            baseTable: name,
+            tags,
+            joinedTables: [],
+            tables: {
+                [name]: {
+                    metrics: {},
+                    dimensions: { id: { name: 'id', type: 'string' } },
+                },
+            },
+        });
+        const privateService = service as unknown as {
+            writeCatalogAndPrompt: (...args: unknown[]) => Promise<{
+                tableCount: number;
+            }>;
+            projectModel: {
+                getAllExploresFromCache: import('vitest').Mock;
+                getTablesConfiguration: import('vitest').Mock;
+            };
+            projectParametersModel: { find: import('vitest').Mock };
+        };
+        privateService.projectModel = {
+            getAllExploresFromCache: vi.fn().mockResolvedValue({
+                'uuid-1': explore('orders', ['app']),
+                'uuid-2': explore('restricted', []),
+            }),
+            getTablesConfiguration: vi.fn().mockResolvedValue({
+                tableSelection: {
+                    type: TableSelectionType.WITH_TAGS,
+                    value: ['app'],
+                },
+            }),
+        };
+        privateService.projectParametersModel = {
+            find: vi.fn().mockResolvedValue([]),
+        };
+
+        const result = await privateService.writeCatalogAndPrompt(
+            sandbox,
+            'app-1',
+            'project-1',
+            'build me an app',
+            undefined,
+            {} as never,
+            'bucket',
+            undefined,
+            undefined,
+            undefined,
+            false,
+        );
+
+        expect(result).toMatchObject({ tableCount: 1 });
+        const catalogWrites = sandbox.files.write.mock.calls
+            .filter(([path]) => path === '/tmp/dbt-repo/models.tar')
+            .map(([, contents]) => String(contents));
+        expect(catalogWrites).toHaveLength(1);
+        expect(catalogWrites[0]).toContain('orders');
+        expect(catalogWrites[0]).not.toContain('restricted');
+    });
 });
 
-describe('AppGenerateService.linkExternalConnections', () => {
+describe('AppGenerateService external connection linking', () => {
     const sameProjectConn = {
         projectUuid: 'proj-1',
         organizationUuid: 'org-1',
@@ -434,11 +601,26 @@ describe('AppGenerateService.linkExternalConnections', () => {
             can,
             cannot: (action: string, value: unknown) => !can(action, value),
         });
-        return { service: service as unknown as PrivateWithLink, linkToApp };
+        const privateService = service as unknown as PrivateWithLink;
+        const linkExternalConnections = async (
+            projectUuid: string,
+            appId: string,
+            refs: ExternalConnectionRefs,
+        ) =>
+            privateService.linkResolvedExternalConnections(
+                appId,
+                await privateService.resolveExternalConnectionResources(
+                    user,
+                    projectUuid,
+                    appId,
+                    refs,
+                ),
+            );
+        return { linkExternalConnections, linkToApp };
     }
 
     it('throws ForbiddenError and does not link an admin-only connection for a builder', async () => {
-        const { service, linkToApp } = setup({
+        const { linkExternalConnections, linkToApp } = setup({
             canManage: false,
             connection: {
                 ...sameProjectConn,
@@ -446,21 +628,25 @@ describe('AppGenerateService.linkExternalConnections', () => {
             },
         });
         await expect(
-            service.linkExternalConnections(user, 'proj-1', 'app-1', ref),
+            linkExternalConnections('proj-1', 'app-1', ref),
         ).rejects.toThrow(ForbiddenError);
         expect(linkToApp).not.toHaveBeenCalled();
     });
 
     it('links an admin-enabled connection for a builder', async () => {
-        const { service, linkToApp } = setup({ canManage: false });
-        await service.linkExternalConnections(user, 'proj-1', 'app-1', ref);
+        const { linkExternalConnections, linkToApp } = setup({
+            canManage: false,
+        });
+        await linkExternalConnections('proj-1', 'app-1', ref);
         expect(linkToApp).toHaveBeenCalledWith('app-1', 'c1', 'weather');
     });
 
     it('rejects an alias outside the safe charset before persisting', async () => {
-        const { service, linkToApp } = setup({ canManage: true });
+        const { linkExternalConnections, linkToApp } = setup({
+            canManage: true,
+        });
         await expect(
-            service.linkExternalConnections(user, 'proj-1', 'app-1', [
+            linkExternalConnections('proj-1', 'app-1', [
                 { externalConnectionUuid: 'c1', alias: '../../etc/passwd' },
             ]),
         ).rejects.toThrow(ParameterError);
@@ -468,23 +654,23 @@ describe('AppGenerateService.linkExternalConnections', () => {
     });
 
     it('links an admin-only connection when the user can manage connections', async () => {
-        const { service, linkToApp } = setup({
+        const { linkExternalConnections, linkToApp } = setup({
             canManage: true,
             connection: {
                 ...sameProjectConn,
                 allowDataAppBuilderLinking: false,
             },
         });
-        await service.linkExternalConnections(user, 'proj-1', 'app-1', ref);
+        await linkExternalConnections('proj-1', 'app-1', ref);
         expect(linkToApp).toHaveBeenCalledWith('app-1', 'c1', 'weather');
     });
 
     it('skips (does not link) a connection from another project', async () => {
-        const { service, linkToApp } = setup({
+        const { linkExternalConnections, linkToApp } = setup({
             canManage: true,
             connection: { projectUuid: 'other', organizationUuid: 'org-1' },
         });
-        await service.linkExternalConnections(user, 'proj-1', 'app-1', ref);
+        await linkExternalConnections('proj-1', 'app-1', ref);
         expect(linkToApp).not.toHaveBeenCalled();
     });
 });

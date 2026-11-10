@@ -46,3 +46,10 @@ describe('responsive route selection', () => {
         ).toContain('/minimal');
     });
 });
+
+describe('release highlights route', () => {
+    it("matches the standalone What's new page", () => {
+        expect(matchedPaths('/whats-new')).toContain('/whats-new');
+        expect(matchedPaths('/embed/whats-new')).not.toContain('/whats-new');
+    });
+});

@@ -1,5 +1,6 @@
 import { type SessionUser } from '@lightdash/common';
 import { validExplore } from '../../../services/ProjectService/ProjectService.mock';
+import { type EmbedThreadScope } from '../../models/AiAgentModel';
 import { type AiAgentDependencies } from '../ai/types/aiAgent';
 import { AiAgentService } from './AiAgentService';
 
@@ -82,7 +83,11 @@ const setup = (runtimeOptions?: EmbedAiAgentRuntimeOptions) => {
             agentUuid: 'agent',
         }),
         getThread: vi.fn().mockResolvedValue({ user: { uuid: 'user' } }),
-        getWebAppThreadEmbedSpace: vi.fn().mockResolvedValue('space'),
+        isWebAppThreadInEmbedScope: vi.fn(
+            async (_: string, scope: EmbedThreadScope) =>
+                scope.type === 'writeSpaces' &&
+                scope.writeSpaceUuids.includes('space'),
+        ),
     };
     const getExplore = vi.fn().mockResolvedValue(validExplore);
     const service = new AiAgentService({
@@ -157,9 +162,14 @@ describe('artifact export access', () => {
 
     it('rechecks embedded conversation scope before exporting', async () => {
         const { access, getExplore } = setup({
-            embedSpaceUuid: 'other-space',
+            writeSpaceUuids: ['other-space'],
             externalUserId: null,
+            threadScope: {
+                type: 'writeSpaces',
+                writeSpaceUuids: ['other-space'],
+            },
             spaceAccess: ['other-space'],
+            readOnlySpaceUuids: [],
             userAttributeOverrides: {},
         });
         await expect(access.prepare(reference)).rejects.toThrow();

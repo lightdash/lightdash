@@ -1,4 +1,7 @@
-import type { BreakingChangeDeclaration } from './release-safety-declarations';
+import type {
+    AdvisoryDeclaration,
+    BreakingChangeDeclaration,
+} from './release-safety-declarations';
 import type { ConfigSurface } from './release-safety-config-diff';
 import type { MigrationDetail } from './release-safety-migrations';
 
@@ -39,4 +42,5 @@ export interface ReleaseSafetyMarker {
         requiredStops: string[];
     };
     declaredBreaks: BreakingChangeDeclaration[];
+    declaredAdvisories: AdvisoryDeclaration[];
 }

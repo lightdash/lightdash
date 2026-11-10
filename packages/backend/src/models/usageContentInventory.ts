@@ -2,6 +2,8 @@ import type { Knex } from 'knex';
 
 // Page each source on its native indexed UUID before computing any metadata.
 // A combined, computed inventory key requires sorting/enriching the entire inventory.
+// Resolve tenant projects once before pagination. Joining projects after an ordered
+// UUID scan can walk the entire fleet when a tenant has fewer rows than the page.
 const sources = {
     saved_chart: {
         idColumn: 'c.saved_query_uuid',
@@ -12,9 +14,9 @@ const sources = {
             c.created_at, c.deleted_at, d.deleted_at AS parent_deleted_at,
             NULL::uuid AS owner_id, false AS supports_owner,
             c.saved_query_id AS chart_number
-        FROM saved_queries c JOIN projects p ON p.project_uuid = c.project_uuid
+        FROM saved_queries c
         LEFT JOIN dashboards d ON d.dashboard_uuid = c.dashboard_uuid
-        WHERE p.organization_id = ?`,
+        WHERE c.project_uuid = ANY(ARRAY(SELECT project_uuid FROM projects WHERE organization_id = ?))`,
     },
     sql_chart: {
         idColumn: 'c.saved_sql_uuid',
@@ -22,10 +24,10 @@ const sources = {
         sql: `SELECT 'sql_chart', c.saved_sql_uuid, c.name, c.project_uuid,
             COALESCE(s.space_id, d.space_id), c.created_at, c.deleted_at,
             d.deleted_at, NULL::uuid, false, NULL::integer
-        FROM saved_sql c JOIN projects p ON p.project_uuid = c.project_uuid
+        FROM saved_sql c
         LEFT JOIN spaces s ON s.space_uuid = c.space_uuid
         LEFT JOIN dashboards d ON d.dashboard_uuid = c.dashboard_uuid
-        WHERE p.organization_id = ?`,
+        WHERE c.project_uuid = ANY(ARRAY(SELECT project_uuid FROM projects WHERE organization_id = ?))`,
     },
     dashboard: {
         idColumn: 'd.dashboard_uuid',
@@ -43,9 +45,9 @@ const sources = {
         sql: `SELECT 'data_app', a.app_id, a.name, a.project_uuid,
             s.space_id, a.created_at, a.deleted_at, NULL::timestamptz,
             NULL::uuid, false, NULL::integer
-        FROM apps a JOIN projects p ON p.project_uuid = a.project_uuid
+        FROM apps a
         LEFT JOIN spaces s ON s.space_uuid = a.space_uuid
-        WHERE p.organization_id = ?`,
+        WHERE a.project_uuid = ANY(ARRAY(SELECT project_uuid FROM projects WHERE organization_id = ?))`,
     },
 } as const;
 
@@ -81,6 +83,7 @@ export const usageContentInventoryQuery = (
     contentType: UsageContentType,
     cursor: string | null,
     pageSize: number,
+    projectUrlPrefix: string,
 ): Knex.QueryBuilder => {
     const source = sources[contentType];
     const reference =
@@ -97,35 +100,53 @@ export const usageContentInventoryQuery = (
             WHERE sc.enabled AND sc.deleted_at IS NULL
                 AND (sc.project_uuid = i.project_id OR sc.project_uuid IS NULL)
             GROUP BY i.content_id
-        ), referenced_dashboards AS MATERIALIZED (
+        ), latest_project_dashboards AS MATERIALIZED (
+            -- Resolve current versions before joining tiles, so old dashboard
+            -- revisions cannot multiply the work for each inventory item.
+            SELECT d.dashboard_id, p.project_uuid,
+                (SELECT MAX(v.dashboard_version_id) FROM dashboard_versions v
+                 WHERE v.dashboard_id = d.dashboard_id
+                 GROUP BY v.dashboard_id) AS dashboard_version_id
+            FROM dashboards d
+            JOIN spaces s ON s.space_id = d.space_id
+            JOIN projects p ON p.project_id = s.project_id
+            WHERE p.project_uuid = ANY(ARRAY(SELECT DISTINCT project_id FROM inventory))
+                AND d.deleted_at IS NULL AND s.deleted_at IS NULL
+        ), ${
+            reference
+                ? `current_dashboard_tiles AS MATERIALIZED (
+            -- Join tiles before inventory: joining on project first multiplies
+            -- every page item by every dashboard in that project.
+            SELECT d.dashboard_id, d.project_uuid, t.${reference.column} AS content_reference
+            FROM latest_project_dashboards d
+            JOIN ${reference.table} t ON t.dashboard_version_id = d.dashboard_version_id
+            WHERE t.${reference.column} = ANY(ARRAY(SELECT ${reference.inventoryColumn} FROM inventory))
+        ),`
+                : ''
+        } dashboard_references AS (
             ${
                 reference
                     ? `
-            SELECT i.content_id, d.dashboard_id, v.dashboard_version_id
-            FROM inventory i
-            JOIN ${reference.table} t ON t.${reference.column} = i.${reference.inventoryColumn}
-            JOIN dashboard_versions v ON v.dashboard_version_id = t.dashboard_version_id
-            JOIN dashboards d ON d.dashboard_id = v.dashboard_id
-            JOIN spaces s ON s.space_id = d.space_id
-            JOIN projects p ON p.project_id = s.project_id AND p.project_uuid = i.project_id
-            WHERE d.deleted_at IS NULL AND s.deleted_at IS NULL
+            SELECT i.content_id, COUNT(DISTINCT d.dashboard_id) AS count
+            FROM current_dashboard_tiles d
+            JOIN inventory i ON i.${reference.inventoryColumn} = d.content_reference
+                AND i.project_id = d.project_uuid
+            GROUP BY i.content_id
             `
-                    : 'SELECT NULL::uuid AS content_id, NULL::integer AS dashboard_id, NULL::integer AS dashboard_version_id WHERE false'
+                    : 'SELECT NULL::uuid AS content_id, 0::bigint AS count WHERE false'
             }
-        ), dashboard_references AS (
-            -- Keep the latest-version lookup after the page-to-tile join. Otherwise
-            -- Postgres can evaluate it for every dashboard again on each page.
-            SELECT content_id, COUNT(DISTINCT dashboard_id) AS count
-            FROM referenced_dashboards d
-            WHERE d.dashboard_version_id = (SELECT MAX(latest.dashboard_version_id)
-                FROM dashboard_versions latest WHERE latest.dashboard_id = d.dashboard_id)
-            GROUP BY content_id
         )
     SELECT i.content_id AS cursor,
         json_build_object(
             'org_id', ?::text, 'project_id', i.project_id, 'project_name', p.name,
             'content_type', i.content_type, 'content_id', i.content_id,
             'content_name', i.content_name, 'space_id', s.space_uuid, 'space_name', s.name,
+            'content_url', CASE WHEN i.content_type = 'data_app' THEN NULL ELSE
+                ?::text || i.project_id::text || CASE i.content_type
+                    WHEN 'saved_chart' THEN '/saved/'
+                    WHEN 'sql_chart' THEN '/sql-runner/'
+                    WHEN 'dashboard' THEN '/dashboards/' END || i.content_id::text ||
+                CASE WHEN i.content_type = 'sql_chart' THEN '' ELSE '/view' END END,
             'created_at', i.created_at, 'deleted_at', COALESCE(i.deleted_at, i.parent_deleted_at, s.deleted_at),
             'is_deleted', i.deleted_at IS NOT NULL OR i.parent_deleted_at IS NOT NULL OR s.deleted_at IS NOT NULL,
             'snapshot_at', CURRENT_TIMESTAMP,
@@ -155,6 +176,7 @@ export const usageContentInventoryQuery = (
             ...(cursor === null ? [] : [cursor]),
             pageSize,
             organizationUuid,
+            projectUrlPrefix,
         ],
     );
     return database

@@ -1,6 +1,5 @@
 import {
     assertRegisteredAccount,
-    type AiCreditUsageBreakdown,
     type ApiAiCreditDailyUsageResponse,
     type ApiAiCreditUsageResponse,
     type ApiErrorPayload,
@@ -9,7 +8,6 @@ import {
     Get,
     Middlewares,
     OperationId,
-    Query,
     Request,
     Response,
     Route,
@@ -17,6 +15,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -32,7 +31,11 @@ export class AiCreditController extends BaseController {
      * with its allowance when one is agreed. Organization admins only.
      * @summary Get AI credit usage
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiCreditController.getUsage'),
+    ])
     @SuccessResponse('200', 'Retrieved AI credit usage')
     @Get('/usage')
     @OperationId('getOrganizationAiCreditUsage')
@@ -48,23 +51,25 @@ export class AiCreditController extends BaseController {
     }
 
     /**
-     * Billable AI credits per day of the current period, split by feature,
-     * channel, user, project or agent. Organization admins only.
+     * Billable AI credits per day of the current period, by feature.
+     * Organization admins only.
      * @summary Get daily AI credit usage
-     * @param breakdown what to split each day's credits by
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AiCreditController.getDailyUsage'),
+    ])
     @SuccessResponse('200', 'Retrieved daily AI credit usage')
     @Get('/usage/daily')
     @OperationId('getOrganizationAiCreditDailyUsage')
     async getDailyUsage(
         @Request() req: express.Request,
-        @Query() breakdown: AiCreditUsageBreakdown,
     ): Promise<ApiAiCreditDailyUsageResponse> {
         assertRegisteredAccount(req.account);
         const results = await this.services
             .getAiCreditService<AiCreditService>()
-            .getOrganizationDailyUsage(toSessionUser(req.account), breakdown);
+            .getOrganizationDailyUsage(toSessionUser(req.account));
         this.setStatus(200);
         return { status: 'ok', results };
     }

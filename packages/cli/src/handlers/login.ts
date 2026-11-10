@@ -9,7 +9,10 @@ import {
     setContext,
     setDefaultUser,
 } from '../config';
+import { refuseAgentConnection } from '../credentials';
+import { CLI_VERSION } from '../env';
 import GlobalState from '../globalState';
+import { PersonalLoginStore } from '../personalLogin/store';
 import * as styles from '../styles';
 import { checkLightdashVersion } from './dbt/apiClient';
 import { loginWithOauth } from './oauthLogin';
@@ -83,7 +86,10 @@ const getLoginMethod = (options: LoginOptions): string => {
 export const isApiKeyEnvVarShadowing = (
     token: string | undefined,
     env: NodeJS.ProcessEnv = process.env,
-): boolean => !!env.LIGHTDASH_API_KEY && env.LIGHTDASH_API_KEY !== token;
+): boolean => {
+    refuseAgentConnection(true);
+    return !!env.LIGHTDASH_API_KEY && env.LIGHTDASH_API_KEY !== token;
+};
 
 const apiKeyEnvVarWarning = (when: 'before-login' | 'after-login') =>
     styles.warning(
@@ -97,6 +103,7 @@ const apiKeyEnvVarWarning = (when: 'before-login' | 'after-login') =>
     );
 
 const loginWithToken = async (url: string, token: string) => {
+    refuseAgentConnection(true);
     const userInfoUrl = new URL(`/api/v1/user`, url).href;
     const response = await fetch(userInfoUrl, {
         method: 'GET',
@@ -125,6 +132,7 @@ const loginWithEmailPassword = async (
     email: string,
     password: string,
 ) => {
+    refuseAgentConnection(true);
     const loginUrl = new URL('/api/v1/login', url).href;
     const loginResponse = await fetch(loginUrl, {
         method: 'POST',
@@ -159,6 +167,7 @@ const loginWithEmailPassword = async (
         headers: {
             'Content-Type': 'application/json',
             Cookie: cookies,
+            'User-Agent': `lightdash-cli/${CLI_VERSION}`,
         },
         body: JSON.stringify({
             description: 'Lightdash CLI',
@@ -210,6 +219,7 @@ export const login = async (
     urlInput: string | undefined,
     options: LoginOptions,
 ) => {
+    refuseAgentConnection(true);
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 
@@ -311,7 +321,9 @@ export const login = async (
         loginResult = await loginWithOauth(url, options.oauthPort);
     }
 
-    const { userUuid, token, organizationUuid } = loginResult;
+    const { userUuid, organizationUuid } = loginResult;
+    const token = 'token' in loginResult ? loginResult.token : undefined;
+    if (token !== undefined) await new PersonalLoginStore().remove(url);
 
     GlobalState.debug(`> Logged in with userUuid: ${userUuid}`);
 
@@ -326,7 +338,7 @@ export const login = async (
     });
     await setContext({
         serverUrl: url,
-        apiKey: token,
+        ...(token === undefined ? {} : { apiKey: token }),
     });
     await LightdashAnalytics.identify({ organizationId: organizationUuid });
 

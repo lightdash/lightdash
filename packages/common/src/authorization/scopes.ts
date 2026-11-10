@@ -1,6 +1,4 @@
-import camelCase from 'lodash/camelCase';
-import flow from 'lodash/flow';
-import upperFirst from 'lodash/upperFirst';
+import { camelCase, flow, upperFirst } from 'es-toolkit/compat';
 import { ProjectType } from '../types/projects';
 import type { RoleLevel } from '../types/roles';
 import {
@@ -153,6 +151,94 @@ const selfPreviewSpaceCondition = (
         : null;
 
 const scopes: Scope[] = [
+    {
+        name: 'view:AgentReadDiscover',
+        description: 'Agents: discover projects and content',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:AgentQuery',
+        description: 'Agents: run semantic queries',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:AgentRawSql',
+        description: 'Agents: run raw SQL queries',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:AgentContentWrite',
+        description: 'Agents: create and edit content',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:AgentDelete',
+        description: 'Agents: delete content',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:AgentPublish',
+        description: 'Agents: publish and share content',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:AgentDeployUpload',
+        description: 'Agents: deploy projects and upload content',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:AgentDbtWriteback',
+        description: 'Agents: write changes to dbt',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:AgentExport',
+        description: 'Agents: download query and content exports',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:AgentAdministration',
+        description: 'Agents: change administrative settings',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:AgentExternalTools',
+        description: 'Agents: use connected external tools',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        dependencies: [],
+        getConditions: addDefaultUuidCondition,
+    },
     {
         name: 'view:Document',
         description: 'View documents',
@@ -480,7 +566,8 @@ const scopes: Scope[] = [
     },
     {
         name: 'view:ContentVerification',
-        description: 'View verified charts, dashboards, and data apps',
+        description:
+            'View verified charts, dashboards, data apps, and Documents',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         dependencies: [{ name: 'view:Project' }],
@@ -488,7 +575,8 @@ const scopes: Scope[] = [
     },
     {
         name: 'manage:ContentVerification',
-        description: 'Verify and unverify charts, dashboards, and data apps',
+        description:
+            'Verify and unverify charts, dashboards, data apps, and Documents',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         dependencies: [{ name: 'view:Project' }],
@@ -497,7 +585,7 @@ const scopes: Scope[] = [
     {
         name: 'manage:VerifiedContent',
         description:
-            'Edit or delete verified charts, dashboards, and data apps (without this, verified content is read-only)',
+            'Edit or delete verified charts, dashboards, data apps, and Documents (without this, verified content is read-only)',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
         dependencies: [{ name: 'view:Project' }],
@@ -807,6 +895,14 @@ const scopes: Scope[] = [
     {
         name: 'view:Analytics',
         description: 'View usage analytics',
+        isEnterprise: false,
+        group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:SystemAnalytics',
+        description: 'View managed analytics for the entire organization',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
         dependencies: [{ name: 'view:Project' }],
@@ -1348,7 +1444,8 @@ const scopes: Scope[] = [
     },
     {
         name: 'view:EmbedCsvExport',
-        description: 'Export individual embedded chart tiles as CSV',
+        description:
+            'Export results from embedded chart tiles and AI agent answers',
         isEnterprise: true,
         group: ScopeGroup.EMBED,
         dependencies: [],
@@ -1432,6 +1529,14 @@ const scopes: Scope[] = [
                 description: 'Use embedded AI agents',
             },
         ],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:EmbedCompiledSql',
+        description: 'View compiled SQL in embeds',
+        isEnterprise: true,
+        group: ScopeGroup.EMBED,
+        dependencies: [],
         getConditions: addDefaultUuidCondition,
     },
 
@@ -1520,6 +1625,15 @@ const scopes: Scope[] = [
         getConditions: (context) => [
             addUuidCondition(context, { userUuid: context.userUuid || false }),
         ],
+    },
+    {
+        name: 'view:AiAgentThreadContext',
+        description:
+            'View the context a conversation thread was created with, which may hold internal notes',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
     },
     {
         name: 'create:AiAgentThread',

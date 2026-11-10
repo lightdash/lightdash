@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     getFilterRulesFromGroup,
     getItemId,
     isDimension,
@@ -29,9 +28,9 @@ import {
     useState,
 } from 'react';
 import { useDebounce } from 'react-use';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
 import useEmbed from '../ee/providers/Embed/useEmbed';
-import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import { useSessionTimezone } from './useSessionTimezone';
 
 export const MAX_AUTOCOMPLETE_RESULTS = 50;
@@ -110,18 +109,21 @@ const stripTileTargetsFromFilters = (
     };
 };
 
-const getEmbedFilterValues = async (options: {
-    embedToken: string;
-    projectId: string;
-    filterId: string;
-    search: string;
-    forceRefresh: boolean;
-    filters: AndFilterGroup | undefined;
-    tableName: string | undefined;
-    fieldId: string | undefined;
-    timezone: string | null;
-    parameters: ParametersValuesMap | undefined;
-}) => {
+const getEmbedFilterValues = async (
+    lightdashApi: LightdashApi,
+    options: {
+        embedToken: string;
+        projectId: string;
+        filterId: string;
+        search: string;
+        forceRefresh: boolean;
+        filters: AndFilterGroup | undefined;
+        tableName: string | undefined;
+        fieldId: string | undefined;
+        timezone: string | null;
+        parameters: ParametersValuesMap | undefined;
+    },
+) => {
     return lightdashApi<FieldValueSearchResult>({
         url: `/embed/${options.projectId}/filter/${options.filterId}/search`,
         method: 'POST',
@@ -138,40 +140,13 @@ const getEmbedFilterValues = async (options: {
     });
 };
 
-const getFieldValues = async (
-    projectId: string,
-    table: string | undefined,
-    fieldId: string,
-    search: string,
-    forceRefresh: boolean,
-    filters: AndFilterGroup | undefined,
-    limit: number = MAX_AUTOCOMPLETE_RESULTS,
-    parameterValues?: ParametersValuesMap,
-) => {
-    if (!table) {
-        throw new Error('Table is required to search for field values');
-    }
-
-    return lightdashApi<FieldValueSearchResult>({
-        url: `/projects/${projectId}/field/${fieldId}/search`,
-        method: 'POST',
-        body: JSON.stringify({
-            search,
-            limit,
-            table,
-            filters: stripTileTargetsFromFilters(filters),
-            forceRefresh,
-            parameters: parameterValues,
-        }),
-    });
-};
-
 // ~3 minutes with backoff (250ms → 2s): cold warehouse scans can far exceed
 // 30s, and giving up while the query is still running reproduces the
 // empty-dropdown failure the async path exists to avoid.
 export const MAX_POLL_ATTEMPTS = 95;
 
 export const pollForFieldValueResults = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     queryUuid: string,
     backoffMs: number = 250,
@@ -198,6 +173,7 @@ export const pollForFieldValueResults = async (
             setTimeout(resolve, backoffMs);
         });
         return pollForFieldValueResults(
+            lightdashApi,
             projectUuid,
             queryUuid,
             nextBackoff,
@@ -209,6 +185,7 @@ export const pollForFieldValueResults = async (
 };
 
 export const getFieldValuesAsync = async (
+    lightdashApi: LightdashApi,
     projectId: string,
     table: string | undefined,
     fieldId: string,
@@ -239,6 +216,7 @@ export const getFieldValuesAsync = async (
         });
 
     const queryResult = await pollForFieldValueResults(
+        lightdashApi,
         projectId,
         executeResult.queryUuid,
     );
@@ -314,12 +292,9 @@ export const useFieldValues = (
     useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
     parameterValues?: ParametersValuesMap,
 ) => {
+    const lightdashApi = useLightdashApi();
     const { embedToken, content: embedContent } = useEmbed();
     const sessionTimezone = useSessionTimezone();
-    const { data: resultsCacheFlag } = useServerFeatureFlag(
-        FeatureFlags.ResultsCacheEnabled,
-    );
-    const useAsyncPath = resultsCacheFlag?.enabled === true;
     const filterAutocomplete = isDimension(field)
         ? field.filterAutocomplete
         : undefined;
@@ -408,7 +383,6 @@ export const useFieldValues = (
         'search',
         debouncedSearch,
         parameterValues,
-        useAsyncPath ? 'v2' : 'v1',
         sessionTimezone,
         filtersKey,
     ];
@@ -416,23 +390,13 @@ export const useFieldValues = (
     const query = useQuery<FieldValueSearchResult, ApiError>(
         cachekey,
         () => {
-            // Dashboard embeds use async execute+poll: the sync embed search
-            // runs the warehouse query inside one HTTP request and dies at
-            // the gateway when a cold warehouse scan is slow.
-            if (embedToken && embedContent?.type === 'dashboard' && projectId) {
-                return getFieldValuesAsync(
-                    projectId,
-                    tableName,
-                    fieldId,
-                    debouncedSearch,
-                    forceRefresh,
-                    filters,
-                    undefined,
-                    parameterValues,
-                );
-            }
-            if (embedToken && filterId && projectId) {
-                return getEmbedFilterValues({
+            if (
+                embedToken &&
+                embedContent?.type !== 'dashboard' &&
+                filterId &&
+                projectId
+            ) {
+                return getEmbedFilterValues(lightdashApi, {
                     embedToken,
                     projectId,
                     filterId,
@@ -445,19 +409,10 @@ export const useFieldValues = (
                     parameters: parameterValues,
                 });
             }
-            if (useAsyncPath) {
-                return getFieldValuesAsync(
-                    projectId!,
-                    tableName,
-                    fieldId,
-                    debouncedSearch,
-                    forceRefresh,
-                    filters,
-                    undefined,
-                    parameterValues,
-                );
-            }
-            return getFieldValues(
+            // Async execute+poll: a sync search runs the warehouse query inside
+            // one HTTP request and dies at the gateway on a slow cold scan.
+            return getFieldValuesAsync(
+                lightdashApi,
                 projectId!,
                 tableName,
                 fieldId,

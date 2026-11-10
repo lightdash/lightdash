@@ -6,6 +6,7 @@ import {
 import { vi } from 'vitest';
 import { aiCopilotConfigSchema } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
+import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { AiModelCatalog } from '../../clients/Ai/AiModelCatalog';
 import {
     AiOrganizationProviderCredentialModel,
@@ -42,6 +43,7 @@ const baseConfig: CopilotConfig = aiCopilotConfigSchema.parse({
             modelName: 'gpt-5.4',
             embeddingModelName: 'text-embedding-3-small',
             zeroDataRetention: false,
+            useChatCompletions: false,
         },
     },
 });
@@ -64,6 +66,7 @@ const bothProvidersConfig: CopilotConfig = aiCopilotConfigSchema.parse({
             modelName: 'gpt-5.4',
             embeddingModelName: 'text-embedding-3-small',
             zeroDataRetention: false,
+            useChatCompletions: false,
         },
         anthropic: { apiKey: 'instance-anthropic-key' },
     },
@@ -181,6 +184,17 @@ describe('overlayOrgProviderApiKeys', () => {
         expect(result.defaultProvider).toBe('openai');
     });
 
+    it('routes the org key through the org gateway URL', () => {
+        const result = overlayOrgProviderApiKeys(baseConfig, {
+            openai: 'org-openai-key',
+            providerBaseUrls: { openai: 'https://litellm.example.com' },
+        });
+        expect(result.providers.openai?.apiKey).toBe('org-openai-key');
+        expect(result.providers.openai?.baseUrl).toBe(
+            'https://litellm.example.com',
+        );
+    });
+
     it('overlays a Google key without changing the configured Gemini model', () => {
         const result = overlayOrgProviderApiKeys(allByoProvidersConfig, {
             google: 'org-google-key',
@@ -198,6 +212,41 @@ describe('overlayOrgProviderApiKeys', () => {
                 anthropic: 'org-anthropic-key',
             }),
         ).toThrow('Organization Anthropic API keys cannot be used');
+    });
+
+    it('replaces the instance Anthropic gateway with an org gateway instead of rejecting the key', () => {
+        const result = overlayOrgProviderApiKeys(anthropicGatewayConfig, {
+            anthropic: 'org-anthropic-key',
+            providerBaseUrls: { anthropic: 'https://litellm.example.com' },
+        });
+        expect(result.providers.anthropic?.apiKey).toBe('org-anthropic-key');
+        expect(result.providers.anthropic?.baseUrl).toBe(
+            'https://litellm.example.com',
+        );
+    });
+
+    it('does not send the instance gateway headers to the org gateway', () => {
+        const withHeaders: CopilotConfig = aiCopilotConfigSchema.parse({
+            ...anthropicGatewayConfig,
+            providers: {
+                ...anthropicGatewayConfig.providers,
+                anthropic: {
+                    ...anthropicGatewayConfig.providers.anthropic,
+                    customHeaders: { 'x-gateway-token': 'instance-secret' },
+                },
+            },
+        });
+        const result = overlayOrgProviderApiKeys(withHeaders, {
+            anthropic: 'org-anthropic-key',
+            providerBaseUrls: { anthropic: 'https://litellm.example.com' },
+        });
+        expect(result.providers.anthropic?.customHeaders).toEqual({});
+        // Without an org URL the instance headers still apply to the org key.
+        expect(
+            overlayOrgProviderApiKeys(baseConfig, {
+                openai: 'org-openai-key',
+            }).providers.openai?.customHeaders,
+        ).toEqual(baseConfig.providers.openai?.customHeaders);
     });
 
     it('rejects an organization Google key when the instance uses a Gemini gateway without exposing the key', () => {
@@ -344,6 +393,8 @@ const resolutionFor = (
 
 describe('OrgAiCopilotConfigResolver', () => {
     type ResolverOptions = {
+        customProvidersEnabled?: boolean;
+        decisionKey?: string | null;
         orgKeys?: AiOrgProviderApiKeys | null;
         defaultCredential?: DecryptedAiProviderCredential | null;
         projectCredential?: DecryptedAiProviderCredential | null;
@@ -351,6 +402,10 @@ describe('OrgAiCopilotConfigResolver', () => {
         unreadableDefault?: { uuid: string; label: string } | null;
         /** Overrides projectCredential; models a pinned row that cannot be decrypted. */
         unreadableProjectCredential?: { uuid: string; label: string } | null;
+        /** What an agent-pinned credential uuid resolves to; null models a lost row. */
+        explicitCredential?: DecryptedAiProviderCredential | null;
+        /** Overrides explicitCredential; models an agent pin that cannot be decrypted. */
+        unreadableExplicitCredential?: { uuid: string; label: string } | null;
         modelVisibility?: AiOrgModelVisibility | null;
         accessibleModelIds?: string[] | null;
         instanceConfig?: CopilotConfig;
@@ -362,14 +417,31 @@ describe('OrgAiCopilotConfigResolver', () => {
         projectCredential = null,
         unreadableDefault = null,
         unreadableProjectCredential = null,
+        explicitCredential = null,
+        unreadableExplicitCredential = null,
         modelVisibility = null,
         accessibleModelIds = null,
         instanceConfig = baseConfig,
+        customProvidersEnabled = true,
+        decisionKey = null,
     }: ResolverOptions = {}) =>
         new OrgAiCopilotConfigResolver({
             lightdashConfig: {
-                ai: { copilot: instanceConfig },
+                ai: {
+                    copilot: instanceConfig,
+                    decisions: {
+                        apiKey: decisionKey,
+                        model: 'test',
+                        timeoutMs: 100,
+                    },
+                },
             } as LightdashConfig,
+            featureFlagModel: {
+                get: vi.fn(async ({ featureFlagId }) => ({
+                    id: featureFlagId,
+                    enabled: customProvidersEnabled,
+                })),
+            } as Pick<FeatureFlagModel, 'get'> as FeatureFlagModel,
             aiOrganizationSettingsModel: {
                 findDecryptedProviderApiKeys: vi
                     .fn()
@@ -387,17 +459,28 @@ describe('OrgAiCopilotConfigResolver', () => {
                     .mockResolvedValue(
                         resolutionFor(defaultCredential, unreadableDefault),
                     ),
-                findForProjectDecrypted: vi
+                findForProjectDecrypted: vi.fn().mockResolvedValue({
+                    resolution: resolutionFor(
+                        projectCredential ?? defaultCredential,
+                        unreadableProjectCredential ?? unreadableDefault,
+                    ),
+                    fromProjectPin: Boolean(
+                        projectCredential ?? unreadableProjectCredential,
+                    ),
+                }),
+                findDecrypted: vi
                     .fn()
                     .mockResolvedValue(
                         resolutionFor(
-                            projectCredential ?? defaultCredential,
-                            unreadableProjectCredential ?? unreadableDefault,
+                            explicitCredential,
+                            unreadableExplicitCredential,
                         ),
                     ),
             } as Pick<
                 AiOrganizationProviderCredentialModel,
-                'findDefaultDecrypted' | 'findForProjectDecrypted'
+                | 'findDefaultDecrypted'
+                | 'findForProjectDecrypted'
+                | 'findDecrypted'
             > as AiOrganizationProviderCredentialModel,
             aiModelCatalog: {
                 getAccessibleModelIds: vi
@@ -413,8 +496,40 @@ describe('OrgAiCopilotConfigResolver', () => {
         const result = await makeResolver().getCopilotConfig({
             organizationUuid: 'org-uuid',
             projectUuid: null,
+            credentialUuid: null,
         });
         expect(result.providers.openai?.apiKey).toBe('org-openai-key');
+    });
+
+    it('ignores stored org provider config while the org flag is off', async () => {
+        const orgKeys = {
+            openai: 'org-openai-key',
+            providerBaseUrls: { openai: 'https://litellm.example.com/v1' },
+        };
+        const on = await makeResolver({ orgKeys }).getCopilotConfig({
+            organizationUuid: 'org-uuid',
+            projectUuid: null,
+            credentialUuid: null,
+        });
+        expect(on.providers.openai?.baseUrl).toBe(
+            'https://litellm.example.com/v1',
+        );
+
+        // Off: every piece of org provider config is ignored, keys included,
+        // so the org resolves to the instance providers.
+        const off = await makeResolver({
+            orgKeys,
+            customProvidersEnabled: false,
+        }).getCopilotConfig({
+            organizationUuid: 'org-uuid',
+            projectUuid: null,
+            credentialUuid: null,
+        });
+        expect(off.providers.openai?.apiKey).toBe('instance-openai-key');
+        expect(off.providers.openai?.baseUrl).toBe(
+            baseConfig.providers.openai?.baseUrl,
+        );
+        expect(off.byoProviders).toEqual([]);
     });
 
     describe('named provider credentials', () => {
@@ -446,6 +561,7 @@ describe('OrgAiCopilotConfigResolver', () => {
             }).getCopilotConfig({
                 organizationUuid: 'org-uuid',
                 projectUuid: null,
+                credentialUuid: null,
             });
 
             expect(result.defaultProvider).toBe('bedrock');
@@ -468,6 +584,7 @@ describe('OrgAiCopilotConfigResolver', () => {
             }).getCopilotConfig({
                 organizationUuid: 'org-uuid',
                 projectUuid: null,
+                credentialUuid: null,
             });
 
             expect(result.providers.bedrock?.region).toBe('ap-northeast-1');
@@ -487,6 +604,7 @@ describe('OrgAiCopilotConfigResolver', () => {
             }).getCopilotConfig({
                 organizationUuid: 'org-uuid',
                 projectUuid: null,
+                credentialUuid: null,
             });
 
             expect(result.providers.bedrock?.region).toBe('us-east-1');
@@ -501,6 +619,7 @@ describe('OrgAiCopilotConfigResolver', () => {
             }).getCopilotConfig({
                 organizationUuid: 'org-uuid',
                 projectUuid: null,
+                credentialUuid: null,
             });
 
             // Bedrock replaces the provider set outright, so a pinned agent
@@ -516,9 +635,34 @@ describe('OrgAiCopilotConfigResolver', () => {
             }).getCopilotConfig({
                 organizationUuid: 'org-uuid',
                 projectUuid: null,
+                credentialUuid: null,
             });
 
             expect(result.providers.bedrock?.inferenceProfilePrefix).toBe('jp');
+        });
+
+        // Widening is an explicit admin choice stored on the credential; it
+        // must win over the region-derived default.
+        it('honours an explicitly stored inference geography', async () => {
+            const result = await makeResolver({
+                orgKeys: null,
+                defaultCredential: credential({
+                    config: {
+                        apiKey: 'cred-bedrock-key',
+                        region: 'ap-northeast-1',
+                        allowedModels: ['claude-sonnet-4-5'],
+                        inferenceGeography: 'global',
+                    },
+                }),
+            }).getCopilotConfig({
+                organizationUuid: 'org-uuid',
+                projectUuid: null,
+                credentialUuid: null,
+            });
+
+            expect(result.providers.bedrock?.inferenceProfilePrefix).toBe(
+                'global',
+            );
         });
 
         // The whole point of the resolution type: an unreadable credential must
@@ -535,6 +679,7 @@ describe('OrgAiCopilotConfigResolver', () => {
                 }).getCopilotConfig({
                     organizationUuid: 'org-uuid',
                     projectUuid: null,
+                    credentialUuid: null,
                 }),
             ).rejects.toThrow(MissingConfigError);
         });
@@ -559,6 +704,7 @@ describe('OrgAiCopilotConfigResolver', () => {
                 }).getCopilotConfig({
                     organizationUuid: 'org-uuid',
                     projectUuid: 'project-jp',
+                    credentialUuid: null,
                 }),
             ).rejects.toThrow(MissingConfigError);
         });
@@ -580,8 +726,124 @@ describe('OrgAiCopilotConfigResolver', () => {
                 }).getCopilotConfig({
                     organizationUuid: 'org-uuid',
                     projectUuid: null,
+                    credentialUuid: null,
                 }),
             ).rejects.toThrow(/cannot be read/);
+        });
+
+        describe('agent credential pin', () => {
+            it('wins over the project selection', async () => {
+                const result = await makeResolver({
+                    orgKeys: null,
+                    projectCredential: credential({
+                        uuid: 'cred-osaka',
+                        label: 'Japan (Osaka)',
+                        config: {
+                            apiKey: 'osaka-key',
+                            region: 'ap-northeast-3',
+                            allowedModels: ['claude-sonnet-4-5'],
+                        },
+                    }),
+                    explicitCredential: credential(),
+                }).getCopilotConfig({
+                    organizationUuid: 'org-uuid',
+                    projectUuid: 'project-jp',
+                    credentialUuid: 'cred-tokyo',
+                });
+
+                expect(result.providers.bedrock?.region).toBe('ap-northeast-1');
+                expect(bedrockApiKey(result)).toBe('cred-bedrock-key');
+            });
+
+            // A pinned uuid that resolves to nothing is an org mismatch or a
+            // lost row; falling through would pick another region's credential.
+            it('fails closed when the pinned credential resolves to nothing', async () => {
+                await expect(
+                    makeResolver({
+                        orgKeys: null,
+                        defaultCredential: credential(),
+                        explicitCredential: null,
+                    }).getCopilotConfig({
+                        organizationUuid: 'org-uuid',
+                        projectUuid: null,
+                        credentialUuid: 'cred-of-another-org',
+                    }),
+                ).rejects.toThrow(MissingConfigError);
+            });
+
+            it('fails closed when the pinned credential cannot be decrypted', async () => {
+                await expect(
+                    makeResolver({
+                        orgKeys: null,
+                        unreadableExplicitCredential: {
+                            uuid: 'cred-tokyo',
+                            label: 'Japan (Tokyo)',
+                        },
+                    }).getCopilotConfig({
+                        organizationUuid: 'org-uuid',
+                        projectUuid: null,
+                        credentialUuid: 'cred-tokyo',
+                    }),
+                ).rejects.toThrow(/cannot be read/);
+            });
+
+            // Pin writes are rejected while the flag is off, so this state
+            // means the flag was turned off after the pin was saved. The pin
+            // must not silently reroute to the instance provider's region.
+            it('fails closed when custom providers are disabled for a pinned agent', async () => {
+                await expect(
+                    makeResolver({
+                        orgKeys: null,
+                        explicitCredential: credential(),
+                        customProvidersEnabled: false,
+                    }).getCopilotConfig({
+                        organizationUuid: 'org-uuid',
+                        projectUuid: null,
+                        credentialUuid: 'cred-tokyo',
+                    }),
+                ).rejects.toThrow(/custom AI providers are not enabled/i);
+            });
+        });
+
+        describe('project credential pin while custom providers are disabled', () => {
+            // Same contract as agent pins: the flag was turned off after the
+            // pin was saved, and the pin must not silently reroute the
+            // project's content to the instance provider's region.
+            it('fails closed for a pinned project', async () => {
+                await expect(
+                    makeResolver({
+                        orgKeys: null,
+                        projectCredential: credential(),
+                        customProvidersEnabled: false,
+                    }).getCopilotConfig({
+                        organizationUuid: 'org-uuid',
+                        projectUuid: 'project-jp',
+                        credentialUuid: null,
+                    }),
+                ).rejects.toThrow(
+                    /project is pinned to an AI provider credential/,
+                );
+            });
+
+            // The org DEFAULT credential is ordinary stored provider config —
+            // inert while the flag is off, never a hard failure. Only explicit
+            // pins fail closed.
+            it('silently ignores the org default credential for a project without a pin', async () => {
+                const result = await makeResolver({
+                    orgKeys: null,
+                    defaultCredential: credential(),
+                    customProvidersEnabled: false,
+                }).getCopilotConfig({
+                    organizationUuid: 'org-uuid',
+                    projectUuid: 'project-jp',
+                    credentialUuid: null,
+                });
+
+                expect(result.providers.openai?.apiKey).toBe(
+                    'instance-openai-key',
+                );
+                expect(result.byoProviders).toEqual([]);
+            });
         });
 
         // The repair screen must load while the credential is broken, or the
@@ -651,6 +913,7 @@ describe('OrgAiCopilotConfigResolver', () => {
                 }).getCopilotConfig({
                     organizationUuid: 'org-uuid',
                     projectUuid: null,
+                    credentialUuid: null,
                 }),
             ).rejects.toThrow(/Japan \(Tokyo\)/);
         });
@@ -671,6 +934,7 @@ describe('OrgAiCopilotConfigResolver', () => {
             }).getCopilotConfig({
                 organizationUuid: 'org-uuid',
                 projectUuid: 'project-jp',
+                credentialUuid: null,
             });
 
             expect(result.providers.bedrock?.region).toBe('ap-northeast-1');
@@ -695,13 +959,14 @@ describe('OrgAiCopilotConfigResolver', () => {
             }).getCopilotConfig({
                 organizationUuid: 'org-uuid',
                 projectUuid: null,
+                credentialUuid: null,
             });
 
             expect(result.providers.bedrock?.region).toBe('us-east-1');
             expect(bedrockApiKey(result)).toBe('us-key');
         });
 
-        it('leaves the region-derived profile for a non-Japan credential', async () => {
+        it('pins the region-default profile for a non-Japan credential', async () => {
             const result = await makeResolver({
                 orgKeys: null,
                 defaultCredential: credential({
@@ -714,11 +979,10 @@ describe('OrgAiCopilotConfigResolver', () => {
             }).getCopilotConfig({
                 organizationUuid: 'org-uuid',
                 projectUuid: null,
+                credentialUuid: null,
             });
 
-            expect(
-                result.providers.bedrock?.inferenceProfilePrefix,
-            ).toBeUndefined();
+            expect(result.providers.bedrock?.inferenceProfilePrefix).toBe('us');
         });
     });
 
@@ -733,6 +997,115 @@ describe('OrgAiCopilotConfigResolver', () => {
                 availableModels: ['claude-sonnet-4-6'],
             }),
         ).toEqual(['claude-sonnet-4-6']);
+    });
+
+    describe('getDecisionClient', () => {
+        it('is undefined without an instance key', async () => {
+            expect(
+                await makeResolver({ orgKeys: null }).getDecisionClient(
+                    'org-uuid',
+                    null,
+                ),
+            ).toBeUndefined();
+        });
+
+        it('is undefined for an org on its own provider keys', async () => {
+            expect(
+                await makeResolver({ decisionKey: 'test' }).getDecisionClient(
+                    'org-uuid',
+                    null,
+                ),
+            ).toBeUndefined();
+        });
+
+        it('returns the client on instance keys', async () => {
+            expect(
+                await makeResolver({
+                    orgKeys: null,
+                    decisionKey: 'test',
+                }).getDecisionClient('org-uuid', null),
+            ).toBeDefined();
+        });
+    });
+
+    describe('isOrgOnOwnProviderKeys', () => {
+        const bedrockCredential: DecryptedAiProviderCredential = {
+            uuid: 'cred-tokyo',
+            organizationUuid: 'org-uuid',
+            provider: 'bedrock',
+            label: 'Japan (Tokyo)',
+            isDefault: false,
+            config: {
+                apiKey: 'cred-bedrock-key',
+                region: 'ap-northeast-1',
+                allowedModels: ['claude-sonnet-4-5'],
+            },
+        };
+
+        it('is false on instance keys only', async () => {
+            expect(
+                await makeResolver({ orgKeys: null }).isOrgOnOwnProviderKeys(
+                    'org-uuid',
+                    null,
+                ),
+            ).toBe(false);
+        });
+
+        it('is false without an organization', async () => {
+            expect(
+                await makeResolver().isOrgOnOwnProviderKeys(undefined, null),
+            ).toBe(false);
+        });
+
+        it('is true for a Bedrock org', async () => {
+            expect(
+                await makeResolver({
+                    orgKeys: null,
+                    defaultCredential: {
+                        ...bedrockCredential,
+                        isDefault: true,
+                    },
+                }).isOrgOnOwnProviderKeys('org-uuid', null),
+            ).toBe(true);
+        });
+
+        it('is true for an OpenAI key with custom providers on', async () => {
+            expect(
+                await makeResolver({
+                    orgKeys: { openai: 'org-openai-key' },
+                }).isOrgOnOwnProviderKeys('org-uuid', null),
+            ).toBe(true);
+        });
+
+        it('is false for an OpenAI key with custom providers off', async () => {
+            expect(
+                await makeResolver({
+                    orgKeys: { openai: 'org-openai-key' },
+                    customProvidersEnabled: false,
+                }).isOrgOnOwnProviderKeys('org-uuid', null),
+            ).toBe(false);
+        });
+
+        it('honours a project credential pin', async () => {
+            const resolver = makeResolver({
+                orgKeys: null,
+                projectCredential: bedrockCredential,
+            });
+            expect(
+                await resolver.isOrgOnOwnProviderKeys('org-uuid', 'project-jp'),
+            ).toBe(true);
+        });
+
+        // Agent pins are enforced by the caller, so the org check never reads them.
+        it('ignores agent credential pins', async () => {
+            const resolver = makeResolver({
+                orgKeys: null,
+                explicitCredential: bedrockCredential,
+            });
+            expect(
+                await resolver.isOrgOnOwnProviderKeys('org-uuid', null),
+            ).toBe(false);
+        });
     });
 
     describe('getClaudeCodeConfig', () => {

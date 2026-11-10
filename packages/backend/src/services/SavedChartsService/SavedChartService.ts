@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AbilityAction,
     Account,
+    applyNewChartDefaults,
     assertUnreachable,
     BulkActionable,
     ChartHistory,
@@ -20,10 +21,16 @@ import {
     DeletedContentFilters,
     DeletedDbtChartContentSummary,
     DetailedViewStatistics,
+    DimensionType,
     ExploreSplitError,
     ExploreType,
+    FeatureFlags,
     ForbiddenError,
     generateSlug,
+    getAllReferences,
+    getDimensionMapFromTables,
+    getItemId,
+    getMissingAdditionalMetricReferences,
     getSchedulerResourceTypeAndId,
     getTimezoneLabel,
     GoogleSheetsTransientError,
@@ -31,8 +38,10 @@ import {
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
     isCustomSqlDimension,
+    isExploreError,
     isFormulaTableCalculation,
     isJwtUser,
+    isPeriodOverPeriodAdditionalMetric,
     isSchedulerGsheetsOptions,
     isSqlTableCalculation,
     isTemplateTableCalculation,
@@ -62,8 +71,10 @@ import {
     type ChartFieldUpdates,
     type ContentDraftStaleness,
     type ContentVerificationInfo,
+    type DashboardDAO,
     type Explore,
     type ExploreError,
+    type MetricQuery,
     type SpaceAccess,
     type SpaceSummaryBase,
 } from '@lightdash/common';
@@ -76,11 +87,15 @@ import {
     LightdashAnalytics,
     SchedulerUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
-import { getAccountWriteContext } from '../../auth/account';
+import {
+    getAccountWriteContext,
+    getEmbedActorChartSpaceUuids,
+} from '../../auth/account';
 import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
+import Logger from '../../logging/logger';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
@@ -94,6 +109,7 @@ import {
 } from '../../models/ContentDraftModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -101,6 +117,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import { BaseService } from '../BaseService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { assertCanReplaceChartFilters } from '../SchedulerService/chartFilterOverridesAccess';
@@ -115,6 +132,7 @@ import {
     assertCanMutateVerifiedContent,
     getVerificationAfterUpdate,
 } from '../verifiedContentGuards';
+import { withVersionAgentIdentity } from '../VersionAgentIdentity';
 import {
     assertChartDraftOverlay,
     mergeDraftIntoChart,
@@ -122,6 +140,7 @@ import {
 } from './chartDraftOverlay';
 
 type SavedChartServiceArguments = {
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     analytics: LightdashAnalytics;
     lightdashConfig: LightdashConfig;
     projectModel: ProjectModel;
@@ -213,8 +232,11 @@ export class SavedChartService
 
     private readonly contentDraftModel: ContentDraftModel;
 
+    private readonly featureFlagModel: Pick<FeatureFlagModel, 'get'>;
+
     constructor(args: SavedChartServiceArguments) {
         super();
+        this.featureFlagModel = args.featureFlagModel;
         this.analytics = args.analytics;
         this.lightdashConfig = args.lightdashConfig;
         this.projectModel = args.projectModel;
@@ -338,10 +360,52 @@ export class SavedChartService
         return access.some((row) => row.grantedVia === 'dashboard');
     }
 
+    static hasDateXAxis(
+        savedChart: SavedChartDAO,
+        explore: Explore | ExploreError | undefined,
+    ): boolean {
+        try {
+            if (savedChart.chartConfig.type !== ChartType.CARTESIAN)
+                return false;
+            const xField = savedChart.chartConfig.config?.layout?.xField;
+            if (!xField) return false;
+
+            const customDimension =
+                savedChart.metricQuery.customDimensions?.find(
+                    (dimension) => dimension.id === xField,
+                );
+            // Without a compiled explore the field type is unknown
+            const exploreDimension =
+                explore && !isExploreError(explore)
+                    ? getDimensionMapFromTables(explore.tables)[xField]
+                    : undefined;
+            const xDimensionType = isCustomSqlDimension(customDimension)
+                ? customDimension.dimensionType
+                : exploreDimension?.type;
+
+            return (
+                xDimensionType === DimensionType.DATE ||
+                xDimensionType === DimensionType.TIMESTAMP
+            );
+        } catch (error) {
+            Logger.warn('Unable to determine chart date x-axis for analytics', {
+                chartUuid: savedChart.uuid,
+                error,
+            });
+            return false;
+        }
+    }
+
     static getCreateEventProperties(
         savedChart: SavedChartDAO,
         grantAudit: { viaDashboardGrant: boolean; grantOnly: boolean },
+        explore: Explore | ExploreError | undefined,
     ): CreateSavedChartVersionEvent['properties'] {
+        const selectedAdditionalMetrics = (
+            savedChart.metricQuery.additionalMetrics || []
+        ).filter((metric) =>
+            savedChart.metricQuery.metrics.includes(getItemId(metric)),
+        );
         const echartsConfig =
             savedChart.chartConfig.type === ChartType.CARTESIAN
                 ? savedChart.chartConfig.config?.eChartsConfig
@@ -363,6 +427,10 @@ export class SavedChartService
             sortsCount: savedChart.metricQuery.sorts.length,
             tableCalculationsCount:
                 savedChart.metricQuery.tableCalculations.length,
+            additionalMetricsCount: selectedAdditionalMetrics.length,
+            periodOverPeriodMetricsCount: selectedAdditionalMetrics.filter(
+                isPeriodOverPeriodAdditionalMetric,
+            ).length,
             pivotCount: (savedChart.pivotConfig?.columns || []).length,
             chartType: savedChart.chartConfig.type,
             pie:
@@ -446,6 +514,10 @@ export class SavedChartService
                           showLegend: echartsConfig?.legend?.show !== false,
                           hasCustomTooltip:
                               (echartsConfig?.tooltip || '').length > 0,
+                          hasDateXAxis: SavedChartService.hasDateXAxis(
+                              savedChart,
+                              explore,
+                          ),
                       }
                     : undefined,
             treemap:
@@ -821,13 +893,27 @@ export class SavedChartService
 
     private async applyOpenDraftOverlay(
         user: SessionUser,
-        chart: SavedChart,
+        publishedChart: SavedChart,
     ): Promise<SavedChart> {
         try {
             const settings = await this.contentAsCodeProjectSettingsModel.get(
-                chart.projectUuid,
+                publishedChart.projectUuid,
             );
-            if (!settings?.syncEnabled) return chart;
+            if (!settings?.syncEnabled) return publishedChart;
+            const repositorySnapshot =
+                await this.contentAsCodeSnapshotModel.get(
+                    publishedChart.projectUuid,
+                    ContentAsCodeType.CHART,
+                    publishedChart.slug,
+                );
+            const chart: SavedChart = repositorySnapshot
+                ? {
+                      ...publishedChart,
+                      managedFromRepository: {
+                          filePath: repositorySnapshot.filePath,
+                      },
+                  }
+                : publishedChart;
             const draft = await this.contentDraftModel.findOpenDraft(
                 chart.projectUuid,
                 'chart',
@@ -900,7 +986,7 @@ export class SavedChartService
             return chartForViewer;
         } catch (error) {
             this.logger.warn('Chart draft overlay failed', error);
-            return chart;
+            return publishedChart;
         }
     }
 
@@ -926,12 +1012,44 @@ export class SavedChartService
         });
     }
 
+    private async validateMetricReferences(
+        projectUuid: string,
+        metricQuery: MetricQuery,
+    ): Promise<void> {
+        const metrics = (metricQuery.additionalMetrics ?? []).filter((metric) =>
+            getAllReferences(metric.sql).some((ref) => ref !== 'TABLE'),
+        );
+        if (metrics.length === 0) return;
+
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            metricQuery.exploreName,
+        );
+        if (!explore || isExploreError(explore)) {
+            throw new ParameterError(
+                'Cannot validate custom metric references because the explore is unavailable',
+            );
+        }
+        for (const metric of metrics) {
+            const missing = getMissingAdditionalMetricReferences(
+                metric,
+                explore,
+                metricQuery.customDimensions,
+            );
+            if (missing.length > 0) {
+                throw new ParameterError(
+                    `Custom metric "${metric.label ?? metric.name}" references missing fields: ${missing.join(', ')}`,
+                );
+            }
+        }
+    }
+
     async createVersion(
         account: Account,
         savedChartUuid: string,
         data: CreateSavedChartVersion,
     ): Promise<SavedChart> {
-        // Embed writes run as the write actor and only inside the write space
+        // Embed writes run as the write actor and only inside the write spaces
         const { user, embedWriteActions } = getAccountWriteContext(account);
         const { preserveVerification, ...chartVersion } = data;
         const existingChart = await this.savedChartModel.get(savedChartUuid);
@@ -948,9 +1066,12 @@ export class SavedChartService
             },
         } = existingChart;
 
-        if (embedWriteActions && spaceUuid !== embedWriteActions.spaceUuid) {
+        if (
+            embedWriteActions &&
+            !embedWriteActions.writeSpaceUuids.includes(spaceUuid)
+        ) {
             throw new ForbiddenError(
-                'Embed token does not allow updating charts outside the write space',
+                'Embed token does not allow updating charts outside the write spaces',
             );
         }
 
@@ -1065,6 +1186,11 @@ export class SavedChartService
             throw new ParameterError('Invalid saved merge definition.');
         }
 
+        await this.validateMetricReferences(
+            projectUuid,
+            chartVersion.metricQuery,
+        );
+
         const verificationAfterUpdate =
             await this.getVerificationAfterChartUpdate({
                 user,
@@ -1108,16 +1234,6 @@ export class SavedChartService
                 savedChartUuid,
             );
         }
-
-        this.analytics.track({
-            event: 'saved_chart_version.created',
-            userId: user.userUuid,
-            properties: SavedChartService.getCreateEventProperties(savedChart, {
-                viaDashboardGrant:
-                    SavedChartService.hasDashboardGrantRow(access),
-                grantOnly: directOnly,
-            }),
-        });
 
         const formulaProperties =
             SavedChartService.getFormulaTableCalculationEventProperties(
@@ -1168,8 +1284,9 @@ export class SavedChartService
             });
         });
 
+        let cachedExplore: Explore | ExploreError | undefined;
         try {
-            const cachedExplore = await this.projectModel.getExploreFromCache(
+            cachedExplore = await this.projectModel.getExploreFromCache(
                 projectUuid,
                 savedChart.tableName,
             );
@@ -1190,6 +1307,20 @@ export class SavedChartService
                 error,
             );
         }
+
+        this.analytics.track({
+            event: 'saved_chart_version.created',
+            userId: user.userUuid,
+            properties: SavedChartService.getCreateEventProperties(
+                savedChart,
+                {
+                    viaDashboardGrant:
+                        SavedChartService.hasDashboardGrantRow(access),
+                    grantOnly: directOnly,
+                },
+                cachedExplore,
+            ),
+        });
 
         return {
             ...savedChart,
@@ -1871,9 +2002,10 @@ export class SavedChartService
         let permissionActor: Account | SessionUser = account;
         if (isJwtUser(account)) {
             const { embedWriteUser } = account;
-            const writeSpaceUuid =
-                account.authentication.data.writeActions?.spaceUuid;
-            if (embedWriteUser && writeSpaceUuid === space.uuid) {
+            if (
+                embedWriteUser &&
+                getEmbedActorChartSpaceUuids(account).includes(space.uuid)
+            ) {
                 permissionActor = embedWriteUser;
                 const spaceCtx =
                     await this.spacePermissionService.resolveAccess(
@@ -2131,19 +2263,38 @@ export class SavedChartService
     private static getCreateSavedChartContext(
         account: Account,
         savedChart: CreateSavedChart,
-    ): { user: SessionUser; savedChart: CreateSavedChart } {
+        requestedDashboard: DashboardDAO | null,
+    ): {
+        user: SessionUser;
+        savedChart: CreateSavedChart;
+        dashboard: DashboardDAO | null;
+    } {
         const { user, embedWriteActions } = getAccountWriteContext(account);
 
         if (!embedWriteActions) {
-            return { user, savedChart };
+            return { user, savedChart, dashboard: requestedDashboard };
         }
 
+        const { writeSpaceUuids } = embedWriteActions;
+        if (
+            requestedDashboard &&
+            writeSpaceUuids.includes(requestedDashboard.spaceUuid)
+        ) {
+            return { user, savedChart, dashboard: requestedDashboard };
+        }
+
+        const requestedSpaceUuid = savedChart.spaceUuid ?? undefined;
         return {
             user,
+            dashboard: null,
             savedChart: {
                 ...savedChart,
                 dashboardUuid: undefined,
-                spaceUuid: embedWriteActions.spaceUuid,
+                spaceUuid:
+                    requestedSpaceUuid !== undefined &&
+                    writeSpaceUuids.includes(requestedSpaceUuid)
+                        ? requestedSpaceUuid
+                        : writeSpaceUuids[0],
             },
         };
     }
@@ -2153,15 +2304,30 @@ export class SavedChartService
         projectUuid: string,
         savedChart: CreateSavedChart,
     ): Promise<SavedChart> {
-        const { user, savedChart: chartToSave } =
-            SavedChartService.getCreateSavedChartContext(account, savedChart);
+        const requestedDashboard = savedChart.dashboardUuid
+            ? await this.dashboardModel.getByIdOrSlug(
+                  savedChart.dashboardUuid,
+                  {
+                      projectUuid,
+                  },
+              )
+            : null;
+        const {
+            user,
+            savedChart: chartToSave,
+            dashboard,
+        } = SavedChartService.getCreateSavedChartContext(
+            account,
+            savedChart,
+            requestedDashboard,
+        );
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
         // When saving to a dashboard, always check permissions against the
         // dashboard's space — the chart's spaceUuid may refer to a different
         // space where the user has no access.
-        const resolvedSpaceUuid = chartToSave.dashboardUuid
+        const resolvedSpaceUuid = dashboard
             ? undefined
             : (chartToSave.spaceUuid ??
               (await this.spacePermissionService.getFirstViewableSpaceUuid(
@@ -2181,10 +2347,7 @@ export class SavedChartService
             inheritsFromOrgOrProject =
                 spaceAccessContext.inheritsFromOrgOrProject;
             access = spaceAccessContext.access;
-        } else if (chartToSave.dashboardUuid) {
-            const dashboard = await this.dashboardModel.getByIdOrSlug(
-                chartToSave.dashboardUuid,
-            );
+        } else if (dashboard) {
             // Creating inside the dashboard stays in bounds, so grants count;
             // embed write actors stay space-only (see createVersion).
             const { embedWriteActions } = getAccountWriteContext(account);
@@ -2219,7 +2382,7 @@ export class SavedChartService
                     access,
                     metadata: {
                         resolvedSpaceUuid,
-                        dashboardUuid: chartToSave.dashboardUuid,
+                        dashboardUuid: dashboard?.uuid,
                     },
                 }),
             )
@@ -2261,25 +2424,39 @@ export class SavedChartService
             );
         }
 
-        if (!resolvedSpaceUuid && !chartToSave.dashboardUuid) {
+        const chartBase = {
+            ...chartToSave,
+            chartConfig: applyNewChartDefaults(chartToSave.chartConfig),
+            slug: generateSlug(chartToSave.name),
+            updatedByUser: user,
+        };
+        let chartToCreate: CreateSavedChart & {
+            updatedByUser: UpdatedByUser;
+            slug: string;
+        };
+        if (resolvedSpaceUuid) {
+            chartToCreate = {
+                ...chartBase,
+                spaceUuid: resolvedSpaceUuid,
+                dashboardUuid: null,
+            };
+        } else if (dashboard) {
+            chartToCreate = {
+                ...chartBase,
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: null,
+            };
+        } else {
             throw new Error(
                 'Unable to save chart; no space or dashboard provided.',
             );
         }
 
-        const chartToCreate = resolvedSpaceUuid
-            ? {
-                  ...chartToSave,
-                  spaceUuid: resolvedSpaceUuid,
-                  dashboardUuid: null as null,
-                  slug: generateSlug(chartToSave.name),
-                  updatedByUser: user,
-              }
-            : {
-                  ...chartToSave,
-                  slug: generateSlug(chartToSave.name),
-                  updatedByUser: user,
-              };
+        await this.validateMetricReferences(
+            projectUuid,
+            chartToSave.metricQuery,
+        );
+
         const newSavedChart = await this.savedChartModel.create(
             projectUuid,
             user.userUuid,
@@ -2295,11 +2472,15 @@ export class SavedChartService
             event: 'saved_chart.created',
             userId: user.userUuid,
             properties: {
-                ...SavedChartService.getCreateEventProperties(newSavedChart, {
-                    viaDashboardGrant:
-                        SavedChartService.hasDashboardGrantRow(access),
-                    grantOnly: createGrantOnly,
-                }),
+                ...SavedChartService.getCreateEventProperties(
+                    newSavedChart,
+                    {
+                        viaDashboardGrant:
+                            SavedChartService.hasDashboardGrantRow(access),
+                        grantOnly: createGrantOnly,
+                    },
+                    cachedExplore,
+                ),
                 dashboardId: newSavedChart.dashboardUuid ?? undefined,
                 virtualViewId:
                     cachedExplore?.type === ExploreType.VIRTUAL
@@ -2452,17 +2633,21 @@ export class SavedChartService
             user.userUuid,
             duplicatedChart,
         );
-        const newSavedChartProperties =
-            SavedChartService.getCreateEventProperties(newSavedChart, {
-                viaDashboardGrant:
-                    SavedChartService.hasDashboardGrantRow(access),
-                grantOnly: directOnly,
-            });
-
         const cachedExplore = await this.projectModel.getExploreFromCache(
             projectUuid,
             newSavedChart.tableName,
         );
+
+        const newSavedChartProperties =
+            SavedChartService.getCreateEventProperties(
+                newSavedChart,
+                {
+                    viaDashboardGrant:
+                        SavedChartService.hasDashboardGrantRow(access),
+                    grantOnly: directOnly,
+                },
+                cachedExplore,
+            );
 
         this.analytics.track({
             event: 'saved_chart.created',
@@ -2759,6 +2944,8 @@ export class SavedChartService
                 timeZone: getTimezoneLabel(scheduler.timezone),
                 includeLinks: scheduler.includeLinks,
                 plainTextEmail: scheduler.plainTextEmail,
+                isThresholdAlert: (scheduler.thresholds?.length ?? 0) > 0,
+                useCachedResults: scheduler.useCachedResults === true,
             },
         };
         this.analytics.track(createSchedulerEventData);
@@ -2827,8 +3014,17 @@ export class SavedChartService
                 versionCount: versions.length,
             },
         });
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: {
+                organizationUuid: chart.organizationUuid,
+                userUuid: user.userUuid,
+            },
+        });
         return {
-            history: versions,
+            history: versions.map((version) =>
+                withVersionAgentIdentity(version, enabled),
+            ),
         };
     }
 
@@ -2880,8 +3076,15 @@ export class SavedChartService
             },
         });
 
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: {
+                organizationUuid: chart.organizationUuid,
+                userUuid: user.userUuid,
+            },
+        });
         return {
-            ...chartVersionSummary,
+            ...withVersionAgentIdentity(chartVersionSummary, enabled),
             chart: {
                 ...savedChart,
                 inheritsFromOrgOrProject,
@@ -2914,6 +3117,10 @@ export class SavedChartService
                 dashboardUuid: savedChart.dashboardUuid ?? null,
                 spaceUuid: savedChart.spaceUuid,
             },
+            getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: savedChart.organizationUuid,
+            }),
         );
         this.analytics.track({
             event: 'saved_chart_version.rollback',
@@ -2924,17 +3131,10 @@ export class SavedChartService
                 versionId: versionUuid,
             },
         });
-        this.analytics.track({
-            event: 'saved_chart_version.created',
-            userId: user.userUuid,
-            properties: SavedChartService.getCreateEventProperties(
-                newChartVersion,
-                grantAudit,
-            ),
-        });
 
+        let cachedExplore: Explore | ExploreError | undefined;
         try {
-            const cachedExplore = await this.projectModel.getExploreFromCache(
+            cachedExplore = await this.projectModel.getExploreFromCache(
                 newChartVersion.projectUuid,
                 newChartVersion.tableName,
             );
@@ -2959,6 +3159,16 @@ export class SavedChartService
                 error,
             );
         }
+
+        this.analytics.track({
+            event: 'saved_chart_version.created',
+            userId: user.userUuid,
+            properties: SavedChartService.getCreateEventProperties(
+                newChartVersion,
+                grantAudit,
+                cachedExplore,
+            ),
+        });
     }
 
     // Deliberately space-only: shared gate for mixed callers including

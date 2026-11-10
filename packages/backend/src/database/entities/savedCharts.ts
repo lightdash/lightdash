@@ -1,3 +1,4 @@
+import { type AgentIdentityClaim } from '@lightdash/common';
 import {
     AnyType,
     BinGroup,
@@ -23,6 +24,17 @@ import { Knex } from 'knex';
 
 export const SavedChartsTableName = 'saved_queries';
 export const SavedChartVersionsTableName = 'saved_queries_versions';
+
+/** Correlated subquery for one column of a chart's latest version; the id tiebreaker keeps same-timestamp versions deterministic.
+ * Correlates on the literal `saved_queries` table name, so the outer query must have it in scope unaliased. */
+export const latestSavedChartVersionColumnSql = (
+    column: keyof DbSavedChartVersion,
+): string => `(
+    SELECT latest.${column} FROM ${SavedChartVersionsTableName} latest
+    WHERE latest.saved_query_id = ${SavedChartsTableName}.saved_query_id
+    ORDER BY latest.created_at DESC, latest.saved_queries_version_id DESC
+    LIMIT 1
+)`;
 
 type InsertChartBase = Pick<
     DbSavedChart,
@@ -94,6 +106,7 @@ export type DbSavedChart = {
 };
 
 export type DbSavedChartVersion = {
+    agent_identity: AgentIdentityClaim | null;
     saved_queries_version_id: number;
     saved_queries_version_uuid: string;
     created_at: Date;
@@ -132,7 +145,7 @@ export type CreateDbSavedChartVersion = Pick<
     | 'parameters'
     | 'updated_by_user_uuid'
     | 'timezone'
->;
+> & { agent_identity: AgentIdentityClaim | null };
 
 export type DbSavedChartVersionField = {
     saved_queries_version_field_id: number;

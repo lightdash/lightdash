@@ -1,6 +1,10 @@
+import { Ability } from '@casl/ability';
 import {
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
     MergeJoinType,
     type AnonymousAccount,
+    type PossibleAbilities,
     type SessionUser,
 } from '@lightdash/common';
 import {
@@ -40,8 +44,15 @@ const account = {
     },
     embedWriteUser: user,
     embedWriteContext: { canUseAiAgent: true },
-    embed: { projectUuid: 'project-uuid' },
+    embed: {
+        projectUuid: 'project-uuid',
+        organization: { organizationUuid: 'org-uuid' },
+    },
     access: { controls: { userAttributes: { tenant_id: 'tenant-a' } } },
+    organization: { organizationUuid: 'org-uuid' },
+    user: { id: 'viewer-1', ability: new Ability<PossibleAbilities>([]) },
+    isJwtUser: () => true,
+    isAnonymousUser: () => true,
 } as unknown as AnonymousAccount;
 
 const config = {
@@ -61,10 +72,22 @@ const config = {
     chartConfig: null,
 };
 
-const query = { queryUuid: 'query-uuid' };
+const dimension = validExplore.tables.a.dimensions.dim1;
+const query = {
+    queryUuid: 'query-uuid',
+    fields: {
+        a_dim1: { ...dimension, sql: '${TABLE}.dim1', compiledSql: '"a".dim1' },
+    },
+};
+const redactedQuery = {
+    ...query,
+    fields: { a_dim1: expect.objectContaining({ sql: '', compiledSql: '' }) },
+};
 
 const buildService = () => {
     const aiAgentModel = {
+        findSlackPrompt: vi.fn().mockResolvedValue(undefined),
+        findWebAppPrompt: vi.fn().mockResolvedValue(undefined),
         getAgent: vi.fn().mockResolvedValue({
             uuid: 'agent-uuid',
             name: 'Agent',
@@ -83,13 +106,17 @@ const buildService = () => {
             agentUuid: 'agent-uuid',
         }),
         getThread: vi.fn().mockResolvedValue({ user: { uuid: 'user-uuid' } }),
-        getWebAppThreadEmbedSpace: vi.fn().mockResolvedValue('space-uuid'),
+        isWebAppThreadInEmbedScope: vi.fn().mockResolvedValue(true),
     };
     const asyncQueryService = {
+        bindQueryToArtifact: vi.fn(),
         executeAsyncMetricQuery: vi.fn().mockResolvedValue(query),
         executeAsyncMergeQuery: vi
             .fn()
             .mockResolvedValue({ outcome: 'success', query }),
+    };
+    const featureFlagService = {
+        get: vi.fn().mockResolvedValue({ enabled: true }),
     };
     const service = new AiAgentService({
         aiAgentModel,
@@ -97,9 +124,7 @@ const buildService = () => {
         aiAgentToolsService: {
             getExplore: vi.fn().mockResolvedValue(validExplore),
         },
-        featureFlagService: {
-            get: vi.fn().mockResolvedValue({ enabled: true }),
-        },
+        featureFlagService,
         analytics: { track: vi.fn() },
         lightdashConfig: { ai: { copilot: { maxQueryLimit: 5000 } } },
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
@@ -169,7 +194,11 @@ describe.each([
                         : await service.getArtifactVizQuery(user, options);
                 }
 
-                expect(result.query).toEqual(query);
+                expect(result).toEqual(
+                    expect.objectContaining({
+                        query: embedded ? redactedQuery : query,
+                    }),
+                );
                 expect(
                     asyncQueryService.executeAsyncMetricQuery,
                 ).toHaveBeenCalledWith(
@@ -225,7 +254,11 @@ describe.each([
                   )
                 : await service.getArtifactVizQuery(user, options);
 
-            expect(result.query).toEqual(query);
+            expect(result).toEqual(
+                expect.objectContaining({
+                    query: embedded ? redactedQuery : query,
+                }),
+            );
             expect(
                 asyncQueryService.executeAsyncMergeQuery,
             ).toHaveBeenCalledWith(
@@ -236,3 +269,86 @@ describe.each([
         });
     },
 );
+
+describe('AI artifact visualization SQL redaction', () => {
+    it('keeps field SQL for embeds granted view:EmbedCompiledSql', async () => {
+        const { service } = buildService();
+        const grantedAccount = {
+            ...account,
+            user: {
+                id: 'viewer-1',
+                ability: new Ability<PossibleAbilities>([
+                    {
+                        subject: 'EmbedCompiledSql',
+                        action: 'view',
+                        conditions: {
+                            organizationUuid: 'org-uuid',
+                            projectUuid: 'project-uuid',
+                        },
+                    },
+                ]),
+            },
+        } as unknown as AnonymousAccount;
+
+        const result = await service.getEmbedArtifactVizQuery(
+            grantedAccount,
+            ...artifactArgs,
+        );
+
+        expect(result).toEqual(expect.objectContaining({ query }));
+    });
+});
+
+describe('artifact visualization identity refusals', () => {
+    it('preserves the typed refusal from query execution', async () => {
+        const { service, asyncQueryService } = buildService();
+        const refusal = new AiAccessRefusedError(
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+        );
+        asyncQueryService.executeAsyncMetricQuery.mockRejectedValue(refusal);
+        await expect(
+            service.getArtifactVizQuery(user, {
+                projectUuid: 'project-uuid',
+                agentUuid: 'agent-uuid',
+                artifactUuid: 'artifact-uuid',
+                versionUuid: 'version-uuid',
+            }),
+        ).rejects.toBe(refusal);
+    });
+});
+
+describe('artifact visualization agent ownership', () => {
+    it.each(['chart', 'dashboard'] as const)(
+        'rejects a mismatched path agent before executing a %s query',
+        async (artifactType) => {
+            const { service, aiAgentModel, asyncQueryService } = buildService();
+            aiAgentModel.findThread.mockResolvedValue({
+                organizationUuid: 'org-uuid',
+                projectUuid: 'project-uuid',
+                agentUuid: 'different-thread-agent',
+            });
+            const options = {
+                projectUuid: 'project-uuid',
+                agentUuid: 'agent-uuid',
+                artifactUuid: 'artifact-uuid',
+                versionUuid: 'version-uuid',
+            };
+            await expect(
+                artifactType === 'chart'
+                    ? service.getArtifactVizQuery(user, options)
+                    : service.getDashboardArtifactChartVizQuery(user, {
+                          ...options,
+                          chartIndex: 0,
+                      }),
+            ).rejects.toThrow(
+                'Insufficient permissions to access this artifact',
+            );
+            expect(
+                asyncQueryService.executeAsyncMetricQuery,
+            ).not.toHaveBeenCalled();
+            expect(
+                asyncQueryService.executeAsyncMergeQuery,
+            ).not.toHaveBeenCalled();
+        },
+    );
+});

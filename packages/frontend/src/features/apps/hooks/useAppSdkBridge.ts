@@ -1,4 +1,6 @@
 import {
+    APP_SDK_APP_STATE_MESSAGE,
+    APP_SDK_APP_STATE_RESPONSE_MESSAGE,
     APP_SDK_COLOR_SCHEME_MESSAGE,
     APP_SDK_COLOR_SCHEME_REQUEST_MESSAGE,
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
@@ -7,19 +9,33 @@ import {
     APP_SDK_INSIGHTS_REQUEST_MESSAGE,
     APP_SDK_MOUNTED_QUERIES_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
+    DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
+    DATA_APP_INSTRUCTION_INVESTIGATE_MAX_CHARS,
     APP_SDK_VIZ_DRILL_DOWN_PATH,
     APP_SDK_VIZ_POINT_MENU_PATH,
     APP_SDK_VIZ_SUBTOTALS_PATH,
     APP_SDK_VIZ_UNDERLYING_DATA_OPEN_PATH,
     APP_SDK_VIZ_UNDERLYING_DATA_PATH,
+    APP_SDK_EXPLORE_BASE_TABLE_PATH,
+    APP_SDK_SPACE_CHARTS_PATH,
+    emptyAppSdkSpaceCharts,
     extractAppSdkRouteProjectUuid,
+    extractAppSdkSpaceCharts,
+    extractExploreBaseTable,
+    FEATURE_NOT_ENABLED_CODE,
     isAllowedAppSdkRoute,
+    parseAppSdkSpaceChartsRequest,
+    resolveAppSdkSpaceUuid,
     isAppSdkScheduleDownloadRoute,
+    appStateValueByteLength,
     JWT_HEADER_NAME,
     LightdashAppPreviewTokenHeader,
     LightdashAppUuidHeader,
     LightdashSignedDownloadHeader,
+    parseAppSdkExploreBaseTableRequest,
     type AppColorScheme,
+    type AppSdkSpaceChartsResult,
+    type AppSdkExploreBaseTableResult,
     type DashboardFilters,
     type DataAppInsightAction,
     type DataAppInsightsPayload,
@@ -29,13 +45,14 @@ import {
     type QueryExecutionContext,
 } from '@lightdash/common';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
-import { lightdashApi } from '../../../api';
+import { validate as isValidUuid } from 'uuid';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import {
     getGdriveAccessToken,
     triggerGdriveLogin,
 } from '../../../hooks/gdrive/useGdrive';
 import useApp from '../../../providers/App/useApp';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import type { DeliveryCaptureAccumulator } from '../deliveryCapture/deliveryCaptureAccumulator';
 import {
     handleGsheetExport,
@@ -65,6 +82,249 @@ const getEmbedAuthHeaders = (
     embedToken: string | undefined,
 ): Record<string, string> =>
     embedToken ? { [JWT_HEADER_NAME]: embedToken } : {};
+
+export type AppStateBridgeErrorCode =
+    | 'conflict'
+    | 'feature_disabled'
+    | 'forbidden'
+    | 'invalid'
+    | 'unavailable'
+    | 'unknown';
+
+type AppStateBridgeError = {
+    code: AppStateBridgeErrorCode;
+    message: string;
+    current?: unknown;
+};
+
+/**
+ * Map an app state API failure to the SDK's error codes. A 409 carries the
+ * key's current value so the SDK can retry an updater on top of it.
+ */
+export const mapAppStateApiError = (
+    httpStatus: number,
+    error: { message?: string; data?: unknown } | undefined,
+): AppStateBridgeError => {
+    const message =
+        error?.message ?? `App state request failed (${httpStatus})`;
+    const data =
+        typeof error?.data === 'object' && error.data !== null
+            ? (error.data as Record<string, unknown>)
+            : {};
+    if (httpStatus === 409) {
+        return { code: 'conflict', message, current: data.current ?? null };
+    }
+    if (httpStatus === 403) {
+        return {
+            code:
+                data.code === FEATURE_NOT_ENABLED_CODE
+                    ? 'feature_disabled'
+                    : 'forbidden',
+            message,
+        };
+    }
+    if (httpStatus === 400 || httpStatus === 422) {
+        return { code: 'invalid', message };
+    }
+    return { code: 'unknown', message };
+};
+
+type AppStateBridgeRequest = {
+    id: string;
+    op: unknown;
+    key?: unknown;
+    value?: unknown;
+    expectedVersion?: unknown;
+    limit?: unknown;
+    beforeVersion?: unknown;
+};
+
+/** Resolve an SDK app state op to the REST call the host makes as the viewer. */
+export const resolveAppStateRequest = (
+    base: string,
+    req: AppStateBridgeRequest,
+): {
+    method: 'GET' | 'PUT' | 'DELETE';
+    path: string;
+    body?: unknown;
+} | null => {
+    const key =
+        typeof req.key === 'string' ? encodeURIComponent(req.key) : null;
+    switch (req.op) {
+        case 'get':
+            return { method: 'GET', path: base };
+        case 'set-user':
+            return key
+                ? {
+                      method: 'PUT',
+                      path: `${base}/user/${key}`,
+                      body: { value: req.value },
+                  }
+                : null;
+        case 'delete-user':
+            return key
+                ? { method: 'DELETE', path: `${base}/user/${key}` }
+                : null;
+        case 'set-shared':
+            return key
+                ? {
+                      method: 'PUT',
+                      path: `${base}/shared/${key}`,
+                      body: {
+                          value: req.value,
+                          expectedVersion:
+                              typeof req.expectedVersion === 'number'
+                                  ? req.expectedVersion
+                                  : null,
+                      },
+                  }
+                : null;
+        case 'delete-shared':
+            return key
+                ? { method: 'DELETE', path: `${base}/shared/${key}` }
+                : null;
+        case 'history': {
+            if (!key) return null;
+            const params = new URLSearchParams();
+            if (typeof req.limit === 'number') {
+                params.set('limit', String(req.limit));
+            }
+            if (typeof req.beforeVersion === 'number') {
+                params.set('beforeVersion', String(req.beforeVersion));
+            }
+            const query = params.toString();
+            return {
+                method: 'GET',
+                path: `${base}/shared/${key}/history${query ? `?${query}` : ''}`,
+            };
+        }
+        default:
+            return null;
+    }
+};
+
+/**
+ * A single app-state call routed through the bridge, reported for the
+ * inspector's Requests tab. Same single-shot lifecycle as
+ * `ExternalRequestEvent`: one `pending` event when the call starts, one
+ * terminal `ready`/`error` event when it settles — matched by `id`.
+ */
+export type AppStateEvent = {
+    id: string;
+    timestamp: number;
+    /** SDK op, e.g. `get`, `set-shared`, `history`. */
+    op: string;
+    key: string | null;
+    scope: 'user' | 'shared' | 'all';
+    /** Serialized size (chars) of the value a set op writes; null otherwise. */
+    valueSize: number | null;
+    status: 'pending' | 'ready' | 'error';
+    durationMs: number | null;
+    /** SDK error code (`conflict`, `feature_disabled`, …) on failure. */
+    errorCode: AppStateBridgeErrorCode | null;
+    error: string | null;
+};
+
+const appStateOpScope = (op: unknown): AppStateEvent['scope'] => {
+    switch (op) {
+        case 'set-user':
+        case 'delete-user':
+            return 'user';
+        case 'get':
+            return 'all';
+        default:
+            return 'shared';
+    }
+};
+
+// UTF-8 bytes, matching the backend's enforced value-size limit.
+const appStateValueSize = (req: AppStateBridgeRequest): number | null => {
+    if (req.op !== 'set-user' && req.op !== 'set-shared') return null;
+    return appStateValueByteLength(req.value);
+};
+
+// Headers every API call made on the app's behalf carries: embed auth and
+// self-reported app attribution (the backend tags warehouse queries with it).
+const getAppSdkRequestHeaders = (
+    embedToken: string | undefined,
+    appUuid: string,
+): Record<string, string> => ({
+    'Content-Type': 'application/json',
+    ...getEmbedAuthHeaders(embedToken),
+    ...(appUuid ? { [LightdashAppUuidHeader]: appUuid } : {}),
+});
+
+const fetchExploreBaseTable = async ({
+    projectUuid,
+    exploreName,
+    embedToken,
+    appUuid,
+}: {
+    projectUuid: string;
+    exploreName: string;
+    embedToken: string | undefined;
+    appUuid: string;
+}): Promise<string | null> => {
+    try {
+        const res = await fetch(
+            resolveFetchUrl(
+                `/api/v1/projects/${projectUuid}/explores/${encodeURIComponent(exploreName)}`,
+            ),
+            {
+                method: 'GET',
+                headers: getAppSdkRequestHeaders(embedToken, appUuid),
+            },
+        );
+        if (!res.ok) return null;
+        return extractExploreBaseTable(await res.json());
+    } catch {
+        return null;
+    }
+};
+
+/**
+ * Resolve a slug-or-uuid space reference to its trimmed chart list with the
+ * viewer's credentials. Any failure — unknown space, no access, network —
+ * answers uniformly empty, so apps can't probe for spaces they can't see.
+ */
+const fetchSpaceCharts = async ({
+    projectUuid,
+    spaceRef,
+    embedToken,
+    appUuid,
+}: {
+    projectUuid: string;
+    spaceRef: string;
+    embedToken: string | undefined;
+    appUuid: string;
+}): Promise<AppSdkSpaceChartsResult> => {
+    const headers = getAppSdkRequestHeaders(embedToken, appUuid);
+    try {
+        const listRes = await fetch(
+            resolveFetchUrl(`/api/v1/projects/${projectUuid}/spaces`),
+            { method: 'GET', headers },
+        );
+        if (!listRes.ok) return emptyAppSdkSpaceCharts();
+        const spaceUuid = resolveAppSdkSpaceUuid(
+            await listRes.json(),
+            spaceRef,
+        );
+        if (spaceUuid === null) return emptyAppSdkSpaceCharts();
+        const res = await fetch(
+            resolveFetchUrl(
+                `/api/v1/projects/${projectUuid}/spaces/${spaceUuid}`,
+            ),
+            { method: 'GET', headers },
+        );
+        if (!res.ok) return emptyAppSdkSpaceCharts();
+        return (
+            extractAppSdkSpaceCharts(await res.json()) ??
+            emptyAppSdkSpaceCharts()
+        );
+    } catch {
+        return emptyAppSdkSpaceCharts();
+    }
+};
 
 export type QueryEventTableCalculation = {
     name: string;
@@ -199,6 +459,7 @@ export type SdkManifest = {
     sdkVersion: string;
     features: string[];
     fixes: string[];
+    navigationId?: string;
 };
 
 export type ElementSelectedEvent = {
@@ -250,6 +511,7 @@ export type UseAppSdkBridgeParams = {
     onElementSelected?: (event: ElementSelectedEvent) => void;
     onInspectorAvailable?: () => void;
     onScreenshotAvailable?: () => void;
+    onPdfExportAvailable?: () => void;
     /**
      * When set, these filters are stamped onto every intercepted metric-query
      * POST before it reaches the backend. Used by dashboard data-app tiles so
@@ -279,6 +541,7 @@ export type UseAppSdkBridgeParams = {
      * yet" timeout that classifies them as legacy.
      */
     onSdkManifest?: (manifest: SdkManifest) => void;
+    onRuntimeError?: (navigationId: string) => void;
     /**
      * Called when the iframe acknowledges painting the matching render context.
      */
@@ -294,10 +557,17 @@ export type UseAppSdkBridgeParams = {
      * and a terminal `ready`/`error` event when it settles.
      */
     onExternalRequestEvent?: (event: ExternalRequestEvent) => void;
+    /**
+     * When provided, app-state calls routed through this bridge are reported
+     * for the inspector's Requests tab — mirrors `onExternalRequestEvent`.
+     * Emits `pending` when the call starts and a terminal `ready`/`error`
+     * event when it settles.
+     */
+    onAppStateEvent?: (event: AppStateEvent) => void;
     // When set, the host pushes this render context into the iframe over the
     // existing bridge — on load and on every change. Only set for data app vizs.
     dataAppVizContext?: DataAppVizContext;
-    /** Chart types render host-provided rows and cannot query independently. */
+    /** Enables host-provided subtotals for custom chart types. */
     dataAppVizMode?: boolean;
     /** Saved chart identity supplied by the host for external fetch authorization. */
     chartContext?: ExternalFetchRequest['chartContext'];
@@ -369,6 +639,12 @@ export type UseAppSdkBridgeParams = {
     onInsightAction?: (action: DataAppInsightAction) => void;
     /** The app subscribed to analysis: it renders `useInsights`/`useAiPrompt`. */
     onInsightsInUse?: () => void;
+    /** Author guidance for the analysis model declared in app code, or null
+     *  when the running bundle declares none. */
+    onInsightInstructionsChange?: (instructions: string | null) => void;
+    /** Whether app code asks to analyse on load, or null when the running
+     *  bundle declares nothing. */
+    onInsightAnalyseOnLoadChange?: (analyseOnLoad: boolean | null) => void;
     /** Which query uuids the app currently has on screen (SDKs that report). */
     onMountedQueriesChange?: (queryUuids: string[]) => void;
 };
@@ -383,12 +659,14 @@ export function useAppSdkBridge({
     onElementSelected,
     onInspectorAvailable,
     onScreenshotAvailable,
+    onPdfExportAvailable,
     dashboardFilters,
     invalidateCache,
     capabilities,
     onLineageAvailable,
     onLineageSelected,
     onExternalRequestEvent,
+    onAppStateEvent,
     dataAppVizContext,
     dataAppVizMode = false,
     chartContext,
@@ -399,6 +677,7 @@ export function useAppSdkBridge({
     onVizSubtotalsIntent,
     onUrlStateChange,
     onSdkManifest,
+    onRuntimeError,
     onVizRendered,
     vizRenderId,
     onVizContextRequest,
@@ -409,8 +688,11 @@ export function useAppSdkBridge({
     insights = null,
     onInsightAction,
     onInsightsInUse,
+    onInsightInstructionsChange,
+    onInsightAnalyseOnLoadChange,
     onMountedQueriesChange,
 }: UseAppSdkBridgeParams) {
+    const lightdashApi = useLightdashApi();
     // Embed mode adapts the bridge's outgoing fetches in two ways:
     //   - Attaches the embed JWT header in lieu of session cookies
     //     (the parent in embed mode has no session, only the JWT).
@@ -488,6 +770,16 @@ export function useAppSdkBridge({
 
             const { data } = event;
 
+            if (data?.type === 'lightdash:sdk:runtime-error') {
+                if (
+                    typeof data.navigationId === 'string' &&
+                    isValidUuid(data.navigationId)
+                ) {
+                    onRuntimeError?.(data.navigationId);
+                }
+                return;
+            }
+
             if (data?.type === 'lightdash:inspect:available') {
                 onInspectorAvailable?.();
                 return;
@@ -530,7 +822,15 @@ export function useAppSdkBridge({
                     )
                         ? []
                         : fixes;
-                onSdkManifest({ sdkVersion, features, fixes: validFixes });
+                onSdkManifest({
+                    sdkVersion,
+                    features,
+                    fixes: validFixes,
+                    ...(typeof data.navigationId === 'string' &&
+                    isValidUuid(data.navigationId)
+                        ? { navigationId: data.navigationId }
+                        : {}),
+                });
                 return;
             }
 
@@ -543,6 +843,11 @@ export function useAppSdkBridge({
 
             if (data?.type === 'lightdash:sdk:screenshot-available') {
                 onScreenshotAvailable?.();
+                return;
+            }
+
+            if (data?.type === 'lightdash:sdk:pdf-export-available') {
+                onPdfExportAvailable?.();
                 return;
             }
 
@@ -563,18 +868,42 @@ export function useAppSdkBridge({
             }
 
             if (data?.type === APP_SDK_INSIGHTS_REQUEST_MESSAGE) {
-                if ((data as { inUse?: unknown }).inUse === true) {
+                const { inUse, instructions, analyseOnLoad } = data as {
+                    inUse?: unknown;
+                    instructions?: unknown;
+                    analyseOnLoad?: unknown;
+                };
+                if (inUse === true) {
                     onInsightsInUse?.();
                 }
+                // App code is untrusted: cap the author guidance here so a
+                // runaway string never reaches the analysis request.
+                onInsightInstructionsChange?.(
+                    typeof instructions === 'string'
+                        ? instructions
+                              .trim()
+                              .slice(
+                                  0,
+                                  DATA_APP_ANALYSIS_INSTRUCTIONS_MAX_CHARS,
+                              ) || null
+                        : null,
+                );
+                onInsightAnalyseOnLoadChange?.(
+                    typeof analyseOnLoad === 'boolean' ? analyseOnLoad : null,
+                );
                 pushInsights();
                 return;
             }
 
             if (data?.type === APP_SDK_INSIGHT_ACTION_MESSAGE) {
-                const { action, anomalyId } = data as {
-                    action?: unknown;
-                    anomalyId?: unknown;
-                };
+                const { action, anomalyId, requestId, instruction, sources } =
+                    data as {
+                        action?: unknown;
+                        anomalyId?: unknown;
+                        requestId?: unknown;
+                        instruction?: unknown;
+                        sources?: unknown;
+                    };
                 if (action === 'analyse') {
                     onInsightAction?.({ action });
                 } else if (
@@ -582,6 +911,40 @@ export function useAppSdkBridge({
                     typeof anomalyId === 'string'
                 ) {
                     onInsightAction?.({ action, anomalyId });
+                } else if (
+                    action === 'investigate-instruction' &&
+                    typeof requestId === 'string' &&
+                    typeof instruction === 'string' &&
+                    instruction.trim().length > 0 &&
+                    Array.isArray(sources) &&
+                    sources.length > 0 &&
+                    sources.every(
+                        (s): s is { queryUuid: string; label?: unknown } =>
+                            typeof (s as { queryUuid?: unknown })?.queryUuid ===
+                            'string',
+                    )
+                ) {
+                    // App code is untrusted: cap the instruction here so a
+                    // runaway string never reaches the investigation request.
+                    onInsightAction?.({
+                        action,
+                        requestId,
+                        instruction: instruction
+                            .trim()
+                            .slice(
+                                0,
+                                DATA_APP_INSTRUCTION_INVESTIGATE_MAX_CHARS,
+                            ),
+                        sources: sources.map((s) => ({
+                            queryUuid: s.queryUuid,
+                            label: typeof s.label === 'string' ? s.label : null,
+                        })),
+                    });
+                } else if (
+                    action === 'continue-instruction' &&
+                    typeof requestId === 'string'
+                ) {
+                    onInsightAction?.({ action, requestId });
                 }
                 return;
             }
@@ -697,7 +1060,8 @@ export function useAppSdkBridge({
                             ability: user.data.ability,
                             projectUuid: projectUuid ?? '',
                             organizationUuid: user.data.organizationUuid ?? '',
-                            getAccessToken: getGdriveAccessToken,
+                            getAccessToken: () =>
+                                getGdriveAccessToken(lightdashApi),
                             triggerLogin: triggerGdriveLogin,
                             lightdashApi: ({ url, method, body }) =>
                                 lightdashApi({
@@ -711,6 +1075,112 @@ export function useAppSdkBridge({
                 } catch (e) {
                     respondGsheet({
                         error: e instanceof Error ? e.message : 'Export failed',
+                    });
+                }
+                return;
+            }
+
+            if (data?.type === APP_SDK_APP_STATE_MESSAGE) {
+                const req = data as AppStateBridgeRequest;
+                // Report the call to the inspector's Requests tab. Base fields
+                // are captured up front; every response path funnels through
+                // `respondAppState`, which emits the matching terminal event.
+                const appStateStartedAt = Date.now();
+                const emitAppState = (
+                    fields: Partial<AppStateEvent> & {
+                        status: AppStateEvent['status'];
+                    },
+                ) => {
+                    onAppStateEvent?.({
+                        id: typeof req.id === 'string' ? req.id : '',
+                        timestamp: appStateStartedAt,
+                        op: typeof req.op === 'string' ? req.op : 'unknown',
+                        key: typeof req.key === 'string' ? req.key : null,
+                        scope: appStateOpScope(req.op),
+                        valueSize: appStateValueSize(req),
+                        durationMs: null,
+                        errorCode: null,
+                        error: null,
+                        ...fields,
+                    });
+                };
+                const respondAppState = (response: {
+                    result?: unknown;
+                    error?: AppStateBridgeError;
+                }) => {
+                    emitAppState(
+                        response.error
+                            ? {
+                                  status: 'error',
+                                  errorCode: response.error.code,
+                                  error: response.error.message,
+                                  durationMs: Date.now() - appStateStartedAt,
+                              }
+                            : {
+                                  status: 'ready',
+                                  durationMs: Date.now() - appStateStartedAt,
+                              },
+                    );
+                    iframeRef.current?.contentWindow?.postMessage(
+                        {
+                            type: APP_SDK_APP_STATE_RESPONSE_MESSAGE,
+                            id: req.id,
+                            ...response,
+                        },
+                        '*',
+                    );
+                };
+                emitAppState({ status: 'pending' });
+                // The backend authorizes the viewer against the app and
+                // enforces the flag and caps; the host only routes the call.
+                const resolved = resolveAppStateRequest(
+                    `/api/v1/ee/projects/${projectUuid}/apps/${appUuid}/state`,
+                    req,
+                );
+                if (!resolved) {
+                    respondAppState({
+                        error: {
+                            code: 'invalid',
+                            message: 'Unknown app state request',
+                        },
+                    });
+                    return;
+                }
+                try {
+                    const res = await fetch(resolveFetchUrl(resolved.path), {
+                        method: resolved.method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...getEmbedAuthHeaders(embedToken),
+                        },
+                        ...(resolved.body !== undefined
+                            ? { body: JSON.stringify(resolved.body) }
+                            : {}),
+                        // Writes flushed as the page unloads must outlive it.
+                        keepalive: resolved.method !== 'GET',
+                    });
+                    const json = await res.json();
+                    if (json.status === 'ok') {
+                        respondAppState({
+                            result:
+                                req.op === 'history'
+                                    ? (json.results?.versions ?? [])
+                                    : json.results,
+                        });
+                    } else {
+                        respondAppState({
+                            error: mapAppStateApiError(res.status, json.error),
+                        });
+                    }
+                } catch (err) {
+                    respondAppState({
+                        error: {
+                            code: 'unavailable',
+                            message:
+                                err instanceof Error
+                                    ? err.message
+                                    : 'App state request failed',
+                        },
                     });
                 }
                 return;
@@ -860,7 +1330,6 @@ export function useAppSdkBridge({
             // Bridge-only virtual route: the viz posts semantic click intent;
             // the host rewrites it into the real underlying-data request, then
             // the standard pipeline (allowlist, project pinning, auth) applies.
-            let hostRewrittenUnderlyingData = false;
             if (path === APP_SDK_VIZ_UNDERLYING_DATA_PATH) {
                 if (!rewriteVizUnderlyingDataRequest) {
                     respond({
@@ -871,11 +1340,6 @@ export function useAppSdkBridge({
                 try {
                     ({ method, path, body } =
                         rewriteVizUnderlyingDataRequest(body));
-                    hostRewrittenUnderlyingData =
-                        method.toUpperCase() === 'POST' &&
-                        /^\/api\/v2\/projects\/[^/]+\/query\/underlying-data$/.test(
-                            path,
-                        );
                 } catch (err) {
                     respond({
                         error:
@@ -976,16 +1440,46 @@ export function useAppSdkBridge({
                 return;
             }
 
-            if (!isAllowedAppSdkRoute(method, path)) {
-                respond({ error: `Blocked: ${method} ${path}` });
+            // Host-answered virtual route: only the trimmed chart list leaves
+            // the host — space access/member data never enters the iframe.
+            if (path === APP_SDK_SPACE_CHARTS_PATH) {
+                const request = parseAppSdkSpaceChartsRequest(body);
+                if (request === null) {
+                    respond({ error: 'Invalid space-charts request.' });
+                    return;
+                }
+                respond({
+                    result: await fetchSpaceCharts({
+                        projectUuid,
+                        spaceRef: request.space,
+                        embedToken,
+                        appUuid,
+                    }),
+                });
                 return;
             }
 
-            if (
-                dataAppVizMode &&
-                /\/query(?:\/|$)/.test(path) &&
-                !hostRewrittenUnderlyingData
-            ) {
+            // Host-answered virtual route: only the base table leaves the
+            // host, never the explore itself.
+            if (path === APP_SDK_EXPLORE_BASE_TABLE_PATH) {
+                const request = parseAppSdkExploreBaseTableRequest(body);
+                if (request === null) {
+                    respond({ error: 'Invalid explore base-table request.' });
+                    return;
+                }
+                const result: AppSdkExploreBaseTableResult = {
+                    baseTable: await fetchExploreBaseTable({
+                        projectUuid,
+                        exploreName: request.exploreName,
+                        embedToken,
+                        appUuid,
+                    }),
+                };
+                respond({ result });
+                return;
+            }
+
+            if (!isAllowedAppSdkRoute(method, path)) {
                 respond({ error: `Blocked: ${method} ${path}` });
                 return;
             }
@@ -1138,13 +1632,7 @@ export function useAppSdkBridge({
                 const res = await fetch(resolveFetchUrl(effectivePath), {
                     method,
                     headers: {
-                        'Content-Type': 'application/json',
-                        ...getEmbedAuthHeaders(embedToken),
-                        // Self-reported app attribution; the backend tags
-                        // warehouse queries with it. Tracking only.
-                        ...(appUuid
-                            ? { [LightdashAppUuidHeader]: appUuid }
-                            : {}),
+                        ...getAppSdkRequestHeaders(embedToken, appUuid),
                         ...(isMetricQueryPost(method, path)
                             ? {
                                   [LightdashAppPreviewTokenHeader]:
@@ -1323,6 +1811,7 @@ export function useAppSdkBridge({
             onElementSelected,
             onInspectorAvailable,
             onScreenshotAvailable,
+            onPdfExportAvailable,
             dashboardFilters,
             invalidateCache,
             embedToken,
@@ -1331,6 +1820,7 @@ export function useAppSdkBridge({
             onLineageAvailable,
             onLineageSelected,
             onExternalRequestEvent,
+            onAppStateEvent,
             pushDataAppVizContext,
             rewriteVizUnderlyingDataRequest,
             onVizUnderlyingDataIntent,
@@ -1340,6 +1830,7 @@ export function useAppSdkBridge({
             pushColorScheme,
             onUrlStateChange,
             onSdkManifest,
+            onRuntimeError,
             onVizRendered,
             vizRenderId,
             onVizContextRequest,
@@ -1352,7 +1843,10 @@ export function useAppSdkBridge({
             pushInsights,
             onInsightAction,
             onInsightsInUse,
+            onInsightInstructionsChange,
+            onInsightAnalyseOnLoadChange,
             onMountedQueriesChange,
+            lightdashApi,
         ],
     );
 
@@ -1387,6 +1881,11 @@ export function useAppSdkBridge({
                 ...(captureRender ? { deliveryRender: true } : {}),
                 // Lets the SDK address app-scoped routes (AI prompts).
                 ...(appUuid ? { appUuid } : {}),
+                // Negotiates the space-charts virtual route: SDKs only call
+                // it on hosts that announce it, so `useSpaceCharts` can
+                // report `available: false` on older hosts instead of
+                // hitting a blocked route.
+                spaceCharts: true,
             },
             '*',
         );

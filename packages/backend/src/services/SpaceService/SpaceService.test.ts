@@ -1,5 +1,6 @@
 import {
     AbilityAction,
+    AgentActorSurface,
     ForbiddenError,
     NotFoundError,
     OrganizationMemberRole,
@@ -10,13 +11,16 @@ import {
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { fromSession } from '../../auth/account';
+import { createOAuthScopedAbility } from '../../auth/oauthScopes/scopedAbility';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { ServiceAccountModel } from '../../ee/models/ServiceAccountModel';
+import { AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyModel';
 import { OrganizationMemberProfileModel } from '../../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { withAgentActionScope } from '../AiAccessService/agentActionTestUtils.mock';
 import { DashboardService } from '../DashboardService/DashboardService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import {
@@ -31,71 +35,69 @@ import {
 } from './SpaceService.mock';
 
 describe('Document deletion impact', () => {
-    it.each([
-        { enabled: false, canView: true },
-        { enabled: true, canView: false },
-        { enabled: true, canView: true },
-    ])('gates document metadata with %j', async ({ enabled, canView }) => {
-        const user = createTestUser({
-            organizationUuid: 'org',
-            projectUuid: 'project',
-        }) as SessionUser;
-        user.ability.update(
-            canView ? [{ action: 'view', subject: 'Document' }] : [],
-        );
-        const document = {
-            uuid: 'doc',
-            name: 'Private report',
-            spaceUuid: 'space',
-        };
-        const getDocumentsInSpaces = vi
-            .fn()
-            .mockImplementation(async (spaceUuids: string[]) =>
-                spaceUuids.includes('space') ? [document] : [],
+    it.each([{ canView: false }, { canView: true }])(
+        'gates document metadata with %j',
+        async ({ canView }) => {
+            const user = createTestUser({
+                organizationUuid: 'org',
+                projectUuid: 'project',
+            }) as SessionUser;
+            user.ability.update(
+                canView ? [{ action: 'view', subject: 'Document' }] : [],
             );
-        const service = new SpaceService({
-            featureFlagModel: { get: vi.fn().mockResolvedValue({ enabled }) },
-            spaceModel: {
-                getDescendantSpaceUuids: vi.fn().mockResolvedValue([]),
-                find: vi.fn().mockResolvedValue([
-                    {
-                        uuid: 'space',
-                        name: 'Space',
-                        parentSpaceUuid: null,
-                        chartCount: 0,
-                        dashboardCount: 0,
-                        appCount: 0,
-                    },
-                ]),
-                getSpaceQueries: vi.fn().mockResolvedValue([]),
-                getSpaceSqlCharts: vi.fn().mockResolvedValue([]),
-                getSpaceDashboards: vi.fn().mockResolvedValue([]),
-                getSpaceApps: vi.fn().mockResolvedValue([]),
-                getDocumentsInSpaces,
-            },
-            spacePermissionService: {
-                can: vi.fn().mockResolvedValue(true),
-                resolveAccessBatch: vi.fn().mockResolvedValue([
-                    {
-                        target: { type: 'space', spaceUuid: 'space' },
-                        context: {
-                            organizationUuid: 'org',
-                            projectUuid: 'project',
-                            access: [],
-                            inheritsFromOrgOrProject: true,
+            const document = {
+                uuid: 'doc',
+                name: 'Private report',
+                spaceUuid: 'space',
+            };
+            const getDocumentsInSpaces = vi
+                .fn()
+                .mockImplementation(async (spaceUuids: string[]) =>
+                    spaceUuids.includes('space') ? [document] : [],
+                );
+            const service = new SpaceService({
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled: true }),
+                },
+                spaceModel: {
+                    getDescendantSpaceUuids: vi.fn().mockResolvedValue([]),
+                    find: vi.fn().mockResolvedValue([
+                        {
+                            uuid: 'space',
+                            name: 'Space',
+                            parentSpaceUuid: null,
+                            chartCount: 0,
+                            dashboardCount: 0,
+                            appCount: 0,
                         },
-                    },
-                ]),
-            },
-        } as unknown as ConstructorParameters<typeof SpaceService>[0]);
-        const result = await service.getDeleteImpact(user, 'space');
-        expect(result.documents).toEqual(enabled && canView ? [document] : []);
-        expect(result.documentCount).toBe(enabled && canView ? 1 : 0);
-        expect(result.spaces[0].documentCount).toBe(result.documentCount);
-        if (!enabled) {
-            expect(getDocumentsInSpaces).not.toHaveBeenCalled();
-        }
-    });
+                    ]),
+                    getSpaceQueries: vi.fn().mockResolvedValue([]),
+                    getSpaceSqlCharts: vi.fn().mockResolvedValue([]),
+                    getSpaceDashboards: vi.fn().mockResolvedValue([]),
+                    getSpaceApps: vi.fn().mockResolvedValue([]),
+                    getDocumentsInSpaces,
+                },
+                spacePermissionService: {
+                    can: vi.fn().mockResolvedValue(true),
+                    resolveAccessBatch: vi.fn().mockResolvedValue([
+                        {
+                            target: { type: 'space', spaceUuid: 'space' },
+                            context: {
+                                organizationUuid: 'org',
+                                projectUuid: 'project',
+                                access: [],
+                                inheritsFromOrgOrProject: true,
+                            },
+                        },
+                    ]),
+                },
+            } as unknown as ConstructorParameters<typeof SpaceService>[0]);
+            const result = await service.getDeleteImpact(user, 'space');
+            expect(result.documents).toEqual(canView ? [document] : []);
+            expect(result.documentCount).toBe(canView ? 1 : 0);
+            expect(result.spaces[0].documentCount).toBe(result.documentCount);
+        },
+    );
 });
 
 describe('SpaceService', () => {
@@ -2051,4 +2053,260 @@ describe('SpaceService - space share target validation', () => {
             expect(mockSpaceModel.createSpace).not.toHaveBeenCalled();
         });
     });
+});
+
+describe('Space cascade audit for Documents', () => {
+    const cascaded = [
+        { documentUuid: 'doc-1', projectUuid: 'project' },
+        { documentUuid: 'doc-2', projectUuid: 'project' },
+    ];
+    const setup = () => {
+        const user = createTestUser({
+            organizationUuid: 'org',
+            projectUuid: 'project',
+        }) as SessionUser;
+        user.organizationUuid = 'org';
+        const spaceModel = {
+            getChartUuidsInSpace: vi.fn().mockResolvedValue([]),
+            getDashboardUuidsInSpace: vi.fn().mockResolvedValue([]),
+            getChildSpaceUuids: vi.fn().mockResolvedValue([]),
+            softDelete: vi.fn().mockResolvedValue(cascaded),
+            restore: vi.fn().mockResolvedValue(cascaded),
+            getSpaceSummary: vi.fn().mockResolvedValue({
+                name: 'Space',
+                organizationUuid: 'org',
+                projectUuid: 'project',
+                deletedBy: null,
+            }),
+        };
+        const service = new SpaceService({
+            analytics: analyticsMock,
+            spaceModel,
+        } as unknown as ConstructorParameters<typeof SpaceService>[0]);
+        const logBypassEvent = vi.spyOn(
+            service as unknown as { logBypassEvent: () => void },
+            'logBypassEvent',
+        );
+        return { user, service, logBypassEvent };
+    };
+
+    it('logs one bypass event per Document deleted with the Space', async () => {
+        const { user, service, logBypassEvent } = setup();
+        await service.softDelete(user, 'space', { bypassPermissions: true });
+        cascaded.forEach(({ documentUuid }) =>
+            expect(logBypassEvent).toHaveBeenCalledWith(user, 'delete', {
+                type: 'Document',
+                metadata: { documentUuid, spaceUuid: 'space' },
+                organizationUuid: 'org',
+                projectUuid: 'project',
+            }),
+        );
+        // Plus the Space's own bypass event
+        expect(logBypassEvent).toHaveBeenCalledTimes(cascaded.length + 1);
+    });
+
+    it('logs one bypass event per Document restored with the Space', async () => {
+        const { user, service, logBypassEvent } = setup();
+        await service.restore(user, 'space', { bypassPermissions: true });
+        cascaded.forEach(({ documentUuid }) =>
+            expect(logBypassEvent).toHaveBeenCalledWith(user, 'manage', {
+                type: 'DeletedContent',
+                metadata: { documentUuid, spaceUuid: 'space' },
+                organizationUuid: 'org',
+                projectUuid: 'project',
+            }),
+        );
+    });
+});
+
+describe('managed space updates', () => {
+    afterEach(() => vi.restoreAllMocks());
+    it.each(['managed', 'legacy', 'off', 'pat', 'session'] as const)(
+        '%s allows metadata edits and gates access changes',
+        async (mode) => {
+            vi.spyOn(
+                AgentCapabilityPolicyModel.prototype,
+                'get',
+            ).mockResolvedValue({
+                allowedGroupUuids: null,
+                mode: mode === 'legacy' ? 'legacy' : 'managed',
+                version: 1,
+                allowedCapabilities: null,
+            });
+            const user = createTestUser({
+                organizationUuid: 'org',
+                projectUuid: 'project',
+            }) as SessionUser;
+            if (mode !== 'pat' && mode !== 'session')
+                user.ability = createOAuthScopedAbility(user.ability, {
+                    mode: 'enforce',
+                    scopes: ['read', 'write'],
+                    clientId: 'agent',
+                    getRequest: () => ({
+                        method: 'PATCH',
+                        routeTemplate: null,
+                    }),
+                });
+            const space = {
+                organizationUuid: 'org',
+                projectUuid: 'project',
+                uuid: 'space',
+                name: 'Original',
+                inheritParentPermissions: false,
+                projectMemberAccessRole: null,
+            };
+            const spaceModel = {
+                getSpaceSummary: vi.fn().mockResolvedValue(space),
+                update: vi.fn(),
+                updateWithCopiedPermissions: vi.fn(),
+            };
+            const service = new SpaceService({
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled: mode !== 'off' }),
+                },
+                analytics: analyticsMock,
+                spaceModel,
+                spacePermissionService: {
+                    can: vi.fn().mockResolvedValue(true),
+                    getRawDirectAccess: vi.fn().mockResolvedValue({}),
+                },
+            } as unknown as ConstructorParameters<typeof SpaceService>[0]);
+            vi.spyOn(
+                service as unknown as {
+                    assembleFullSpace: () => Promise<unknown>;
+                },
+                'assembleFullSpace',
+            ).mockResolvedValue(space);
+            await service.updateSpace(user, 'space', {
+                name: 'Renamed',
+                inheritParentPermissions: false,
+                projectMemberAccessRole: null,
+            });
+            expect(spaceModel.update).toHaveBeenCalledOnce();
+            spaceModel.update.mockClear();
+            await Promise.all(
+                [
+                    { inheritParentPermissions: true },
+                    { projectMemberAccessRole: SpaceMemberRole.VIEWER },
+                ].map(async (access) => {
+                    const result = service.updateSpace(user, 'space', {
+                        name: 'Renamed',
+                        ...access,
+                    });
+                    if (mode === 'managed') {
+                        await expect(result).rejects.toMatchObject({
+                            refusal: { reason: 'agent_capability_denied' },
+                        });
+                        expect(spaceModel.update).not.toHaveBeenCalled();
+                        expect(
+                            spaceModel.updateWithCopiedPermissions,
+                        ).not.toHaveBeenCalled();
+                    } else await result;
+                }),
+            );
+        },
+    );
+});
+
+describe('space metadata updates after a human revocation', () => {
+    afterEach(() => vi.restoreAllMocks());
+    it.each(['managed', 'agent', 'legacy', 'off', 'pat', 'session'] as const)(
+        '%s handles unchanged access without restoring a concurrent restriction',
+        async (mode) => {
+            vi.spyOn(
+                AgentCapabilityPolicyModel.prototype,
+                'get',
+            ).mockResolvedValue({
+                allowedGroupUuids: null,
+                mode: mode === 'legacy' ? 'legacy' : 'managed',
+                version: 1,
+                allowedCapabilities: null,
+            });
+            const user = createTestUser({
+                organizationUuid: 'org',
+                projectUuid: 'project',
+            }) as SessionUser;
+            if (mode !== 'pat' && mode !== 'session' && mode !== 'agent') {
+                user.ability = createOAuthScopedAbility(user.ability, {
+                    mode: 'enforce',
+                    scopes: ['read', 'write'],
+                    clientId: 'agent',
+                    getRequest: () => ({
+                        method: 'PATCH',
+                        routeTemplate: null,
+                    }),
+                });
+            }
+            const original = {
+                organizationUuid: 'org',
+                projectUuid: 'project',
+                uuid: 'space',
+                name: 'Original',
+                inheritParentPermissions: true,
+                projectMemberAccessRole: SpaceMemberRole.VIEWER,
+            };
+            let persisted: {
+                name: string;
+                inheritParentPermissions: boolean;
+                projectMemberAccessRole: SpaceMemberRole | null;
+            } = original;
+            const spaceModel = {
+                getSpaceSummary: vi.fn().mockResolvedValue(original),
+                update: vi.fn(async (_uuid, input) => {
+                    persisted = {
+                        ...original,
+                        inheritParentPermissions: false,
+                        projectMemberAccessRole: null,
+                    };
+                    persisted = { ...persisted, ...input };
+                }),
+                updateWithCopiedPermissions: vi.fn(),
+            };
+            const service = new SpaceService({
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({ enabled: mode !== 'off' }),
+                },
+                analytics: analyticsMock,
+                spaceModel,
+                spacePermissionService: {
+                    can: vi.fn().mockResolvedValue(true),
+                    getRawDirectAccess: vi.fn().mockResolvedValue({}),
+                },
+            } as unknown as ConstructorParameters<typeof SpaceService>[0]);
+            vi.spyOn(
+                service as unknown as {
+                    assembleFullSpace: () => Promise<unknown>;
+                },
+                'assembleFullSpace',
+            ).mockImplementation(async () => persisted);
+            await withAgentActionScope(
+                user,
+                mode === 'agent' ? AgentActorSurface.IN_APP_AGENT : null,
+                true,
+                () =>
+                    service.updateSpace(user, 'space', {
+                        name: 'Renamed',
+                        inheritParentPermissions: true,
+                        projectMemberAccessRole: SpaceMemberRole.VIEWER,
+                    }),
+            );
+            expect(spaceModel.update).toHaveBeenCalledOnce();
+            expect(
+                spaceModel.updateWithCopiedPermissions,
+            ).not.toHaveBeenCalled();
+            const [, input] = spaceModel.update.mock.calls[0];
+            expect(persisted.name).toBe('Renamed');
+            if (mode === 'managed' || mode === 'agent') {
+                expect(input).not.toHaveProperty('inheritParentPermissions');
+                expect(input).not.toHaveProperty('projectMemberAccessRole');
+                expect(persisted.inheritParentPermissions).toBe(false);
+                expect(persisted.projectMemberAccessRole).toBeNull();
+            } else {
+                expect(input.inheritParentPermissions).toBe(true);
+                expect(input.projectMemberAccessRole).toBe(
+                    SpaceMemberRole.VIEWER,
+                );
+            }
+        },
+    );
 });

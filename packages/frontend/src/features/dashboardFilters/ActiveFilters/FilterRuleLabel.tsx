@@ -1,0 +1,181 @@
+import {
+    isEmptyDashboardFilterRule,
+    type DashboardFilterableField,
+    type DashboardFilterRule,
+} from '@lightdash/common';
+import {
+    Badge,
+    Box,
+    HoverCard,
+    ScrollArea,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import { useMemo, type FC } from 'react';
+import { getFilterRuleTables } from '../../../components/common/Filters/FilterInputs/utils';
+import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import {
+    selectSqlChartTilesMetadata,
+    useDashboardSelector,
+} from '../../dashboard/store';
+import classes from './Filter.module.css';
+import { getFilterRuleLabels } from './filterLabels';
+import { type TruncatedValuesDisplay } from './utils';
+
+type Props = {
+    filterRule: DashboardFilterRule;
+    field: DashboardFilterableField | undefined;
+    truncatedValuesDisplay: TruncatedValuesDisplay;
+    isTablesTooltipDisabled: boolean;
+    /** Default false: the value at weight 500. */
+    isValueBold?: boolean;
+    /** A first line in the tables tooltip, shown even with no tables (default none). */
+    tooltipNote?: string;
+};
+
+export const FilterRuleLabel: FC<Props> = ({
+    filterRule,
+    field,
+    truncatedValuesDisplay,
+    isTablesTooltipDisabled,
+    isValueBold = false,
+    tooltipNote,
+}) => {
+    const getUiString = useUiStrings();
+    const allFilterableFields = useDashboardContext(
+        (c) => c.allFilterableFields,
+    );
+    const sqlChartTilesMetadata = useDashboardSelector(
+        selectSqlChartTilesMetadata,
+    );
+    const filterableFieldsByTileUuid = useDashboardContext(
+        (c) => c.filterableFieldsByTileUuid,
+    );
+
+    const filterRuleLabels = useMemo(
+        () =>
+            getFilterRuleLabels(
+                filterRule,
+                field,
+                sqlChartTilesMetadata,
+                getUiString,
+            ),
+        [filterRule, field, sqlChartTilesMetadata, getUiString],
+    );
+
+    const filterRuleTables = useMemo(() => {
+        if (!field || !allFilterableFields) return;
+
+        return getFilterRuleTables(
+            filterRule,
+            field,
+            allFilterableFields,
+            filterableFieldsByTileUuid,
+        );
+    }, [filterRule, field, allFilterableFields, filterableFieldsByTileUuid]);
+
+    return (
+        <Box className={classes.ruleLabel}>
+            <Text fz="xs" truncate>
+                <Tooltip
+                    position="top-start"
+                    disabled={
+                        isTablesTooltipDisabled ||
+                        (!filterRuleTables?.length && tooltipNote === undefined)
+                    }
+                    openDelay={1000}
+                    offset={8}
+                    label={
+                        <>
+                            {tooltipNote !== undefined && (
+                                <Text>{tooltipNote}</Text>
+                            )}
+                            {!!filterRuleTables?.length && (
+                                <Text>
+                                    {getUiString(
+                                        filterRuleTables.length === 1
+                                            ? 'filters.tableLabel'
+                                            : 'filters.tablesLabel',
+                                    )}
+                                    <Text span fw={600}>
+                                        {filterRuleTables.join(', ')}
+                                    </Text>
+                                </Text>
+                            )}
+                        </>
+                    }
+                >
+                    <Text fw={600} span truncate>
+                        {filterRule?.label || filterRuleLabels?.field}{' '}
+                    </Text>
+                </Tooltip>
+                {filterRule?.disabled ||
+                (!filterRule?.required &&
+                    isEmptyDashboardFilterRule(filterRule)) ? (
+                    <Text span c="dimmed" truncate>
+                        {getUiString('filters.isAnyValue')}
+                    </Text>
+                ) : (
+                    <>
+                        <Text span c="dimmed" truncate>
+                            {filterRuleLabels?.operator}{' '}
+                        </Text>
+                        <Text fw={isValueBold ? 600 : 500} span truncate>
+                            {truncatedValuesDisplay.displayedValues.length > 0
+                                ? truncatedValuesDisplay.displayedValues.join(
+                                      ', ',
+                                  )
+                                : filterRuleLabels?.value}
+                        </Text>
+                        {truncatedValuesDisplay.hasMore && (
+                            <HoverCard
+                                position="bottom"
+                                classNames={{
+                                    dropdown: classes.additionalValuesList,
+                                }}
+                            >
+                                <HoverCard.Target>
+                                    <Badge size="sm" ml={4}>
+                                        +
+                                        {
+                                            truncatedValuesDisplay
+                                                .additionalValues.length
+                                        }
+                                    </Badge>
+                                </HoverCard.Target>
+                                <HoverCard.Dropdown>
+                                    <Text fz="xs" fw={500} c="dimmed">
+                                        Additional values (
+                                        {
+                                            truncatedValuesDisplay
+                                                .additionalValues.length
+                                        }
+                                        )
+                                    </Text>
+                                    <ScrollArea.Autosize
+                                        mah={200}
+                                        type="always"
+                                        scrollbars="y"
+                                    >
+                                        {truncatedValuesDisplay.additionalValues.map(
+                                            (val, idx) => (
+                                                <Text
+                                                    key={idx}
+                                                    fz="xs"
+                                                    c="white"
+                                                >
+                                                    • {val}
+                                                </Text>
+                                            ),
+                                        )}
+                                    </ScrollArea.Autosize>
+                                </HoverCard.Dropdown>
+                            </HoverCard>
+                        )}
+                    </>
+                )}
+            </Text>
+        </Box>
+    );
+};

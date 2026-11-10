@@ -83,7 +83,15 @@ Always verify exact conditions in `scopes.ts`; suffix names are shorthand only.
 | Personal access token | Inherits the owning user's membership rows.                                                                                                                                                                     |
 | Service account       | Uses its linked internal user/org membership: custom role when `organization_memberships.role_uuid` is set, otherwise legacy service-account scopes; `system:*` delegates to organization system-role builders. |
 | SCIM token            | Uses constrained legacy `scim:manage`, not the normal role stack.                                                                                                                                               |
-| Embed JWT             | Uses separate embedded-dashboard authorization, not normal memberships.                                                                                                                                         |
+| Embed JWT             | Built in `jwtAbility.ts`, not from normal memberships. Embed-group scopes held by the token's write actor are imported on top (see below).                                                                      |
+
+## Embed Permissions: Scopes, Not JWT Flags
+
+New embedded capabilities are controlled by `ScopeGroup.EMBED` scopes on the embed's write actor (the `writeActions` user or service account), never by new boolean flags on the JWT `content`. Embedders grant or withhold a capability by giving that actor a system or custom role.
+
+- Add a `view:Embed*` scope in `scopes.ts`, give it to the right built-in roles (`*_EMBED_SUBJECTS` in `types.ts`, `roleToScopeMapping.ts`), and check its CASL subject in the backend and frontend.
+- `applyEmbedScopeAbilities` (`embedPermissions.ts`) imports the actor's embed scopes into the JWT ability. Dashboard tokens only import them in `permissionsMode: 'roles'`.
+- Existing flags (`canExportCsv`, `canExplore`, `canViewDebugInfo`, …) are a public contract: keep them working, but do not add new ones.
 
 ## Practical Rules For Changes
 

@@ -1,9 +1,9 @@
 import { assertUnreachable } from '@lightdash/common';
 import {
-    APIError,
-    APITimeoutError,
-    APIUserAbortError,
+    APIUserAbortError as TypeSafeAbortError,
+    APIError as TypeSafeApiError,
     TypeSafeClient,
+    APITimeoutError as TypeSafeTimeoutError,
     type EntryType,
 } from '@typesafe-ai/sdk';
 import { Agent, type Dispatcher } from 'undici';
@@ -62,17 +62,16 @@ const LOGGED_OPERATIONS = new Set([
     'chart-presentation',
     'chart-reuse',
     'chart-title',
-    'composer-viz',
     'content-relevance',
     'context-preload',
     'correction-pick',
     'dashboard-layout',
+    'document-edit',
     'empty-result-diagnosis',
     'field-recovery',
     'filter-value',
     'mcp-error',
     'model-routing',
-    'project-routing',
     'query-error',
     'query-intent',
     'query-plan-intent',
@@ -92,14 +91,14 @@ export type AiDecisionUsage = {
     serviceMs: number | null;
 };
 
-// JEV's gateway reports how long its model service spent on the request.
+// The provider reports how long its model service spent on the request.
 const SERVICE_TIME_HEADER = 'x-envoy-upstream-service-time';
 // Turns arrive seconds apart, past fetch's default keep-alive, so every turn paid a new TLS handshake.
-const JEV_DISPATCHER = new Agent({
+const KEEP_ALIVE_DISPATCHER = new Agent({
     keepAliveTimeout: 300_000,
     keepAliveMaxTimeout: 300_000,
 });
-type DecisionConfig = LightdashConfig['ai']['decisions'];
+export type DecisionConfig = LightdashConfig['ai']['decisions'];
 
 class DecisionResponseTooLarge extends Error {}
 
@@ -134,9 +133,45 @@ const spanOutcome = (
     }
 };
 
-/** SDK transport: our keep-alive pool, and a size cap since the SDK buffers whole bodies. */
-const createSdk = (config: DecisionConfig, request: typeof fetch) =>
-    new TypeSafeClient({
+/** Provider fetch: our keep-alive pool, and a size cap since the SDK buffers whole bodies. */
+const pooledFetch =
+    (request: typeof fetch) =>
+    async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+        const response = await request(input, {
+            ...init,
+            ...({ dispatcher: KEEP_ALIVE_DISPATCHER } as {
+                dispatcher: Dispatcher;
+            }),
+        });
+        const length = Number(response.headers.get('content-length'));
+        if (Number.isFinite(length) && length > MAX_DECISION_PAYLOAD_BYTES) {
+            await response.body?.cancel();
+            throw new DecisionResponseTooLarge();
+        }
+        return response;
+    };
+
+type TransportRequest = {
+    state: EntryType;
+    questions: Record<string, DecisionQuestion>;
+    signal: AbortSignal | undefined;
+    timeout: number;
+};
+/** Returns the provider's answers; `responseSchema` validates the result. */
+type DecisionTransport = (
+    request: TransportRequest,
+) => Promise<{ data: unknown; serviceMs: number | null }>;
+
+const headerMs = (response: Response, header: string): number | null => {
+    const value = Number(response.headers.get(header) ?? Number.NaN);
+    return Number.isFinite(value) ? value : null;
+};
+
+const createJevTransport = (
+    config: DecisionConfig,
+    request: typeof fetch,
+): DecisionTransport => {
+    const sdk = new TypeSafeClient({
         apiKey: config.apiKey ?? '',
         defaultModel: config.model,
         timeout: MAX_DECISION_TIMEOUT_MS,
@@ -144,24 +179,22 @@ const createSdk = (config: DecisionConfig, request: typeof fetch) =>
         retry: { maxRetries: 0 },
         // Provider errors can carry user data; outcomes are logged locally instead.
         logLevel: 'off',
-        fetch: async (input, init) => {
-            const response = await request(input, {
-                ...init,
-                ...({ dispatcher: JEV_DISPATCHER } as {
-                    dispatcher: Dispatcher;
-                }),
-            });
-            const length = Number(response.headers.get('content-length'));
-            if (
-                Number.isFinite(length) &&
-                length > MAX_DECISION_PAYLOAD_BYTES
-            ) {
-                await response.body?.cancel();
-                throw new DecisionResponseTooLarge();
-            }
-            return response;
-        },
+        fetch: pooledFetch(request),
     });
+    return async ({ state, questions, signal, timeout }) => {
+        const { data, response } = await sdk
+            .systemOne(
+                { state, questions, model: config.model },
+                { signal, timeout },
+            )
+            .withResponse();
+        return {
+            data,
+            serviceMs: headerMs(response, SERVICE_TIME_HEADER),
+        };
+    };
+};
+
 type EvaluateArgs = {
     operation: string;
     state: unknown;
@@ -172,8 +205,74 @@ type EvaluateArgs = {
 };
 type DecisionHealth = { consecutiveFailures: number; retryAfter: number };
 
+export type DecisionEvaluation = {
+    answers: DecisionAnswers | null;
+    outcome: DecisionOutcome;
+    durationMs: number;
+    serviceMs: number | null;
+};
+/** Throws on answers the questions cannot have produced; reconciles two-decimal rounding drift. */
+const validateAnswers = (
+    questions: Record<string, DecisionQuestion>,
+    answers: DecisionAnswers,
+): DecisionAnswers => {
+    for (const [key, question] of Object.entries(questions)) {
+        const answer = answers[key];
+        if (!answer || answer.type !== question.type) {
+            throw new Error('Invalid decision response');
+        }
+        if (question.type === 'choice' && answer.type === 'choice') {
+            const probabilities = Object.values(answer.probabilities);
+            const mass = probabilities.reduce((sum, value) => sum + value, 0);
+            // Live responses round distributions to two decimal places.
+            const rounded = probabilities.every(
+                (value) =>
+                    Math.abs(value * 100 - Math.round(value * 100)) < 1e-8,
+            );
+            const complete =
+                Object.keys(question.criteria).length === probabilities.length;
+            const tolerance =
+                rounded && complete
+                    ? Math.min(0.02, probabilities.length * 0.005) + 1e-8
+                    : 0.001;
+            if (
+                !Object.hasOwn(question.criteria, answer.choice) ||
+                !Object.hasOwn(answer.probabilities, answer.choice) ||
+                Math.abs(mass - 1) > tolerance ||
+                Object.keys(answer.probabilities).some(
+                    (option) => !Object.hasOwn(question.criteria, option),
+                )
+            ) {
+                throw new Error('Invalid decision option');
+            }
+            // Never raise a probability when reconciling rounding drift.
+            if (mass > 1)
+                answer.probabilities = Object.fromEntries(
+                    Object.entries(answer.probabilities).map(
+                        ([option, value]) => [option, value / mass],
+                    ),
+                );
+        }
+        if (
+            question.type === 'score' &&
+            answer.type === 'score' &&
+            (answer.score < 0 || answer.score > question.criteria.length - 1)
+        ) {
+            throw new Error('Invalid decision score');
+        }
+    }
+    return answers;
+};
+
+const SKIPPED: DecisionEvaluation = {
+    answers: null,
+    outcome: 'skipped',
+    durationMs: 0,
+    serviceMs: null,
+};
+
 export class AiDecisionClient {
-    private readonly sdk: TypeSafeClient;
+    private readonly transport: DecisionTransport;
 
     constructor(
         private readonly config: DecisionConfig,
@@ -183,9 +282,9 @@ export class AiDecisionClient {
             consecutiveFailures: 0,
             retryAfter: 0,
         },
-        sdk?: TypeSafeClient,
+        transport?: DecisionTransport,
     ) {
-        this.sdk = sdk ?? createSdk(config, request);
+        this.transport = transport ?? createJevTransport(config, request);
     }
 
     withUsage(usage: AiDecisionUsage): AiDecisionClient {
@@ -194,7 +293,7 @@ export class AiDecisionClient {
             this.request,
             usage,
             this.health,
-            this.sdk,
+            this.transport,
         );
     }
 
@@ -203,6 +302,10 @@ export class AiDecisionClient {
     }
 
     async evaluate(args: EvaluateArgs): Promise<DecisionAnswers | null> {
+        return (await this.evaluateWithOutcome(args)).answers;
+    }
+
+    async evaluateWithOutcome(args: EvaluateArgs): Promise<DecisionEvaluation> {
         // Provider errors and request options can contain credentials or
         // user data. Only allowlisted operations and local outcomes are logged.
         const loggedOperation = LOGGED_OPERATIONS.has(args.operation)
@@ -222,7 +325,7 @@ export class AiDecisionClient {
         { state, questions, signal, timeoutMs }: EvaluateArgs,
         loggedOperation: string,
         span: TraceSpan,
-    ): Promise<DecisionAnswers | null> {
+    ): Promise<DecisionEvaluation> {
         if (
             !this.config.apiKey ||
             signal?.aborted ||
@@ -241,12 +344,14 @@ export class AiDecisionClient {
                 'lightdash.decision.outcome': spanOutcome('skipped'),
                 'lightdash.decision.durationMs': 0,
             });
-            return null;
+            return SKIPPED;
         }
 
         const startedAt = performance.now();
         let outcome: DecisionOutcome = 'request-failed';
         let retryableFailure = true;
+        let answers: DecisionAnswers | null = null;
+        let serviceMs: number | null = null;
         try {
             const body = JSON.stringify({
                 model: this.config.model,
@@ -255,28 +360,23 @@ export class AiDecisionClient {
             });
             if (Buffer.byteLength(body) > MAX_DECISION_PAYLOAD_BYTES) {
                 outcome = 'state-too-large';
-                return null;
+                return SKIPPED;
             }
             // JSON round-trip matches what the size check measured and yields a JSON value.
             const jsonState: EntryType = JSON.parse(
                 JSON.stringify(state ?? null),
             );
-            const { data, response } = await this.sdk
-                .systemOne(
-                    { state: jsonState, questions, model: this.config.model },
-                    {
-                        signal,
-                        timeout: Math.min(
-                            Math.max(timeoutMs ?? 0, this.config.timeoutMs),
-                            MAX_DECISION_TIMEOUT_MS,
-                        ),
-                    },
-                )
-                .withResponse();
-            const serviceMs = Number(
-                response.headers.get(SERVICE_TIME_HEADER) ?? Number.NaN,
-            );
-            if (Number.isFinite(serviceMs)) {
+            const response = await this.transport({
+                state: jsonState,
+                questions,
+                signal,
+                timeout: Math.min(
+                    Math.max(timeoutMs ?? 0, this.config.timeoutMs),
+                    MAX_DECISION_TIMEOUT_MS,
+                ),
+            });
+            serviceMs = response.serviceMs;
+            if (serviceMs !== null) {
                 span.setAttribute('lightdash.decision.serviceMs', serviceMs);
                 if (this.usage)
                     this.usage.serviceMs =
@@ -284,7 +384,7 @@ export class AiDecisionClient {
             }
             outcome = 'invalid-response';
             retryableFailure = false;
-            const rawResponse: unknown = data;
+            const rawResponse: unknown = response.data;
             const providerUsage = z
                 .object({ usage: usageSchema.optional() })
                 .safeParse(rawResponse);
@@ -298,79 +398,28 @@ export class AiDecisionClient {
                     providerUsage.data.usage.output_tokens;
             }
             const parsed = responseSchema.parse(rawResponse);
-            const { answers } = parsed;
-            for (const [key, question] of Object.entries(questions)) {
-                const answer = answers[key];
-                if (!answer || answer.type !== question.type) {
-                    throw new Error('Invalid decision response');
-                }
-                if (question.type === 'choice' && answer.type === 'choice') {
-                    const probabilities = Object.values(answer.probabilities);
-                    const mass = probabilities.reduce(
-                        (sum, value) => sum + value,
-                        0,
-                    );
-                    // Live responses round distributions to two decimal places.
-                    const rounded = probabilities.every(
-                        (value) =>
-                            Math.abs(value * 100 - Math.round(value * 100)) <
-                            1e-8,
-                    );
-                    const complete =
-                        Object.keys(question.criteria).length ===
-                        probabilities.length;
-                    const tolerance =
-                        rounded && complete
-                            ? Math.min(0.02, probabilities.length * 0.005) +
-                              1e-8
-                            : 0.001;
-                    if (
-                        !Object.hasOwn(question.criteria, answer.choice) ||
-                        !Object.hasOwn(answer.probabilities, answer.choice) ||
-                        Math.abs(mass - 1) > tolerance ||
-                        Object.keys(answer.probabilities).some(
-                            (option) =>
-                                !Object.hasOwn(question.criteria, option),
-                        )
-                    ) {
-                        throw new Error('Invalid decision option');
-                    }
-                    // Never raise a probability when reconciling rounding drift.
-                    if (mass > 1)
-                        answer.probabilities = Object.fromEntries(
-                            Object.entries(answer.probabilities).map(
-                                ([option, value]) => [option, value / mass],
-                            ),
-                        );
-                }
-                if (
-                    question.type === 'score' &&
-                    answer.type === 'score' &&
-                    (answer.score < 0 ||
-                        answer.score > question.criteria.length - 1)
-                ) {
-                    throw new Error('Invalid decision score');
-                }
-            }
+            answers = validateAnswers(questions, parsed.answers);
             this.health.consecutiveFailures = 0;
             this.health.retryAfter = 0;
             outcome = 'success';
-            return answers;
         } catch (error) {
-            if (error instanceof APIError) {
-                outcome = 'provider-http-error';
-                retryableFailure = error.status === 429 || error.status >= 500;
-            }
-            if (signal?.aborted || error instanceof APIUserAbortError)
+            const status =
+                error instanceof TypeSafeApiError ? error.status : undefined;
+            if (signal?.aborted || error instanceof TypeSafeAbortError) {
                 outcome = 'cancelled';
-            else if (error instanceof APITimeoutError) outcome = 'timeout';
+                retryableFailure = false;
+            } else if (error instanceof TypeSafeTimeoutError) {
+                outcome = 'timeout';
+            } else if (status !== undefined) {
+                outcome = 'provider-http-error';
+                retryableFailure = status === 429 || status >= 500;
+            }
             if (!signal?.aborted && retryableFailure) {
                 this.health.consecutiveFailures += 1;
                 if (this.health.consecutiveFailures >= 3) {
                     this.health.retryAfter = Date.now() + 30_000;
                 }
             }
-            return null;
         } finally {
             const durationMs = Math.round(performance.now() - startedAt);
             span.setAttributes({
@@ -381,14 +430,20 @@ export class AiDecisionClient {
                 `AI agent decision: ${loggedOperation}, outcome=${outcome}, durationMs=${durationMs}`,
             );
         }
+        return {
+            answers,
+            outcome,
+            durationMs: Math.round(performance.now() - startedAt),
+            serviceMs,
+        };
     }
 }
 
 const clients = new WeakMap<DecisionConfig, AiDecisionClient>();
 
-// Client state is reusable; feature availability is resolved per request below.
-const getAiDecisionClient = (
-    config: DecisionConfig,
+// Configs are reused per deployment, so outage backoff is shared across requests.
+export const resolveAiDecisionClient = (
+    config: DecisionConfig | undefined,
 ): AiDecisionClient | undefined => {
     if (!config?.apiKey) return undefined;
     let client = clients.get(config);
@@ -397,22 +452,6 @@ const getAiDecisionClient = (
         clients.set(config, client);
     }
     return client;
-};
-
-/** Resolve per request so disabling the flag takes effect without a restart.
- * Decision availability is optional; resolver failures keep the legacy path. */
-export const resolveAiDecisionClient = async (
-    config: DecisionConfig | undefined,
-    getFlag: () => Promise<{ enabled: boolean }>,
-): Promise<AiDecisionClient | undefined> => {
-    if (!config?.apiKey) return undefined;
-    try {
-        return (await getFlag()).enabled
-            ? getAiDecisionClient(config)
-            : undefined;
-    } catch {
-        return undefined;
-    }
 };
 
 export const confidentChoice = (

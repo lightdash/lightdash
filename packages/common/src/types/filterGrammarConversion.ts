@@ -3,6 +3,7 @@ import { type DbtColumnLightdashMetric } from './dbt';
 import { NotImplementedError, ParameterError } from './errors';
 import {
     FilterOperator,
+    getCurrentPeriodBounds,
     isDateFilterRule,
     UnitOfTime,
     type DateFilterSettings,
@@ -85,6 +86,16 @@ const convertFilterOperatorToDbt = (filter: MetricFilterRule): string[] => {
             if (isDateFilterRule(filter)) {
                 const settings = filter.settings as DateFilterSettings;
                 const unitOfTime = settings.unitOfTime || UnitOfTime.days;
+
+                const bounds = getCurrentPeriodBounds(settings);
+                if (bounds.excludeToday) {
+                    return [
+                        `${operator} ${unitOfTime} to date excluding today`,
+                    ];
+                }
+                if (bounds.toDate) {
+                    return [`${operator} ${unitOfTime} to date`];
+                }
                 return [`${operator} ${unitOfTime}`];
             }
             throw new NotImplementedError(
@@ -108,6 +119,7 @@ const convertFilterOperatorToDbt = (filter: MetricFilterRule): string[] => {
 };
 export const convertMetricFilterToDbt = (
     filters: MetricFilterRule[] | undefined,
+    metricTable: string,
 ): DbtColumnLightdashMetric['filters'] => {
     if (!filters) return undefined;
 
@@ -119,7 +131,9 @@ export const convertMetricFilterToDbt = (
             const values: string[] = convertFilterOperatorToDbt(filter);
             const fieldRefParts = target.fieldRef.split('.');
             const fieldId =
-                fieldRefParts.length > 1 ? fieldRefParts[1] : target.fieldRef;
+                fieldRefParts.length === 2 && fieldRefParts[0] === metricTable
+                    ? fieldRefParts[1]
+                    : target.fieldRef;
             const dbtFilters = {
                 [fieldId]: values.length > 1 ? values : values[0],
             };

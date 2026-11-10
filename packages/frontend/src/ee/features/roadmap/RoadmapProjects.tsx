@@ -477,7 +477,7 @@ function TicketCard({
                     <Text className={classes.ticketTitle}>{ticket.title}</Text>
                 </UnstyledButton>
                 <Group gap={6} wrap="nowrap" className={classes.ticketStub}>
-                    <Text fz="xs" c="ldGray.5" className={classes.ticketId}>
+                    <Text fz="xs" c="dimmed" className={classes.ticketId}>
                         {ticket.ticketId}
                     </Text>
                     <ItemPriority priority={ticket.priority} />

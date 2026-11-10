@@ -1,6 +1,7 @@
 import {
     Compact,
     CustomFormatType,
+    CustomDimensionType,
     DimensionType,
     FieldType,
     FilterOperator,
@@ -10,10 +11,14 @@ import {
     formatItemValue,
     type Dimension,
     type Metric,
+    type CustomSqlDimension,
+    type Explore,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     buildNewAdditionalMetric,
+    getCustomMetricLabelError,
+    getCustomMetricSourceDimension,
     getFilterRulesFromMetricBaseFilters,
     getFormatFromBaseField,
     getInheritedCustomMetricFormat,
@@ -319,6 +324,7 @@ describe('buildNewAdditionalMetric', () => {
         });
 
         expect(metric.baseDimensionName).toBe('amount');
+        expect(metric.sql).toBe('${orders.amount}');
         expect(metric.name).toBe('amount_sum_of_amount');
         expect(formatItemValue(metric, 2397)).toMatch(/^(?:US)?\$2,397\.00$/);
     });
@@ -344,5 +350,131 @@ describe('buildNewAdditionalMetric', () => {
         });
         expect(metric.baseMetricName).toBe('total_revenue');
         expect(metric.baseDimensionName).toBeUndefined();
+        expect(metric.sql).toBe(baseMetric.sql);
+    });
+
+    const customDimension: CustomSqlDimension = {
+        id: 'adjusted_amount',
+        name: 'Adjusted amount',
+        table: 'orders',
+        type: CustomDimensionType.SQL,
+        dimensionType: DimensionType.NUMBER,
+        sql: '${orders.amount} * 2',
+    };
+
+    it('references a custom SQL dimension without treating it as a model dimension', () => {
+        const metric = buildNewAdditionalMetric({
+            item: customDimension,
+            type: MetricType.SUM,
+            customMetricLabel: 'Adjusted total',
+            customMetricFiltersWithIds: [],
+        });
+        expect(metric.sql).toBe('${orders.adjusted_amount}');
+        expect(metric.baseDimensionName).toBeUndefined();
+    });
+
+    it('preserves both legacy SQL and references when editing a metric', () => {
+        for (const sql of [
+            '${orders.amount} * 2',
+            '${orders.adjusted_amount}',
+        ]) {
+            const metric = {
+                name: 'adjusted_total',
+                table: 'orders',
+                type: MetricType.SUM,
+                sql,
+            };
+            expect(
+                prepareCustomMetricData({
+                    item: metric,
+                    type: MetricType.SUM,
+                    customMetricLabel: 'Renamed total',
+                    customMetricFiltersWithIds: [],
+                    isEditingCustomMetric: true,
+                }).sql,
+            ).toBe(sql);
+        }
+    });
+
+    it('rejects creating a metric from a custom dimension shadowed by a model dimension', () => {
+        expect(
+            getCustomMetricLabelError({
+                label: 'Adjusted total',
+                item: { ...customDimension, id: 'amount' },
+                isEditing: false,
+                additionalMetrics: [],
+                exploreData: {
+                    tables: {
+                        orders: { dimensions: { amount: usdDimension } },
+                    },
+                } as unknown as Explore,
+            }),
+        ).toContain('matches a model dimension');
+    });
+});
+
+describe('getCustomMetricSourceDimension', () => {
+    const dimension: CustomSqlDimension = {
+        id: 'adjusted_amount',
+        name: 'Adjusted amount',
+        table: 'orders',
+        type: CustomDimensionType.SQL,
+        dimensionType: DimensionType.NUMBER,
+        sql: '${orders.amount} * 2',
+    };
+
+    it('resolves the source during creation and after saving a formatted metric', () => {
+        expect(getCustomMetricSourceDimension(dimension, [])).toBe(dimension);
+        const metric = buildNewAdditionalMetric({
+            item: dimension,
+            type: MetricType.SUM,
+            customMetricLabel: 'Adjusted total',
+            customMetricFiltersWithIds: [],
+            formatOptions: { type: CustomFormatType.CURRENCY, currency: 'USD' },
+        });
+        expect(getCustomMetricSourceDimension(metric, [dimension])).toBe(
+            dimension,
+        );
+        expect(formatItemValue(metric, 123)).toContain('$');
+        expect(getCustomMetricSourceDimension(metric, [])).toBeUndefined();
+        expect(
+            getCustomMetricSourceDimension(metric, [
+                { ...dimension, table: 'other' },
+            ]),
+        ).toBeUndefined();
+    });
+
+    it('preserves percentage formatting when editing a custom dimension metric', () => {
+        const metric = buildNewAdditionalMetric({
+            item: dimension,
+            type: MetricType.AVERAGE,
+            customMetricLabel: 'Adjusted average',
+            customMetricFiltersWithIds: [],
+            formatOptions: { type: CustomFormatType.PERCENT },
+        });
+        const editedMetric = prepareCustomMetricData({
+            item: metric,
+            type: MetricType.AVERAGE,
+            customMetricLabel: 'Edited average',
+            customMetricFiltersWithIds: [],
+            isEditingCustomMetric: true,
+            formatOptions: metric.formatOptions,
+        });
+        expect(getCustomMetricSourceDimension(editedMetric, [dimension])).toBe(
+            dimension,
+        );
+        expect(formatItemValue(editedMetric, 0.5)).toContain('50%');
+    });
+
+    it('does not treat model dimensions or cloned metrics as custom dimension sources', () => {
+        expect(
+            getCustomMetricSourceDimension(usdDimension, [dimension]),
+        ).toBeUndefined();
+        expect(
+            getCustomMetricSourceDimension(baseMetric, [dimension]),
+        ).toBeUndefined();
+        expect(
+            getCustomMetricSourceDimension(undefined, [dimension]),
+        ).toBeUndefined();
     });
 });

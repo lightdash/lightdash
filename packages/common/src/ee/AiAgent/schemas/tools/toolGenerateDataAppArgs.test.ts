@@ -38,7 +38,7 @@ describe('getGenerateDataAppBuildOutcome', () => {
         });
     });
 
-    it('words a first ready version as the app being ready in the thread', () => {
+    it('words a first ready version with the slug a later turn iterates on', () => {
         expect(
             getGenerateDataAppBuildOutcome({
                 ...base,
@@ -46,7 +46,7 @@ describe('getGenerateDataAppBuildOutcome', () => {
                 status: 'ready',
             })?.result,
         ).toBe(
-            'The data app "Revenue app" is ready. The user can view it from this thread.',
+            'The data app "Revenue app" (slug: revenue-app) is ready. The user can view it from this thread.',
         );
     });
 
@@ -54,6 +54,18 @@ describe('getGenerateDataAppBuildOutcome', () => {
         expect(
             getGenerateDataAppBuildOutcome({ ...base, status: 'ready' })
                 ?.result,
+        ).toContain(
+            'Version 2 of the data app "Revenue app" (slug: revenue-app) is ready.',
+        );
+    });
+
+    it('leaves the slug out of the ready copy when none was recorded', () => {
+        expect(
+            getGenerateDataAppBuildOutcome({
+                ...base,
+                slug: null,
+                status: 'ready',
+            })?.result,
         ).toContain('Version 2 of the data app "Revenue app" is ready.');
     });
 

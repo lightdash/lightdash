@@ -53,7 +53,7 @@ describe('Agent requests with real DuckDB', () => {
                 `CREATE TABLE ${usageDimensionTable(dimension)} (${usageDimensionSchemas[dimension].map(({ name, type }) => `"${name}" ${type}`).join(',')})`,
             );
         }
-        await db.run(`INSERT INTO lightdash_users VALUES
+        await db.run(`INSERT INTO lightdash_users (org_id, user_id, name) VALUES
             ('org-a','user-a','Alex'), ('org-b','user-a','Other tenant')`);
         await db.run(`INSERT INTO lightdash_agents VALUES
             ('org-a','agent-a','Assistant'), ('org-b','agent-a','Other assistant')`);

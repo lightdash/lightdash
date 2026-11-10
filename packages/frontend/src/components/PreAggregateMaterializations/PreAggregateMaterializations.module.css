@@ -10,13 +10,10 @@
 }
 
 .filterButtonSelected {
-    border: 1px solid var(--mantine-color-indigo-2);
+    border: 1px solid
+        light-dark(var(--mantine-color-indigo-2), var(--mantine-color-indigo-4));
     background: var(--mantine-color-indigo-light);
     box-shadow: var(--mantine-shadow-subtle);
-
-    @mixin dark {
-        border-color: var(--mantine-color-indigo-4);
-    }
 }
 
 .filterButtonSelected:hover {
@@ -24,6 +21,36 @@
     background: var(--mantine-color-indigo-light);
 }
 
-.clickableRow {
-    cursor: pointer;
+.triggerChipDisabled {
+    text-decoration: line-through;
+    opacity: 0.55;
+}
+
+.helpCursor {
+    cursor: help;
+}
+
+.nowrap {
+    white-space: nowrap;
+}
+
+.toolbar {
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.detailRow {
+    border-radius: var(--mantine-radius-sm);
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+.filterRow {
+    border-radius: var(--mantine-radius-sm);
+}
+
+.warningItem {
+    align-items: flex-start;
+}
+
+.detailSection {
+    border-top: 1px dashed var(--mantine-color-ldGray-2);
 }

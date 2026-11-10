@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import columnify from 'columnify';
 import { getConfig } from '../config';
+import { getAgentConnectionSelection } from '../credentials';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { lightdashApi } from './dbt/apiClient';
@@ -149,8 +150,15 @@ export const warehouseCatalogHandler = async (
     GlobalState.setVerbose(options.verbose);
     validateFieldLookup(options);
 
-    const config = await getConfig();
-    const projectUuid = config.context?.project;
+    const config = await (getAgentConnectionSelection() === null
+        ? getConfig()
+        : getConfig({ readOnly: true }));
+    const projectUuid =
+        getAgentConnectionSelection() === null
+            ? config.context?.project
+            : await (
+                  await import('../agentConnections/projectSelection')
+              ).resolveAgentConnectionProject();
     if (!projectUuid) {
         throw new Error(
             "No project selected. Run 'lightdash config set-project' first.",

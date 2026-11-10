@@ -1,13 +1,4 @@
-import {
-    Anchor,
-    Box,
-    Code,
-    List,
-    Stack,
-    Tabs,
-    Text,
-    Title,
-} from '@mantine/core';
+import { Anchor, Box, Code, List, Stack, Tabs, Text } from '@mantine/core';
 import { IconPlugConnected } from '@tabler/icons-react';
 import { type ReactNode } from 'react';
 import CodeBlock from '../../../../../../components/common/CodeBlock/CodeBlock';
@@ -19,9 +10,8 @@ import ClaudeCodeIcon from '../../../../../../svgs/claude-code.svg?react';
 import CursorIcon from '../../../../../../svgs/cursor.svg?react';
 import OpenAiIcon from '../../../../../../svgs/openai.svg?react';
 import VsCodeIcon from '../../../../../../svgs/vscode.svg?react';
+import { LIGHTDASH_MCP_DOCS } from './mcpDocs';
 import classes from './McpInstallationCard.module.css';
-
-const LIGHTDASH_MCP_DOCS = 'https://docs.lightdash.com/agents/lightdash-mcp';
 
 type Client = {
     id: string;
@@ -163,7 +153,7 @@ const getClients = (url: string): Client[] => {
             id: 'other',
             name: 'Other clients',
             icon: <MantineIcon icon={IconPlugConnected} size="md" />,
-            docsUrl: LIGHTDASH_MCP_DOCS,
+            docsUrl: `${LIGHTDASH_MCP_DOCS}#manual-setup`,
             steps: [
                 {
                     text: 'Add a remote MCP server and choose Streamable HTTP as the transport.',
@@ -187,93 +177,67 @@ export const McpInstallationCard = () => {
     const clients = getClients(mcpUrl);
 
     return (
-        <SettingsCard p="md">
-            <Stack gap="sm">
-                <Stack gap={4}>
-                    <Title order={5}>Client setup</Title>
-                    <Text size="sm" c="dimmed">
-                        Connect your AI tools to Lightdash. Choose a client to
-                        get started.
-                    </Text>
-                </Stack>
-                <Tabs defaultValue="claude-desktop" keepMounted={false}>
-                    <Box className={classes.tabScroller}>
-                        <Tabs.List
-                            className={classes.tabList}
-                            aria-label="MCP clients"
-                        >
-                            {clients.map((client) => (
-                                <Tabs.Tab
-                                    key={client.id}
-                                    value={client.id}
-                                    leftSection={client.icon}
+        <SettingsCard>
+            <Tabs defaultValue="claude-desktop" keepMounted={false}>
+                <Box className={classes.tabScroller}>
+                    <Tabs.List
+                        className={classes.tabList}
+                        aria-label="MCP clients"
+                    >
+                        {clients.map((client) => (
+                            <Tabs.Tab
+                                key={client.id}
+                                value={client.id}
+                                leftSection={client.icon}
+                            >
+                                {client.name}
+                            </Tabs.Tab>
+                        ))}
+                    </Tabs.List>
+                </Box>
+                {clients.map((client) => (
+                    <Tabs.Panel key={client.id} value={client.id} pt="md">
+                        <Stack gap="md">
+                            <List
+                                type="ordered"
+                                spacing="xs"
+                                size="sm"
+                                classNames={{
+                                    itemWrapper: classes.step,
+                                    itemLabel: classes.stepLabel,
+                                }}
+                            >
+                                {client.steps.map((step, index) => (
+                                    <List.Item key={index}>
+                                        <Stack gap="xs">
+                                            <Text size="sm">{step.text}</Text>
+                                            {step.code && (
+                                                <CodeBlock
+                                                    code={step.code}
+                                                    language={step.language}
+                                                    copyLabel={`Copy ${client.name} configuration`}
+                                                />
+                                            )}
+                                        </Stack>
+                                    </List.Item>
+                                ))}
+                            </List>
+                            <Text fz="xs" c="dimmed">
+                                For more details, see the{' '}
+                                <Anchor
+                                    href={client.docsUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    fz="xs"
                                 >
-                                    {client.name}
-                                </Tabs.Tab>
-                            ))}
-                        </Tabs.List>
-                    </Box>
-                    {clients.map((client) => (
-                        <Tabs.Panel key={client.id} value={client.id} pt="sm">
-                            <Stack gap="sm">
-                                <List
-                                    type="ordered"
-                                    spacing="xs"
-                                    size="sm"
-                                    classNames={{
-                                        itemWrapper: classes.step,
-                                        itemLabel: classes.stepLabel,
-                                    }}
-                                >
-                                    {client.steps.map((step, index) => (
-                                        <List.Item key={index}>
-                                            <Stack gap="xs">
-                                                <Text size="sm">
-                                                    {step.text}
-                                                </Text>
-                                                {step.code && (
-                                                    <CodeBlock
-                                                        code={step.code}
-                                                        language={step.language}
-                                                        copyLabel={`Copy ${client.name} configuration`}
-                                                    />
-                                                )}
-                                            </Stack>
-                                        </List.Item>
-                                    ))}
-                                </List>
-                                <Stack gap={4}>
-                                    <Text size="xs" c="dimmed">
-                                        For more details, see the{' '}
-                                        <Anchor
-                                            href={client.docsUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            size="xs"
-                                        >
-                                            {client.name} MCP documentation
-                                        </Anchor>
-                                        .
-                                    </Text>
-                                    <Text size="xs" c="dimmed">
-                                        Connections use your Lightdash
-                                        permissions.{' '}
-                                        <Anchor
-                                            href={LIGHTDASH_MCP_DOCS}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            size="xs"
-                                        >
-                                            Read the Lightdash MCP guide
-                                        </Anchor>
-                                        .
-                                    </Text>
-                                </Stack>
-                            </Stack>
-                        </Tabs.Panel>
-                    ))}
-                </Tabs>
-            </Stack>
+                                    {client.name} MCP documentation
+                                </Anchor>
+                                .
+                            </Text>
+                        </Stack>
+                    </Tabs.Panel>
+                ))}
+            </Tabs>
         </SettingsCard>
     );
 };

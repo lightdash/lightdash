@@ -230,6 +230,20 @@ export class OnboardingModel {
             .update({ playground_content_seed_version: version });
     }
 
+    async setRanQueryAtIfUnset(organizationUuid: string): Promise<boolean> {
+        const updated = await this.database(OnboardingTableName)
+            .where(
+                'organization_id',
+                this.database(OrganizationTableName)
+                    .where('organization_uuid', organizationUuid)
+                    .select('organization_id')
+                    .first(),
+            )
+            .whereNull('ranQuery_at')
+            .update({ ranQuery_at: new Date() });
+        return updated > 0;
+    }
+
     async update(
         organizationUuid: string,
         data: Partial<OnbordingRecord>,

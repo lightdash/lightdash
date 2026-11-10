@@ -43,6 +43,15 @@ export const tableUnitId = ({ connectionId, database }: TableUnitKey) =>
     `${connectionId}/${database}`;
 
 export type WarehouseTreeRow =
+    | { type: 'section'; id: string; depth: number; label: string }
+    | {
+          type: 'recent';
+          id: string;
+          depth: number;
+          identity: TableIdentity;
+          partitionColumn: PartitionColumn | undefined;
+          tableType: WarehouseTableType | undefined;
+      }
     | {
           type: 'connection';
           id: string;
@@ -291,10 +300,55 @@ const schemaSourceFromUnit = (
     }
 };
 
+const RECENT_SECTION_ID = 'section:recent';
+export const ALL_SECTION_ID = 'section:all';
+
+// Recent tables of the active connection, headed by their own section. A
+// table whose database has loaded and no longer lists it is dropped.
+export const buildRecentWarehouseRows = ({
+    connectionId,
+    recentTables,
+    getUnitState,
+    allLabel,
+}: {
+    connectionId: string;
+    recentTables: { database: string; schema: string; table: string }[];
+    getUnitState: (unit: TableUnitKey) => TableUnitState;
+    allLabel: string;
+}): WarehouseTreeRow[] => {
+    const rows = recentTables.flatMap((ref): WarehouseTreeRow[] => {
+        const identity: TableIdentity = { connectionId, ...ref };
+        const state = getUnitState({ connectionId, database: ref.database });
+        if (state.status === 'error') return [];
+        const entry =
+            state.status === 'loaded'
+                ? state.catalog[ref.database]?.[ref.schema]?.[ref.table]
+                : undefined;
+        if (state.status === 'loaded' && !entry) return [];
+        return [
+            {
+                type: 'recent',
+                id: `recent:${tableRowId(identity)}`,
+                depth: 0,
+                identity,
+                partitionColumn: entry?.partitionColumn,
+                tableType: entry?.tableType,
+            },
+        ];
+    });
+    if (rows.length === 0) return [];
+    return [
+        { type: 'section', id: RECENT_SECTION_ID, depth: 0, label: 'Recent' },
+        ...rows,
+        { type: 'section', id: ALL_SECTION_ID, depth: 0, label: allLabel },
+    ];
+};
+
 export type BuildWarehouseTreeArgs = {
     connections: TreeConnection[];
     getUnitState: (unit: TableUnitKey) => TableUnitState;
     isExpanded: (rowId: string) => boolean;
+    getExpansionOverride: (rowId: string) => boolean | undefined;
     search: string;
     typeFilter: TableTypeFilter | null;
 };
@@ -303,6 +357,7 @@ export const buildWarehouseTreeRows = ({
     connections,
     getUnitState,
     isExpanded,
+    getExpansionOverride,
     search,
     typeFilter,
 }: BuildWarehouseTreeArgs): WarehouseTreeRow[] => {
@@ -546,10 +601,17 @@ export const buildWarehouseTreeRows = ({
         connectionId: string,
         database: string,
         schemas: WarehouseTablesCatalog[string],
+        listedDatabase: string | null = null,
     ): WarehouseTreeRow[] => {
         const nameMatches = plainMatch(database, needle);
         const id = databaseRowId(connectionId, database);
-        const isExpandedRow = isRowExpanded(id, true);
+        const isExpandedRow =
+            listedDatabase !== null && getExpansionOverride(id) === undefined
+                ? isRowExpanded(
+                      databaseRowId(connectionId, listedDatabase),
+                      true,
+                  )
+                : isRowExpanded(id, true);
         const buildChildren = (): WarehouseTreeRow[] =>
             Object.keys(schemas).flatMap((schema) =>
                 buildSchemaRows({
@@ -557,7 +619,7 @@ export const buildWarehouseTreeRows = ({
                     database,
                     schema,
                     depth: baseDepth + 1,
-                    listedDatabase: null,
+                    listedDatabase,
                     source: {
                         status: 'loaded',
                         tables: schemas[schema] ?? {},
@@ -582,7 +644,7 @@ export const buildWarehouseTreeRows = ({
             depth: baseDepth,
             connectionId,
             database,
-            listedDatabase: null,
+            listedDatabase,
             isExpanded: isExpandedRow,
             childCount: children !== undefined ? schemaRowCount : null,
         };
@@ -606,10 +668,18 @@ export const buildWarehouseTreeRows = ({
             });
             if (unitState.status === 'loaded') {
                 const keys = Object.keys(unitState.catalog);
-                const isPlaceholderMatch =
+                const isCatalogMatch =
                     keys.length === 1 &&
                     matchesListedName(keys[0], group.database);
-                if (keys.length > 0 && !isPlaceholderMatch) {
+                if (isCatalogMatch && keys[0] !== group.database) {
+                    return buildExtraDatabaseRows(
+                        connection.connectionId,
+                        keys[0],
+                        unitState.catalog[keys[0]],
+                        group.lazyEntry.name,
+                    );
+                }
+                if (keys.length > 0 && !isCatalogMatch) {
                     return keys.flatMap((key) =>
                         buildExtraDatabaseRows(
                             connection.connectionId,

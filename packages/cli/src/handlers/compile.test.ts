@@ -1,15 +1,23 @@
 import {
+    DefaultSupportedDbtVersion,
     DimensionType,
     isExploreError,
     MetricType,
+    type DbtManifest,
     type LightdashModel,
 } from '@lightdash/common';
 import fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 import type { Mock } from 'vitest';
+import * as dbtContext from '../dbt/context';
+import * as dbtManifest from '../dbt/manifest';
+import * as dbtValidation from '../dbt/validation';
 import * as lightdashLoader from '../lightdash/loader';
 import { compile, type CompileHandlerOptions } from './compile';
+import * as apiClient from './dbt/apiClient';
+import * as dbtCompile from './dbt/compile';
+import * as dbtVersion from './dbt/getDbtVersion';
 
 vi.mock('execa');
 vi.mock('../analytics/analytics');
@@ -107,6 +115,125 @@ dimensions:
         vi.restoreAllMocks();
         await fs.rm(tempDir, { recursive: true, force: true });
     });
+
+    test.each(['server', 'explicit'] as const)(
+        'strips local dbt-loom stubs before source inference and combining the %s manifest',
+        async (source) => {
+            const node = (project: string, name: string) => ({
+                unique_id: `model.${project}.${name}`,
+                resource_type: 'model' as const,
+                name,
+                package_name: project,
+                path: `${name}.sql`,
+                original_file_path: `models/${name}.sql`,
+                database: 'warehouse',
+                schema: 'public',
+                alias: name,
+                relation_name: `"warehouse"."public"."${name}"`,
+                compiled: true,
+                compiled_code: 'select 1',
+                raw_code: 'select 1',
+                config: { materialized: 'table', snowflake_warehouse: '' },
+                columns: {},
+                meta: {},
+                fqn: [project, name],
+                checksum: { name: 'sha256', checksum: 'test' },
+            });
+            const localNode = node('local', 'orders');
+            const upstreamNode = {
+                ...node('upstream', 'products'),
+                lightdash_source_name: 'upstream_source',
+            };
+            const localManifest: DbtManifest = {
+                metadata: {
+                    dbt_schema_version: '/v12.json',
+                    generated_at: '',
+                    adapter_type: 'postgres',
+                },
+                nodes: {
+                    [localNode.unique_id]: localNode,
+                    [upstreamNode.unique_id]: {
+                        ...upstreamNode,
+                        path: '',
+                        original_file_path: '',
+                        alias: 'external_stub',
+                    },
+                },
+                metrics: {},
+                docs: {},
+            };
+            const servedManifest: DbtManifest = {
+                ...localManifest,
+                nodes: {
+                    [localNode.unique_id]: {
+                        ...localNode,
+                        lightdash_source_name: 'local_source',
+                    },
+                    [upstreamNode.unique_id]: upstreamNode,
+                },
+            };
+            vi.spyOn(lightdashLoader, 'loadLightdashModels').mockResolvedValue(
+                [],
+            );
+            vi.spyOn(dbtVersion, 'tryGetDbtVersion').mockResolvedValue({
+                success: true,
+                version: {
+                    verboseVersion: '1.12.0',
+                    versionOption: DefaultSupportedDbtVersion,
+                    isDbtCloudCLI: false,
+                    isDbtFusion: false,
+                },
+            });
+            vi.spyOn(dbtContext, 'getDbtContext').mockResolvedValue({
+                projectName: 'local',
+                profileName: 'local',
+                targetDir: tempDir,
+                modelsDir: tempDir,
+            });
+            vi.spyOn(
+                dbtCompile,
+                'maybeCompileModelsAndJoins',
+            ).mockResolvedValue({
+                compiledModelIds: undefined,
+                originallySelectedModelIds: undefined,
+            });
+            vi.spyOn(dbtManifest, 'loadManifest').mockResolvedValue(
+                localManifest,
+            );
+            vi.spyOn(dbtManifest, 'loadCombineManifest').mockResolvedValue(
+                servedManifest,
+            );
+            vi.spyOn(apiClient, 'lightdashRawApi').mockResolvedValue({
+                json: async () => servedManifest,
+            } as Awaited<ReturnType<typeof apiClient.lightdashRawApi>>);
+            const validate = vi
+                .spyOn(dbtValidation, 'validateDbtModel')
+                .mockResolvedValue({ valid: [], invalid: [], skipped: [] });
+            await compile({
+                ...getCompileOptions(tempDir),
+                ...(source === 'server'
+                    ? { combineManifestProjectUuid: 'project-uuid' }
+                    : { combineManifest: 'upstream-manifest.json' }),
+            });
+            expect(validate).toHaveBeenCalledOnce();
+            expect(validate.mock.calls[0][2]).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        unique_id: localNode.unique_id,
+                        ...(source === 'server'
+                            ? { lightdash_source_name: 'local_source' }
+                            : {}),
+                    }),
+                    expect.objectContaining(upstreamNode),
+                ]),
+            );
+            expect(validate.mock.calls[0][2]).toHaveLength(2);
+            expect(localManifest.nodes[upstreamNode.unique_id]).toHaveProperty(
+                'alias',
+                'external_stub',
+            );
+        },
+    );
 
     test('should compile Lightdash YAML project without dbt installed', async () => {
         // Mock analytics to prevent actual tracking

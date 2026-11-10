@@ -6,15 +6,22 @@ import {
 } from '@lightdash/common';
 import { createHmac } from 'crypto';
 import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
+import { isAppRuntimeConfigured } from '../../config/appRuntimeAvailability';
 import { LightdashConfig } from '../../config/parseConfig';
+import { isSnowflakeAgentConfigured } from '../../config/snowflakeAgentConfiguration';
+import { isPreAggregatesEnabled } from '../../ee/preAggregates/isPreAggregatesEnabled';
+import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
+import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import { VERSION } from '../../version';
 import { BaseService } from '../BaseService';
+import type { InstanceBrandService } from '../InstanceBrandService/InstanceBrandService';
 import type { LearnSandboxService } from '../LearnSandboxService/LearnSandboxService';
 import { LicenseService } from '../LicenseService/LicenseService';
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
+import { isAnalyticsProjectAvailable } from '../ProjectService/analyticsProject/analyticsProjectAvailability';
 import type { ReadinessService } from '../ReadinessService/ReadinessService';
 
 type HealthServiceArguments = {
@@ -23,8 +30,10 @@ type HealthServiceArguments = {
     organizationModel: OrganizationModel;
     migrationModel: MigrationModel;
     organizationSettingsModel: OrganizationSettingsModel;
+    featureFlagModel: FeatureFlagModel;
     readinessService?: Pick<ReadinessService, 'getReadiness'>;
     learnSandboxService: Pick<LearnSandboxService, 'isRuntimeAvailable'>;
+    instanceBrandService: Pick<InstanceBrandService, 'getInstanceBrand'>;
 };
 
 export class HealthService extends BaseService {
@@ -38,11 +47,18 @@ export class HealthService extends BaseService {
 
     private readonly organizationSettingsModel: OrganizationSettingsModel;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     private readonly readinessService?: Pick<ReadinessService, 'getReadiness'>;
 
     private readonly learnSandboxService: Pick<
         LearnSandboxService,
         'isRuntimeAvailable'
+    >;
+
+    private readonly instanceBrandService: Pick<
+        InstanceBrandService,
+        'getInstanceBrand'
     >;
 
     constructor({
@@ -51,8 +67,10 @@ export class HealthService extends BaseService {
         lightdashConfig,
         licenseService,
         organizationSettingsModel,
+        featureFlagModel,
         readinessService,
         learnSandboxService,
+        instanceBrandService,
     }: HealthServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -60,8 +78,10 @@ export class HealthService extends BaseService {
         this.organizationModel = organizationModel;
         this.migrationModel = migrationModel;
         this.organizationSettingsModel = organizationSettingsModel;
+        this.featureFlagModel = featureFlagModel;
         this.readinessService = readinessService;
         this.learnSandboxService = learnSandboxService;
+        this.instanceBrandService = instanceBrandService;
     }
 
     private isEnterpriseEnabled(): boolean {
@@ -92,6 +112,10 @@ export class HealthService extends BaseService {
                   maxLimit: this.lightdashConfig.query.maxLimit,
                   csvCellsLimit: this.lightdashConfig.query.csvCellsLimit,
               };
+
+        const preAggregatesEnabled = isPreAggregatesEnabled(
+            this.lightdashConfig,
+        );
 
         const migrationStartTime = performance.now();
         const { status: migrationStatus, currentVersion } =
@@ -144,6 +168,7 @@ export class HealthService extends BaseService {
             defaultProject: undefined,
             isAuthenticated,
             requiresOrgRegistration,
+            instanceBrand: this.instanceBrandService.getInstanceBrand(),
             latest: { version: dockerHubVersion },
             rudder: this.lightdashConfig.rudder,
             sentry: {
@@ -196,6 +221,16 @@ export class HealthService extends BaseService {
                 this.lightdashConfig.gitlab.clientSecret !== undefined,
             hasJira: true,
             hasLinear: true,
+            hasPostHogOAuth:
+                this.lightdashConfig.liveSources.posthog.oauthClientId !==
+                undefined,
+            hasLinkedInAdsOAuth:
+                !!this.lightdashConfig.liveSources.linkedinAds.oauthClientId &&
+                !!this.lightdashConfig.liveSources.linkedinAds
+                    .oauthClientSecret,
+            hasGoogleLiveSources:
+                !!this.lightdashConfig.auth.google.oauth2ClientId &&
+                !!this.lightdashConfig.auth.google.oauth2ClientSecret,
             auth: {
                 disablePasswordAuthentication:
                     this.lightdashConfig.auth.disablePasswordAuthentication,
@@ -235,6 +270,9 @@ export class HealthService extends BaseService {
                         !!this.lightdashConfig.auth.snowflake.clientId &&
                         this.isEnterpriseEnabled(),
                 },
+                snowflakeAi: {
+                    enabled: isSnowflakeAgentConfigured(this.lightdashConfig),
+                },
                 databricks: {
                     // Databricks OAuth browser flow requires a configured client ID.
                     enabled:
@@ -255,6 +293,10 @@ export class HealthService extends BaseService {
             hasEmailWhitelabel: !!this.lightdashConfig.postmark.accountToken,
             hasHeadlessBrowser:
                 this.lightdashConfig.headlessBrowser?.host !== undefined,
+            hasManagedAnalytics: isAnalyticsProjectAvailable(
+                this.lightdashConfig,
+                this.licenseService,
+            ),
             hasExtendedUsageAnalytics:
                 this.lightdashConfig.extendedUsageAnalytics.enabled,
             hasCacheAutocompleResults:
@@ -269,10 +311,6 @@ export class HealthService extends BaseService {
             },
             hasBrandfetch: !!this.lightdashConfig.brandfetch?.apiKey,
             hasMicrosoftTeams: this.lightdashConfig.microsoftTeams.enabled,
-            isServiceAccountEnabled:
-                this.lightdashConfig.serviceAccount.enabled,
-            isOrganizationWarehouseCredentialsEnabled:
-                this.lightdashConfig.organizationWarehouseCredentials.enabled,
             isAthenaWarehouseIamRoleAuthEnabled:
                 this.lightdashConfig.athenaWarehouseIamRoleAuth.enabled,
             isSaveCredentialsFormEnabled:
@@ -281,9 +319,6 @@ export class HealthService extends BaseService {
                 this.isEnterpriseEnabled() &&
                 this.lightdashConfig.customRoles.enabled,
             embedding: {
-                enabled:
-                    this.isEnterpriseEnabled() &&
-                    this.lightdashConfig.embedding.enabled,
                 events: this.isEnterpriseEnabled()
                     ? this.lightdashConfig.embedding.events
                     : undefined,
@@ -293,12 +328,16 @@ export class HealthService extends BaseService {
                     this.lightdashConfig.ai.analyticsProjectUuid,
                 analyticsDashboardUuid:
                     this.lightdashConfig.ai.analyticsDashboardUuid,
+                // Ambient AI endpoints only exist under a valid licence.
                 isAmbientAiEnabled:
+                    this.licenseService.getLicenseStatus().valid &&
                     !!this.lightdashConfig.ai.copilot.providers.anthropic
                         ?.apiKey,
                 threadDumpEnabled:
                     this.isEnterpriseEnabled() &&
                     this.lightdashConfig.ai.copilot.threadDumpEnabled,
+                fastDecisionsEnabled:
+                    !!this.lightdashConfig.ai.decisions.apiKey,
             },
             echarts6: {
                 enabled: false,
@@ -314,12 +353,23 @@ export class HealthService extends BaseService {
                 enabled: this.lightdashConfig.dashboardComments.enabled,
             },
             preAggregates: {
-                enabled: this.lightdashConfig.preAggregates.enabled,
+                enabled: preAggregatesEnabled,
+            },
+            externalSources: {
+                engineAvailable:
+                    getDuckdbRuntimeConfig(
+                        this.lightdashConfig.preAggregates.s3,
+                    ) !== undefined,
             },
             dataApps: {
                 previewOrigin: this.lightdashConfig.appRuntime.previewOrigin,
                 sampleDataEnabled:
                     this.lightdashConfig.appRuntime.sampleDataEnabled,
+                capturesEnabled:
+                    this.lightdashConfig.appRuntime.capturesEnabled,
+                runtimeAvailable:
+                    this.licenseService.getLicenseStatus().valid &&
+                    isAppRuntimeConfigured(this.lightdashConfig),
             },
             learnSandbox: {
                 enabled: await this.learnSandboxService.isRuntimeAvailable(),

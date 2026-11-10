@@ -22,16 +22,6 @@ describe('canStartDeepResearch', () => {
             result: false,
         },
         {
-            name: 'allows authorized Demo sessions',
-            access: {
-                canCreate: true,
-                isEnvironmentReady: true,
-                isDemo: true,
-                isImpersonating: false,
-            },
-            result: true,
-        },
-        {
             name: 'blocks impersonated sessions',
             access: {
                 canCreate: true,

@@ -114,6 +114,9 @@ describe('AppIframePreview', () => {
 
     it('navigates with the latest token on an explicit refresh', async () => {
         const { rerender } = render(<Harness hostColorScheme="light" />);
+        const previousNavigationId = new URL(iframeSrc()).searchParams.get(
+            'navigationId',
+        );
         rerender(
             <Harness
                 hostColorScheme="light"
@@ -122,7 +125,13 @@ describe('AppIframePreview', () => {
             />,
         );
 
-        await waitFor(() => expect(iframeSrc()).toContain('/tok-2/?r=1#'));
+        await waitFor(() =>
+            expect(new URL(iframeSrc()).pathname).toContain('/tok-2/'),
+        );
+        expect(new URL(iframeSrc()).searchParams.get('r')).toEqual('1');
+        expect(
+            new URL(iframeSrc()).searchParams.get('navigationId'),
+        ).not.toEqual(previousNavigationId);
     });
 
     it('lets an explicit override win over the host scheme (scheduled renders)', () => {
@@ -139,5 +148,14 @@ describe('AppIframePreview', () => {
         const sandbox =
             screen.getByTitle('App preview').getAttribute('sandbox') ?? '';
         expect(sandbox).not.toContain('allow-same-origin');
+    });
+
+    // allow-forms is required so submit events reach app handlers; CSP
+    // form-action 'none' prevents exfiltration
+    it('sandboxes the iframe with allow-forms so submit handlers fire', () => {
+        render(<Harness hostColorScheme="light" />);
+        const sandbox =
+            screen.getByTitle('App preview').getAttribute('sandbox') ?? '';
+        expect(sandbox).toContain('allow-forms');
     });
 });

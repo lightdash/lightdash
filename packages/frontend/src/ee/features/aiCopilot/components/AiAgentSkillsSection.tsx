@@ -418,6 +418,8 @@ export const AiAgentSkillsSection = ({
                 <AiAgentSkillModal
                     skill={modal.mode === 'edit' ? modal.skill : null}
                     bindToAgentUuid={modal.mode === 'create' ? agentUuid : null}
+                    draftFiles={null}
+                    onCreated={null}
                     onClose={() => setModal(null)}
                 />
             ) : null}

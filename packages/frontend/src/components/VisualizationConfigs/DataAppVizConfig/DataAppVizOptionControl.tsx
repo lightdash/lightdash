@@ -7,13 +7,13 @@ import {
     type DataAppVizOptionValue,
 } from '@lightdash/common';
 import { Group, Select, Stack, Switch, TextInput } from '@mantine/core';
-import { useDebouncedCallback } from '@mantine/hooks';
-import { useState, type FC } from 'react';
+import { type FC } from 'react';
 import { NumberInput } from '../../common/NumberInput';
 import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
 import { GradientStopsEditor } from '../common/GradientStopsEditor';
 import { RangeBoundInput } from '../common/RangeBoundInput';
+import { useDebouncedDraft } from '../common/useDebouncedDraft';
 
 // Free-text and colour edits fire continuously while typing / dragging, so
 // they're debounced before reaching chart state (and the iframe re-render).
@@ -23,33 +23,6 @@ type OptionOfType<T extends DataAppVizConfigOption['type']> = Extract<
     DataAppVizConfigOption,
     { type: T }
 >;
-
-/**
- * Holds the in-flight edit while the debounce is pending, then hands back to
- * the prop once it lands — the same `draft ?? value` discipline ColorSelector
- * uses, so an externally changed `value` is never masked by a stale draft.
- */
-const usePendingEdit = <T extends DataAppVizOptionValue>(
-    value: T,
-    onChange: (value: T) => void,
-) => {
-    const [pending, setPending] = useState<T | null>(null);
-    const flushChange = useDebouncedCallback(
-        (next: T) => {
-            onChange(next);
-            setPending(null);
-        },
-        { delay: OPTION_DEBOUNCE_MS, flushOnUnmount: true },
-    );
-
-    return {
-        current: pending ?? value,
-        edit: (next: T) => {
-            setPending(next);
-            flushChange(next);
-        },
-    };
-};
 
 const BooleanOptionControl: FC<{
     option: OptionOfType<'boolean'>;
@@ -103,13 +76,16 @@ const TextOptionControl: FC<{
     value: string;
     onChange: (value: string) => void;
 }> = ({ option, value, onChange }) => {
-    const draft = usePendingEdit(value, onChange);
+    const [draft, setDraft, flush] = useDebouncedDraft(value, onChange, {
+        delay: OPTION_DEBOUNCE_MS,
+    });
     return (
         <TextInput
             size="xs"
             label={option.label}
-            value={draft.current}
-            onChange={(event) => draft.edit(event.currentTarget.value)}
+            value={draft}
+            onChange={(event) => setDraft(event.currentTarget.value)}
+            onBlur={flush}
         />
     );
 };
@@ -120,19 +96,22 @@ const ColorOptionControl: FC<{
     colorPalette: string[];
     onChange: (value: string) => void;
 }> = ({ option, value, colorPalette, onChange }) => {
-    const draft = usePendingEdit(value, onChange);
+    const [draft, setDraft, flush] = useDebouncedDraft(value, onChange, {
+        delay: OPTION_DEBOUNCE_MS,
+    });
     return (
         <Config.Group>
             <Config.Label>{option.label}</Config.Label>
             <ColorSelector
-                color={draft.current}
+                color={draft}
                 swatches={
                     colorPalette.length > 0
                         ? colorPalette
                         : ECHARTS_DEFAULT_COLORS
                 }
                 ariaLabel={option.label}
-                onColorChange={draft.edit}
+                onColorChange={setDraft}
+                onClose={flush}
             />
         </Config.Group>
     );

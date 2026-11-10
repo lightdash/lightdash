@@ -27,6 +27,24 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { type MetricFilterRuleWithFieldId } from '../FilterForm';
 
+export const getCustomMetricSourceDimension = (
+    item: Dimension | AdditionalMetric | CustomDimension | Metric | undefined,
+    customDimensions: CustomDimension[] | undefined,
+): CustomDimension | undefined => {
+    if (isCustomDimension(item)) return item;
+    if (
+        !isAdditionalMetric(item) ||
+        item.baseDimensionName ||
+        item.baseMetricName
+    )
+        return undefined;
+    return customDimensions?.find(
+        (dimension) =>
+            dimension.table === item.table &&
+            item.sql === `\${${dimension.table}.${dimension.id}}`,
+    );
+};
+
 export const addFieldRefToFilterRule = (
     filterRule: FilterRule,
     fields: ReturnType<typeof getFilterableDimensionsFromItemsMap>,
@@ -166,6 +184,14 @@ export const getCustomMetricLabelError = ({
     additionalMetrics: AdditionalMetric[] | undefined;
 }): string | null => {
     if (!label || !item) return null;
+
+    if (
+        !isEditing &&
+        isCustomDimension(item) &&
+        exploreData?.tables[item.table]?.dimensions[item.id]
+    ) {
+        return 'This ID matches a model dimension. Create a custom dimension with a different name before creating the metric';
+    }
 
     const metricName = getCustomMetricName(
         item.table,
@@ -358,9 +384,7 @@ export const prepareCustomMetricData = ({
     };
 };
 
-// A new custom metric remembers which explore field it came from so it can be
-// rebuilt, written back, or cloned later. Custom dimensions carry no such
-// reference: queryBuilder would reject a baseDimensionName it cannot resolve.
+// Preserve existing SQL when editing; new dimension-based metrics follow their source.
 export const buildNewAdditionalMetric = (
     args: Omit<
         Parameters<typeof prepareCustomMetricData>[0],
@@ -376,7 +400,15 @@ export const buildNewAdditionalMetric = (
         return { uuid: uuidv4(), baseMetricName: item.name, ...data };
     }
     if (isDimension(item)) {
-        return { uuid: uuidv4(), baseDimensionName: item.name, ...data };
+        return {
+            uuid: uuidv4(),
+            baseDimensionName: item.name,
+            ...data,
+            sql: `\${${item.table}.${item.name}}`,
+        };
+    }
+    if (isCustomDimension(item)) {
+        return { uuid: uuidv4(), ...data, sql: `\${${item.table}.${item.id}}` };
     }
     return { uuid: uuidv4(), ...data };
 };

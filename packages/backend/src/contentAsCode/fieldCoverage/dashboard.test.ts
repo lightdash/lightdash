@@ -4,6 +4,7 @@ describeContentAsCodeSchemaContract({
     resource: 'dashboard',
     modelSchema: 'DashboardDAO',
     documentSchema: 'DashboardAsCode',
+    serverMetadataFields: ['agentIdentity', 'agent_identity'],
     skippedModelFields: [
         'colorPaletteUuid',
         // Creation time and resolved project metadata belong to the source instance.
@@ -20,6 +21,7 @@ describeContentAsCodeSchemaContract({
         'draftsAwaitingReview',
         'firstViewedAt',
         'hasUnpublishedChanges',
+        'managedFromRepository',
         'organizationUuid',
         // Represented as `ownerEmail` on the document for portability
         'owner',

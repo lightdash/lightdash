@@ -1,6 +1,8 @@
 import {
+    AiAccessRefusedError,
     BigqueryTokenError,
     DatabricksTokenError,
+    getAgentPermissionRefusalDetails,
     getErrorMessage,
     GoogleChatError,
     LightdashError,
@@ -47,6 +49,11 @@ export const isAgentRecoverableError = (error: unknown): boolean =>
 const errorName = (error: unknown): string =>
     error instanceof Error ? error.name : 'UnknownError';
 
+const isPersonalSnowflakeTokenError = (error: unknown): boolean =>
+    error instanceof SnowflakeTokenError &&
+    error.data.requiresUserReauthentication === true &&
+    !error.data.sharedSignIn;
+
 export const toolErrorHandler = (
     error: unknown,
     message: string,
@@ -70,7 +77,27 @@ export const toolErrorHandler = (
         });
     }
 
-    const errorMessage = `${message}
+    if (isPersonalSnowflakeTokenError(error)) {
+        const errorMessage =
+            'Your Snowflake sign-in has expired. Reauthenticate with your own Snowflake account, then send your question again. Do not retry the query or ask an admin to reconnect on your behalf.';
+        Logger.warn(
+            '[AiAgent][Tool Error Handler] Personal Snowflake sign-in requires reauthentication',
+        );
+        return errorMessage;
+    }
+
+    const refusalDetails =
+        error instanceof AiAccessRefusedError
+            ? getAgentPermissionRefusalDetails(error.refusal)
+            : '';
+    const errorMessage =
+        error instanceof AiAccessRefusedError
+            ? `${error.message}${refusalDetails ? `\n\n${refusalDetails}` : ''}${
+                  error.refusal.reason.startsWith('agent_')
+                      ? '\n\nDo not retry this operation or use another tool to bypass this refusal. Ask the user to resolve the access requirement first.'
+                      : ''
+              }`
+            : `${message}
 
 ${serializeData(getErrorMessage(error), 'raw')}
 
@@ -94,7 +121,21 @@ export const toolErrorOutput = (
     const result = toolErrorHandler(error, message, options);
     return {
         result,
-        metadata: { status: 'error' },
-        structuredContent: { error: result },
+        metadata: {
+            status: 'error',
+            ...(isPersonalSnowflakeTokenError(error)
+                ? { requiresSnowflakeReauthentication: true as const }
+                : {}),
+            ...(error instanceof AiAccessRefusedError &&
+            error.refusal.reason.startsWith('agent_')
+                ? { refusal: error.refusal }
+                : {}),
+        },
+        structuredContent: {
+            error: result,
+            ...(error instanceof AiAccessRefusedError
+                ? { refusal: error.refusal }
+                : {}),
+        },
     };
 };

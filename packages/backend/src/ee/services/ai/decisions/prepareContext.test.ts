@@ -1,9 +1,12 @@
 import type { ToolSet } from 'ai';
 import { describe, expect, it, vi } from 'vitest';
 import { getLoadAgentTools } from '../tools/loadAgentTools';
-import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
+import type { AiAgentDependencies } from '../types/aiAgent';
 import { AiDecisionClient } from './AiDecisionClient';
-import { prepareRelevantContext } from './prepareContext';
+import {
+    prepareRelevantContext,
+    type PrepareContextArgs,
+} from './prepareContext';
 
 const choice = (value: string) => ({
     type: 'choice',
@@ -52,7 +55,7 @@ const setup = (allowlist?: Set<string>) => {
                 alwaysIncludeInContext: false,
             },
         ],
-    } as unknown as AiAgentArgs;
+    } as unknown as PrepareContextArgs;
     const loadSkill = vi.fn().mockResolvedValue({
         name: 'metrics',
         body: 'Use documented metrics.',
@@ -300,6 +303,52 @@ describe('context preloading', () => {
         expect(criteria[1]).not.toHaveProperty('document_write');
     });
 
+    it('routes reports and accepted Document offers to document writing when Documents can be saved', async () => {
+        const { args, dependencies, request } = setup();
+        args.availableSkills = [];
+        args.knowledgeDocuments = [];
+        args.messageHistory = [
+            { role: 'user', content: 'Write me a report on revenue.' },
+        ];
+        const turnIntents: {
+            instructions: string;
+            criteria: Record<string, string>;
+        }[] = [];
+        request.mockImplementation(async (_, init) => {
+            const body = JSON.parse(init?.body as string);
+            turnIntents.push(body.questions.turnIntent);
+            return Response.json({
+                model: 'test',
+                answers: { turnIntent: choice('document_write') },
+            });
+        });
+        const runtime = {
+            loadAgentTools: getLoadAgentTools(),
+            createContent: {},
+        } as unknown as ToolSet;
+
+        args.enableDocuments = false;
+        await prepareRelevantContext(args, dependencies, runtime);
+        args.enableDocuments = true;
+        await prepareRelevantContext(args, dependencies, runtime);
+
+        const [off, on] = turnIntents;
+        expect(off.criteria).not.toHaveProperty('document_write');
+        expect(off.instructions).not.toContain('summary to share');
+        expect(on.criteria.document_write).toContain(
+            'a written report, write-up or summary to share',
+        );
+        expect(on.criteria.document_write).toContain(
+            'accepting an offer to save the analysis as a Document',
+        );
+        expect(on.instructions).toContain(
+            'a short reply accepting an offer to save the analysis as a Document, is also document_write',
+        );
+        expect(on.instructions).toContain(
+            'PDF report is still data_app_create',
+        );
+    });
+
     it('preloads the authoring skill with its resources for a document write-up', async () => {
         const { args, dependencies, request, loadSkill } = setup();
         args.enableDocuments = true;
@@ -308,8 +357,10 @@ describe('context preloading', () => {
             {
                 name: 'developing-in-lightdash',
                 description: 'Charts and dashboards as code',
+                resources: [],
+                source: 'builtIn',
             },
-        ] as AiAgentArgs['availableSkills'];
+        ];
         loadSkill.mockResolvedValue({
             name: 'developing-in-lightdash',
             body: 'Chart-as-code rules.',
@@ -346,6 +397,52 @@ describe('context preloading', () => {
             '- table-chart-reference: Table charts',
         );
     });
+
+    it.each([
+        [
+            ['reading-source-code', 'repository-writeback', 'metrics'],
+            ['reading-source-code', 'repository-writeback'],
+        ],
+        [['metrics'], []],
+    ])(
+        'preloads the listed repository skills for a repository change (%j)',
+        async (listed, preloaded) => {
+            const { args, dependencies, request, loadSkill } = setup();
+            args.knowledgeDocuments = [];
+            args.availableSkills = listed.map((name) => ({
+                name,
+                description: name,
+                resources: [],
+                source: 'builtIn' as const,
+            }));
+            loadSkill.mockImplementation(async (name: string) => ({
+                name,
+                body: `${name} guidance`,
+            }));
+            request.mockImplementation(async () =>
+                Response.json({
+                    model: 'test',
+                    answers: {
+                        turnIntent: choice('repository_change'),
+                        skill: choice('none'),
+                        needsSkill: { type: 'noul', noul: 0.1 },
+                    },
+                }),
+            );
+
+            const context = await prepareRelevantContext(args, dependencies, {
+                loadAgentTools: getLoadAgentTools(),
+                loadSkill: {},
+            } as unknown as ToolSet);
+
+            expect(loadSkill.mock.calls.map(([name]) => name)).toEqual(
+                preloaded,
+            );
+            preloaded.forEach((name) =>
+                expect(context?.content).toContain(`${name} guidance`),
+            );
+        },
+    );
 
     it('classifies a chart conversion follow-up as its own route', async () => {
         const { args, dependencies, request } = setup();
@@ -1240,7 +1337,7 @@ describe('context preloading', () => {
                 {
                     ...args,
                     execution: { mode: 'deep_research' },
-                } as AiAgentArgs,
+                } as PrepareContextArgs,
                 dependencies,
             ),
         ).toBeNull();

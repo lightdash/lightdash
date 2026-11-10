@@ -1,8 +1,11 @@
 import { ChartType } from '../types/savedCharts';
 import {
     assignDocumentChartIds,
+    getDocumentChartBlocks,
+    getDocumentSavedChartLinks,
     getDocumentSummaryMarkdown,
     joinDocumentBlocks,
+    mapDocumentSavedChartLinks,
     matchDocumentChartKeys,
     parseDocumentBlocks,
 } from './documentMarkdown';
@@ -36,6 +39,7 @@ describe('parseDocumentBlocks', () => {
             { type: 'markdown', markdown: '# Title\n\nIntro' },
             {
                 type: 'tag',
+                line: '<document-chart id="c1" title="A &quot;B&quot;">',
                 tag: {
                     name: 'document-chart',
                     attributes: { id: 'c1', title: 'A "B"' },
@@ -158,5 +162,69 @@ describe('matchDocumentChartKeys', () => {
             { markdown: '', charts: { c1: chart('Revenue') } },
         );
         expect(Object.keys(charts)).toEqual(['c1', 'b']);
+    });
+});
+
+describe('saved chart links', () => {
+    const CHART_UUID = 'a5632229-9bb1-4e73-9c57-553f0b5915f8';
+    const content = {
+        markdown: [
+            '<saved-chart slug="monthly-revenue" title="Live revenue">',
+            'Inline <saved-chart slug="ignored"> stays text',
+            `<saved-sql-chart uuid="${CHART_UUID}">`,
+            '<document-chart id="c1">',
+        ].join('\n\n'),
+        charts: { c1: chart('Orders') },
+    };
+
+    test('reads block-level saved chart tags as links', () => {
+        expect(getDocumentSavedChartLinks(content)).toEqual([
+            {
+                type: 'savedChart',
+                kind: 'chart',
+                attributes: { slug: 'monthly-revenue', title: 'Live revenue' },
+            },
+            {
+                type: 'savedChart',
+                kind: 'sqlChart',
+                attributes: { uuid: CHART_UUID },
+            },
+        ]);
+    });
+
+    test('rewrites link attributes and leaves everything else as it was', () => {
+        expect(
+            mapDocumentSavedChartLinks(content, ({ attributes }) => {
+                const { slug, ...rest } = attributes;
+                return { uuid: CHART_UUID, ...rest };
+            }),
+        ).toEqual({
+            markdown: [
+                `<saved-chart uuid="${CHART_UUID}" title="Live revenue">`,
+                'Inline <saved-chart slug="ignored"> stays text',
+                `<saved-sql-chart uuid="${CHART_UUID}">`,
+                '<document-chart id="c1">',
+            ].join('\n\n'),
+            charts: { c1: chart('Orders') },
+        });
+    });
+
+    test.each([
+        [
+            '<saved-chart>',
+            'Every <saved-chart> tag needs either a uuid or a slug',
+        ],
+        [
+            `<saved-sql-chart uuid="${CHART_UUID}" slug="revenue">`,
+            'Every <saved-sql-chart> tag needs either a uuid or a slug',
+        ],
+        [
+            '<saved-chart uuid="not-a-uuid">',
+            '<saved-chart uuid="not-a-uuid"> isn\'t a valid uuid',
+        ],
+    ])('rejects %s', (tag, message) => {
+        expect(() =>
+            getDocumentChartBlocks({ markdown: tag, charts: {} }),
+        ).toThrow(message);
     });
 });

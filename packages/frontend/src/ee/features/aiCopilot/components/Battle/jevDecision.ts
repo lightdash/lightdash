@@ -32,6 +32,10 @@ const EDIT_LABELS: Record<string, string> = {
     split_series: 'split series',
     compound: 'multi-step edit',
     undo: 'undo',
+    rename_document: 'Document rename',
+    rename_chart: 'chart rename',
+    remove_chart: 'chart removal',
+    move_chart: 'chart move',
 };
 
 const editLabel = (decision: AiAgentJevDecision) =>
@@ -61,10 +65,6 @@ const handoff = (
     reasonCode,
 });
 
-/** JEV answered the turn itself, with an edit or its own question, so the agent model never ran. */
-export const isJevTurn = (decision: AiAgentJevDecision) =>
-    decision.applied || decision.outcome === 'clarify';
-
 export const describeJevDecision = (
     decision: AiAgentJevDecision,
 ): JevDecisionSummary => {
@@ -75,7 +75,7 @@ export const describeJevDecision = (
             badge: `JEV · ${edit}`,
             title: `JEV applied the ${edit}`,
             description:
-                'JEV changed the chart directly, so the agent model never ran and spent no tokens.',
+                'JEV made the change directly, so the agent model never ran and spent no tokens.',
             reasonCode: null,
         };
     switch (decision.outcome) {

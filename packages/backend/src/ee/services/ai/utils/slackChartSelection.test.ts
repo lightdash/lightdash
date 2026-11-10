@@ -198,7 +198,7 @@ describe('getSlackSelectedCardArtifacts', () => {
                 schemaVersion: 1,
                 queries: [],
                 terminalNodeId: 'final',
-                lastQueryUuid: 'composer-query',
+                vizConfig: null,
             },
         });
         const unconfigured = artifact('unconfigured', { chartConfig: null });
@@ -222,6 +222,56 @@ describe('getSlackSelectedCardArtifacts', () => {
             sql,
             composer,
             unconfigured,
+        ]);
+    });
+
+    it('posts a visualized composer table inline instead of as a card, unless inline data is off', () => {
+        const composer = (versionUuid: string, type: 'table' | 'bar') =>
+            artifact(versionUuid, {
+                chartConfig: {
+                    source: 'composer',
+                    schemaVersion: 2,
+                    queries: [],
+                    terminalNodeId: 'final',
+                    vizConfig: { type } as never,
+                },
+            });
+        const input = {
+            ...setup(),
+            artifacts: [composer('table', 'table'), composer('chart', 'bar')],
+            selectedVersionUuids: [],
+        };
+
+        expect(versions(input)).toEqual(['chart']);
+        expect(versions({ ...input, canShowInlineTables: false })).toEqual([
+            'table',
+            'chart',
+        ]);
+    });
+
+    it('shows a semantic chart a visualize call presented without a marker, and posts its table inline', () => {
+        const visualized = (versionUuid: string) =>
+            result(versionUuid, {
+                toolName: 'visualize',
+                metadata: {
+                    status: 'success',
+                    nodeId: 'orders',
+                    artifactUuid: 'artifact',
+                    versionUuid,
+                    queryUuid: null,
+                },
+            });
+        const input = {
+            ...setup(),
+            artifacts: [tableArtifact(), artifact('chart')],
+            toolResults: [visualized('table'), visualized('chart')],
+            selectedVersionUuids: [],
+        };
+
+        expect(versions(input)).toEqual(['chart']);
+        expect(versions({ ...input, canShowInlineTables: false })).toEqual([
+            'table',
+            'chart',
         ]);
     });
 

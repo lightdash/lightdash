@@ -1,4 +1,4 @@
-import findLast from 'lodash/findLast';
+import { findLast } from 'es-toolkit/compat';
 import { v4 as uuidv4 } from 'uuid';
 import type {
     ConditionalFormattingRowFields,

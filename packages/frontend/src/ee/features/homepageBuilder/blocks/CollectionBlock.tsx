@@ -1,6 +1,9 @@
+import { subject } from '@casl/ability';
 import {
     closestCenter,
     DndContext,
+    DragOverlay,
+    KeyboardSensor,
     PointerSensor,
     useSensor,
     useSensors,
@@ -9,6 +12,7 @@ import {
 import {
     rectSortingStrategy,
     SortableContext,
+    sortableKeyboardCoordinates,
     useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -17,11 +21,9 @@ import {
     collectionLimitOf,
     collectionSourceOf,
     ContentType,
-    FeatureFlags,
     contentToResourceViewItem,
     isPersonalCollectionSource,
     MAX_COLLECTION_LIMIT,
-    ResourceViewItemType,
     type HomepageCollectionBlock,
     type HomepageCollectionItemRef,
     type HomepageCollectionSource,
@@ -50,7 +52,7 @@ import {
     IconPlus,
     IconSearch,
 } from '@tabler/icons-react';
-import { useMemo, useRef, useState, type FC } from 'react';
+import { useMemo, useRef, useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { NumberInput } from '../../../../components/common/NumberInput';
@@ -59,17 +61,22 @@ import {
     ResourceIcon,
 } from '../../../../components/common/ResourceIcon';
 import SpaceSelector from '../../../../components/common/SpaceSelector/SpaceSelector';
-import { useFavoriteMutation } from '../../../../hooks/favorites/useFavoriteMutation';
-import { useFavorites } from '../../../../hooks/favorites/useFavorites';
-import { usePinnedItems } from '../../../../hooks/pinning/usePinnedItems';
+import {
+    usePinnedItems,
+    useReorder,
+} from '../../../../hooks/pinning/usePinnedItems';
 import { useInfiniteContent } from '../../../../hooks/useContent';
 import { useProject } from '../../../../hooks/useProject';
-import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
-import { reorderCollectionItems } from '../configOps';
+import useApp from '../../../../providers/App/useApp';
+import { reorderCollectionItems, reorderPinnedItems } from '../configOps';
 import layoutClasses from '../homepageLayout.module.css';
 import { useCollectionItems } from '../hooks/useCollectionContent';
 import { useCollectionSourceContent } from '../hooks/useCollectionSourceContent';
+import {
+    useHomepageFavorites,
+    type HomepageFavorite,
+} from '../hooks/useHomepageFavorites';
 import { useReportRuntimeEmpty } from '../hooks/useRuntimeEmptyBlocks';
 import { BlockHeader } from './BlockShell';
 import classes from './blockStyles.module.css';
@@ -77,28 +84,6 @@ import { ContentCard } from './ContentCard';
 import { ContentLayoutControl } from './ContentLayoutControl';
 import { PageGrid, PageGridItem } from './PageGrid';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
-
-const toFavoriteType = (
-    content: SummaryContent,
-):
-    | ResourceViewItemType.CHART
-    | ResourceViewItemType.DASHBOARD
-    | ResourceViewItemType.DOCUMENT
-    | null => {
-    switch (content.contentType) {
-        case ContentType.CHART:
-            return ResourceViewItemType.CHART;
-        case ContentType.DASHBOARD:
-            return ResourceViewItemType.DASHBOARD;
-        case ContentType.DOCUMENT:
-            return ResourceViewItemType.DOCUMENT;
-        case ContentType.SPACE:
-        case ContentType.DATA_APP:
-            return null;
-        default:
-            return assertUnreachable(content, 'Unknown collection content');
-    }
-};
 
 const toItemRef = (content: SummaryContent): HomepageCollectionItemRef => {
     return { contentType: content.contentType, uuid: content.uuid };
@@ -366,7 +351,6 @@ const CollectionPicker: FC<{
      * selection — the footer lives in MantineModal, outside this component. */
     registerApply: (commit: () => void) => void;
 }> = ({ projectUuid, initialSelected, onApply, registerApply }) => {
-    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
     const [tab, setTab] = useState<PickerTab>('content');
     const [selectedSpaceUuid, setSelectedSpaceUuid] = useState<string | null>(
         null,
@@ -428,9 +412,7 @@ const CollectionPicker: FC<{
                     data={[
                         { label: 'Charts & dashboards', value: 'content' },
                         { label: 'Data apps', value: 'apps' },
-                        ...(documentsFlag.data?.enabled
-                            ? [{ label: 'Documents', value: 'documents' }]
-                            : []),
+                        { label: 'Documents', value: 'documents' },
                     ]}
                 />
                 <Text size="sm" c="dimmed">
@@ -475,7 +457,7 @@ const CollectionPicker: FC<{
                         </Box>
                     </Group>
                 )}
-                {tab === 'documents' && documentsFlag.data?.enabled && (
+                {tab === 'documents' && (
                     <SearchContentList
                         projectUuid={projectUuid}
                         contentType={ContentType.DOCUMENT}
@@ -555,9 +537,7 @@ const CollectionContentGrid: FC<{
     itemSpan: number | null;
     contents: SummaryContent[];
     projectUuid: string;
-    starFor?: (
-        content: SummaryContent,
-    ) => { isFavorite: boolean; onToggle: () => void } | undefined;
+    starFor?: (content: SummaryContent) => HomepageFavorite | undefined;
 }> = ({ layout, itemSpan, contents, projectUuid, starFor }) => {
     if (layout === 'list') {
         return (
@@ -610,15 +590,10 @@ export const CollectionBlockView: FC<BlockComponentProps> = ({
         projectUuid,
         config,
     );
-    const { data: favorites } = useFavorites(projectUuid);
-    const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
+    const starFor = useHomepageFavorites(projectUuid);
     // Emptiness of a dynamic source is only knowable once its data lands, so
     // the page is told rather than inferring it from config.
     useReportRuntimeEmpty(block.id, contents.length === 0, isLoading);
-    const favoriteUuids = useMemo(
-        () => new Set((favorites ?? []).map((item) => item.data.uuid)),
-        [favorites],
-    );
     if (block.type !== 'collection') return null;
     // Nothing to show, and nothing on the way: render no header at all. The
     // page drops the row on the next commit.
@@ -634,23 +609,16 @@ export const CollectionBlockView: FC<BlockComponentProps> = ({
                     itemSpan={itemSpan ?? null}
                     contents={contents}
                     projectUuid={projectUuid}
-                    starFor={(content) => {
-                        const favoriteType = toFavoriteType(content);
-                        return favoriteType
-                            ? {
-                                  isFavorite: favoriteUuids.has(content.uuid),
-                                  onToggle: () =>
-                                      toggleFavorite({
-                                          contentType: favoriteType,
-                                          contentUuid: content.uuid,
-                                      }),
-                              }
-                            : undefined;
-                    }}
+                    starFor={starFor}
                 />
             )}
         </Stack>
     );
+};
+
+const SORT_TRANSITION = {
+    duration: 180,
+    easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
 };
 
 // Whole tile is the drag surface: build-mode tiles aren't links, and the 5px
@@ -659,7 +627,7 @@ const SortableTile: FC<{
     content: SummaryContent;
     projectUuid: string;
     layout: HomepageContentLayout;
-    onRemove: () => void;
+    onRemove?: () => void;
 }> = ({ content, projectUuid, layout, onRemove }) => {
     const {
         attributes,
@@ -668,30 +636,36 @@ const SortableTile: FC<{
         transform,
         transition,
         isDragging,
-    } = useSortable({ id: content.uuid });
+    } = useSortable({ id: content.uuid, transition: SORT_TRANSITION });
     const wrapperClass =
         layout === 'list'
             ? classes.sortableTile
             : `${classes.sortableTile} ${layoutClasses.pageGridItem}`;
     return (
-        <div
+        <Box
             ref={setNodeRef}
             className={wrapperClass}
             data-dragging={isDragging}
             style={{
-                transform: CSS.Translate.toString(transform),
-                transition,
+                '--tile-drag-transform': CSS.Translate.toString(transform),
+                '--tile-drag-transition': transition,
             }}
             {...attributes}
             {...listeners}
+            // Keys pressed on the remove button must not pick the tile up.
+            onKeyDown={(event) => {
+                if (event.target === event.currentTarget)
+                    listeners?.onKeyDown?.(event);
+            }}
         >
             <ContentCard
                 content={content}
                 projectUuid={projectUuid}
                 variant={layout === 'list' ? 'compact' : 'tile'}
                 onRemove={onRemove}
+                isSortable
             />
-        </div>
+        </Box>
     );
 };
 
@@ -713,7 +687,7 @@ const SOURCE_OPTIONS: {
     {
         value: 'pinned',
         label: 'Pinned',
-        hint: "Follows the project's pin list — new pins appear here.",
+        hint: "Follows the project's pin list, so new pins appear here.",
     },
     {
         value: 'favorites',
@@ -751,95 +725,215 @@ const CONTENT_TYPE_OPTIONS: {
 const CollectionSourceControls: FC<{
     config: HomepageCollectionBlock['config'];
     onChange: (config: HomepageCollectionBlock['config']) => void;
-}> = ({ config, onChange }) => {
-    const documentsFlag = useServerFeatureFlag(FeatureFlags.Documents);
+    canReorderPins: boolean;
+}> = ({ config, onChange, canReorderPins }) => {
     const source = collectionSourceOf(config);
-    const hint = SOURCE_OPTIONS.find((o) => o.value === source)?.hint;
+    const sourceHint = SOURCE_OPTIONS.find((o) => o.value === source)?.hint;
+    const hint =
+        source === 'pinned' && canReorderPins
+            ? `${sourceHint} Drag to reorder; changes save right away.`
+            : sourceHint;
     return (
-        <Stack gap={6}>
-            <Group gap="xs" align="flex-end" wrap="nowrap">
-                <Select
-                    size="xs"
-                    label="Items"
-                    flex={1}
-                    data={SOURCE_OPTIONS.map(({ value, label }) => ({
-                        value,
-                        label,
-                    }))}
-                    value={source}
-                    allowDeselect={false}
-                    onChange={(next) =>
-                        next &&
-                        onChange({
-                            ...config,
-                            source: next as HomepageCollectionSource,
-                        })
-                    }
-                />
-                <NumberInput
-                    size="xs"
-                    label="Show at most"
-                    w={110}
-                    min={1}
-                    max={MAX_COLLECTION_LIMIT}
-                    value={collectionLimitOf(config)}
-                    onNumberChange={(limit) => onChange({ ...config, limit })}
-                />
+        <Stack gap={8}>
+            <Group gap="md" align="center">
+                <Group gap={8} wrap="nowrap">
+                    <Text size="xs" c="dimmed">
+                        Items
+                    </Text>
+                    <Select
+                        size="xs"
+                        aria-label="Items"
+                        w={170}
+                        data={SOURCE_OPTIONS.map(({ value, label }) => ({
+                            value,
+                            label,
+                        }))}
+                        value={source}
+                        allowDeselect={false}
+                        onChange={(next) =>
+                            next &&
+                            onChange({
+                                ...config,
+                                source: next as HomepageCollectionSource,
+                            })
+                        }
+                    />
+                </Group>
+                <Group gap={8} wrap="nowrap">
+                    <Text size="xs" c="dimmed">
+                        Show at most
+                    </Text>
+                    <NumberInput
+                        size="xs"
+                        aria-label="Show at most"
+                        w={64}
+                        min={1}
+                        max={MAX_COLLECTION_LIMIT}
+                        value={collectionLimitOf(config)}
+                        onNumberChange={(limit) =>
+                            onChange({ ...config, limit })
+                        }
+                    />
+                </Group>
+                <Group gap={6}>
+                    {source !== 'manual' && (
+                        <Chip.Group
+                            multiple
+                            value={config.contentTypes ?? []}
+                            onChange={(next) =>
+                                onChange({
+                                    ...config,
+                                    contentTypes: next.length
+                                        ? (next as HomepageCollectionItemRef['contentType'][])
+                                        : undefined,
+                                })
+                            }
+                        >
+                            {CONTENT_TYPE_OPTIONS.map(({ value, label }) => (
+                                <Chip
+                                    key={value}
+                                    value={value}
+                                    size="xs"
+                                    variant="outline"
+                                >
+                                    {label}
+                                </Chip>
+                            ))}
+                        </Chip.Group>
+                    )}
+                    {source !== 'manual' && source !== 'verified' && (
+                        <Divider orientation="vertical" mx={2} />
+                    )}
+                    {source !== 'verified' && (
+                        <Chip
+                            size="xs"
+                            variant="outline"
+                            color="green"
+                            checked={config.verifiedOnly === true}
+                            onChange={(checked) =>
+                                onChange({ ...config, verifiedOnly: checked })
+                            }
+                        >
+                            Verified only
+                        </Chip>
+                    )}
+                </Group>
             </Group>
             {hint && (
                 <Text size="xs" c="dimmed">
                     {hint}
                 </Text>
             )}
-            <Group gap={6}>
-                {source !== 'manual' && (
-                    <Chip.Group
-                        multiple
-                        value={config.contentTypes ?? []}
-                        onChange={(next) =>
-                            onChange({
-                                ...config,
-                                contentTypes: next.length
-                                    ? (next as HomepageCollectionItemRef['contentType'][])
-                                    : undefined,
-                            })
-                        }
-                    >
-                        {CONTENT_TYPE_OPTIONS.filter(
-                            ({ value }) =>
-                                value !== 'document' ||
-                                documentsFlag.data?.enabled,
-                        ).map(({ value, label }) => (
-                            <Chip
-                                key={value}
-                                value={value}
-                                size="xs"
-                                variant="light"
-                            >
-                                {label}
-                            </Chip>
-                        ))}
-                    </Chip.Group>
-                )}
-                {source !== 'manual' && source !== 'verified' && (
-                    <Divider orientation="vertical" mx={2} />
-                )}
-                {source !== 'verified' && (
-                    <Chip
-                        size="xs"
-                        variant="light"
-                        color="green"
-                        checked={config.verifiedOnly === true}
-                        onChange={(checked) =>
-                            onChange({ ...config, verifiedOnly: checked })
-                        }
-                    >
-                        Verified only
-                    </Chip>
-                )}
-            </Group>
         </Stack>
     );
+};
+
+const SortableContentGrid: FC<{
+    layout: HomepageContentLayout;
+    itemSpan: number | null;
+    contents: SummaryContent[];
+    projectUuid: string;
+    onMove: (activeUuid: string, overUuid: string) => void;
+    onRemove?: (uuid: string) => void;
+    trailing?: ReactNode;
+}> = ({
+    layout,
+    itemSpan,
+    contents,
+    projectUuid,
+    onMove,
+    onRemove,
+    trailing,
+}) => {
+    const [activeId, setActiveId] = useState<string | null>(null);
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        }),
+    );
+    const activeContent = contents.find((content) => content.uuid === activeId);
+    const tiles = contents.map((content) => (
+        <SortableTile
+            key={content.uuid}
+            content={content}
+            projectUuid={projectUuid}
+            layout={layout}
+            onRemove={onRemove ? () => onRemove(content.uuid) : undefined}
+        />
+    ));
+    return (
+        <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={({ active }) => setActiveId(String(active.id))}
+            onDragCancel={() => setActiveId(null)}
+            onDragEnd={({ active, over }: DragEndEvent) => {
+                setActiveId(null);
+                if (over && active.id !== over.id)
+                    onMove(String(active.id), String(over.id));
+            }}
+        >
+            <SortableContext
+                items={contents.map((content) => content.uuid)}
+                strategy={rectSortingStrategy}
+            >
+                {layout === 'list' ? (
+                    <div className={classes.resTileGrid}>
+                        {tiles}
+                        {trailing}
+                    </div>
+                ) : (
+                    <PageGrid itemSpan={itemSpan} elastic>
+                        {tiles}
+                        {trailing && <PageGridItem>{trailing}</PageGridItem>}
+                    </PageGrid>
+                )}
+            </SortableContext>
+            <DragOverlay>
+                {activeContent ? (
+                    <div className={classes.dragOverlay}>
+                        <ContentCard
+                            content={activeContent}
+                            projectUuid={projectUuid}
+                            variant={layout === 'list' ? 'compact' : 'tile'}
+                            isSortable
+                        />
+                    </div>
+                ) : null}
+            </DragOverlay>
+        </DndContext>
+    );
+};
+
+// Pin order is project state, not homepage draft state, so a drop saves at once.
+const useCanManagePins = (projectUuid: string): boolean => {
+    const { user } = useApp();
+    return (
+        user.data?.ability?.can(
+            'manage',
+            subject('PinnedItems', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        ) ?? false
+    );
+};
+
+const usePinReorder = (projectUuid: string) => {
+    const canManage = useCanManagePins(projectUuid);
+    const { data: project } = useProject(projectUuid);
+    const { data: pinnedItems, refetch } = usePinnedItems(
+        projectUuid,
+        project?.pinnedListUuid,
+    );
+    const { mutate } = useReorder(projectUuid, project?.pinnedListUuid ?? '');
+    if (!canManage || !pinnedItems) return null;
+    return (activeUuid: string, overUuid: string) =>
+        mutate(reorderPinnedItems(pinnedItems, activeUuid, overUuid), {
+            // The mutation writes the new order to the cache up front.
+            onError: () => void refetch(),
+        });
 };
 
 // The editor shows what the rule resolves to *for the editing admin*, which is
@@ -854,7 +948,9 @@ const DynamicSourcePreview: FC<{
         projectUuid,
         config,
     );
-    const isPersonal = isPersonalCollectionSource(collectionSourceOf(config));
+    const source = collectionSourceOf(config);
+    const movePin = usePinReorder(projectUuid);
+    const onMovePin = source === 'pinned' ? movePin : null;
     if (isLoading) {
         return <SkeletonGrid itemSpan={itemSpan} />;
     }
@@ -865,6 +961,14 @@ const DynamicSourcePreview: FC<{
                     Nothing matches this rule yet. The block won't render until
                     it does.
                 </div>
+            ) : onMovePin ? (
+                <SortableContentGrid
+                    layout={collectionLayoutOf(config)}
+                    itemSpan={itemSpan}
+                    contents={items}
+                    projectUuid={projectUuid}
+                    onMove={onMovePin}
+                />
             ) : (
                 <CollectionContentGrid
                     layout={collectionLayoutOf(config)}
@@ -873,11 +977,6 @@ const DynamicSourcePreview: FC<{
                     projectUuid={projectUuid}
                 />
             )}
-            <div className={classes.buildHint}>
-                {isPersonal
-                    ? 'Showing your own items as a sample — every viewer sees their own.'
-                    : 'Updates on its own as the project changes.'}
-            </div>
         </Stack>
     );
 };
@@ -889,9 +988,7 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
     onChange,
 }) => {
     const [isPickerOpen, setIsPickerOpen] = useState(false);
-    const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    );
+    const canManagePins = useCanManagePins(projectUuid);
     const { data: contents } = useCollectionItems(
         projectUuid,
         block.type === 'collection' ? block.config.items : [],
@@ -922,37 +1019,29 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
         });
 
     return (
-        <Stack gap="xs">
-            <Group gap="xs" align="flex-end" wrap="nowrap">
-                <TextInput
-                    label="Title"
-                    size="xs"
-                    fw={600}
-                    flex={1}
-                    value={block.config.title}
-                    onChange={(e) =>
-                        onChange({
-                            ...block,
-                            config: {
-                                ...block.config,
-                                title: e.currentTarget.value,
-                            },
-                        })
-                    }
-                />
-                <ContentLayoutControl
-                    value={layout}
-                    onChange={(nextLayout) =>
-                        onChange({
-                            ...block,
-                            config: { ...block.config, layout: nextLayout },
-                        })
-                    }
-                />
-            </Group>
-            <CollectionSourceControls
-                config={block.config}
-                onChange={(config) => onChange({ ...block, config })}
+        <Stack gap="sm">
+            <BlockHeader
+                icon={IconLayoutGrid}
+                title={block.config.title}
+                pill={
+                    isPersonalCollectionSource(source)
+                        ? 'Each viewer sees their own'
+                        : undefined
+                }
+                onTitleChange={(title) =>
+                    onChange({ ...block, config: { ...block.config, title } })
+                }
+                actions={
+                    <ContentLayoutControl
+                        value={layout}
+                        onChange={(nextLayout) =>
+                            onChange({
+                                ...block,
+                                config: { ...block.config, layout: nextLayout },
+                            })
+                        }
+                    />
+                }
             />
             {source !== 'manual' ? (
                 <DynamicSourcePreview
@@ -961,81 +1050,36 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                     itemSpan={itemSpan ?? null}
                 />
             ) : (
-                <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={(event: DragEndEvent) => {
-                        const { active, over } = event;
-                        if (!over || active.id === over.id) return;
+                <SortableContentGrid
+                    layout={layout}
+                    itemSpan={itemSpan ?? null}
+                    contents={contents ?? []}
+                    projectUuid={projectUuid}
+                    onRemove={removeItem}
+                    onMove={(activeUuid, overUuid) =>
                         onChange({
                             ...block,
                             config: {
                                 ...block.config,
                                 items: reorderCollectionItems(
                                     block.config.items,
-                                    String(active.id),
-                                    String(over.id),
+                                    activeUuid,
+                                    overUuid,
                                 ),
                             },
-                        });
-                    }}
-                >
-                    <SortableContext
-                        items={(contents ?? []).map((content) => content.uuid)}
-                        strategy={rectSortingStrategy}
-                    >
-                        {layout === 'list' ? (
-                            <div className={classes.resTileGrid}>
-                                {(contents ?? []).map((content) => (
-                                    <SortableTile
-                                        key={content.uuid}
-                                        content={content}
-                                        projectUuid={projectUuid}
-                                        layout={layout}
-                                        onRemove={() =>
-                                            removeItem(content.uuid)
-                                        }
-                                    />
-                                ))}
-                                <button
-                                    type="button"
-                                    className={classes.addContentTile}
-                                    onClick={() => setIsPickerOpen(true)}
-                                >
-                                    <MantineIcon icon={IconPlus} size={14} />
-                                    Add content
-                                </button>
-                            </div>
-                        ) : (
-                            <PageGrid itemSpan={itemSpan ?? null} elastic>
-                                {(contents ?? []).map((content) => (
-                                    <SortableTile
-                                        key={content.uuid}
-                                        content={content}
-                                        projectUuid={projectUuid}
-                                        layout={layout}
-                                        onRemove={() =>
-                                            removeItem(content.uuid)
-                                        }
-                                    />
-                                ))}
-                                <PageGridItem>
-                                    <button
-                                        type="button"
-                                        className={classes.addContentTile}
-                                        onClick={() => setIsPickerOpen(true)}
-                                    >
-                                        <MantineIcon
-                                            icon={IconPlus}
-                                            size={14}
-                                        />
-                                        Add content
-                                    </button>
-                                </PageGridItem>
-                            </PageGrid>
-                        )}
-                    </SortableContext>
-                </DndContext>
+                        })
+                    }
+                    trailing={
+                        <button
+                            type="button"
+                            className={classes.addContentTile}
+                            onClick={() => setIsPickerOpen(true)}
+                        >
+                            <MantineIcon icon={IconPlus} size={14} />
+                            Add content
+                        </button>
+                    }
+                />
             )}
             {source === 'manual' &&
                 block.config.items.length === 0 &&
@@ -1058,6 +1102,13 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                         Import pinned items
                     </Button>
                 )}
+            <div className={classes.settingsSection} data-block-settings>
+                <CollectionSourceControls
+                    config={block.config}
+                    onChange={(config) => onChange({ ...block, config })}
+                    canReorderPins={canManagePins}
+                />
+            </div>
             <CollectionPickerModal
                 opened={isPickerOpen}
                 onClose={() => setIsPickerOpen(false)}

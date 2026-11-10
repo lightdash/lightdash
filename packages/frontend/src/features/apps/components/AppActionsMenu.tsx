@@ -1,12 +1,12 @@
 import { subject } from '@casl/ability';
 import {
     DirectAccessResourceType,
+    FeatureFlags,
     getAppDisplayName,
     isApiError,
     type ApiDuplicateAppResponse,
     type AppVersionStatus,
     type ContentVerificationInfo,
-    type DataAppAutoAnalysis,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -19,7 +19,7 @@ import {
 import {
     IconArrowsUpDown,
     IconCamera,
-    IconCheck,
+    IconDatabaseCog,
     IconCircleCheck,
     IconCircleCheckFilled,
     IconCirclesRelation,
@@ -48,6 +48,7 @@ import {
     useVerifyDataAppMutation,
 } from '../../../hooks/useContentVerification';
 import { useProject } from '../../../hooks/useProject';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import {
@@ -57,16 +58,18 @@ import {
 } from '../../directAccess';
 import { AppSchedulersModal } from '../../scheduler/components/SchedulerModals';
 import { AppSyncModal } from '../../sync/components';
-import { useDataAppAnalysisAvailability } from '../analysis/useDataAppAnalysisAvailability';
 import {
+    refreshAppThumbnailQueries,
     useAppThumbnailDelete,
     useAppThumbnailUrl,
+    useAppVersionThumbnailUrl,
 } from '../hooks/useAppThumbnail';
 import { useCanCreateDataApp } from '../hooks/useCanCreateDataApp';
 import { useCanEditVerifiedDataApp } from '../hooks/useCanEditDataApp';
+import { useDataAppCapturesEnabled } from '../hooks/useDataAppCapturesEnabled';
 import { useDuplicateApp } from '../hooks/useDuplicateApp';
 import { type SdkUpgradeOffer } from '../hooks/useSdkUpgradeStatus';
-import { useUpdateApp } from '../hooks/useUpdateApp';
+import { AppStateModal } from './AppStateModal';
 import AppUpgradeModal from './AppUpgradeModal';
 import { MoveAppToSpaceModal } from './MoveAppToSpaceModal';
 import { PromoteAppModal } from './PromoteAppModal';
@@ -79,9 +82,6 @@ export type AppActionsMenuProps = {
     appSpaceUuid: string | null;
     appCreatedByUserUuid: string | null;
     verification: ContentVerificationInfo | null;
-    /** The app's analyse-on-load choice; null hides the control (unknown, or
-     *  a surface that does not load the app record). */
-    autoAnalysis?: DataAppAutoAnalysis | null;
     /** The latest ready version's number + status — used by the favorite flow
      *  and to gate the Promote action. */
     latestVersionNumber: number | null;
@@ -116,6 +116,9 @@ export type AppActionsMenuProps = {
      *  looking at. Null when the iframe hasn't announced screenshot
      *  capability — the modal then falls back to a default-state render. */
     capturePreviewScreenshot: (() => Promise<File>) | null;
+    /** The version this surface's live preview shows — the one thumbnail
+     *  actions apply to. Null targets the latest ready version. */
+    previewVersion: number | null;
     /** Upgrade offer derived from the live preview's SDK manifest (see
      *  `useSdkUpgradeStatus`). Null on surfaces without an upgrade flow (the
      *  viewer). `disabled` while a build is already in flight. */
@@ -132,12 +135,6 @@ export type AppActionsMenuProps = {
         tooltip?: string;
     };
 };
-
-const AUTO_ANALYSIS_OPTIONS: { value: DataAppAutoAnalysis; label: string }[] = [
-    { value: 'inherit', label: 'Use organization default' },
-    { value: 'on', label: 'On' },
-    { value: 'off', label: 'Off' },
-];
 
 /**
  * Walkthrough action for manage:DataApp: duplicating the seeded app makes
@@ -174,7 +171,6 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
     appSpaceUuid,
     appCreatedByUserUuid,
     verification,
-    autoAnalysis = null,
     latestVersionNumber,
     latestVersionStatus,
     viewNetwork,
@@ -185,6 +181,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
     askAiItem,
     captureThumbnail,
     capturePreviewScreenshot,
+    previewVersion,
     upgrade,
     capturedQueryCount,
     target,
@@ -241,24 +238,52 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
     // is deferred until the menu first opens; invalidations from captures
     // keep it current afterwards. The error guard matters because
     // react-query keeps stale data when a refetch fails.
+    //
+    // While the org has captures off, "Capture thumbnail" is hidden and the
+    // thumbnail URLs answer 404 whether or not an image is stored, so the
+    // existence check is skipped and removal stays available: deleting is
+    // the one thumbnail action that must still work with captures off.
+    const capturesEnabled = useDataAppCapturesEnabled();
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
     const [menuOpened, setMenuOpened] = useState(false);
-    const thumbnailQuery = useAppThumbnailUrl(
+    const checksThumbnail =
+        menuOpened &&
+        canEditVerified &&
+        captureThumbnail !== null &&
+        capturesEnabled;
+    // The app's thumbnail is its latest ready version's, so any other version
+    // on screen is asked about directly.
+    const isViewingAnotherVersion =
+        previewVersion !== null && previewVersion !== latestVersionNumber;
+    const appThumbnailQuery = useAppThumbnailUrl(
         projectUuid,
         appUuid,
-        menuOpened && canEditVerified && captureThumbnail !== null,
+        checksThumbnail && !isViewingAnotherVersion,
     );
+    const versionThumbnailQuery = useAppVersionThumbnailUrl(
+        projectUuid,
+        appUuid,
+        previewVersion,
+        checksThumbnail && isViewingAnotherVersion,
+    );
+    const thumbnailQuery = isViewingAnotherVersion
+        ? versionThumbnailQuery
+        : appThumbnailQuery;
     const hasThumbnail = !thumbnailQuery.isError && !!thumbnailQuery.data;
     const { mutateAsync: deleteThumbnail, isLoading: isDeletingThumbnail } =
         useAppThumbnailDelete();
     const handleRemoveThumbnail = useCallback(async () => {
         try {
-            await deleteThumbnail({ projectUuid, appUuid });
-            // Reset (not invalidate): the refetch 404s and react-query would
-            // keep the stale signed URL as data.
-            void queryClient.resetQueries({
-                queryKey: ['app-thumbnail', projectUuid, appUuid],
+            await deleteThumbnail({
+                projectUuid,
+                appUuid,
+                version: previewVersion,
+            });
+            void refreshAppThumbnailQueries(queryClient, {
+                projectUuid,
+                appUuid,
+                change: 'removed',
             });
             showToastSuccess({ title: 'Thumbnail removed' });
         } catch (err) {
@@ -271,27 +296,11 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
         deleteThumbnail,
         projectUuid,
         appUuid,
+        previewVersion,
         queryClient,
         showToastSuccess,
         showToastError,
     ]);
-
-    const analysisAvailability = useDataAppAnalysisAvailability();
-    const showAutoAnalysis =
-        autoAnalysis !== null &&
-        canEditVerified &&
-        (analysisAvailability.status === 'available' ||
-            (analysisAvailability.status === 'unavailable' &&
-                analysisAvailability.reason !== 'not_rolled_out'));
-    const orgAutoAnalyses =
-        analysisAvailability.status === 'available' &&
-        analysisAvailability.autoAnalyseDefault;
-    const { mutate: updateApp } = useUpdateApp({ appUuidOrSlug: appUuid });
-    const setAutoAnalysis = useCallback(
-        (value: DataAppAutoAnalysis) =>
-            updateApp({ projectUuid, appUuid, autoAnalysis: value }),
-        [updateApp, projectUuid, appUuid],
-    );
 
     const [schedulerModalOpen, setSchedulerModalOpen] = useState(false);
     const [syncModalOpen, setSyncModalOpen] = useState(false);
@@ -302,6 +311,13 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDirectAccessModalOpen, setIsDirectAccessModalOpen] =
         useState(false);
+    const [isAppStateModalOpen, setIsAppStateModalOpen] = useState(false);
+    // Deferred to menu open: the row lists mount this menu per app, and the
+    // flag lookup is one cached query either way.
+    const { data: appStateFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableDataAppState,
+        { enabled: menuOpened },
+    );
     const directAccessAvailability = useDirectAccessAvailability();
     const canManageAppAccess = useCanManageDirectAccess({
         projectUuid,
@@ -490,62 +506,30 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                             Rename
                         </Menu.Item>
                     )}
-                    {showAutoAnalysis && (
-                        <Menu.Sub>
-                            <Menu.Sub.Target>
-                                <Menu.Sub.Item
+                    {canEditVerified && captureThumbnail && (
+                        <>
+                            {capturesEnabled && (
+                                <Menu.Item
                                     leftSection={
                                         <MantineIcon
-                                            icon={IconSparkles}
+                                            icon={IconCamera}
                                             size={14}
                                         />
                                     }
+                                    disabled={captureThumbnail.disabled}
+                                    onClick={captureThumbnail.onCapture}
                                 >
-                                    Analyse on load
-                                </Menu.Sub.Item>
-                            </Menu.Sub.Target>
-                            <Menu.Sub.Dropdown>
-                                {AUTO_ANALYSIS_OPTIONS.map((option) => (
-                                    <Menu.Item
-                                        key={option.value}
-                                        onClick={() =>
-                                            setAutoAnalysis(option.value)
-                                        }
-                                        rightSection={
-                                            autoAnalysis === option.value ? (
-                                                <MantineIcon
-                                                    icon={IconCheck}
-                                                    size={14}
-                                                />
-                                            ) : null
-                                        }
-                                    >
-                                        {option.value === 'inherit'
-                                            ? `Use organization default (${
-                                                  orgAutoAnalyses ? 'on' : 'off'
-                                              })`
-                                            : option.label}
-                                    </Menu.Item>
-                                ))}
-                            </Menu.Sub.Dropdown>
-                        </Menu.Sub>
-                    )}
-                    {canEditVerified && captureThumbnail && (
-                        <>
-                            <Menu.Item
-                                leftSection={
-                                    <MantineIcon icon={IconCamera} size={14} />
-                                }
-                                disabled={captureThumbnail.disabled}
-                                onClick={captureThumbnail.onCapture}
-                            >
-                                Capture thumbnail
-                            </Menu.Item>
+                                    Capture thumbnail
+                                </Menu.Item>
+                            )}
                             <Menu.Item
                                 leftSection={
                                     <MantineIcon icon={IconPhotoX} size={14} />
                                 }
-                                disabled={!hasThumbnail || isDeletingThumbnail}
+                                disabled={
+                                    (capturesEnabled && !hasThumbnail) ||
+                                    isDeletingThumbnail
+                                }
                                 onClick={() => void handleRemoveThumbnail()}
                             >
                                 Remove thumbnail
@@ -597,6 +581,19 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                                     onClick={() => setIsPromoteModalOpen(true)}
                                 >
                                     Promote
+                                </Menu.Item>
+                            )}
+                            {appStateFlag?.enabled && (
+                                <Menu.Item
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconDatabaseCog}
+                                            size={14}
+                                        />
+                                    }
+                                    onClick={() => setIsAppStateModalOpen(true)}
+                                >
+                                    App state
                                 </Menu.Item>
                             )}
                             {directAccessAvailability.isAvailable &&
@@ -670,6 +667,7 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                     opened
                     onClose={() => setIsMoveToSpaceOpen(false)}
                     capturePreviewScreenshot={capturePreviewScreenshot}
+                    previewVersion={previewVersion}
                     app={{
                         uuid: appUuid,
                         name: appName,
@@ -697,6 +695,15 @@ const AppActionsMenu: FC<AppActionsMenuProps> = ({
                     appUuid={appUuid}
                     opened
                     onClose={() => setSyncModalOpen(false)}
+                />
+            )}
+            {isAppStateModalOpen && (
+                <AppStateModal
+                    projectUuid={projectUuid}
+                    appUuid={appUuid}
+                    appName={getAppDisplayName(appName, appUuid)}
+                    opened
+                    onClose={() => setIsAppStateModalOpen(false)}
                 />
             )}
             {isPromoteModalOpen && (

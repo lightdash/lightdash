@@ -88,9 +88,13 @@ export const buildAccount = ({
             createdAt: new Date(),
             name: 'organizationName',
         },
-        authentication: {
-            type: accountType,
-        },
+        authentication:
+            accountType === 'jwt'
+                ? {
+                      type: accountType,
+                      data: { content: { type: 'dashboard' } },
+                  }
+                : { type: accountType },
         isSessionUser: () => accountType === 'session',
         isRegisteredUser: () => userType === 'registered',
         isJwtUser: () => accountType === 'jwt',

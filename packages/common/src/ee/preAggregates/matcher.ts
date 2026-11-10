@@ -19,6 +19,7 @@ import {
 import {
     FilterOperator,
     flattenFilterGroup,
+    getCurrentPeriodBounds,
     isAndFilterGroup,
     isFilterGroup,
     UnitOfTime,
@@ -416,6 +417,16 @@ const isCompletedDateFilter = (
     filterRule: FilterRule | MetricFilterRule,
 ): boolean => !!getDateFilterSettings(filterRule)?.completed;
 
+// Subset order of the "in the current" range for one unit:
+// whole period ⊇ to date ⊇ to date excluding today
+const getCurrentPeriodBoundOrder = (
+    filterRule: FilterRule | MetricFilterRule,
+): number => {
+    const bounds = getCurrentPeriodBounds(getDateFilterSettings(filterRule));
+    if (!bounds.toDate) return 0;
+    return bounds.excludeToday ? 2 : 1;
+};
+
 const isRelativeDateFilterEquivalentOrNarrower = (
     queryFilterRule: FilterRule,
     preAggregateFilter: MetricFilterRule,
@@ -456,9 +467,15 @@ const isRelativeDateFilterEquivalentOrNarrower = (
                 return false;
             }
 
+            const preAggregateBoundOrder =
+                getCurrentPeriodBoundOrder(preAggregateFilter);
+            const queryBoundOrder = getCurrentPeriodBoundOrder(queryFilterRule);
+
             return preAggregateFilter.operator === FilterOperator.IN_THE_CURRENT
-                ? queryUnitOrder <= preAggregateUnitOrder
-                : queryUnitOrder >= preAggregateUnitOrder;
+                ? queryUnitOrder <= preAggregateUnitOrder &&
+                      queryBoundOrder >= preAggregateBoundOrder
+                : queryUnitOrder >= preAggregateUnitOrder &&
+                      queryBoundOrder <= preAggregateBoundOrder;
         }
         case FilterOperator.NOT_IN_THE_PAST:
             return (

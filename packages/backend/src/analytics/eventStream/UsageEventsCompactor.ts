@@ -2,10 +2,12 @@ import { getErrorMessage } from '@lightdash/common';
 import { DuckdbWarehouseClient } from '@lightdash/warehouses';
 import { createHash, randomUUID } from 'crypto';
 import { performance } from 'perf_hooks';
+import { z } from 'zod';
 import { S3BaseClient } from '../../clients/Aws/S3BaseClient';
 import { S3Config } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import type { UsageDimensionsModel } from '../../models/UsageDimensionsModel';
+import type { UsageProcessingModel } from '../../models/UsageProcessingModel';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import type {
     UsageProcessingResult,
@@ -20,13 +22,19 @@ import {
     type DimensionRefreshSummary,
 } from './UsageDimensionsRefresher';
 import {
+    MAX_HISTORY_PARTITIONS_PER_RUN,
+    MAX_PARTITIONS_PER_RUN,
+} from './usageProcessingLimits';
+import { UsageProcessingRun } from './UsageProcessingRun';
+import { usageProcessingStartDate } from './usageProcessingWindow';
+import {
     UsageUserActivityBuilder,
     type UserActivitySummary,
 } from './UsageUserActivityBuilder';
 
 const RAW_KEY_PREFIX = 'events/raw/';
 const COMPACTED_KEY_PREFIX = 'events/compacted';
-export const MAX_PARTITIONS_PER_RUN = 500;
+export { MAX_PARTITIONS_PER_RUN } from './usageProcessingLimits';
 const DELETE_BATCH_SIZE = 1000;
 export const DELETE_MAX_ATTEMPTS = 3;
 const DELETE_RETRY_BASE_DELAY_MS = 1_000;
@@ -148,6 +156,7 @@ export const buildCompactionSql = ({
 export type CompactionRunSummary = {
     partitionsDiscovered: number;
     partitionsCompacted: number;
+    partitionsDeferred: number;
     partitionsFailed: number;
     partitionsSkippedUnknownStream: number;
     rawObjectsDeleted: number;
@@ -160,6 +169,7 @@ export type UsageEventsCompactorArgs = {
         UsageDimensionsModel,
         'getOrganizations' | 'getJsonLines'
     >;
+    usageProcessingModel?: Pick<UsageProcessingModel, 'start' | 'finish'>;
 };
 
 /**
@@ -180,61 +190,116 @@ export class UsageEventsCompactor extends S3BaseClient {
         'getOrganizations' | 'getJsonLines'
     >;
 
+    private readonly usageProcessingModel: Pick<
+        UsageProcessingModel,
+        'start' | 'finish'
+    > | null;
+
     constructor(args: UsageEventsCompactorArgs) {
         super(args.s3Config);
         this.bucket = args.s3Config.bucket;
         this.s3Config = args.s3Config;
         this.prometheusMetrics = args.prometheusMetrics;
         this.usageDimensionsModel = args.usageDimensionsModel;
+        this.usageProcessingModel = args.usageProcessingModel ?? null;
     }
 
-    async run(now: Date = new Date()): Promise<
+    async run(
+        now: Date = new Date(),
+        organizationUuid?: string,
+        includeHistory = false,
+    ): Promise<
         CompactionRunSummary & {
             dimensions: DimensionRefreshSummary;
             users: UserActivitySummary;
         }
     > {
         const runId = randomUUID();
+        const processing = new UsageProcessingRun(
+            this.usageProcessingModel,
+            runId,
+        );
         try {
             return await this.monitorStage(
                 runId,
                 'pipeline',
                 async () => {
+                    const organizations: {
+                        organization_id: number;
+                        organization_uuid: string;
+                    }[] = [];
+                    for await (const organization of this.usageDimensionsModel.getOrganizations(
+                        organizationUuid,
+                    )) {
+                        organizations.push(organization);
+                    }
+                    const orgIds = organizations.map(
+                        (organization) => organization.organization_uuid,
+                    );
+                    await processing.start(orgIds);
                     const summary = await this.monitorStage(
                         runId,
                         'compaction',
-                        () => this.compactEvents(now),
+                        () =>
+                            this.compactEvents(
+                                now,
+                                orgIds,
+                                processing,
+                                includeHistory,
+                            ),
                         UsageEventsCompactor.compactionOutcome,
                     );
+                    processing.compactionFinished();
                     const dimensions = await this.monitorStage(
                         runId,
                         'dimensions',
                         () =>
                             new UsageDimensionsRefresher(
                                 this.s3Config,
-                                this.usageDimensionsModel,
+                                {
+                                    async *getOrganizations() {
+                                        yield* organizations;
+                                    },
+                                    getJsonLines:
+                                        this.usageDimensionsModel.getJsonLines.bind(
+                                            this.usageDimensionsModel,
+                                        ),
+                                },
                                 this.createDuckdbClient(),
-                            ).run(),
+                            ).run((orgId, result) =>
+                                processing.dimensionsFinished(orgId, result),
+                            ),
                         (result) => ({
                             outcome: result.failed > 0 ? 'failed' : 'success',
                             failed: result.failed,
                             remaining: result.failed,
                         }),
                     );
-                    if (dimensions.failed > 0) {
-                        throw new Error(
-                            `Usage dimensions: ${dimensions.failed} refreshes failed; previous snapshots retained`,
-                        );
-                    }
                     const users = await this.monitorStage(
                         runId,
                         'users',
                         () =>
                             new UsageUserActivityBuilder(this.s3Config).runAll(
                                 now,
+                                orgIds,
+                                (orgId, result, completed) =>
+                                    processing.usersFinished(
+                                        orgId,
+                                        result,
+                                        completed,
+                                    ),
+                                includeHistory,
                             ),
                         UsageEventsCompactor.usersOutcome,
                     );
+                    // User activity depends on compacted events, not dimension
+                    // snapshots. Finish this independent stage for every tenant
+                    // before reporting failures to the scheduler and monitoring.
+                    if (dimensions.failed > 0) {
+                        throw new Error(
+                            `Usage dimensions: ${dimensions.failed} refreshes failed; previous snapshots retained`,
+                        );
+                    }
                     if (users.failed > 0)
                         throw new Error(
                             `User activity: ${users.failed} partitions failed; previous output retained`,
@@ -258,6 +323,7 @@ export class UsageEventsCompactor extends S3BaseClient {
                 },
             );
         } finally {
+            await processing.finish();
             this.s3?.destroy();
         }
     }
@@ -273,7 +339,7 @@ export class UsageEventsCompactor extends S3BaseClient {
             failed: summary.partitionsFailed,
             // Includes unknown streams, which must not count as complete catch-up.
             remaining,
-            limitReached: summary.partitionsDiscovered > MAX_PARTITIONS_PER_RUN,
+            limitReached: summary.partitionsDeferred > 0,
         };
     }
 
@@ -335,21 +401,41 @@ export class UsageEventsCompactor extends S3BaseClient {
         }
     }
 
-    private async compactEvents(now: Date): Promise<CompactionRunSummary> {
+    private async compactEvents(
+        now: Date,
+        orgIds: string[],
+        processing: UsageProcessingRun,
+        includeHistory: boolean,
+    ): Promise<CompactionRunSummary> {
         const runStart = Date.now();
         const todayUtc = now.toISOString().slice(0, 10);
-        const { keys: rawKeys, bytesByKey } = await this.listRawKeys();
-        let partitions = groupRawKeysIntoPartitions(rawKeys, todayUtc);
+        const { keys: rawKeys, bytesByKey } = await this.listRawKeys(orgIds);
+        const start = usageProcessingStartDate(now);
+        const closedPartitions = groupRawKeysIntoPartitions(rawKeys, todayUtc);
+        let partitions = closedPartitions
+            .filter((partition) => includeHistory || partition.dt >= start)
+            .sort(
+                (a, b) =>
+                    Number(b.dt >= start) - Number(a.dt >= start) ||
+                    a.dt.localeCompare(b.dt),
+            );
         const summary: CompactionRunSummary = {
-            partitionsDiscovered: partitions.length,
+            partitionsDiscovered: closedPartitions.length,
             partitionsCompacted: 0,
+            partitionsDeferred: closedPartitions.length - partitions.length,
             partitionsFailed: 0,
             partitionsSkippedUnknownStream: 0,
             rawObjectsDeleted: 0,
         };
+        for (const partition of closedPartitions) {
+            const stats = processing.stats(partition.orgId);
+            stats.partitionsDiscovered += 1;
+        }
         if (partitions.length === 0) {
             this.recordMetrics(() => {
-                this.prometheusMetrics?.setUsageEventsCompactionBacklog(0);
+                this.prometheusMetrics?.setUsageEventsCompactionBacklog(
+                    summary.partitionsDiscovered,
+                );
                 this.prometheusMetrics?.setUsageEventsRawObjects(
                     rawKeys.length,
                 );
@@ -358,14 +444,24 @@ export class UsageEventsCompactor extends S3BaseClient {
                     'success',
                 );
             });
-            Logger.info('Usage events compaction: no closed partitions found');
+            Logger.info(
+                'Usage events compaction: no selected closed partitions found',
+            );
             return summary;
         }
-        if (partitions.length > MAX_PARTITIONS_PER_RUN) {
+        const limit = includeHistory
+            ? MAX_HISTORY_PARTITIONS_PER_RUN
+            : MAX_PARTITIONS_PER_RUN;
+        if (partitions.length > limit) {
+            summary.partitionsDeferred += partitions.length - limit;
+            for (const partition of partitions.slice(limit)) {
+                const stats = processing.stats(partition.orgId);
+                stats.limitReached = true;
+            }
             Logger.warn(
-                `Usage events compaction: capping run to ${MAX_PARTITIONS_PER_RUN} of ${partitions.length} closed partitions`,
+                `Usage events compaction: capping run to ${limit} of ${partitions.length} closed partitions`,
             );
-            partitions = partitions.slice(0, MAX_PARTITIONS_PER_RUN);
+            partitions = partitions.slice(0, limit);
         }
 
         const duckdb = this.createDuckdbClient();
@@ -385,21 +481,21 @@ export class UsageEventsCompactor extends S3BaseClient {
                     0,
                 );
                 try {
-                    const { sql, compactedKey } = buildCompactionSql({
-                        bucket: this.bucket,
+                    // eslint-disable-next-line no-await-in-loop
+                    const deleted = await this.compactPartition(
                         partition,
                         columns,
-                        storageScheme:
-                            this.s3Config.authMode === 'gcp_oauth'
-                                ? 'gs'
-                                : 's3',
-                    });
-                    // eslint-disable-next-line no-await-in-loop
-                    const duckdbMetrics = await duckdb.runSqlWithMetrics(sql);
-                    // eslint-disable-next-line no-await-in-loop
-                    await this.deleteRawKeys(partition.keys);
+                        duckdb,
+                    );
                     summary.partitionsCompacted += 1;
-                    summary.rawObjectsDeleted += partition.keys.length;
+                    summary.rawObjectsDeleted += deleted;
+                    const stats = processing.stats(partition.orgId);
+                    if (deleted === partition.keys.length) {
+                        stats.partitionsCompacted += 1;
+                    } else {
+                        summary.partitionsDeferred += 1;
+                    }
+                    stats.rawObjectsDeleted += deleted;
                     this.recordMetrics(() => {
                         this.prometheusMetrics?.incrementUsageEventsCompactedPartitions();
                         this.prometheusMetrics?.observeUsageEventsCompactionPartition(
@@ -409,12 +505,12 @@ export class UsageEventsCompactor extends S3BaseClient {
                         );
                     });
                     Logger.info(
-                        `Usage events compaction: compacted ${partition.keys.length} raw objects (${partitionRawBytes} bytes) from ${partitionLabel} into s3://${this.bucket}/${compactedKey} in ${
-                            Date.now() - partitionStart
-                        }ms (duckdb query ${Math.round(duckdbMetrics.queryMs)}ms)`,
+                        `Usage events compaction: processed ${partitionLabel}; ${deleted} raw objects deleted in ${Date.now() - partitionStart}ms`,
                     );
                 } catch (error) {
                     summary.partitionsFailed += 1;
+                    const stats = processing.stats(partition.orgId);
+                    stats.partitionsFailed += 1;
                     this.recordMetrics(() => {
                         this.prometheusMetrics?.incrementUsageEventsCompactionFailures();
                         this.prometheusMetrics?.observeUsageEventsCompactionPartition(
@@ -462,6 +558,77 @@ export class UsageEventsCompactor extends S3BaseClient {
         return summary;
     }
 
+    private async compactPartition(
+        partition: RawPartition,
+        columns: CompactedStreamColumn[],
+        duckdb: DuckdbWarehouseClient,
+    ): Promise<number> {
+        const prefix = `events/raw/org_id=${partition.orgId}/stream=${partition.stream}/dt=${partition.dt}/`;
+        const checkpoint = `events/compaction/org_id=${partition.orgId}/stream=${partition.stream}/dt=${partition.dt}/pending.json`;
+        let keys: string[];
+        try {
+            const pending = await this.s3!.getObject({
+                Bucket: this.bucket,
+                Key: checkpoint,
+            });
+            keys = z
+                .array(z.string().startsWith(prefix).endsWith('.jsonl.gz'))
+                .nonempty()
+                .parse(JSON.parse(await pending.Body!.transformToString()));
+        } catch (error) {
+            if (!UsageEventsCompactor.isMissingObject(error)) throw error;
+            keys = partition.keys;
+            // Persist the exact input set before publishing; cleanup may only partly succeed.
+            await this.s3!.putObject({
+                Bucket: this.bucket,
+                Key: checkpoint,
+                Body: JSON.stringify(keys),
+                ContentType: 'application/json',
+            });
+        }
+        const { sql, compactedKey } = buildCompactionSql({
+            bucket: this.bucket,
+            partition: { ...partition, keys },
+            columns,
+            storageScheme: this.s3Config.authMode === 'gcp_oauth' ? 'gs' : 's3',
+        });
+        try {
+            await this.s3!.headObject({
+                Bucket: this.bucket,
+                Key: compactedKey,
+            });
+        } catch (error) {
+            if (!UsageEventsCompactor.isMissingObject(error)) throw error;
+            try {
+                await duckdb.runSqlWithMetrics(sql);
+            } catch (queryError) {
+                if (
+                    this.s3Config.authMode !== 'gcp_oauth' ||
+                    !getErrorMessage(queryError).includes(
+                        '(HTTP 401 Unauthorized)',
+                    )
+                )
+                    throw queryError;
+                // A new isolated session resolves credentials again after mid-query expiry.
+                Logger.warn(
+                    'Usage events compaction: retrying partition after GCS HTTP 401',
+                );
+                await duckdb.runSqlWithMetrics(sql);
+            }
+        }
+        await this.deleteRawKeys(keys);
+        await this.s3!.deleteObject({ Bucket: this.bucket, Key: checkpoint });
+        // Late arrivals are excluded from the recovered input set and remain for the next run.
+        const published = new Set(keys);
+        return partition.keys.filter((key) => published.has(key)).length;
+    }
+
+    private static isMissingObject(error: unknown): boolean {
+        return z
+            .object({ $metadata: z.object({ httpStatusCode: z.literal(404) }) })
+            .safeParse(error).success;
+    }
+
     private createDuckdbClient(): DuckdbWarehouseClient {
         const runtimeConfig = getDuckdbRuntimeConfig(this.s3Config);
         if (!runtimeConfig) {
@@ -489,7 +656,7 @@ export class UsageEventsCompactor extends S3BaseClient {
         );
     }
 
-    private async listRawKeys(): Promise<{
+    private async listRawKeys(orgIds: string[]): Promise<{
         keys: string[];
         bytesByKey: Map<string, number>;
     }> {
@@ -498,33 +665,38 @@ export class UsageEventsCompactor extends S3BaseClient {
         }
         const keys: string[] = [];
         const bytesByKey = new Map<string, number>();
-        let continuationToken: string | undefined;
-        do {
-            // eslint-disable-next-line no-await-in-loop
-            const response = await this.s3.listObjectsV2({
-                Bucket: this.bucket,
-                Prefix: RAW_KEY_PREFIX,
-                ContinuationToken: continuationToken,
-            });
-            (response.Contents ?? []).forEach((object) => {
-                if (object.Key) {
-                    keys.push(object.Key);
-                    bytesByKey.set(object.Key, object.Size ?? 0);
-                }
-            });
-            continuationToken = response.IsTruncated
-                ? response.NextContinuationToken
-                : undefined;
-        } while (continuationToken);
+        for (const orgId of orgIds) {
+            let continuationToken: string | undefined;
+            do {
+                // eslint-disable-next-line no-await-in-loop
+                const response = await this.s3.listObjectsV2({
+                    Bucket: this.bucket,
+                    Prefix: `${RAW_KEY_PREFIX}org_id=${orgId}/`,
+                    ContinuationToken: continuationToken,
+                });
+                (response.Contents ?? []).forEach((object) => {
+                    if (object.Key) {
+                        if (
+                            !object.Key.startsWith(
+                                `${RAW_KEY_PREFIX}org_id=${orgId}/`,
+                            )
+                        )
+                            throw new Error('Unexpected raw usage scope');
+                        keys.push(object.Key);
+                        bytesByKey.set(object.Key, object.Size ?? 0);
+                    }
+                });
+                continuationToken = response.IsTruncated
+                    ? response.NextContinuationToken
+                    : undefined;
+                if (response.IsTruncated && !continuationToken)
+                    throw new Error('Incomplete raw usage listing');
+            } while (continuationToken);
+        }
         return { keys, bytesByKey };
     }
 
-    /**
-     * Deletes raw keys with retries. A raw key that survives after its
-     * parquet part was written would be compacted again into a second part on
-     * the next run (different key set, different part hash), duplicating its
-     * rows — so exhausted retries throw with an explicit cleanup warning.
-     */
+    /** The checkpoint retains the published input set if cleanup needs another run. */
     private async deleteRawKeys(keys: string[]): Promise<void> {
         let pending = keys;
         let lastError = 'unknown error';
@@ -544,7 +716,7 @@ export class UsageEventsCompactor extends S3BaseClient {
         }
         throw new Error(
             `Failed to delete ${pending.length} raw objects after ${DELETE_MAX_ATTEMPTS} attempts (first: ${pending[0]}, last error: ${lastError}). ` +
-                `The parquet part was already written, so these raw objects must be deleted manually before the next run to avoid duplicated rows in the compacted zone`,
+                `The published input checkpoint is retained so the next run can retry cleanup without republishing rows`,
         );
     }
 

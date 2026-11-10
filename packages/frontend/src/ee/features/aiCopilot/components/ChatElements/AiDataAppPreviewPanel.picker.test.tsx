@@ -79,6 +79,10 @@ vi.mock('../../../../../features/apps/hooks/useGetApp', () => ({
     }),
 }));
 
+vi.mock('../../../../../hooks/useProject', async (importOriginal) => ({
+    ...(await importOriginal<typeof UseProjectModule>()),
+    useProject: () => ({ data: undefined }),
+}));
 vi.mock('../../../../../features/apps/previewOrigin', () => ({
     usePreviewOrigin: () => 'https://preview.example.com',
 }));
@@ -87,8 +91,15 @@ vi.mock('../../hooks/useDeepResearch', () => ({
     useHasActiveDeepResearchRun: vi.fn(() => false),
 }));
 
+vi.mock('../../hooks/useAiAgentSkills', () => ({
+    useAgentSkills: vi.fn(() => ({ data: undefined })),
+}));
+
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: vi.fn(() => ({ data: { enabled: false } })),
+}));
+vi.mock('../../../../../hooks/health/useHealth', () => ({
+    default: () => ({ data: undefined }),
 }));
 
 vi.mock('../../../../../features/apps/components/AppActionsMenu', () => ({
@@ -114,6 +125,13 @@ vi.mock('../../hooks/useProjectAiAgents', async (importOriginal) => ({
     useProjectAiAgent: () => ({ data: undefined }),
 }));
 
+// The org captures switch is read from GET /org; the picker must not be the
+// thing that fetches it here.
+vi.mock('../../../../../features/apps/hooks/useDataAppCapturesEnabled', () => ({
+    useDataAppCapturesEnabled: () => true,
+}));
+
+import type * as UseProjectModule from '../../../../../hooks/useProject';
 // eslint-disable-next-line import/first
 import { AgentChatInput } from './AgentChatInput';
 // eslint-disable-next-line import/first
@@ -372,6 +390,9 @@ describe('AiDataAppPreviewPanel element picker', () => {
             startStreaming({
                 threadUuid: THREAD_UUID,
                 messageUuid: 'active-message',
+                projectUuid: 'project-1',
+                agentUuid: 'agent-1',
+                autoApproveSql: false,
             }),
         );
         const steerRequest = nock('http://test.lightdash')

@@ -1,5 +1,9 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
+    AGENT_CAPABILITY_SCOPES,
+    AgentActorSurface,
+    AgentCapability,
+    AiAccessRefusedError,
     CommercialFeatureFlags,
     CreateRole,
     CustomRoleAsCode,
@@ -20,8 +24,10 @@ import {
 } from '@lightdash/common';
 import { DatabaseError } from 'pg';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { createOAuthScopedAbility } from '../../auth/oauthScopes/scopedAbility';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../../config/parseConfig';
+import { AgentCapabilityPolicyModel } from '../../models/AgentCapabilityPolicyModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../../models/GroupsModel';
 import { InviteLinkModel } from '../../models/InviteLinkModel';
@@ -31,6 +37,10 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { RolesModel } from '../../models/RolesModel';
 import { UserModel } from '../../models/UserModel';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../AiAccessService/agentExecutionContext';
 import { LicenseService } from '../LicenseService/LicenseService';
 import { RolesService } from './RolesService';
 import {
@@ -102,6 +112,152 @@ describe('RolesService', () => {
     const service = buildService();
     beforeEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('managed role mutations', () => {
+        const oauthAccount = () => ({
+            ...mockAccount,
+            user: {
+                ...mockAccount.user,
+                ability: createOAuthScopedAbility(mockAccount.user.ability, {
+                    mode: 'log',
+                    scopes: ['admin'],
+                    clientId: 'agent',
+                    getRequest: () => ({ method: 'POST', routeTemplate: null }),
+                }),
+            },
+        });
+
+        afterEach(() => vi.restoreAllMocks());
+
+        test('refuses an OAuth admin adding raw SQL to its custom role', async () => {
+            mockFeatureFlagModel.get.mockResolvedValue({ enabled: true });
+            vi.spyOn(
+                AgentCapabilityPolicyModel.prototype,
+                'get',
+            ).mockResolvedValue({
+                allowedGroupUuids: null,
+                mode: 'managed',
+                version: 1,
+                allowedCapabilities: null,
+            });
+            await expect(
+                service.addScopesToRole(oauthAccount(), 'role', {
+                    scopeNames: [
+                        AGENT_CAPABILITY_SCOPES[AgentCapability.RawSql],
+                    ],
+                }),
+            ).rejects.toMatchObject({
+                refusal: {
+                    reason: 'agent_capability_denied',
+                    settingsUrl: '/generalSettings/agentIdentity',
+                },
+            });
+            expect(mockRolesModel.addScopesToRole).not.toHaveBeenCalled();
+        });
+
+        test('refuses an in-app agent changing grants through a session account', async () => {
+            mockFeatureFlagModel.get.mockResolvedValue({ enabled: true });
+            vi.spyOn(
+                AgentCapabilityPolicyModel.prototype,
+                'get',
+            ).mockResolvedValue({
+                allowedGroupUuids: null,
+                mode: 'managed',
+                version: 1,
+                allowedCapabilities: null,
+            });
+            await expect(
+                agentExecutionContext.run(
+                    createAgentExecutionContext({
+                        account: mockAccount,
+                        surface: AgentActorSurface.IN_APP_AGENT,
+                        clientId: null,
+                        agentUuid: 'agent',
+                        agentIdentityEnabled: true,
+                    }),
+                    () =>
+                        service.addScopesToRole(mockAccount, 'role', {
+                            scopeNames: [
+                                AGENT_CAPABILITY_SCOPES[AgentCapability.RawSql],
+                            ],
+                        }),
+                ),
+            ).rejects.toBeInstanceOf(AiAccessRefusedError);
+            expect(mockRolesModel.addScopesToRole).not.toHaveBeenCalled();
+        });
+
+        test.each(['off', 'legacy'] as const)(
+            'preserves OAuth scope writes in %s mode',
+            async (mode) => {
+                mockFeatureFlagModel.get.mockResolvedValue({
+                    enabled: mode !== 'off',
+                });
+                const policy = vi
+                    .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
+                    .mockResolvedValue({
+                        allowedGroupUuids: null,
+                        mode: 'legacy',
+                        version: 0,
+                        allowedCapabilities: null,
+                    });
+                mockRolesModel.getRoleByUuid.mockResolvedValue(mockCustomRole);
+                await service.addScopesToRole(
+                    oauthAccount(),
+                    mockCustomRole.roleUuid,
+                    {
+                        scopeNames: [
+                            AGENT_CAPABILITY_SCOPES[AgentCapability.RawSql],
+                        ],
+                    },
+                );
+                expect(mockRolesModel.addScopesToRole).toHaveBeenCalled();
+                if (mode === 'off') expect(policy).not.toHaveBeenCalled();
+            },
+        );
+
+        test.each([
+            'upsertCustomRoleAsCode',
+            'upsertUserAsCode',
+            'createRole',
+            'updateRole',
+            'upsertOrganizationUserRoleAssignment',
+            'updateProjectRoleAssignment',
+            'deleteProjectRoleAssignment',
+            'upsertProjectUserRoleAssignment',
+            'upsertProjectGroupRoleAssignment',
+            'replaceOrganizationUserRoleSet',
+            'replaceProjectUserRoleSet',
+            'replaceProjectGroupRoleSet',
+            'deleteRole',
+            'unassignRoleFromUser',
+            'assignRoleToGroup',
+            'unassignRoleFromGroup',
+            'removeUserProjectAccess',
+            'removeScopeFromRole',
+            'removeScopesFromRole',
+            'duplicateRole',
+        ] as const)(
+            'refuses managed OAuth %s before its writer',
+            async (method) => {
+                mockFeatureFlagModel.get.mockResolvedValue({ enabled: true });
+                vi.spyOn(
+                    AgentCapabilityPolicyModel.prototype,
+                    'get',
+                ).mockResolvedValue({
+                    allowedGroupUuids: null,
+                    mode: 'managed',
+                    version: 1,
+                    allowedCapabilities: null,
+                });
+                const mutation = service[method] as (
+                    account: typeof mockAccount,
+                ) => Promise<unknown>;
+                await expect(
+                    mutation.call(service, oauthAccount()),
+                ).rejects.toBeInstanceOf(AiAccessRefusedError);
+            },
+        );
     });
 
     describe('custom roles as code', () => {
@@ -442,6 +598,8 @@ describe('RolesService', () => {
                     {
                         ...pendingUser,
                         email: 'SYSTEM@EXAMPLE.COM',
+                        firstName: 'José',
+                        lastName: 'Müller',
                         isActive: false,
                     },
                     {
@@ -471,6 +629,8 @@ describe('RolesService', () => {
                 {
                     version: 1,
                     email: 'system@example.com',
+                    firstName: 'José',
+                    lastName: 'Müller',
                     disabled: true,
                     role: {
                         type: 'system',
@@ -480,6 +640,8 @@ describe('RolesService', () => {
                 {
                     version: 1,
                     email: 'custom@example.com',
+                    firstName: '',
+                    lastName: '',
                     disabled: false,
                     role: { type: 'custom', name: 'Data steward' },
                 },
@@ -522,6 +684,8 @@ describe('RolesService', () => {
                 {
                     version: 1,
                     email: 'multi@example.com',
+                    firstName: '',
+                    lastName: '',
                     disabled: false,
                     role: {
                         type: 'system',
@@ -693,6 +857,158 @@ describe('RolesService', () => {
                 lifecycle: UserAsCodeLifecycleStatus.READY,
                 invitation: UserAsCodeInvitationStatus.NOT_REQUESTED,
             });
+        });
+
+        it('stages a missing user with supplied names', async () => {
+            mockUserModel.findUserByEmail.mockResolvedValueOnce(undefined);
+            mockUserModel.createPendingUser.mockResolvedValueOnce(pendingUser);
+            mockUserModel.getUserDetailsByUuid
+                .mockResolvedValueOnce(pendingUser)
+                .mockResolvedValueOnce(pendingUser);
+
+            await service.upsertUserAsCode(
+                mockAccount,
+                'test-org-uuid',
+                userAsCode({ firstName: ' José ', lastName: 'Müller' }),
+            );
+
+            expect(mockUserModel.createPendingUser).toHaveBeenCalledWith(
+                'test-org-uuid',
+                expect.objectContaining({
+                    firstName: 'José',
+                    lastName: 'Müller',
+                }),
+                true,
+            );
+        });
+
+        it.each([
+            { names: {}, action: PromotionAction.NO_CHANGES },
+            {
+                names: { firstName: 'Existing', lastName: 'Name' },
+                action: PromotionAction.NO_CHANGES,
+            },
+            {
+                names: { firstName: 'José' },
+                action: PromotionAction.UPDATE,
+            },
+            {
+                names: { lastName: 'Müller' },
+                action: PromotionAction.UPDATE,
+            },
+            {
+                names: { firstName: '', lastName: '' },
+                action: PromotionAction.UPDATE,
+            },
+        ])('reconciles name-only changes: %j', async ({ names, action }) => {
+            const existingUser = {
+                ...pendingUser,
+                isPending: false,
+                firstName: 'Existing',
+                lastName: 'Name',
+            };
+            mockUserModel.findUserByEmail.mockResolvedValueOnce(existingUser);
+            mockUserModel.getUserDetailsByUuid.mockResolvedValueOnce(
+                existingUser,
+            );
+
+            const result = await service.upsertUserAsCode(
+                mockAccount,
+                'test-org-uuid',
+                userAsCode(names),
+            );
+
+            expect(result.action).toBe(action);
+            if (action === PromotionAction.UPDATE) {
+                expect(mockUserModel.updateUser).toHaveBeenCalledWith(
+                    existingUser.userUuid,
+                    existingUser.email,
+                    names,
+                );
+            } else {
+                expect(mockUserModel.updateUser).not.toHaveBeenCalled();
+            }
+            expect(
+                mockRolesModel.upsertOrganizationUserRoleAssignment,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('updates names without reactivating a disabled user', async () => {
+            const disabledUser = { ...pendingUser, isActive: false };
+            mockUserModel.findUserByEmail.mockResolvedValueOnce(disabledUser);
+            mockUserModel.getUserDetailsByUuid.mockResolvedValueOnce(
+                disabledUser,
+            );
+
+            const result = await service.upsertUserAsCode(
+                mockAccount,
+                'test-org-uuid',
+                userAsCode({ disabled: true, firstName: 'José' }),
+            );
+
+            expect(result.action).toBe(PromotionAction.UPDATE);
+            expect(mockUserModel.updateUser).toHaveBeenCalledWith(
+                disabledUser.userUuid,
+                disabledUser.email,
+                { firstName: 'José' },
+            );
+        });
+
+        it('applies names when adopting a user without an organization', async () => {
+            mockUserModel.findUserByEmail.mockResolvedValueOnce({
+                ...pendingUser,
+                organizationUuid: undefined,
+            });
+            mockUserModel.getUserDetailsByUuid
+                .mockResolvedValueOnce(pendingUser)
+                .mockResolvedValueOnce(pendingUser);
+
+            const result = await service.upsertUserAsCode(
+                mockAccount,
+                'test-org-uuid',
+                userAsCode({ lastName: 'Müller' }),
+            );
+
+            expect(result.action).toBe(PromotionAction.CREATE);
+            expect(mockUserModel.joinOrg).toHaveBeenCalled();
+            expect(mockUserModel.updateUser).toHaveBeenCalledWith(
+                pendingUser.userUuid,
+                pendingUser.email,
+                { lastName: 'Müller' },
+            );
+        });
+
+        it('refuses to update a user in another organization', async () => {
+            mockUserModel.findUserByEmail.mockResolvedValueOnce({
+                ...pendingUser,
+                organizationUuid: 'another-org',
+            });
+
+            await expect(
+                service.upsertUserAsCode(
+                    mockAccount,
+                    'test-org-uuid',
+                    userAsCode({ firstName: 'José' }),
+                ),
+            ).rejects.toThrow(
+                'Email is already used by a user in another organization',
+            );
+            expect(mockUserModel.updateUser).not.toHaveBeenCalled();
+        });
+
+        it.each(
+            [null, 1, [], {}, '<b>José</b>'].map((firstName) => ({
+                firstName,
+            })),
+        )('rejects an invalid name: %j', async ({ firstName }) => {
+            await expect(
+                service.upsertUserAsCode(
+                    mockAccount,
+                    'test-org-uuid',
+                    userAsCode({ firstName } as Partial<UserAsCode>),
+                ),
+            ).rejects.toThrow('User names must be strings without < or >');
+            expect(mockUserModel.findUserByEmail).not.toHaveBeenCalled();
         });
 
         it('reconciles disabled state and reports authentication status', async () => {

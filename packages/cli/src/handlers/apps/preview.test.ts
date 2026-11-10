@@ -5,6 +5,7 @@ import inquirer from 'inquirer';
 import * as os from 'os';
 import * as path from 'path';
 import type { Mock } from 'vitest';
+import { runWithAgentConnectionSelection } from '../../credentials';
 import GlobalState from '../../globalState';
 import { getAuthHeader } from '../utils';
 import { writeBundleToDir } from './appCodeFiles';
@@ -442,4 +443,14 @@ describe('removeLegacyPreviewCredential', () => {
         const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
         await expect(removeLegacyPreviewCredential(dir)).resolves.toBe(false);
     });
+});
+
+it('refuses the exported installer under an agent selection before a spawn', async () => {
+    vi.mocked(execa).mockClear();
+    await expect(
+        runWithAgentConnectionSelection('missing', () =>
+            ensureNodeModules({ appDir: '/missing', assumeYes: true }),
+        ),
+    ).rejects.toThrow('not available with an agent connection');
+    expect(execa).not.toHaveBeenCalled();
 });

@@ -403,7 +403,7 @@ describe('emitAiUsage', () => {
             {
                 telemetry: { functionId: 'routeProject' },
                 runtimeContext: {
-                    feature: 'project-router',
+                    feature: 'agent-selector',
                     organizationUuid: 'org-1',
                 },
             },
@@ -430,19 +430,24 @@ describe('emitAiUsage', () => {
 
 describe('getAiUsageChannel', () => {
     it.each([
-        ['web_app', null, 'web'],
-        ['web_app', 'space-1', 'embed'],
-        ['api', null, 'api'],
-        ['slack', null, 'slack'],
-        ['evals', null, 'evals'],
-        ['scheduler', null, 'scheduler'],
-        ['data_app', null, 'data_app'],
+        ['web_app', null, null, 'web'],
+        ['web_app', 'space-1', null, 'embed'],
+        ['web_app', null, 'viewer-1', 'embed'],
+        ['api', null, null, 'api'],
+        ['slack', null, null, 'slack'],
+        ['evals', null, null, 'evals'],
+        ['scheduler', null, null, 'scheduler'],
+        ['data_app', null, null, 'data_app'],
     ] as const)(
-        'labels a %s thread (embed space %s) as %s',
-        (createdFrom, embedSpaceUuid, channel) => {
-            expect(getAiUsageChannel({ createdFrom, embedSpaceUuid })).toBe(
-                channel,
-            );
+        'labels a %s thread (embed space %s, embed viewer %s) as %s',
+        (createdFrom, embedSpaceUuid, embedExternalUserId, channel) => {
+            expect(
+                getAiUsageChannel({
+                    createdFrom,
+                    embedSpaceUuid,
+                    embedExternalUserId,
+                }),
+            ).toBe(channel);
         },
     );
 });

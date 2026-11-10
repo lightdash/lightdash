@@ -70,28 +70,6 @@ describe('collectPivotUnderlyingValues — drill-down with hidden pivot dims', (
         });
     });
 
-    it('omits the hidden dim when no hiddenIndexCells are supplied (documents the pre-fix gap)', () => {
-        const result = collectPivotUnderlyingValues({
-            cells: [
-                {
-                    type: 'indexValue',
-                    id: 'orders_order_date_month',
-                    value: {
-                        value: { raw: '2026-01-01', formatted: '2026-01' },
-                    },
-                    headerInfo: undefined,
-                },
-            ],
-            clickedColIndex: 0,
-            clickedItemId: 'orders_total_order_amount',
-            clickedValue: { raw: 32, formatted: '$32.00' },
-            labelFieldId: undefined,
-            hiddenIndexCells: [],
-        });
-
-        expect(result).not.toHaveProperty('orders_shipping_cost_tier');
-    });
-
     it('maps the clicked metric value to the label field in metricsAsRows mode and still merges the hidden dim', () => {
         const result = collectPivotUnderlyingValues({
             cells: [

@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/warehouses",
-  "version": "2.428.1",
+  "version": "3.203.1",
   "description": "Warehouse connectors for Lightdash",
   "license": "MIT",
   "repository": {
@@ -13,14 +13,14 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
+    "linter": "OXLINT_TSGOLINT_PATH=node_modules/.bin/tsrs-lint oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
     "formatter": "oxfmt",
     "lint": "pnpm run linter ./src",
     "fix-lint": "pnpm run linter ./src --fix",
     "format": "oxfmt ./src --check",
     "fix-format": "oxfmt ./src",
     "test": "vitest run --config vitest.config.ts",
-    "typecheck": "tsc --project tsconfig.json --noEmit --composite false",
+    "typecheck": "tsrs --project tsconfig.json --noEmit --composite false",
     "copy-files": "copyfiles -u 1 src/warehouseClients/ca-bundle-aws-redshift.crt src/warehouseClients/ca-bundle-aws-rds-global.pem dist/",
     "build": "pnpm run copy-files && tsc --build tsconfig.build.json",
     "dev": "pnpm run copy-files && tsc --build --watch --preserveWatchOutput tsconfig.build.json",
@@ -40,18 +40,18 @@
     "pg": "8.13.1",
     "pg-cursor": "2.10.0",
     "pg-protocol": "1.10.3",
-    "snowflake-sdk": "2.3.4",
+    "snowflake-sdk": "3.3.0",
     "ssh2": "1.14.0",
     "trino-client": "0.2.9"
   },
   "devDependencies": {
-    "oxlint": "1.75.0",
-    "oxlint-tsgolint": "7.0.2001",
     "@types/node-fetch": "2.6.13",
     "@types/pg": "8.11.10",
     "@types/pg-cursor": "2.7.0",
     "@types/ssh2": "1.11.15",
     "copyfiles": "2.4.1",
+    "oxlint": "1.75.0",
+    "tsrs": "0.21.0-ts7.1.0-beta",
     "typescript": "7.0.2",
     "vitest": "4.1.11"
   }

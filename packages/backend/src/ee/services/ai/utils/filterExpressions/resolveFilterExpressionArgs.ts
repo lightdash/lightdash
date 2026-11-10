@@ -7,6 +7,7 @@ import {
     FILTER_EXPRESSION_MAX_RULES,
     filterAggregationCustomMetrics,
     filterExpressionOperatorDefinitions,
+    filterExpressionResolvedFiltersSchemaTransformed,
     FilterOperator,
     filterRuleSchema,
     filtersSchemaTransformed,
@@ -15,12 +16,17 @@ import {
     getFilterTypeFromItemType,
     getItemId,
     isDimension,
+    isFilterExpressionCurrentDateOperator,
     isFilterExpressionRelativeDateOperator,
+    isoDateTimeStringSchema,
+    MetricType,
     parseFilterExpression,
     TableCalculationType,
     toolRunQueryExpressionResolvedArgsSchema,
     toolRunQueryExpressionResolvedArgsSchemaTransformed,
     UnitOfTime,
+    unitOfTimeSupportsToDate,
+    type AdditionalMetric,
     type Explore,
     type FilterExpressionArgumentCount,
     type FilterExpressionAst,
@@ -69,6 +75,8 @@ type RawFilterRule = {
     settings?: {
         completed: boolean;
         unitOfTime: UnitOfTime;
+        toDate?: true;
+        excludeToday?: true;
     };
 };
 
@@ -112,8 +120,43 @@ const failure = <T = never>(
 
 const dateOrDateTimeSchema = z.union([
     z.string().date(),
-    z.string().datetime(),
+    isoDateTimeStringSchema,
 ]);
+
+const isTimestampField = (field: ResolvedField): boolean =>
+    field.fieldType === DimensionType.TIMESTAMP ||
+    field.fieldType === MetricType.TIMESTAMP;
+
+const isInclusiveUpperBoundArgument = (
+    rule: FilterExpressionRule,
+    index: number,
+): boolean =>
+    (rule.operator.value === FilterOperator.LESS_THAN_OR_EQUAL &&
+        index === 0) ||
+    (rule.operator.value === FilterOperator.IN_BETWEEN && index === 1);
+
+// A bare date as an inclusive upper bound on a timestamp compiles to midnight
+// and drops the whole last day.
+const widenInclusiveUpperBound = ({
+    rule,
+    field,
+    scalar,
+    index,
+}: {
+    rule: FilterExpressionRule;
+    field: ResolvedField;
+    scalar: FilterExpressionScalar;
+    index: number;
+}): string => {
+    if (
+        !isInclusiveUpperBoundArgument(rule, index) ||
+        !isTimestampField(field) ||
+        !z.string().date().safeParse(scalar.value).success
+    ) {
+        return scalar.value;
+    }
+    return `${scalar.value}T23:59:59.999Z`;
+};
 
 const strictNumberPattern = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 
@@ -127,8 +170,10 @@ const relativeDateUnits = [
 
 type RelativeDateUnit = (typeof relativeDateUnits)[number];
 
-const isRelativeDateUnit = (value: string): value is RelativeDateUnit =>
-    relativeDateUnits.some((unit) => unit === value);
+// "in the current week" reads naturally, so accept singular units too.
+const toRelativeDateUnit = (value: string): RelativeDateUnit | null =>
+    relativeDateUnits.find((unit) => unit === value || unit === `${value}s`) ??
+    null;
 
 const getCategoryLabel = (category: QueryFilterExpressionCategory): string => {
     switch (category) {
@@ -279,21 +324,11 @@ const makeTableCalculationFields = (
         },
     );
 
-const makeQueryFields = ({
-    explore,
-    transformedCustomMetrics,
-    tableCalculations,
-}: {
-    explore: Parameters<typeof getFields>[0];
-    transformedCustomMetrics: ReturnType<
-        typeof customMetricsSchemaTransformed.parse
-    >;
-    tableCalculations: ExpressionQueryConfig['tableCalculations'];
-}): ResolvedField[] => {
-    const customMetricFields = populateCustomMetricsSQL(
-        filterAggregationCustomMetrics(transformedCustomMetrics),
-        explore,
-    ).flatMap((additionalMetric) => {
+const makeAdditionalMetricFields = (
+    explore: Parameters<typeof getFields>[0],
+    additionalMetrics: AdditionalMetric[],
+): ResolvedField[] =>
+    additionalMetrics.flatMap((additionalMetric) => {
         const table = explore.tables[additionalMetric.table];
         if (!table) return [];
         const metric = convertAdditionalMetric({ additionalMetric, table });
@@ -308,12 +343,27 @@ const makeQueryFields = ({
         ];
     });
 
-    return [
-        ...makeExploreFields(explore),
-        ...customMetricFields,
-        ...makeTableCalculationFields(tableCalculations),
-    ];
-};
+const makeQueryFields = ({
+    explore,
+    transformedCustomMetrics,
+    tableCalculations,
+}: {
+    explore: Parameters<typeof getFields>[0];
+    transformedCustomMetrics: ReturnType<
+        typeof customMetricsSchemaTransformed.parse
+    >;
+    tableCalculations: ExpressionQueryConfig['tableCalculations'];
+}): ResolvedField[] => [
+    ...makeExploreFields(explore),
+    ...makeAdditionalMetricFields(
+        explore,
+        populateCustomMetricsSQL(
+            filterAggregationCustomMetrics(transformedCustomMetrics),
+            explore,
+        ),
+    ),
+    ...makeTableCalculationFields(tableCalculations),
+];
 
 const getFieldMatches = (
     fields: ResolvedField[],
@@ -662,7 +712,7 @@ const getPositionalRelativeDateRepairExample = ({
         count === null ||
         !Number.isInteger(count) ||
         count <= 0 ||
-        !isRelativeDateUnit(unitScalar.value) ||
+        toRelativeDateUnit(unitScalar.value) === null ||
         strictBoolean(completedScalar) === null
     ) {
         return null;
@@ -692,7 +742,7 @@ const convertStandardValues = ({
     source: FilterExpressionSource;
 }): ResolutionResult<RawFilterValue[]> => {
     const values: RawFilterValue[] = [];
-    for (const scalar of rule.arguments) {
+    for (const [index, scalar] of rule.arguments.entries()) {
         switch (field.filterType) {
             case FilterType.STRING:
                 values.push(scalar.value);
@@ -752,7 +802,9 @@ const convertStandardValues = ({
                         }),
                     );
                 }
-                values.push(scalar.value);
+                values.push(
+                    widenInclusiveUpperBound({ rule, field, scalar, index }),
+                );
                 break;
             default:
                 return assertUnreachable(
@@ -859,7 +911,8 @@ const resolveRelativeDateRule = ({
         );
     }
 
-    if (!isRelativeDateUnit(unitSetting.value.value)) {
+    const unitOfTime = toRelativeDateUnit(unitSetting.value.value);
+    if (unitOfTime === null) {
         return failure(
             invalidValueError({
                 source,
@@ -905,9 +958,120 @@ const resolveRelativeDateRule = ({
         operator: rule.operator.value,
         values: [count],
         settings: {
-            unitOfTime: unitSetting.value.value,
+            unitOfTime,
             completed,
         },
+    });
+};
+
+const currentPeriodBoundSettingNames = ['toDate', 'excludeToday'] as const;
+
+type CurrentPeriodBoundSettingName =
+    (typeof currentPeriodBoundSettingNames)[number];
+
+const isCurrentPeriodBoundSettingName = (
+    value: string,
+): value is CurrentPeriodBoundSettingName =>
+    currentPeriodBoundSettingNames.some((name) => name === value);
+
+const resolveCurrentPeriodBounds = ({
+    expressionInput,
+    rule,
+    field,
+    source,
+    unit,
+}: {
+    expressionInput: string;
+    rule: FilterExpressionRule;
+    field: ResolvedField;
+    source: FilterExpressionSource;
+    unit: RelativeDateUnit;
+}): ResolutionResult<{ toDate?: true; excludeToday?: true }> => {
+    const { settings } = rule;
+    if (!settings) return success({});
+
+    const bounds: { toDate?: boolean; excludeToday?: boolean } = {};
+    for (const setting of settings.entries) {
+        const name = setting.name.value;
+        if (!isCurrentPeriodBoundSettingName(name)) {
+            return failure(
+                invalidValueError({
+                    source,
+                    rule,
+                    field,
+                    span: setting.name.span,
+                    problem: `Unknown current-period setting "${name}".`,
+                    guidance:
+                        'Use only toDate and excludeToday in the settings object, or remove it.',
+                }),
+            );
+        }
+        if (bounds[name] !== undefined) {
+            return failure(
+                invalidValueError({
+                    source,
+                    rule,
+                    field,
+                    span: setting.name.span,
+                    problem: `Current-period setting "${name}" may appear only once.`,
+                    guidance: 'Remove the duplicate setting.',
+                }),
+            );
+        }
+        const value = strictBoolean(setting.value);
+        if (value === null) {
+            return failure(
+                invalidValueError({
+                    source,
+                    rule,
+                    field,
+                    span: setting.value.span,
+                    problem: `The ${name} setting must be exactly true or false.`,
+                    guidance: `Set ${name} to true, or remove it.`,
+                    example: getLosslessBooleanRepairExample({
+                        expressionInput,
+                        rule,
+                        scalar: setting.value,
+                    }),
+                }),
+            );
+        }
+        bounds[name] = value;
+    }
+
+    const toDate = bounds.toDate === true;
+    const excludeToday = bounds.excludeToday === true;
+
+    if (excludeToday && !toDate) {
+        return failure(
+            invalidValueError({
+                source,
+                rule,
+                field,
+                span: settings.span,
+                problem: '"excludeToday" requires toDate:true.',
+                guidance: 'Add toDate:true, or remove excludeToday.',
+            }),
+        );
+    }
+
+    if (toDate && !unitOfTimeSupportsToDate(unit)) {
+        return failure(
+            invalidValueError({
+                source,
+                rule,
+                field,
+                span: settings.span,
+                problem: `"toDate" is not valid for ${unit}.`,
+                guidance:
+                    'Use weeks, months, quarters, or years with toDate, or remove the settings object.',
+            }),
+        );
+    }
+
+    return success({
+        ...(toDate ? { toDate: true as const } : {}),
+        ...(excludeToday ? { excludeToday: true as const } : {}),
     });
 };
 
@@ -923,7 +1087,8 @@ const resolveCurrentDateRule = ({
     source: FilterExpressionSource;
 }): ResolutionResult<RawFilterRule> => {
     const unitScalar = rule.arguments[0];
-    if (!unitScalar || !isRelativeDateUnit(unitScalar.value)) {
+    const unit = unitScalar ? toRelativeDateUnit(unitScalar.value) : null;
+    if (!unitScalar || unit === null) {
         return failure(
             invalidValueError({
                 source,
@@ -936,7 +1101,7 @@ const resolveCurrentDateRule = ({
                 example: unitScalar
                     ? replaceScalarInRuleExample({
                           expressionInput,
-                          replacementValue: 'days',
+                          replacementValue: 'months',
                           rule,
                           scalar: unitScalar,
                       })
@@ -945,13 +1110,26 @@ const resolveCurrentDateRule = ({
         );
     }
 
+    const boundsResult = resolveCurrentPeriodBounds({
+        expressionInput,
+        rule,
+        field,
+        source,
+        unit,
+    });
+    if (!boundsResult.success) return boundsResult;
+
     return success({
         fieldId: field.id,
         fieldType: field.fieldType,
         fieldFilterType: field.filterType,
         operator: rule.operator.value,
         values: [1],
-        settings: { unitOfTime: unitScalar.value, completed: false },
+        settings: {
+            unitOfTime: unit,
+            completed: false,
+            ...boundsResult.data,
+        },
     });
 };
 
@@ -1005,7 +1183,8 @@ const resolveRule = ({
 
     if (
         rule.settings &&
-        !isFilterExpressionRelativeDateOperator(rule.operator.value)
+        !isFilterExpressionRelativeDateOperator(rule.operator.value) &&
+        !isFilterExpressionCurrentDateOperator(rule.operator.value)
     ) {
         return failure(
             invalidValueError({
@@ -1985,6 +2164,35 @@ const resolveQueryFilters = ({
         metrics: toResolvedGroup(resolvedGroups.metrics),
         tableCalculations: toResolvedGroup(resolvedGroups.tableCalculations),
     });
+};
+
+// For queries with explore fields only (a composer semanticLayer node).
+export const resolveExploreFilterExpressions = ({
+    filters,
+    explore,
+    additionalMetrics,
+}: {
+    filters: Omit<
+        NonNullable<ExpressionQueryConfig['filters']>,
+        'tableCalculations'
+    > | null;
+    explore: Explore;
+    additionalMetrics: AdditionalMetric[];
+}): ResolutionResult<Filters | null> => {
+    const result = resolveQueryFilters({
+        filters:
+            filters === null ? null : { ...filters, tableCalculations: null },
+        fields: [
+            ...makeExploreFields(explore),
+            ...makeAdditionalMetricFields(explore, additionalMetrics),
+        ],
+        exploreName: explore.name,
+    });
+    if (!result.success) return result;
+    if (result.data === null) return success(null);
+    return success(
+        filterExpressionResolvedFiltersSchemaTransformed.parse(result.data),
+    );
 };
 
 const resolveQueryConfig = ({

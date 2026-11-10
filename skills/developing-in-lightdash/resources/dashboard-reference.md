@@ -48,14 +48,15 @@ tiles:
 
 ### SQL Chart Tile
 
-Display a SQL-based chart:
+Display a SQL chart. The SQL chart must exist before the dashboard references it: upload or create it first, then use its slug as `chartSlug`. See [SQL Chart Reference](./sql-chart-reference.md) for the SQL chart body and workflow.
 
 ```yaml
 tiles:
   - h: 6
     properties:
+      chartName: Custom SQL chart
       chartSlug: custom-sql-chart
-      savedSqlUuid: "abc123-def456"
+      title: Custom SQL chart
     type: sql_chart
     w: 12
     x: 12
@@ -438,6 +439,52 @@ config:
 | `pinnedParameters` | string[] | List of pinned parameter names |
 
 When `config` is omitted, date zoom is enabled with all default granularities.
+
+### Parameter controls
+
+When dashboard controls are enabled, `config.parameterControls` stores each control's value and its per-parameter tile rules. Each control has a `slug`, derived from its label (else its first parameter key) on every download and never saved; repeated slugs are all numbered (`-1`, `-2`). A slug only links references inside the same file. An upload keeps a control's internal ID only when no other control shares its unnumbered slug, on the saved dashboard or in the file, so relabelling a control gives it a new slug and ID. Duplicate slugs are rejected.
+
+```yaml
+config:
+  isDateZoomDisabled: false
+  parameterControls:
+    - slug: region
+      label: Region
+      value: EMEA
+      valueType: { type: string, multiple: false }
+      parameters:
+        orders.region: { except: [revenue-copy] }
+    - slug: comparison-region
+      label: Comparison region
+      value: US
+      valueType: { type: string, multiple: false }
+      parameters:
+        orders.region: { only: [revenue-copy] }
+```
+
+A key accepts `all`, `except`, or `only`; tile references are tile slugs. At most one default (`all` or `except`) may own a key, and `only` assignments must not overlap each other or the default. `only: []` assigns no tiles; `except: []` means `all`. A present empty control list saves no controls and an empty parameter mirror; an absent list uses legacy dashboard parameters. Hiding a control keeps its assignments and value. An upload with controls derives the top-level parameter mirror from their values.
+
+### Control order
+
+When dashboard controls are enabled, `config.controlOrder` sets the order of controls on the filter bar: the bar follows it entry by entry, mixing kinds. Each entry is `{ kind, slug, newLine? }`, where `kind` is `filter`, `parameter` or `section`, and `slug` is the control's `slug` in the same file: a dimension or metric filter's `slug`, a parameter control's `slug`, or a section's `slug` in `config.controlSections`. Slugs are derived on every download: a filter's from its field id, a parameter control's from its label, a section's from its name; repeated ones are all numbered (`-1`, `-2`). They are never saved: they only link entries to controls in the same file, and renaming a section or parameter control gives it a new slug and ID.
+
+```yaml
+config:
+  controlOrder:
+    - { kind: parameter, slug: region }
+    - { kind: filter, slug: orders-status }
+    - { kind: section, slug: calendar, newLine: true }
+    - { kind: filter, slug: orders-created-at-month }
+```
+
+- Downloads include it, with a `slug` on every filter, once the dashboard has a stored order; a never-reordered dashboard downloads without it. To reorder one, write the list. An upload stores the list as given; AI agent edits follow the same rule.
+- Reorder by moving entries. Unknown or repeated slugs are rejected, and the error lists the valid ones.
+- A section's members come from each control's `sectionSlug`, not from the list. Members follow their entries inside the section.
+- The list wins over each kind's own array: to swap two filters, swap their entries; `filters.dimensions`, `parameterControls` and `controlSections` order doesn't change the bar.
+- `newLine: true` starts a new bar line; without it, an entry shares the line of the entry before it. Section members never start a line: on a section member it passes to the next entry in the list outside a section, and is dropped if there is none. Line placement comes only from `newLine`.
+- Controls missing from the list go to the end of their section, or of the bar, inline. To place a new control, add its entry; when you remove a control, remove its entry too.
+- A file without `controlOrder`, or with an empty one, resets the bar to the default order: filters, then parameter controls, then sections.
+- Date zoom can't be ordered yet.
 
 ## Complete Dashboard Example
 

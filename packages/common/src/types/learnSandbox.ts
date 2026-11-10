@@ -25,7 +25,15 @@ export const LEARN_TERMINAL_SUBCOMMANDS: Record<
     LearnSandboxTool,
     readonly string[]
 > = {
-    lightdash: ['compile', 'deploy', 'validate', 'lint', 'download', 'upload'],
+    lightdash: [
+        'compile',
+        'deploy',
+        'start-preview',
+        'validate',
+        'lint',
+        'download',
+        'upload',
+    ],
     dbt: ['parse', 'compile', 'ls'],
 };
 export const LEARN_TERMINAL_REJECTION =

@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
-import { Stack, Text, Title } from '@mantine/core';
+import { Box, Stack, Text, Title } from '@mantine/core';
 import * as Sentry from '@sentry/react';
 import {
     useMemo,
@@ -20,18 +20,23 @@ import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/use
 import { ContentReviewSettingsPanel } from '../../ee/features/contentReview';
 import { useContentReviewAvailability } from '../../ee/features/contentReview/hooks/useContentReviewAvailability';
 import SettingsEmbed from '../../ee/features/embed/SettingsEmbed';
+import { ProjectAgentIdentityPage } from '../../features/aiAccess/ProjectAgentIdentityPage';
 import ContentReviewPage from '../../features/contentAsCode/components/ContentReviewPage';
-import { ExternalSourcesSettingsPanel } from '../../features/externalSources/components/ExternalSourcesSettingsPanel';
 import PullRequestsPage from '../../features/pullRequests/components/PullRequestsPage';
 import RecentlyDeletedPage from '../../features/recentlyDeleted/components/RecentlyDeletedPage';
 import ScopeTourHost from '../../features/scopeTours/ScopeTourHost';
+import { useIsTrainingCopy } from '../../features/scopeTours/useIsTrainingCopy';
+import { ExternalSourcesRedirect } from '../../features/semanticStudio/ExternalSourcesRedirect';
+import { LiveDataSourcesRedirect } from '../../features/semanticStudio/LiveDataSourcesRedirect';
 import { useOrganization } from '../../hooks/organization/useOrganization';
-import { LEARNER_COPY_SETTINGS_PAGE } from '../../hooks/settings/projectSettingsAccess';
+import {
+    type LimitedProjectSettingsPage,
+    type ProjectSettingsAccess,
+} from '../../hooks/settings/projectSettingsAccess';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
-import Callout from '../common/Callout';
 import { DocumentTitle } from '../common/DocumentTitle';
 import ErrorState from '../common/ErrorState';
 import PageBreadcrumbs from '../common/PageBreadcrumbs';
@@ -83,15 +88,15 @@ const ProjectSettingsPage: FC<ProjectSettingsPageProps> = ({
 );
 
 const ProjectSettings: FC<{
-    externalSourcesEnabled: boolean;
-    /** A learner's training copy: the Validator only, every other page redirects to it. */
-    learnerCopyOnly?: boolean;
-}> = ({ externalSourcesEnabled, learnerCopyOnly = false }) => {
+    projectSettingsAccess: Exclude<ProjectSettingsAccess, { type: 'none' }>;
+}> = ({ projectSettingsAccess }) => {
     const projectUuid = useProjectUuid();
     const location = useLocation();
 
     const { health, user } = useApp();
     const { isInitialLoading, data: project, error } = useProject(projectUuid);
+    // A learner copy has no project list to go back to.
+    const { isTrainingCopy } = useIsTrainingCopy(project);
 
     const { data: organization } = useOrganization();
 
@@ -117,12 +122,22 @@ const ProjectSettings: FC<{
 
     const { data: dataAppsFlag, isLoading: isDataAppsFlagLoading } =
         useServerFeatureFlag(FeatureFlags.EnableDataApps);
-    const { data: resultsCacheFlag, isLoading: isResultsCacheFlagLoading } =
-        useServerFeatureFlag(FeatureFlags.ResultsCacheEnabled);
-    const isResultsCacheEnabled = resultsCacheFlag?.enabled ?? false;
+    const { data: agentIdentityFlag, isLoading: isAgentIdentityFlagLoading } =
+        useServerFeatureFlag(FeatureFlags.AgentIdentity);
+    const canManageAgentIdentity =
+        agentIdentityFlag?.enabled === true &&
+        !!project &&
+        (user.data?.ability.can(
+            'manage',
+            subject('Project', {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+            }),
+        ) ??
+            false);
+    const isResultsCacheAvailable = health.data?.license?.valid === true;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
-    const canManageExternalConnections =
-        isDataAppsEnabled &&
+    const canManageProjectConnections =
         !!project &&
         (user.data?.ability.can(
             'manage',
@@ -132,18 +147,8 @@ const ProjectSettings: FC<{
             }),
         ) ??
             false);
-
-    const canManageExternalSources =
-        externalSourcesEnabled &&
-        !!project &&
-        (user.data?.ability.can(
-            'manage',
-            subject('ExternalSource', {
-                organizationUuid: project.organizationUuid,
-                projectUuid: project.projectUuid,
-            }),
-        ) ??
-            false);
+    const canManageExternalConnections =
+        isDataAppsEnabled && canManageProjectConnections;
 
     const contentReviewAvailability = useContentReviewAvailability();
     const canViewContentReviewSettings =
@@ -162,24 +167,40 @@ const ProjectSettings: FC<{
         if (!projectUuid) {
             return [];
         }
-        if (learnerCopyOnly) {
+        const limitedRoutes: Record<LimitedProjectSettingsPage, RouteObject> = {
+            validator: {
+                path: '/validator',
+                element: <SettingsValidator projectUuid={projectUuid} />,
+            },
+            recentlyDeleted: {
+                path: '/recentlyDeleted',
+                element: (
+                    <ProjectSettingsPage
+                        title="Recently deleted"
+                        description="Review and restore recently deleted project content."
+                    >
+                        <RecentlyDeletedPage projectUuid={projectUuid} />
+                    </ProjectSettingsPage>
+                ),
+            },
+        };
+        if (projectSettingsAccess.type === 'limited') {
             return [
-                {
-                    path: `/${LEARNER_COPY_SETTINGS_PAGE}`,
-                    element: <SettingsValidator projectUuid={projectUuid} />,
-                },
+                ...projectSettingsAccess.pages.map(
+                    (page) => limitedRoutes[page],
+                ),
                 {
                     path: '*',
                     element: (
                         <Navigate
-                            to={`/generalSettings/projectManagement/${projectUuid}/${LEARNER_COPY_SETTINGS_PAGE}`}
+                            to={`/generalSettings/projectManagement/${projectUuid}/${projectSettingsAccess.defaultPage}`}
                             replace
                         />
                     ),
                 },
             ];
         }
-        return [
+        const projectRoutes: RouteObject[] = [
             {
                 path: `/settings`,
                 element: (
@@ -202,12 +223,34 @@ const ProjectSettings: FC<{
                     </ProjectSettingsPage>
                 ),
             },
+            ...(canManageAgentIdentity && project
+                ? [
+                      {
+                          path: '/agentIdentity',
+                          element: (
+                              <ProjectSettingsPage
+                                  title="Agent identity"
+                                  description="See who agents run as on this project, and manage its shared agent account."
+                              >
+                                  <ProjectAgentIdentityPage
+                                      key={project.projectUuid}
+                                      project={project}
+                                  />
+                              </ProjectSettingsPage>
+                          ),
+                      },
+                  ]
+                : []),
             {
                 path: `/projectAccess`,
                 element: (
                     <ProjectSettingsPage
                         title="Project access"
-                        description="Manage who can access this project and what they can do."
+                        description={
+                            project?.provisioningSource === 'analytics'
+                                ? 'Grant access with a custom role containing View managed analytics. Standard project roles alone do not grant access to organization analytics.'
+                                : 'Manage who can access this project and what they can do.'
+                        }
                         actions={
                             <SettingsPageDocumentationLink
                                 href="https://docs.lightdash.com/references/roles"
@@ -230,23 +273,6 @@ const ProjectSettings: FC<{
                     </ProjectSettingsPage>
                 ),
             },
-            ...(canManageExternalSources
-                ? [
-                      {
-                          path: `/externalSources`,
-                          element: (
-                              <ProjectSettingsPage
-                                  title="External sources"
-                                  description="Upload files to query them alongside your warehouse."
-                              >
-                                  <ExternalSourcesSettingsPanel
-                                      projectUuid={projectUuid}
-                                  />
-                              </ProjectSettingsPage>
-                          ),
-                      },
-                  ]
-                : []),
             {
                 path: `/usageAnalytics`,
                 element: (
@@ -269,16 +295,13 @@ const ProjectSettings: FC<{
                     </ProjectSettingsPage>
                 ),
             },
-            {
-                path: `/validator`,
-                element: <SettingsValidator projectUuid={projectUuid} />,
-            },
+            limitedRoutes.validator,
             {
                 path: `/verifiedContent`,
                 element: (
                     <ProjectSettingsPage
                         title="Verified content"
-                        description="Review verified charts, dashboards, and data apps in this project."
+                        description="Review verified charts, dashboards, data apps, and Documents in this project."
                     >
                         <VerifiedContentPanel projectUuid={projectUuid} />
                     </ProjectSettingsPage>
@@ -323,23 +346,7 @@ const ProjectSettings: FC<{
                     </ProjectSettingsPage>
                 ),
             },
-            ...(isSoftDeleteEnabled
-                ? [
-                      {
-                          path: `/recentlyDeleted`,
-                          element: (
-                              <ProjectSettingsPage
-                                  title="Recently deleted"
-                                  description="Review and restore recently deleted project content."
-                              >
-                                  <RecentlyDeletedPage
-                                      projectUuid={projectUuid}
-                                  />
-                              </ProjectSettingsPage>
-                          ),
-                      },
-                  ]
-                : []),
+            ...(isSoftDeleteEnabled ? [limitedRoutes.recentlyDeleted] : []),
             {
                 path: `/parameters`,
                 element: (
@@ -468,14 +475,14 @@ const ProjectSettings: FC<{
                       },
                   ]
                 : []),
-            ...(isResultsCacheEnabled
+            ...(isResultsCacheAvailable
                 ? [
                       {
                           path: `/caching`,
                           element: (
                               <ProjectSettingsPage
                                   title="Results caching"
-                                  description="Choose how long charts and dashboards in this project load from cached results before Lightdash queries the warehouse again."
+                                  description="Load charts and dashboards from recent query results."
                               >
                                   <ProjectResultsCache
                                       projectUuid={projectUuid}
@@ -577,17 +584,54 @@ const ProjectSettings: FC<{
                       },
                   ]
                 : []),
+            // Live data sources moved to the Semantic Layer page; old links
+            // and sign-in callbacks land there.
+            {
+                path: `/liveDataSources/*`,
+                element: <LiveDataSourcesRedirect projectUuid={projectUuid} />,
+            },
+            {
+                path: `/externalSources/*`,
+                element: <ExternalSourcesRedirect projectUuid={projectUuid} />,
+            },
         ];
+        if (project?.provisioningSource === 'analytics') {
+            return [
+                ...projectRoutes.filter(
+                    ({ path }) =>
+                        path === '/recentlyDeleted' ||
+                        (path === '/projectAccess' &&
+                            user.data?.ability.can(
+                                'manage',
+                                subject('Project', {
+                                    organizationUuid: project.organizationUuid,
+                                    projectUuid,
+                                }),
+                            )),
+                ),
+                {
+                    path: '*',
+                    element: (
+                        <Navigate
+                            to="/generalSettings/lightdashAnalytics"
+                            replace
+                        />
+                    ),
+                },
+            ];
+        }
+        return projectRoutes;
     }, [
         projectUuid,
-        learnerCopyOnly,
+        projectSettingsAccess,
         isSoftDeleteEnabled,
         isPgWireEnabled,
         isGitProject,
-        isResultsCacheEnabled,
+        isResultsCacheAvailable,
         user.data?.ability,
         canManageExternalConnections,
-        canManageExternalSources,
+        canManageAgentIdentity,
+        project,
         canViewContentReviewSettings,
         isAiCopilotEnabledOrTrial,
         canManageOrgAiAgent,
@@ -608,10 +652,10 @@ const ProjectSettings: FC<{
             '/generalSettings/projectManagement/:projectUuid/dataAppConnections',
             location.pathname,
         );
-    const isAwaitingCachingRoute =
-        isResultsCacheFlagLoading &&
+    const isAwaitingAgentIdentityRoute =
+        isAgentIdentityFlagLoading &&
         !!matchPath(
-            '/generalSettings/projectManagement/:projectUuid/caching',
+            '/generalSettings/projectManagement/:projectUuid/agentIdentity',
             location.pathname,
         );
     const isAwaitingReviewRequestsRoute =
@@ -626,13 +670,13 @@ const ProjectSettings: FC<{
         !project ||
         !projectUuid ||
         isAwaitingDataAppConnectionsRoute ||
-        isAwaitingCachingRoute ||
+        isAwaitingAgentIdentityRoute ||
         isAwaitingReviewRequestsRoute
     ) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState title="Loading project" loading />
-            </div>
+            </Box>
         );
     }
 
@@ -649,8 +693,7 @@ const ProjectSettings: FC<{
                 <SettingsPageContainer>
                     <PageBreadcrumbs
                         items={[
-                            // A learner copy has no project list to go back to.
-                            ...(learnerCopyOnly
+                            ...(isTrainingCopy
                                 ? []
                                 : [
                                       {
@@ -665,19 +708,7 @@ const ProjectSettings: FC<{
                         ]}
                     />
                 </SettingsPageContainer>
-                {project.provisioningSource === 'analytics' ? (
-                    <ProjectSettingsPage
-                        title="Project settings"
-                        description="Lightdash manages this analytics project's configuration."
-                    >
-                        <Callout
-                            variant="warning"
-                            title="Settings cannot be changed for managed analytics projects."
-                        />
-                    </ProjectSettingsPage>
-                ) : (
-                    routesElements
-                )}
+                {routesElements}
             </Stack>
         </>
     );

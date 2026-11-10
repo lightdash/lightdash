@@ -34,6 +34,7 @@ describe('Document move destinations', () => {
                 uuid: role,
                 name: `${role} space`,
                 path: role,
+                parentSpaceUuid: null,
                 access: [],
                 inheritsFromOrgOrProject: false,
                 userAccess: {

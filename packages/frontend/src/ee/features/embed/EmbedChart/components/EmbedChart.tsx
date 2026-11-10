@@ -6,6 +6,7 @@ import SuboptimalState from '../../../../../components/common/SuboptimalState/Su
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useSavedQuery } from '../../../../../hooks/useSavedQuery';
 import MinimalSavedExplorer from '../../../../../pages/MinimalSavedExplorer';
+import classes from './EmbedChart.module.css';
 
 type Props = {
     containerStyles?: React.CSSProperties;
@@ -18,20 +19,6 @@ const EmbedChart: FC<Props> = ({ containerStyles, savedQueryUuid }) => {
         uuidOrSlug: savedQueryUuid,
         projectUuid,
     });
-
-    const containerStyle: React.CSSProperties = containerStyles ?? {
-        height: '100vh',
-        overflowY: 'auto',
-        margin: '16px',
-    };
-
-    if (isInitialLoading) {
-        return (
-            <div style={containerStyle}>
-                <LoadingChart />
-            </div>
-        );
-    }
 
     if (isError) {
         return (
@@ -49,7 +36,7 @@ const EmbedChart: FC<Props> = ({ containerStyles, savedQueryUuid }) => {
         );
     }
 
-    if (!data) {
+    if (!isInitialLoading && !data) {
         return (
             <Box mt={20}>
                 <SuboptimalState title="Chart not found" icon={IconUnlink} />
@@ -58,8 +45,16 @@ const EmbedChart: FC<Props> = ({ containerStyles, savedQueryUuid }) => {
     }
 
     return (
-        <div style={containerStyle}>
-            <MinimalSavedExplorer savedQueryUuid={savedQueryUuid} />
+        <div
+            className={containerStyles ? undefined : classes.scrollContainer}
+            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
+            style={containerStyles}
+        >
+            {isInitialLoading ? (
+                <LoadingChart />
+            ) : (
+                <MinimalSavedExplorer savedQueryUuid={savedQueryUuid} />
+            )}
         </div>
     );
 };

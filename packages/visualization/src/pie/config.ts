@@ -24,10 +24,7 @@ import {
     type TableCalculation,
     type TableCalculationMetadata,
 } from '@lightdash/common';
-import isEmpty from 'lodash/isEmpty';
-import omitBy from 'lodash/omitBy';
-import pick from 'lodash/pick';
-import pickBy from 'lodash/pickBy';
+import { isEmpty, omitBy, pick, pickBy } from 'es-toolkit/compat';
 import { type VisualizationResults } from '../types';
 
 /** One slice of the pie: the rows of a group aggregated into a single value. */

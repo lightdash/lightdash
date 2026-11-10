@@ -7,6 +7,7 @@ import { getUserAbilityBuilder } from './index';
 import { projectMemberAbilities } from './projectMemberAbility';
 import { applyServiceAccountAbilities } from './serviceAccountAbility';
 import {
+    DEVELOPER_EMBED_SUBJECTS,
     INTERACTIVE_VIEWER_EMBED_SUBJECTS,
     VIEWER_EMBED_SUBJECTS,
     type MemberAbility,
@@ -67,6 +68,7 @@ describe('collapseAbilityRules', () => {
             [
                 ...VIEWER_EMBED_SUBJECTS,
                 ...INTERACTIVE_VIEWER_EMBED_SUBJECTS,
+                ...DEVELOPER_EMBED_SUBJECTS,
             ].forEach((name) => {
                 const resource = subject(name, { projectUuid });
                 expect(collapsed.can('view', resource)).toBe(

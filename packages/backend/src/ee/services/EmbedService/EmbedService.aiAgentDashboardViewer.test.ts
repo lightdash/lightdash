@@ -1,6 +1,7 @@
 import { Ability, type RawRuleOf } from '@casl/ability';
 import {
     ForbiddenError,
+    isEmbedReadOnlyAiAgentToken,
     NotFoundError,
     type PossibleAbilities,
     type SessionUser,
@@ -18,6 +19,8 @@ import {
 
 const AGENT_UUID = 'agent-uuid';
 const WRITE_SPACE_UUID = 'write-space-uuid';
+const SOURCE_SPACE_UUID = '6a1c2f2e-4b7d-4c1e-9f3a-2d5e8b7c1a90';
+const OTHER_SPACE_UUID = '9b3e4d1c-2a6f-4e8b-8c7d-1f0a3b5c6d72';
 const DASHBOARD_UUID = 'dashboard-uuid';
 
 const encodedSecret = new EncryptionUtil({
@@ -83,13 +86,17 @@ const buildActor = ({
     } as unknown as SessionUser;
 };
 
-const mintAgentToken = (content: Record<string, unknown> = {}) =>
+const mintAgentToken = (
+    content: Record<string, unknown> = {},
+    writeActions: Record<string, unknown> = {},
+) =>
     encodeLightdashJwt(
         {
             content: { type: 'aiAgent', agentUuid: AGENT_UUID, ...content },
             writeActions: {
                 userUuid: mockUserUuid,
                 spaceUuid: WRITE_SPACE_UUID,
+                ...writeActions,
             },
             userAttributes: { tenant_id: 'tenant-1' },
             user: { externalId: 'viewer' },
@@ -98,12 +105,30 @@ const mintAgentToken = (content: Record<string, unknown> = {}) =>
         '5m',
     );
 
+const writeSpaceAccessContext = {
+    projectUuid: mockProjectUuid,
+    organizationUuid: mockOrganizationUuid,
+    spaceUuid: WRITE_SPACE_UUID,
+    inheritsFromOrgOrProject: true,
+    access: [],
+};
+
 const buildService = ({
     actor = buildActor(),
     dashboardSpaceUuid = WRITE_SPACE_UUID,
-}: { actor?: SessionUser; dashboardSpaceUuid?: string } = {}) =>
+    agentSpaceAccess = [],
+}: {
+    actor?: SessionUser;
+    dashboardSpaceUuid?: string;
+    agentSpaceAccess?: string[] | null;
+} = {}) =>
     new EmbedService({
         ...EmbedServiceArgumentsMock,
+        aiAgentModel: {
+            findSpaceAccess: vi
+                .fn()
+                .mockResolvedValue(agentSpaceAccess ?? undefined),
+        },
         embedModel: { get: vi.fn().mockResolvedValue(embed) },
         userAttributesModel: { find: vi.fn().mockResolvedValue([]) },
         userModel: {
@@ -125,15 +150,42 @@ const buildService = ({
             }),
         },
         spacePermissionService: {
-            resolveAccess: vi.fn().mockResolvedValue({
-                projectUuid: mockProjectUuid,
-                organizationUuid: mockOrganizationUuid,
-                spaceUuid: WRITE_SPACE_UUID,
-                inheritsFromOrgOrProject: true,
-                access: [],
-            }),
+            resolveAccess: vi.fn().mockResolvedValue(writeSpaceAccessContext),
+            resolveAccessBatch: vi.fn(
+                async (_userUuid: string, targets: unknown[]) =>
+                    targets.map((target) => ({
+                        target,
+                        context: writeSpaceAccessContext,
+                    })),
+            ),
         },
     } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+
+describe('read-only embedded AI agent tokens', () => {
+    test('stay read-only when the agent cannot use any source space', async () => {
+        const account = await buildService({
+            agentSpaceAccess: [OTHER_SPACE_UUID],
+        }).getAccountFromJwt(
+            mockProjectUuid,
+            mintAgentToken(
+                {},
+                { spaceUuid: undefined, sourceSpaceUuids: [SOURCE_SPACE_UUID] },
+            ),
+        );
+
+        expect(
+            account.authentication.data.writeActions?.sourceSpaceUuids,
+        ).toEqual([]);
+        expect(isEmbedReadOnlyAiAgentToken(account.authentication.data)).toBe(
+            true,
+        );
+        expect(account.embedWriteUser).toBeDefined();
+        expect(account.embedWriteContext).toMatchObject({
+            canCreateSavedChart: false,
+            writableSpaces: [],
+        });
+    });
+});
 
 describe('embedded AI agent dashboard viewer', () => {
     test('serves a write-space dashboard as a read-only dashboard embed limited to it', async () => {
@@ -207,6 +259,60 @@ describe('embedded AI agent dashboard viewer', () => {
                 dashboardUuid: DASHBOARD_UUID,
             }),
         ).rejects.toThrow(ForbiddenError);
+    });
+
+    test('serves a source-space dashboard', async () => {
+        const account = await buildService({
+            dashboardSpaceUuid: SOURCE_SPACE_UUID,
+        }).getAccountFromJwt(
+            mockProjectUuid,
+            mintAgentToken({}, { sourceSpaceUuids: [SOURCE_SPACE_UUID] }),
+            { dashboardUuid: DASHBOARD_UUID },
+        );
+
+        expect(account.access.content).toMatchObject({
+            type: 'dashboard',
+            dashboardUuid: DASHBOARD_UUID,
+        });
+        expect(account.embed.dashboardUuids).toEqual([DASHBOARD_UUID]);
+    });
+
+    test.each([
+        ['outside the agent space access', [OTHER_SPACE_UUID]],
+        ['for an agent missing from the project', null],
+    ])(
+        'rejects a source-space dashboard %s',
+        async (_label, agentSpaceAccess) => {
+            await expect(
+                buildService({
+                    dashboardSpaceUuid: SOURCE_SPACE_UUID,
+                    agentSpaceAccess,
+                }).getAccountFromJwt(
+                    mockProjectUuid,
+                    mintAgentToken(
+                        {},
+                        { sourceSpaceUuids: [SOURCE_SPACE_UUID] },
+                    ),
+                    { dashboardUuid: DASHBOARD_UUID },
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        },
+    );
+
+    test('narrows source spaces to the agent space access', async () => {
+        const account = await buildService({
+            agentSpaceAccess: [WRITE_SPACE_UUID, SOURCE_SPACE_UUID],
+        }).getAccountFromJwt(
+            mockProjectUuid,
+            mintAgentToken(
+                {},
+                { sourceSpaceUuids: [SOURCE_SPACE_UUID, OTHER_SPACE_UUID] },
+            ),
+        );
+
+        expect(
+            account.authentication.data.writeActions?.sourceSpaceUuids,
+        ).toEqual([SOURCE_SPACE_UUID]);
     });
 
     test('rejects a dashboard the write actor cannot view', async () => {

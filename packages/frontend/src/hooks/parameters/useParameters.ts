@@ -3,9 +3,11 @@ import {
     type ApiGetProjectParametersResults,
 } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
 const getParameters = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     parameterReferences: string[] | undefined,
 ): Promise<ApiGetProjectParametersResults> => {
@@ -28,11 +30,14 @@ export const useParameters = (
     projectUuid: string | undefined,
     parameterReferences: string[] | undefined,
     useQueryOptions?: UseQueryOptions<ApiGetProjectParametersResults, ApiError>,
-) =>
-    useQuery<ApiGetProjectParametersResults, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ApiGetProjectParametersResults, ApiError>({
         queryKey: ['parameters', projectUuid, parameterReferences],
-        queryFn: () => getParameters(projectUuid!, parameterReferences),
+        queryFn: () =>
+            getParameters(lightdashApi, projectUuid!, parameterReferences),
         enabled: !!projectUuid,
         keepPreviousData: true,
         ...useQueryOptions,
     });
+};

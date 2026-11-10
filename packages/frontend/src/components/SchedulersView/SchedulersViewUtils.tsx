@@ -12,7 +12,6 @@ import {
     type SchedulerRun,
     type SchedulerWithLogs,
 } from '@lightdash/common';
-import { type MantineTheme } from '@mantine/core';
 import {
     IconAlertCircle,
     IconAlertTriangleFilled,
@@ -100,43 +99,16 @@ export const getSchedulerIcon = (item: { format: SchedulerFormat }) => {
     }
 };
 
-export const getLogStatusIconWithoutTooltip = (
-    status: SchedulerJobStatus,
-    theme: MantineTheme,
-) => {
+export const getLogStatusIconWithoutTooltip = (status: SchedulerJobStatus) => {
     switch (status) {
         case SchedulerJobStatus.SCHEDULED:
-            return (
-                <MantineIcon
-                    icon={IconClockFilled}
-                    color="blue.3"
-                    style={{ color: theme.colors.blue[3] }}
-                />
-            );
+            return <MantineIcon icon={IconClockFilled} color="blue.3" />;
         case SchedulerJobStatus.STARTED:
-            return (
-                <MantineIcon
-                    icon={IconProgress}
-                    color="yellow.6"
-                    style={{ color: theme.colors.yellow[6] }}
-                />
-            );
+            return <MantineIcon icon={IconProgress} color="yellow.6" />;
         case SchedulerJobStatus.COMPLETED:
-            return (
-                <MantineIcon
-                    icon={IconCircleCheckFilled}
-                    color="green.6"
-                    style={{ color: theme.colors.green[6] }}
-                />
-            );
+            return <MantineIcon icon={IconCircleCheckFilled} color="green.6" />;
         case SchedulerJobStatus.ERROR:
-            return (
-                <MantineIcon
-                    icon={IconAlertTriangleFilled}
-                    color="red.6"
-                    style={{ color: theme.colors.red[6] }}
-                />
-            );
+            return <MantineIcon icon={IconAlertTriangleFilled} color="red.6" />;
         default:
             return assertUnreachable(status, 'Resource type not supported');
     }

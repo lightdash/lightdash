@@ -94,6 +94,22 @@ export type OrganizationSettings = {
      * syntax.
      */
     corsAllowedDomains: string[] | null;
+    /**
+     * Whether images of a running data app, and files, may be captured or
+     * attached anywhere in the data app builder: prompt-bar screenshots, file
+     * attachments sent to the coding agent, manual thumbnails, and the Slack
+     * build-outcome image. Inherits and is capped by the instance-wide
+     * `LIGHTDASH_APP_CAPTURES_ENABLED` (the ceiling): an org can turn captures
+     * off, never back on past the env. `null` inherits it.
+     * Always resolved to an effective boolean in API responses.
+     */
+    dataAppCapturesEnabled: boolean | null;
+    /**
+     * Whether data app uploads may declare custom npm dependencies. Off by
+     * default; only org admins can change it. Uploaders also need the
+     * `manage:DataAppDependency` permission.
+     */
+    dataAppCustomDependenciesEnabled: boolean;
 };
 
 export const DEFAULT_INVITE_LINK_EXPIRATION_DAYS = 3;
@@ -267,20 +283,14 @@ export type OrganizationSettingsInstanceDefaults = {
     scheduledDeliveryExpirationSeconds: number;
     queryLimit: number;
     csvCellsLimit: number;
+    /** `LIGHTDASH_APP_CAPTURES_ENABLED`; the ceiling for the org setting. */
+    dataAppCapturesEnabled: boolean;
 };
 
-/**
- * The single source of truth for resolving a stored (raw) org settings record
- * against the instance defaults: an explicit per-org value wins; a value that's
- * `null`, or simply absent (an unset column / no row at all), falls back to the
- * instance default. Used by the backend for both the API response (so the
- * frontend just displays the effective value) and the login flow, so the two
- * can never drift.
- */
-export const resolveEffectiveOrganizationSettings = (
+const resolveEffectiveOrganizationSettingsFields = (
     raw: Partial<OrganizationSettings>,
     instanceDefaults: OrganizationSettingsInstanceDefaults,
-): OrganizationSettings => ({
+): Omit<OrganizationSettings, 'dataAppCapturesEnabled'> => ({
     oidcLinkingEnabled:
         raw.oidcLinkingEnabled ?? instanceDefaults.enableOidcLinking,
     oidcToEmailLinkingEnabled:
@@ -311,4 +321,25 @@ export const resolveEffectiveOrganizationSettings = (
     queryLimit: raw.queryLimit ?? instanceDefaults.queryLimit,
     csvCellsLimit: raw.csvCellsLimit ?? instanceDefaults.csvCellsLimit,
     corsAllowedDomains: raw.corsAllowedDomains ?? [],
+    dataAppCustomDependenciesEnabled:
+        raw.dataAppCustomDependenciesEnabled ?? false,
+});
+
+/**
+ * The single source of truth for resolving a stored (raw) org settings record
+ * against the instance defaults: an explicit per-org value wins; a value that's
+ * `null`, or simply absent (an unset column / no row at all), falls back to the
+ * instance default. Used by the backend for both the API response (so the
+ * frontend just displays the effective value) and the login flow, so the two
+ * can never drift.
+ */
+export const resolveEffectiveOrganizationSettings = (
+    raw: Partial<OrganizationSettings>,
+    instanceDefaults: OrganizationSettingsInstanceDefaults,
+): OrganizationSettings => ({
+    ...resolveEffectiveOrganizationSettingsFields(raw, instanceDefaults),
+    // The env is a ceiling: an org may turn captures off, never on past it.
+    dataAppCapturesEnabled:
+        instanceDefaults.dataAppCapturesEnabled &&
+        (raw.dataAppCapturesEnabled ?? true),
 });

@@ -52,6 +52,10 @@ export type DashboardSearchResult = Pick<
     verification: ContentVerificationInfo | null;
 } & RankedItem;
 
+export type DashboardChartSummary = DashboardSearchResult['charts'][number] & {
+    exploreName: string;
+};
+
 export type SavedChartSearchResult = Pick<
     SavedChart,
     'uuid' | 'name' | 'description' | 'spaceUuid' | 'projectUuid' | 'slug'

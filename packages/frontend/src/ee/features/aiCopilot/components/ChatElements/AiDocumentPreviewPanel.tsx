@@ -9,11 +9,12 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconExternalLink, IconX } from '@tabler/icons-react';
+import { IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import DocumentRenderer from '../../../../../features/documents/DocumentRenderer';
+import SaveDocumentToSpaceButton from '../../../../../features/documents/SaveDocumentToSpaceButton';
 import { useDocument } from '../../../../../features/documents/useDocument';
 import {
     clearPreview,
@@ -21,6 +22,7 @@ import {
 } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import artifactStyles from './AiArtifactPanel.module.css';
+import { ArtifactWindowControls } from './ArtifactFocusToggle';
 
 type Props = {
     documentPreview: DocumentPreviewData;
@@ -37,14 +39,11 @@ export const AiDocumentPreviewPanel: FC<Props> = ({ documentPreview }) => {
         documentPreview.documentUuidOrSlug,
     );
 
-    const closeButton = (
-        <ActionIcon
-            size="sm"
-            onClick={() => dispatch(clearPreview())}
-            aria-label="Close"
-        >
-            <MantineIcon icon={IconX} />
-        </ActionIcon>
+    const windowControls = (separated: boolean) => (
+        <ArtifactWindowControls
+            onClose={() => dispatch(clearPreview())}
+            separated={separated}
+        />
     );
 
     if (isError || isInitialLoading || !document) {
@@ -63,7 +62,7 @@ export const AiDocumentPreviewPanel: FC<Props> = ({ documentPreview }) => {
                                 delayedMessage="Loading document..."
                             />
                         )}
-                        {closeButton}
+                        {windowControls(false)}
                     </Stack>
                 </Center>
             </Box>
@@ -77,6 +76,10 @@ export const AiDocumentPreviewPanel: FC<Props> = ({ documentPreview }) => {
                 showContents={false}
                 actions={
                     <Group gap={2} wrap="nowrap">
+                        <SaveDocumentToSpaceButton
+                            document={document}
+                            size="xs"
+                        />
                         <Tooltip label="Open Document">
                             <ActionIcon
                                 component={Link}
@@ -91,7 +94,7 @@ export const AiDocumentPreviewPanel: FC<Props> = ({ documentPreview }) => {
                                 <MantineIcon icon={IconExternalLink} />
                             </ActionIcon>
                         </Tooltip>
-                        {closeButton}
+                        {windowControls(true)}
                     </Group>
                 }
             />

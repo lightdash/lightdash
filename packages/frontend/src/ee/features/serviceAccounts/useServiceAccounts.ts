@@ -7,13 +7,14 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 const CACHE_KEY = 'service-accounts';
 type CreateServiceAccountResult = ServiceAccount & { token: string };
 
 export const useServiceAccounts = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
     const listAccounts = useQuery<ServiceAccountWithProjectAccessCount[]>({

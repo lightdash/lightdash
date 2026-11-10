@@ -30,3 +30,27 @@ export const filterDeprecatedModelsForPicker = (
     models.filter(
         (model) => !model.deprecated || getModelKey(model) === selectedModelKey,
     );
+
+export type ModelReplacement = {
+    model: AiModelOption;
+    modelConfig: AiAgentModelConfig;
+};
+
+export const getSupersedingModel = (
+    models: AiModelOption[],
+    model: AiModelOption,
+): AiModelOption | null =>
+    model.supersededBy === null
+        ? null
+        : (models.find(
+              (candidate) =>
+                  candidate.provider === model.provider &&
+                  candidate.name === model.supersededBy,
+          ) ?? null);
+
+// A retired model is swapped for its replacement when a prompt is created,
+// so the picker shows the model a new chat will actually run on.
+export const resolveModelForNewChat = (
+    models: AiModelOption[],
+    model: AiModelOption,
+): AiModelOption => getSupersedingModel(models, model) ?? model;

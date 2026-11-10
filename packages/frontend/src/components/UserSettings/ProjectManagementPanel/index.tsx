@@ -39,6 +39,7 @@ import {
     IconTrash,
     IconUser,
 } from '@tabler/icons-react';
+import clsx from 'clsx';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import {
@@ -85,7 +86,7 @@ const CopyableCommand: FC<{ label: string; command: string }> = ({
     command,
 }) => (
     <Stack gap={4}>
-        <Text fz="xs" fw={600} c="ldGray.7">
+        <Text fz="xs" fw={600} c="dimmed">
             {label}
         </Text>
         <CopyButton value={command}>
@@ -96,15 +97,12 @@ const CopyableCommand: FC<{ label: string; command: string }> = ({
                             block
                             fz="xs"
                             p="xs"
-                            className={
+                            className={clsx(
+                                classes.copyableCommand,
                                 copied
                                     ? classes.copyFlashActive
-                                    : classes.copyFlash
-                            }
-                            style={{
-                                cursor: 'pointer',
-                                wordBreak: 'break-all',
-                            }}
+                                    : classes.copyFlash,
+                            )}
                         >
                             <Group
                                 gap="xs"
@@ -118,6 +116,7 @@ const CopyableCommand: FC<{ label: string; command: string }> = ({
                                     icon={copied ? IconCheck : IconCopy}
                                     size="sm"
                                     color={copied ? 'teal.6' : 'ldGray.5'}
+                                    className={classes.copyIcon}
                                 />
                             </Group>
                         </Code>
@@ -415,7 +414,7 @@ const ProjectManagementPanel: FC = () => {
                     const wt = row.original.warehouseType;
                     if (!wt) {
                         return (
-                            <Text fz="sm" c="ldGray.5">
+                            <Text fz="sm" c="dimmed">
                                 {'\u2014'}
                             </Text>
                         );
@@ -434,7 +433,7 @@ const ProjectManagementPanel: FC = () => {
                                     />
                                 </Avatar>
                             )}
-                            <Text fz="sm" c="ldGray.7">
+                            <Text fz="sm" c="dimmed">
                                 {label}
                             </Text>
                         </Group>
@@ -453,7 +452,7 @@ const ProjectManagementPanel: FC = () => {
                     </Group>
                 ),
                 Cell: ({ row }) => (
-                    <Text fz="sm" c="ldGray.7">
+                    <Text fz="sm" c="dimmed">
                         {row.original.createdByUserName ?? '\u2014'}
                     </Text>
                 ),
@@ -470,7 +469,7 @@ const ProjectManagementPanel: FC = () => {
                     </Group>
                 ),
                 Cell: ({ row }) => (
-                    <Text fz="sm" c="ldGray.7">
+                    <Text fz="sm" c="dimmed">
                         {new Date(row.original.createdAt).toLocaleDateString()}
                     </Text>
                 ),
@@ -491,13 +490,13 @@ const ProjectManagementPanel: FC = () => {
                     const { expiresAt } = row.original;
                     if (!expiresAt) {
                         return (
-                            <Text fz="sm" c="ldGray.5">
+                            <Text fz="sm" c="dimmed">
                                 {'—'}
                             </Text>
                         );
                     }
                     return (
-                        <Text fz="sm" c="ldGray.7">
+                        <Text fz="sm" c="dimmed">
                             {new Date(expiresAt).toLocaleDateString()}
                         </Text>
                     );
@@ -639,33 +638,7 @@ const ProjectManagementPanel: FC = () => {
         enableSorting: true,
         enableTopToolbar: true,
         enableBottomToolbar: false,
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.radius.md,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column' as const,
-                overflow: 'hidden',
-            },
-        },
-        mantineTableHeadCellProps: {
-            bg: 'ldGray.0',
-            style: {
-                userSelect: 'none',
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                borderTop: `1px solid ${theme.colors.ldGray[2]}`,
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-            },
-        },
-        mantineTableBodyCellProps: {
-            style: {
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                borderTop: 'none',
-            },
-        },
+        mantineTableBodyCellProps: { py: 'sm' },
         mantineTableProps: {
             highlightOnHover: true,
         },
@@ -797,13 +770,7 @@ const ProjectManagementPanel: FC = () => {
                                                 variant="filled"
                                                 color="indigo.6"
                                                 circle
-                                                styles={{
-                                                    root: {
-                                                        minWidth: 18,
-                                                        height: 18,
-                                                        padding: '0 4px',
-                                                    },
-                                                }}
+                                                className={classes.countBadge}
                                             >
                                                 {selectedWarehouses.length}
                                             </Badge>
@@ -892,13 +859,9 @@ const ProjectManagementPanel: FC = () => {
                                                     variant="filled"
                                                     color="indigo.6"
                                                     circle
-                                                    styles={{
-                                                        root: {
-                                                            minWidth: 18,
-                                                            height: 18,
-                                                            padding: '0 4px',
-                                                        },
-                                                    }}
+                                                    className={
+                                                        classes.countBadge
+                                                    }
                                                 >
                                                     {selectedCreators.length}
                                                 </Badge>
@@ -1042,7 +1005,7 @@ const ProjectManagementPanel: FC = () => {
                 onClose={() => setCliProject(undefined)}
                 title={`CLI reference: ${cliProject?.name ?? ''}`}
                 icon={IconTerminal2}
-                size="lg"
+                size="xl"
             >
                 {cliProject && (
                     <Stack gap="md">
@@ -1056,7 +1019,7 @@ const ProjectManagementPanel: FC = () => {
                         />
                         <CopyableCommand
                             label="Start a preview from this project"
-                            command={`lightdash start-preview --project ${cliProject.projectUuid}`}
+                            command={`LIGHTDASH_PROJECT=${cliProject.projectUuid} lightdash start-preview --name <name>`}
                         />
                         <CopyableCommand
                             label="Validate this project"

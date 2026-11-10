@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { lightdashRawApi } from './apiClient';
+import { lightdashApi, lightdashRawApi } from './apiClient';
 
 const { fetchMock } = vi.hoisted(() => ({ fetchMock: vi.fn() }));
 
@@ -59,6 +59,29 @@ describe('lightdashRawApi request timeout', () => {
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(fetchMock.mock.calls[0][1].signal).toBeInstanceOf(AbortSignal);
     });
+
+    it.each([undefined, '5000'])(
+        'forwards caller cancellation with request timeout %s',
+        async (timeout) => {
+            if (timeout === undefined)
+                delete process.env.LIGHTDASH_API_TIMEOUT_MS;
+            else process.env.LIGHTDASH_API_TIMEOUT_MS = timeout;
+            hangingFetch();
+            const controller = new AbortController();
+            const request = lightdashApi({
+                method: 'GET',
+                url: '/api/v1/user',
+                body: undefined,
+                signal: controller.signal,
+            });
+            const outcome = request.catch((error: Error) => error);
+            await vi.advanceTimersByTimeAsync(0);
+            controller.abort();
+            expect(await outcome).toMatchObject({ name: 'AbortError' });
+            expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(true);
+            expect(vi.getTimerCount()).toBe(0);
+        },
+    );
 
     it('does not abort when the variable is unset or invalid', async () => {
         delete process.env.LIGHTDASH_API_TIMEOUT_MS;

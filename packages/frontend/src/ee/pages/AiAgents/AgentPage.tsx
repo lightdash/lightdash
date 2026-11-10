@@ -1,5 +1,5 @@
 import { isAiAppThreadCreatedFrom, type AiAgent } from '@lightdash/common';
-import { Box, Group, Loader, Stack, Text, TextInput } from '@mantine/core';
+import { Center, Group, Loader, Stack, Text, TextInput } from '@mantine/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import {
@@ -21,19 +21,18 @@ import { AgentSelector } from '../../features/aiCopilot/components/AgentSelector
 import { AgentPageHeader } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentPageHeader';
 import { AgentSidebar } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentSidebar';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
+import { NewThreadButton } from '../../features/aiCopilot/components/AiAgentPageLayout/NewThreadButton';
 import { launcherSession } from '../../features/aiCopilot/components/Launcher/launcherSession';
 import { useLauncherDock } from '../../features/aiCopilot/components/Launcher/useLauncherDock';
 import { MyMemoriesModal } from '../../features/aiCopilot/components/MyMemories/MyMemoriesModal';
 import { MEMORY_TOUR_STEPS } from '../../features/aiCopilot/components/MyMemories/onboarding';
 import AiThreadChartEditorModal from '../../features/aiCopilot/components/ThreadChartEditor/AiThreadChartEditorModal';
 import { AiThreadChartEditContext } from '../../features/aiCopilot/components/ThreadChartEditor/useAiThreadChartEdit';
-import {
-    getAiAgentPageBase,
-    isEmbedAiAgentRoute,
-} from '../../features/aiCopilot/hooks/aiAgentRouting';
+import { getAiAgentPageBase } from '../../features/aiCopilot/hooks/aiAgentRouting';
 import { useMyAiAgentMemories } from '../../features/aiCopilot/hooks/useAiAgentMemory';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentMemoryEnabled } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
+import { useEmitEmbedAgentContentEvents } from '../../features/aiCopilot/hooks/useEmitEmbedAgentContentEvents';
 import {
     useProjectAiAgent as useAiAgent,
     useAiAgentThread,
@@ -42,6 +41,7 @@ import {
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
 import { store as aiAgentStore } from '../../features/aiCopilot/store';
 import { openPanel } from '../../features/aiCopilot/store/aiAgentLauncherSlice';
+import useIsEmbedded from '../../providers/Embed/useIsEmbedded';
 import styles from './AgentPage.module.css';
 
 type NavigateFromAgentChatOptions = {
@@ -54,7 +54,8 @@ const AgentPage = () => {
     const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const isEmbed = isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
+    useEmitEmbedAgentContentEvents({ projectUuid, agentUuid });
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
         projectUuid,
@@ -212,16 +213,9 @@ const AgentPage = () => {
 
     if (isLoadingAgent) {
         return (
-            <Box
-                h="100vh"
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                }}
-            >
+            <Center h="100vh">
                 <Loader color="gray" />
-            </Box>
+            </Center>
         );
     }
 
@@ -230,8 +224,8 @@ const AgentPage = () => {
             <Navigate
                 to={
                     isEmbed
-                        ? `${getAiAgentPageBase(projectUuid!)}/not-authorized`
-                        : getAiAgentPageBase(projectUuid!)
+                        ? `${getAiAgentPageBase(projectUuid!, isEmbed)}/not-authorized`
+                        : getAiAgentPageBase(projectUuid!, isEmbed)
                 }
             />
         );
@@ -246,6 +240,14 @@ const AgentPage = () => {
             isEmbed={isEmbed}
             setIsAgentSidebarCollapsed={setIsAgentSidebarCollapsed}
             isAgentSidebarCollapsed={isAgentSidebarCollapsed}
+            SidebarHeader={
+                isEmbed ? undefined : (
+                    <NewThreadButton
+                        to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`}
+                        isCollapsed={isAgentSidebarCollapsed}
+                    />
+                )
+            }
             Sidebar={
                 isEmbed ? undefined : (
                     <AgentSidebar

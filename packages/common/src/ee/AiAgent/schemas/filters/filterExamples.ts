@@ -2,7 +2,7 @@ import { DimensionType, MetricType } from '../../../../types/field';
 import {
     FilterOperator,
     FilterType,
-    type UnitOfTime,
+    UnitOfTime,
 } from '../../../../types/filter';
 import assertUnreachable from '../../../../utils/assertUnreachable';
 import { filterExpressionDateUnits } from '../filterExpressions/operators';
@@ -16,6 +16,8 @@ export type AiFilterExample = {
     settings?: {
         completed: boolean;
         unitOfTime: UnitOfTime;
+        toDate?: true;
+        excludeToday?: true;
     };
 };
 
@@ -77,15 +79,36 @@ const dateRelativeFilterExampleTemplates: FilterExampleTemplate[] = [
 );
 
 const dateCurrentFilterExampleTemplates: FilterExampleTemplate[] = [
-    FilterOperator.IN_THE_CURRENT,
-    FilterOperator.NOT_IN_THE_CURRENT,
-].flatMap((operator) =>
-    filterExpressionDateUnits.map((unitOfTime) => ({
-        operator,
+    ...[
+        FilterOperator.IN_THE_CURRENT,
+        FilterOperator.NOT_IN_THE_CURRENT,
+    ].flatMap((operator) =>
+        filterExpressionDateUnits.map((unitOfTime) => ({
+            operator,
+            values: [1],
+            settings: { completed: false, unitOfTime },
+        })),
+    ),
+    {
+        operator: FilterOperator.IN_THE_CURRENT,
         values: [1],
-        settings: { completed: false, unitOfTime },
-    })),
-);
+        settings: {
+            completed: false,
+            unitOfTime: UnitOfTime.months,
+            toDate: true,
+        },
+    },
+    {
+        operator: FilterOperator.IN_THE_CURRENT,
+        values: [1],
+        settings: {
+            completed: false,
+            unitOfTime: UnitOfTime.quarters,
+            toDate: true,
+            excludeToday: true,
+        },
+    },
+];
 
 const dateFilterExampleTemplates: FilterExampleTemplate[] = [
     { operator: FilterOperator.NULL },
@@ -332,9 +355,24 @@ const settingsTypeForExamples = (
 
     if (settingsExamples.length === 0) return null;
 
+    const hasToDate = settingsExamples.some((settings) => settings.toDate);
+    const hasExcludeToday = settingsExamples.some(
+        (settings) => settings.excludeToday,
+    );
+
     return `{
   completed: ${literalUnion(settingsExamples.map((settings) => settings.completed))}; // false includes current partial period; true means completed periods only
-  unitOfTime: ${literalUnion(settingsExamples.map((settings) => settings.unitOfTime))};
+  unitOfTime: ${literalUnion(settingsExamples.map((settings) => settings.unitOfTime))};${
+      hasToDate
+          ? `
+  toDate?: true; // optional; ends the current week/month/quarter/year at today ("month to date"); not for days`
+          : ''
+  }${
+      hasExcludeToday
+          ? `
+  excludeToday?: true; // optional; requires toDate; ends at yesterday so today's partial data is excluded`
+          : ''
+  }
 }`;
 };
 

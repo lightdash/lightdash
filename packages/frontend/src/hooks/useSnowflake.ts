@@ -1,16 +1,46 @@
-import { type ApiError, type ApiSuccessEmpty } from '@lightdash/common';
+import {
+    type AgentIdentityConnectEntryPoint,
+    type ApiError,
+    type ApiSuccessEmpty,
+} from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useUiStrings } from '../ee/providers/Embed/useUiStrings';
+import { getAiAccessRefusal } from '../features/aiAccess/errors';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useHealth from './health/useHealth';
 import useToaster from './toaster/useToaster';
 
+type AgentConnectAttribution = {
+    entryPoint: AgentIdentityConnectEntryPoint;
+    projectUuid: string | null;
+};
+
+export class SnowflakeSignInPopupBlockedError extends Error {
+    constructor() {
+        super('Failed to open popup window');
+        this.name = 'SnowflakeSignInPopupBlockedError';
+    }
+}
+
 // TODO: This is a stub for the actual implementation
 //       It could maybe be abstracted into a generic oauth login hook
-const triggerSnowflakeLogin = async (siteUrl: string) => {
+const triggerSnowflakeLogin = async (
+    siteUrl: string,
+    loginPath: '/login/snowflake' | '/login/snowflake-ai',
+    attribution: AgentConnectAttribution | null,
+) => {
     return new Promise<void>((resolve, reject) => {
         const channel = new BroadcastChannel('lightdash-oauth-popup');
-        const loginUrl = `${siteUrl}/api/v1/login/snowflake?isPopup=true`;
+        const params = new URLSearchParams({ isPopup: 'true' });
+        if (loginPath === '/login/snowflake-ai' && attribution) {
+            params.set('entryPoint', attribution.entryPoint);
+            if (attribution.projectUuid !== null) {
+                params.set('project', attribution.projectUuid);
+            }
+        }
+        const loginUrl = `${siteUrl}/api/v1${loginPath}?${params}`;
         console.info(`Opening popup with url: ${loginUrl}`);
 
         const popupWindow = window.open(
@@ -20,7 +50,8 @@ const triggerSnowflakeLogin = async (siteUrl: string) => {
         );
 
         if (!popupWindow) {
-            reject(new Error('Failed to open popup window'));
+            channel.close();
+            reject(new SnowflakeSignInPopupBlockedError());
             return;
         }
 
@@ -56,7 +87,12 @@ export function useSnowflakeLoginPopup({
     const health = useHealth();
     const queryClient = useQueryClient();
     const ssoMutation = useMutation({
-        mutationFn: () => triggerSnowflakeLogin(health.data?.siteUrl || ''),
+        mutationFn: () =>
+            triggerSnowflakeLogin(
+                health.data?.siteUrl || '',
+                '/login/snowflake',
+                null,
+            ),
         onSuccess: async () => {
             // Invalidate user warehouse credentials since the backend creates
             // credentials during the OAuth flow
@@ -79,7 +115,45 @@ export function useSnowflakeLoginPopup({
     }, [ssoMutation, health.data?.auth.snowflake.enabled]);
 }
 
-const getIsAuthenticated = async () =>
+export function useSnowflakeAiLoginPopup(
+    attribution: AgentConnectAttribution,
+    { showErrorToast = true }: { showErrorToast?: boolean } = {},
+) {
+    const t = useUiStrings();
+    const health = useHealth();
+    const queryClient = useQueryClient();
+    const { showToastError } = useToaster();
+    return useMutation({
+        mutationFn: () =>
+            triggerSnowflakeLogin(
+                health.data?.siteUrl || '',
+                '/login/snowflake-ai',
+                attribution,
+            ),
+        onSuccess: async () => {
+            await Promise.all([
+                queryClient.invalidateQueries(['user_warehouse_credentials']),
+                queryClient.invalidateQueries(['ai-access']),
+                queryClient.invalidateQueries({
+                    predicate: (query) =>
+                        !!getAiAccessRefusal(
+                            (query.state.error as ApiError | null)?.error,
+                        ),
+                }),
+            ]);
+        },
+        onError: (error: Error) => {
+            if (showErrorToast) {
+                showToastError({
+                    title: t('aiAccess.signInError'),
+                    subtitle: error.message,
+                });
+            }
+        },
+    });
+}
+
+const getIsAuthenticated = async (lightdashApi: LightdashApi) =>
     lightdashApi<ApiSuccessEmpty['results']>({
         url: `/snowflake/sso/is-authenticated`,
         method: 'GET',
@@ -87,11 +161,12 @@ const getIsAuthenticated = async () =>
     });
 
 export const useIsSnowflakeAuthenticated = () => {
+    const lightdashApi = useLightdashApi();
     const health = useHealth();
 
     return useQuery<ApiSuccessEmpty['results'], ApiError>({
         queryKey: ['snowflake-sso-is-authenticated'],
-        queryFn: getIsAuthenticated,
+        queryFn: () => getIsAuthenticated(lightdashApi),
         enabled: health.data?.auth.snowflake.enabled === true,
         retry: false,
     });

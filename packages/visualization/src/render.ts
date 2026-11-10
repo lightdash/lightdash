@@ -83,12 +83,6 @@ export type ChartColors = {
     palette?: string[];
     /** Assignments from earlier charts, so a group value keeps its colour across them. */
     assignments?: ColorAssignments;
-    /**
-     * Grouped series take a shared colour per group value (the same value is
-     * the same colour in every chart) rather than the palette colour for
-     * their position. The `CalculateSeriesColor` feature flag in Lightdash.
-     */
-    sharedSeriesColors?: boolean;
 };
 
 /** How to draw, as opposed to what: none of it changes what the chart says. */
@@ -375,7 +369,6 @@ export const buildChart = (
                     ? { type: ChartType.CARTESIAN, config: resolved.config }
                     : undefined,
             itemsMap,
-            calculateSeriesColor: options.colors?.sharedSeriesColors ?? false,
         });
     const done = (output: RenderOutput): RenderedChart => ({
         ...output,

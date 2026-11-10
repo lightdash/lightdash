@@ -2,23 +2,16 @@ import { ContentType, ResourceViewItemType } from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { useFavoriteMutation } from './useFavoriteMutation';
 import { useFavorites } from './useFavorites';
 
 const mocks = vi.hoisted(() => ({
     api: vi.fn(),
-    enabled: true,
-    flagError: false,
     success: vi.fn(),
     error: vi.fn(),
 }));
-vi.mock('../../api', () => ({ lightdashApi: mocks.api }));
-vi.mock('../useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: { enabled: mocks.enabled },
-        isError: mocks.flagError,
-    }),
-}));
+vi.mock('../../api');
 vi.mock('../toaster/useToaster', () => ({
     default: () => ({
         showToastSuccess: mocks.success,
@@ -30,19 +23,13 @@ const document = {
     type: ResourceViewItemType.DOCUMENT,
     data: { uuid: 'document', name: 'Report', slug: 'report' },
 };
-const chart = {
-    type: ResourceViewItemType.CHART,
-    data: { uuid: 'chart', name: 'Chart' },
-};
 
 describe('Document favorites', () => {
     const clients: QueryClient[] = [];
     beforeEach(() => {
-        mocks.api.mockReset();
+        mockedLightdashApi.mockReset();
         mocks.success.mockReset();
         mocks.error.mockReset();
-        mocks.enabled = true;
-        mocks.flagError = false;
     });
     afterEach(() => clients.forEach((client) => client.clear()));
     const wrapper = () => {
@@ -60,7 +47,7 @@ describe('Document favorites', () => {
         );
     };
     it('refreshes the shared favorite state after adding and removing a document', async () => {
-        mocks.api
+        mockedLightdashApi
             .mockResolvedValueOnce([])
             .mockResolvedValueOnce({ isFavorite: true })
             .mockResolvedValueOnce([document])
@@ -83,7 +70,7 @@ describe('Document favorites', () => {
         await waitFor(() =>
             expect(result.current.favorites.data).toEqual([document]),
         );
-        expect(mocks.api).toHaveBeenCalledWith({
+        expect(mockedLightdashApi).toHaveBeenCalledWith({
             url: '/projects/project/favorites',
             method: 'PATCH',
             body: JSON.stringify({
@@ -102,24 +89,12 @@ describe('Document favorites', () => {
             title: 'Removed from favorites',
         });
     });
-    it.each([
-        { enabled: false, flagError: false },
-        { enabled: true, flagError: true },
-    ])(
-        'hides documents without hiding existing favorite types when flag unavailable: %j',
-        async (flags) => {
-            Object.assign(mocks, flags);
-            mocks.api.mockResolvedValue([document, chart]);
-            const { result } = renderHook(() => useFavorites('project'), {
-                wrapper: wrapper(),
-            });
-            await waitFor(() => expect(result.current.data).toEqual([chart]));
-        },
-    );
     it('retains existing favorite state and surfaces failed mutations', async () => {
-        mocks.api.mockResolvedValueOnce([document]).mockRejectedValueOnce({
-            error: { message: 'Document unavailable', statusCode: 404 },
-        });
+        mockedLightdashApi
+            .mockResolvedValueOnce([document])
+            .mockRejectedValueOnce({
+                error: { message: 'Document unavailable', statusCode: 404 },
+            });
         const { result } = renderHook(
             () => ({
                 favorites: useFavorites('project'),

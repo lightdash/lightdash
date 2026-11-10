@@ -46,9 +46,12 @@ export const useKeySpaces = (
         const viewsBySpace = new Map<string, number>();
         (popularQuery.data?.mostPopular ?? []).forEach((item) => {
             const views = 'views' in item ? (item.views ?? 0) : 0;
+            const spaceUuid =
+                'contentType' in item ? item.space?.uuid : item.spaceUuid;
+            if (!spaceUuid) return;
             viewsBySpace.set(
-                item.spaceUuid,
-                (viewsBySpace.get(item.spaceUuid) ?? 0) + views,
+                spaceUuid,
+                (viewsBySpace.get(spaceUuid) ?? 0) + views,
             );
         });
 

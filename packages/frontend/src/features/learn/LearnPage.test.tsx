@@ -1,7 +1,7 @@
 import { Ability } from '@casl/ability';
 import { ProjectType } from '@lightdash/common';
 import { MantineProvider } from '@mantine/core';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -12,17 +12,17 @@ import LearnPage from './LearnPage';
 const {
     track,
     projectState,
-    learnFlagState,
+    startFresh,
     availabilityState,
     accessState,
     progressState,
     learnActions,
     learnPermission,
 } = vi.hoisted(() => ({
+    startFresh: vi.fn(),
     track: vi.fn(),
     learnPermission: { granted: true },
     projectState: { current: [] as unknown[] },
-    learnFlagState: { current: { enabled: true }, isLoading: false },
     availabilityState: {
         current: { isSettled: true, closed: [] as string[] },
     },
@@ -51,6 +51,7 @@ vi.mock('../../providers/App/useApp', () => ({
         user: {
             data: {
                 organizationUuid: 'org-1',
+                userUuid: 'user-1',
                 role: 'admin',
                 ability: new Ability([
                     { action: 'manage', subject: 'Organization' },
@@ -98,13 +99,6 @@ vi.mock('./progress', () => ({
     useLearnProgressActions: () => learnActions,
 }));
 
-vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: learnFlagState.current,
-        isLoading: learnFlagState.isLoading,
-    }),
-}));
-
 vi.mock('../../hooks/useProjects', () => ({
     useProjects: () => ({ data: projectState.current }),
 }));
@@ -125,6 +119,10 @@ vi.mock('./availability', () => ({
     }),
 }));
 
+vi.mock('./useStartFresh', () => ({
+    useStartFresh: () => ({ mutate: startFresh, isLoading: false }),
+}));
+
 vi.mock('./useEnableLearn', () => ({
     useEnableLearn: () => ({ mutate: vi.fn(), isLoading: false, error: null }),
 }));
@@ -140,9 +138,15 @@ vi.mock('./thumbnails', () => ({
 const catalogue = buildLearnCatalogue();
 const scopes = catalogue.map((module) => module.scope);
 
-const CurrentLocation = () => (
-    <output data-testid="location">{useLocation().search}</output>
-);
+const CurrentLocation = () => {
+    const { search, pathname } = useLocation();
+    return (
+        <>
+            <output data-testid="location">{search}</output>
+            <output data-testid="pathname">{pathname}</output>
+        </>
+    );
+};
 
 const renderPage = (query = '') =>
     render(
@@ -167,8 +171,6 @@ describe('LearnPage analytics', () => {
             lastStarted: null,
         };
         track.mockClear();
-        learnFlagState.current = { enabled: true };
-        learnFlagState.isLoading = false;
         availabilityState.current = { isSettled: true, closed: [] };
         accessState.current = scopes;
         projectState.current = [
@@ -251,7 +253,7 @@ describe('LearnPage analytics', () => {
         const { container } = renderPage();
         const { moduleCount, startedCount, completedCount } =
             viewEvents()[0].properties;
-        expect(moduleCount).toBe(44);
+        expect(moduleCount).toBe(48);
         expect(startedCount).toBe(1);
         expect(completedCount).toBe(1);
         expect(
@@ -292,12 +294,16 @@ describe('LearnPage analytics', () => {
         expect(viewEvents()).toHaveLength(1);
     });
 
-    it('records nothing when Learn is switched off for the instance', () => {
-        learnFlagState.current = { enabled: false };
-
+    // No feature flag is mocked in this file: Learn is on for every
+    // instance, so the library renders where it is opened.
+    it('shows the library with no feature flag and records the view', () => {
         renderPage();
 
-        expect(viewEvents()).toEqual([]);
+        expect(screen.getByTestId('pathname')).toHaveTextContent('/learn');
+        expect(
+            screen.getByRole('textbox', { name: 'Search the library' }),
+        ).toBeInTheDocument();
+        expect(viewEvents()).toHaveLength(1);
     });
 });
 
@@ -313,7 +319,6 @@ describe('LearnPage access', () => {
             lastStarted: null,
         };
         track.mockClear();
-        learnFlagState.current = { enabled: true };
         availabilityState.current = { isSettled: true, closed: [] };
         accessState.current = ['view:Dashboard', 'manage:Validation'];
         projectState.current = [
@@ -331,6 +336,66 @@ describe('LearnPage access', () => {
             screen.getByRole('menuitem', { name: 'Show extra modules' }),
         );
     };
+
+    it('offers Start fresh to a learner with a copy, and removes it once confirmed', async () => {
+        projectState.current = [
+            { projectUuid: 'training-1', type: ProjectType.TRAINING },
+            {
+                projectUuid: 'copy-1',
+                type: ProjectType.PREVIEW,
+                provisioningSource: 'training',
+                upstreamProjectUuid: 'training-1',
+                createdByUserUuid: 'user-1',
+            },
+        ];
+        renderPage();
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Start fresh' }),
+        );
+        const warning = await screen.findByText(
+            'Your copy and everything you built in it will be removed.',
+        );
+        const dialog = warning.closest(
+            '[role="dialog"], [role="alertdialog"]',
+        ) as HTMLElement;
+        await userEvent.click(
+            within(dialog).getByRole('button', { name: 'Start fresh' }),
+        );
+        expect(startFresh).toHaveBeenCalledWith(
+            { trainingProjectUuid: 'training-1' },
+            expect.anything(),
+        );
+    });
+
+    it('opens the copy from Continue exploring', async () => {
+        projectState.current = [
+            { projectUuid: 'training-1', type: ProjectType.TRAINING },
+            {
+                projectUuid: 'copy-1',
+                type: ProjectType.PREVIEW,
+                provisioningSource: 'training',
+                upstreamProjectUuid: 'training-1',
+                createdByUserUuid: 'user-1',
+            },
+        ];
+        renderPage();
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Continue exploring' }),
+        );
+        expect(screen.getByTestId('pathname')).toHaveTextContent(
+            '/projects/copy-1/home',
+        );
+    });
+
+    it('offers no Start fresh to a learner without a copy', () => {
+        renderPage();
+        expect(
+            screen.queryByRole('button', { name: 'Start fresh' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Continue exploring' }),
+        ).not.toBeInTheDocument();
+    });
 
     it('shows the forbidden state without Learn access and records no library view', () => {
         learnPermission.granted = false;
@@ -417,7 +482,7 @@ describe('LearnPage access', () => {
         );
         expect(card).not.toBeNull();
         expect(card!.textContent).toContain('Metrics');
-        expect(card!.textContent).toContain('12 steps');
+        expect(card!.textContent).toContain('13 steps');
         expect(
             container.querySelector('[data-learn-group="developer"]'),
         ).not.toBeNull();
@@ -466,7 +531,6 @@ describe('LearnPage filters', () => {
             started: [],
             lastStarted: null,
         };
-        learnFlagState.current = { enabled: true };
         availabilityState.current = { isSettled: true, closed: [] };
         accessState.current = ['view:Dashboard', 'manage:Validation'];
         projectState.current = [
@@ -532,8 +596,6 @@ describe('LearnPage unsupported modules', () => {
             lastStarted: null,
         };
         track.mockClear();
-        learnFlagState.current = { enabled: true };
-        learnFlagState.isLoading = false;
         availabilityState.current = { isSettled: true, closed: [] };
         accessState.current = scopes;
         projectState.current = [

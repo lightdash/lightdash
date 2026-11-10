@@ -1,5 +1,6 @@
 import { FeatureFlags, type HealthState } from '@lightdash/common';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -26,19 +27,12 @@ const healthWithGoogleAuth = (enabled: boolean): Partial<HealthState> => ({
         oidc: { enabled: false, loginPath: '/login/oidc' },
         pat: { maxExpirationTimeInDays: undefined },
         snowflake: { enabled: false },
+        snowflakeAi: { enabled: false },
         databricks: { enabled: false },
     },
 });
 
-const renderDataSourcePicker = (isGoogleAuthEnabled: boolean) =>
-    renderWithProviders(
-        <MemoryRouter>
-            <OnboardingDataSource />
-        </MemoryRouter>,
-        { health: healthWithGoogleAuth(isGoogleAuthEnabled) },
-    );
-
-const renderWithoutProjectCreation = () =>
+const renderChooser = ({ canCreateProject }: { canCreateProject: boolean }) =>
     renderWithProviders(
         <MemoryRouter initialEntries={['/onboarding/data-source']}>
             <Routes>
@@ -46,13 +40,17 @@ const renderWithoutProjectCreation = () =>
                     path="/onboarding/data-source"
                     element={<OnboardingDataSource />}
                 />
+                <Route
+                    path="/onboarding/data-source/postgres"
+                    element={<div>postgres form</div>}
+                />
                 <Route path="/" element={<div>home</div>} />
                 <Route path="/no-access" element={<div>no access</div>} />
             </Routes>
         </MemoryRouter>,
         {
             health: healthWithGoogleAuth(false),
-            user: { abilityRules: [] },
+            ...(canCreateProject ? {} : { user: { abilityRules: [] } }),
         },
     );
 
@@ -64,32 +62,22 @@ describe('OnboardingDataSource', () => {
         } as ReturnType<typeof useServerFeatureFlag>);
     });
 
-    it('advertises google sign-in for BigQuery when google auth is configured', async () => {
-        renderDataSourcePicker(true);
+    it('opens the warehouse form straight from its tile', async () => {
+        renderChooser({ canCreateProject: true });
 
         expect(
-            await screen.findByText('Sign in with Google to connect'),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByText('Connect with a service account'),
+            screen.queryByRole('radiogroup', {
+                name: 'How should we set up your models?',
+            }),
         ).not.toBeInTheDocument();
-        expect(screen.getByText('Connect with SSO')).toBeInTheDocument();
-    });
-
-    it('advertises a service account for BigQuery when google auth is not configured', async () => {
-        renderDataSourcePicker(false);
-
-        expect(
-            await screen.findByText('Connect with a service account'),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByText('Sign in with Google to connect'),
-        ).not.toBeInTheDocument();
-        expect(screen.getByText('Connect with SSO')).toBeInTheDocument();
+        await userEvent.click(
+            await screen.findByRole('button', { name: /PostgreSQL/ }),
+        );
+        expect(await screen.findByText('postgres form')).toBeInTheDocument();
     });
 
     it('sends a user who cannot create a project to the no access page', async () => {
-        renderWithoutProjectCreation();
+        renderChooser({ canCreateProject: false });
 
         expect(await screen.findByText('no access')).toBeInTheDocument();
         expect(screen.queryByText('home')).not.toBeInTheDocument();

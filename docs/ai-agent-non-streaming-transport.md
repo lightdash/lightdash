@@ -89,3 +89,28 @@ With streaming, bytes flow continuously and keep proxy connections alive. With
 is sent until that `doGenerate` returns. A long final generation can approach reverse-proxy idle
 timeouts (e.g. nginx `proxy_read_timeout`). Deployments using this flag should set proxy
 read/idle timeouts comfortably above the expected single-completion time.
+
+
+## Anthropic gateways without context management
+
+Context management is a separate endpoint capability from streaming. The Anthropic model builder
+(`packages/backend/src/ee/services/ai/models/anthropic-claude.ts`) normally requests server-side
+clearing of older tool uses and, when reasoning is enabled, thinking blocks. Some Anthropic-wire
+gateways route to downstreams that reject those context-management edits.
+
+Set `ANTHROPIC_SUPPORTS_CONTEXT_MANAGEMENT=false` on those deployments and restart the backend
+and scheduler processes to reload configuration. The setting defaults to `true`; `false` or `0`
+(ignoring case and surrounding whitespace) disables it. Configuring `ANTHROPIC_BASE_URL` alone does
+not change the default.
+
+```bash
+ANTHROPIC_BASE_URL=https://internal-gateway.example.com
+ANTHROPIC_SUPPORTS_CONTEXT_MANAGEMENT=false
+```
+
+The parsed `supportsContextManagement` capability applies to all models resolved through the
+instance's `anthropic` provider, for both streaming and non-streaming requests. Disabling it omits
+`contextManagement` from provider options (and thus `context_management` from the SDK request),
+without disabling reasoning or changing its budget/effort. It does not affect the native `bedrock`
+provider or Claude Code in data-app sandboxes. With server-side context clearing disabled, long
+conversations may reach the downstream model's context limit sooner.

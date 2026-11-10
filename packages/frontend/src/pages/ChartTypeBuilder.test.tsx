@@ -47,6 +47,7 @@ import {
 } from '../features/chartTypes/builder/useExplorePreviewData';
 import { useSavedChartBindingPreview } from '../features/chartTypes/builder/useSavedChartBindingPreview';
 import { useSavedChartPreviewData } from '../features/chartTypes/builder/useSavedChartPreviewData';
+import { useChartStudioAvailable } from '../features/chartTypes/hooks/useChartStudioAvailable';
 import { useDataAppVisualization } from '../features/chartTypes/hooks/useDataAppVisualization';
 import { useDataAppVizBuild } from '../features/chartTypes/hooks/useDataAppVizBuild';
 import { type VizBuildRequest } from '../features/chartTypes/hooks/useDataAppVizBuild';
@@ -59,6 +60,11 @@ import { useExplores } from '../hooks/useExplores';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../testing/testUtils';
 import ChartTypeBuilder from './ChartTypeBuilder';
+
+vi.mock('../features/chartTypes/hooks/useChartStudioAvailable');
+vi.mock('../features/aiAccess/useAiAccessGate', () => ({
+    useAiAccessGate: () => ({ disabled: false }),
+}));
 
 vi.mock('../ee/features/ambientAi/hooks/useAmbientAiEnabled', () => ({
     useAmbientAiEnabled: vi.fn(),
@@ -271,11 +277,21 @@ const historyStub = (
     fetchEarlier: vi.fn(),
 });
 
-const setFlag = (enabled: boolean) =>
-    vi.mocked(useServerFeatureFlag).mockReturnValue({
-        data: { id: FeatureFlags.EnableDataApps, enabled },
-        isLoading: false,
-    } as ReturnType<typeof useServerFeatureFlag>);
+// Chart Studio no longer reads the data apps flag, so it stays off here.
+const setFlags = (dataAppsEnabled: boolean) =>
+    vi.mocked(useServerFeatureFlag).mockImplementation(
+        (flag) =>
+            ({
+                data: {
+                    id: flag,
+                    enabled:
+                        flag === FeatureFlags.EnableDataApps
+                            ? dataAppsEnabled
+                            : true,
+                },
+                isLoading: false,
+            }) as ReturnType<typeof useServerFeatureFlag>,
+    );
 
 const setApp = (meta: AppMeta | null, error: unknown = null) =>
     vi.mocked(useGetApp).mockReturnValue({
@@ -366,7 +382,8 @@ describe('ChartTypeBuilder', () => {
             data: [{ name: 'orders', label: 'Orders' }],
             isInitialLoading: false,
         } as unknown as ReturnType<typeof useExplores>);
-        setFlag(true);
+        setFlags(false);
+        vi.mocked(useChartStudioAvailable).mockReturnValue(true);
         vi.mocked(useCanCreateDataApp).mockReturnValue(true);
         vi.mocked(useCanEditDataApp).mockReturnValue(true);
         vi.mocked(useDataAppVizBuild).mockReturnValue(buildStub());
@@ -391,8 +408,9 @@ describe('ChartTypeBuilder', () => {
         } as unknown as ReturnType<typeof useUpgradeApp>);
     });
 
-    it('redirects home when data apps are disabled', () => {
-        setFlag(false);
+    it('redirects home when Chart Studio is unavailable, even with data apps on', () => {
+        setFlags(true);
+        vi.mocked(useChartStudioAvailable).mockReturnValue(false);
         renderBuilder('/projects/p1/chart-studio/new');
 
         expect(screen.getByText('home')).toBeInTheDocument();
@@ -400,18 +418,11 @@ describe('ChartTypeBuilder', () => {
 
     it.each([
         {
-            name: 'the data apps feature is disabled',
+            name: 'Chart Studio is unavailable',
             path: '/projects/p1/chart-studio/new',
-            prepare: () => setFlag(false),
-        },
-        {
-            name: 'the data apps feature flag is loading',
-            path: '/projects/p1/chart-studio/new',
-            prepare: () =>
-                vi.mocked(useServerFeatureFlag).mockReturnValue({
-                    data: undefined,
-                    isLoading: true,
-                } as ReturnType<typeof useServerFeatureFlag>),
+            prepare: () => {
+                vi.mocked(useChartStudioAvailable).mockReturnValue(false);
+            },
         },
         {
             name: 'the author cannot create chart types',
@@ -1227,6 +1238,7 @@ describe('ChartTypeBuilder', () => {
             expect(
                 asyncCalculateTotal.fetchColumnSubtotalRows,
             ).toHaveBeenCalledWith(
+                expect.anything(),
                 expect.objectContaining({
                     sourceQueryUuid: 'live-query',
                     subtotalDimensions: ['orders_region'],
@@ -1318,6 +1330,7 @@ describe('ChartTypeBuilder', () => {
             expect(
                 asyncCalculateTotal.fetchColumnSubtotalRows,
             ).toHaveBeenCalledWith(
+                expect.anything(),
                 expect.objectContaining({
                     sourceQueryUuid: 'saved-query',
                     subtotalDimensions: ['orders_region'],
@@ -2257,7 +2270,7 @@ describe('ChartTypeBuilder', () => {
             renderBuilder(path);
 
             expect(suggestChartTypeFields).toHaveBeenCalledTimes(1);
-            expect(vi.mocked(suggestChartTypeFields).mock.calls[0][1]).toEqual({
+            expect(vi.mocked(suggestChartTypeFields).mock.calls[0][2]).toEqual({
                 prompt: 'revenue by region',
                 clarifications: ['Total revenue'],
                 exploreName: 'orders',
@@ -2319,6 +2332,7 @@ describe('ChartTypeBuilder', () => {
             vi.mocked(useAmbientAiEnabled).mockReturnValue(false);
             renderBuilder(path);
 
+            expect(useAmbientAiEnabled).toHaveBeenCalledWith('p1');
             expect(suggestChartTypeFields).not.toHaveBeenCalled();
             expect(lastPreviewCall()).toMatchObject({
                 isPickingFields: false,
@@ -2403,7 +2417,7 @@ describe('ChartTypeBuilder', () => {
 
             expect(suggestChartTypeFields).toHaveBeenCalledTimes(2);
             expect(
-                vi.mocked(suggestChartTypeFields).mock.calls[1][1].fields,
+                vi.mocked(suggestChartTypeFields).mock.calls[1][2].fields,
             ).toEqual([colour]);
             expect(lastPreviewCall()).toMatchObject({ isPickingFields: true });
 

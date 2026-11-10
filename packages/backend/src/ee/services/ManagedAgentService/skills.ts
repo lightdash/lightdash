@@ -22,7 +22,9 @@ export const loadAutopilotSkill = async (
         resources:
             builtIn.resources?.filter(
                 (resource) =>
-                    resource.name.endsWith('-chart-reference') ||
+                    // Autopilot builds charts from explores, never SQL charts.
+                    (resource.name.endsWith('-chart-reference') &&
+                        resource.name !== 'sql-chart-reference') ||
                     resource.name === 'field-formatting-reference',
             ) ?? [],
     };

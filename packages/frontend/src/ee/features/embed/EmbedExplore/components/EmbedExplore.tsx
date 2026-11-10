@@ -3,6 +3,7 @@ import {
     type CreateSavedChartVersion,
     type SavedChart,
 } from '@lightdash/common';
+import { Box } from '@mantine/core';
 import { IconUnlink } from '@tabler/icons-react';
 import { useEffect, useLayoutEffect, useMemo, useState, type FC } from 'react';
 import { Provider } from 'react-redux';
@@ -24,6 +25,7 @@ import EmbedProviderContext from '../../../../providers/Embed/context';
 import { type EmbedExploreOptions } from '../../../../providers/Embed/types';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 import { useEmbedExploreKey } from '../useEmbedExploreKey';
+import classes from './EmbedExplore.module.css';
 
 const EmbedExploreView: FC<{
     exploreId: string;
@@ -258,15 +260,15 @@ const EmbedExplore: FC<Props> = ({
 
     if (!projectUuid) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState title="Missing project UUID" />
-            </div>
+            </Box>
         );
     }
 
     if (exploreError) {
         return (
-            <div style={{ marginTop: '20px' }}>
+            <Box mt="lg">
                 <SuboptimalState
                     title="Error loading explore"
                     icon={IconUnlink}
@@ -276,12 +278,16 @@ const EmbedExplore: FC<Props> = ({
                             : exploreError.error.message
                     }
                 />
-            </div>
+            </Box>
         );
     }
 
     return (
-        <div style={containerStyles ?? { height: '100vh', overflowY: 'auto' }}>
+        <div
+            className={containerStyles ? undefined : classes.scrollContainer}
+            // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
+            style={containerStyles}
+        >
             <EmbedExploreContent
                 key={contentKey}
                 exploreId={exploreId}

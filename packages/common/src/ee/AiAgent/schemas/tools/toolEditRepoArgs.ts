@@ -2,41 +2,6 @@ import { z } from 'zod';
 import { toolErrorStructuredContentSchema } from '../outputMetadata';
 import { makeBuiltInToolResultGuard } from './builtInToolResultGuard';
 
-export const TOOL_EDIT_REPO_DESCRIPTION = [
-    'Make a code change to one of the repositories your organization can write to, and open (or update) a pull request with it.',
-    'Use this tool when the user asks to CHANGE code in a connected repository — e.g. fix a typo, edit a file, add a small feature — and wants a pull request raised on their behalf.',
-    "This is the general-purpose counterpart to editDbtProject: editDbtProject is for changes to THIS project's dbt / semantic-layer repo (it also runs `lightdash compile`); editRepo targets ANY writable repo and does NOT run a build — verification happens via the pull request's own CI.",
-    'The change is applied in an isolated sandbox that clones the target repo, edits files, and opens a pull request. The call is synchronous and can take several minutes. Treat the result as your own work when you report it to the user.',
-    'Do NOT use this tool for read-only questions (use exploreRepo / discoverRepos), for querying data, or for changes that can be made inside Lightdash (use editContent).',
-    'If the user pastes a link to an existing pull request and asks to iterate on it, pass that link as prUrl so the change updates that PR instead of opening a duplicate.',
-].join(' ');
-
-export const toolEditRepoArgsSchema = z.object({
-    repoTarget: z
-        .string()
-        .describe(
-            'The repository to edit, as "owner/repo" (e.g. "acme/web-app"). Must be a repository your organization\'s Git App installation can write to AND that you can access. Resolve the exact owner/repo first (e.g. via discoverRepos) rather than guessing.',
-        ),
-    prompt: z
-        .string()
-        .nullable()
-        .describe(
-            'A focused, self-contained natural-language instruction describing exactly which files in the repository to change and how. The change is applied in a fresh sandbox that does not see this conversation, so include every detail it needs (file path hints, the literal change to make). Do not include preamble or pleasantries.',
-        ),
-    prUrl: z
-        .string()
-        .nullable()
-        .describe(
-            "To UPDATE a specific existing pull request instead of opening a new one, put its full URL here (e.g. 'https://github.com/owner/repo/pull/123'). The PR must belong to the same repoTarget. Use this both for a PR the user pasted AND to target one of several pull requests this conversation has already opened on the repo. Otherwise pass null.",
-        ),
-    startNewPullRequest: z
-        .boolean()
-        .nullable()
-        .describe(
-            'Set true to open a brand-new pull request even when this conversation already has one open against the same repository — use it when the user asks for a separate/independent change rather than a follow-up to existing work. Leave null (the default) to continue the most recent pull request for the repo. Ignored when prUrl is set.',
-        ),
-});
-
 export const toolEditRepoStructuredContentSchema = z.object({
     repository: z
         .string()
@@ -130,8 +95,6 @@ export const toolEditRepoOutputSchema = z.object({
         toolErrorStructuredContentSchema,
     ]),
 });
-
-export type ToolEditRepoArgs = z.infer<typeof toolEditRepoArgsSchema>;
 
 export type ToolEditRepoOutput = z.infer<typeof toolEditRepoOutputSchema>;
 

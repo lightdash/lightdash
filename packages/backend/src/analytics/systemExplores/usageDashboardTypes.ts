@@ -1,4 +1,9 @@
-import type { ChartAsCode, DashboardAsCode } from '@lightdash/common';
+import type {
+    ChartAsCode,
+    DashboardAsCode,
+    DateFilterSettings,
+    FilterOperator,
+} from '@lightdash/common';
 import type { analyticsExploreNames } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 
 export type AnalyticsContentBundle = {
@@ -15,7 +20,15 @@ export type UsageChartSpec = {
     metrics: string[];
     limit: number;
     sorts: ChartAsCode['metricQuery']['sorts'];
-    filters?: { field: string; values: string[] }[];
+    filters?: {
+        field: string;
+        values: (string | boolean | number)[];
+        operator?: FilterOperator;
+        settings?: DateFilterSettings;
+    }[];
+    timezone?: string;
+    tableCalculations?: ChartAsCode['metricQuery']['tableCalculations'];
+    fieldLabels?: Record<string, string>;
     visualization?: 'number' | 'line' | 'bar' | 'scatter' | 'donut';
     xField?: string;
     yFields?: string[];
@@ -26,12 +39,14 @@ export type UsageDashboardSpec = {
     key: string;
     name: string;
     description: string;
+    filters?: DashboardAsCode['filters'];
     tabs: {
         key: string;
         name: string;
         sections: {
             title: string;
             description: string;
+            noteHeight?: number;
             charts: string[];
         }[];
     }[];

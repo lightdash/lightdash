@@ -10,6 +10,7 @@ const makeModel = (name: string): DbtRawModelNode =>
     ({
         unique_id: `model.test.${name}`,
         name,
+        package_name: 'test',
         resource_type: 'model',
         database: 'database',
         columns: { id: { name: 'id', meta: {} } },
@@ -43,6 +44,24 @@ describe('validateDbtModel', () => {
             new Set([servedModel.unique_id]),
         );
 
+        expect(
+            result.invalid.map((explore) => explore.dbtModelIdentity),
+        ).toEqual([
+            {
+                sourceUuid: null,
+                sourceName: null,
+                packageName: 'test',
+                uniqueId: 'model.test.served_orders',
+                modelName: 'served_orders',
+            },
+            {
+                sourceUuid: null,
+                sourceName: null,
+                packageName: 'test',
+                uniqueId: 'model.test.local_orders',
+                modelName: 'local_orders',
+            },
+        ]);
         const servedMessage = result.invalid[0].errors[0].message;
         const localMessage = result.invalid[1].errors[0].message;
         expect(servedMessage).toContain('The served manifest is outdated.');

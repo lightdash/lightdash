@@ -14,7 +14,7 @@ import {
     type TableCalculation,
     type TableCalculationTemplate,
 } from '@lightdash/common';
-import { SUPPORTED_DIALECTS, type Dialect } from '@lightdash/formula';
+import { SUPPORTED_DIALECTS } from '@lightdash/formula';
 import {
     ActionIcon,
     Anchor,
@@ -59,6 +59,7 @@ import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
+import { useAmbientAiEnabled } from '../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
 import {
     selectCustomDimensions,
     selectMetricQuery,
@@ -70,10 +71,14 @@ import useHealth from '../../../hooks/health/useHealth';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useConvertSqlToFormula } from '../../../hooks/useConvertSqlToFormula';
 import { useExplore } from '../../../hooks/useExplore';
-import { useProject } from '../../../hooks/useProject';
+import {
+    useExploreWarehouseConnection,
+    useMixedWarehouseConnectionsEnabled,
+} from '../../../hooks/useExploreWarehouseConnection';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useCannotAuthorCustomSqlTableCalculations } from '../../../hooks/user/useCannotAuthorCustomSqlTableCalculations';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { resolveNewCalculationEditMode } from '../../../utils/mixedWarehouseConnections';
 import { getUniqueTableCalculationName } from '../utils';
 import { FormatRow } from './FormatRow/FormatRow';
 import { FormulaForm, type FormulaFormHandle } from './FormulaForm/FormulaForm';
@@ -185,19 +190,23 @@ const TableCalculationModal: FC<Props> = ({
     const [isExpanded, toggleExpanded] = useToggle(false);
 
     const projectUuid = useProjectUuid();
-    const { data: project } = useProject(projectUuid);
+    const tableName = useExplorerSelector(selectTableName);
+    const { warehouseType } = useExploreWarehouseConnection(
+        tableName,
+        projectUuid,
+    );
     const { data: health } = useHealth();
 
     // Formula support is pinned to what the formula package can compile for
     // this warehouse — `SUPPORTED_DIALECTS` is the single source of truth
     // shared with the backend mapper.
     const isFormulaSupported =
-        !!project?.warehouseConnection &&
-        (SUPPORTED_DIALECTS as readonly string[]).includes(
-            project.warehouseConnection.type as Dialect,
-        );
+        warehouseType !== null &&
+        (SUPPORTED_DIALECTS as readonly string[]).includes(warehouseType);
 
-    const isAmbientAiEnabled = health?.ai?.isAmbientAiEnabled === true;
+    const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid, {
+        enabled: health?.ai?.isAmbientAiEnabled === true,
+    });
     const { data: customRolesFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.CustomRoles,
     );
@@ -244,7 +253,16 @@ const TableCalculationModal: FC<Props> = ({
         : isFormulaSupported
           ? EditMode.FORMULA
           : EditMode.SQL;
-    const [editMode, setEditMode] = useState<EditMode>(defaultMode);
+    const [preferredEditMode, setEditMode] = useState<EditMode>(defaultMode);
+    const mixedWarehouseConnectionsEnabled =
+        useMixedWarehouseConnectionsEnabled();
+    const editMode = resolveNewCalculationEditMode({
+        preferredMode: preferredEditMode,
+        sqlMode: EditMode.SQL,
+        isNewCalculation,
+        isFormulaSupported,
+        mixedWarehouseConnectionsEnabled,
+    });
 
     useEffect(() => {
         if (isNewCalculation && isFormulaSupported) {
@@ -254,7 +272,6 @@ const TableCalculationModal: FC<Props> = ({
 
     const { addToastError } = useToaster();
 
-    const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const { data: explore } = useExplore(tableName);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
@@ -683,12 +700,8 @@ const TableCalculationModal: FC<Props> = ({
             }
             modalRootProps={{
                 closeOnClickOutside: false,
-                styles: isExpanded
-                    ? {
-                          content: {
-                              minWidth: '90vw',
-                          },
-                      }
+                classNames: isExpanded
+                    ? { content: classes.expandedContent }
                     : undefined,
             }}
         >
@@ -722,10 +735,9 @@ const TableCalculationModal: FC<Props> = ({
                                                 <Text
                                                     size="xs"
                                                     c="red.7"
-                                                    style={{
-                                                        wordBreak: 'break-word',
-                                                        whiteSpace: 'pre-wrap',
-                                                    }}
+                                                    className={
+                                                        classes.parseError
+                                                    }
                                                 >
                                                     {formulaParseError}
                                                 </Text>
@@ -798,11 +810,11 @@ const TableCalculationModal: FC<Props> = ({
                                         !form.values.sql ||
                                         form.values.sql.trim().length === 0
                                     }
-                                    style={{
-                                        visibility: showConversionPreview
-                                            ? 'hidden'
-                                            : 'visible',
-                                    }}
+                                    className={
+                                        showConversionPreview
+                                            ? classes.hidden
+                                            : undefined
+                                    }
                                 >
                                     Convert to formula
                                 </Button>
@@ -864,7 +876,7 @@ const TableCalculationModal: FC<Props> = ({
                                         pos="absolute"
                                         top={8}
                                         right={8}
-                                        style={{ zIndex: 5 }}
+                                        className={classes.floatingActions}
                                     >
                                         <Popover
                                             position="bottom-end"

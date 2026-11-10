@@ -3,6 +3,8 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createDashboardTestStore } from '../../../../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../../../../testing/DashboardStoreTestProvider';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import EmbedDashboardFilters from './EmbedDashboardFilters';
 
@@ -62,27 +64,23 @@ describe('EmbedDashboardFilters edit mode', () => {
         mockDashboardContext.current = {
             projectUuid: 'project-uuid',
             activeTab: undefined,
-            allFilters: { dimensions: [], metrics: [], tableCalculations: [] },
             allFilterableFieldsMap: {},
             dashboardTiles: [],
-            parameterValues: {},
             filterableFieldsByTileUuid: {},
             addDimensionDashboardFilter,
             addMetricDashboardFilter,
             allFilterableMetrics: [],
-            haveFiltersChanged: false,
-            dashboardTemporaryFilters: {
-                dimensions: [],
-                metrics: [],
-                tableCalculations: [],
-            },
             setHaveFiltersChanged: vi.fn(),
             resetDashboardFilters: vi.fn(),
         };
     });
 
     it('adds filters as saved and exposes edit controls in edit mode', async () => {
-        renderWithProviders(<EmbedDashboardFilters canAddFilters isEditMode />);
+        renderWithProviders(
+            <DashboardStoreTestProvider store={createDashboardTestStore()}>
+                <EmbedDashboardFilters canAddFilters isEditMode />
+            </DashboardStoreTestProvider>,
+        );
 
         expect(screen.getByTestId('active-filters')).toHaveAttribute(
             'data-edit-mode',
@@ -102,7 +100,11 @@ describe('EmbedDashboardFilters edit mode', () => {
     });
 
     it('adds filters as temporary and hides edit controls in view mode', async () => {
-        renderWithProviders(<EmbedDashboardFilters canAddFilters />);
+        renderWithProviders(
+            <DashboardStoreTestProvider store={createDashboardTestStore()}>
+                <EmbedDashboardFilters canAddFilters />
+            </DashboardStoreTestProvider>,
+        );
 
         expect(screen.getByTestId('active-filters')).toHaveAttribute(
             'data-edit-mode',

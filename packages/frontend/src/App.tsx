@@ -1,6 +1,5 @@
 import { ModalsProvider } from '@mantine/modals';
 import { wrapCreateBrowserRouterV7 } from '@sentry/react';
-import { lazy, Suspense } from 'react';
 import { flushSync } from 'react-dom';
 import { createBrowserRouter, Outlet, RouterProvider } from 'react-router';
 import { APP_ROUTES } from './AppRoutes';
@@ -12,7 +11,6 @@ import BuildSkewRefresher from './features/buildHashHandshake/BuildSkewRefresher
 import { installChunkLoadErrorHandler } from './features/chunkErrorHandler/chunkErrorHandler';
 import ChunkErrorRouteBoundary from './features/errorBoundary/ChunkErrorRouteBoundary';
 import ErrorBoundary from './features/errorBoundary/ErrorBoundary';
-import { SourceCodeEditorProvider } from './features/sourceCodeEditor';
 import ChartColorMappingContextProvider from './hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import AbilityProvider from './providers/Ability/AbilityProvider';
 import ActiveJobProvider from './providers/ActiveJob/ActiveJobProvider';
@@ -25,15 +23,6 @@ import ThirdPartyProvider from './providers/ThirdPartyServicesProvider';
 import TrackingProvider from './providers/Tracking/TrackingProvider';
 
 installChunkLoadErrorHandler();
-
-// Renders nothing — it only watches for a finished onboarding run and
-// redirects. Keeping it off the entry graph means a signed-out visitor never
-// pays for the agent-onboarding hooks just to see the login page.
-const AgentOnboardingCompletionWatcher = lazy(() =>
-    import('./ee/features/agentOnboarding/AgentOnboardingCompletionWatcher').then(
-        (module) => ({ default: module.AgentOnboardingCompletionWatcher }),
-    ),
-);
 
 const isMinimalPage = window.location.pathname.startsWith('/minimal');
 
@@ -65,18 +54,9 @@ const router = sentryCreateBrowserRouter([
                                     <ActiveJobProvider>
                                         <SchedulerJobsProvider>
                                             <ChartColorMappingContextProvider>
-                                                <SourceCodeEditorProvider>
-                                                    <AiAgentsGlobalProvider>
-                                                        {!isMinimalPage && (
-                                                            <Suspense
-                                                                fallback={null}
-                                                            >
-                                                                <AgentOnboardingCompletionWatcher />
-                                                            </Suspense>
-                                                        )}
-                                                        <Outlet />
-                                                    </AiAgentsGlobalProvider>
-                                                </SourceCodeEditorProvider>
+                                                <AiAgentsGlobalProvider>
+                                                    <Outlet />
+                                                </AiAgentsGlobalProvider>
                                             </ChartColorMappingContextProvider>
                                         </SchedulerJobsProvider>
                                     </ActiveJobProvider>

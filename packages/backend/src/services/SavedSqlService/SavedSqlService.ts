@@ -5,6 +5,7 @@ import {
     BulkActionable,
     CreateSchedulerAndTargetsWithoutIds,
     CreateSqlChart,
+    FeatureFlags,
     ForbiddenError,
     isValidFrequency,
     isValidTimezone,
@@ -27,8 +28,8 @@ import {
     VIZ_DEFAULT_AGGREGATION,
     type Account,
 } from '@lightdash/common';
+import { uniq } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import { uniq } from 'lodash';
 import {
     CreateSqlChartVersionEvent,
     LightdashAnalytics,
@@ -37,6 +38,7 @@ import {
 import { getAccountWriteContext } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import {
     SavedSqlModel,
@@ -55,8 +57,10 @@ import {
     SpacePermissionService,
     type AccessTarget,
 } from '../SpaceService/SpacePermissionService';
+import { withVersionAgentIdentity } from '../VersionAgentIdentity';
 
 type SavedSqlServiceArguments = {
+    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
@@ -74,6 +78,8 @@ export class SavedSqlService
     extends BaseService
     implements BulkActionable<Knex>, SoftDeletableService
 {
+    private readonly featureFlagModel: Pick<FeatureFlagModel, 'get'>;
+
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly analytics: LightdashAnalytics;
@@ -94,6 +100,7 @@ export class SavedSqlService
 
     constructor(args: SavedSqlServiceArguments) {
         super();
+        this.featureFlagModel = args.featureFlagModel;
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
         this.projectModel = args.projectModel;
@@ -330,6 +337,23 @@ export class SavedSqlService
         }
     }
 
+    /** Same view check as getSqlChart, without loading the chart or tracking a view. */
+    async assertCanViewSqlChartBySlug(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+    ): Promise<void> {
+        const savedChart = await this.savedSqlModel.getBySlug(
+            projectUuid,
+            slug,
+        );
+        await this.hasAccess(
+            'view',
+            { user, projectUuid },
+            { savedSqlUuid: savedChart.savedSqlUuid },
+        );
+    }
+
     async getSqlChart(
         user: SessionUser,
         projectUuid: string,
@@ -396,8 +420,15 @@ export class SavedSqlService
             actorType: 'user',
         });
 
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: {
+                organizationUuid: savedChart.organization.organizationUuid,
+                userUuid: user.userUuid,
+            },
+        });
         return {
-            ...savedChart,
+            ...withVersionAgentIdentity(savedChart, enabled),
             space: {
                 ...savedChart.space,
                 userAccess: spaceCtx.access[0],
@@ -427,10 +458,10 @@ export class SavedSqlService
 
         if (
             embedWriteActions &&
-            savedChart.space.uuid !== embedWriteActions.spaceUuid
+            !embedWriteActions.writeSpaceUuids.includes(savedChart.space.uuid)
         ) {
             throw new ForbiddenError(
-                'SQL chart does not belong to embedded write space',
+                'SQL chart does not belong to an embedded write space',
             );
         }
 
@@ -488,8 +519,15 @@ export class SavedSqlService
             actorType: isEmbedded ? 'embed' : 'user',
         });
 
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.AgentIdentity,
+            user: {
+                organizationUuid: savedChart.organization.organizationUuid,
+                userUuid: user.userUuid,
+            },
+        });
         return {
-            ...savedChart,
+            ...withVersionAgentIdentity(savedChart, enabled),
             space: {
                 ...savedChart.space,
                 userAccess: embedWriteActions ? undefined : spaceCtx.access[0],
@@ -835,6 +873,7 @@ export class SavedSqlService
         sql: string,
         limit?: number,
         context: QueryExecutionContext = QueryExecutionContext.SQL_RUNNER,
+        authenticatedAccount: Account | null = null,
     ): Promise<{ jobId: string }> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -859,6 +898,7 @@ export class SavedSqlService
         }
 
         const jobId = await this.schedulerClient.runSql({
+            authMethod: authenticatedAccount?.authentication.type ?? null,
             userUuid: user.userUuid,
             organizationUuid,
             projectUuid,
@@ -876,6 +916,7 @@ export class SavedSqlService
         projectUuid: string,
         body: SqlRunnerPivotQueryBody,
         context?: QueryExecutionContext,
+        authenticatedAccount: Account | null = null,
     ): Promise<{ jobId: string }> {
         const { savedSqlUuid } = body;
         const { organizationUuid } =
@@ -919,6 +960,7 @@ export class SavedSqlService
             }
         }
         const jobId = await this.schedulerClient.runSqlPivotQuery({
+            authMethod: authenticatedAccount?.authentication.type ?? null,
             savedSqlUuid: savedChart?.savedSqlUuid,
             sql: savedChart?.sql || body.sql,
             limit: savedChart?.limit || body.limit,
@@ -942,6 +984,7 @@ export class SavedSqlService
         slug?: string,
         chartUuid?: string,
         context?: QueryExecutionContext,
+        authenticatedAccount: Account | null = null,
     ): Promise<{ jobId: string }> {
         let savedChart;
         if (chartUuid) {
@@ -961,6 +1004,7 @@ export class SavedSqlService
         }
 
         const jobId = await this.schedulerClient.runSql({
+            authMethod: authenticatedAccount?.authentication.type ?? null,
             userUuid: user.userUuid,
             organizationUuid: savedChart.organization.organizationUuid,
             projectUuid: savedChart.project.projectUuid,

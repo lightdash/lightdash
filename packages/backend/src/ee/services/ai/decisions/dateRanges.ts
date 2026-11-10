@@ -302,6 +302,8 @@ export const compareDatePeriod = ({
         return 'unknown';
     const unit = rule.settings?.unitOfTime ?? UnitOfTime.days;
     const completed = !!rule.settings?.completed;
+    // A period that drops today returns different rows than the request
+    if (rule.settings?.excludeToday === true) return 'unknown';
     return rule.operator === period.operator &&
         (period.operator === FilterOperator.IN_THE_CURRENT ||
             count === period.count) &&

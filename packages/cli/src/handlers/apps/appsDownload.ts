@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import * as path from 'path';
 import { validate as isUuid } from 'uuid';
+import { getAgentConnectionSelection } from '../../credentials';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
 import {
@@ -244,9 +245,11 @@ export const ensureDownloadedAppContext = (
 ): DataAppCodeDownload => {
     if (code.context === undefined) {
         throw new Error(
-            `This Lightdash server does not support app context downloads (app ${
-                code.manifest.slug ?? appRef
-            }). Upgrade the server, or use a CLI version matching your server.`,
+            getAgentConnectionSelection() !== null
+                ? 'This server does not support app context downloads. Upgrade the server, or use a CLI version matching your server.'
+                : `This Lightdash server does not support app context downloads (app ${
+                      code.manifest.slug ?? appRef
+                  }). Upgrade the server, or use a CLI version matching your server.`,
         );
     }
     return code;
@@ -353,8 +356,10 @@ export const appsDownloadSummary = (
     return {
         ok: false,
         message: `${base} — ${failures.length} failed`,
-        failureLines: failures.map(
-            (failure) => `  ✖ ${failure.appRef}: ${failure.message}`,
+        failureLines: failures.map((failure) =>
+            getAgentConnectionSelection() !== null
+                ? '  ✖ An app could not be downloaded.'
+                : `  ✖ ${failure.appRef}: ${failure.message}`,
         ),
     };
 };
@@ -416,7 +421,11 @@ export const downloadAppsToDir = async (args: {
             if (skipReason !== null) {
                 skippedWrongKindCount += 1;
                 GlobalState.log(
-                    styles.warning(`Skipped ${appRef}: ${skipReason}`),
+                    styles.warning(
+                        getAgentConnectionSelection() !== null
+                            ? 'An app was skipped because its kind does not match the requested kind.'
+                            : `Skipped ${appRef}: ${skipReason}`,
+                    ),
                 );
                 onProgress?.(
                     successCount +
@@ -467,13 +476,24 @@ export const downloadAppsToDir = async (args: {
             if (outcome.kind === 'skip-not-built') {
                 skippedNotBuiltCount += 1;
                 GlobalState.debug(
-                    `> Skipped app ${appRef}: no built version to download`,
+                    getAgentConnectionSelection() !== null
+                        ? 'An app was skipped because it has no built version.'
+                        : `> Skipped app ${appRef}: no built version to download`,
                 );
             } else {
-                failures.push({ appRef, message: outcome.message });
+                failures.push({
+                    appRef:
+                        getAgentConnectionSelection() !== null ? 'App' : appRef,
+                    message:
+                        getAgentConnectionSelection() !== null
+                            ? 'An app could not be downloaded.'
+                            : outcome.message,
+                });
                 GlobalState.log(
                     styles.error(
-                        `Failed to download app ${appRef}: ${outcome.message}`,
+                        getAgentConnectionSelection() !== null
+                            ? 'An app could not be downloaded.'
+                            : `Failed to download app ${appRef}: ${outcome.message}`,
                     ),
                 );
             }

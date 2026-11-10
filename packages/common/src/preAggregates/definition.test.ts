@@ -245,6 +245,63 @@ describe('parseDbtPreAggregateDef', () => {
         });
     });
 
+    it('parses refresh.on_change alongside cron', () => {
+        const result = parseDbtPreAggregateDef(
+            {
+                ...basePreAggregate,
+                refresh: { cron: '0 3 * * *', on_change: true },
+            },
+            'orders',
+        );
+        expect(result.refresh).toEqual({ cron: '0 3 * * *', onChange: true });
+    });
+
+    it('parses refresh.on_change without a cron', () => {
+        const result = parseDbtPreAggregateDef(
+            { ...basePreAggregate, refresh: { on_change: true } },
+            'orders',
+        );
+        expect(result.refresh).toEqual({ onChange: true });
+    });
+
+    it('omits refresh when it is an empty object', () => {
+        const result = parseDbtPreAggregateDef(
+            { ...basePreAggregate, refresh: {} },
+            'orders',
+        );
+        expect(result.refresh).toBeUndefined();
+    });
+
+    it('ignores a null or empty refresh.cron', () => {
+        expect(
+            parseDbtPreAggregateDef(
+                {
+                    ...basePreAggregate,
+                    refresh: { cron: null },
+                } as unknown as Parameters<typeof parseDbtPreAggregateDef>[0],
+                'orders',
+            ).refresh,
+        ).toBeUndefined();
+        expect(
+            parseDbtPreAggregateDef(
+                { ...basePreAggregate, refresh: { cron: '' } },
+                'orders',
+            ).refresh,
+        ).toBeUndefined();
+    });
+
+    it('throws when refresh.on_change is not a boolean', () => {
+        expect(() =>
+            parseDbtPreAggregateDef(
+                {
+                    ...basePreAggregate,
+                    refresh: { on_change: 'no' },
+                } as unknown as Parameters<typeof parseDbtPreAggregateDef>[0],
+                'orders',
+            ),
+        ).toThrow('invalid "refresh.on_change"');
+    });
+
     it('throws when materialization_role.email is missing', () => {
         expect(() =>
             parseDbtPreAggregateDef(
@@ -350,6 +407,43 @@ describe('parseDbtPreAggregateDef', () => {
                 },
             ],
         });
+    });
+
+    it('parses "to date" pre-aggregate filters into current period bounds', () => {
+        const parsed = parseDbtPreAggregateDef(
+            {
+                name: 'orders_rollup',
+                dimensions: ['status'],
+                metrics: ['order_count'],
+                time_dimension: 'order_date',
+                granularity: 'day',
+                filters: [
+                    { order_date: 'inTheCurrent month to date' },
+                    { status: 'notInTheCurrent year to date excluding today' },
+                ],
+            },
+            'orders',
+        );
+        expect(parsed.filters).toStrictEqual([
+            {
+                id: expect.any(String),
+                target: { fieldRef: 'order_date' },
+                operator: FilterOperator.IN_THE_CURRENT,
+                values: [1],
+                settings: { unitOfTime: UnitOfTime.months, toDate: true },
+            },
+            {
+                id: expect.any(String),
+                target: { fieldRef: 'status' },
+                operator: FilterOperator.NOT_IN_THE_CURRENT,
+                values: [1],
+                settings: {
+                    unitOfTime: UnitOfTime.years,
+                    toDate: true,
+                    excludeToday: true,
+                },
+            },
+        ]);
     });
 
     it('throws when pre-aggregate filters use invalid filter grammar', () => {

@@ -11,7 +11,12 @@ import { SlackChannelProjectMappingsTableName } from '../database/entities/slack
 export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel {
     async getInstallationFromOrganizationUuid(
         organizationUuid: string,
-    ): Promise<Omit<SlackSettings, 'hasRequiredScopes'> | undefined> {
+    ): Promise<
+        | (Omit<SlackSettings, 'hasRequiredScopes' | 'features'> & {
+              appId: string | null;
+          })
+        | undefined
+    > {
         const [row] = await this.database(SlackAuthTokensTableName)
             .leftJoin(
                 'organizations',
@@ -33,6 +38,7 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
         if (row === undefined) return undefined;
 
         const slackSettings = {
+            appId: row.installation?.appId ?? null,
             createdAt: row.created_at,
             slackTeamName: row.installation?.team?.name || 'Slack',
             organizationUuid: row.organization_uuid,
@@ -49,6 +55,8 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
                 row.ai_router_project_uuids.length > 0
                     ? row.ai_router_project_uuids
                     : null,
+            aiMultiAgentRequireMention:
+                row.ai_multi_agent_require_mention ?? false,
             unfurlsEnabled: row.unfurls_enabled ?? true,
             aiAgentsEnabled: row.ai_agents_enabled ?? true,
         };
@@ -109,6 +117,7 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
             aiLinksOnly,
             aiMultiAgentChannelId,
             aiMultiAgentProjectUuids,
+            aiMultiAgentRequireMention,
             unfurlsEnabled,
             aiAgentsEnabled,
         }: SlackAppCustomSettings,
@@ -129,6 +138,8 @@ export class CommercialSlackAuthenticationModel extends SlackAuthenticationModel
                     ai_require_oauth: aiRequireOAuth ?? false,
                     ai_links_only: aiLinksOnly ?? false,
                     ai_multi_agent_channel_id: aiMultiAgentChannelId ?? null,
+                    ai_multi_agent_require_mention:
+                        aiMultiAgentRequireMention ?? false,
                     unfurls_enabled: unfurlsEnabled,
                     ai_agents_enabled: aiAgentsEnabled,
                 })

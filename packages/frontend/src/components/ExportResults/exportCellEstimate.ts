@@ -3,7 +3,7 @@ import { Limit } from './types';
 
 export const LARGE_EXPORT_CELLS_WARNING_THRESHOLD = 5_000_000;
 
-export const DEFAULT_EXPORT_TIMEOUT_MS = 10 * 60 * 1000;
+const DEFAULT_EXPORT_TIMEOUT_MS = 10 * 60 * 1000;
 
 type ExportCellEstimateArgs = {
     limit: Limit;

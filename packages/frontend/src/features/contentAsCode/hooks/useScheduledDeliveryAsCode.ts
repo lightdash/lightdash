@@ -1,5 +1,5 @@
 import { type ApiScheduledDeliveryAsCodeListResponse } from '@lightdash/common';
-import { lightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import { useContentAsCode } from './useContentAsCode';
 
 const SCHEDULED_DELIVERY_FIELDS_TO_OMIT = ['downloadedAt'];
@@ -17,6 +17,7 @@ export const useScheduledDeliveryAsCode = ({
     deliverySlug: string;
     enabled: boolean;
 }) => {
+    const lightdashApi = useLightdashApi();
     return useContentAsCode<ApiScheduledDeliveryAsCodeListResponse['results']>({
         queryKey: ['scheduled-delivery-as-code', projectUuid, deliverySlug],
         queryFn: () =>

@@ -34,6 +34,7 @@ const version = (
         lastName: 'Jones',
     },
     resources: null,
+    hasThumbnail: false,
     ...overrides,
 });
 

@@ -50,6 +50,49 @@ const stripSvgrQuery = () => ({
     },
 });
 
+// The diff viewer (admin review and dbt writeback views) is not reachable
+// from an embed, but the AI agent imports it. Stub it so the SDK doesn't
+// inline Shiki's full grammar set, and resolve its Vite-only `?worker&url`
+// import to an empty URL. If an embed ever renders a diff it shows a notice
+// instead of a blank area; a new named import fails the build here.
+const stubDiffViewer = () => ({
+    name: 'stub-diff-viewer',
+    resolveId(source) {
+        if (source === '@pierre/diffs/react') return '\0stub-pierre-diffs';
+        if (source.endsWith('?worker&url')) return '\0stub-worker-url';
+        return null;
+    },
+    load(id) {
+        if (id === '\0stub-worker-url') return "export default '';";
+        if (id === '\0stub-pierre-diffs') {
+            return [
+                "import { createElement } from 'react';",
+                "const Unavailable = () => createElement('p', null, 'Diff preview is not available here.');",
+                'export const MultiFileDiff = Unavailable;',
+                'export const PatchDiff = Unavailable;',
+                'export const Virtualizer = ({ children }) => children ?? null;',
+                'export const WorkerPoolContextProvider = ({ children }) => children ?? null;',
+            ].join('\n');
+        }
+        return null;
+    },
+});
+
+// Same-shape es-toolkit entries replace lodash copies pulled in by react-ace and react-grid-layout
+const lodashShims = {
+    'lodash.isequal': 'es-toolkit/compat/isEqual',
+    'lodash.get': 'es-toolkit/compat/get',
+};
+const aliasLodashShims = () => ({
+    name: 'alias-lodash-shims',
+    resolveId(source, importer, options) {
+        const target = lodashShims[source];
+        return target
+            ? this.resolve(target, importer, { ...options, skipSelf: true })
+            : null;
+    },
+});
+
 // Quiet noisy "Module level directives cause errors when bundled" warnings
 // for `"use client"` in third-party deps — those directives are meaningful
 // to React server components but inert in our bundled SDK output.
@@ -120,6 +163,8 @@ const mainBuild = {
             },
         }),
         stripSvgrQuery(),
+        stubDiffViewer(),
+        aliasLodashShims(),
         svgr({ exportType: 'default' }),
         // Some transitive deps (pegjs, ajv, others) reference Node built-ins
         // like fs/path/url. These code paths are dead in a browser bundle,

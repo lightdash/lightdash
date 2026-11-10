@@ -1,6 +1,7 @@
 import {
     MergeJoinType,
     upgradeSavedMergeQuery,
+    type SavedMergeDefinition,
     type SavedMergeQuery,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
@@ -105,5 +106,48 @@ describe('restoreSavedMerge', () => {
                 ),
             ),
         ).toBeNull();
+    });
+
+    it('restores every query of a merge over more than two sources', () => {
+        const query = (explore: string) => ({
+            explore,
+            dimensions: [`${explore}_week`],
+            metrics: [`${explore}_score`],
+        });
+        const merge: SavedMergeDefinition = {
+            queries: {
+                calls: query('calls'),
+                complaints: { ...query('complaints'), repeat: true },
+                calls_2: query('calls'),
+            },
+            join: MergeJoinType.FULL,
+            keys: {
+                orders_week: [
+                    'calls.calls_week',
+                    'complaints.complaints_week',
+                    'calls_2.calls_week',
+                ],
+            },
+            limit: 500,
+        };
+        const restored = restoreSavedMerge(merge);
+        expect(
+            restored?.additionalSources.map(({ id, name }) => [id, name]),
+        ).toEqual([
+            ['b', 'calls'],
+            ['source_2', 'complaints'],
+            ['source_3', 'calls_2'],
+        ]);
+        expect(restored?.joinParts).toEqual([
+            {
+                fieldIdBySourceId: {
+                    a: 'orders_week',
+                    b: 'calls_week',
+                    source_2: 'complaints_week',
+                    source_3: 'calls_week',
+                },
+            },
+        ]);
+        expect(restored?.repeatValuesSourceIds).toEqual(['source_2']);
     });
 });

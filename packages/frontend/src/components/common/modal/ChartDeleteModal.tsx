@@ -1,6 +1,13 @@
-import { Anchor, List, ScrollArea, type ModalProps } from '@mantine/core';
+import {
+    Anchor,
+    List,
+    ScrollArea,
+    Stack,
+    type ModalProps,
+} from '@mantine/core';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import DocumentsLinkingChartCallout from '../../../features/documents/DocumentsLinkingChartCallout';
 import { useDashboardsContainingChart } from '../../../hooks/dashboard/useDashboards';
 import { useProjectUrlIdentifier } from '../../../hooks/useProjectRoute';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -74,29 +81,37 @@ const ChartDeleteModal: FC<ChartDeleteModalProps> = ({
             confirmLoading={isDeleting}
             cancelDisabled={isDeleting}
         >
-            {relatedDashboards.length > 0 && (
-                <Callout
-                    variant={softDeleteEnabled ? 'warning' : 'danger'}
-                    title={dashboardWarningTitle}
-                >
-                    <ScrollArea.Autosize mah="200px">
-                        <List>
-                            {relatedDashboards.map((dashboard) => (
-                                <List.Item key={dashboard.uuid}>
-                                    <Anchor
-                                        component={Link}
-                                        fz="sm"
-                                        target="_blank"
-                                        to={`/projects/${projectUrlIdentifier}/dashboards/${dashboard.slug}`}
-                                    >
-                                        {dashboard.name}
-                                    </Anchor>
-                                </List.Item>
-                            ))}
-                        </List>
-                    </ScrollArea.Autosize>
-                </Callout>
-            )}
+            <Stack gap="sm">
+                {relatedDashboards.length > 0 && (
+                    <Callout
+                        variant={softDeleteEnabled ? 'warning' : 'danger'}
+                        title={dashboardWarningTitle}
+                    >
+                        <ScrollArea.Autosize mah="200px">
+                            <List>
+                                {relatedDashboards.map((dashboard) => (
+                                    <List.Item key={dashboard.uuid}>
+                                        <Anchor
+                                            component={Link}
+                                            fz="sm"
+                                            target="_blank"
+                                            to={`/projects/${projectUrlIdentifier}/dashboards/${dashboard.slug}`}
+                                        >
+                                            {dashboard.name}
+                                        </Anchor>
+                                    </List.Item>
+                                ))}
+                            </List>
+                        </ScrollArea.Autosize>
+                    </Callout>
+                )}
+                <DocumentsLinkingChartCallout
+                    projectUuid={projectUuid}
+                    kind="chart"
+                    chartUuid={uuid}
+                    softDeleteEnabled={!!softDeleteEnabled}
+                />
+            </Stack>
         </MantineModal>
     );
 };

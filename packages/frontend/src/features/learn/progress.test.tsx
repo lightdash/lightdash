@@ -3,20 +3,40 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { type PropsWithChildren } from 'react';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
-vi.mock('../../api', () => ({ lightdashApi: vi.fn() }));
+vi.mock('../../api');
 
-// Learn's organization switch: the library and the navbar link read it, and
-// progress is only asked for where it is on.
-const learnFlag = vi.hoisted(() => ({ enabled: true }));
-vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: learnFlag.enabled } }),
-}));
+// Whether the user can see Learn: the library and the navbar link read the
+// same ability, and progress is only asked for where it holds.
+const learnAccess = vi.hoisted(() => ({ granted: true }));
+vi.mock('../../providers/App/useApp', async () => {
+    const { Ability } = await import('@casl/ability');
+    return {
+        default: () => ({
+            user: {
+                data: {
+                    organizationUuid: 'org-1',
+                    ability: new Ability(
+                        learnAccess.granted
+                            ? [
+                                  {
+                                      action: 'view',
+                                      subject: 'Learn',
+                                      conditions: { organizationUuid: 'org-1' },
+                                  },
+                              ]
+                            : [],
+                    ),
+                },
+            },
+        }),
+    };
+});
 
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import { createQueryClient } from '../../providers/ReactQuery/createQueryClient';
 import { useLearnProgress, useLearnProgressActions } from './progress';
 
-const api = lightdashApi as unknown as Mock;
+const api = sharedLightdashApi as unknown as Mock;
 
 const calls = () =>
     api.mock.calls.map(([{ method, url, body }]) => ({
@@ -51,11 +71,11 @@ describe('useLearnProgress', () => {
     beforeEach(() => {
         localStorage.clear();
         api.mockReset();
-        learnFlag.enabled = true;
+        learnAccess.granted = true;
     });
 
-    it('asks for nothing where Learn is switched off', async () => {
-        learnFlag.enabled = false;
+    it('asks for nothing where the user cannot see Learn', async () => {
+        learnAccess.granted = false;
         localStorage.setItem(
             'lightdash.learn.completed',
             JSON.stringify(['view:Dashboard']),
@@ -67,7 +87,7 @@ describe('useLearnProgress', () => {
         );
         expect(api).not.toHaveBeenCalled();
         expect(result.current.progress.completed).toEqual([]);
-        // The browser's copy is left alone for an instance that turns Learn on.
+        // The browser's copy is left alone for a user who is given Learn later.
         expect(localStorage.getItem('lightdash.learn.completed')).toBe(
             JSON.stringify(['view:Dashboard']),
         );
@@ -205,6 +225,46 @@ describe('useLearnProgress', () => {
         expect(result.current.progress.completed).toEqual([
             'view:Dashboard',
             'manage:Space',
+        ]);
+    });
+
+    it('records every scope a covering lesson teaches when it is finished', async () => {
+        api.mockResolvedValueOnce(server);
+        const { result } = setup();
+        await waitFor(() =>
+            expect(result.current.progress.isSettled).toBe(true),
+        );
+        api.mockResolvedValueOnce(server);
+        api.mockResolvedValueOnce({
+            ...server,
+            completed: [
+                ...server.completed,
+                'manage:ContentVerification',
+                'view:ContentVerification',
+            ],
+        });
+
+        // Finished under the covered scope: the lesson is still one, so
+        // both scopes are recorded, the instance is told one at a time.
+        act(() =>
+            result.current.actions.markScopeCompleted(
+                'view:ContentVerification',
+            ),
+        );
+
+        await waitFor(() => expect(api).toHaveBeenCalledTimes(3));
+        expect(
+            calls()
+                .slice(1)
+                .map((call) => call.url),
+        ).toEqual([
+            '/user/learn-progress/manage%3AContentVerification/completed',
+            '/user/learn-progress/view%3AContentVerification/completed',
+        ]);
+        expect(result.current.progress.completed).toEqual([
+            'view:Dashboard',
+            'manage:ContentVerification',
+            'view:ContentVerification',
         ]);
     });
 

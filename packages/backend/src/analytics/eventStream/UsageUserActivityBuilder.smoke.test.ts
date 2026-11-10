@@ -67,8 +67,10 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
             const org = randomUUID();
             const otherOrg = randomUUID();
             const deletedUser = randomUUID();
-            const date = '2026-01-01';
-            const now = new Date('2026-01-02T00:00:00Z');
+            const now = new Date();
+            const date = new Date(now.getTime() - 86_400_000)
+                .toISOString()
+                .slice(0, 10);
             const base = `s3://${storage.bucket}`;
             const rows = Number(
                 process.env.USAGE_USER_ACTIVITY_SMOKE_ROWS ?? 100_000,
@@ -525,7 +527,7 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                     unchanged: 7,
                     failed: 0,
                 });
-                const cli = await promisify(execFile)(
+                const cli = promisify(execFile)(
                     'pnpm',
                     [
                         'exec',
@@ -543,6 +545,9 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                     {
                         env: {
                             ...process.env,
+                            LIGHTDASH_LICENSE_KEY: '',
+                            LIGHTDASH_LICENSE_CERTIFICATE: '',
+                            LIGHTDASH_PREVIEW_FEATURE_FLAGS_ENABLED: 'false',
                             S3_ENDPOINT: endpoint,
                             S3_BUCKET: storage.bucket,
                             S3_REGION: storage.region,
@@ -559,7 +564,12 @@ describe.skipIf(!process.env.USAGE_USER_ACTIVITY_SMOKE_ENDPOINT)(
                         timeout: 120000,
                     },
                 );
-                expect(cli.stdout).toContain('unchanged: 7');
+                // ENV enablement alone must not authorize the maintenance CLI.
+                await expect(cli).rejects.toMatchObject({
+                    stderr: expect.stringContaining(
+                        'Managed analytics is not enabled',
+                    ),
+                });
                 // Other org has no query/AI/app/step files: its empty views still query.
                 const otherReader = new DuckdbWarehouseClient({
                     type: 'duckdb_parquet',

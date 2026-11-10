@@ -97,6 +97,29 @@ describe('DashboardAsCodeInternalization', () => {
             ]);
         });
 
+        it('should emit control section names and omit config without sections', () => {
+            const internalization = new DashboardAsCodeInternalization();
+            const withSections = internalization.getLanguageMap({
+                ...dashboardAsCode,
+                config: {
+                    isDateZoomDisabled: false,
+                    controlSections: [
+                        { slug: 'dates', name: 'Dates' },
+                        { slug: 'region', name: 'Region' },
+                    ],
+                },
+            }).dashboard[dashboardAsCode.slug];
+            expect(withSections.config).toEqual({
+                controlSections: [{ name: 'Dates' }, { name: 'Region' }],
+            });
+
+            const withoutSections = internalization.getLanguageMap({
+                ...dashboardAsCode,
+                config: { isDateZoomDisabled: false },
+            }).dashboard[dashboardAsCode.slug];
+            expect(withoutSections.config).toBeUndefined();
+        });
+
         it('should handle a dashboard without filters', () => {
             const { filters, ...dashboardWithoutFilters } = dashboardAsCode;
 
@@ -180,6 +203,33 @@ describe('DashboardAsCodeInternalization', () => {
             expect(merged.filters?.dimensions?.[0]?.label).toBe(
                 'Région client',
             );
+        });
+
+        it('should merge translated section names by position without touching slugs', () => {
+            const merged = new DashboardAsCodeInternalization().merge(
+                {
+                    config: { controlSections: [{ name: 'Dates FR' }] },
+                    filters: undefined,
+                },
+                {
+                    ...structuredClone(dashboardAsCode),
+                    config: {
+                        isDateZoomDisabled: true,
+                        controlSections: [
+                            { slug: 'dates', name: 'Dates' },
+                            { slug: 'region', name: 'Region' },
+                        ],
+                    },
+                },
+            );
+
+            expect(merged.config).toEqual({
+                isDateZoomDisabled: true,
+                controlSections: [
+                    { slug: 'dates', name: 'Dates FR' },
+                    { slug: 'region', name: 'Region' },
+                ],
+            });
         });
 
         it('should merge translated tab names by position without touching other tab fields', () => {

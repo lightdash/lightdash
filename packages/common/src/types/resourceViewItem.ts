@@ -3,6 +3,7 @@ import assertUnreachable from '../utils/assertUnreachable';
 import {
     ContentType as ResourceViewItemType,
     type ChartSourceType,
+    type DataAppContent,
     type SummaryContent,
 } from './content';
 import { type ContentVerificationInfo } from './contentVerification';
@@ -91,7 +92,11 @@ export type ResourceViewSpaceItem = {
 
 export type ResourceViewDocumentItem = {
     type: ResourceViewItemType.DOCUMENT;
-    data: Omit<ResourceViewDashboardItem['data'], 'validationErrors'> & {
+    data: Omit<
+        ResourceViewDashboardItem['data'],
+        'validationErrors' | 'spaceUuid'
+    > & {
+        spaceUuid: string | null;
         projectUuid: string;
         organizationUuid: string;
         createdByUserUuid: string | null;
@@ -225,7 +230,7 @@ export const spaceToResourceViewItem = (
 });
 
 export type MostPopularAndRecentlyUpdated = {
-    mostPopular: (DashboardBasicDetails | SpaceQuery)[];
+    mostPopular: (DashboardBasicDetails | SpaceQuery | DataAppContent)[];
     recentlyUpdated: (DashboardBasicDetails | SpaceQuery)[];
 };
 
@@ -239,7 +244,7 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                 {
                     ...content,
                     description: content.description || undefined,
-                    spaceUuid: content.space.uuid,
+                    spaceUuid: content.space?.uuid ?? null,
                     projectUuid: content.project.uuid,
                     organizationUuid: content.organization.uuid,
                     createdByUserUuid: content.createdBy?.uuid ?? null,

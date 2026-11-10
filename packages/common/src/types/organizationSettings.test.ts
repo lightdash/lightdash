@@ -10,6 +10,7 @@ const INSTANCE_DEFAULTS: OrganizationSettingsInstanceDefaults = {
     scheduledDeliveryExpirationSeconds: 259200, // 3 days (env default)
     queryLimit: 5000,
     csvCellsLimit: 100000,
+    dataAppCapturesEnabled: true,
 };
 
 describe('resolveEffectiveOrganizationSettings', () => {
@@ -30,7 +31,52 @@ describe('resolveEffectiveOrganizationSettings', () => {
             queryLimit: 5000,
             csvCellsLimit: 100000,
             corsAllowedDomains: [],
+            dataAppCapturesEnabled: true,
+            dataAppCustomDependenciesEnabled: false,
         });
+    });
+
+    test('custom data app dependencies are off until an org admin turns them on', () => {
+        expect(
+            resolveEffectiveOrganizationSettings({}, INSTANCE_DEFAULTS)
+                .dataAppCustomDependenciesEnabled,
+        ).toBe(false);
+        expect(
+            resolveEffectiveOrganizationSettings(
+                { dataAppCustomDependenciesEnabled: true },
+                INSTANCE_DEFAULTS,
+            ).dataAppCustomDependenciesEnabled,
+        ).toBe(true);
+    });
+
+    test('data app captures are on until an org turns them off', () => {
+        expect(
+            resolveEffectiveOrganizationSettings({}, INSTANCE_DEFAULTS)
+                .dataAppCapturesEnabled,
+        ).toBe(true);
+        expect(
+            resolveEffectiveOrganizationSettings(
+                { dataAppCapturesEnabled: false },
+                INSTANCE_DEFAULTS,
+            ).dataAppCapturesEnabled,
+        ).toBe(false);
+    });
+
+    test('the instance env is a ceiling: an org cannot turn captures back on past it', () => {
+        const capturesOffInstance = {
+            ...INSTANCE_DEFAULTS,
+            dataAppCapturesEnabled: false,
+        };
+        expect(
+            resolveEffectiveOrganizationSettings({}, capturesOffInstance)
+                .dataAppCapturesEnabled,
+        ).toBe(false);
+        expect(
+            resolveEffectiveOrganizationSettings(
+                { dataAppCapturesEnabled: true },
+                capturesOffInstance,
+            ).dataAppCapturesEnabled,
+        ).toBe(false);
     });
 
     test('export limits resolve to an effective number, inheriting the env when unset', () => {

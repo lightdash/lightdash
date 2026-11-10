@@ -1,0 +1,113 @@
+.root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    container-type: size;
+}
+
+.result {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.spacer {
+    flex: 1;
+    min-width: var(--mantine-spacing-xs);
+}
+
+.summary {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    min-width: 0;
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+}
+
+.summaryText {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.summaryIcon {
+    flex-shrink: 0;
+}
+
+.staticBar {
+    padding-left: var(--mantine-spacing-md);
+}
+
+.body {
+    border-top: 1px solid var(--mantine-color-default-border);
+    background: var(--ld-color-page);
+}
+
+.emptySelect input {
+    border-style: dashed;
+}
+
+/* Field rows stay readable instead of stretching across a wide panel. */
+.fieldRows {
+    max-width: 34rem;
+}
+
+.bar {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    width: 100%;
+    height: 38px;
+    flex-shrink: 0;
+    padding-right: var(--mantine-spacing-md);
+    border-top: 1px solid var(--mantine-color-default-border);
+    background: var(--ld-color-page);
+}
+
+.barToggle {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    padding: 0 var(--mantine-spacing-md);
+    text-align: left;
+    cursor: pointer;
+}
+
+.barToggle:hover {
+    background: var(--mantine-color-default-hover);
+}
+
+.chevron {
+    flex-shrink: 0;
+    color: var(--mantine-color-ldGray-5);
+    opacity: 0.6;
+    transition: transform 180ms ease;
+}
+
+.barToggle:hover .chevron {
+    opacity: 1;
+}
+
+.chevronOpen {
+    transform: rotate(90deg);
+}
+
+.heading {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--mantine-color-ldGray-6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .chevron {
+        transition: none;
+    }
+}

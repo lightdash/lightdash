@@ -6,6 +6,7 @@ const semanticQueryOptions = {
     runSqlEnabled: true,
     runMetricQueryEnabled: true,
     filterExpressionsEnabled: false,
+    documentsEnabled: false,
 };
 
 describe('getMcpAnalystPrompt', () => {
@@ -48,7 +49,9 @@ describe('getMcpAnalystPrompt', () => {
                 'list_content',
                 'find_content',
             ]);
-            expect(prompt).toContain('explicitly to project-scoped tools');
+            expect(prompt).toContain(
+                'select the project, and the agent when agent-scoped',
+            );
             expect(prompt).toContain('select one explore at the right grain');
             expect(prompt).toContain(
                 'use only exact field IDs returned by discovery',
@@ -101,6 +104,7 @@ describe('getMcpAnalystPrompt', () => {
 
     it('returns saved-content mode when no query execution is available', () => {
         const prompt = getMcpAnalystPrompt({
+            ...semanticQueryOptions,
             runSqlEnabled: false,
             runMetricQueryEnabled: false,
             filterExpressionsEnabled: true,
@@ -116,8 +120,23 @@ describe('getMcpAnalystPrompt', () => {
         expect(prompt).not.toContain('Table Calculations');
     });
 
+    it('includes Documents in content search only when Documents are enabled', () => {
+        expect(getMcpAnalystPrompt(semanticQueryOptions)).toContain(
+            '`find_content`: search dashboards, charts, and Data Apps.',
+        );
+        expect(
+            getMcpAnalystPrompt({
+                ...semanticQueryOptions,
+                documentsEnabled: true,
+            }),
+        ).toContain(
+            '`find_content`: search dashboards, charts, Data Apps, and Documents.',
+        );
+    });
+
     it('returns SQL runner mode when only run_sql is available', () => {
         const prompt = getMcpAnalystPrompt({
+            ...semanticQueryOptions,
             runSqlEnabled: true,
             runMetricQueryEnabled: false,
             filterExpressionsEnabled: true,

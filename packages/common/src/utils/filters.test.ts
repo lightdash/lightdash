@@ -63,6 +63,7 @@ import {
     mockExploreWithJoinedTable,
     modelRequiredFilterRule,
 } from './filters.mock';
+import { WeekDay } from './timeFrames';
 
 vi.mock('uuid', () => ({
     v4: vi.fn(() => 'uuid'),
@@ -717,6 +718,50 @@ describe('createFilterRuleFromModelRequiredFilterRule', () => {
         expect(result).toEqual(
             expectedRequiredResult('dimension', 'tableName'),
         );
+    });
+
+    test('should carry current period bounds into settings', () => {
+        const result = createFilterRuleFromModelRequiredFilterRule(
+            {
+                ...modelRequiredFilterRule('order_date'),
+                operator: FilterOperator.IN_THE_CURRENT,
+                values: [1],
+                settings: {
+                    unitOfTime: UnitOfTime.months,
+                    toDate: true,
+                    excludeToday: true,
+                },
+            },
+            'tableName',
+        );
+        expect(result.settings).toStrictEqual({
+            unitOfTime: UnitOfTime.months,
+            toDate: true,
+            excludeToday: true,
+        });
+    });
+
+    test('should not write absent bounds as undefined keys', () => {
+        const result = createFilterRuleFromModelRequiredFilterRule(
+            {
+                ...modelRequiredFilterRule('order_date'),
+                operator: FilterOperator.IN_THE_CURRENT,
+                values: [1],
+                settings: { unitOfTime: UnitOfTime.months, toDate: true },
+            },
+            'tableName',
+        );
+        expect(result.settings).toStrictEqual({
+            unitOfTime: UnitOfTime.months,
+            toDate: true,
+        });
+        expect(result.settings).not.toHaveProperty('excludeToday');
+        expect(
+            createFilterRuleFromModelRequiredFilterRule(
+                modelRequiredFilterRule('order_date'),
+                'tableName',
+            ).settings,
+        ).toStrictEqual({ unitOfTime: 'years' });
     });
 });
 
@@ -2853,6 +2898,50 @@ describe('createDashboardFilterRuleFromField', () => {
     };
     const fieldB = { ...fieldA, tableLabel: 'Team at Event B' };
 
+    test('keeps the selected warehouse boundary when identical fields have different week starts', () => {
+        const mondayField = {
+            ...dimension('order_date_week', 'orders'),
+            filterStartOfWeek: WeekDay.MONDAY,
+        };
+        const sundayField = {
+            ...mondayField,
+            filterStartOfWeek: WeekDay.SUNDAY,
+        };
+        const fieldsByTile = { monday: [mondayField], sunday: [sundayField] };
+        const rule = createDashboardFilterRuleFromField({
+            field: sundayField,
+            availableTileFilters: fieldsByTile,
+            isTemporary: false,
+        });
+
+        expect(rule.tileTargets).toEqual({
+            monday: false,
+            sunday: { fieldId: 'orders_order_date_week', tableName: 'orders' },
+        });
+        expect(
+            getDashboardFilterField(
+                { orders_order_date_week: mondayField },
+                rule,
+                fieldsByTile,
+            ),
+        ).toBe(sundayField);
+    });
+
+    test('still maps compiled fields without week metadata to their dashboard tiles', () => {
+        const field = dimension('order_date_week', 'orders');
+        const rule = createDashboardFilterRuleFromField({
+            field,
+            availableTileFilters: {
+                tile: [{ ...field, filterStartOfWeek: WeekDay.MONDAY }],
+            },
+            isTemporary: true,
+        });
+
+        expect(rule.tileTargets).toEqual({
+            tile: { fieldId: 'orders_order_date_week', tableName: 'orders' },
+        });
+    });
+
     test('excludes tiles that relabel the same field and targets the rest by default', () => {
         const rule = createDashboardFilterRuleFromField({
             field: fieldB,
@@ -2918,6 +3007,21 @@ describe('getDashboardFilterField', () => {
 });
 
 describe('getDashboardFilterableFieldKey', () => {
+    test('keeps matching labels distinct when warehouse week boundaries differ', () => {
+        const field = dimension('order_date_week', 'orders');
+        expect(
+            getDashboardFilterableFieldKey({
+                ...field,
+                filterStartOfWeek: WeekDay.MONDAY,
+            }),
+        ).not.toBe(
+            getDashboardFilterableFieldKey({
+                ...field,
+                filterStartOfWeek: WeekDay.SUNDAY,
+            }),
+        );
+    });
+
     test('separates same-id fields whose labels differ', () => {
         const field = dimension('name', 'team');
         expect(getDashboardFilterableFieldKey(field)).toBe(

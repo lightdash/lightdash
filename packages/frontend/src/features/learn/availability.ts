@@ -13,8 +13,10 @@ import { type LearnGate, type LearnModule } from './catalogue';
  * is not there; the library leaves it out rather than tagging it. The gates
  * are the ones the product's own entry points use: the licence for
  * Enterprise scopes, the licence plus the data apps flag behind the Data App
- * menu item, the
- * AI copilot switch and the agents' visibility setting behind Ask AI. Until
+ * menu item, the AI copilot switch and the agents' visibility setting behind
+ * Ask AI, the
+ * learn sandbox behind the workspace page (and the licence as well for
+ * content as code). Until
  * a gate has answered, its modules stay out, so the library never shows a
  * card it then takes away.
  */
@@ -37,6 +39,10 @@ export const useLearnAvailability = () => {
             dataApps: isEnterprise && dataAppsOn,
             aiAgents: isEnterprise && copilotOn && agentsVisible,
             sandbox: health.data?.learnSandbox.enabled === true,
+            // Content as code is Enterprise, and practised with the CLI in
+            // the sandbox: both have to be there.
+            contentAsCode:
+                isEnterprise && health.data?.learnSandbox.enabled === true,
         }),
         [
             isEnterprise,

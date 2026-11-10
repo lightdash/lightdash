@@ -19,25 +19,8 @@ export class CommercialSlackClient extends SlackClient {
         this.slackAuthenticationModel = args.slackAuthenticationModel;
     }
 
-    public getRequiredScopes() {
-        return [
-            ...super.getRequiredScopes(),
-            'channels:history',
-            'groups:history',
-        ];
-    }
-
-    public getSlackOptions() {
-        return {
-            ...super.getSlackOptions(),
-            scopes: this.getRequiredScopes(),
-        };
-    }
-
-    public hasRequiredScopes(installationScopes: string[]) {
-        const requiredScopes = this.getRequiredScopes();
-        return requiredScopes.every((scope) =>
-            installationScopes.includes(scope),
-        );
+    // eslint-disable-next-line class-methods-use-this
+    protected isCommercial(): boolean {
+        return true;
     }
 }

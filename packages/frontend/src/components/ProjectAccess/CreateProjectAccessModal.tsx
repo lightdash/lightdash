@@ -23,6 +23,7 @@ import {
 import MantineModal from '../common/MantineModal';
 import { groupComboboxItems } from '../common/Select/utils';
 import InviteSuccess from '../UserSettings/UsersAndGroupsPanel/InviteSuccess';
+import classes from './CreateProjectAccessModal.module.css';
 
 interface Props {
     projectUuid: string;
@@ -187,7 +188,7 @@ const CreateProjectAccessModal: FC<Props> = ({
                                     'isCreateOption' in option &&
                                     option.isCreateOption;
                                 return isCreateOption ? (
-                                    <span style={{ wordBreak: 'keep-all' }}>
+                                    <span className={classes.inviteHint}>
                                         This user is not a member of your
                                         organization. Select to invite them.
                                     </span>
@@ -196,7 +197,7 @@ const CreateProjectAccessModal: FC<Props> = ({
                                 );
                             }}
                             {...form.getInputProps('userId')}
-                            style={{ flexGrow: 1 }}
+                            className={classes.userSelect}
                         />
 
                         <Select

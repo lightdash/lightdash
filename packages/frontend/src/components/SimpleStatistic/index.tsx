@@ -5,7 +5,10 @@ import { useAccount } from '../../hooks/user/useAccount';
 import { BigNumberDisplay } from '../common/BigNumber/BigNumberDisplay';
 import LoadingChart from '../common/LoadingChart';
 import { isBigNumberVisualizationConfig } from '../LightdashVisualization/types';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationConfig,
+    useVisualizationInputs,
+} from '../LightdashVisualization/useVisualizationContext';
 import { EmptyChart } from '../SimpleChart';
 import BigNumberContextMenu from './BigNumberContextMenu';
 
@@ -36,8 +39,8 @@ const SimpleStatistic: FC<SimpleStatisticsProps> = ({
             minimal,
         });
 
-    const { resultsData, isLoading, visualizationConfig } =
-        useVisualizationContext();
+    const { resultsData, isLoading } = useVisualizationInputs();
+    const visualizationConfig = useVisualizationConfig();
 
     const isBigNumber = isBigNumberVisualizationConfig(visualizationConfig);
 

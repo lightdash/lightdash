@@ -1,5 +1,7 @@
 import {
     assertUnreachable,
+    composerNodeContextKey,
+    getDocumentUrl,
     dataAppContextKey,
     dataAppElementContextKey,
     dataAppRestoreContextKey,
@@ -9,18 +11,25 @@ import {
 } from '@lightdash/common';
 import { dataAppHref } from '../../../../../features/apps/utils/appUrls';
 
-// Element references never render inline; they always show as pills.
+// Element references and pipeline nodes never render inline; they always show as pills.
 // Restore items live on hidden turns and are rendered as build cards.
 // A theme pick is a composer setting, not a mention, so it stays a chip.
 type InlineReferenceItem = Exclude<
     AiPromptContextItem,
-    { type: 'data_app_element' | 'data_app_restore' | 'design' }
+    {
+        type:
+            | 'data_app_element'
+            | 'composer_node'
+            | 'data_app_restore'
+            | 'design';
+    }
 >;
 
 const isInlineReferenceItem = (
     item: AiPromptContextItem,
 ): item is InlineReferenceItem =>
     item.type !== 'data_app_element' &&
+    item.type !== 'composer_node' &&
     item.type !== 'data_app_restore' &&
     item.type !== 'design';
 
@@ -62,8 +71,12 @@ export const getPromptContextItemKey = (
             return `review_finding:${item.fingerprint}`;
         case 'preview_environment':
             return `preview_environment:${item.previewProjectUuid}`;
+        case 'semantic_model':
+            return `semantic_model:${item.modelName}:${item.fieldName ?? ''}`;
         case 'data_app_element':
             return dataAppElementContextKey(item);
+        case 'composer_node':
+            return composerNodeContextKey(item);
         case 'data_app_restore':
             return dataAppRestoreContextKey(item);
         case 'data_app':
@@ -130,6 +143,10 @@ const getPromptContextItemLabel = (item: InlineReferenceItem) => {
             return item.title;
         case 'preview_environment':
             return item.projectName ?? 'Preview environment';
+        case 'semantic_model':
+            return item.fieldName
+                ? `${item.modelName}.${item.fieldName}`
+                : item.modelName;
         case 'data_app':
             return getDataAppContextItemName(item);
         case 'document':
@@ -176,12 +193,22 @@ export const getPromptContextItemHref = (
         case 'data_app_element':
         case 'data_app_restore':
             return null;
+        // A pipeline node lives inside a thread artifact, not at a route.
+        case 'composer_node':
+            return null;
         case 'data_app':
             return dataAppHref(projectUuid, item.appUuid);
         case 'document':
-            return `/projects/${projectUuid}/documents/${item.documentUuid}`;
+            return getDocumentUrl(
+                projectUuid,
+                item.documentUuid,
+                item.documentSlug ?? undefined,
+            );
         // A theme is an organization setting with no in-thread destination.
         case 'design':
+            return null;
+        // The sidebar already sits on the model's page.
+        case 'semantic_model':
             return null;
         // A skill invocation is shown as a chip, not a link.
         case 'skill':

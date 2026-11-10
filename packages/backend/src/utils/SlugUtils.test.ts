@@ -1,6 +1,7 @@
 import knex from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { AppsTableName } from '../database/entities/apps';
+import { AppSlugMappingsTableName } from '../database/entities/appSlugMappings';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { DashboardSlugMappingsTableName } from '../database/entities/dashboardSlugMappings';
 import { ProjectTableName } from '../database/entities/projects';
@@ -50,8 +51,7 @@ describe('generateUniqueSlugScopedToProject', () => {
         expect(slug).toBe('orders');
     });
 
-    it('preserves a unique long chart slug', async () => {
-        const longName = 'a'.repeat(300);
+    it('caps a generated chart slug so the content-as-code file name fits on disk', async () => {
         tracker.on.select(SavedChartsTableName).responseOnce([]);
         tracker.on.select(SavedChartSlugMappingsTableName).responseOnce([]);
 
@@ -59,14 +59,16 @@ describe('generateUniqueSlugScopedToProject', () => {
             database,
             '22222222-2222-4222-8222-222222222222',
             SavedChartsTableName,
-            longName,
+            `${'orders by '.repeat(30)}customer`,
         );
 
-        expect(slug).toBe(longName);
+        expect(slug.length).toBeLessThanOrEqual(200);
+        expect(slug.endsWith('-')).toBe(false);
+        expect(`${slug}.language.map.yml`.length).toBeLessThan(255);
     });
 
     it('finds a free bounded chart slug using exact candidate probes', async () => {
-        const longName = 'a'.repeat(255);
+        const longName = 'a'.repeat(200);
         tracker.on
             .select(SavedChartsTableName)
             .responseOnce([{ saved_query_id: 1 }]);
@@ -83,14 +85,14 @@ describe('generateUniqueSlugScopedToProject', () => {
             longName,
         );
 
-        expect(slug).toHaveLength(255);
+        expect(slug).toHaveLength(200);
         expect(slug.endsWith('-2')).toBe(true);
         const slugQueries = tracker.history.select.filter(
             ({ sql }) => !sql.includes('pg_advisory_xact_lock'),
         );
         expect(slugQueries).toHaveLength(4);
         expect(slugQueries[1].sql).toContain('"slug" = $2');
-        expect(slugQueries[1].bindings).toContain(`${'a'.repeat(253)}-1`);
+        expect(slugQueries[1].bindings).toContain(`${'a'.repeat(198)}-1`);
     });
 
     it('detects collisions for long names with the same bounded prefix', async () => {
@@ -104,10 +106,10 @@ describe('generateUniqueSlugScopedToProject', () => {
             database,
             '22222222-2222-4222-8222-222222222222',
             SavedChartsTableName,
-            `${'a'.repeat(255)}-different-tail`,
+            `${'a'.repeat(200)}-different-tail`,
         );
 
-        expect(slug).toBe(`${'a'.repeat(253)}-1`);
+        expect(slug).toBe(`${'a'.repeat(198)}-1`);
     });
 
     it('skips historical chart slugs', async () => {
@@ -174,6 +176,7 @@ describe('generateUniqueSlugScopedToProject', () => {
         'uses native project ownership for %s',
         async (tableName) => {
             tracker.on.select(tableName).responseOnce([]);
+            tracker.on.select(AppSlugMappingsTableName).responseOnce([]);
 
             await generateUniqueSlugScopedToProject(
                 database,
@@ -182,11 +185,30 @@ describe('generateUniqueSlugScopedToProject', () => {
                 'Orders',
             );
 
-            const [query] = tracker.history.select;
-            expect(query.sql).toContain(`"${tableName}"."project_uuid"`);
-            expect(query.sql).not.toContain('join');
+            const query = tracker.history.select.find(({ sql }) =>
+                sql.includes(`"${tableName}"`),
+            );
+            expect(query?.sql).toContain(`"${tableName}"."project_uuid"`);
+            expect(query?.sql).not.toContain('join');
         },
     );
+
+    it('reserves historical app aliases when generating app slugs', async () => {
+        tracker.on.select(AppsTableName).response([]);
+        tracker.on
+            .select(AppSlugMappingsTableName)
+            .responseOnce([{ slug: 'orders' }]);
+        tracker.on.select(AppSlugMappingsTableName).responseOnce([]);
+
+        const slug = await generateUniqueSlugScopedToProject(
+            database,
+            '22222222-2222-4222-8222-222222222222',
+            AppsTableName,
+            'Orders',
+        );
+
+        expect(slug).toBe('orders-1');
+    });
 
     it('uses the indexed numeric project owner for spaces', async () => {
         tracker.on.select(SpaceTableName).responseOnce([]);
@@ -229,6 +251,7 @@ describe('generateUniqueSlugScopedToProject', () => {
 
     it('caps generated app slugs at 255 characters', async () => {
         tracker.on.select(AppsTableName).responseOnce([]);
+        tracker.on.select(AppSlugMappingsTableName).responseOnce([]);
 
         const slug = await generateUniqueSlugScopedToProject(
             database,

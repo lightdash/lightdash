@@ -19,6 +19,10 @@
  *         [--rest-status ran|skipped|failed] [--out /tmp/body.md]
  */
 import * as fs from 'fs';
+import {
+    renderAdvisories,
+    uncoveredFindings,
+} from './release-safety-advisories';
 import type {
     ApiSurface,
     ReleaseSafetyMarker,
@@ -110,8 +114,20 @@ function renderDeclaredBreakReasons(marker: Marker): string {
 export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
     const { rollingUpdateSafe } = marker.compatibility;
     const migrationsPresent = marker.migrations.present;
-    const restBreaking = marker.api.rest.checked && marker.api.rest.breaking === true;
-    const mcpBreaking = marker.api.mcp.checked && marker.api.mcp.breaking === true;
+    const restBreaking =
+        marker.api.rest.checked &&
+        uncoveredFindings(
+            marker.api.rest,
+            marker.declaredAdvisories ?? [],
+            'rest',
+        ).length > 0;
+    const mcpBreaking =
+        marker.api.mcp.checked &&
+        uncoveredFindings(
+            marker.api.mcp,
+            marker.declaredAdvisories ?? [],
+            'mcp',
+        ).length > 0;
     // Did the deterministic linter flag a destructive migration shape? (Used only
     // to phrase the "stop using it first" advice; never shown as jargon.)
     const lintFlagged = opts.linterBreaking ?? false;
@@ -280,7 +296,7 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         ? [
               '**How to unblock this pull request**',
               '',
-              'This required check must pass before merge. For a migration break, follow `packages/backend/src/database/migrations/CLAUDE.md`; for an API or type break, add the verified declaration described in [the release-safety guidance](https://github.com/lightdash/lightdash/blob/main/CLAUDE.md#release-safety-declarations).',
+              'This required check must pass before merge. For a migration break, follow `packages/backend/src/database/migrations/AGENTS.md`; for an API or type break, add the verified declaration described in [the release-safety guidance](https://github.com/lightdash/lightdash/blob/main/docs/release-safety.md).',
               '',
               'Never declare a break merely to make CI pass. Declaring a break advises every self-hosted customer to use the Recreate strategy.',
               '',
@@ -310,6 +326,9 @@ export function renderPrComment(marker: Marker, opts: RenderOpts = {}): string {
         '**What we looked at**',
         '',
         table,
+        ...((marker.declaredAdvisories ?? []).length
+            ? ['', ...renderAdvisories(marker.declaredAdvisories ?? [])]
+            : []),
         ...(advice.length ? ['', '**What to do**', '', advice.map((a) => `- ${a}`).join('\n')] : []),
         ...(unblock.length ? ['', ...unblock] : []),
         '',

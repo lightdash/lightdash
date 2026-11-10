@@ -1,20 +1,17 @@
-import {
-    FeatureFlags,
-    type RegistryChartTypeListItem,
-} from '@lightdash/common';
+import { type RegistryChartTypeListItem } from '@lightdash/common';
 import { fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { defaultAbility } from '../../../providers/Ability/constants';
 import { renderWithProviders } from '../../../testing/testUtils';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
 import { useDeleteApp } from '../../apps/hooks/useDeleteApp';
+import { useChartTypesEnabled } from '../hooks/useChartTypesEnabled';
 import { useUpgradeAllRegistryChartTypes } from '../hooks/useInstallRegistryChartType';
 import { useRegistryChartTypes } from '../hooks/useRegistryChartTypes';
 import ChartTypeLibrarySection from './ChartTypeLibrarySection';
 
-vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: vi.fn(),
+vi.mock('../hooks/useChartTypesEnabled', () => ({
+    useChartTypesEnabled: vi.fn(),
 }));
 
 vi.mock('../hooks/useRegistryChartTypes', () => ({
@@ -39,7 +36,6 @@ vi.mock('../../apps/hooks/useDeleteApp', () => ({
 const DEFAULT_ORG_UUID = '172a2270-000f-42be-9c68-c4752c23ae51';
 const PROJECT_UUID = 'project-1';
 
-const mockedUseServerFeatureFlag = vi.mocked(useServerFeatureFlag);
 const mockedUseRegistryChartTypes = vi.mocked(useRegistryChartTypes);
 const mockedUseCanEditDataApp = vi.mocked(useCanEditDataApp);
 const mockedUseDeleteApp = vi.mocked(useDeleteApp);
@@ -47,13 +43,8 @@ const mockedDeleteAppMutateAsync = vi.fn();
 const mockedUseUpgradeAll = vi.mocked(useUpgradeAllRegistryChartTypes);
 const mockedUpgradeAllMutate = vi.fn();
 
-const setFlag = (enabled: boolean, isLoading = false) => {
-    mockedUseServerFeatureFlag.mockReturnValue({
-        data: isLoading
-            ? undefined
-            : { id: FeatureFlags.ChartTypeRegistry, enabled },
-        isLoading,
-    } as ReturnType<typeof useServerFeatureFlag>);
+const setEnabled = (enabled: boolean, isLoading = false) => {
+    vi.mocked(useChartTypesEnabled).mockReturnValue({ enabled, isLoading });
 };
 
 const makeItem = (
@@ -108,7 +99,7 @@ const renderSection = () =>
 
 describe('ChartTypeLibrarySection', () => {
     it('shows compact upgrade rows and removes them once installed', async () => {
-        setFlag(true);
+        setEnabled(true);
         const onShowInstalled = vi.fn();
         setRegistryData([
             makeItem({
@@ -195,7 +186,7 @@ describe('ChartTypeLibrarySection', () => {
                 version: '0.2.0',
             }),
         ];
-        setFlag(true);
+        setEnabled(true);
         setRegistryData(updates);
         const { unmount } = renderWithProviders(
             <ChartTypeLibrarySection
@@ -263,8 +254,8 @@ describe('ChartTypeLibrarySection', () => {
         );
     });
 
-    it('renders nothing when the feature flag is off', () => {
-        setFlag(false);
+    it('renders nothing when chart types are off', () => {
+        setEnabled(false);
         setRegistryData([makeItem({})]);
         renderSection();
 
@@ -273,8 +264,8 @@ describe('ChartTypeLibrarySection', () => {
         ).not.toBeInTheDocument();
     });
 
-    it('renders nothing while the feature flag is still resolving', () => {
-        setFlag(false, true);
+    it('renders nothing while the licence is still resolving', () => {
+        setEnabled(false, true);
         setRegistryData([makeItem({})]);
         renderSection();
 
@@ -284,7 +275,7 @@ describe('ChartTypeLibrarySection', () => {
     });
 
     it('renders nothing when the registry is not enabled for the org', () => {
-        setFlag(true);
+        setEnabled(true);
         setRegistryData([makeItem({})], {
             data: { registryEnabled: false, charts: [] },
         });
@@ -296,7 +287,7 @@ describe('ChartTypeLibrarySection', () => {
     });
 
     it('shows the offline state with a retry when the fetch fails with no cached data', () => {
-        setFlag(true);
+        setEnabled(true);
         const refetch = vi.fn();
         mockedUseRegistryChartTypes.mockReturnValue({
             data: undefined,
@@ -315,7 +306,7 @@ describe('ChartTypeLibrarySection', () => {
     });
 
     it('keeps showing cached data through a background fetch error', () => {
-        setFlag(true);
+        setEnabled(true);
         setRegistryData([makeItem({})], {
             error: { name: 'Error', message: 'boom' },
         });
@@ -328,7 +319,7 @@ describe('ChartTypeLibrarySection', () => {
     });
 
     it('explains how library chart types become available to the organization', () => {
-        setFlag(true);
+        setEnabled(true);
         setRegistryData([makeItem({})]);
 
         renderWithProviders(
@@ -340,7 +331,7 @@ describe('ChartTypeLibrarySection', () => {
 
         expect(
             screen.getByText(
-                'These chart types are available to add to your instance. Once installed, they can be used by anyone building charts in your organization.',
+                /anyone in this project can pick it in the explorer/,
             ),
         ).toBeInTheDocument();
         expect(
@@ -349,7 +340,7 @@ describe('ChartTypeLibrarySection', () => {
     });
 
     it('renders cards with state badges for the happy path', () => {
-        setFlag(true);
+        setEnabled(true);
         setRegistryData([
             makeItem({ slug: 'a', name: 'Not installed chart' }),
             makeItem({
@@ -379,7 +370,9 @@ describe('ChartTypeLibrarySection', () => {
         // Installed chart types — upgradable ones included — are hidden from
         // the library; they live in the installed tab.
         expect(screen.getByText('(2)')).toBeInTheDocument();
-        expect(screen.getAllByText('Built by Lightdash')).toHaveLength(2);
+        expect(
+            screen.getAllByRole('img', { name: 'Built by Lightdash' }),
+        ).toHaveLength(2);
 
         expect(screen.getByText('Not installed chart')).toBeInTheDocument();
         expect(screen.queryByText('Installed chart')).not.toBeInTheDocument();
@@ -390,36 +383,8 @@ describe('ChartTypeLibrarySection', () => {
         ).toBeInTheDocument();
     });
 
-    it('badges charts by release stage, leaving stable ones unbadged', () => {
-        setFlag(true);
-        setRegistryData([
-            makeItem({
-                slug: 'a',
-                name: 'Stable chart',
-                channel: 'stable',
-                releaseStage: 'stable',
-            }),
-            makeItem({
-                slug: 'b',
-                name: 'Unpointed chart',
-                releaseStage: 'prerelease',
-            }),
-            makeItem({
-                slug: 'c',
-                name: 'Beta chart',
-                channel: 'beta',
-                releaseStage: 'beta',
-            }),
-        ]);
-        renderSection();
-
-        expect(screen.getByText('Beta chart')).toBeInTheDocument();
-        expect(screen.getAllByText('Beta')).toHaveLength(1);
-        expect(screen.getAllByText('Pre-release')).toHaveLength(1);
-    });
-
     it('renders each card as a keyboard-focusable button', () => {
-        setFlag(true);
+        setEnabled(true);
         setRegistryData([makeItem({ slug: 'radial-gauge' })]);
         renderSection();
 
@@ -429,7 +394,7 @@ describe('ChartTypeLibrarySection', () => {
     });
 
     it('opens the detail modal but hides Install without permission', async () => {
-        setFlag(true);
+        setEnabled(true);
         setRegistryData([makeItem({ slug: 'radial-gauge' })]);
         renderSection();
 
@@ -455,7 +420,7 @@ describe('ChartTypeLibrarySection', () => {
                 },
             },
         ]);
-        setFlag(true);
+        setEnabled(true);
         setRegistryData([makeItem({ slug: 'radial-gauge' })]);
         renderSection();
 
@@ -466,10 +431,40 @@ describe('ChartTypeLibrarySection', () => {
         ).toBeInTheDocument();
     });
 
+    it('offers Install on the card only when the user can install it', async () => {
+        defaultAbility.update([
+            {
+                action: 'create',
+                subject: 'DataApp',
+                conditions: {
+                    organizationUuid: DEFAULT_ORG_UUID,
+                    projectUuid: PROJECT_UUID,
+                },
+            },
+        ]);
+        setEnabled(true);
+        setRegistryData([
+            makeItem({ slug: 'radial-gauge' }),
+            makeItem({
+                slug: 'old-gauge',
+                name: 'Old gauge',
+                state: 'incompatible',
+            }),
+        ]);
+        renderSection();
+
+        expect(
+            await screen.findByRole('button', { name: 'Install Radial gauge' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Install Old gauge' }),
+        ).not.toBeInTheDocument();
+    });
+
     it('shows the incompatible explanation and disabled Install without gating on permission', async () => {
         // No defaultAbility grant — the informational incompatible footer
         // must still render for viewers who cannot create data apps.
-        setFlag(true);
+        setEnabled(true);
         setRegistryData([
             makeItem({
                 slug: 'radial-gauge',
@@ -491,7 +486,7 @@ describe('ChartTypeLibrarySection', () => {
     });
 
     it('hides installed and upgradable chart types from the library list', () => {
-        setFlag(true);
+        setEnabled(true);
         setRegistryData([
             makeItem({ slug: 'a', name: 'Available chart' }),
             makeItem({
@@ -518,7 +513,7 @@ describe('ChartTypeLibrarySection', () => {
     });
 
     it('shows the all-installed empty state when every registry chart is installed', () => {
-        setFlag(true);
+        setEnabled(true);
         setRegistryData([
             makeItem({
                 slug: 'radial-gauge',
@@ -531,7 +526,7 @@ describe('ChartTypeLibrarySection', () => {
 
         expect(
             screen.getByText(
-                'Every chart type from the library is installed — find them in your installed chart types.',
+                "You've installed every chart type in the library. They're all under Installed.",
             ),
         ).toBeInTheDocument();
         expect(screen.getByText('(0)')).toBeInTheDocument();

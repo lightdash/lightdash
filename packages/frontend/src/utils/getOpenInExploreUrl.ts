@@ -1,4 +1,8 @@
-import type { ChartConfig, MetricQuery } from '@lightdash/common';
+import type {
+    ChartConfig,
+    MetricQuery,
+    ParametersValuesMap,
+} from '@lightdash/common';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../hooks/useExplorerRoute';
 
 export const getOpenInExploreUrl = ({
@@ -7,12 +11,14 @@ export const getOpenInExploreUrl = ({
     columnOrder,
     pivotColumns,
     chartConfig,
+    parameters,
 }: {
     metricQuery: MetricQuery;
     projectUuid: string | undefined;
     columnOrder: string[];
     pivotColumns?: string[];
     chartConfig: ChartConfig;
+    parameters: ParametersValuesMap | undefined;
 }) => {
     return getExplorerUrlFromCreateSavedChartVersion(
         projectUuid,
@@ -29,6 +35,7 @@ export const getOpenInExploreUrl = ({
                   }
                 : undefined,
             updatedByUser: undefined,
+            parameters,
         },
         // preserves series config in the url, e.g. y axis index, color, etc.
         true,

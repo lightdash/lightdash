@@ -1,4 +1,5 @@
 import {
+    AI_AGENT_APPLICATION_NAME,
     AnyType,
     CreateTrinoCredentials,
     DimensionType,
@@ -82,11 +83,118 @@ interface TableInfo {
     table: string;
 }
 
+interface TrinoHttpErrorCause {
+    status: number;
+}
+
+interface TrinoTransportErrorCause {
+    code: string;
+    connectionErrorCodes: string[];
+}
+
+const transportErrorCodes = new Set([
+    'ECONNABORTED',
+    'ECONNREFUSED',
+    'ECONNRESET',
+    'EHOSTUNREACH',
+    'ENETUNREACH',
+    'ENOTFOUND',
+    'EAI_AGAIN',
+    'ETIMEDOUT',
+    'EPIPE',
+]);
+
+const getTransportErrorCode = (error: unknown): string | undefined =>
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    transportErrorCodes.has(error.code)
+        ? error.code
+        : undefined;
+
+const getSanitizedTransportCause = (
+    error: unknown,
+): TrinoTransportErrorCause | undefined => {
+    const code = getTransportErrorCode(error);
+    if (!code || !(error instanceof Error)) return undefined;
+    const aggregate =
+        error.cause instanceof AggregateError ? error.cause : error;
+    const connectionErrorCodes =
+        'errors' in aggregate && Array.isArray(aggregate.errors)
+            ? aggregate.errors
+                  .map(getTransportErrorCode)
+                  .filter((value): value is string => value !== undefined)
+            : [];
+    return { code, connectionErrorCodes: [...new Set(connectionErrorCodes)] };
+};
+
+const getSanitizedHttpCause = (
+    error: unknown,
+): TrinoHttpErrorCause | undefined => {
+    if (
+        typeof error !== 'object' ||
+        error === null ||
+        !('isAxiosError' in error) ||
+        error.isAxiosError !== true
+    )
+        return undefined;
+    if ('status' in error && typeof error.status === 'number')
+        return { status: error.status };
+    if (
+        'response' in error &&
+        typeof error.response === 'object' &&
+        error.response !== null &&
+        'status' in error.response &&
+        typeof error.response.status === 'number'
+    )
+        return { status: error.response.status };
+    return undefined;
+};
+
+interface TrinoQueryErrorCause {
+    errorName: string;
+    errorCode: number;
+    errorType: string;
+}
+
+const sanitizeTrinoCause = (
+    cause: unknown,
+):
+    | TrinoHttpErrorCause
+    | TrinoQueryErrorCause
+    | TrinoTransportErrorCause
+    | undefined => {
+    if (typeof cause !== 'object' || cause === null) return undefined;
+    if ('status' in cause && typeof cause.status === 'number')
+        return { status: cause.status };
+    if (
+        'errorName' in cause &&
+        typeof cause.errorName === 'string' &&
+        'errorCode' in cause &&
+        typeof cause.errorCode === 'number' &&
+        'errorType' in cause &&
+        typeof cause.errorType === 'string'
+    )
+        return {
+            errorName: cause.errorName,
+            errorCode: cause.errorCode,
+            errorType: cause.errorType,
+        };
+    return getSanitizedHttpCause(cause) ?? getSanitizedTransportCause(cause);
+};
+
 const getErrorMessage = (e: QueryError) => {
     // Trino returns Object of type QueryError
     if (e.message) {
         // Convert Object to Error
         return originalGetErrorMessage(new Error(e.message, { cause: e }));
+    }
+    const transport = getSanitizedTransportCause(e);
+    if (transport) {
+        const codes = [
+            ...new Set([transport.code, ...transport.connectionErrorCodes]),
+        ];
+        return `Trino connection failed (${codes.join(', ')})`;
     }
     return originalGetErrorMessage(e);
 };
@@ -314,8 +422,15 @@ export class TrinoSqlBuilder extends WarehouseBaseSqlBuilder {
 export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredentials> {
     connectionOptions: ConnectionOptions;
 
-    constructor(credentials: CreateTrinoCredentials) {
-        super(credentials, new TrinoSqlBuilder(credentials.startOfWeek));
+    constructor(
+        credentials: CreateTrinoCredentials,
+        options?: { agentSession?: boolean },
+    ) {
+        super(
+            credentials,
+            new TrinoSqlBuilder(credentials.startOfWeek),
+            options,
+        );
         this.connectionOptions = {
             auth: new BasicAuth(credentials.user, credentials.password),
             catalog: credentials.dbname,
@@ -332,7 +447,9 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
         try {
             session = await client.create(this.connectionOptions);
         } catch (e: AnyType) {
-            throw new WarehouseConnectionError(getErrorMessage(e));
+            const error = new WarehouseConnectionError(getErrorMessage(e));
+            error.cause = sanitizeTrinoCause(e);
+            throw error;
         }
 
         return {
@@ -366,16 +483,33 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             }
             if (options?.timezone) {
                 console.debug(`Setting Trino timezone to ${options?.timezone}`);
-                await session.query(`SET TIME ZONE '${options?.timezone}'`);
+                const timezoneQuery = await session.query(
+                    `SET TIME ZONE '${options?.timezone}'`,
+                );
+                let timezoneResult: IteratorResult<QueryResult>;
+                do {
+                    // eslint-disable-next-line no-await-in-loop
+                    timezoneResult = await timezoneQuery.next();
+                    if (timezoneResult.value.error) {
+                        const error = new WarehouseQueryError(
+                            getErrorMessage(timezoneResult.value.error) ??
+                                'Failed to set the time zone',
+                        );
+                        error.cause = sanitizeTrinoCause(
+                            timezoneResult.value.error,
+                        );
+                        throw error;
+                    }
+                } while (!timezoneResult.done);
             }
 
             query = await session.query(
-                options?.tags
+                options?.tags || this.agentSession
                     ? {
                           query: alteredQuery,
                           extraHeaders: {
                               [TRINO_CLIENT_TAGS_HEADER]: Object.entries(
-                                  options.tags,
+                                  options.tags ?? {},
                               )
                                   .map(
                                       ([key, value]) =>
@@ -384,6 +518,13 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                                           )}=${sanitizeClientTag(value)}`,
                                   )
                                   .join(','),
+                              ...(this.agentSession
+                                  ? {
+                                        'X-Trino-Extra-Credential':
+                                            'agent=true',
+                                        'User-Agent': AI_AGENT_APPLICATION_NAME,
+                                    }
+                                  : {}),
                           },
                       }
                     : alteredQuery,
@@ -392,10 +533,12 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
             let queryResult = await query.next();
 
             if (queryResult.value.error) {
-                throw new WarehouseQueryError(
+                const error = new WarehouseQueryError(
                     getErrorMessage(queryResult.value.error) ??
                         'Unexpected error in query execution',
                 );
+                error.cause = sanitizeTrinoCause(queryResult.value.error);
+                throw error;
             }
 
             const schema: {
@@ -455,7 +598,11 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                 });
             }
         } catch (e: AnyType) {
-            throw new WarehouseQueryError(getErrorMessage(e));
+            const error = new WarehouseQueryError(getErrorMessage(e));
+            error.cause = sanitizeTrinoCause(
+                e instanceof WarehouseQueryError ? e.cause : e,
+            );
+            throw error;
         } finally {
             await close();
         }
@@ -477,7 +624,11 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                         const result = (await query.next()).value.data ?? [];
                         return result;
                     } catch (e: AnyType) {
-                        throw new WarehouseQueryError(getErrorMessage(e));
+                        const error = new WarehouseQueryError(
+                            getErrorMessage(e),
+                        );
+                        error.cause = sanitizeTrinoCause(e);
+                        throw error;
                     } finally {
                         if (query) void close();
                     }

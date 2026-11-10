@@ -3,6 +3,7 @@ import {
     filtersSchemaV2,
     FilterType,
     getFilterExamples,
+    UnitOfTime,
 } from '@lightdash/common';
 import {
     filterPermutationCases,
@@ -77,6 +78,36 @@ describe('filter permutation cases', () => {
                 throw new Error(
                     `${testCase.id} failed transformed schema validation: ${transformedParseResult.error.message}`,
                 );
+            }
+        });
+    });
+
+    it('covers current-period bounds for every unit that supports them', () => {
+        const boundCases = filterPermutationCases.filter(
+            (testCase) => testCase.expected.settings?.toDate === true,
+        );
+        const units = new Set(
+            boundCases.map(
+                (testCase) => testCase.expected.settings?.unitOfTime,
+            ),
+        );
+        expect(units).toEqual(
+            new Set([
+                UnitOfTime.weeks,
+                UnitOfTime.months,
+                UnitOfTime.quarters,
+                UnitOfTime.years,
+            ]),
+        );
+        expect(
+            boundCases.some(
+                (testCase) => testCase.expected.settings?.excludeToday === true,
+            ),
+        ).toBe(true);
+        boundCases.forEach((testCase) => {
+            expect(testCase.prompt).toContain('to date');
+            if (testCase.expected.settings?.excludeToday) {
+                expect(testCase.prompt).toContain('excluding today');
             }
         });
     });

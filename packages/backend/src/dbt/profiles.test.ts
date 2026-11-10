@@ -1,5 +1,6 @@
 import {
     applyWarehouseLocation,
+    AthenaAuthenticationType,
     BigqueryAuthenticationType,
     WarehouseTypes,
     type CreateWarehouseCredentials,
@@ -10,12 +11,88 @@ import {
     LIGHTDASH_PROFILE_NAME,
     LIGHTDASH_TARGET_NAME,
     profileFromCredentials,
+    profileFromTarget,
 } from './profiles';
+import { toDbtTarget } from './targets';
+import {
+    bigqueryOauthTarget,
+    bigqueryWif,
+    bigqueryWifFile,
+} from './targets/targets.mock';
 
 const sourceLocation: WarehouseLocation = {
     database: 'source-database',
     schema: 'source_schema',
 };
+
+describe('BigQuery workload identity profile', () => {
+    it.each([
+        {
+            name: 'default audience',
+            workloadIdentityAudience: undefined,
+            encodedAudience:
+                'https%3A%2F%2Fiam.googleapis.com%2Fprojects%2F123456%2Flocations%2Fglobal%2FworkloadIdentityPools%2Fpool-id%2Fproviders%2Fprovider-id',
+        },
+        {
+            name: 'custom audience with URL syntax',
+            workloadIdentityAudience:
+                'https://identity.example/a?x=1&format=json#token',
+            encodedAudience:
+                'https%3A%2F%2Fidentity.example%2Fa%3Fx%3D1%26format%3Djson%23token',
+        },
+    ])(
+        'builds a fixed external-account config with $name',
+        ({ workloadIdentityAudience, encodedAudience }) => {
+            const submittedCredentials = {
+                ...bigqueryWif,
+                workloadIdentityAudience,
+                token_url: 'https://untrusted.example/token',
+                credential_source: {
+                    url: 'https://untrusted.example/identity',
+                    file: '/untrusted/token',
+                    headers: { 'Metadata-Flavor': 'Untrusted' },
+                },
+                service_account_impersonation_url:
+                    'https://untrusted.example/impersonate',
+            };
+            const { profile, environment, files } = profileFromCredentials(
+                submittedCredentials,
+                '/tmp/profiles',
+            );
+            expect(yaml.load(profile)).toEqual({
+                lightdash_profile: {
+                    target: 'prod',
+                    outputs: { prod: bigqueryOauthTarget },
+                },
+            });
+            expect(environment).toEqual({
+                GOOGLE_APPLICATION_CREDENTIALS:
+                    '/tmp/profiles/bigquery-workload-identity.json',
+            });
+            expect(files).toEqual([
+                {
+                    path: '/tmp/profiles/bigquery-workload-identity.json',
+                    content: bigqueryWifFile(encodedAudience).content,
+                },
+            ]);
+        },
+    );
+
+    it('keeps credential paths local to each profile without mutating the target', () => {
+        const target = toDbtTarget(bigqueryWif, { explicitCredentials: true });
+        const first = profileFromTarget(target, '/tmp/first');
+        const second = profileFromTarget(target, '/tmp/second');
+        expect(first.environment.GOOGLE_APPLICATION_CREDENTIALS).toBe(
+            '/tmp/first/bigquery-workload-identity.json',
+        );
+        expect(second.environment.GOOGLE_APPLICATION_CREDENTIALS).toBe(
+            '/tmp/second/bigquery-workload-identity.json',
+        );
+        expect(target).toEqual(
+            toDbtTarget(bigqueryWif, { explicitCredentials: true }),
+        );
+    });
+});
 
 const targetFor = (credentials: CreateWarehouseCredentials) => {
     const { profile } = profileFromCredentials(
@@ -167,4 +244,47 @@ describe('BigQuery key file in dbt profiles', () => {
             ),
         ).toThrow('BigQuery key file must be a service account key');
     });
+});
+
+describe('Athena web identity profile', () => {
+    it('passes no AWS credentials or role to dbt', () => {
+        const target = targetFor({
+            type: WarehouseTypes.ATHENA,
+            region: 'eu-west-1',
+            database: 'AwsDataCatalog',
+            schema: 'analytics',
+            s3StagingDir: 's3://bucket/results/',
+            authenticationType: AthenaAuthenticationType.WEB_IDENTITY,
+            assumeRoleArn: 'arn:aws:iam::123456789012:role/lightdash',
+        });
+
+        expect(target.type).toBe(WarehouseTypes.ATHENA);
+        expect(target).not.toHaveProperty('aws_access_key_id');
+        expect(target).not.toHaveProperty('aws_secret_access_key');
+        expect(target).not.toHaveProperty('aws_assume_role_arn');
+    });
+});
+
+it('rejects unresolved secret-free BigQuery SSO in dbt profiles', () => {
+    expect(() =>
+        profileFromCredentials(
+            {
+                type: WarehouseTypes.BIGQUERY,
+                authenticationType: BigqueryAuthenticationType.SSO,
+                project: 'analytics',
+                dataset: 'prod',
+                timeoutSeconds: undefined,
+                priority: undefined,
+                retries: undefined,
+                location: undefined,
+                maximumBytesBilled: undefined,
+                keyfileContents: {
+                    type: 'authorized_user',
+                    client_id: 'id',
+                    refresh_token: 'refresh',
+                },
+            },
+            '/tmp/profiles',
+        ),
+    ).toThrow('resolved');
 });

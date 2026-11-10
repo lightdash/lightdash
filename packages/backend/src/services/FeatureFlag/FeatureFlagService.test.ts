@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     ALL_FEATURE_FLAG_IDS,
     OrganizationMemberRole,
+    type AnonymousAccount,
     type PossibleAbilities,
     type RegisteredAccount,
     type SessionUser,
@@ -81,7 +82,18 @@ const buildAccount = (ability: Ability<PossibleAbilities>) =>
         authentication: { type: 'session' },
         isAnonymousUser: () => false,
         isServiceAccount: () => false,
+        isJwtUser: () => false,
     }) as unknown as RegisteredAccount;
+
+const buildEmbedAccount = () =>
+    ({
+        organization: { organizationUuid, name: 'Organization' },
+        user: { id: 'external::viewer' },
+        authentication: { type: 'jwt' },
+        isAnonymousUser: () => true,
+        isServiceAccount: () => false,
+        isJwtUser: () => true,
+    }) as unknown as AnonymousAccount;
 
 describe('FeatureFlagService', () => {
     describe('ensureOrganizationOverrideEnabled', () => {
@@ -251,6 +263,53 @@ describe('FeatureFlagService', () => {
                 "You don't have access to this resource or action",
             );
             expect(upsertOrganizationOverride).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('getForAccount', () => {
+        it("resolves an embed viewer against its organization's overrides", async () => {
+            const { service, get } = buildService();
+
+            await service.getForAccount({
+                account: buildEmbedAccount(),
+                featureFlagId: 'dashboard-controls',
+            });
+
+            expect(get).toHaveBeenCalledWith({
+                user: { organizationUuid },
+                featureFlagId: 'dashboard-controls',
+            });
+        });
+
+        it('resolves a registered account against its user and organization', async () => {
+            const { service, get } = buildService();
+
+            await service.getForAccount({
+                account: buildAccount(adminAbility()),
+                featureFlagId: 'dashboard-controls',
+            });
+
+            expect(get).toHaveBeenCalledWith({
+                user: {
+                    userUuid: '00000000-0000-0000-0000-000000000002',
+                    organizationUuid,
+                },
+                featureFlagId: 'dashboard-controls',
+            });
+        });
+
+        it('resolves without a user when unauthenticated', async () => {
+            const { service, get } = buildService();
+
+            await service.getForAccount({
+                account: undefined,
+                featureFlagId: 'dashboard-controls',
+            });
+
+            expect(get).toHaveBeenCalledWith({
+                user: undefined,
+                featureFlagId: 'dashboard-controls',
+            });
         });
     });
 });

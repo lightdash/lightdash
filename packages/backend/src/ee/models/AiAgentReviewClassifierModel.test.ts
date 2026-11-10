@@ -44,6 +44,7 @@ const snapshot = {
     instructionSummary: 'Use finance definitions.',
     knowledgeDocuments: [],
     mcpServers: [],
+    skills: [],
 };
 
 const makeRunRow = (overrides: Partial<Record<string, unknown>> = {}) => ({
@@ -1227,6 +1228,7 @@ describe('AiAgentReviewClassifierModel', () => {
             evidenceExcerpts: [],
             recommendation: null,
             projectContextEntry: null,
+            skillProposal: null,
             reviewItem: {
                 fingerprint: FINGERPRINT,
                 title: 'Review airports.country',
@@ -1337,6 +1339,7 @@ describe('AiAgentReviewClassifierModel', () => {
                     ],
                     recommendation: null,
                     projectContextEntry: null,
+                    skillProposal: null,
                     reviewItem: {
                         fingerprint: FINGERPRINT,
                         title: 'Review airports.country',
@@ -1464,6 +1467,7 @@ describe('AiAgentReviewClassifierModel', () => {
                     evidenceExcerpts: [],
                     recommendation: null,
                     projectContextEntry: null,
+                    skillProposal: null,
                     reviewItem: {
                         fingerprint: FINGERPRINT,
                         title: 'Review airports.country',
@@ -1515,6 +1519,7 @@ describe('AiAgentReviewClassifierModel', () => {
                     evidenceExcerpts: [],
                     recommendation: null,
                     projectContextEntry: null,
+                    skillProposal: null,
                     reviewItem: {
                         fingerprint: FINGERPRINT,
                         title: 'Review airports.country',
@@ -1564,6 +1569,7 @@ describe('AiAgentReviewClassifierModel', () => {
                     evidenceExcerpts: [],
                     recommendation: null,
                     projectContextEntry: null,
+                    skillProposal: null,
                     reviewItem: {
                         fingerprint: FINGERPRINT,
                         title: 'Review airports.country',

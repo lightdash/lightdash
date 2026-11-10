@@ -1,10 +1,12 @@
 import type {
     Account,
+    FeatureFlags,
     ParametersValuesMap,
     PivotConfiguration,
     QueryExecutionContext,
     QuerySourceDefinition,
     QuerySourceSchema,
+    QuerySurface,
     SourceQuery,
     UserAttributeValueMap,
 } from '@lightdash/common';
@@ -17,10 +19,10 @@ export type ScanSchemaArgs = {
 };
 
 /**
- * Execution context shared by every query of one submission. Each field is
- * required so a caller decides it explicitly; none of them defaults.
+ * Execution context shared by every query of one submission.
  */
 export type SourceQueryExecutionContext = {
+    querySurface?: QuerySurface;
     /** Parameter values every node resolves its references against. */
     parameters: ParametersValuesMap;
     /**
@@ -30,6 +32,13 @@ export type SourceQueryExecutionContext = {
      */
     userAttributeOverrides: UserAttributeValueMap;
     invalidateCache: boolean;
+};
+
+/** The AI agent run a batch belongs to, for analytics. */
+export type SourceQueryAiAttribution = {
+    aiAgentUuid: string | null;
+    threadUuid: string | null;
+    promptUuid: string | null;
 };
 
 export type SubmitSourceQueryArgs = SourceQueryExecutionContext & {
@@ -76,6 +85,8 @@ export interface QuerySourceClient {
     definition: QuerySourceDefinition;
     /** Whether a query of this source may carry a pivotConfiguration. */
     supportsPivot: boolean;
+    /** Flags that must all be on for the org to list, scan or submit this source. */
+    requiredFeatureFlags: FeatureFlags[];
     scanSchema(args: ScanSchemaArgs): Promise<QuerySourceSchema>;
     getQueryReferences(query: SourceQuery): string[];
     submitQuery(

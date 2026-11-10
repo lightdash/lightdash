@@ -104,6 +104,7 @@ vi.mock('../../providers/App/useApp', () => ({
 
 const document: Document = {
     pinnedListUuid: null,
+    verification: null,
     createdBy: null,
     owner: null,
     ownerUserUuid: null,
@@ -151,6 +152,33 @@ describe('Document editing affordance', () => {
                     ? SpaceMemberRole.VIEWER
                     : SpaceMemberRole.EDITOR;
             const { result } = renderHook(() => useCanEditDocument(document));
+            expect(result.current).toBe(allowed);
+        },
+    );
+
+    it.each([
+        ['an editor', OrganizationMemberRole.EDITOR, 'admin-uuid', false],
+        ['an admin', OrganizationMemberRole.ADMIN, 'admin-uuid', true],
+        ['its verifier', OrganizationMemberRole.EDITOR, 'user', true],
+    ] as const)(
+        'a verified Document is editable by %s: %s',
+        (_who, role, verifierUuid, allowed) => {
+            mocks.organizationRole = role;
+            mocks.inherits = true;
+            mocks.spaceRole = SpaceMemberRole.EDITOR;
+            const { result } = renderHook(() =>
+                useCanEditDocument({
+                    ...document,
+                    verification: {
+                        verifiedBy: {
+                            userUuid: verifierUuid,
+                            firstName: 'Ada',
+                            lastName: 'A',
+                        },
+                        verifiedAt: new Date('2026-10-01'),
+                    },
+                }),
+            );
             expect(result.current).toBe(allowed);
         },
     );

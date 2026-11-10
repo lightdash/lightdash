@@ -54,6 +54,8 @@ describe('OrganizationSettingsModel', () => {
                 queryLimit: null,
                 csvCellsLimit: null,
                 corsAllowedDomains: null,
+                dataAppCapturesEnabled: null,
+                dataAppCustomDependenciesEnabled: false,
             });
         });
 
@@ -80,6 +82,8 @@ describe('OrganizationSettingsModel', () => {
                 queryLimit: null,
                 csvCellsLimit: null,
                 corsAllowedDomains: null,
+                dataAppCapturesEnabled: null,
+                dataAppCustomDependenciesEnabled: false,
             });
         });
 
@@ -103,6 +107,8 @@ describe('OrganizationSettingsModel', () => {
                 queryLimit: null,
                 csvCellsLimit: null,
                 corsAllowedDomains: null,
+                dataAppCapturesEnabled: null,
+                dataAppCustomDependenciesEnabled: false,
             });
         });
 
@@ -128,6 +134,8 @@ describe('OrganizationSettingsModel', () => {
                 queryLimit: null,
                 csvCellsLimit: null,
                 corsAllowedDomains: null,
+                dataAppCapturesEnabled: null,
+                dataAppCustomDependenciesEnabled: false,
             });
         });
 
@@ -155,6 +163,8 @@ describe('OrganizationSettingsModel', () => {
                     'https://app.example.com',
                     '/^https:\\/\\/.*\\.example\\.com$/',
                 ],
+                dataAppCapturesEnabled: null,
+                dataAppCustomDependenciesEnabled: false,
             });
         });
     });
@@ -232,6 +242,8 @@ describe('OrganizationSettingsModel', () => {
                 queryLimit: null,
                 csvCellsLimit: null,
                 corsAllowedDomains: null,
+                dataAppCapturesEnabled: null,
+                dataAppCustomDependenciesEnabled: false,
             });
         });
 

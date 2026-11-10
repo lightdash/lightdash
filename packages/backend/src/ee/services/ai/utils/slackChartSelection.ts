@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    parseToolVisualizeSuccessMetadata,
     type AiAgentToolResult,
     type AiArtifact,
 } from '@lightdash/common';
@@ -60,9 +61,25 @@ export const getSlackSelectedCardArtifacts = ({
             return metadata.success ? [metadata.data.artifactVersionUuid] : [];
         }),
     );
+    // A visualize call presents its version, so no marker selects it.
+    const visualizedVersions = new Set(
+        toolResults.flatMap((result) => {
+            if (
+                result.toolType !== 'built-in' ||
+                result.toolName !== 'visualize'
+            ) {
+                return [];
+            }
+            const metadata = parseToolVisualizeSuccessMetadata(result.metadata);
+            return metadata ? [metadata.versionUuid] : [];
+        }),
+    );
+    const isSelectable = (artifact: AiArtifact) =>
+        isSelectableChartArtifact(artifact) &&
+        !visualizedVersions.has(artifact.versionUuid);
     const selectableArtifacts = new Map(
         artifacts
-            .filter(isSelectableChartArtifact)
+            .filter(isSelectable)
             .map((artifact) => [artifact.versionUuid, artifact]),
     );
     const selectedCharts = [...new Set(selectedVersionUuids)]
@@ -75,7 +92,7 @@ export const getSlackSelectedCardArtifacts = ({
         .slice(0, 10);
     const otherArtifacts = artifacts.filter(
         (artifact) =>
-            !isSelectableChartArtifact(artifact) &&
+            !isSelectable(artifact) &&
             (!canShowInlineTables ||
                 artifact.artifactType !== 'chart' ||
                 !isSlackTableArtifact(artifact)),

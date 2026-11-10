@@ -1,9 +1,9 @@
 import type { HealthState } from '@lightdash/common';
 import { addBreadcrumb, captureException } from '@sentry/react';
-import { type Exact } from 'type-fest';
 import {
     type LightdashEmbedEvent,
     type LightdashEventPayload,
+    type LightdashEventPayloadFor,
     type LightdashEventType,
 } from './types';
 
@@ -98,9 +98,9 @@ export class LightdashUiEvent {
      * @param eventType - The type of event to dispatch
      * @param payload - The event payload (will be sanitized)
      */
-    dispatch<T extends Exact<LightdashEventPayload, T> | undefined>(
-        eventType: LightdashEventType,
-        payload?: T,
+    dispatch<K extends LightdashEventType>(
+        eventType: K,
+        payload: LightdashEventPayloadFor<K>,
     ): void {
         if (!this.config.enabled) {
             return;

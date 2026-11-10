@@ -28,6 +28,7 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { AgentSettingsSelector } from '../../features/aiCopilot/components/AgentSelector';
 import { AutoModeSidebar } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentSidebar';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
+import { NewThreadButton } from '../../features/aiCopilot/components/AiAgentPageLayout/NewThreadButton';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import {
     mergeAiPromptContextInput,
@@ -102,11 +103,11 @@ const AgentsRouterPage = () => {
     });
 
     const {
+        agentDefault,
+        explicitModelConfig,
         extendedThinking,
         handleExtendedThinkingChange,
         handleSelectedModelKeyChange,
-        isModelSelectionExplicit,
-        modelConfig,
         modelOptions,
         selectedModelKey,
         showExtendedThinking,
@@ -146,7 +147,7 @@ const AgentsRouterPage = () => {
                 optimisticContext: args.optimisticContext,
                 prompt: args.message,
                 toolHints: args.toolHints,
-                modelConfig: isModelSelectionExplicit ? modelConfig : undefined,
+                modelConfig: explicitModelConfig,
             });
             dispatch(
                 setThreadSqlMode({
@@ -156,14 +157,7 @@ const AgentsRouterPage = () => {
             );
             return thread;
         },
-        [
-            createThread,
-            dispatch,
-            isModelSelectionExplicit,
-            modelConfig,
-            agents,
-            sqlModeAvailable,
-        ],
+        [createThread, dispatch, explicitModelConfig, agents, sqlModeAvailable],
     );
 
     const createDeepResearchForAgent = useCallback<CreateThreadForAgent>(
@@ -171,7 +165,7 @@ const AgentsRouterPage = () => {
             const thread = await createThread({
                 agentUuid: args.agentUuid,
                 context: args.context,
-                modelConfig,
+                modelConfig: explicitModelConfig,
                 optimisticContext: args.optimisticContext,
                 prompt: args.message,
                 skipAgentResponse: true,
@@ -184,7 +178,7 @@ const AgentsRouterPage = () => {
             });
             return thread;
         },
-        [createThread, modelConfig, startDeepResearch],
+        [createThread, explicitModelConfig, startDeepResearch],
     );
 
     const handleRouteError = useCallback(
@@ -345,6 +339,12 @@ const AgentsRouterPage = () => {
         <AiAgentPageLayout
             isAgentSidebarCollapsed={isSidebarCollapsed}
             setIsAgentSidebarCollapsed={setIsSidebarCollapsed}
+            SidebarHeader={
+                <NewThreadButton
+                    to={`/projects/${projectUuid}/ai-agents`}
+                    isCollapsed={isSidebarCollapsed}
+                />
+            }
             Sidebar={
                 <AutoModeSidebar
                     projectUuid={projectUuid!}
@@ -447,6 +447,7 @@ const AgentsRouterPage = () => {
                                     ? handleExtendedThinkingChange
                                     : undefined
                             }
+                            agentDefault={agentDefault}
                             clearOnSubmit={false}
                             fullWidth
                             showSuggestions={false}

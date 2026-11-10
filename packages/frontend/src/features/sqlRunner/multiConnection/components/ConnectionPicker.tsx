@@ -1,4 +1,4 @@
-import { Group, Select, Text } from '@mantine/core';
+import { Select } from '@mantine/core';
 import { IconPlugConnected } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -22,23 +22,17 @@ export const ConnectionPicker: FC = () => {
     if (!hasSeveralConnections) return null;
 
     return (
-        <Group gap="xs" wrap="nowrap">
-            <Text fz="xs" c="dimmed">
-                Connection
-            </Text>
-            <Select
-                size="xs"
-                flex={1}
-                data={data}
-                value={activeConnectionUuid ?? null}
-                placeholder="Choose a connection"
-                allowDeselect={false}
-                aria-label="Active connection"
-                leftSection={<MantineIcon icon={IconPlugConnected} />}
-                onChange={(value) => {
-                    if (value) switchConnection(value, 'picker');
-                }}
-            />
-        </Group>
+        <Select
+            size="sm"
+            data={data}
+            value={activeConnectionUuid ?? null}
+            placeholder="Choose a connection"
+            allowDeselect={false}
+            aria-label="Active connection"
+            leftSection={<MantineIcon icon={IconPlugConnected} />}
+            onChange={(value) => {
+                if (value) switchConnection(value, 'picker');
+            }}
+        />
     );
 };

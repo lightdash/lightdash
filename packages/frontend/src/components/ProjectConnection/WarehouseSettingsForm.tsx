@@ -1,6 +1,10 @@
-import { WarehouseTypes } from '@lightdash/common';
+import {
+    MIXED_TYPE_EXTRA_CONNECTION_WAREHOUSE_TYPES,
+    WarehouseTypes,
+} from '@lightdash/common';
 import { Select, Stack } from '@mantine/core';
 import { type FC, type ReactNode } from 'react';
+import { EgressIpNotice } from './EgressIpNotice';
 import { useFormContext } from './formContext';
 import AthenaForm from './WarehouseForms/AthenaForm';
 import BigQueryForm from './WarehouseForms/BigQueryForm';
@@ -41,12 +45,14 @@ const WarehouseTypeForms = {
 interface WarehouseSettingsFormProps {
     disabled: boolean;
     isProjectUpdate?: boolean | undefined;
+    allowMixedWarehouseTypes: boolean;
     children?: ReactNode;
 }
 
 const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
     disabled,
     isProjectUpdate,
+    allowMixedWarehouseTypes,
     children,
 }) => {
     const form = useFormContext();
@@ -59,17 +65,20 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
     return (
         <SnowflakeCliSsoModeProvider>
             <Stack h="100%" gap={0}>
-                {isProjectUpdate && (
+                {(isProjectUpdate || allowMixedWarehouseTypes) && (
                     <Select
                         allowDeselect={false}
                         defaultValue={WarehouseTypes.BIGQUERY}
                         label="Type"
-                        data={Object.entries(WarehouseTypeLabels).map(
-                            ([value, label]) => ({
-                                value,
-                                label,
-                            }),
-                        )}
+                        data={Object.entries(WarehouseTypeLabels)
+                            .filter(
+                                ([value]) =>
+                                    !allowMixedWarehouseTypes ||
+                                    MIXED_TYPE_EXTRA_CONNECTION_WAREHOUSE_TYPES.includes(
+                                        value as WarehouseTypes,
+                                    ),
+                            )
+                            .map(([value, label]) => ({ value, label }))}
                         required
                         {...form.getInputProps('warehouse.type')}
                         onChange={(value) => {
@@ -84,6 +93,7 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
                         disabled={disabled}
                     />
                 )}
+                <EgressIpNotice />
 
                 <WarehouseForm disabled={disabled} />
                 {children}

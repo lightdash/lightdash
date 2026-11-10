@@ -30,11 +30,29 @@ export const useAiAgentThreadRecoveryActive = (threadUuid: string) =>
         );
     });
 
-export const useActiveAiAgentThreadStreamParts = (): StreamPart[] =>
+// Keep completed parts available so batched terminal tool results are not lost.
+export const useAiAgentProjectStreamParts = (
+    projectUuid: string | undefined,
+): StreamPart[] =>
     useAiAgentStoreSelector(
         (state) =>
             Object.values(state.aiAgentThreadStream).flatMap((threadStream) =>
-                threadStream.connection.status === 'streaming'
+                threadStream.projectUuid === projectUuid
+                    ? threadStream.parts
+                    : [],
+            ),
+        shallowEqual,
+    );
+
+export const useAiAgentStreamParts = (
+    projectUuid: string | undefined,
+    agentUuid: string | undefined,
+): StreamPart[] =>
+    useAiAgentStoreSelector(
+        (state) =>
+            Object.values(state.aiAgentThreadStream).flatMap((threadStream) =>
+                threadStream.projectUuid === projectUuid &&
+                threadStream.agentUuid === agentUuid
                     ? threadStream.parts
                     : [],
             ),

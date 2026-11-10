@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags, type UserAttribute } from '@lightdash/common';
+import { type UserAttribute } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -10,7 +10,6 @@ import {
     Stack,
     Text,
     Tooltip,
-    useMantineTheme,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -22,7 +21,6 @@ import {
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
     useUserAttributes,
     useUserAttributesDeleteMutation,
@@ -45,11 +43,7 @@ import UserAttributeModal from './UserAttributeModal';
 import { UserAttributesTopToolbar } from './UserAttributesTopToolbar';
 
 const UserAttributesPanel: FC = () => {
-    const theme = useMantineTheme();
     const { user } = useApp();
-    const userGroupsFeatureFlagQuery = useServerFeatureFlag(
-        FeatureFlags.UserGroupsEnabled,
-    );
     const [showAddAttributeModal, addAttributeModal] = useDisclosure(false);
     const [deleteAttribute, setDeleteAttribute] = useState<
         UserAttribute | undefined
@@ -62,9 +56,6 @@ const UserAttributesPanel: FC = () => {
     const { data: orgUserAttributes, isInitialLoading } = useUserAttributes();
     const { data: organization } = useOrganization();
     const { mutate: deleteUserAttribute } = useUserAttributesDeleteMutation();
-
-    const isGroupManagementEnabled =
-        userGroupsFeatureFlagQuery.data?.enabled ?? false;
 
     const columns: ContentTableColumnDef<UserAttribute>[] = useMemo(
         () => [
@@ -100,14 +91,10 @@ const UserAttributesPanel: FC = () => {
                                     {attribute.users.length} user
                                     {attribute.users.length !== 1 ? 's' : ''}
                                 </Text>
-                                {isGroupManagementEnabled && (
-                                    <Text fz="xs" c="dimmed">
-                                        {attribute.groups.length} group
-                                        {attribute.groups.length !== 1
-                                            ? 's'
-                                            : ''}
-                                    </Text>
-                                )}
+                                <Text fz="xs" c="dimmed">
+                                    {attribute.groups.length} group
+                                    {attribute.groups.length !== 1 ? 's' : ''}
+                                </Text>
                             </Group>
                         </Stack>
                     );
@@ -165,7 +152,7 @@ const UserAttributesPanel: FC = () => {
                 },
             },
         ],
-        [isGroupManagementEnabled],
+        [],
     );
 
     const tableData = useMemo(() => {
@@ -188,48 +175,14 @@ const UserAttributesPanel: FC = () => {
         enableTopToolbar: true,
         enableBottomToolbar: false,
         mantineTableContainerProps: {
-            style: { maxHeight: 'calc(100dvh - 420px)' },
+            mah: 'calc(100dvh - 420px)',
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(tableData.length),
         },
-        mantineTableHeadCellProps: (props) => {
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                style: {
-                    userSelect: 'none',
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderTop: 'none',
-                    borderLeft: 'none',
-                },
-            };
-        },
-        mantineTableBodyCellProps: () => {
-            return {
-                style: {
-                    padding: `${theme.spacing.md} ${theme.spacing.xl}`,
-                    borderRight: 'none',
-                    borderLeft: 'none',
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderTop: 'none',
-                },
-            };
-        },
+        mantineTableHeadCellProps: { px: 'xl' },
+        mantineTableBodyCellProps: { py: 'md', px: 'xl' },
         renderTopToolbar: () => (
             <UserAttributesTopToolbar
                 searchQuery={searchQuery}
@@ -278,11 +231,7 @@ const UserAttributesPanel: FC = () => {
 
     return (
         <SettingsPage
-            title={
-                isGroupManagementEnabled
-                    ? 'User and group attributes'
-                    : 'User attributes'
-            }
+            title="User and group attributes"
             description="Define organization metadata used for data access and personalization."
             actions={
                 <SettingsPageActions>

@@ -1,26 +1,37 @@
 import { Ability, type RawRuleOf } from '@casl/ability';
 import {
     AnyType,
+    ChartKind,
     ForbiddenError,
     OrganizationMemberRole,
     ParameterError,
     PossibleAbilities,
+    PromotionAction,
     SessionUser,
     SpaceMemberRole,
     SqlChartAsCode,
+    type AgentIdentityClaim,
 } from '@lightdash/common';
+import { type Knex } from 'knex';
+import { EventEmitter } from 'node:events';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AppModel } from '../../models/AppModel';
 import { ContentAsCodeSnapshotModel } from '../../models/ContentAsCodeSnapshotModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type OnContentVersionCreated } from '../../models/OnContentVersionCreated';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../AiAccessService/agentActionTestUtils.mock';
+import { agentExecutionContext } from '../AiAccessService/agentExecutionContext';
 import { DashboardService } from '../DashboardService/DashboardService';
 import { PromoteService } from '../PromoteService/PromoteService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
@@ -103,6 +114,7 @@ const buildService = (
     ),
 ) =>
     new CoderService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         directAccessService: {} as AnyType,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
@@ -292,6 +304,54 @@ describe('CoderService.upsertSqlChart - permissions', () => {
         });
     });
 
+    describe('create mode', () => {
+        it('creates a new SQL chart with a unique slug instead of updating the one that owns it', async () => {
+            const savedSqlModel = {
+                find: vi.fn(async () => [existingRow()]),
+                create: vi.fn(async () => ({
+                    savedSqlUuid: 'new-uuid',
+                    slug: 'my-sql-chart-1',
+                })),
+                update: vi.fn(),
+            };
+            const service = buildService(savedSqlModel);
+            stubSpace(service);
+            const user = makeUser([
+                { subject: 'ContentAsCode', action: 'create' },
+                { subject: 'CustomSql', action: 'manage' },
+                {
+                    subject: 'SavedChart',
+                    action: 'create',
+                    conditions: { projectUuid: PROJECT_UUID },
+                },
+            ]);
+
+            const changes = await service.upsertSqlChart(
+                user,
+                PROJECT_UUID,
+                sqlChartAsCode.slug,
+                sqlChartAsCode,
+                { mode: 'create' },
+            );
+
+            expect(savedSqlModel.find).not.toHaveBeenCalled();
+            expect(savedSqlModel.update).not.toHaveBeenCalled();
+            expect(savedSqlModel.create).toHaveBeenCalledWith(
+                'user-uuid',
+                PROJECT_UUID,
+                expect.objectContaining({ slug: sqlChartAsCode.slug }),
+                undefined,
+                { slugMode: 'unique' },
+                null,
+                expect.any(Function),
+            );
+            expect(changes.charts[0].data).toMatchObject({
+                uuid: 'new-uuid',
+                slug: 'my-sql-chart-1',
+            });
+        });
+    });
+
     describe('update (chart already exists)', () => {
         it('updates the chart with CustomSql + update:SavedChart in its space', async () => {
             const savedSqlModel = {
@@ -390,6 +450,120 @@ describe('CoderService.upsertSqlChart - permissions', () => {
     });
 });
 
+describe('CoderService.upsertSqlChart - versioning', () => {
+    afterEach(() => vi.clearAllMocks());
+
+    const chart: SqlChartAsCode = {
+        ...sqlChartAsCode,
+        config: {
+            type: ChartKind.BIG_NUMBER,
+            metadata: { version: 1 },
+            fieldConfig: undefined,
+            display: { label: 'Value', showLabel: true },
+        },
+    };
+    const user = makeUser([{ subject: 'all', action: 'manage' }]);
+    const setup = () => {
+        const savedSqlModel = {
+            find: vi.fn(async () => [
+                {
+                    ...existingRow(),
+                    sql: chart.sql,
+                    limit: chart.limit,
+                    config: chart.config,
+                },
+            ]),
+            update: vi.fn<SavedSqlModel['update']>(),
+        };
+        const service = buildService(savedSqlModel);
+        stubSpace(service);
+        return { service, savedSqlModel };
+    };
+
+    it('does not version identical content when config keys are reordered', async () => {
+        const { service, savedSqlModel } = setup();
+        const result = await service.upsertSqlChart(
+            user,
+            PROJECT_UUID,
+            chart.slug,
+            {
+                ...chart,
+                config: {
+                    display: { showLabel: true, label: 'Value' },
+                    fieldConfig: undefined,
+                    metadata: { version: 1 },
+                    type: ChartKind.BIG_NUMBER,
+                },
+            },
+        );
+
+        expect(
+            savedSqlModel.update.mock.calls[0][0].sqlChart,
+        ).not.toHaveProperty('versionedData');
+        expect(result.charts[0].action).toBe(PromotionAction.UPDATE);
+    });
+
+    it('applies metadata and space changes without creating a version', async () => {
+        const { service, savedSqlModel } = setup();
+        stubSpace(service, OTHER_SPACE_UUID);
+
+        await service.upsertSqlChart(user, PROJECT_UUID, chart.slug, {
+            ...chart,
+            name: 'Renamed chart',
+            description: 'Updated description',
+            spaceSlug: 'other-space',
+        });
+
+        expect(savedSqlModel.update.mock.calls[0][0].sqlChart).toEqual({
+            unversionedData: {
+                name: 'Renamed chart',
+                description: 'Updated description',
+                spaceUuid: OTHER_SPACE_UUID,
+            },
+        });
+    });
+
+    it.each([
+        ['SQL', { ...chart, sql: 'SELECT 2' }],
+        ['limit', { ...chart, limit: chart.limit + 1 }],
+        [
+            'nested config',
+            {
+                ...chart,
+                config: {
+                    type: ChartKind.BIG_NUMBER,
+                    metadata: { version: 1 },
+                    fieldConfig: undefined,
+                    display: { label: 'New label', showLabel: true },
+                },
+            },
+        ],
+    ] satisfies [string, SqlChartAsCode][])(
+        'versions changed %s with the uploading user as author',
+        async (_, upload) => {
+            const { service, savedSqlModel } = setup();
+            await service.upsertSqlChart(
+                user,
+                PROJECT_UUID,
+                chart.slug,
+                upload,
+            );
+
+            expect(savedSqlModel.update.mock.calls[0][0]).toMatchObject({
+                userUuid: user.userUuid,
+                savedSqlUuid: 'existing-uuid',
+                sqlChart: {
+                    versionedData: {
+                        sql: upload.sql,
+                        limit: upload.limit,
+                        config: upload.config,
+                    },
+                },
+            });
+        },
+    );
+});
+
 describe('CoderService.upsertSqlChart - connections', () => {
     afterEach(() => {
         vi.clearAllMocks();
@@ -413,7 +587,10 @@ describe('CoderService.upsertSqlChart - connections', () => {
         const savedSqlModel = {
             find: vi.fn(async () => rows),
             create: vi.fn(async () => ({ savedSqlUuid: 'new-uuid' })),
-            update: vi.fn(async () => ({ savedSqlUuid: 'existing-uuid' })),
+            update: vi.fn<SavedSqlModel['update']>().mockResolvedValue({
+                savedSqlUuid: 'existing-uuid',
+                savedSqlVersionUuid: null,
+            }),
         };
         const service = buildService(savedSqlModel);
         stubSpace(service);
@@ -445,6 +622,9 @@ describe('CoderService.upsertSqlChart - connections', () => {
                 PROJECT_UUID,
                 expect.objectContaining({ slug: sqlChartAsCode.slug }),
                 { kind: 'connection', warehouseConnectionUuid },
+                { slugMode: 'exact' },
+                null,
+                expect.any(Function),
             );
         },
     );
@@ -465,6 +645,8 @@ describe('CoderService.upsertSqlChart - connections', () => {
             expect(savedSqlModel.update).toHaveBeenCalledWith(
                 expect.objectContaining({ savedSqlUuid: 'existing-uuid' }),
                 { kind: 'connection', warehouseConnectionUuid },
+                null,
+                expect.any(Function),
             );
         },
     );
@@ -472,14 +654,32 @@ describe('CoderService.upsertSqlChart - connections', () => {
     it('moves an original-bound SQL chart to a named extra connection', async () => {
         connectionState.route = 'multi';
         const { savedSqlModel, error } = await uploadWith(
-            [existingRow(SPACE_UUID, null)],
+            [
+                {
+                    ...existingRow(SPACE_UUID, null),
+                    sql: sqlChartAsCode.sql,
+                    limit: sqlChartAsCode.limit,
+                    config: sqlChartAsCode.config,
+                },
+            ],
             'Finance',
         );
 
         expect(error).toBeNull();
         expect(savedSqlModel.update).toHaveBeenCalledWith(
-            expect.objectContaining({ savedSqlUuid: 'existing-uuid' }),
+            expect.objectContaining({
+                savedSqlUuid: 'existing-uuid',
+                sqlChart: expect.objectContaining({
+                    versionedData: {
+                        sql: sqlChartAsCode.sql,
+                        limit: sqlChartAsCode.limit,
+                        config: sqlChartAsCode.config,
+                    },
+                }),
+            }),
             { kind: 'connection', warehouseConnectionUuid: 'finance-uuid' },
+            null,
+            expect.any(Function),
         );
     });
 
@@ -505,14 +705,26 @@ describe('CoderService.upsertSqlChart - connections', () => {
     it('accepts an unchanged extra connection on an existing SQL chart', async () => {
         connectionState.route = 'multi';
         const { savedSqlModel, error } = await uploadWith(
-            [existingRow(SPACE_UUID, 'finance-uuid')],
+            [
+                {
+                    ...existingRow(SPACE_UUID, 'finance-uuid'),
+                    sql: sqlChartAsCode.sql,
+                    limit: sqlChartAsCode.limit,
+                    config: sqlChartAsCode.config,
+                },
+            ],
             'Finance',
         );
 
         expect(error).toBeNull();
+        expect(
+            savedSqlModel.update.mock.calls[0][0].sqlChart,
+        ).not.toHaveProperty('versionedData');
         expect(savedSqlModel.update).toHaveBeenCalledWith(
             expect.objectContaining({ savedSqlUuid: 'existing-uuid' }),
             { kind: 'connection', warehouseConnectionUuid: 'finance-uuid' },
+            null,
+            expect.any(Function),
         );
     });
 
@@ -525,6 +737,9 @@ describe('CoderService.upsertSqlChart - connections', () => {
         expect(error).toBeNull();
         expect(savedSqlModel.update).toHaveBeenCalledWith(
             expect.objectContaining({ savedSqlUuid: 'existing-uuid' }),
+            undefined,
+            null,
+            expect.any(Function),
         );
     });
 
@@ -536,6 +751,10 @@ describe('CoderService.upsertSqlChart - connections', () => {
             'user-uuid',
             PROJECT_UUID,
             expect.objectContaining({ slug: sqlChartAsCode.slug }),
+            undefined,
+            { slugMode: 'exact' },
+            null,
+            expect.any(Function),
         );
     });
 
@@ -636,3 +855,136 @@ describe('CoderService.getSqlCharts - connections', () => {
         );
     });
 });
+
+describe.each(agentActionTestCases)(
+    'SQL content-as-code ledger: %s',
+    (_, surface, enabled, count) => {
+        test.each(['create', 'update'] as const)(
+            '%s records the model claim and version in the transaction',
+            async (operation) => {
+                const user = makeUser([{ subject: 'all', action: 'manage' }]);
+                const versions: {
+                    agentIdentity: AgentIdentityClaim | null;
+                    versionUuid: string;
+                }[] = [];
+                const modelWrite = async (
+                    agentIdentity: AgentIdentityClaim | null,
+                    onVersionCreated?: OnContentVersionCreated,
+                ) => {
+                    const trx =
+                        new EventEmitter() as unknown as Knex.Transaction;
+                    let commit!: () => void;
+                    trx.executionPromise = new Promise<unknown[]>((resolve) => {
+                        commit = () => resolve([]);
+                    });
+                    await onVersionCreated?.(
+                        trx,
+                        'sql-version-uuid',
+                        'sql-chart-uuid',
+                    );
+                    versions.push({
+                        agentIdentity,
+                        versionUuid: 'sql-version-uuid',
+                    });
+                    trx.emit('query', { sql: 'COMMIT;' });
+                    commit();
+                    await trx.executionPromise;
+                    return {
+                        savedSqlUuid: 'sql-chart-uuid',
+                        slug: sqlChartAsCode.slug,
+                        savedSqlVersionUuid: 'sql-version-uuid',
+                    };
+                };
+                const savedSqlModel = {
+                    find: vi.fn(async () =>
+                        operation === 'update' ? [existingRow()] : [],
+                    ),
+                    create: vi.fn(
+                        async (...args: Parameters<SavedSqlModel['create']>) =>
+                            modelWrite(args[5] ?? null, args[6]),
+                    ),
+                    update: vi.fn(
+                        async (...args: Parameters<SavedSqlModel['update']>) =>
+                            modelWrite(args[2] ?? null, args[3]),
+                    ),
+                };
+                const service = buildService(savedSqlModel);
+                const insert = vi.mocked(service['agentActionLogModel'].insert);
+                stubSpace(service);
+                await withAgentActionScope(user, surface, enabled, async () => {
+                    const claim =
+                        surface && enabled
+                            ? agentExecutionContext.getStore()!.claim
+                            : null;
+                    await upsert(service, user);
+                    expect(versions).toEqual([
+                        {
+                            agentIdentity: claim,
+                            versionUuid: 'sql-version-uuid',
+                        },
+                    ]);
+                    expect(insert).toHaveBeenCalledTimes(count);
+                    if (count)
+                        expect(insert).toHaveBeenCalledWith(
+                            expect.objectContaining({
+                                agent_identity: claim,
+                                object_type: 'sql_chart',
+                                object_uuid: 'sql-chart-uuid',
+                                version_uuid: 'sql-version-uuid',
+                                action: operation,
+                                outcome: 'allowed',
+                            }),
+                            expect.any(EventEmitter),
+                        );
+                });
+                expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                    'SELECT 1',
+                );
+            },
+        );
+    },
+);
+
+test.each(['create', 'update'] as const)(
+    'SQL %s does not commit a version when its ledger insert fails',
+    async (operation) => {
+        const user = makeUser([{ subject: 'all', action: 'manage' }]);
+        const versions: string[] = [];
+        const modelWrite = async (
+            onVersionCreated?: OnContentVersionCreated,
+        ) => {
+            const trx = new EventEmitter() as unknown as Knex.Transaction;
+            trx.executionPromise = Promise.resolve([]);
+            await onVersionCreated?.(trx, 'sql-version-uuid', 'sql-chart-uuid');
+            versions.push('sql-version-uuid');
+            return {
+                savedSqlUuid: 'sql-chart-uuid',
+                slug: sqlChartAsCode.slug,
+                savedSqlVersionUuid: 'sql-version-uuid',
+            };
+        };
+        const service = buildService({
+            find: vi.fn(async () =>
+                operation === 'update' ? [existingRow()] : [],
+            ),
+            create: vi.fn(
+                async (...args: Parameters<SavedSqlModel['create']>) =>
+                    modelWrite(args[6]),
+            ),
+            update: vi.fn(
+                async (...args: Parameters<SavedSqlModel['update']>) =>
+                    modelWrite(args[3]),
+            ),
+        });
+        stubSpace(service);
+        vi.mocked(service['agentActionLogModel'].insert).mockRejectedValueOnce(
+            new Error('ledger unavailable'),
+        );
+        await expect(
+            withAgentActionScope(user, agentActionTestCases[1][1], true, () =>
+                upsert(service, user),
+            ),
+        ).rejects.toThrow('ledger unavailable');
+        expect(versions).toEqual([]);
+    },
+);

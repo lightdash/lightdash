@@ -1,8 +1,10 @@
 import {
     DbtProjectType,
     DbtProjectTypeLabels,
+    ExploreType,
     FeatureFlags,
     ProjectType,
+    type ApiExploresResults,
     type HomepageRecommendedActionKey,
     type OrganizationProject,
 } from '@lightdash/common';
@@ -11,11 +13,11 @@ import { useGithubConfig } from '../../../../components/common/GithubIntegration
 import { useGitlabRepositories } from '../../../../components/common/GitlabIntegration/hooks/useGitlabIntegration';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
 import { useGetSlack } from '../../../../hooks/slack/useSlack';
+import { useExplores } from '../../../../hooks/useExplores';
 import { useProject } from '../../../../hooks/useProject';
 import { useProjects } from '../../../../hooks/useProjects';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../providers/App/useApp';
-import { useActiveAgentOnboardingRun } from '../../agentOnboarding/hooks/useAgentOnboarding';
 import { useHomepageRecommendedActionSkips } from '../hooks/useHomepageRecommendedActionSkips';
 import { useRecommendedActions } from './useRecommendedActions';
 
@@ -27,11 +29,11 @@ vi.mock(
 );
 vi.mock('../../../../hooks/organization/useOrganization');
 vi.mock('../../../../hooks/slack/useSlack');
+vi.mock('../../../../hooks/useExplores');
 vi.mock('../../../../hooks/useProject');
 vi.mock('../../../../hooks/useProjects');
 vi.mock('../../../../providers/App/useApp');
 vi.mock('../../../../hooks/useServerOrClientFeatureFlag');
-vi.mock('../../agentOnboarding/hooks/useAgentOnboarding');
 vi.mock('../hooks/useHomepageRecommendedActionSkips');
 
 // The hook reads settledness, not just "is a request in flight", so every
@@ -106,6 +108,9 @@ describe('useRecommendedActions', () => {
         vi.mocked(useProjects).mockReturnValue(
             settled([]) as unknown as ReturnType<typeof useProjects>,
         );
+        vi.mocked(useExplores).mockReturnValue(
+            settled([]) as unknown as ReturnType<typeof useExplores>,
+        );
         vi.mocked(useGithubConfig).mockReturnValue(
             settled(undefined) as ReturnType<typeof useGithubConfig>,
         );
@@ -119,9 +124,6 @@ describe('useRecommendedActions', () => {
         } as unknown as ReturnType<typeof useGetSlack>);
         vi.mocked(useServerFeatureFlag).mockReturnValue(
             settled(undefined) as ReturnType<typeof useServerFeatureFlag>,
-        );
-        vi.mocked(useActiveAgentOnboardingRun).mockReturnValue(
-            settled(null) as ReturnType<typeof useActiveAgentOnboardingRun>,
         );
         vi.mocked(useHomepageRecommendedActionSkips).mockReturnValue(
             recommendedActionSkipsResult(),
@@ -357,80 +359,137 @@ describe('useRecommendedActions', () => {
         });
     });
 
-    describe('add-semantic-layer destination', () => {
-        it('links to the current project agent setup flow when both flags are enabled', () => {
-            vi.mocked(useServerFeatureFlag).mockImplementation(
-                () =>
-                    settled({ enabled: true }) as ReturnType<
-                        typeof useServerFeatureFlag
-                    >,
-            );
-
-            const { result } = renderHook(() =>
-                useRecommendedActions('project-uuid'),
-            );
-
-            expect(
-                result.current.statuses['add-semantic-layer'].url,
-            ).toStrictEqual('/projects/project-uuid/onboarding/agent');
-            expect(
-                result.current.statuses['add-semantic-layer'].ctaLabel,
-            ).toStrictEqual('Set up');
-        });
-
-        it('resumes an in-flight agent run instead of restarting the flow', () => {
-            vi.mocked(useServerFeatureFlag).mockImplementation(
-                () =>
-                    settled({ enabled: true }) as ReturnType<
-                        typeof useServerFeatureFlag
-                    >,
-            );
-            vi.mocked(useActiveAgentOnboardingRun).mockReturnValue(
-                settled({
-                    agentOnboardingRunUuid: 'run-uuid',
-                    projectUuid: 'project-uuid',
-                }) as ReturnType<typeof useActiveAgentOnboardingRun>,
-            );
-
-            const { result } = renderHook(() =>
-                useRecommendedActions('project-uuid'),
-            );
-
-            expect(
-                result.current.statuses['add-semantic-layer'].url,
-            ).toStrictEqual('/projects/project-uuid/onboarding/runs/run-uuid');
-            expect(
-                result.current.statuses['add-semantic-layer'].ctaLabel,
-            ).toStrictEqual('Resume');
-        });
-
-        it('keeps the settings link when coding-agent onboarding is disabled', () => {
+    describe('on a project started from live sources', () => {
+        beforeEach(() => {
             vi.mocked(useServerFeatureFlag).mockImplementation(
                 (flag) =>
                     settled({
                         enabled: flag === FeatureFlags.NewOnboarding,
                     }) as ReturnType<typeof useServerFeatureFlag>,
             );
+            vi.mocked(useOrganization).mockReturnValue(
+                settled({ needsProject: false }) as ReturnType<
+                    typeof useOrganization
+                >,
+            );
+            vi.mocked(useProjects).mockReturnValue(
+                settled([
+                    organizationProject({ projectUuid: 'real-uuid' }),
+                ]) as unknown as ReturnType<typeof useProjects>,
+            );
+        });
+
+        it('keeps connect-warehouse open until a warehouse is connected', () => {
+            vi.mocked(useProject).mockReturnValue(
+                settled({
+                    provisioningSource: null,
+                }) as unknown as ReturnType<typeof useProject>,
+            );
+
+            const { result } = renderHook(() =>
+                useRecommendedActions('real-uuid'),
+            );
+
+            expect(result.current.statuses['connect-warehouse']).toMatchObject({
+                isComplete: false,
+                ctaLabel: 'Connect',
+            });
+        });
+
+        it('completes connect-warehouse once the project has one', () => {
+            vi.mocked(useProject).mockReturnValue(
+                settled({
+                    provisioningSource: null,
+                    warehouseConnection: { type: 'postgres' },
+                }) as unknown as ReturnType<typeof useProject>,
+            );
+
+            const { result } = renderHook(() =>
+                useRecommendedActions('real-uuid'),
+            );
+
+            expect(
+                result.current.statuses['connect-warehouse'].isComplete,
+            ).toBe(true);
+        });
+    });
+
+    describe('add-semantic-layer completion', () => {
+        beforeEach(() => {
+            vi.mocked(useServerFeatureFlag).mockImplementation(
+                (flag) =>
+                    settled({
+                        enabled: flag === FeatureFlags.NewOnboarding,
+                    }) as ReturnType<typeof useServerFeatureFlag>,
+            );
+        });
+
+        const mockExplores = (explores: ApiExploresResults) =>
+            vi
+                .mocked(useExplores)
+                .mockReturnValue(
+                    settled(explores) as unknown as ReturnType<
+                        typeof useExplores
+                    >,
+                );
+
+        it('completes once a dbt-less project has deployed explores', () => {
+            vi.mocked(useProject).mockReturnValue({
+                data: { dbtConnection: { type: DbtProjectType.NONE } },
+            } as unknown as ReturnType<typeof useProject>);
+            mockExplores([
+                {
+                    name: 'orders',
+                    label: 'Orders',
+                    tags: [],
+                    groupLabel: undefined,
+                    type: ExploreType.DEFAULT,
+                },
+            ] as unknown as ApiExploresResults);
 
             const { result } = renderHook(() =>
                 useRecommendedActions('project-uuid'),
             );
 
             expect(
-                result.current.statuses['add-semantic-layer'].url,
-            ).toStrictEqual(
-                '/generalSettings/projectManagement/project-uuid/settings',
-            );
+                result.current.statuses['add-semantic-layer'].isComplete,
+            ).toBe(true);
         });
 
-        it('keeps the settings link when new-onboarding is disabled', () => {
-            vi.mocked(useServerFeatureFlag).mockImplementation(
-                (flag) =>
-                    settled({
-                        enabled: flag === FeatureFlags.CodingAgentOnboarding,
-                    }) as ReturnType<typeof useServerFeatureFlag>,
+        it('ignores uploaded, virtual and errored explores', () => {
+            mockExplores([
+                {
+                    name: 'csv',
+                    label: 'Csv',
+                    tags: [],
+                    type: ExploreType.EXTERNAL_SOURCE,
+                },
+                {
+                    name: 'virtual',
+                    label: 'Virtual',
+                    tags: [],
+                    type: ExploreType.VIRTUAL,
+                },
+                {
+                    name: 'broken',
+                    label: 'Broken',
+                    tags: [],
+                    errors: [{ type: 'NoDimensionsError', message: 'x' }],
+                },
+            ] as unknown as ApiExploresResults);
+
+            const { result } = renderHook(() =>
+                useRecommendedActions('project-uuid'),
             );
 
+            expect(
+                result.current.statuses['add-semantic-layer'].isComplete,
+            ).toBe(false);
+        });
+    });
+
+    describe('add-semantic-layer destination', () => {
+        it('links to the project settings', () => {
             const { result } = renderHook(() =>
                 useRecommendedActions('project-uuid'),
             );
@@ -444,8 +503,7 @@ describe('useRecommendedActions', () => {
     });
 
     describe('readiness through the query cascade', () => {
-        // Health decides which integrations are in play and the feature flags
-        // decide whether the agent run is looked up, so those queries do not
+        // Health decides which integrations are in play, so those queries do not
         // start on the first render — they sit idle, reporting exactly what a
         // finished query reports. These stages walk that real sequence.
         const healthInFlight = () => {
@@ -476,10 +534,6 @@ describe('useRecommendedActions', () => {
                 unfetched as unknown as ReturnType<
                     typeof useGitlabRepositories
                 >,
-            );
-            // Gated on the flags, so not started either
-            vi.mocked(useActiveAgentOnboardingRun).mockReturnValue(
-                unfetched as ReturnType<typeof useActiveAgentOnboardingRun>,
             );
         };
 
@@ -527,22 +581,9 @@ describe('useRecommendedActions', () => {
             } as unknown as ReturnType<typeof useGetSlack>);
         };
 
-        const flagsResolvedAgentRunUnstarted = () => {
+        const flagsAndIntegrationsResolved = () => {
             flagsResolved();
             integrationsResolved();
-        };
-
-        // The flags opened its gate, so it is now genuinely in flight
-        const agentRunInFlight = () => {
-            vi.mocked(useActiveAgentOnboardingRun).mockReturnValue(
-                loading as ReturnType<typeof useActiveAgentOnboardingRun>,
-            );
-        };
-
-        const allSettled = () => {
-            vi.mocked(useActiveAgentOnboardingRun).mockReturnValue(
-                settled(null) as ReturnType<typeof useActiveAgentOnboardingRun>,
-            );
         };
 
         const recordCascade = (stages: (() => void)[]) => {
@@ -564,22 +605,16 @@ describe('useRecommendedActions', () => {
                 recordCascade([
                     healthInFlight,
                     healthResolvedDependentsUnstarted,
-                    flagsResolvedAgentRunUnstarted,
-                    allSettled,
+                    flagsAndIntegrationsResolved,
                 ]),
-            ).toEqual([true, true, true, false]);
+            ).toEqual([true, true, false]);
         });
 
         it('never returns to loading once it has reported ready', () => {
             const seen = recordCascade([
                 healthInFlight,
                 healthResolvedDependentsUnstarted,
-                flagsResolvedAgentRunUnstarted,
-                // The moment that used to flip readiness back off: the flags
-                // land, the agent-run query they gate finally starts, and the
-                // heading it feeds regresses to a skeleton
-                agentRunInFlight,
-                allSettled,
+                flagsAndIntegrationsResolved,
             ]);
 
             const regressions = seen.filter(
@@ -600,13 +635,11 @@ describe('useRecommendedActions', () => {
                     } as unknown as ReturnType<typeof useApp>);
                 },
                 flagsResolved,
-                allSettled,
             ]);
 
             // GitHub, GitLab and Slack are off on this instance, so their
-            // queries stay unresolved for the whole run and still hold nothing
-            // up — the flag-gated agent run is the only remaining term
-            expect(seen).toEqual([true, true, true, false]);
+            // queries stay unresolved for the whole run and still hold nothing up
+            expect(seen).toEqual([true, true, false]);
         });
     });
 });

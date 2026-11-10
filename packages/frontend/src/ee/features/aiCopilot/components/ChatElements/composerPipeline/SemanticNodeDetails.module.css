@@ -1,0 +1,6 @@
+/* Centres the icon on the first line of compact chips. */
+.rowIcon {
+    display: flex;
+    align-items: center;
+    height: 22px;
+}

@@ -15,6 +15,9 @@ export default defineConfig({
             FORCE_COLOR: '0',
         },
         maxWorkers: '50%',
+        // Concurrent process tests each spawn a CLI child; more than 3 starves other packages' tests on 4-core CI runners.
+        maxConcurrency: 3,
+        globalSetup: ['vitest.global-setup.ts'],
     },
     resolve: {
         alias: {

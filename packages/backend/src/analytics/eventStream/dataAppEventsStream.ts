@@ -11,12 +11,14 @@ import type {
     DataAppVersionFailedEvent,
     DataAppVersionRestoredEvent,
     DataAppViewedEvent,
+    DataAppViewOutcomeEvent,
 } from '../LightdashAnalytics';
 import { buildEnvelope, type ProjectionResult } from './projection';
 import type { CompactedStreamColumn } from './types';
 
 export type DataAppStreamEvent =
     | DataAppViewedEvent
+    | DataAppViewOutcomeEvent
     | DataAppCreatedEvent
     | DataAppIteratedEvent
     | DataAppVersionCompletedEvent
@@ -38,6 +40,9 @@ export const dataAppEventsCompactedColumns: CompactedStreamColumn[] = [
     { name: 'project_id', type: 'VARCHAR' },
     { name: 'app_id', type: 'VARCHAR' },
     { name: 'version', type: 'INTEGER' },
+    { name: 'view_context', type: 'VARCHAR' },
+    { name: 'navigation_id', type: 'VARCHAR' },
+    { name: 'outcome', type: 'VARCHAR' },
 ];
 
 const projectDataAppEvent = (payload: DataAppStreamEvent): ProjectionResult => {
@@ -49,18 +54,32 @@ const projectDataAppEvent = (payload: DataAppStreamEvent): ProjectionResult => {
             ...buildEnvelope(payload, properties.organizationId),
             project_id: properties.projectId,
             app_id: properties.appUuid,
-            version:
+            view_context:
                 payload.event === 'data_app.view' ||
+                payload.event === 'data_app.view_outcome'
+                    ? (payload.properties.viewContext ?? null)
+                    : null,
+            navigation_id:
+                payload.event === 'data_app.view' ||
+                payload.event === 'data_app.view_outcome'
+                    ? (payload.properties.navigationId ?? null)
+                    : null,
+            outcome:
+                payload.event === 'data_app.view_outcome'
+                    ? payload.properties.outcome
+                    : null,
+            version:
                 payload.event === 'data_app.duplicated' ||
                 payload.event === 'data_app.deleted'
                     ? null
-                    : payload.properties.version,
+                    : (payload.properties.version ?? null),
         },
     };
 };
 
 export const dataAppEventsProjections = {
     'data_app.view': projectDataAppEvent,
+    'data_app.view_outcome': projectDataAppEvent,
     'data_app.created': projectDataAppEvent,
     'data_app.iterated': projectDataAppEvent,
     'data_app.version.completed': projectDataAppEvent,

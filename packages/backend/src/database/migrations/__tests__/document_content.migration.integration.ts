@@ -140,8 +140,14 @@ describe('Document content PostgreSQL integration', () => {
         const spaces = new SpaceModel({ database: transaction });
         vi.useFakeTimers({ toFake: ['Date'] });
         vi.setSystemTime(oldDeletedAt);
+        // Only the live Document cascades; the earlier deletion is not audited again
+        const cascaded = [
+            { documentUuid, projectUuid: SEED_PROJECT.project_uuid },
+        ];
         try {
-            await spaces.softDelete(spaceUuid, SEED_ORG_1_ADMIN.user_uuid);
+            await expect(
+                spaces.softDelete(spaceUuid, SEED_ORG_1_ADMIN.user_uuid),
+            ).resolves.toEqual(cascaded);
         } finally {
             vi.useRealTimers();
         }
@@ -171,7 +177,7 @@ describe('Document content PostgreSQL integration', () => {
             contentTypes: [ContentType.SPACE],
         });
         expect(hiddenCounts.data[0]).toHaveProperty('documentCount', 0);
-        await spaces.restore(spaceUuid);
+        await expect(spaces.restore(spaceUuid)).resolves.toEqual(cascaded);
         expect(
             await model.get(SEED_PROJECT.project_uuid, documentUuid),
         ).toMatchObject({ documentUuid, version: existing.version, spaceUuid });

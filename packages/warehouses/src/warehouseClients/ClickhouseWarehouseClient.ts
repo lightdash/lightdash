@@ -297,6 +297,8 @@ export const getMaxOpenConnections = (maxOpenConnections?: number): number =>
         : DEFAULT_MAX_OPEN_CONNECTIONS;
 
 export type ClickhouseWarehouseClientOptions = {
+    agentSession?: boolean;
+    agentJobControls?: boolean;
     /** Upper bound of concurrent queries sharing this client; sizes the HTTP socket pool. */
     maxOpenConnections?: number;
 };
@@ -308,7 +310,11 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
         credentials: CreateClickhouseCredentials,
         options?: ClickhouseWarehouseClientOptions,
     ) {
-        super(credentials, new ClickhouseSqlBuilder(credentials.startOfWeek));
+        super(
+            credentials,
+            new ClickhouseSqlBuilder(credentials.startOfWeek),
+            options,
+        );
 
         const protocol = credentials.secure ? 'https' : 'http';
         const url = `${protocol}://${credentials.host}:${credentials.port}`;
@@ -321,6 +327,9 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
             password: credentials.password,
             database: credentials.schema, // In clickhouse schema = database
             request_timeout: (credentials.timeoutSeconds || 30) * 1000,
+            ...(options?.agentJobControls
+                ? { clickhouse_settings: { use_query_cache: 0 as const } }
+                : {}),
             max_open_connections: getMaxOpenConnections(
                 options?.maxOpenConnections,
             ),
@@ -442,7 +451,9 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                 stream.on('error', reject);
             });
         } catch (e: unknown) {
-            throw new WarehouseQueryError(getErrorMessage(e));
+            const translatedError = new WarehouseQueryError(getErrorMessage(e));
+            translatedError.cause = e;
+            throw translatedError;
         }
     }
 
@@ -477,7 +488,9 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                 },
             );
         } catch (e: unknown) {
-            throw new WarehouseQueryError(getErrorMessage(e));
+            const translatedError = new WarehouseQueryError(getErrorMessage(e));
+            translatedError.cause = e;
+            throw translatedError;
         }
 
         return catalogToSchema(results);
@@ -550,7 +563,7 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
     }
 
     async getAllTables() {
-        const databaseName = this.credentials.schema; // In clickhouse schema = database
+        // In clickhouse schema = database; list every non-system database
         const query = `
             SELECT 
                 '' as "table_catalog",
@@ -558,12 +571,10 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                 name as "table_name",
                 engine as "table_type"
             FROM system.tables
-            WHERE database = {databaseName: String}
+            WHERE database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA')
             ORDER BY database, name
         `;
-        const { rows } = await this.runQuery(query, {}, undefined, undefined, {
-            databaseName,
-        });
+        const { rows } = await this.runQuery(query, {}, undefined);
         return rows.map((row) => ({
             database: row.table_catalog,
             schema: row.table_schema || 'default',
@@ -579,7 +590,11 @@ export class ClickhouseWarehouseClient extends WarehouseBaseClient<CreateClickho
                 format: 'JSON',
             });
         } catch (e: unknown) {
-            throw new WarehouseConnectionError(getErrorMessage(e));
+            const translatedError = new WarehouseConnectionError(
+                getErrorMessage(e),
+            );
+            translatedError.cause = e;
+            throw translatedError;
         }
     }
 }

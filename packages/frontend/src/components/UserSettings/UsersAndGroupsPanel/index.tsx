@@ -1,8 +1,7 @@
-import { FeatureFlags, type GroupWithMembers } from '@lightdash/common';
+import { type GroupWithMembers } from '@lightdash/common';
 import { Button, Tabs } from '@mantine/core';
 import { IconPlus, IconUsers, IconUsersGroup } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import {
@@ -18,9 +17,6 @@ import UsersView from './UsersView';
 
 const UsersAndGroupsPanel: FC = () => {
     const { user } = useApp();
-    const userGroupsFeatureFlagQuery = useServerFeatureFlag(
-        FeatureFlags.UserGroupsEnabled,
-    );
     const [showInviteModal, setShowInviteModal] = useState(false);
     const [activeTab, setActiveTab] = useState<'users' | 'groups'>('users');
     const [showCreateAndEditGroupModal, setShowCreateAndEditGroupModal] =
@@ -35,12 +31,6 @@ const UsersAndGroupsPanel: FC = () => {
         return <ForbiddenPanel />;
     }
 
-    const isGroupManagementEnabled =
-        userGroupsFeatureFlagQuery.data?.enabled ?? false;
-
-    const title = isGroupManagementEnabled
-        ? 'Users & groups'
-        : 'User management';
     const canInvite = user.data.ability.can('create', 'InviteLink');
     const canManageGroups = user.data.ability.can('manage', 'Group');
 
@@ -51,7 +41,7 @@ const UsersAndGroupsPanel: FC = () => {
 
     return (
         <SettingsPage
-            title={title}
+            title="Users & groups"
             description="Manage organization members, roles, and group membership."
             actions={
                 <SettingsPageActions>
@@ -90,22 +80,20 @@ const UsersAndGroupsPanel: FC = () => {
                 }}
                 variant="pills"
             >
-                {isGroupManagementEnabled && (
-                    <Tabs.List>
-                        <Tabs.Tab
-                            value="users"
-                            leftSection={<MantineIcon icon={IconUsers} />}
-                        >
-                            Users
-                        </Tabs.Tab>
-                        <Tabs.Tab
-                            value="groups"
-                            leftSection={<MantineIcon icon={IconUsersGroup} />}
-                        >
-                            Groups
-                        </Tabs.Tab>
-                    </Tabs.List>
-                )}
+                <Tabs.List>
+                    <Tabs.Tab
+                        value="users"
+                        leftSection={<MantineIcon icon={IconUsers} />}
+                    >
+                        Users
+                    </Tabs.Tab>
+                    <Tabs.Tab
+                        value="groups"
+                        leftSection={<MantineIcon icon={IconUsersGroup} />}
+                    >
+                        Groups
+                    </Tabs.Tab>
+                </Tabs.List>
                 <Tabs.Panel value="users">
                     <UsersView />
                 </Tabs.Panel>

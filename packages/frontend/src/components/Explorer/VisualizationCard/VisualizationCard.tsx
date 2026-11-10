@@ -23,24 +23,33 @@ import {
     useLayoutEffect,
     useMemo,
     useState,
+    type ComponentProps,
     type FC,
+    type PropsWithChildren,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import {
     explorerActions,
+    selectChartConfig,
+    selectChartType,
     selectChartTypeAuthoring,
+    selectColumnOrder,
     selectIsEditMode,
     selectIsVisualizationConfigOpen,
     selectIsVisualizationExpanded,
+    selectMetricQuery,
     selectParameters,
+    selectPivotConfig,
     selectSavedChart,
     selectSorts,
     selectTableCalculationsMetadata,
+    selectTableName,
     selectUnsavedChartVersion,
     useExplorerDispatch,
     useExplorerSelector,
+    useExplorerStore,
 } from '../../../features/explorer/store';
 import { resolveMergeColumnOrder } from '../../../features/mergeQuery/utils/resolveMergeColumnOrder';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
@@ -48,12 +57,16 @@ import { useExplore } from '../../../hooks/useExplore';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
 import useFullscreen from '../../../providers/Fullscreen/useFullscreen';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import ChartDownloadMenu from '../../common/ChartDownload/ChartDownloadMenu';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import { COLLAPSABLE_CARD_BUTTON_PROPS } from '../../common/CollapsableCard/constants';
 import MantineIcon from '../../common/MantineIcon';
 import LightdashVisualization from '../../LightdashVisualization';
-import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
+import { useEditedChartConfig } from '../../LightdashVisualization/useVisualizationContext';
+import VisualizationProvider, {
+    type VisualizationProviderProps,
+} from '../../LightdashVisualization/VisualizationProvider';
 import { type EchartsSeriesClickEvent } from '../../SimpleChart';
 import SortButton from '../../SortButton';
 import ExplorerChartSidebar from '../ChartGallery/ExplorerChartSidebar';
@@ -77,6 +90,26 @@ export type EchartsClickEvent = {
     series: EChartsSeries[];
 };
 
+// Only this wrapper follows the explorer's chart config, so an edit echoed
+// back by the explorer re-renders the provider but not the card around it.
+const ConnectedVisualizationProvider: FC<
+    PropsWithChildren<Omit<VisualizationProviderProps, 'chartConfig'>>
+> = ({ children, ...props }) => {
+    const chartConfig = useExplorerSelector(selectChartConfig);
+    return (
+        <VisualizationProvider chartConfig={chartConfig} {...props}>
+            {children}
+        </VisualizationProvider>
+    );
+};
+
+const ConnectedVisualizationWarning: FC<
+    Omit<ComponentProps<typeof VisualizationWarning>, 'chartConfig'>
+> = (props) => {
+    const chartConfig = useEditedChartConfig();
+    return <VisualizationWarning chartConfig={chartConfig} {...props} />;
+};
+
 type Props = {
     projectUuid?: string;
     /** False keeps the card, its provider and the config sidebar alive
@@ -89,6 +122,7 @@ type Props = {
 };
 
 const VisualizationCard: FC<Props> = memo((props) => {
+    const lightdashApi = useLightdashApi();
     const {
         projectUuid: fallBackUUid,
         renderVisualization,
@@ -125,17 +159,21 @@ const VisualizationCard: FC<Props> = memo((props) => {
         resultsData,
     } = useExplorerResultsData();
 
-    const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
+    // Narrow reads: the chart config is followed by the connected provider
+    // below, so edits do not re-render the card
+    const explorerStore = useExplorerStore();
+    const metricQuery = useExplorerSelector(selectMetricQuery);
+    const tableName = useExplorerSelector(selectTableName);
+    const columnOrder = useExplorerSelector(selectColumnOrder);
+    const pivotConfig = useExplorerSelector(selectPivotConfig);
+    const chartType = useExplorerSelector(selectChartType);
     const parameters = useExplorerSelector(selectParameters);
     const visualizationMetricQuery = suppressPrimaryResults
         ? undefined
-        : (mergeResults?.metricQuery ?? unsavedChartVersion.metricQuery);
+        : (mergeResults?.metricQuery ?? metricQuery);
     const visualizationColumnOrder = mergeResults
-        ? resolveMergeColumnOrder(
-              mergeResults.columnOrder,
-              unsavedChartVersion.tableConfig.columnOrder,
-          )
-        : unsavedChartVersion.tableConfig.columnOrder;
+        ? resolveMergeColumnOrder(mergeResults.columnOrder, columnOrder)
+        : columnOrder;
 
     const handleSetPivotFields = useCallback(
         (fields: FieldId[] = []) => {
@@ -194,7 +232,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
         [toggleExpandedSection],
     );
 
-    const { data: explore } = useExplore(unsavedChartVersion.tableName);
+    const { data: explore } = useExplore(tableName);
 
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartsClickEvent>();
@@ -288,9 +326,17 @@ const VisualizationCard: FC<Props> = memo((props) => {
         merge?.replacesQuery,
     ]);
 
+    const savedChartReference = useMemo(
+        () =>
+            savedChart
+                ? { uuid: savedChart.uuid, chartConfig: savedChart.chartConfig }
+                : undefined,
+        [savedChart],
+    );
+
     const dirtyPivotConfiguration = useDirtyPivotConfiguration();
 
-    if (!unsavedChartVersion.tableName) {
+    if (!tableName) {
         return <CollapsableCard title="Charts" disabled />;
     }
 
@@ -299,8 +345,12 @@ const VisualizationCard: FC<Props> = memo((props) => {
         showTableNames: boolean,
         customLabels?: Record<string, string>,
     ) => {
+        // Read at call time; the card does not subscribe to the chart config
+        const unsavedChartVersion = selectUnsavedChartVersion(
+            explorerStore.getState(),
+        );
         if (explore?.name && unsavedChartVersion?.metricQuery && projectUuid) {
-            const gsheetResponse = await uploadGsheet({
+            const gsheetResponse = await uploadGsheet(lightdashApi, {
                 projectUuid,
                 exploreId: explore?.name,
                 metricQuery: unsavedChartVersion?.metricQuery,
@@ -324,14 +374,11 @@ const VisualizationCard: FC<Props> = memo((props) => {
 
     return (
         <ErrorBoundary>
-            <VisualizationProvider
+            <ConnectedVisualizationProvider
                 key={savedChart?.uuid}
                 minimal={minimal}
-                chartConfig={unsavedChartVersion.chartConfig}
-                initialPivotDimensions={
-                    unsavedChartVersion.pivotConfig?.columns
-                }
-                initialPivotRows={unsavedChartVersion.pivotConfig?.rows}
+                initialPivotDimensions={pivotConfig?.columns}
+                initialPivotRows={pivotConfig?.rows}
                 unsavedMetricQuery={visualizationMetricQuery}
                 resultsData={resultsData}
                 apiErrorDetail={apiErrorDetail}
@@ -339,14 +386,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 columnOrder={visualizationColumnOrder}
                 onSeriesContextMenu={onSeriesContextMenu}
                 savedChartUuid={isEditMode ? undefined : savedChart?.uuid}
-                savedChartReference={
-                    savedChart
-                        ? {
-                              uuid: savedChart.uuid,
-                              chartConfig: savedChart.chartConfig,
-                          }
-                        : undefined
-                }
+                savedChartReference={savedChartReference}
                 onChartConfigChange={handleSetChartConfig}
                 onChartTypeChange={handleSetChartType}
                 onPivotDimensionsChange={handleSetPivotFields}
@@ -391,12 +431,9 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                         isEditMode={isEditMode}
                                     />
                                 )}
-                                <VisualizationWarning
+                                <ConnectedVisualizationWarning
                                     dirtyPivotConfiguration={
                                         dirtyPivotConfiguration
-                                    }
-                                    chartConfig={
-                                        unsavedChartVersion.chartConfig
                                     }
                                     resultsData={resultsData}
                                     isLoading={isLoadingQueryResults}
@@ -454,10 +491,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                     !chartTypeAuthoring &&
                                     createPortal(
                                         <ExplorerChartSidebar
-                                            chartType={
-                                                unsavedChartVersion.chartConfig
-                                                    .type
-                                            }
+                                            chartType={chartType}
                                             onClose={closeVisualizationConfig}
                                         />,
                                         portalTarget,
@@ -514,7 +548,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                         />
                     </Suspense>
                 )}
-            </VisualizationProvider>
+            </ConnectedVisualizationProvider>
         </ErrorBoundary>
     );
 });

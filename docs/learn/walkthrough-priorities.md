@@ -24,9 +24,10 @@ on 2026-09-10.
 Validation (`manage:Validation`, CS-231) left Coming Soon on 2026-09-29. The
 Validator sits in project settings, which need `update:Project`, a scope a
 trainee never holds. In a learner's training copy, project settings open on the
-Validator alone (`getProjectSettingsAccess`), every other settings page
-redirects to it, and the seed carries one chart built on a renamed field so the
-run has something to report.
+Validator (`getProjectSettingsAccess`; with soft delete on, a learner who can
+create content also gets Recently deleted), every other settings page redirects
+to it, and the seed carries one chart built on a renamed field so the run has
+something to report.
 
 ## Delivery criteria
 

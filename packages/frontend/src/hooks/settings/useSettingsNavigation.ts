@@ -1,9 +1,11 @@
 import { subject } from '@casl/ability';
+import { AGENT_IDENTITY_SETTINGS_PATH } from '@lightdash/common';
 import {
     IconApps,
     IconAppWindow,
     IconBolt,
     IconBook2,
+    IconBroadcast,
     IconBrain,
     IconBrowser,
     IconBrush,
@@ -15,6 +17,7 @@ import {
     IconDatabase,
     IconDatabaseCog,
     IconDatabaseExport,
+    IconDeviceMobile,
     IconEyeCheck,
     IconFileExport,
     IconFolders,
@@ -51,10 +54,15 @@ import {
     IconWorldCog,
 } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import { MOBILE_STRINGS } from '../../features/mobile/mobileStrings';
+import {
+    getSemanticStudioExternalSourcesUrl,
+    getSemanticStudioLiveSourcesUrl,
+} from '../../features/semanticStudio/urls';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { canAccessDeepResearchSettings } from './deepResearchSettingsAccess';
-import { LEARNER_COPY_SETTINGS_PAGE } from './projectSettingsAccess';
+import { type LimitedProjectSettingsPage } from './projectSettingsAccess';
 import {
     type SettingsContext,
     type SettingsNavigationItem,
@@ -78,15 +86,14 @@ export const useSettingsNavigation = (
         health,
         allowPasswordAuthentication,
         hasSocialLogin,
-        isGroupManagementEnabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
-        isWarehouseCredentialsEnabled,
+        showMyAgentConnections,
+        isAgentIdentityEnabled,
         isScimTokenManagementEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
@@ -95,9 +102,11 @@ export const useSettingsNavigation = (
         hasAnyAiAgentAccess,
         embeddingEnabled,
         dataAppsFlag,
-        dataAppAnalysisFlag,
+        isChartStudioAvailable,
+        isApiQuerySourcesEnabled,
         externalSourcesFlag,
-        isResultsCacheEnabled,
+        isMobileSettingsEnabled,
+        isResultsCacheAvailable,
         isGitProject,
         isContentReviewAvailable,
         projectSettingsAccess,
@@ -106,8 +115,12 @@ export const useSettingsNavigation = (
     const isEmbeddingEnabled = embeddingEnabled?.enabled ?? false;
     const isScimEnabled = isScimTokenManagementEnabled?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
-    const isDataAppAnalysisEnabled = dataAppAnalysisFlag?.enabled ?? false;
-    const isExternalSourcesEnabled = externalSourcesFlag?.enabled ?? false;
+    // AI analysis (data apps and dashboards) is available wherever AI is; its
+    // settings page hosts the shared consent toggle.
+    const isAiAnalysisAvailable = isAiCopilotEnabledOrTrial;
+    const isExternalSourcesEnabled =
+        (externalSourcesFlag?.enabled ?? false) &&
+        (health?.externalSources.engineAvailable ?? false);
 
     return useMemo<SettingsNavigationSection[]>(() => {
         const ability = user?.ability;
@@ -143,6 +156,26 @@ export const useSettingsNavigation = (
             exact: true,
         });
 
+        if (showMyAgentConnections) {
+            yourSettings.push({
+                label: 'My agent identity',
+                to: '/generalSettings/myAgentConnections',
+                icon: IconPlugConnected,
+                keywords: [
+                    'agent',
+                    'identity',
+                    'sign-in',
+                    'ai',
+                    'mcp',
+                    'snowflake',
+                    'bigquery',
+                    'connect',
+                ],
+                children: [],
+                exact: true,
+            });
+        }
+
         if (ability?.can('create', 'ScheduledDeliveries')) {
             yourSettings.push({
                 label: 'My scheduled deliveries',
@@ -171,6 +204,17 @@ export const useSettingsNavigation = (
                 to: '/generalSettings/personalAccessTokens',
                 icon: IconKey,
                 keywords: ['api', 'pat', 'token'],
+                children: [],
+                exact: true,
+            });
+        }
+
+        if (isMobileSettingsEnabled) {
+            yourSettings.push({
+                label: MOBILE_STRINGS.navLabel,
+                to: '/generalSettings/mobile',
+                icon: IconDeviceMobile,
+                keywords: ['phone', 'app', 'ios', 'android', 'iphone'],
                 children: [],
                 exact: true,
             });
@@ -227,7 +271,7 @@ export const useSettingsNavigation = (
             });
         }
 
-        if (isProLimitsEnabled && ability?.can('manage', 'Organization')) {
+        if (ability?.can('manage', 'Organization')) {
             organizationItems.push({
                 label: 'Limits',
                 to: '/generalSettings/limits',
@@ -251,9 +295,7 @@ export const useSettingsNavigation = (
 
         if (ability?.can('update', 'OrganizationMemberProfile')) {
             organizationItems.push({
-                label: isGroupManagementEnabled
-                    ? 'Users & groups'
-                    : 'User management',
+                label: 'Users & groups',
                 to: '/generalSettings/userManagement',
                 icon: IconUserPlus,
                 keywords: ['members', 'invite', 'teams', 'groups'],
@@ -271,9 +313,7 @@ export const useSettingsNavigation = (
             )
         ) {
             organizationItems.push({
-                label: isGroupManagementEnabled
-                    ? 'User & group attributes'
-                    : 'User attributes',
+                label: 'User & group attributes',
                 to: '/generalSettings/userAttributes',
                 icon: IconUserShield,
                 keywords: ['attributes', 'access control'],
@@ -303,6 +343,26 @@ export const useSettingsNavigation = (
 
         if (isDataAppsEnabled) {
             const dataAppChildren: SettingsNavigationItem[] = [];
+
+            if (ability?.can('manage', 'Organization')) {
+                dataAppChildren.push({
+                    label: 'General',
+                    to: '/generalSettings/dataApps/general',
+                    icon: IconSettings,
+                    keywords: [
+                        'thumbnail',
+                        'thumbnails',
+                        'automatic capture',
+                        'card image',
+                        'screenshot',
+                        'screenshots',
+                        'attachments',
+                        'captures',
+                    ],
+                    children: [],
+                    exact: true,
+                });
+            }
 
             if (ability?.can('manage', 'OrganizationDesign')) {
                 dataAppChildren.push({
@@ -334,7 +394,7 @@ export const useSettingsNavigation = (
             }
 
             if (
-                isDataAppAnalysisEnabled &&
+                isAiAnalysisAvailable &&
                 ability?.can('manage', 'Organization')
             ) {
                 dataAppChildren.push({
@@ -361,6 +421,42 @@ export const useSettingsNavigation = (
                     icon: IconAppWindow,
                     keywords: ['apps', 'data apps'],
                     children: dataAppChildren,
+                });
+            }
+        } else {
+            if (
+                isChartStudioAvailable &&
+                ability?.can('manage', 'OrganizationDesign')
+            ) {
+                organizationItems.push({
+                    label: 'Themes',
+                    to: '/generalSettings/dataApps/themes',
+                    icon: IconBrush,
+                    keywords: ['design', 'colors', 'charts', 'chart types'],
+                    children: [],
+                    exact: true,
+                });
+            }
+            // Dashboard analysis shares the consent toggle that lives on the
+            // data-apps AI-analysis page; surface it even without data apps.
+            if (
+                isAiAnalysisAvailable &&
+                ability?.can('manage', 'Organization')
+            ) {
+                organizationItems.push({
+                    label: 'AI analysis',
+                    to: '/generalSettings/dataApps/aiAnalysis',
+                    icon: IconSparkles,
+                    keywords: [
+                        'ai',
+                        'analysis',
+                        'insights',
+                        'anomalies',
+                        'investigate',
+                        'dashboards',
+                    ],
+                    children: [],
+                    exact: true,
                 });
             }
         }
@@ -445,25 +541,6 @@ export const useSettingsNavigation = (
         }
 
         if (
-            ability?.can(
-                'manage',
-                subject('OrganizationWarehouseCredentials', {
-                    organizationUuid: organization?.organizationUuid,
-                }),
-            ) &&
-            isWarehouseCredentialsEnabled
-        ) {
-            organizationItems.push({
-                label: 'Warehouse credentials',
-                to: '/generalSettings/warehouseCredentials',
-                icon: IconDatabaseCog,
-                keywords: ['database', 'credentials'],
-                children: [],
-                exact: true,
-            });
-        }
-
-        if (
             organization &&
             !organization.needsProject &&
             ability?.can('view', 'Project')
@@ -483,7 +560,6 @@ export const useSettingsNavigation = (
                 label: 'Lightdash analytics',
                 to: '/generalSettings/lightdashAnalytics',
                 icon: IconReportAnalytics,
-                isBeta: true,
                 keywords: ['usage', 'analytics', 'tokens', 'queries'],
                 children: [],
                 exact: true,
@@ -614,6 +690,46 @@ export const useSettingsNavigation = (
             });
         }
 
+        if (isAgentIdentityEnabled && ability?.can('manage', 'Organization')) {
+            organizationItems.push({
+                label: 'Agents',
+                to: AGENT_IDENTITY_SETTINGS_PATH,
+                icon: IconIdBadge2,
+                keywords: [
+                    'agents',
+                    'identity',
+                    'agent identity',
+                    'permissions',
+                    'shared agent account',
+                    'warehouse',
+                    'snowflake',
+                    'bigquery',
+                ],
+                pageSections: [
+                    {
+                        title: 'Identity',
+                        keywords: [
+                            'who agents run as',
+                            'shared agent account',
+                            'agent sign-in',
+                        ],
+                    },
+                    {
+                        title: 'Permissions',
+                        keywords: [
+                            'limit what agents can do',
+                            'who can use agents',
+                            'agent permissions',
+                            'allowed projects',
+                            'raw sql',
+                        ],
+                    },
+                ],
+                children: [],
+                exact: true,
+            });
+        }
+
         const mcpChildren: SettingsNavigationItem[] = [
             {
                 label: 'Connect',
@@ -652,6 +768,10 @@ export const useSettingsNavigation = (
                         'writes',
                     ],
                     pageSections: [
+                        {
+                            title: 'Allow MCP access',
+                            keywords: ['access', 'disable', 'organization'],
+                        },
                         {
                             title: 'Enable agents over MCP',
                             keywords: ['tools', 'context', 'access'],
@@ -736,34 +856,48 @@ export const useSettingsNavigation = (
         const hasProjectSettings =
             !!organization && !organization.needsProject && !!project;
         const canUpdateCurrentProject =
-            hasProjectSettings && projectSettingsAccess === 'full';
+            hasProjectSettings && projectSettingsAccess.type === 'full';
+        const base = `/generalSettings/projectManagement/${project?.projectUuid}`;
+        const limitedItems: Record<
+            LimitedProjectSettingsPage,
+            SettingsNavigationItem
+        > = {
+            validator: {
+                label: 'Validator',
+                to: `${base}/validator`,
+                icon: IconChecklist,
+                keywords: ['validation', 'errors', 'content'],
+                children: [],
+                exact: true,
+                tourNav: 'validator',
+            },
+            recentlyDeleted: {
+                label: 'Recently deleted',
+                to: `${base}/recentlyDeleted`,
+                icon: IconTrash,
+                keywords: ['trash', 'restore', 'deleted'],
+                children: [],
+                exact: true,
+                tourNav: 'recently-deleted',
+            },
+        };
 
-        // A learner in their training copy gets the Validator alone.
         if (
             hasProjectSettings &&
             project &&
-            projectSettingsAccess === 'learnerCopy'
+            projectSettingsAccess.type === 'limited'
         ) {
             sections.push({
                 id: 'current-project',
                 title: 'Current project',
                 subtitle: project.name,
-                items: [
-                    {
-                        label: 'Validator',
-                        to: `/generalSettings/projectManagement/${project.projectUuid}/${LEARNER_COPY_SETTINGS_PAGE}`,
-                        icon: IconChecklist,
-                        keywords: ['validation', 'errors', 'content'],
-                        children: [],
-                        exact: true,
-                        tourNav: 'validator',
-                    },
-                ],
+                items: projectSettingsAccess.pages.map(
+                    (page) => limitedItems[page],
+                ),
             });
         }
 
         if (canUpdateCurrentProject && project && organization) {
-            const base = `/generalSettings/projectManagement/${project.projectUuid}`;
             const projectItems: SettingsNavigationItem[] = [
                 {
                     label: 'Connection settings',
@@ -781,6 +915,25 @@ export const useSettingsNavigation = (
                     children: [],
                     exact: true,
                 },
+                ...(isAgentIdentityEnabled &&
+                ability?.can(
+                    'manage',
+                    subject('Project', {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid: project.projectUuid,
+                    }),
+                )
+                    ? [
+                          {
+                              label: 'Agent identity',
+                              to: `${base}/agentIdentity`,
+                              icon: IconIdBadge2,
+                              keywords: ['ai', 'agent', 'credentials'],
+                              children: [],
+                              exact: true,
+                          },
+                      ]
+                    : []),
                 // Only meaningful when the instance has AI agents at all —
                 // same gate as the org-level AI agents section.
                 ...(isAiCopilotEnabledOrTrial
@@ -863,7 +1016,7 @@ export const useSettingsNavigation = (
                 });
             }
 
-            if (isResultsCacheEnabled) {
+            if (isResultsCacheAvailable) {
                 projectItems.push({
                     label: 'Results caching',
                     to: `${base}/caching`,
@@ -955,13 +1108,26 @@ export const useSettingsNavigation = (
                     }),
                 )
             ) {
+                // Managed on the Semantic Layer page; still listed here so
+                // people who look for it in settings find their way.
                 projectItems.push({
                     label: 'External sources',
-                    to: `${base}/externalSources`,
+                    to: getSemanticStudioExternalSourcesUrl(
+                        project.projectUuid,
+                    ),
                     icon: IconDatabaseExport,
-                    keywords: ['csv', 'upload', 'files', 'google sheets'],
+                    keywords: [
+                        'csv',
+                        'upload',
+                        'files',
+                        'google sheets',
+                        'spreadsheet',
+                        'sources',
+                        'semantic layer',
+                    ],
                     children: [],
                     exact: true,
+                    movedTo: 'Semantic Layer',
                 });
             }
 
@@ -996,16 +1162,15 @@ export const useSettingsNavigation = (
                 exact: true,
             });
 
-            if (
-                isDataAppsEnabled &&
-                ability?.can(
-                    'manage',
-                    subject('ExternalConnection', {
-                        organizationUuid: organization.organizationUuid,
-                        projectUuid: project.projectUuid,
-                    }),
-                )
-            ) {
+            const canManageProjectConnections = ability?.can(
+                'manage',
+                subject('ExternalConnection', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid: project.projectUuid,
+                }),
+            );
+
+            if (isDataAppsEnabled && canManageProjectConnections) {
                 projectItems.push({
                     label: 'Data app connections',
                     to: `${base}/dataAppConnections`,
@@ -1013,6 +1178,30 @@ export const useSettingsNavigation = (
                     keywords: ['external', 'api', 'http', 'fetch', 'apps'],
                     children: [],
                     exact: true,
+                });
+            }
+
+            if (isApiQuerySourcesEnabled && canManageProjectConnections) {
+                // Managed on the Semantic Layer page; still listed here so
+                // people who look for it in settings find their way.
+                projectItems.push({
+                    label: 'Live data sources',
+                    to: getSemanticStudioLiveSourcesUrl(project.projectUuid),
+                    icon: IconBroadcast,
+                    keywords: [
+                        'posthog',
+                        'google analytics',
+                        'search console',
+                        'integration',
+                        'api',
+                        'saas',
+                        'live',
+                        'sources',
+                        'semantic layer',
+                    ],
+                    children: [],
+                    exact: true,
+                    movedTo: 'Semantic Layer',
                 });
             }
 
@@ -1085,15 +1274,7 @@ export const useSettingsNavigation = (
                     }),
                 )
             ) {
-                projectItems.push({
-                    label: 'Validator',
-                    to: `${base}/validator`,
-                    icon: IconChecklist,
-                    keywords: ['validation', 'errors', 'content'],
-                    children: [],
-                    exact: true,
-                    tourNav: 'validator',
-                });
+                projectItems.push(limitedItems.validator);
             }
 
             if (
@@ -1200,21 +1381,21 @@ export const useSettingsNavigation = (
             }
 
             if (health?.softDelete?.enabled) {
-                projectItems.push({
-                    label: 'Recently deleted',
-                    to: `${base}/recentlyDeleted`,
-                    icon: IconTrash,
-                    keywords: ['trash', 'restore', 'deleted'],
-                    children: [],
-                    exact: true,
-                });
+                projectItems.push(limitedItems.recentlyDeleted);
             }
 
             sections.push({
                 id: 'current-project',
                 title: 'Current project',
                 subtitle: project.name,
-                items: projectItems,
+                items:
+                    project.provisioningSource === 'analytics'
+                        ? projectItems.filter(
+                              ({ to }) =>
+                                  to === `${base}/projectAccess` ||
+                                  to === `${base}/recentlyDeleted`,
+                          )
+                        : projectItems,
             });
         }
 
@@ -1226,15 +1407,14 @@ export const useSettingsNavigation = (
         health,
         allowPasswordAuthentication,
         hasSocialLogin,
-        isGroupManagementEnabled,
-        isProLimitsEnabled,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,
         canAccessAiCredits,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
         isEmailWhitelabelEnabled,
-        isWarehouseCredentialsEnabled,
+        showMyAgentConnections,
+        isAgentIdentityEnabled,
         isScimEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
@@ -1243,9 +1423,12 @@ export const useSettingsNavigation = (
         hasAnyAiAgentAccess,
         isEmbeddingEnabled,
         isDataAppsEnabled,
-        isDataAppAnalysisEnabled,
+        isAiAnalysisAvailable,
+        isChartStudioAvailable,
+        isApiQuerySourcesEnabled,
         isExternalSourcesEnabled,
-        isResultsCacheEnabled,
+        isMobileSettingsEnabled,
+        isResultsCacheAvailable,
         isGitProject,
         isContentReviewAvailable,
         projectSettingsAccess,

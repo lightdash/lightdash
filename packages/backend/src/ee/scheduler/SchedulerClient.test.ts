@@ -22,30 +22,42 @@ describe('aiAgentReviewRunAt', () => {
 });
 
 describe('Slack artifact image jobs', () => {
-    it('deduplicates by prompt and serializes retries on the same queue', async () => {
-        const addJob = vi.fn().mockResolvedValue({ id: 'job' });
-        const client = Object.create(
-            CommercialSchedulerClient.prototype,
-        ) as CommercialSchedulerClient;
-        client.graphileUtils = Promise.resolve({ addJob } as AnyType);
-        const payload = {
-            slackPromptUuid: 'prompt',
-            organizationUuid: 'org',
-            projectUuid: 'project',
-            userUuid: 'user',
-        };
-        await client.slackAiArtifactImages(payload);
-        expect(addJob).toHaveBeenCalledExactlyOnceWith(
-            EE_SCHEDULER_TASKS.SLACK_AI_ARTIFACT_IMAGES,
-            payload,
-            expect.objectContaining({
-                jobKey: 'slack-ai-artifact-images:prompt',
-                queueName: 'slack-ai-artifact-images:prompt',
-                jobKeyMode: 'preserve_run_at',
-                maxAttempts: 6,
-            }),
-        );
-    });
+    it.each([false, true])(
+        'preserves the image marker and serializes retries: %s',
+        async (enabled) => {
+            const addJob = vi.fn().mockResolvedValue({ id: 'job' });
+            const client = Object.create(
+                CommercialSchedulerClient.prototype,
+            ) as CommercialSchedulerClient;
+            client.graphileUtils = Promise.resolve({ addJob } as AnyType);
+            const payload = {
+                ...(enabled
+                    ? {
+                          agentWork: {
+                              userUuid: 'user',
+                              organizationUuid: 'org',
+                              projectUuid: 'project',
+                          },
+                      }
+                    : {}),
+                slackPromptUuid: 'prompt',
+                organizationUuid: 'org',
+                projectUuid: 'project',
+                userUuid: 'user',
+            };
+            await client.slackAiArtifactImages(payload);
+            expect(addJob).toHaveBeenCalledExactlyOnceWith(
+                EE_SCHEDULER_TASKS.SLACK_AI_ARTIFACT_IMAGES,
+                payload,
+                expect.objectContaining({
+                    jobKey: 'slack-ai-artifact-images:prompt',
+                    queueName: 'slack-ai-artifact-images:prompt',
+                    jobKeyMode: 'preserve_run_at',
+                    maxAttempts: 6,
+                }),
+            );
+        },
+    );
 });
 
 describe('Slack AI prompt jobs', () => {

@@ -54,6 +54,7 @@ export const getAxisPointerStyle = (useLinePointer: boolean = false) => {
     if (useLinePointer) {
         return {
             type: 'line' as const,
+            animation: false,
             lineStyle: {
                 color: GRAY_5,
                 type: [4, 2], // Dashed: 4px dash, 2px gap
@@ -71,6 +72,7 @@ export const getAxisPointerStyle = (useLinePointer: boolean = false) => {
 
     return {
         type: 'shadow' as const,
+        animation: false,
         label: {
             show: true,
             fontWeight: 500,

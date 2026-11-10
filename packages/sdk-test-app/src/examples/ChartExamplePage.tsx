@@ -1,10 +1,11 @@
 import Lightdash from '@lightdash/sdk';
 import { useState } from 'react';
-import { ExampleLayout } from '../components/ExampleLayout';
 import {
-    parseEmbedUrl,
-    type EmbedConfigState,
-} from '../hooks/useEmbedConfig';
+    CompiledSqlScopeSelect,
+    useCompiledSqlScope,
+} from '../components/CompiledSqlScopeSelect';
+import { ExampleLayout } from '../components/ExampleLayout';
+import { parseEmbedUrl, type EmbedConfigState } from '../hooks/useEmbedConfig';
 import { getRepoSourceUrl } from '../lib/repo';
 import { emptyStateBoxStyle, emptyStateStyle } from '../styles';
 import {
@@ -22,6 +23,7 @@ const sourceUrl = getRepoSourceUrl(
 );
 
 const defaultChartEmbedUrl = import.meta.env.VITE_CHART_EMBED_URL ?? '';
+const noSqlChartEmbedUrl = import.meta.env.VITE_CHART_NO_SQL_EMBED_URL ?? '';
 
 const getChartIdFromToken = (token: string | null): string | null => {
     const payload = token?.split('.')[1];
@@ -37,7 +39,11 @@ const getChartIdFromToken = (token: string | null): string | null => {
 };
 
 export function ChartExamplePage({ embedConfig }: ChartExamplePageProps) {
-    const chartEmbedConfig = parseEmbedUrl(defaultChartEmbedUrl);
+    const compiledSqlScope = useCompiledSqlScope(
+        defaultChartEmbedUrl,
+        noSqlChartEmbedUrl,
+    );
+    const chartEmbedConfig = parseEmbedUrl(compiledSqlScope.embedUrl);
     const instanceUrl = chartEmbedConfig.instanceUrl ?? embedConfig.instanceUrl;
     const token = chartEmbedConfig.token ?? embedConfig.token;
     const chartId = getChartIdFromToken(token);
@@ -63,8 +69,8 @@ export function ChartExamplePage({ embedConfig }: ChartExamplePageProps) {
                 <section>
                     <h3 style={sectionTitleStyle}>Chart</h3>
                     <p style={sectionDescStyle}>
-                        The JWT must use <code>content.type = "chart"</code>{' '}
-                        and include write actions whose space holds the chart.{' '}
+                        The JWT must use <code>content.type = "chart"</code> and
+                        include write actions whose space holds the chart.{' '}
                         <button onClick={() => setIsEditMode((v) => !v)}>
                             {isEditMode ? 'Switch to view' : 'Switch to edit'}
                         </button>
@@ -76,9 +82,20 @@ export function ChartExamplePage({ embedConfig }: ChartExamplePageProps) {
                             </>
                         )}
                     </p>
+                    <CompiledSqlScopeSelect
+                        envVarName="VITE_CHART_NO_SQL_EMBED_URL"
+                        isWithoutScopeAvailable={
+                            compiledSqlScope.isWithoutScopeAvailable
+                        }
+                        scope={compiledSqlScope.scope}
+                        onChange={compiledSqlScope.setScope}
+                    />
                     <div style={dashboardContainerStyle}>
                         <Lightdash.Chart
-                            key={defaultChartEmbedUrl || embedConfig.remountKey}
+                            key={
+                                compiledSqlScope.embedUrl ||
+                                embedConfig.remountKey
+                            }
                             instanceUrl={instanceUrl}
                             token={token}
                             id={chartId}

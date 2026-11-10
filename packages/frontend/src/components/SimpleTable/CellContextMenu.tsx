@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    getCellUrls,
     hasCustomBinDimension,
     isCustomDimension,
     isDimension,
@@ -10,7 +11,7 @@ import {
 import { Menu } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
-import mapValues from 'lodash/mapValues';
+import { mapValues } from 'es-toolkit/compat';
 import { useCallback, useMemo, type FC } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -23,14 +24,14 @@ import MantineIcon from '../common/MantineIcon';
 import { type CellContextMenuProps } from '../common/Table/types';
 import QuickFilterMenuItems from '../Explorer/QuickFilterMenuItems';
 import UrlMenuItems from '../Explorer/ResultsCard/UrlMenuItems';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import { useVisualizationInputs } from '../LightdashVisualization/useVisualizationContext';
 import DrillDownMenuItem from '../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 
 const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const { openUnderlyingDataModal, metricQuery, tableName } =
         useMetricQueryDataContext();
-    const { isEditMode, hasExplorerStore } = useVisualizationContext();
+    const { isEditMode, hasExplorerStore } = useVisualizationInputs();
     const { showToastSuccess } = useToaster();
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
@@ -38,6 +39,11 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     const value: ResultValue = useMemo(
         () => cell.getValue()?.value || {},
         [cell],
+    );
+
+    const urls = useMemo(
+        () => getCellUrls(isField(item) ? item.urls : undefined, value.raw),
+        [item, value],
     );
     const fieldValues = useMemo(
         () => mapValues(cell.row.original, (v) => v?.value) || {},
@@ -98,14 +104,12 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
 
     return (
         <>
-            {item &&
-            value.raw !== undefined &&
-            value.raw !== null &&
-            isField(item) ? (
-                <UrlMenuItems urls={item.urls} cell={cell} />
-            ) : null}
-
-            {isField(item) && (item.urls || []).length > 0 && <Menu.Divider />}
+            {urls.length > 0 && (
+                <>
+                    <UrlMenuItems urls={urls} cell={cell} />
+                    <Menu.Divider />
+                </>
+            )}
 
             <Menu.Item
                 leftSection={

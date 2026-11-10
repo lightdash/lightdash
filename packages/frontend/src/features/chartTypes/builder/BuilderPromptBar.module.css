@@ -188,6 +188,11 @@
     }
 }
 
+/* The context tray scrolls, so the send controls never give up width to it. */
+.composer {
+    --composer-toolbar-right-shrink: 0;
+}
+
 .composer :global(.ProseMirror) {
     padding: 0;
 }

@@ -81,10 +81,12 @@ export class PreAggregationExternalResolver extends BaseService {
                 },
             },
             () =>
-                this.projectModel.getExploreFromCache(
-                    args.projectUuid,
-                    preAggExploreName,
-                ),
+                args.executionExplore
+                    ? args.executionExplore(preAggExploreName)
+                    : this.projectModel.getExploreFromCache(
+                          args.projectUuid,
+                          preAggExploreName,
+                      ),
         );
 
         if (isExploreError(preAggExplore)) {

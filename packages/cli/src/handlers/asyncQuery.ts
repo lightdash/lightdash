@@ -3,6 +3,8 @@ import {
     QueryHistoryStatus,
     ResultRow,
 } from '@lightdash/common';
+import { validate as isUuid } from 'uuid';
+import { getAgentConnectionSelection } from '../credentials';
 import GlobalState from '../globalState';
 import { lightdashApi } from './dbt/apiClient';
 
@@ -14,6 +16,12 @@ function sleep(ms: number): Promise<void> {
         setTimeout(resolve, ms);
     });
 }
+
+export const validateConnectionQueryUuid = (value: string): string => {
+    if (getAgentConnectionSelection() !== null && !isUuid(value))
+        throw new Error('The server returned an invalid query identifier.');
+    return value;
+};
 
 export async function pollForResults(
     projectUuid: string,
@@ -27,6 +35,13 @@ export async function pollForResults(
         url: `/api/v2/projects/${projectUuid}/query/${queryUuid}${pageSizeParam}`,
         body: undefined,
     });
+
+    if (getAgentConnectionSelection() !== null) {
+        if (!Object.values(QueryHistoryStatus).includes(result.status))
+            throw new Error('The server returned an invalid query status.');
+        if (result.status === QueryHistoryStatus.ERROR)
+            throw new Error('Query execution failed.');
+    }
 
     GlobalState.debug(`> Query status: ${result.status}`);
 

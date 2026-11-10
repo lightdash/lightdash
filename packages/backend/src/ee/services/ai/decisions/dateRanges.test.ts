@@ -369,4 +369,49 @@ describe('relative date comparison without clock arithmetic', () => {
             ),
         ).toBe('unknown');
     });
+    it('treats a current period to date as the requested current period', () => {
+        const { period } = getDatePeriodCandidates('this month')[0];
+        for (const bounds of [{}, { toDate: true }]) {
+            expect(
+                compare(
+                    {
+                        id: 'and',
+                        and: [
+                            {
+                                ...rule(FilterOperator.IN_THE_CURRENT, [1]),
+                                settings: {
+                                    unitOfTime: UnitOfTime.months,
+                                    completed: false,
+                                    ...bounds,
+                                },
+                            },
+                        ],
+                    },
+                    period,
+                ),
+            ).toBe('match');
+        }
+    });
+    it('does not treat a current period that excludes today as the requested period', () => {
+        const { period } = getDatePeriodCandidates('this month')[0];
+        expect(
+            compare(
+                {
+                    id: 'and',
+                    and: [
+                        {
+                            ...rule(FilterOperator.IN_THE_CURRENT, [1]),
+                            settings: {
+                                unitOfTime: UnitOfTime.months,
+                                completed: false,
+                                toDate: true,
+                                excludeToday: true,
+                            },
+                        },
+                    ],
+                },
+                period,
+            ),
+        ).toBe('unknown');
+    });
 });

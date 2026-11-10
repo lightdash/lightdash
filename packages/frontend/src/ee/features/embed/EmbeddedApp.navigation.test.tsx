@@ -26,7 +26,10 @@ vi.mock('@tanstack/react-query', () => ({
     useQueryClient: () => ({}),
 }));
 vi.mock('./hooks/useEmbedEventEmitter', () => ({
-    useEmbedEventEmitter: () => ({ dispatchEmbedEvent: vi.fn() }),
+    useCreateEmbedEventEmitter: () => ({
+        dispatchEmbedEvent: vi.fn(),
+        isEmbedEventReady: false,
+    }),
 }));
 
 const base = '/embed/project';

@@ -7,6 +7,7 @@ import {
     ProjectType,
     type SessionUser,
 } from '@lightdash/common'; // pragma: allowlist secret
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -124,6 +125,7 @@ const buildService = (
         updateApp: vi.fn(async () => storedApp),
     };
     const service = new AppGenerateService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: { appRuntime: {} } as never, // pragma: allowlist secret
         analytics: analytics as never,
@@ -134,6 +136,7 @@ const buildService = (
         featureFlagModel: {
             get: vi.fn(async () => ({ enabled: true })),
         } as never,
+        organizationSettingsModel: {} as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
         projectModel: {
@@ -169,6 +172,7 @@ const buildService = (
         orgAiCopilotConfigResolver: {} as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        appThumbnailClient: buildAppThumbnailClientMock(),
         chartRegistryClient: {} as never,
         contentVerificationModel: contentVerificationModel as never,
     });

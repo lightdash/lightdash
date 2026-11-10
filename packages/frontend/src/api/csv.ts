@@ -2,9 +2,12 @@ import {
     type ApiDownloadCsv,
     type ApiScheduledDownloadCsv,
 } from '@lightdash/common';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
 
-export const getCsvFileUrl = async ({ jobId }: ApiScheduledDownloadCsv) =>
+export const getCsvFileUrl = async (
+    lightdashApi: LightdashApi,
+    { jobId }: ApiScheduledDownloadCsv,
+) =>
     lightdashApi<ApiDownloadCsv>({
         url: `/csv/${jobId}`,
         method: 'GET',

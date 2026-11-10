@@ -6,6 +6,7 @@ import {
     OrganizationMemberRole,
     type SessionUser,
 } from '@lightdash/common';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -74,6 +75,7 @@ const fakeUser = {
 
 function buildService(appModel: Record<string, unknown>): AppGenerateService {
     const svc = new AppGenerateService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {} as never,
         analytics: { track: vi.fn() } as never,
@@ -93,6 +95,7 @@ function buildService(appModel: Record<string, unknown>): AppGenerateService {
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
         } as never,
+        organizationSettingsModel: {} as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
         projectModel: {} as never,
@@ -124,6 +127,7 @@ function buildService(appModel: Record<string, unknown>): AppGenerateService {
         orgAiCopilotConfigResolver: {} as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        appThumbnailClient: buildAppThumbnailClientMock(),
         chartRegistryClient: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,

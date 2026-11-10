@@ -1,6 +1,5 @@
 import { Ability } from '@casl/ability';
 import {
-    FeatureFlags,
     ForbiddenError,
     LightdashInstallType,
     OrganizationMemberRole,
@@ -56,6 +55,7 @@ const userModel = {
         UserModel['findSessionUserAndOrgByUuid']
     >(async () => user),
 };
+const isAnalyticsProjectEnabled = vi.fn(() => true);
 const featureFlagModel = {
     get: vi.fn<FeatureFlagModel['get']>(async ({ featureFlagId }) => ({
         id: featureFlagId,
@@ -98,7 +98,10 @@ describe('organization service', () => {
                 {} as OrganizationAllowedEmailDomainsModel,
             groupsModel: {} as GroupsModel,
             featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
+            isAnalyticsProjectEnabled,
             rolesModel: rolesModel as unknown as RolesModel,
+            // Nothing stored: every setting inherits the instance default.
+            organizationSettingsModel: { get: async () => ({}) } as never,
             onOrganizationCreated,
         });
     const organizationService = buildOrganizationService();
@@ -108,7 +111,7 @@ describe('organization service', () => {
     });
 
     it.each([true, false])(
-        'lists analytics projects according to Console enablement: %s',
+        'lists analytics projects according to instance availability: %s',
         async (enabled) => {
             const account = buildAccount();
             const organizationUuid = account.organization.organizationUuid!;
@@ -133,10 +136,7 @@ describe('organization service', () => {
                 ordinaryProject,
                 analyticsProject,
             ]);
-            featureFlagModel.get.mockResolvedValueOnce({
-                id: FeatureFlags.AnalyticsProject,
-                enabled,
-            });
+            isAnalyticsProjectEnabled.mockReturnValueOnce(enabled);
             await expect(
                 organizationService.getProjects(account),
             ).resolves.toEqual(
@@ -144,10 +144,72 @@ describe('organization service', () => {
                     ? [ordinaryProject, analyticsProject]
                     : [ordinaryProject],
             );
-            expect(featureFlagModel.get).toHaveBeenCalledWith({
-                featureFlagId: FeatureFlags.AnalyticsProject,
-                user: { organizationUuid },
-            });
+            expect(isAnalyticsProjectEnabled).toHaveBeenCalled();
+        },
+    );
+
+    it.each([
+        {
+            scope: 'SystemAnalytics',
+            grantProject: 'analytics',
+            canView: true,
+            enabled: true,
+            visible: true,
+        },
+        {
+            scope: 'SystemAnalytics',
+            grantProject: 'other',
+            canView: true,
+            enabled: true,
+            visible: false,
+        },
+        {
+            scope: 'Analytics',
+            grantProject: 'analytics',
+            canView: true,
+            enabled: true,
+            visible: false,
+        },
+        {
+            scope: 'SystemAnalytics',
+            grantProject: 'analytics',
+            canView: false,
+            enabled: true,
+            visible: false,
+        },
+        {
+            scope: 'SystemAnalytics',
+            grantProject: 'analytics',
+            canView: true,
+            enabled: false,
+            visible: false,
+        },
+    ])(
+        'lists only explicitly accessible managed analytics: %j',
+        async ({ scope, grantProject, canView, enabled, visible }) => {
+            const account = buildAccount();
+            account.user.ability = new Ability<PossibleAbilities>([
+                ...(canView
+                    ? [{ action: 'view' as const, subject: 'Project' as const }]
+                    : []),
+                {
+                    action: 'view',
+                    subject: scope as 'SystemAnalytics' | 'Analytics',
+                    conditions: { projectUuid: grantProject },
+                },
+            ]);
+            const project = {
+                ...projectSummary,
+                projectUuid: 'analytics',
+                provisioningSource: 'analytics',
+            };
+            projectModel.getAllByOrganizationUuid.mockResolvedValueOnce([
+                project,
+            ]);
+            isAnalyticsProjectEnabled.mockReturnValueOnce(enabled);
+            await expect(
+                organizationService.getProjects(account),
+            ).resolves.toEqual(visible ? [project] : []);
         },
     );
 
@@ -298,6 +360,7 @@ describe('organization service', () => {
         expect(await organizationService.get(account)).toEqual({
             ...organization,
             needsProject: false,
+            dataAppCapturesEnabled: true,
             // Default account is a developer (not an org admin), so the pgwire
             // connection details are withheld — only `enabled` is exposed.
             pgWire: {
@@ -316,6 +379,7 @@ describe('organization service', () => {
         expect(await organizationService.get(account)).toEqual({
             ...organization,
             needsProject: true,
+            dataAppCapturesEnabled: true,
             pgWire: {
                 enabled: false,
                 tlsRequired: true,
@@ -353,9 +417,7 @@ describe('organization service', () => {
         });
     });
 
-    it('getUsers falls back to the member org role when their group has a custom role', async () => {
-        // Group access carries a custom-role UUID (coalesced from role_uuid),
-        // which is not a system ProjectMemberRole and must not throw.
+    describe('getUsers with a project and group custom roles', () => {
         const customRoleUuid = 'ac5ac86a-b8a6-47fa-9679-40520dcb6136';
         const projectUuid = 'project-1';
         const groupUuid = 'group-1';
@@ -372,29 +434,59 @@ describe('organization service', () => {
             lastName: 'One',
             organizationUuid: organization.organizationUuid,
             role: OrganizationMemberRole.MEMBER,
+            roleUuid: undefined,
             isActive: true,
             isInviteExpired: false,
             groups: [{ uuid: groupUuid, name: 'Custom group' }],
         };
-        organizationMemberProfileModel.getOrganizationMembersAndGroups.mockResolvedValueOnce(
-            { pagination: undefined, data: [member] },
-        );
-        projectModel.getProjectGroupAccesses.mockResolvedValueOnce([
-            { projectUuid, groupUuid, role: customRoleUuid },
-        ]);
 
-        const result = await organizationService.getUsers(
-            adminUser,
-            10,
-            undefined,
-            undefined,
-            projectUuid,
-        );
+        it('surfaces the group custom role as roleUuid and keeps the member org role', async () => {
+            // Group access carries a custom-role UUID (coalesced from
+            // role_uuid), which is not a system ProjectMemberRole.
+            organizationMemberProfileModel.getOrganizationMembersAndGroups.mockResolvedValueOnce(
+                { pagination: undefined, data: [member] },
+            );
+            projectModel.getProjectGroupAccesses.mockResolvedValueOnce([
+                { projectUuid, groupUuid, role: customRoleUuid },
+            ]);
 
-        // Assert the behavioural outcome: a custom-role group must not throw and
-        // the member keeps their own org role (no system-role conversion).
-        expect(result.data).toHaveLength(1);
-        expect(result.data[0].role).toBe(OrganizationMemberRole.MEMBER);
+            const result = await organizationService.getUsers(
+                adminUser,
+                10,
+                undefined,
+                undefined,
+                projectUuid,
+            );
+
+            expect(result.data).toHaveLength(1);
+            expect(result.data[0].role).toBe(OrganizationMemberRole.MEMBER);
+            expect(result.data[0].roleUuid).toBe(customRoleUuid);
+        });
+
+        it('leaves roleUuid unset when the member has no group access to the project', async () => {
+            organizationMemberProfileModel.getOrganizationMembersAndGroups.mockResolvedValueOnce(
+                { pagination: undefined, data: [member] },
+            );
+            projectModel.getProjectGroupAccesses.mockResolvedValueOnce([
+                {
+                    projectUuid,
+                    groupUuid: 'another-group',
+                    role: customRoleUuid,
+                },
+            ]);
+
+            const result = await organizationService.getUsers(
+                adminUser,
+                10,
+                undefined,
+                undefined,
+                projectUuid,
+            );
+
+            expect(result.data).toHaveLength(1);
+            expect(result.data[0].role).toBe(OrganizationMemberRole.MEMBER);
+            expect(result.data[0].roleUuid).toBeUndefined();
+        });
     });
 
     describe('getImpersonationEnabled', () => {

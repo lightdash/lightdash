@@ -1,13 +1,17 @@
+import { type AgentIdentityClaim } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const DocumentsTableName = 'documents';
 export const DocumentVersionsTableName = 'document_versions';
+export const DocumentVersionSavedChartsTableName =
+    'document_version_saved_charts';
 
 export type DbDocument = {
     document_id: number;
     document_uuid: string;
     project_uuid: string;
-    space_id: number;
+    /** Null for a personal Document, visible only to its creator and admins. */
+    space_id: number | null;
     slug: string;
     name: string;
     description: string;
@@ -55,6 +59,7 @@ export type DocumentsTable = Knex.CompositeTableType<
 >;
 
 export type DbDocumentVersion = {
+    agent_identity: AgentIdentityClaim | null;
     document_version_id: number;
     document_version_uuid: string;
     document_id: number;
@@ -78,6 +83,6 @@ export type DocumentVersionsTable = Knex.CompositeTableType<
         | 'markdown'
         | 'chart_data'
         | 'created_by_user_uuid'
-    >,
+    > & { agent_identity: AgentIdentityClaim | null },
     never
 >;

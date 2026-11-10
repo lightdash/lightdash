@@ -7,7 +7,8 @@ import { useDeleteExternalSource } from '../hooks/useExternalSources';
 
 type Props = {
     projectUuid: string;
-    sourceRef: ExternalSourceRef;
+    /** Deleting needs only the source, so one without a table yet can go. */
+    sourceRef: Pick<ExternalSourceRef, 'sourceUuid'>;
     tableLabel: string;
     opened: boolean;
     onClose: () => void;

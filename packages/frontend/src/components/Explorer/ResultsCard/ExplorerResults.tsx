@@ -1,6 +1,6 @@
 import { getItemLabel, getItemMap, isField } from '@lightdash/common';
-import { Box, Loader, Text } from '@mantine/core';
-import { memo, useCallback, useMemo, useState, type FC } from 'react';
+import { Box, Center, Loader, Text } from '@mantine/core';
+import { memo, useCallback, useMemo, type FC } from 'react';
 import {
     explorerActions,
     selectAdditionalMetrics,
@@ -28,9 +28,9 @@ import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import PivotTable from '../../common/PivotTable';
 import Table from '../../common/Table';
-import { JsonViewerModal } from '../../JsonViewerModal';
 import CellContextMenu from './CellContextMenu';
 import ColumnHeaderContextMenu from './ColumnHeaderContextMenu';
+import classes from './ExplorerResults.module.css';
 import {
     EmptyStateExploreLoading,
     EmptyStateNoColumns,
@@ -338,23 +338,6 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         useExplore(activeTableName, {
             refetchOnMount: false,
         });
-    const [isExpandModalOpened, setIsExpandModalOpened] = useState(false);
-    const [expandData, setExpandData] = useState<{
-        name: string;
-        jsonObject: Record<string, unknown>;
-    }>({
-        name: 'unknown',
-        jsonObject: {},
-    });
-
-    const handleCellExpand = (name: string, data: Record<string, unknown>) => {
-        setExpandData({
-            name: name,
-            jsonObject: data,
-        });
-        setIsExpandModalOpened(true);
-    };
-
     const itemsMap = useMemo(() => {
         if (mergeResults) return mergeResults.fields;
         return exploreData
@@ -452,7 +435,6 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                 isEditMode={isEditMode}
                 {...props}
                 itemsMap={itemsMap}
-                onExpand={handleCellExpand}
             />
         ),
         [isEditMode, itemsMap],
@@ -532,16 +514,9 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
 
         if (pivotTableQuery.isLoading || groupedResultsData?.isFetchingRows) {
             return (
-                <Box
-                    style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        minHeight: 200,
-                    }}
-                >
+                <Center mih={200}>
                     <Loader />
-                </Box>
+                </Center>
             );
         }
 
@@ -592,13 +567,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                 {showGroupedView ? (
                     // Grouped results view - shows pivoted data with hierarchical headers
                     // Match approximate height of the paginated results table
-                    <Box
-                        style={{
-                            minHeight: 300,
-                            maxHeight: 450,
-                            overflow: 'auto',
-                        }}
-                    >
+                    <Box mih={300} mah={450} className={classes.groupedView}>
                         {renderGroupedView()}
                     </Box>
                 ) : (
@@ -627,13 +596,6 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                         columnProperties={columnProperties}
                     />
                 )}
-
-                <JsonViewerModal
-                    heading={`Field: ${expandData.name}`}
-                    jsonObject={expandData.jsonObject}
-                    opened={isExpandModalOpened}
-                    onClose={() => setIsExpandModalOpened(false)}
-                />
             </Box>
         </TrackSection>
     );

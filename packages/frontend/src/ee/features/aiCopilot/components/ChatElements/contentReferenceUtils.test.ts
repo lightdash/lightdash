@@ -230,4 +230,25 @@ describe('contentReferenceUtils', () => {
             '/projects/project-1/apps/app-1/view',
         );
     });
+
+    it.each([
+        ['q3-review', '/projects/project-1/documents/q3-review'],
+        [null, '/projects/project-1/documents/doc-1'],
+    ])(
+        'links a pinned Document by slug %j when known',
+        (documentSlug, href) => {
+            expect(
+                getPromptContextItemHref(
+                    {
+                        type: 'document',
+                        documentUuid: 'doc-1',
+                        documentSlug,
+                        pinnedVersionUuid: null,
+                        displayName: 'Q3 review',
+                    },
+                    'project-1',
+                ),
+            ).toBe(href);
+        },
+    );
 });

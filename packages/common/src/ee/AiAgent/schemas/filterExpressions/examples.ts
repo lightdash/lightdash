@@ -64,6 +64,12 @@ const formatScalar = (value: unknown): string => {
     }
 };
 
+// String-field values are always quoted so examples model the prompt's quoting rule.
+const formatValue = (value: unknown, filterType: FilterType): string =>
+    filterType === FilterType.STRING && typeof value === 'string'
+        ? JSON.stringify(value)
+        : formatScalar(value);
+
 const requireSettings = (
     example: AiFilterExample,
 ): NonNullable<AiFilterExample['settings']> => {
@@ -104,7 +110,13 @@ export const formatFilterExpressionExample = (
         case FilterOperator.IN_THE_CURRENT:
         case FilterOperator.NOT_IN_THE_CURRENT: {
             const settings = requireSettings(example);
-            return `${fieldId} ${example.operator}=${settings.unitOfTime}`;
+            const bounds = [
+                ...(settings.toDate ? ['toDate:true'] : []),
+                ...(settings.excludeToday ? ['excludeToday:true'] : []),
+            ];
+            const boundsSuffix =
+                bounds.length === 0 ? '' : `{${bounds.join(',')}}`;
+            return `${fieldId} ${example.operator}=${settings.unitOfTime}${boundsSuffix}`;
         }
         default: {
             if (!example.values || example.values.length === 0) {
@@ -113,19 +125,19 @@ export const formatFilterExpressionExample = (
                 );
             }
             return `${fieldId} ${example.operator}=${example.values
-                .map(formatScalar)
+                .map((value) => formatValue(value, example.fieldFilterType))
                 .join(',')}`;
         }
     }
 };
 
-export const FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE =
+export const FILTER_EXPRESSION_STRING_VALUES_EXAMPLE =
     formatFilterExpressionExample({
         fieldId: 'orders_product_name',
         fieldType: DimensionType.STRING,
         fieldFilterType: FilterType.STRING,
         operator: FilterOperator.EQUALS,
-        values: ['Coffee Filters (100pk)'],
+        values: ['Coffee Filters (100pk)', 'Paper Cups'],
     });
 
 const expandFiniteExamplePermutations = (

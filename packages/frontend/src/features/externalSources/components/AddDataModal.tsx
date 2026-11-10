@@ -2,17 +2,11 @@ import {
     ExternalSourceStatus,
     parseGoogleSheetsSpreadsheetId,
     snakeCaseName,
+    type ExternalSource,
+    type ExternalSourceTable,
     type StagedExternalSourceUpload,
 } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    Loader,
-    Stack,
-    Table,
-    Text,
-    TextInput,
-} from '@mantine/core';
+import { Button, Group, Loader, Stack, Text, TextInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
     IconBrandGoogleDrive,
@@ -31,15 +25,23 @@ import {
     useCreateSheetsSource,
     useExternalSource,
     useInvalidateTables,
+    useRenameExternalSource,
     useUploadCsv,
 } from '../hooks/useExternalSources';
+import {
+    hasCustomColumnLabels,
+    initialColumnLabels,
+} from '../utils/columnLabels';
+import { ColumnNamesTable } from './ColumnNamesTable';
 import { CsvDropzone } from './CsvDropzone';
+
+type ColumnLabels = Record<string, string>;
 
 type SchemaPreviewStepProps = {
     projectUuid: string;
     stage: StagedExternalSourceUpload;
     onBack: () => void;
-    onCommitted: (sourceUuid: string) => void;
+    onCommitted: (sourceUuid: string, columnLabels: ColumnLabels) => void;
 };
 
 const SchemaPreviewStep: FC<SchemaPreviewStepProps> = ({
@@ -50,7 +52,10 @@ const SchemaPreviewStep: FC<SchemaPreviewStepProps> = ({
 }) => {
     const commitMutation = useCommitCsvUpload(projectUuid);
     const form = useForm({
-        initialValues: { tableName: '' },
+        initialValues: {
+            tableName: '',
+            columnLabels: initialColumnLabels(stage.inferredColumns),
+        },
         validate: {
             tableName: (value) =>
                 value.trim().length === 0 ? 'Give the table a name' : null,
@@ -66,7 +71,8 @@ const SchemaPreviewStep: FC<SchemaPreviewStepProps> = ({
                 payload: { tableName: values.tableName.trim() },
             },
             {
-                onSuccess: (source) => onCommitted(source.sourceUuid),
+                onSuccess: (source) =>
+                    onCommitted(source.sourceUuid, values.columnLabels),
             },
         );
     });
@@ -92,27 +98,12 @@ const SchemaPreviewStep: FC<SchemaPreviewStepProps> = ({
                     }
                 />
                 <Stack gap="xs">
-                    <Text fz="sm" fw={500}>
-                        Columns · {columns.length}
-                    </Text>
-                    <Table verticalSpacing={6} horizontalSpacing="sm">
-                        <Table.Tbody>
-                            {columns.map((column) => (
-                                <Table.Tr key={column.reference}>
-                                    <Table.Td>
-                                        <Text fz="xs" fw={500}>
-                                            {column.reference}
-                                        </Text>
-                                    </Table.Td>
-                                    <Table.Td w={110}>
-                                        <Text fz="xs" c="dimmed">
-                                            {column.type}
-                                        </Text>
-                                    </Table.Td>
-                                </Table.Tr>
-                            ))}
-                        </Table.Tbody>
-                    </Table>
+                    <ColumnNamesTable
+                        columns={columns}
+                        getInputProps={(reference) =>
+                            form.getInputProps(`columnLabels.${reference}`)
+                        }
+                    />
                     <Text fz="xs" c="dimmed">
                         Row count, plus sum and average metrics for numeric
                         columns, are added automatically.
@@ -250,7 +241,7 @@ const SheetsStep: FC<SheetsStepProps> = ({
 type PreparingStepProps = {
     projectUuid: string;
     sourceUuid: string;
-    onReady: (exploreName: string) => void;
+    onReady: (source: ExternalSource, table: ExternalSourceTable) => void;
     onRetry: () => void;
 };
 
@@ -271,7 +262,7 @@ const PreparingStep: FC<PreparingStepProps> = ({
         if (settledRef.current) return;
         if (source?.status === ExternalSourceStatus.READY && source.tables[0]) {
             settledRef.current = true;
-            onReady(source.tables[0].name);
+            onReady(source, source.tables[0]);
         }
     }, [source, onReady]);
 
@@ -304,6 +295,85 @@ const PreparingStep: FC<PreparingStepProps> = ({
     );
 };
 
+type ReviewColumnsStepProps = {
+    projectUuid: string;
+    sourceUuid: string;
+    table: ExternalSourceTable;
+    onDone: () => void;
+};
+
+const ReviewColumnsStep: FC<ReviewColumnsStepProps> = ({
+    projectUuid,
+    sourceUuid,
+    table,
+    onDone,
+}) => {
+    const renameMutation = useRenameExternalSource(projectUuid, {
+        showSuccessToast: false,
+    });
+    const columns = table.columns ? Object.values(table.columns) : [];
+    const form = useForm({
+        initialValues: {
+            label: table.label,
+            columnLabels: table.columns
+                ? initialColumnLabels(table.columns)
+                : {},
+        },
+        validate: {
+            label: (value) =>
+                value.trim().length === 0 ? 'Give the table a name' : null,
+        },
+    });
+
+    const handleSubmit = form.onSubmit((values) => {
+        if (!form.isDirty()) {
+            onDone();
+            return;
+        }
+        renameMutation.mutate(
+            {
+                sourceUuid,
+                payload: {
+                    label: values.label.trim(),
+                    columnLabels: values.columnLabels,
+                },
+            },
+            { onSuccess: onDone },
+        );
+    });
+
+    return (
+        <form id="external-source-review-form" onSubmit={handleSubmit}>
+            <Stack gap="md">
+                <Text fz="sm" c="dimmed">
+                    Imported {table.rowCount ?? 0} rows. Rename anything that
+                    reads oddly before you start.
+                </Text>
+                <TextInput
+                    label="Table name"
+                    data-autofocus
+                    {...form.getInputProps('label')}
+                />
+                <ColumnNamesTable
+                    columns={columns}
+                    getInputProps={(reference) =>
+                        form.getInputProps(`columnLabels.${reference}`)
+                    }
+                />
+                <Group justify="flex-end">
+                    <Button
+                        type="submit"
+                        form="external-source-review-form"
+                        loading={renameMutation.isLoading}
+                    >
+                        Open table
+                    </Button>
+                </Group>
+            </Stack>
+        </form>
+    );
+};
+
 type AddDataModalProps = {
     projectUuid: string;
     opened: boolean;
@@ -321,26 +391,74 @@ export const AddDataModal: FC<AddDataModalProps> = ({
     const navigate = useNavigate();
     const { showToastSuccess } = useToaster();
     const uploadMutation = useUploadCsv(projectUuid);
+    const renameMutation = useRenameExternalSource(projectUuid, {
+        showSuccessToast: false,
+    });
     const [committedSourceUuid, setCommittedSourceUuid] = useState<string>();
+    const [csvColumnLabels, setCsvColumnLabels] = useState<ColumnLabels>();
+    const [reviewTable, setReviewTable] = useState<ExternalSourceTable>();
     const [mode, setMode] = useState<'csv' | 'sheets'>('csv');
     const invalidateTables = useInvalidateTables();
 
     const handleClose = () => {
         uploadMutation.reset();
         setCommittedSourceUuid(undefined);
+        setCsvColumnLabels(undefined);
+        setReviewTable(undefined);
         setMode('csv');
         onClose();
     };
 
+    const finish = (exploreName: string) => {
+        void invalidateTables(projectUuid);
+        showToastSuccess({
+            title: 'Table created',
+            subtitle: 'Pick fields to build your first chart.',
+        });
+        handleClose();
+        if (onCreated) {
+            onCreated(exploreName);
+        } else {
+            void navigate(`/projects/${projectUuid}/tables/${exploreName}`);
+        }
+    };
+
+    const handleReady = (
+        source: ExternalSource,
+        table: ExternalSourceTable,
+    ) => {
+        if (!csvColumnLabels) {
+            setReviewTable(table);
+            return;
+        }
+        if (!hasCustomColumnLabels(csvColumnLabels)) {
+            finish(table.name);
+            return;
+        }
+        // The staged CSV schema has the same column references as the ingest
+        renameMutation.mutate(
+            {
+                sourceUuid: source.sourceUuid,
+                payload: { label: table.label, columnLabels: csvColumnLabels },
+            },
+            { onSettled: () => finish(table.name) },
+        );
+    };
+
     const stage = uploadMutation.data;
     const isSheetsMode = mode === 'sheets' && !stage && !committedSourceUuid;
+    const sheetsTitle = reviewTable
+        ? 'Review your table'
+        : 'Connect a Google Sheet';
 
     return (
         <MantineModal
             opened={opened}
             onClose={handleClose}
-            title={isSheetsMode ? 'Connect a Google Sheet' : 'Upload a CSV'}
-            icon={isSheetsMode ? IconBrandGoogleDrive : IconFileSpreadsheet}
+            title={mode === 'sheets' ? sheetsTitle : 'Upload a CSV'}
+            icon={
+                mode === 'sheets' ? IconBrandGoogleDrive : IconFileSpreadsheet
+            }
             size="lg"
         >
             <Stack gap="md">
@@ -371,10 +489,7 @@ export const AddDataModal: FC<AddDataModalProps> = ({
                     <SheetsStep
                         projectUuid={projectUuid}
                         onBack={() => setMode('csv')}
-                        onCreated={(sourceUuid) => {
-                            setCommittedSourceUuid(sourceUuid);
-                            setMode('csv');
-                        }}
+                        onCreated={setCommittedSourceUuid}
                     />
                 )}
                 {stage && !committedSourceUuid && (
@@ -383,36 +498,31 @@ export const AddDataModal: FC<AddDataModalProps> = ({
                         projectUuid={projectUuid}
                         stage={stage}
                         onBack={() => uploadMutation.reset()}
-                        onCommitted={(sourceUuid) => {
+                        onCommitted={(sourceUuid, columnLabels) => {
                             setCommittedSourceUuid(sourceUuid);
+                            setCsvColumnLabels(columnLabels);
                             uploadMutation.reset();
                         }}
                     />
                 )}
-                {committedSourceUuid && (
+                {committedSourceUuid && !reviewTable && (
                     <PreparingStep
                         projectUuid={projectUuid}
                         sourceUuid={committedSourceUuid}
-                        onReady={(exploreName) => {
-                            void invalidateTables(projectUuid);
-                            showToastSuccess({
-                                title: 'Table created',
-                                subtitle:
-                                    'Pick fields to build your first chart.',
-                            });
-                            handleClose();
-                            if (onCreated) {
-                                onCreated(exploreName);
-                            } else {
-                                void navigate(
-                                    `/projects/${projectUuid}/tables/${exploreName}`,
-                                );
-                            }
-                        }}
+                        onReady={handleReady}
                         onRetry={() => {
                             setCommittedSourceUuid(undefined);
+                            setCsvColumnLabels(undefined);
                             uploadMutation.reset();
                         }}
+                    />
+                )}
+                {committedSourceUuid && reviewTable && (
+                    <ReviewColumnsStep
+                        projectUuid={projectUuid}
+                        sourceUuid={committedSourceUuid}
+                        table={reviewTable}
+                        onDone={() => finish(reviewTable.name)}
                     />
                 )}
             </Stack>

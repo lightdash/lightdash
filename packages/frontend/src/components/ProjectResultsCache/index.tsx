@@ -1,7 +1,5 @@
-import {
-    MAX_RESULTS_CACHE_TTL_SECONDS,
-    MIN_RESULTS_CACHE_TTL_SECONDS,
-} from '@lightdash/common';
+import { subject } from '@casl/ability';
+import { type ResultsCacheStatsDays } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -12,135 +10,126 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { useForm } from '@mantine/form';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import {
+    useInvalidateResultsCache,
     useResultsCacheSettings,
     useUpdateResultsCacheSettings,
 } from '../../hooks/useProjectResultsCacheSettings';
-import { NumberInput } from '../common/NumberInput';
-import { SettingsGridCard } from '../common/Settings/SettingsCard';
+import useApp from '../../providers/App/useApp';
+import MantineModal from '../common/MantineModal';
+import { SettingsCard } from '../common/Settings/SettingsCard';
+import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
+import { formatCacheEventTime } from './formatCacheEventTime';
+import { ResultsCacheDurationCard } from './ResultsCacheDurationCard';
+import { ResultsCacheStatsCard } from './ResultsCacheStatsCard';
 
-const MIN_TTL_MINUTES = MIN_RESULTS_CACHE_TTL_SECONDS / 60;
-const MAX_TTL_MINUTES = MAX_RESULTS_CACHE_TTL_SECONDS / 60;
-
-const MINUTES_PER_HOUR = 60;
-const MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR;
-
-const plural = (value: number, unit: string) =>
-    `${value} ${unit}${value === 1 ? '' : 's'}`;
-
-const formatDuration = (minutes: number): string => {
-    if (minutes >= 2 * MINUTES_PER_DAY && minutes % MINUTES_PER_DAY === 0) {
-        return plural(minutes / MINUTES_PER_DAY, 'day');
-    }
-    if (minutes > MINUTES_PER_HOUR) {
-        const hours = minutes / MINUTES_PER_HOUR;
-        return plural(
-            Number.isInteger(hours) ? hours : Number(hours.toFixed(1)),
-            'hour',
-        );
-    }
-    return plural(minutes, 'minute');
-};
-
-const formatDurationHint = (minutes: number | ''): string | null =>
-    typeof minutes === 'number' && minutes > MINUTES_PER_HOUR
-        ? `= ${formatDuration(minutes)}`
-        : null;
-
-type FormValues = {
-    useInstanceDefault: boolean;
-    ttlMinutes: number | '';
-};
-
-type FormProps = {
+type ClearCacheProps = {
     projectUuid: string;
-    initialTtlSeconds: number | null;
-    instanceDefaultSeconds: number;
+    lastInvalidatedAt: Date | null;
+    schedulerTimezone: string;
 };
 
-const ProjectResultsCacheForm: FC<FormProps> = ({
+const ClearResultsCache: FC<ClearCacheProps> = ({
     projectUuid,
-    initialTtlSeconds,
-    instanceDefaultSeconds,
+    lastInvalidatedAt,
+    schedulerTimezone,
 }) => {
-    const { mutate: updateSettings, isLoading: isUpdating } =
-        useUpdateResultsCacheSettings(projectUuid);
-    const instanceDefaultMinutes = Math.round(instanceDefaultSeconds / 60);
-
-    const form = useForm<FormValues>({
-        initialValues: {
-            useInstanceDefault: initialTtlSeconds === null,
-            ttlMinutes:
-                initialTtlSeconds === null
-                    ? instanceDefaultMinutes
-                    : Math.round(initialTtlSeconds / 60),
-        },
-        validate: {
-            ttlMinutes: (value, values) => {
-                if (values.useInstanceDefault) return null;
-                if (
-                    typeof value !== 'number' ||
-                    !Number.isInteger(value) ||
-                    value < MIN_TTL_MINUTES ||
-                    value > MAX_TTL_MINUTES
-                ) {
-                    return `Enter a whole number of minutes between ${MIN_TTL_MINUTES} and ${MAX_TTL_MINUTES} (30 days)`;
-                }
-                return null;
-            },
-        },
-    });
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+    const { mutate: invalidateCache, isLoading } =
+        useInvalidateResultsCache(projectUuid);
 
     return (
-        <form
-            onSubmit={form.onSubmit(({ useInstanceDefault, ttlMinutes }) => {
-                if (useInstanceDefault) {
-                    updateSettings({ cacheTtlSeconds: null });
-                } else if (typeof ttlMinutes === 'number') {
-                    updateSettings({ cacheTtlSeconds: ttlMinutes * 60 });
+        <SettingsCard>
+            <Group justify="space-between" wrap="nowrap">
+                <Text fz="sm">
+                    {lastInvalidatedAt
+                        ? `Last cleared: ${formatCacheEventTime(
+                              lastInvalidatedAt,
+                              schedulerTimezone,
+                          )}`
+                        : 'Never cleared'}
+                </Text>
+                <Button
+                    variant="default"
+                    loading={isLoading}
+                    onClick={() => setIsConfirmOpen(true)}
+                >
+                    Clear cache now
+                </Button>
+            </Group>
+            <MantineModal
+                opened={isConfirmOpen}
+                onClose={() => setIsConfirmOpen(false)}
+                title="Clear cached results?"
+                role="alertdialog"
+                description="Cached results in this project stop being reused. The next load of each chart and dashboard runs its query against the warehouse, so it can take longer."
+                confirmLabel="Clear cache"
+                confirmLoading={isLoading}
+                onConfirm={() =>
+                    invalidateCache(undefined, {
+                        onSettled: () => setIsConfirmOpen(false),
+                    })
                 }
-            })}
-        >
-            <Stack gap="md">
-                <Switch
-                    label="Use the default cache duration"
-                    description={`Cached results expire after ${formatDuration(
-                        instanceDefaultMinutes,
-                    )}.`}
-                    disabled={isUpdating}
-                    {...form.getInputProps('useInstanceDefault', {
-                        type: 'checkbox',
-                    })}
-                />
+            />
+        </SettingsCard>
+    );
+};
 
-                <NumberInput
-                    label="Cache duration (minutes)"
-                    min={MIN_TTL_MINUTES}
-                    max={MAX_TTL_MINUTES}
-                    step={1}
-                    rightSectionWidth={90}
-                    rightSection={
-                        <Text c="dimmed" fz="xs">
-                            {formatDurationHint(form.values.ttlMinutes)}
+type EnableCacheProps = {
+    projectUuid: string;
+    cacheEnabled: boolean;
+    cacheEnabledSetByInstance: boolean;
+    canToggle: boolean;
+};
+
+const getToggleLockReason = (
+    cacheEnabledSetByInstance: boolean,
+    canToggle: boolean,
+): string | null => {
+    if (cacheEnabledSetByInstance) {
+        return 'Set by your instance admin. Contact them to change it.';
+    }
+    if (!canToggle) return 'Only project admins can change this.';
+    return null;
+};
+
+const EnableResultsCache: FC<EnableCacheProps> = ({
+    projectUuid,
+    cacheEnabled,
+    cacheEnabledSetByInstance,
+    canToggle,
+}) => {
+    const { mutate: updateSettings, isLoading } =
+        useUpdateResultsCacheSettings(projectUuid);
+    const lockReason = getToggleLockReason(
+        cacheEnabledSetByInstance,
+        canToggle,
+    );
+
+    return (
+        <SettingsCard>
+            <Group justify="space-between" wrap="nowrap">
+                <Box>
+                    <Title order={5}>Enable results caching</Title>
+                    {lockReason && (
+                        <Text c="dimmed" fz="xs" mt="xs">
+                            {lockReason}
                         </Text>
+                    )}
+                </Box>
+                <Switch
+                    aria-label="Enable results caching"
+                    checked={cacheEnabled}
+                    disabled={isLoading || lockReason !== null}
+                    onChange={(event) =>
+                        updateSettings({
+                            cacheEnabled: event.currentTarget.checked,
+                        })
                     }
-                    disabled={isUpdating || form.values.useInstanceDefault}
-                    {...form.getInputProps('ttlMinutes')}
                 />
-
-                <Group justify="flex-end">
-                    <Button
-                        type="submit"
-                        loading={isUpdating}
-                        disabled={isUpdating || !form.isValid()}
-                    >
-                        Save
-                    </Button>
-                </Group>
-            </Stack>
-        </form>
+            </Group>
+        </SettingsCard>
     );
 };
 
@@ -149,27 +138,72 @@ type Props = {
 };
 
 const ProjectResultsCache: FC<Props> = ({ projectUuid }) => {
-    const { data: settings, isLoading } = useResultsCacheSettings(projectUuid);
+    const [days, setDays] = useState<ResultsCacheStatsDays>(7);
+    const {
+        data: settings,
+        isLoading,
+        isError,
+    } = useResultsCacheSettings(projectUuid);
+    const { user } = useApp();
+    const canManage =
+        user.data?.ability.can(
+            'manage',
+            subject('Project', {
+                organizationUuid: user.data.organizationUuid,
+                projectUuid,
+            }),
+        ) ?? false;
+
+    if (isError) {
+        return (
+            <SuboptimalState title="Couldn't load results caching settings" />
+        );
+    }
+    if (isLoading || !settings) {
+        return <Loader size="sm" />;
+    }
+
+    const showSchedule =
+        canManage &&
+        (settings.cacheEnabled || settings.clearSchedule?.enabled === true);
 
     return (
-        <SettingsGridCard>
-            <Box>
-                <Title order={5}>Cache duration</Title>
-                <Text c="dimmed" fz="xs">
-                    How long cached results are kept before Lightdash queries
-                    the warehouse again.
-                </Text>
-            </Box>
-            {isLoading || !settings ? (
-                <Loader size="sm" />
-            ) : (
-                <ProjectResultsCacheForm
+        <Stack gap="lg">
+            <EnableResultsCache
+                projectUuid={projectUuid}
+                cacheEnabled={settings.cacheEnabled}
+                cacheEnabledSetByInstance={settings.cacheEnabledSetByInstance}
+                canToggle={canManage}
+            />
+            {canManage && (
+                <ResultsCacheStatsCard
                     projectUuid={projectUuid}
-                    initialTtlSeconds={settings.cacheTtlSeconds}
-                    instanceDefaultSeconds={settings.instanceDefaultTtlSeconds}
+                    cacheEnabled={settings.cacheEnabled}
+                    days={days}
+                    onDaysChange={setDays}
                 />
             )}
-        </SettingsGridCard>
+            {(settings.cacheEnabled || showSchedule) && (
+                <ResultsCacheDurationCard
+                    projectUuid={projectUuid}
+                    days={days}
+                    initialTtlSeconds={settings.cacheTtlSeconds}
+                    instanceDefaultSeconds={settings.instanceDefaultTtlSeconds}
+                    clearSchedule={settings.clearSchedule}
+                    schedulerTimezone={settings.schedulerTimezone}
+                    showDuration={settings.cacheEnabled}
+                    showProjections={settings.cacheEnabled && canManage}
+                    showSchedule={showSchedule}
+                />
+            )}
+            {settings.cacheEnabled && canManage && (
+                <ClearResultsCache
+                    projectUuid={projectUuid}
+                    lastInvalidatedAt={settings.lastInvalidatedAt}
+                    schedulerTimezone={settings.schedulerTimezone}
+                />
+            )}
+        </Stack>
     );
 };
 

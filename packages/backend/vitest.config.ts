@@ -4,7 +4,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
     test: {
         name: 'backend-unit-tests',
-        include: ['src/**/*.test.ts'],
+        include: ['src/**/*.test.ts', 'eslint-rules/**/*.test.ts'],
         exclude: [
             '**/node_modules/**',
             '**/dist/**',

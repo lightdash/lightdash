@@ -8,6 +8,10 @@ import {
 } from '@lightdash/common';
 import execa from 'execa';
 import inquirer from 'inquirer';
+import {
+    getAgentConnectionChildEnvironment,
+    getAgentConnectionSelection,
+} from '../../credentials';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
 
@@ -26,10 +30,17 @@ const getDbtCLIVersion = async () => {
         return knownVersion;
     }
     try {
-        const { all } = await execa('dbt', ['--version'], {
-            all: true,
-            stdio: ['pipe', 'pipe', 'pipe'],
-        });
+        const { all } = await (getAgentConnectionSelection() !== null
+            ? execa('dbt', ['--version'], {
+                  all: true,
+                  stdio: ['pipe', 'pipe', 'pipe'],
+                  extendEnv: false,
+                  env: await getAgentConnectionChildEnvironment({}),
+              })
+            : execa('dbt', ['--version'], {
+                  all: true,
+                  stdio: ['pipe', 'pipe', 'pipe'],
+              }));
         const logs = all || '';
         const cloudVersion = logs.match(DBT_CLOUD_CLI_REGEX);
         if (cloudVersion) {

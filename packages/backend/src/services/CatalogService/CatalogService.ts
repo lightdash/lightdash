@@ -56,8 +56,9 @@ import {
     type MetricsTreeWithDetails,
     type PrevMetricsTreeNode,
 } from '@lightdash/common';
-import { uniqBy } from 'lodash';
+import { uniqBy } from 'es-toolkit/compat';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { fromSession } from '../../auth/account/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import type {
     DbCatalogTagsMigrateIn,
@@ -73,7 +74,7 @@ import {
 import { measureTime } from '../../logging/measureTime';
 import {
     CatalogModel,
-    type CatalogSearchContext,
+    CatalogSearchContext,
 } from '../../models/CatalogModel/CatalogModel';
 import { parseFieldsFromCompiledTable } from '../../models/CatalogModel/utils/parser';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -82,8 +83,16 @@ import { SpaceModel } from '../../models/SpaceModel';
 import type { TagsModel } from '../../models/TagsModel';
 import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { wrapSentryTransaction } from '../../utils';
+import {
+    redactCatalogMetricSql,
+    redactFieldSql,
+} from '../../utils/embedCompiledSql';
 import { BaseService } from '../BaseService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import {
+    auditAndFilterExplore,
+    auditExploreAttributeAccess,
+} from '../UserAttributesService/userAttributeAudit';
 import {
     checkUserAttributesAccess,
     doesExploreMatchRequiredAttributes,
@@ -453,6 +462,29 @@ export class CatalogService<
         );
 
         return filteredExplores;
+    }
+
+    async getIndexCatalogMetadata(projectUuid: string) {
+        const [
+            prevCatalogItemsWithTags,
+            prevCatalogItemsWithIcons,
+            prevMetricTreeEdges,
+            prevMetricsTreeNodes,
+        ] = await Promise.all([
+            this.catalogModel.getCatalogItemsWithTags(projectUuid, {
+                onlyTagged: true,
+                includeYamlTags: false,
+            }),
+            this.catalogModel.getCatalogItemsWithIcons(projectUuid),
+            this.catalogModel.getAllMetricsTreeEdges(projectUuid),
+            this.catalogModel.getAllMetricsTreeNodes(projectUuid),
+        ]);
+        return {
+            prevCatalogItemsWithTags,
+            prevCatalogItemsWithIcons,
+            prevMetricTreeEdges,
+            prevMetricsTreeNodes,
+        };
     }
 
     async indexCatalog(projectUuid: string, userUuid: string | undefined) {
@@ -850,11 +882,12 @@ export class CatalogService<
             });
 
         if (
-            !doesExploreMatchRequiredAttributes(
-                explore.tables[explore.baseTable].requiredAttributes,
-                explore.tables[explore.baseTable].anyAttributes,
+            !auditExploreAttributeAccess({
+                account: fromSession(user),
+                projectUuid,
+                explore,
                 userAttributes,
-            )
+            })
         ) {
             throw new ForbiddenError(
                 `You don't have access to the explore ${explore.name}`,
@@ -1278,10 +1311,12 @@ export class CatalogService<
                     return [tableName, undefined];
                 }
 
-                const filteredExplore = getFilteredExplore(
+                const filteredExplore = auditAndFilterExplore({
+                    account: user,
+                    projectUuid,
                     explore,
-                    userAttributesForOrgMember,
-                );
+                    userAttributes: userAttributesForOrgMember,
+                });
                 return [tableName, filteredExplore];
             }),
         );
@@ -1379,7 +1414,9 @@ export class CatalogService<
             );
         }
 
-        return metrics[0];
+        return this.cannotViewEmbedCompiledSql(user, projectUuid)
+            ? redactCatalogMetricSql(metrics[0])
+            : metrics[0];
     }
 
     /** @deprecated Only used by deprecated metrics tree endpoints; use getMetricsTreeDetails instead. */
@@ -1576,7 +1613,10 @@ export class CatalogService<
             addDefaultTimeDimension: false,
         });
 
-        return getAvailableCompareMetrics(allMetrics);
+        const compareMetrics = getAvailableCompareMetrics(allMetrics);
+        return this.cannotViewEmbedCompiledSql(user, projectUuid)
+            ? compareMetrics.map(redactCatalogMetricSql)
+            : compareMetrics;
     }
 
     async getPaginatedMetricsWithTimeDimensions(
@@ -1707,7 +1747,10 @@ export class CatalogService<
             .filter((d): d is CompiledDimension => d !== undefined);
 
         // Return type-valid dimensions only - frontend applies spotlight filtering with metric allowlist
-        return getTypeValidFilterDimensions(allDimensions);
+        const dimensions = getTypeValidFilterDimensions(allDimensions);
+        return this.cannotViewEmbedCompiledSql(user, projectUuid)
+            ? dimensions.map(redactFieldSql)
+            : dimensions;
     }
 
     async getSegmentDimensions(
@@ -1762,7 +1805,10 @@ export class CatalogService<
             .filter((d): d is CompiledDimension => d !== undefined);
 
         // Return type-valid dimensions only - frontend applies spotlight filtering with metric allowlist
-        return getTypeValidSegmentDimensions(allDimensions);
+        const dimensions = getTypeValidSegmentDimensions(allDimensions);
+        return this.cannotViewEmbedCompiledSql(user, projectUuid)
+            ? dimensions.map(redactFieldSql)
+            : dimensions;
     }
 
     /** @deprecated Only used by the deprecated delete-edge endpoint; use updateMetricsTree instead. */
@@ -1853,6 +1899,43 @@ export class CatalogService<
         this.assertJwtCanViewCatalog(user, organizationUuid, projectUuid);
 
         return this.catalogModel.getDistinctOwners(projectUuid);
+    }
+
+    async getMetricTables(
+        user: Account,
+        projectUuid: string,
+    ): Promise<string[]> {
+        const { organizationUuid, name: projectName } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const userAttributes = await this.getUserAttributesForAccount(
+            user,
+            organizationUuid,
+            projectUuid,
+        );
+        const tablesConfiguration =
+            await this.projectModel.getTablesConfiguration(projectUuid);
+
+        return this.catalogModel.getMetricTableNames({
+            projectUuid,
+            userAttributes,
+            tablesConfiguration,
+            context: CatalogSearchContext.SPOTLIGHT,
+        });
     }
 
     // --- Saved Metrics Trees ---

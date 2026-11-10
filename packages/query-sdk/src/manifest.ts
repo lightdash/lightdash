@@ -1,3 +1,4 @@
+import { documentNavigationId } from './documentNavigationId';
 import {
     SDK_FEATURE_KEYS,
     SDK_FIX_KEYS,
@@ -24,6 +25,7 @@ export function announceSdkManifest(targetWindow: Window): () => void {
         sdkVersion: SDK_VERSION,
         features: SDK_FEATURE_KEYS,
         fixes: SDK_FIX_KEYS,
+        ...(documentNavigationId ? { navigationId: documentNavigationId } : {}),
     };
     // Wildcard on purpose — do NOT "fix" this to an origin. Cloud serves
     // bundles from {customer}.lightdash.app while the host page runs on

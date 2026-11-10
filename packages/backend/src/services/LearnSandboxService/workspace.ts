@@ -23,8 +23,26 @@ export const loadLearnBundle = (): Promise<LearnBundle> => {
 };
 
 const EDITABLE = /^models\/(?:[^/\0]+\/)*[^/\0]+\.yml$/;
+// What `lightdash download` writes under the project's `lightdash/` folder:
+// one file per chart, dashboard or space, never deeper. The CLI's
+// `.lightdash-metadata.json` state file is not content and is not kept.
+const DOWNLOADED_CONTENT =
+    /^lightdash\/(?:charts\/[^/\0]+\.yml|dashboards\/[^/\0]+\.yml|spaces\/[^/\0]+\.space\.yml)$/;
+const hasNoParentSegment = (p: string): boolean => !p.split('/').includes('..');
+
+/** A path `lightdash download` writes that the learner may edit and upload. */
+export const isDownloadedContentPath = (p: string): boolean =>
+    DOWNLOADED_CONTENT.test(p) && hasNoParentSegment(p);
+
 export const isEditablePath = (p: string): boolean =>
-    EDITABLE.test(p) && !p.split('/').includes('..');
+    (EDITABLE.test(p) || DOWNLOADED_CONTENT.test(p)) && hasNoParentSegment(p);
+
+/** The folders `lightdash download` writes content into, under the project. */
+export const DOWNLOADED_CONTENT_FOLDERS = [
+    'lightdash/charts',
+    'lightdash/dashboards',
+    'lightdash/spaces',
+] as const;
 
 /** The rule the workspace page applies before asking; see common. */
 export const validateYaml = validateLearnWorkspaceYaml;

@@ -1,13 +1,13 @@
 import { useEffect, useRef } from 'react';
-import { useAppDispatch, useAppSelector } from '../store/hooks';
+import { useAppSelector } from '../store/hooks';
 import {
-    EditorTabs,
     selectFetchResultsOnLoad,
     selectIsConnectionReady,
     selectSql,
-    setActiveEditorTab,
 } from '../store/sqlRunnerSlice';
 
+// Runs the SQL once on load when asked to (saved chart edits, share links).
+// Which tab opens is decided by whoever set fetchResultsOnLoad, never here.
 export const useRunQueryOnLoad = ({
     runQuery,
     hasQueryResults,
@@ -15,33 +15,16 @@ export const useRunQueryOnLoad = ({
     runQuery: (sql: string) => Promise<void>;
     hasQueryResults: boolean;
 }) => {
-    const dispatch = useAppDispatch();
     const fetchResultsOnLoad = useAppSelector(selectFetchResultsOnLoad);
     const sql = useAppSelector(selectSql);
-    const mode = useAppSelector((state) => state.sqlRunner.mode);
     const isConnectionReady = useAppSelector(selectIsConnectionReady);
     const hasRunOnLoad = useRef(false);
 
     useEffect(() => {
         if (!isConnectionReady) return;
-        if (fetchResultsOnLoad && !hasQueryResults) {
-            if (hasRunOnLoad.current || !sql) return;
-            hasRunOnLoad.current = true;
-            void runQuery(sql);
-        } else if (
-            fetchResultsOnLoad &&
-            hasQueryResults &&
-            mode === 'default'
-        ) {
-            dispatch(setActiveEditorTab(EditorTabs.VISUALIZATION));
-        }
-    }, [
-        isConnectionReady,
-        fetchResultsOnLoad,
-        runQuery,
-        hasQueryResults,
-        dispatch,
-        sql,
-        mode,
-    ]);
+        if (!fetchResultsOnLoad || hasQueryResults) return;
+        if (hasRunOnLoad.current || !sql) return;
+        hasRunOnLoad.current = true;
+        void runQuery(sql);
+    }, [isConnectionReady, fetchResultsOnLoad, runQuery, hasQueryResults, sql]);
 };

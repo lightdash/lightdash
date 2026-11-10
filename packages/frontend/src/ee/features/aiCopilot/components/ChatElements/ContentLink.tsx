@@ -12,8 +12,9 @@ import {
 import { type FC, type MouseEvent, type ReactNode } from 'react';
 import { Link, createPath, useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useEmbedAiAgentDashboardOpener } from '../../hooks/useEmbedAiAgentDashboardOpener';
+import { useIsAiAgentNavigationDisabled } from '../../hooks/useIsAiAgentNavigationDisabled';
 import { selectPreview, setPreview } from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
@@ -21,6 +22,7 @@ import {
 } from '../../store/hooks';
 import styles from './ContentLink.module.css';
 import { ContentReferenceLink } from './ContentReferenceLink';
+import { NodeCitationLink } from './NodeCitationLink';
 import { type ContentType } from './rehypeContentLinks';
 import {
     isPlainLeftClick,
@@ -59,8 +61,9 @@ export const ContentLink: FC<ContentLinkProps> = ({
     const currentPreview = useAiAgentStoreSelector(selectPreview);
     // Inside an embedded agent the full app is unreachable: dashboards open
     // on the embed route, charts in the side panel, everything else is static.
-    const isEmbed = isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
     const openEmbedDashboard = useEmbedAiAgentDashboardOpener(projectUuid);
+    const navigationDisabled = useIsAiAgentNavigationDisabled();
     const resourceHref = typeof props.href === 'string' ? props.href : '';
     const title = typeof props.title === 'string' ? props.title : undefined;
     const dataAppUuid =
@@ -144,6 +147,17 @@ export const ContentLink: FC<ContentLinkProps> = ({
                 typeof props['data-dashboard-uuid'] === 'string'
                     ? props['data-dashboard-uuid']
                     : undefined;
+            if (navigationDisabled) {
+                return (
+                    <ContentReferenceLink
+                        kind="dashboard"
+                        showArrow={false}
+                        title={title}
+                    >
+                        {children}
+                    </ContentReferenceLink>
+                );
+            }
             if (openEmbedDashboard) {
                 const anchorId = `assistant-${message.uuid}-dashboard-${dashboardUuid}`;
                 return (
@@ -254,6 +268,19 @@ export const ContentLink: FC<ContentLinkProps> = ({
                 );
             };
 
+            if (navigationDisabled) {
+                return (
+                    <ContentReferenceLink
+                        chartKind={chartTypeKind}
+                        kind="chart"
+                        showArrow={false}
+                        title={title}
+                    >
+                        {children}
+                    </ContentReferenceLink>
+                );
+            }
+
             // In an embed the chart opens in the side panel only.
             if (isEmbed) {
                 return (
@@ -320,7 +347,6 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     type="button"
                     fz="xs"
                     fw={500}
-                    c="ldGray.8"
                     td="none"
                     classNames={{
                         root: styles.contentLink,
@@ -417,6 +443,26 @@ export const ContentLink: FC<ContentLinkProps> = ({
                 >
                     {children}
                 </Button>
+            );
+        }
+
+        case 'node-citation': {
+            const nodeId = props['data-node-id'];
+            const figure = props['data-citation-figure'];
+            if (typeof nodeId !== 'string' || typeof figure !== 'string') {
+                return <>{children}</>;
+            }
+            return (
+                <NodeCitationLink
+                    nodeId={nodeId}
+                    figure={figure}
+                    nodeTitle={title ?? null}
+                    message={message}
+                    projectUuid={projectUuid}
+                    agentUuid={agentUuid}
+                >
+                    {children}
+                </NodeCitationLink>
             );
         }
 

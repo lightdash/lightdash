@@ -1,3 +1,4 @@
+import { type ApiSourceExplore } from './apiSourceExplore';
 import {
     type DbtModelJoinType,
     type FieldSetDefinition,
@@ -63,6 +64,7 @@ export enum ExploreType {
     DEFAULT = 'default',
     PRE_AGGREGATE = 'pre_aggregate',
     EXTERNAL_SOURCE = 'external_source',
+    API_SOURCE = 'api_source',
 }
 
 /**
@@ -72,6 +74,7 @@ export enum ExploreType {
 export const USER_MANAGED_EXPLORE_TYPES = [
     ExploreType.VIRTUAL,
     ExploreType.EXTERNAL_SOURCE,
+    ExploreType.API_SOURCE,
 ] as const;
 
 export const isUserManagedExplore = (explore: {
@@ -85,6 +88,7 @@ export const isUserManagedExplore = (explore: {
 export enum InlineErrorType {
     // Fatal error types (ExploreError - explore is broken)
     METADATA_PARSE_ERROR = 'METADATA_PARSE_ERROR',
+    EXPLORE_NAME_COLLISION = 'EXPLORE_NAME_COLLISION',
     NO_DIMENSIONS_FOUND = 'NO_DIMENSIONS_FOUND',
     // Warning types (Explore.warnings - explore still usable)
     SKIPPED_JOIN = 'SKIPPED_JOIN',
@@ -112,7 +116,18 @@ export type PreAggregateSource = {
 
 export type CustomMetaValue = string | number | boolean;
 
+export type DbtExploreIdentity = {
+    sourceUuid: string | null;
+    sourceName: string | null;
+    packageName: string;
+    uniqueId: string;
+    modelName: string;
+    version?: string | number | null;
+    latestVersion?: string | number | null;
+};
+
 export type Explore = {
+    dbtModelIdentity?: DbtExploreIdentity;
     name: string; // Must be sql friendly (a-Z, 0-9, _)
     label: string; // Friendly name
     tags: string[];
@@ -154,6 +169,8 @@ export type Explore = {
     preAggregateSource?: PreAggregateSource;
     /** Present ⇒ generated from an external source table (CSV upload, Google Sheet). */
     externalSource?: ExternalSourceRef;
+    /** Present ⇒ queried live through a live data source's API. */
+    apiSource?: ApiSourceExplore;
     /**
      * Non-fatal compilation or validation warnings (e.g. fields that failed to
      * compile, warehouse-rejected column references). The explore is still usable.
@@ -263,6 +280,14 @@ export const isSummaryExploreError = (
     'errors' in summary &&
     summary.errors !== null &&
     summary.errors !== undefined;
+
+// Compiled from a dbt or Lightdash YAML deploy, not a virtual/uploaded/pre-aggregate explore
+export const isSemanticLayerExplore = (summary: SummaryExplore): boolean =>
+    !isSummaryExploreError(summary) &&
+    (summary.type === undefined || summary.type === ExploreType.DEFAULT);
+
+export const hasSemanticLayerExplore = (summaries: SummaryExplore[]): boolean =>
+    summaries.some(isSemanticLayerExplore);
 
 export type Table = TableBase & {
     dimensions: { [fieldName: string]: Dimension }; // Field names must be unique across dims and metrics

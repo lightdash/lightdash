@@ -2,11 +2,19 @@ import { isApiError } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useState } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useAppThumbnailUpload } from './useAppThumbnail';
+import {
+    refreshAppThumbnailQueries,
+    useAppThumbnailUpload,
+} from './useAppThumbnail';
 
 type Args = {
-    /** Null until the surface knows which app it is showing (no-op then). */
-    app: { projectUuid: string; appUuid: string } | null;
+    /** Null until the surface knows which app it is showing (no-op then).
+     *  `version` is the one on screen; null = the latest ready version. */
+    app: {
+        projectUuid: string;
+        appUuid: string;
+        version: number | null;
+    } | null;
     /** Raw capture of the surface's live preview iframe. */
     capture: () => Promise<File>;
 };
@@ -18,7 +26,7 @@ const getErrorMessage = (err: unknown) =>
           ? err.message
           : 'Unknown error';
 
-/** Captures the live preview and saves it as the app thumbnail. */
+/** Captures the live preview and saves it as the thumbnail of the version on screen. */
 export const useCaptureThumbnail = ({ app, capture }: Args) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastError } = useToaster();
@@ -26,15 +34,18 @@ export const useCaptureThumbnail = ({ app, capture }: Args) => {
     const [isCapturing, setIsCapturing] = useState(false);
     const projectUuid = app?.projectUuid ?? null;
     const appUuid = app?.appUuid ?? null;
+    const version = app?.version ?? null;
 
     const captureThumbnail = useCallback(async () => {
         if (projectUuid === null || appUuid === null) return;
         setIsCapturing(true);
         try {
             const file = await capture();
-            await uploadThumbnail({ projectUuid, appUuid, file });
-            void queryClient.invalidateQueries({
-                queryKey: ['app-thumbnail', projectUuid, appUuid],
+            await uploadThumbnail({ projectUuid, appUuid, version, file });
+            void refreshAppThumbnailQueries(queryClient, {
+                projectUuid,
+                appUuid,
+                change: 'captured',
             });
             showToastSuccess({ title: 'Thumbnail updated' });
         } catch (err) {
@@ -48,6 +59,7 @@ export const useCaptureThumbnail = ({ app, capture }: Args) => {
     }, [
         projectUuid,
         appUuid,
+        version,
         capture,
         uploadThumbnail,
         queryClient,

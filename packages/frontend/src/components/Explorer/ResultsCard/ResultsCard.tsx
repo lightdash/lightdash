@@ -22,14 +22,22 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import {
+    NOT_ON_LIVE_SOURCES,
+    useIsRefusedOnLiveSource,
+} from '../../../features/externalConnections/liveSources/apiSourceExplore';
 import { useMergeSafe } from '../../../features/mergeQuery/context/useMerge';
 import { resolveMergeColumnOrder } from '../../../features/mergeQuery/utils/resolveMergeColumnOrder';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useAccount } from '../../../hooks/user/useAccount';
+import { useCanExportEmbeddedContent } from '../../../hooks/user/useCanExportEmbeddedContent';
 import { Can } from '../../../providers/Ability';
+import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import AddTableCalculationButton from '../../AddTableCalculationButton';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import {
@@ -44,6 +52,7 @@ import { ResultsViewMode } from './types';
 import { useGroupedResultsAvailability } from './useGroupedResultsAvailability';
 
 const ResultsCard: FC = memo(() => {
+    const lightdashApi = useLightdashApi();
     const projectUuid = useProjectUuid();
 
     // View mode state for switching between results and grouped results
@@ -55,6 +64,10 @@ const ResultsCard: FC = memo(() => {
     const resultsIsOpen = useExplorerSelector(selectIsResultsExpanded);
     const dispatch = useExplorerDispatch();
     const tableName = useExplorerSelector(selectTableName);
+    const isTableCalculationRefused = useIsRefusedOnLiveSource(
+        tableName,
+        'tableCalculations',
+    );
     const sorts = useExplorerSelector(selectSorts);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const parameters = useExplorerSelector(selectParameters);
@@ -99,10 +112,23 @@ const ResultsCard: FC = memo(() => {
         [toggleExpandedSection],
     );
     const { user } = useApp();
+    const ability = useAbilityContext();
+    const { data: account } = useAccount();
+    const isEmbedded = account?.isJwtUser() === true;
+    const canEmbedExportCsv = useCanExportEmbeddedContent('csv');
+    const canExportResultsCsv =
+        canEmbedExportCsv ||
+        ability.can(
+            'manage',
+            subject('ExportCsv', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        );
 
     const getGsheetLink = async () => {
         if (projectUuid) {
-            return uploadGsheet({
+            return uploadGsheet(lightdashApi, {
                 projectUuid,
                 exploreId: tableName,
                 metricQuery,
@@ -213,17 +239,19 @@ const ResultsCard: FC = memo(() => {
                                     projectUuid,
                                 })}
                             >
-                                {isEditMode && <AddTableCalculationButton />}
+                                {isEditMode && (
+                                    <AddTableCalculationButton
+                                        disabledReason={
+                                            isTableCalculationRefused
+                                                ? NOT_ON_LIVE_SOURCES
+                                                : undefined
+                                        }
+                                    />
+                                )}
                             </Can>
                         )}
 
-                        <Can
-                            I="manage"
-                            this={subject('ExportCsv', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
+                        {canExportResultsCsv && (
                             <Popover
                                 {...COLLAPSABLE_CARD_POPOVER_PROPS}
                                 disabled={disabled}
@@ -251,7 +279,7 @@ const ResultsCard: FC = memo(() => {
                                         // popover opens on a chooser first;
                                         // the `?` hop is taken only there.
                                         data-tour-then='[data-tour-anchor="export-choose-download"]? >> [data-tour-anchor="export-download"]'
-                                        data-tour-docs="explore/share-charts.mdx#download-results-or-a-chart-image:p2:1"
+                                        data-tour-docs="explore/share-charts.mdx#download-results-or-a-chart-image:p3:1"
                                     >
                                         <MantineIcon icon={IconShare2} />
                                     </ActionIcon>
@@ -265,7 +293,7 @@ const ResultsCard: FC = memo(() => {
                                             getResultsCardDownloadQueryUuid
                                         }
                                         getGsheetLink={
-                                            mergeResults
+                                            mergeResults || isEmbedded
                                                 ? undefined
                                                 : getGsheetLink
                                         }
@@ -277,7 +305,7 @@ const ResultsCard: FC = memo(() => {
                                     />
                                 </Popover.Dropdown>
                             </Popover>
-                        </Can>
+                        )}
                     </Group>
                 )
             }

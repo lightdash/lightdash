@@ -1,6 +1,7 @@
+import { getDocumentUrl } from '@lightdash/common';
 import { Button, Center } from '@mantine/core';
 import { IconFileOff } from '@tabler/icons-react';
-import { useNavigate, useParams } from 'react-router';
+import { Navigate, useNavigate, useParams } from 'react-router';
 import ErrorState from '../../../components/common/ErrorState';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import PageSpinner from '../../../components/PageSpinner';
@@ -27,6 +28,19 @@ const DeepResearchReportPage = () => {
     const run = runQuery.data;
     const threadUrl = `/projects/${projectUuid}/ai-agents/${run.agentUuid}/threads/${run.threadUuid}`;
     const backToChat = () => navigate(threadUrl, { replace: true });
+
+    if (run.document) {
+        return (
+            <Navigate
+                to={getDocumentUrl(
+                    projectUuid,
+                    run.document.documentUuid,
+                    run.document.slug,
+                )}
+                replace
+            />
+        );
+    }
 
     if (!run.resultMarkdown || !run.completedAt) {
         return (

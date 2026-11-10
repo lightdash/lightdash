@@ -3,19 +3,14 @@ import {
     getCompiledModels,
     getModelsFromManifest,
     ParameterError,
+    stripExternalDbtNodes,
     UnexpectedServerError,
-    WarehouseTypes,
-    type CreateWarehouseCredentials,
+    type DbtJoinAvailability,
     type DbtManifest,
     type DbtProjectConfig,
     type ManifestCollision,
-    type WarehouseClient,
 } from '@lightdash/common';
-import {
-    ListedDatabasesPostgresWarehouseClient,
-    warehouseClientFromCredentials,
-    type WarehouseListedDatabases,
-} from '@lightdash/warehouses';
+import { type WarehouseListedDatabases } from '@lightdash/warehouses';
 import { type BoundProjectDbtSource } from '../models/ProjectDbtSourcesModel';
 import { type CompileConnection } from '../models/WarehouseConnectionCompileModel/WarehouseConnectionCompileModel';
 
@@ -37,6 +32,28 @@ export type SourceManifest = {
     manifest: DbtManifest;
     selectedModelIds?: string[];
 };
+
+export const compileGroupAvailability = (
+    sources: readonly { projectDbtSourceUuid: string; name: string }[],
+    failedSourceUuids: readonly string[],
+): DbtJoinAvailability =>
+    Object.freeze({
+        unavailableSources: Object.freeze(
+            sources
+                .filter((source) =>
+                    failedSourceUuids.includes(source.projectDbtSourceUuid),
+                )
+                .map((source) =>
+                    Object.freeze({
+                        sourceUuid: source.projectDbtSourceUuid,
+                        sourceName: source.name,
+                    }),
+                )
+                .sort((left, right) =>
+                    left.sourceName.localeCompare(right.sourceName),
+                ),
+        ),
+    });
 
 export class ManifestCollisionError extends ParameterError {}
 
@@ -170,13 +187,20 @@ const combineSelectedModelIds = (
 export const mergeCompileGroupManifests = (
     sources: SourceManifest[],
 ): { manifest: DbtManifest; selectedModelIds: string[] | undefined } => {
-    const prepared = sources.map((source) => ({
-        ...source,
-        manifest: withSourceIdentity(
-            withCompilationSelection(source.manifest, source.selectedModelIds),
-            source.dbtSourceUuid,
-        ),
-    }));
+    const prepared = sources.map((source) => {
+        const manifest = stripExternalDbtNodes(source.manifest);
+        const selectedModelIds = source.selectedModelIds?.filter(
+            (id) => id in manifest.nodes,
+        );
+        return {
+            ...source,
+            selectedModelIds,
+            manifest: withSourceIdentity(
+                withCompilationSelection(manifest, selectedModelIds),
+                source.dbtSourceUuid,
+            ),
+        };
+    });
     const { manifest, collisions } = combineManifestSources(
         prepared.map(({ name, precedence, manifest: sourceManifest }) => ({
             name,
@@ -195,11 +219,9 @@ export const mergeCompileGroupManifests = (
 export const planCompileGroups = ({
     connections,
     sources,
-    includeUnboundSources,
 }: {
     connections: CompileConnection[];
     sources: BoundProjectDbtSource[];
-    includeUnboundSources: boolean;
 }): CompileGroupPlan[] => {
     const original = connections.find((connection) => connection.isOriginal);
     if (!original) {
@@ -260,25 +282,10 @@ export const planCompileGroups = ({
     return [
         toPlan(
             original,
-            includeUnboundSources
-                ? compilable.filter(
-                      (source) => source.warehouseConnectionUuid === null,
-                  )
-                : [],
+            compilable.filter(
+                (source) => source.warehouseConnectionUuid === null,
+            ),
         ),
         ...extraPlans,
     ];
 };
-
-export const warehouseClientForCompileGroup = (
-    credentials: CreateWarehouseCredentials,
-    listedDatabases: WarehouseListedDatabases,
-    onSkippedDatabase: (database: string) => void,
-): WarehouseClient =>
-    credentials.type === WarehouseTypes.POSTGRES
-        ? new ListedDatabasesPostgresWarehouseClient(
-              credentials,
-              listedDatabases,
-              onSkippedDatabase,
-          )
-        : warehouseClientFromCredentials(credentials);

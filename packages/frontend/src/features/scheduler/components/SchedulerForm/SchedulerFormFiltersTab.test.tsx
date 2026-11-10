@@ -9,6 +9,8 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+import { createDashboardTestStore } from '../../../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../../../testing/DashboardStoreTestProvider';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import { SchedulerFormFiltersTab } from './SchedulerFormFiltersTab';
 
@@ -49,11 +51,6 @@ const paymentFilter: DashboardFilterRule = {
 
 const dashboardContext: Record<string, unknown> = {
     isLoadingDashboardFilters: false,
-    allFilters: {
-        dimensions: [statusFilter, paymentFilter],
-        metrics: [],
-        tableCalculations: [],
-    },
     allFilterableFieldsMap: {
         orders_status: statusField,
         orders_payment_method: paymentField,
@@ -92,18 +89,29 @@ const Harness = ({
     onDraftChange?: (filters: DashboardFilterRule[]) => void;
 }) => {
     const [draftFilters, setDraftFilters] = useState(initialFilters);
+    const [store] = useState(() =>
+        createDashboardTestStore({
+            dashboardFilters: {
+                dimensions: [statusFilter, paymentFilter],
+                metrics: [],
+                tableCalculations: [],
+            },
+        }),
+    );
     return (
-        <SchedulerFormFiltersTab
-            draftFilters={draftFilters}
-            savedFilters={savedFilters}
-            isEditMode={isEditMode}
-            onChange={(filters) => {
-                setDraftFilters(filters);
-                onDraftChange?.(filters);
-            }}
-            unmetRequirements={[]}
-            filtersWithUnmetRequirements={[]}
-        />
+        <DashboardStoreTestProvider store={store}>
+            <SchedulerFormFiltersTab
+                draftFilters={draftFilters}
+                savedFilters={savedFilters}
+                isEditMode={isEditMode}
+                onChange={(filters) => {
+                    setDraftFilters(filters);
+                    onDraftChange?.(filters);
+                }}
+                unmetRequirements={[]}
+                filtersWithUnmetRequirements={[]}
+            />
+        </DashboardStoreTestProvider>
     );
 };
 

@@ -4,18 +4,9 @@
     overflow: hidden;
     padding: 0;
     border-radius: 0;
-
-    @mixin light {
-        background-color: transparent;
-        border: none;
-        box-shadow: none;
-    }
-
-    @mixin dark {
-        background-color: transparent;
-        border: none;
-        box-shadow: none;
-    }
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
 }
 
 .sidebarSurface[data-collapsed='true'] {
@@ -23,69 +14,76 @@
     align-items: center;
     padding: 0;
     overflow: visible;
-
-    @mixin light {
-        background-color: transparent;
-        border-color: transparent;
-        box-shadow: none;
-    }
-
-    @mixin dark {
-        background-color: transparent;
-        border-color: transparent;
-        box-shadow: none;
-    }
+    background-color: transparent;
+    border-color: transparent;
+    box-shadow: none;
 }
 
 .threadList {
     flex-grow: 1;
     min-height: 0;
-    overflow-y: auto;
-    padding-right: 2px;
 }
 
-.threadItems {
-    min-height: 0;
+.threadListViewport {
+    composes: scrollFade from '../../../../../styles/scrollFade.module.css';
+}
+
+.threadListContent {
+    composes: verticalContent from '../../../../../styles/ScrollArea.module.css';
 }
 
 .threadNavLink {
     border-radius: rem(6px);
-    transition:
-        background-color 150ms ease,
-        color 150ms ease;
+    min-height: rem(28px);
+}
 
-    /* Don't override Mantine's active background when also hovered. */
-    &:not([data-active]):hover {
-        @mixin light {
-            background-color: var(--mantine-color-ldGray-1);
-        }
-        @mixin dark {
-            background-color: var(--mantine-color-ldDark-3);
-        }
-    }
-
-    &[data-active] {
-        @mixin light {
-            background-color: var(--mantine-color-ldGray-1);
-        }
-
-        @mixin dark {
-            background-color: var(--mantine-color-dark-5);
-        }
-    }
+.threadSection[data-position='right'] {
+    position: relative;
+    margin-inline-start: 0;
 }
 
 .threadMenuButton {
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    translate: 0 -50%;
+    display: flex;
     opacity: 0;
-    transition: opacity 150ms ease;
+    pointer-events: none;
 
     .threadNavLink:hover &,
-    &:focus-visible,
-    &[data-expanded] {
+    .threadNavLink[data-active] &,
+    .threadNavLink:focus-within &,
+    &:has([aria-expanded='true']) {
         opacity: 1;
+        pointer-events: auto;
     }
 
     @media (hover: none) {
         opacity: 1;
+        pointer-events: auto;
     }
+}
+
+/* Reserves the chevron's space so the title ellipsis lands before it. */
+.threadNavLink:has(.threadMenuButton) .threadTitle {
+    padding-inline-end: rem(24px);
+}
+
+@media (hover: hover) {
+    .threadNavLink:not(
+            :hover,
+            [data-active],
+            :focus-within,
+            :has([aria-expanded='true'])
+        )
+        .threadTitle {
+        padding-inline-end: 0;
+    }
+}
+
+.loadMore {
+    display: flex;
+    justify-content: center;
+    min-height: rem(24px);
 }

@@ -27,12 +27,17 @@ export const parameterRegex =
     /\$\{(?:lightdash|ld)\.parameters\.(\w+(?:\.\w+)?)\}/g;
 
 // Broader regex that also matches bare `ld.parameters.X` references — used to catch
-// references inside Liquid template tags (e.g. `{% if ld.parameters.grain == "day" %}`),
-// format strings, and ternary expressions. The lookbehind requires a non-word,
+// references inside Liquid template tags (e.g. `{% if ld.parameters.grain == "day" %}`).
+// The lookbehind requires a non-word,
 // non-dot boundary before `ld`/`lightdash` so identifiers like `myld.parameters.x`
 // don't false-match.
 const parameterReferencePattern =
     /(?<![\w.])(?:lightdash|ld)\.parameters\.(\w+(?:\.\w+)?)/g;
+
+const formatPlaceholderPattern = /\$\{([^}]+)\}/g;
+const quotedStringPattern = /"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g;
+const parameterOperandPattern =
+    /^(?:lightdash|ld)\.parameters\.(\w+(?:\.\w+)?)$/;
 
 export enum LightdashParameters {
     PREFIX = 'lightdash.parameters',
@@ -47,9 +52,8 @@ const matchAll = (input: string, regex: RegExp): string[] => {
 
 /**
  * Single source of truth for extracting parameter references from a templated SQL or
- * format string. Detects both `${ld.parameters.X}` substitution sites and bare
- * `ld.parameters.X` references inside Liquid template blocks (only when `{%` is present,
- * to avoid false positives in plain SQL).
+ * format string. Detects `${ld.parameters.X}` substitution sites, conditional format
+ * placeholders, and bare references in Liquid templates (only when `{%` is present).
  *
  * @param sources - One or more strings to scan (e.g. compiled SQL, sql_from, format string).
  * @returns A deduplicated array of parameter names.
@@ -64,6 +68,22 @@ export const getParameterReferences = (
         matchAll(source, parameterRegex).forEach((name) =>
             references.add(name),
         );
+        matchAll(source, formatPlaceholderPattern).forEach((expression) => {
+            // Quoted text and ternary output branches are literals, not parameter reads.
+            const unquoted = expression.replace(quotedStringPattern, ' ');
+            const questionIndex = unquoted.indexOf('?');
+            if (
+                questionIndex === -1 ||
+                unquoted.indexOf(':', questionIndex + 1) === -1
+            ) {
+                return;
+            }
+            const condition = unquoted.slice(0, questionIndex);
+            condition.split(/==|!=/).forEach((operand) => {
+                const match = operand.trim().match(parameterOperandPattern);
+                if (match) references.add(match[1]);
+            });
+        });
         // If the source contains Liquid tags, also match bare references inside them.
         if (source.includes('{%')) {
             matchAll(source, parameterReferencePattern).forEach((name) =>

@@ -3,6 +3,7 @@ import {
     ChartType,
     MergeJoinType,
     type ApiAiAgentThreadMessageVizQuery,
+    type ParametersValuesMap,
     type ToolRunQueryArgs,
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
@@ -28,14 +29,27 @@ vi.mock('../../../../../hooks/useExplore', () => ({
     useExplore: mocks.useExplore,
 }));
 
-vi.mock('../../hooks/aiAgentRouting', () => ({
-    isEmbedAiAgentRoute: () => false,
+vi.mock('../../../../providers/Embed/useIsEmbedded', () => ({
+    default: () => false,
 }));
 
 vi.mock(
     '../../../../../components/MetricQueryData/MetricQueryDataProvider',
     () => ({
-        default: ({ children }: { children: ReactNode }) => children,
+        default: ({
+            children,
+            parameters,
+        }: {
+            children: ReactNode;
+            parameters?: ParametersValuesMap;
+        }) => (
+            <div
+                data-testid="metric-query-data-provider"
+                data-parameters={JSON.stringify(parameters ?? null)}
+            >
+                {children}
+            </div>
+        ),
     }),
 );
 
@@ -354,6 +368,20 @@ describe('AiVisualizationRenderer parameters', () => {
         expect(screen.getByText('Parameters 1')).toBeVisible();
         expect(screen.getByText('Event status')).toBeInTheDocument();
         expect(screen.getByText('song_played')).toBeInTheDocument();
+    });
+
+    it('runs underlying data with the parameter values the query ran with', () => {
+        renderWithParameters({
+            parameterReferences: ['metric_type'],
+            usedParametersValues: { metric_type: 'revenue' },
+        });
+
+        expect(
+            screen.getByTestId('metric-query-data-provider'),
+        ).toHaveAttribute(
+            'data-parameters',
+            JSON.stringify({ metric_type: 'revenue' }),
+        );
     });
 
     it('hides unreferenced project-wide parameter values', () => {

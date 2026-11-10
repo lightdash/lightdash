@@ -15,3 +15,16 @@
 .sqlEditor > :global(.ace_gutter) {
     background-color: var(--ace-gutter-background);
 }
+
+.editorLayer {
+    z-index: 0;
+}
+
+.templatesAlert {
+    padding-top: var(--mantine-spacing-sm);
+    padding-bottom: var(--mantine-spacing-sm);
+}
+
+.templatesAlertWrapper {
+    align-items: center;
+}

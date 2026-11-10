@@ -74,10 +74,15 @@ const embed: EmbedContext = {
     projectUuid: 'project-uuid',
     embedToken: 'token',
     t: () => undefined,
+    backDestination: 'dashboard',
+    dispatchEmbedEvent: () => false,
+    isEmbedEventReady: false,
     mode: 'sdk',
     theme: 'light',
     backgroundColor: null,
     timezone: null,
+    aiAgentThreadSetup: null,
+    aiAgentNavigationDisabled: false,
 };
 
 describe('EmbedExplore', () => {

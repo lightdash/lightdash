@@ -11,10 +11,10 @@
     },
     "dependencies": {
         "@lightdash/sdk": "workspace:*",
-        "@mantine/core": "9.6.0",
+        "@mantine/core": "9.7.4",
         "i18next": "24.2.2",
         "i18next-browser-languagedetector": "8.0.3",
-        "i18next-http-backend": "3.0.5",
+        "i18next-http-backend": "4.0.4",
         "react": "19.3.0",
         "react-dom": "19.3.0",
         "react-i18next": "15.4.1"
@@ -30,7 +30,7 @@
         "pg": "8.13.1",
         "pg-connection-string": "2.7.0",
         "typescript": "npm:@typescript/typescript6@6.0.2",
-        "vite": "8.0.16",
+        "vite": "8.1.6",
         "vite-plugin-svgr": "4.5.0"
     }
 }

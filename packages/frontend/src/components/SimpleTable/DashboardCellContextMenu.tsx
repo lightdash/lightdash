@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    getCellUrls,
     createDashboardFilterRuleFromField,
     hasCustomBinDimension,
     isDimension,
@@ -13,8 +14,12 @@ import {
 import { Menu } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy, IconStack } from '@tabler/icons-react';
-import mapValues from 'lodash/mapValues';
+import { mapValues } from 'es-toolkit/compat';
 import { useCallback, useMemo, type FC } from 'react';
+import {
+    selectDateZoomGranularity,
+    useDashboardSelector,
+} from '../../features/dashboard/store';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -42,9 +47,7 @@ const DashboardCellContextMenu: FC<
     const addDimensionDashboardFilter = useDashboardContext(
         (c) => c.addDimensionDashboardFilter,
     );
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
-    );
+    const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
 
     const meta = cell.column.columnDef.meta;
     const item = meta?.item;
@@ -52,6 +55,11 @@ const DashboardCellContextMenu: FC<
     const value: ResultValue = useMemo(
         () => cell.getValue()?.value || {},
         [cell],
+    );
+
+    const urls = useMemo(
+        () => getCellUrls(isField(item) ? item.urls : undefined, value.raw),
+        [item, value],
     );
 
     const fieldValues = useMemo(
@@ -151,14 +159,12 @@ const DashboardCellContextMenu: FC<
 
     return (
         <>
-            {item &&
-            value.raw !== undefined &&
-            value.raw !== null &&
-            isField(item) ? (
-                <UrlMenuItems urls={item.urls} cell={cell} />
-            ) : null}
-
-            {isField(item) && (item.urls || []).length > 0 && <Menu.Divider />}
+            {urls.length > 0 && (
+                <>
+                    <UrlMenuItems urls={urls} cell={cell} />
+                    <Menu.Divider />
+                </>
+            )}
 
             <Menu.Item
                 leftSection={<MantineIcon icon={IconCopy} />}

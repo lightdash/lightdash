@@ -6,8 +6,8 @@ import { LightdashEventType } from '../events/types';
 import { useEmbedDashboardTabChange } from './useEmbedDashboardTabChange';
 
 const dispatchEmbedEvent = vi.fn();
-vi.mock('./useEmbedEventEmitter', () => ({
-    useEmbedEventEmitter: () => ({ dispatchEmbedEvent }),
+vi.mock('../../../providers/Embed/useEmbed', () => ({
+    default: () => ({ dispatchEmbedEvent }),
 }));
 
 const tabs = [

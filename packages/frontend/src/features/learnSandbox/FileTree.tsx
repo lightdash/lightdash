@@ -13,7 +13,13 @@ import { buildFileTree, type FileNode } from './buildFileTree';
 import styles from './LearnWorkspace.module.css';
 
 /** Directories expanded on first render; everything else starts collapsed. */
-const DEFAULT_EXPANDED_DIRS = new Set(['models']);
+// `lightdash/` and its charts appear after a download; a content-as-code
+// lesson opens the chart straight away.
+const DEFAULT_EXPANDED_DIRS = new Set([
+    'models',
+    'lightdash',
+    'lightdash/charts',
+]);
 
 type FileTreeNodeProps = {
     node: FileNode;

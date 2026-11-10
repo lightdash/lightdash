@@ -1,7 +1,16 @@
 import { ParameterError, ProjectType } from '@lightdash/common';
 import type { MockedFunction } from 'vitest';
+import { slotFixture } from '../agentConnections/fixtures';
+import { runWithAgentConnectionSelection } from '../credentials';
 import { lightdashApi } from './dbt/apiClient';
 import { resolveProjectFlag } from './resolveProjectFlag';
+
+const selected = vi.hoisted(() => ({ credential: vi.fn() }));
+vi.mock('../config', () => ({ getConfig: vi.fn(async () => ({})) }));
+vi.mock('../credentials', async (original) => ({
+    ...(await original<typeof import('../credentials')>()),
+    resolveCredential: selected.credential,
+}));
 
 vi.mock('./dbt/apiClient', () => ({
     lightdashApi: vi.fn(),
@@ -70,4 +79,78 @@ describe('resolveProjectFlag', () => {
             /more than one project/,
         );
     });
+});
+
+describe('selected project resolution', () => {
+    beforeEach(() => {
+        mockLightdashApi.mockReset();
+        selected.credential.mockReset().mockResolvedValue({
+            kind: 'agent_connection',
+            token: 'agent',
+            slot: {
+                ...slotFixture(),
+                lastReported: {
+                    ...slotFixture().lastReported,
+                    approvedProjects: [PROJECT_UUID, OTHER_UUID].map(
+                        (projectUuid) => ({
+                            projectUuid,
+                            name: null,
+                            approvedCapabilities: [],
+                        }),
+                    ),
+                },
+            },
+        });
+    });
+    it('returns a UUID directly without organisation discovery or config reads', async () => {
+        expect(
+            await runWithAgentConnectionSelection('work', () =>
+                resolveProjectFlag(PROJECT_UUID),
+            ),
+        ).toBe(PROJECT_UUID);
+        expect(selected.credential).not.toHaveBeenCalled();
+        expect(mockLightdashApi).not.toHaveBeenCalled();
+    });
+    it('resolves a slug through individual approved project reads', async () => {
+        mockLightdashApi.mockImplementation(
+            async ({ url }) =>
+                ({
+                    projectUuid: url.split('/').at(-1),
+                    slug: url.endsWith(PROJECT_UUID) ? 'match' : 'other',
+                }) as never,
+        );
+        expect(
+            await runWithAgentConnectionSelection('work', () =>
+                resolveProjectFlag('match'),
+            ),
+        ).toBe(PROJECT_UUID);
+        expect(mockLightdashApi.mock.calls.map(([props]) => props.url)).toEqual(
+            [
+                `/api/v1/projects/${PROJECT_UUID}`,
+                `/api/v1/projects/${OTHER_UUID}`,
+            ],
+        );
+    });
+    it.each(['ambiguous', 'unapproved', 'inaccessible'])(
+        'refuses an %s slug without organisation discovery',
+        async (mode) => {
+            mockLightdashApi.mockImplementation(async ({ url }) => {
+                if (mode === 'inaccessible') throw new Error('inaccessible');
+                return {
+                    projectUuid: url.split('/').at(-1),
+                    slug: mode === 'ambiguous' ? 'match' : 'other',
+                } as never;
+            });
+            await expect(
+                runWithAgentConnectionSelection('work', () =>
+                    resolveProjectFlag('match'),
+                ),
+            ).rejects.toThrow();
+            expect(
+                mockLightdashApi.mock.calls.every(
+                    ([props]) => !props.url.includes('/org/'),
+                ),
+            ).toBe(true);
+        },
+    );
 });

@@ -1,4 +1,5 @@
 import {
+    getRequestMethod,
     LightdashAppUuidHeader,
     LightdashBuildHashHeader,
     LightdashCliVersionHeader,
@@ -7,6 +8,7 @@ import {
     LightdashSdkVersionHeader,
     LightdashSignedDownloadHeader,
     LightdashVersionHeader,
+    RequestMethod,
     SessionUser,
 } from '@lightdash/common';
 import { getActiveSpan } from '@sentry/node';
@@ -14,6 +16,7 @@ import { randomUUID } from 'crypto';
 import * as express from 'express';
 import * as expressWinston from 'express-winston';
 import ExecutionContext from 'node-execution-context';
+import qs from 'qs';
 import * as winston from 'winston';
 import { lightdashConfig } from '../config/lightdashConfig';
 import { AuditActor, AuditLogEvent, AuditResource } from './auditLog';
@@ -71,6 +74,9 @@ export type ExecutionContextInfo = {
     organization_name?: string;
     app_uuid?: string;
     app_version?: number;
+    // The client that made the request (Lightdash-Request-Method header).
+    // Analytics stamps it on every event tracked while handling the request.
+    request_method?: RequestMethod;
     query_request?: {
         startedAtMs: number;
         requestId: string;
@@ -307,8 +313,47 @@ declare global {
     }
 }
 
-export const sanitizeRequestUrl = (url: string): string =>
-    url.replace(/([?&]downloadToken=)[^&#\s]*/gi, '$1[REDACTED]');
+export const sanitizeRequestUrl = (url: string): string => {
+    const sanitizedUrl = url.replace(
+        /^((?:\/[^/?#]+)*\/api\/v2\/user\/agent-connections\/requests\/)[^/?#]+((?:\/(?:decision|completion))?\/?)(?=[?#]|$)/i,
+        '$1[REDACTED]$2',
+    );
+    const queryStart = sanitizedUrl.indexOf('?');
+    if (queryStart === -1) return sanitizedUrl;
+    const fragmentStart = sanitizedUrl.indexOf('#');
+    if (fragmentStart !== -1 && fragmentStart < queryStart) return sanitizedUrl;
+    const queryEnd = fragmentStart === -1 ? sanitizedUrl.length : fragmentStart;
+    const query = sanitizedUrl.slice(queryStart + 1, queryEnd);
+    const sanitized = query.split('&').map((pair) => {
+        const separator = pair.indexOf('=');
+        if (separator === -1) return pair;
+        const rawName = pair.slice(0, separator);
+        let names: string[];
+        try {
+            names = Object.keys(
+                qs.parse(`${rawName}=x`, { arrayLimit: 1000 }),
+            ).map((name) => name.toLowerCase());
+        } catch {
+            return `${rawName}=[REDACTED]`;
+        }
+        if (
+            names.some((name) =>
+                [
+                    'downloadtoken',
+                    'code',
+                    'state',
+                    'access_token',
+                    'refresh_token',
+                    'agent_request',
+                ].includes(name),
+            )
+        ) {
+            return `${rawName}=[REDACTED]`;
+        }
+        return pair;
+    });
+    return `${sanitizedUrl.slice(0, queryStart + 1)}${sanitized.join('&')}${sanitizedUrl.slice(queryEnd)}`;
+};
 
 const safeRequestHeaderNames = new Set([
     'content-length',
@@ -411,6 +456,8 @@ export const requestExecutionContextMiddleware: express.RequestHandler = (
     const appUuidHeader = req.headers[LightdashAppUuidHeader.toLowerCase()];
     const appUuid =
         typeof appUuidHeader === 'string' ? appUuidHeader : undefined;
+    const requestMethodHeader =
+        req.headers[LightdashRequestMethodHeader.toLowerCase()];
     if (!organizationUuid && !organizationName && !appUuid) {
         next();
         return;
@@ -424,6 +471,11 @@ export const requestExecutionContextMiddleware: express.RequestHandler = (
         organization_uuid: organizationUuid,
         organization_name: organizationName,
         ...(appUuid ? { app_uuid: appUuid } : {}),
+        request_method: getRequestMethod(
+            typeof requestMethodHeader === 'string'
+                ? requestMethodHeader
+                : undefined,
+        ),
     };
     if (ExecutionContext.exists()) {
         ExecutionContext.update(context as unknown as Record<string, unknown>);

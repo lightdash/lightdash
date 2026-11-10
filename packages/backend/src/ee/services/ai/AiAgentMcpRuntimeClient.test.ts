@@ -1,7 +1,10 @@
 import * as mcpSdk from '@ai-sdk/mcp';
 import type { MCPClient } from '@ai-sdk/mcp';
 /* eslint-disable import/extensions */
-import { UnauthorizedError } from '@modelcontextprotocol/sdk/client/auth.js';
+import {
+    auth,
+    UnauthorizedError,
+} from '@modelcontextprotocol/sdk/client/auth.js';
 /* eslint-enable import/extensions */
 import { asSchema, jsonSchema } from 'ai';
 import dns from 'node:dns';
@@ -13,6 +16,7 @@ import {
     createPublicMcpLookup,
     getMcpOAuthCallbackUrl,
     hardenMcpToolDefinition,
+    MCP_UNTRUSTED_OUTPUT_NOTICE,
     McpAuthorizationRequiredError,
     McpTimeoutError,
     normalizeMcpOAuthPayloadForRedirect,
@@ -153,7 +157,77 @@ describe('hardenMcpToolDefinition', () => {
 
         const output = await hardened.execute?.({}, {} as never);
         expect(JSON.stringify(output).length).toBeLessThanOrEqual(32_000);
-        expect(JSON.stringify(output)).toContain('Untrusted remote MCP output');
+        expect(output).toMatchObject({
+            _lightdashNotice: expect.stringContaining(
+                'Untrusted remote MCP output',
+            ),
+            value: expect.arrayContaining([Number.MAX_VALUE]),
+        });
+    });
+
+    it('trims oversized escaped text output instead of dropping it', async () => {
+        const chunk =
+            '## Charts\n<Note>Use "layout.showIncompletePeriod" & more</Note>\n';
+        const text = chunk.repeat(2_000).slice(0, 100_000);
+        const hardened = hardenMcpToolDefinition({
+            inputSchema: jsonSchema({ type: 'object' }),
+            execute: vi
+                .fn()
+                .mockResolvedValue({ content: [{ type: 'text', text }] }),
+        } as never);
+
+        const output = (await hardened.execute?.({}, {} as never)) as {
+            content: { type: string; text: string }[];
+        };
+        const serializedLength = JSON.stringify(output).length;
+        expect(serializedLength).toBeLessThanOrEqual(32_000);
+        expect(serializedLength).toBeGreaterThan(25_000);
+        expect(output.content[0].text).toBe(MCP_UNTRUSTED_OUTPUT_NOTICE);
+        expect(output.content[1].text).toMatch(
+            /^## Charts\n&lt;Note&gt;Use "layout\.showIncompletePeriod" &amp; more&lt;\/Note&gt;\n/,
+        );
+        expect(
+            output.content[1].text.match(/\[truncated by Lightdash\]/g),
+        ).toHaveLength(1);
+        expect(output.content[1].text).toMatch(/\n\[truncated by Lightdash\]$/);
+    });
+
+    it('falls back to the placeholder when structure alone exceeds the cap', async () => {
+        const hardened = hardenMcpToolDefinition({
+            inputSchema: jsonSchema({ type: 'object' }),
+            execute: vi
+                .fn()
+                .mockResolvedValue(
+                    Array.from({ length: 1_000 }, () =>
+                        Array.from({ length: 1_000 }, () => []),
+                    ),
+                ),
+        } as never);
+
+        expect(await hardened.execute?.({}, {} as never)).toEqual({
+            content: [
+                {
+                    type: 'text',
+                    text: '[Untrusted remote MCP output; content truncated by Lightdash]',
+                },
+            ],
+        });
+    });
+
+    it('keeps short escaped text output whole', async () => {
+        const hardened = hardenMcpToolDefinition({
+            inputSchema: jsonSchema({ type: 'object' }),
+            execute: vi.fn().mockResolvedValue({
+                content: [{ type: 'text', text: 'a < b & c > d' }],
+            }),
+        } as never);
+
+        expect(await hardened.execute?.({}, {} as never)).toEqual({
+            content: [
+                { type: 'text', text: MCP_UNTRUSTED_OUTPUT_NOTICE },
+                { type: 'text', text: 'a &lt; b &amp; c &gt; d' },
+            ],
+        });
     });
 
     it('rejects a primitive-heavy schema over the final serialized limit', () => {
@@ -218,6 +292,34 @@ describe('hardenMcpToolDefinition', () => {
                 } as never),
             ).toThrow();
         }
+    });
+
+    it('keeps a tool whose schema strings contain line breaks or tabs', () => {
+        const hardened = hardenMcpToolDefinition({
+            description: 'Create a page',
+            inputSchema: jsonSchema({
+                type: 'object',
+                properties: {
+                    title: {
+                        type: 'string',
+                        description: 'Page title.\nSecond line.\tIndented.\r\n',
+                    },
+                    state: { enum: ['draft\nreview', 'published'] },
+                },
+            }),
+        } as never);
+        const schema = (
+            hardened.inputSchema as {
+                jsonSchema: { properties: Record<string, unknown> };
+            }
+        ).jsonSchema;
+
+        expect(schema.properties.title).toMatchObject({
+            description: expect.stringContaining('Second line.\tIndented.'),
+        });
+        expect(schema.properties.state).toEqual({
+            enum: ['draft\nreview', 'published'],
+        });
     });
 
     it('preserves ordinary bounded string enums and constants', () => {
@@ -449,6 +551,35 @@ describe('normalizeMcpOAuthPayloadForRedirect', () => {
             }),
         );
     });
+    it('keeps a configured client ID without a secret as a public client when redirect metadata is stale', () => {
+        expect(
+            normalizeMcpOAuthPayloadForRedirect(
+                {
+                    type: 'oauth',
+                    credentialScope: 'shared',
+                    connectionStatus: 'not_connected',
+                    configuredClientId: 'configured-client',
+                    clientMetadata: {
+                        redirect_uris: [
+                            'https://lightdash.example.com/api/v1/projects/project-uuid/aiAgents/mcpServers/server-uuid/oauth/callback',
+                        ],
+                    },
+                },
+                'shared',
+                staticMetadata.redirect_uris[0],
+                staticMetadata,
+            ),
+        ).toEqual(
+            expect.objectContaining({
+                configuredClientId: 'configured-client',
+                clientInformation: {
+                    client_id: 'configured-client',
+                    token_endpoint_auth_method: 'none',
+                },
+                clientMetadata: staticMetadata,
+            }),
+        );
+    });
 });
 
 describe('PersistentMcpOAuthClientProvider', () => {
@@ -473,8 +604,10 @@ describe('PersistentMcpOAuthClientProvider', () => {
         const aiAgentModel = {
             getCredential: vi
                 .fn()
-                .mockResolvedValueOnce(undefined)
-                .mockResolvedValueOnce(sharedCredential),
+                .mockImplementation(
+                    async (_serverUuid: string, scope: string) =>
+                        scope === 'shared' ? sharedCredential : undefined,
+                ),
             upsertCredential: vi.fn(),
         } as unknown as AiAgentModel;
         const runtimeClient = new AiAgentMcpRuntimeClient({
@@ -539,6 +672,340 @@ describe('PersistentMcpOAuthClientProvider', () => {
                 }),
             }),
         );
+    });
+    it('uses a shared configured client ID without a secret as a public client for user-scoped OAuth', async () => {
+        const sharedCredential = {
+            uuid: 'credential-uuid',
+            mcpServerUuid: 'server-uuid',
+            credentialScope: 'shared',
+            userUuid: null,
+            createdByUserUuid: 'creator-uuid',
+            updatedByUserUuid: 'creator-uuid',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            credentials: {
+                type: 'oauth',
+                credentialScope: 'shared',
+                connectionStatus: 'not_connected',
+                configuredClientId: 'configured-client',
+            },
+        } satisfies AiMcpCredential;
+        const aiAgentModel = {
+            getCredential: vi
+                .fn()
+                .mockImplementation(
+                    async (_serverUuid: string, scope: string) =>
+                        scope === 'shared' ? sharedCredential : undefined,
+                ),
+            upsertCredential: vi.fn(),
+        } as unknown as AiAgentModel;
+        const runtimeClient = new AiAgentMcpRuntimeClient({
+            aiAgentModel,
+            lightdashConfig: {
+                siteUrl: 'https://lightdash.example.com',
+                ai: {
+                    copilot: { mcpConnectionTimeoutMs: 20_000 },
+                },
+            } as LightdashConfig,
+        });
+        const provider = (
+            runtimeClient as unknown as {
+                createMcpOAuthProvider: (args: {
+                    projectUuid: string;
+                    mcpServerUuid: string;
+                    credentialScope: 'user';
+                    userUuid: string;
+                    actorUserUuid: string;
+                }) => {
+                    clientInformation: () => Promise<unknown>;
+                    state: () => Promise<string>;
+                };
+            }
+        ).createMcpOAuthProvider({
+            projectUuid: 'project-uuid',
+            mcpServerUuid: 'server-uuid',
+            credentialScope: 'user',
+            userUuid: 'user-uuid',
+            actorUserUuid: 'user-uuid',
+        });
+
+        await expect(provider.clientInformation()).resolves.toEqual({
+            client_id: 'configured-client',
+            token_endpoint_auth_method: 'none',
+        });
+
+        await provider.state();
+        expect(aiAgentModel.upsertCredential).toHaveBeenCalledWith(
+            expect.objectContaining({
+                scope: 'user',
+                credentials: expect.not.objectContaining({
+                    configuredClientId: 'configured-client',
+                }),
+            }),
+        );
+    });
+});
+
+describe('MCP OAuth resource indicator', () => {
+    // Drives the SDK's real auth() through our provider. The SDK's
+    // checkResourceAllowed is patched (patches/@modelcontextprotocol__sdk) so
+    // a server URL of /mcp accepts metadata that advertises /mcp/.
+    const buildProvider = (onAuthorizationUrl: (url: URL) => void) => {
+        const sharedCredential = {
+            uuid: 'credential-uuid',
+            mcpServerUuid: 'server-uuid',
+            credentialScope: 'shared',
+            userUuid: null,
+            createdByUserUuid: 'creator-uuid',
+            updatedByUserUuid: 'creator-uuid',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            credentials: {
+                type: 'oauth',
+                credentialScope: 'shared',
+                connectionStatus: 'not_connected',
+                configuredClientId: 'public-client',
+            },
+        } satisfies AiMcpCredential;
+        const aiAgentModel = {
+            getCredential: vi
+                .fn()
+                .mockImplementation(
+                    async (_serverUuid: string, scope: string) =>
+                        scope === 'shared' ? sharedCredential : undefined,
+                ),
+            upsertCredential: vi.fn(),
+        } as unknown as AiAgentModel;
+        const runtimeClient = new AiAgentMcpRuntimeClient({
+            aiAgentModel,
+            lightdashConfig: {
+                siteUrl: 'https://lightdash.example.com',
+                ai: {
+                    copilot: { mcpConnectionTimeoutMs: 20_000 },
+                },
+            } as LightdashConfig,
+        });
+        return (
+            runtimeClient as unknown as {
+                createMcpOAuthProvider: (args: {
+                    projectUuid: string;
+                    mcpServerUuid: string;
+                    credentialScope: 'user';
+                    userUuid: string;
+                    actorUserUuid: string;
+                    onAuthorizationUrl: (url: URL) => void;
+                }) => Parameters<typeof auth>[0];
+            }
+        ).createMcpOAuthProvider({
+            projectUuid: 'project-uuid',
+            mcpServerUuid: 'server-uuid',
+            credentialScope: 'user',
+            userUuid: 'user-uuid',
+            actorUserUuid: 'user-uuid',
+            onAuthorizationUrl,
+        });
+    };
+
+    const jsonResponse = (body: unknown) =>
+        new Response(JSON.stringify(body), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+        });
+
+    const buildFetch = (advertisedResource: string) =>
+        vi.fn(async (input: string | URL | Request) => {
+            const url = new URL(
+                input instanceof Request ? input.url : String(input),
+            );
+            if (
+                url.host === 'mcp.example.com' &&
+                url.pathname.startsWith('/.well-known/oauth-protected-resource')
+            ) {
+                return jsonResponse({
+                    resource: advertisedResource,
+                    authorization_servers: ['https://auth.example.com'],
+                });
+            }
+            if (
+                url.href ===
+                'https://auth.example.com/.well-known/oauth-authorization-server'
+            ) {
+                return jsonResponse({
+                    issuer: 'https://auth.example.com',
+                    authorization_endpoint:
+                        'https://auth.example.com/authorize',
+                    token_endpoint: 'https://auth.example.com/token',
+                    response_types_supported: ['code'],
+                    code_challenge_methods_supported: ['S256'],
+                });
+            }
+            return new Response('not found', { status: 404 });
+        }) as unknown as typeof fetch;
+
+    it('accepts metadata that only adds a trailing slash and sends it verbatim', async () => {
+        let authorizationUrl: URL | undefined;
+        const provider = buildProvider((url) => {
+            authorizationUrl = url;
+        });
+
+        await expect(
+            auth(provider, {
+                serverUrl: 'https://mcp.example.com/mcp',
+                fetchFn: buildFetch('https://mcp.example.com/mcp/'),
+            }),
+        ).resolves.toBe('REDIRECT');
+
+        expect(authorizationUrl?.searchParams.get('resource')).toBe(
+            'https://mcp.example.com/mcp/',
+        );
+        expect(authorizationUrl?.searchParams.get('client_id')).toBe(
+            'public-client',
+        );
+        expect(
+            authorizationUrl?.searchParams.get('code_challenge_method'),
+        ).toBe('S256');
+    });
+
+    it('accepts metadata that only drops the trailing slash', async () => {
+        let authorizationUrl: URL | undefined;
+        const provider = buildProvider((url) => {
+            authorizationUrl = url;
+        });
+
+        await expect(
+            auth(provider, {
+                serverUrl: 'https://mcp.example.com/mcp/',
+                fetchFn: buildFetch('https://mcp.example.com/mcp'),
+            }),
+        ).resolves.toBe('REDIRECT');
+
+        expect(authorizationUrl?.searchParams.get('resource')).toBe(
+            'https://mcp.example.com/mcp',
+        );
+    });
+
+    it('sends a pathless advertised resource without adding a slash', async () => {
+        let authorizationUrl: URL | undefined;
+        const provider = buildProvider((url) => {
+            authorizationUrl = url;
+        });
+
+        await expect(
+            auth(provider, {
+                serverUrl: 'https://mcp.example.com',
+                fetchFn: buildFetch('https://mcp.example.com'),
+            }),
+        ).resolves.toBe('REDIRECT');
+
+        expect(authorizationUrl?.searchParams.get('resource')).toBe(
+            'https://mcp.example.com',
+        );
+    });
+
+    describe('protected resource metadata discovery', () => {
+        // The SDK's discovery is patched (patches/@modelcontextprotocol__sdk)
+        // so a server URL ending in a slash keeps it in the RFC 9728
+        // well-known path, then falls back to the slash-stripped path.
+        const prmPrefix = '/.well-known/oauth-protected-resource';
+
+        const buildDiscoveryFetch = (servedPrmPath: string) => {
+            const requestedPrmPaths: string[] = [];
+            const fetchFn = vi.fn(async (input: string | URL | Request) => {
+                const url = new URL(
+                    input instanceof Request ? input.url : String(input),
+                );
+                if (
+                    url.host === 'mcp.example.com' &&
+                    url.pathname.startsWith(prmPrefix)
+                ) {
+                    requestedPrmPaths.push(url.pathname);
+                }
+                if (
+                    url.host === 'mcp.example.com' &&
+                    url.pathname !== servedPrmPath
+                ) {
+                    return new Response('not found', { status: 404 });
+                }
+                return buildFetch('https://mcp.example.com/mcp/')(input);
+            }) as unknown as typeof fetch;
+            return { fetchFn, requestedPrmPaths };
+        };
+
+        const startAuth = async (serverUrl: string, servedPrmPath: string) => {
+            let authorizationUrl: URL | undefined;
+            const provider = buildProvider((url) => {
+                authorizationUrl = url;
+            });
+            const { fetchFn, requestedPrmPaths } =
+                buildDiscoveryFetch(servedPrmPath);
+            const result = await auth(provider, { serverUrl, fetchFn });
+            return { result, authorizationUrl, requestedPrmPaths };
+        };
+
+        it('finds metadata at the slash-preserving path for a server URL ending in a slash', async () => {
+            const { result, authorizationUrl, requestedPrmPaths } =
+                await startAuth(
+                    'https://mcp.example.com/mcp/',
+                    `${prmPrefix}/mcp/`,
+                );
+
+            expect(result).toBe('REDIRECT');
+            expect(authorizationUrl?.origin).toBe('https://auth.example.com');
+            expect(authorizationUrl?.searchParams.get('resource')).toBe(
+                'https://mcp.example.com/mcp/',
+            );
+            expect(requestedPrmPaths).toEqual([`${prmPrefix}/mcp/`]);
+        });
+
+        it('falls back to the slash-stripped path for a server URL ending in a slash', async () => {
+            const { result, requestedPrmPaths } = await startAuth(
+                'https://mcp.example.com/mcp/',
+                `${prmPrefix}/mcp`,
+            );
+
+            expect(result).toBe('REDIRECT');
+            expect(requestedPrmPaths).toEqual([
+                `${prmPrefix}/mcp/`,
+                `${prmPrefix}/mcp`,
+            ]);
+        });
+
+        it('falls back to the root path for a server URL ending in a slash', async () => {
+            const { result, requestedPrmPaths } = await startAuth(
+                'https://mcp.example.com/mcp/',
+                prmPrefix,
+            );
+
+            expect(result).toBe('REDIRECT');
+            expect(requestedPrmPaths).toEqual([
+                `${prmPrefix}/mcp/`,
+                `${prmPrefix}/mcp`,
+                prmPrefix,
+            ]);
+        });
+
+        it('keeps discovery unchanged for a server URL without a trailing slash', async () => {
+            const { result, requestedPrmPaths } = await startAuth(
+                'https://mcp.example.com/mcp',
+                prmPrefix,
+            );
+
+            expect(result).toBe('REDIRECT');
+            expect(requestedPrmPaths).toEqual([`${prmPrefix}/mcp`, prmPrefix]);
+        });
+    });
+
+    it('still rejects metadata that advertises a different path', async () => {
+        const onAuthorizationUrl = vi.fn();
+        const provider = buildProvider(onAuthorizationUrl);
+
+        await expect(
+            auth(provider, {
+                serverUrl: 'https://mcp.example.com/mcp',
+                fetchFn: buildFetch('https://mcp.example.com/other/'),
+            }),
+        ).rejects.toThrow(/does not match/);
+        expect(onAuthorizationUrl).not.toHaveBeenCalled();
     });
 });
 
@@ -696,6 +1163,52 @@ describe('resolveMcpTools', () => {
             expect(tools).toHaveBeenCalledOnce();
         },
     );
+
+    it('keeps original tool approvals tied to server UUIDs across namespace collisions', async () => {
+        const servers = [
+            getMcpServer({
+                uuid: 'approved',
+                name: 'Docs MCP',
+                enabledToolNames: ['search'],
+            }),
+            getMcpServer({
+                uuid: 'dynamic',
+                name: 'Docs MCP',
+                enabledToolNames: undefined,
+            }),
+        ];
+        vi.mocked(mcpSdk.createMCPClient).mockResolvedValue({
+            serverInfo: { name: 'Docs MCP', version: '1' },
+            tools: async () => ({
+                search: { description: 'search tool' },
+                new_tool: { description: 'new tool' },
+            }),
+            close: vi.fn().mockResolvedValue(undefined),
+        } as unknown as MCPClient);
+        const result = await runtimeClient.resolveTools({
+            mcpServers: servers,
+            userUuid: 'user',
+            debugLoggingEnabled: false,
+        });
+        expect(result.connectedToolInventory).toEqual({
+            mcp_docs_mcp__search: {
+                serverUuid: 'approved',
+                toolName: 'search',
+                enabledToolNames: ['search'],
+            },
+            mcp_docs_mcp__search_2: {
+                serverUuid: 'dynamic',
+                toolName: 'search',
+                enabledToolNames: null,
+            },
+            mcp_docs_mcp__new_tool: {
+                serverUuid: 'dynamic',
+                toolName: 'new_tool',
+                enabledToolNames: null,
+            },
+        });
+        await result.closeMcpClients();
+    });
 
     it('classifies an unknown setup error only for copy, preserving the OAuth status', async () => {
         const fetcher = vi.fn<typeof fetch>().mockResolvedValue(

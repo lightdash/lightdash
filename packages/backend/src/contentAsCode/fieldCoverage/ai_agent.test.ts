@@ -12,8 +12,14 @@ describeContentAsCodeSchemaContract({
         'integrations',
         'organizationUuid',
         'projectUuid',
+        // Credential pins reference org-specific credential uuids, which do
+        // not port across organizations or instances.
+        'providerCredentialUuid',
         'spaceAccess',
         'userAccess',
+        // Names and emails resolved from `userAccess`; read-only and, like the
+        // access lists, specific to this organization's users.
+        'userAccessDetails',
         'uuid',
     ],
     documentOnlyFields: [
@@ -21,6 +27,7 @@ describeContentAsCodeSchemaContract({
         'contentType',
         'downloadedAt',
         'evaluations',
+        'knowledgeDocuments',
         'skills',
         'slug',
     ],

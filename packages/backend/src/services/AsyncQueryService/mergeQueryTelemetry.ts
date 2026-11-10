@@ -122,6 +122,7 @@ export type ComposeMergeOutcome =
           rowCount: number | null;
           joinExecutionTimeMs: number | null;
       }
+    | { kind: 'cancelled' }
     | { kind: 'error'; error: string | null };
 
 /** Reads the merged query's terminal state once its background run settled. */
@@ -136,6 +137,9 @@ export const resolveComposeMergeOutcome = ({
     rowCapRefused: boolean;
 }): ComposeMergeOutcome => {
     if (rowCapRefused) return { kind: 'refused_row_cap' };
+    if (history.status === QueryHistoryStatus.CANCELLED) {
+        return { kind: 'cancelled' };
+    }
     if (history.status === QueryHistoryStatus.READY) {
         return {
             kind: 'ready',

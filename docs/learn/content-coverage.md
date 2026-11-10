@@ -44,10 +44,11 @@ seed availability, or training-copy isolation. Those require separate checks.
 Canonical documentation still supplies walkthrough prose through frontend
 markers and `scope-tours:generate`; no separate reading generator is required.
 
-`manage:DeletedContent` is Coming Soon. Its walkthrough reached Recently deleted
-through a Browse menu entry and standalone route added for Learn without a
-product decision; both were removed. CS-311 tracks agreeing an entry point with
-product before the walkthrough returns.
+`manage:DeletedContent` reaches Recently deleted the way the product does: the
+Settings menu's Project settings entry, which opens the reduced project settings
+a member without `update:Project` gets (PROD-11778), then the Recently deleted
+item in its sidebar. The walkthrough deletes a chart in the learner's copy and
+restores it. Permanent deletion is outside this path.
 
 See [walkthrough priorities](walkthrough-priorities.md) for the in-app outcomes
 and their verification requirements.

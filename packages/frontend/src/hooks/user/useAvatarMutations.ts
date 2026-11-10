@@ -1,10 +1,12 @@
 import { type ApiError, type ApiUserAvatarResponse } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
+import { type LightdashApi } from '../../api';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import { downscaleAvatarImage } from './downscaleAvatarImage';
 import { type UserWithAbility } from './useUser';
 
 const uploadAvatar = async (
+    lightdashApi: LightdashApi,
     file: File,
 ): Promise<ApiUserAvatarResponse['results']> => {
     const blob = await downscaleAvatarImage(file);
@@ -17,10 +19,11 @@ const uploadAvatar = async (
 };
 
 export const useAvatarUploadMutation = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<ApiUserAvatarResponse['results'], ApiError, File>({
         mutationKey: ['user_avatar_upload'],
-        mutationFn: uploadAvatar,
+        mutationFn: (file: File) => uploadAvatar(lightdashApi, file),
         onSuccess: async (data) => {
             queryClient.setQueryData<UserWithAbility>(['user'], (previous) =>
                 previous
@@ -32,7 +35,7 @@ export const useAvatarUploadMutation = () => {
     });
 };
 
-const deleteAvatar = async () =>
+const deleteAvatar = async (lightdashApi: LightdashApi) =>
     lightdashApi<undefined>({
         url: '/user/me/avatar',
         method: 'DELETE',
@@ -40,10 +43,11 @@ const deleteAvatar = async () =>
     });
 
 export const useAvatarDeleteMutation = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<undefined, ApiError>({
         mutationKey: ['user_avatar_delete'],
-        mutationFn: deleteAvatar,
+        mutationFn: () => deleteAvatar(lightdashApi),
         onSuccess: async () => {
             queryClient.setQueryData<UserWithAbility>(['user'], (previous) =>
                 previous ? { ...previous, avatarUrl: null } : previous,

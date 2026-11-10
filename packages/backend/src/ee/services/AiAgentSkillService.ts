@@ -12,7 +12,6 @@ import {
     AiAgentSkillVersionSource,
     AiAgentSkillVersionSummary,
     AlreadyExistsError,
-    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     ParameterError,
@@ -26,7 +25,6 @@ import { toSessionUser } from '../../auth/account';
 import { isUniqueConstraintViolation } from '../../database/errors';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../services/BaseService';
-import { FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { AiAgentSkillModel } from '../models/AiAgentSkillModel';
 import type { BuiltInSkills } from './ai/skills/builtInSkills';
 import type { AiAgentService } from './AiAgentService/AiAgentService';
@@ -40,7 +38,6 @@ type AiAgentSkillServiceDependencies = {
     analytics: LightdashAnalytics;
     aiAgentSkillModel: AiAgentSkillModel;
     aiAgentService: AiAgentService;
-    featureFlagService: FeatureFlagService;
     projectModel: ProjectModel;
     builtInSkills: BuiltInSkillsClient;
 };
@@ -109,8 +106,6 @@ export class AiAgentSkillService extends BaseService {
 
     private readonly aiAgentService: AiAgentService;
 
-    private readonly featureFlagService: FeatureFlagService;
-
     private readonly projectModel: ProjectModel;
 
     private readonly builtInSkills: BuiltInSkillsClient;
@@ -120,24 +115,16 @@ export class AiAgentSkillService extends BaseService {
         this.analytics = dependencies.analytics;
         this.aiAgentSkillModel = dependencies.aiAgentSkillModel;
         this.aiAgentService = dependencies.aiAgentService;
-        this.featureFlagService = dependencies.featureFlagService;
         this.projectModel = dependencies.projectModel;
         this.builtInSkills = dependencies.builtInSkills;
     }
 
     async isEnabled(account: RegisteredAccount): Promise<boolean> {
-        const [copilot, flag] = await Promise.all([
-            this.aiAgentService.getIsCopilotEnabled({
-                userUuid: account.user.userUuid,
-                organizationUuid: account.organization.organizationUuid,
-                organizationName: account.organization.name,
-            }),
-            this.featureFlagService.get({
-                user: toSessionUser(account),
-                featureFlagId: FeatureFlags.AiAgentCustomSkills,
-            }),
-        ]);
-        return copilot && flag.enabled;
+        return this.aiAgentService.getIsCopilotEnabled({
+            userUuid: account.user.userUuid,
+            organizationUuid: account.organization.organizationUuid,
+            organizationName: account.organization.name,
+        });
     }
 
     private async assertEnabled(account: RegisteredAccount): Promise<void> {

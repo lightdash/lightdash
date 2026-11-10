@@ -1,27 +1,34 @@
 import {
+    FeatureFlags,
     ProjectType,
+    WAREHOUSE_CONNECTION_SWITCH_PLAN_CHANGED_MESSAGE,
     WarehouseTypes,
     type Project,
     type WarehouseConnectionSwitchPlan,
 } from '@lightdash/common';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { lightdashApi } from '../../api';
+import { sharedLightdashApi } from '../../api';
 import { renderWithProviders } from '../../testing/testUtils';
 import ConnectionsPanel from './ConnectionsPanel';
 
-const flag = vi.hoisted(() => ({ enabled: true }));
+const flag = vi.hoisted(() => ({ enabled: true, mixedTypesEnabled: true }));
 
-vi.mock('../../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../../api');
 
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({ data: { enabled: flag.enabled } }),
+    useServerFeatureFlag: (id: FeatureFlags) => ({
+        data: {
+            enabled:
+                id === FeatureFlags.MixedWarehouseConnections
+                    ? flag.mixedTypesEnabled
+                    : flag.enabled,
+        },
+    }),
 }));
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 
 const organizationUuid = 'organization-uuid';
 const connectionsUrl = '/projects/project-uuid/warehouse-connections';
@@ -66,14 +73,41 @@ const plan: WarehouseConnectionSwitchPlan = {
 };
 
 type Call = { url: string; method: string; body?: string };
+type Respond = () => Promise<unknown>;
+
+const apiError = (message: string, statusCode = 500) => ({
+    status: 'error',
+    error: { name: 'ApiError', message, statusCode, data: {} },
+});
+
+const switchResult = {
+    eventUuid: 'event-uuid',
+    originalWarehouseConnectionUuid: 'original-uuid',
+    warehouseConnectionUuid: 'extra-uuid',
+};
+
+const deferred = () => {
+    let resolve!: (value: unknown) => void;
+    let reject!: (error: unknown) => void;
+    const promise = new Promise<unknown>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    return { promise, resolve, reject };
+};
 
 const routeApi = ({
     availability,
+    previewResponses = [],
     switchResponses = [],
+    originalWarehouseType = WarehouseTypes.POSTGRES,
 }: {
     availability: { canSwitch: boolean; reason: string | null };
-    switchResponses?: (() => Promise<unknown>)[];
+    originalWarehouseType?: WarehouseTypes;
+    previewResponses?: Respond[];
+    switchResponses?: Respond[];
 }) => {
+    const pendingPreviews = [...previewResponses];
     const pendingSwitches = [...switchResponses];
     mockApi.mockImplementation(async ({ url, method }: Call) => {
         if (url === connectionsUrl && method === 'GET') {
@@ -82,10 +116,13 @@ const routeApi = ({
         if (url === switchUrl && method === 'GET') {
             return {
                 ...availability,
-                originalWarehouseType: WarehouseTypes.POSTGRES,
+                originalWarehouseType,
             };
         }
-        if (url === `${switchUrl}/preview`) return plan;
+        if (url === `${switchUrl}/preview`) {
+            const next = pendingPreviews.shift();
+            return next ? next() : plan;
+        }
         if (url === `${switchUrl}/switch`) {
             const next = pendingSwitches.shift();
             if (next) return next();
@@ -99,7 +136,14 @@ const callsTo = (url: string) =>
         .map(([call]) => call as Call)
         .filter((call) => call.url === url);
 
-const renderPanel = () => {
+const bodiesTo = (url: string) =>
+    callsTo(url).map(
+        (call) => JSON.parse(call.body!) as Record<string, unknown>,
+    );
+
+const renderPanel = ({
+    requireUserCredentials = false,
+}: { requireUserCredentials?: boolean } = {}) => {
     renderWithProviders(
         <ConnectionsPanel
             savedProject={
@@ -107,6 +151,7 @@ const renderPanel = () => {
                     projectUuid: 'project-uuid',
                     organizationUuid,
                     type: ProjectType.DEFAULT,
+                    warehouseConnection: { requireUserCredentials },
                 } as Project
             }
         />,
@@ -128,21 +173,85 @@ const renderPanel = () => {
     return userEvent.setup();
 };
 
+const openDialog = async (user: ReturnType<typeof userEvent.setup>) => {
+    const button = await screen.findByRole('button', {
+        name: 'Enable multiple connections',
+    });
+    await waitFor(() => expect(button).toBeEnabled());
+    await user.click(button);
+    return screen.findByRole('dialog');
+};
+
 const fillForm = async (user: ReturnType<typeof userEvent.setup>) => {
     const dialog = await screen.findByRole('dialog');
-    await user.type(within(dialog).getByLabelText(/^Name\s*\*?$/), 'Finance');
-    await user.type(within(dialog).getByLabelText(/^Host/), 'finance.internal');
-    await user.type(within(dialog).getByLabelText(/^User/), 'analyst');
-    await user.type(within(dialog).getByLabelText(/^Password/), 'secret');
-    await user.type(within(dialog).getByLabelText(/^DB name/), 'finance');
-    await user.type(within(dialog).getByLabelText(/^Schema/), 'public');
+    // Paste whole field values: these tests exercise the switch, not per-key input.
+    for (const [label, value] of [
+        [/^Name\s*\*?$/, 'Finance'],
+        [/^Host/, 'finance.internal'],
+        [/^User/, 'analyst'],
+        [/^Password/, 'secret'],
+        [/^DB name/, 'finance'],
+        [/^Schema/, 'public'],
+    ] as const) {
+        await user.click(within(dialog).getByLabelText(label));
+        await user.paste(value);
+    }
     return dialog;
+};
+
+const enableButton = (dialog: HTMLElement) =>
+    within(dialog).getByRole('button', {
+        name: 'Enable multiple connections',
+    });
+
+const expectValuesKept = (dialog: HTMLElement) => {
+    expect(
+        within(dialog).getByLabelText(/^Name of the current connection/),
+    ).toHaveValue('PostgreSQL');
+    expect(within(dialog).getByLabelText(/^Name\s*\*?$/)).toHaveValue(
+        'Finance',
+    );
+    expect(within(dialog).getByLabelText(/^Host/)).toHaveValue(
+        'finance.internal',
+    );
+    expect(within(dialog).getByLabelText(/^Password/)).toHaveValue('secret');
 };
 
 describe('Enable multiple connections', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         flag.enabled = true;
+        flag.mixedTypesEnabled = true;
+    });
+
+    it.each([false, true])(
+        'gates a Trino original with the resolved mixed flag %s',
+        async (enabled) => {
+            flag.mixedTypesEnabled = enabled;
+            routeApi({
+                availability: { canSwitch: true, reason: null },
+                originalWarehouseType: WarehouseTypes.TRINO,
+            });
+            renderPanel();
+            const button = await screen.findByRole('button', {
+                name: 'Enable multiple connections',
+            });
+            await waitFor(() =>
+                expect(button).toHaveProperty('disabled', !enabled),
+            );
+        },
+    );
+    it('keeps a Postgres original available with the mixed flag off', async () => {
+        flag.mixedTypesEnabled = false;
+        routeApi({ availability: { canSwitch: true, reason: null } });
+        renderPanel();
+        await waitFor(() =>
+            expect(
+                screen.getByRole('button', {
+                    name: 'Enable multiple connections',
+                }),
+            ).toBeEnabled(),
+        );
     });
 
     it('offers the switch on a single-connection project', async () => {
@@ -158,14 +267,14 @@ describe('Enable multiple connections', () => {
         ).not.toBeInTheDocument();
     });
 
+    // Full panel render plus a multi-step form; the default 5 s is not enough on a shared CI runner.
     it('hides the extra credential toggle and explains the primary setting in the switch dialog', async () => {
-        routeApi({ availability: { canSwitch: true, reason: null } });
+        routeApi({
+            availability: { canSwitch: true, reason: null },
+            switchResponses: [() => Promise.resolve(switchResult)],
+        });
         const user = renderPanel();
-        await user.click(
-            await screen.findByRole('button', {
-                name: 'Enable multiple connections',
-            }),
-        );
+        await openDialog(user);
         const form = await fillForm(user);
         await user.click(
             within(form).getByRole('button', { name: /advanced/i }),
@@ -181,10 +290,10 @@ describe('Enable multiple connections', () => {
             ),
         ).not.toBeInTheDocument();
 
-        await user.click(
-            within(form).getByRole('button', { name: 'Review the switch' }),
+        await user.click(enableButton(form));
+        await waitFor(() =>
+            expect(callsTo(`${switchUrl}/preview`)).toHaveLength(1),
         );
-        await screen.findByText(/Its connection test passed/);
         const body = JSON.parse(callsTo(`${switchUrl}/preview`)[0].body!) as {
             connection: {
                 warehouseConnection: { requireUserCredentials?: boolean };
@@ -193,7 +302,7 @@ describe('Enable multiple connections', () => {
         expect(body.connection.warehouseConnection.requireUserCredentials).toBe(
             false,
         );
-    });
+    }, 20_000);
 
     it('disables the switch and says why when the project cannot switch', async () => {
         routeApi({
@@ -227,55 +336,94 @@ describe('Enable multiple connections', () => {
         expect(mockApi).not.toHaveBeenCalled();
     });
 
-    it('previews the switch, then enables it with the previewed plan, and a retry reuses the same key', async () => {
+    it('opens one dialog on the setup form, with what happens next', async () => {
+        routeApi({ availability: { canSwitch: true, reason: null } });
+        const user = renderPanel();
+        const dialog = await openDialog(user);
+
+        expect(screen.getAllByRole('dialog')).toHaveLength(1);
+        expect(
+            within(dialog).getByLabelText(/^Name of the current connection/),
+        ).toHaveValue('PostgreSQL');
+        expect(within(dialog).getByLabelText(/^Host/)).toBeEnabled();
+        expect(
+            within(dialog).getByText(
+                'The new connection is tested when you enable multiple connections. If the test fails, nothing changes.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            within(dialog).getByText(/There is no way back/),
+        ).toBeInTheDocument();
+        expect(
+            within(dialog).getByText(/connection picker/),
+        ).toBeInTheDocument();
+        expect(
+            within(dialog).getByRole('button', { name: 'Cancel' }),
+        ).toBeEnabled();
+        expect(enableButton(dialog)).toBeEnabled();
+        expect(
+            within(dialog).queryByText(/People with personal credentials/),
+        ).toBeNull();
+        expect(screen.queryByText(/Review the switch/)).toBeNull();
+
+        // The consequences follow the name the user gives the current connection.
+        const currentName = within(dialog).getByLabelText(
+            /^Name of the current connection/,
+        );
+        await user.clear(currentName);
+        await user.paste('Warehouse A');
+        expect(
+            within(dialog).getByText('Warehouse A').closest('li'),
+        ).toHaveTextContent(
+            'Everything that exists today keeps using Warehouse A.',
+        );
+    }, 20_000);
+
+    it('mentions personal credentials when the current connection requires them', async () => {
+        routeApi({ availability: { canSwitch: true, reason: null } });
+        const user = renderPanel({ requireUserCredentials: true });
+        const dialog = await openDialog(user);
+
+        expect(
+            within(dialog).getByText(/People with personal credentials/),
+        ).toHaveTextContent(
+            'People with personal credentials keep them for PostgreSQL, and choose one for the new connection when they first use it.',
+        );
+    });
+
+    it('tests the connection and enables multiple connections from one click', async () => {
+        const preview = deferred();
+        const switched = deferred();
         routeApi({
             availability: { canSwitch: true, reason: null },
-            switchResponses: [
-                () =>
-                    Promise.reject({
-                        status: 'error',
-                        error: {
-                            name: 'UnexpectedServerError',
-                            message: 'Network hiccup',
-                            statusCode: 500,
-                            data: {},
-                        },
-                    }),
-                () =>
-                    Promise.resolve({
-                        eventUuid: 'event-uuid',
-                        originalWarehouseConnectionUuid: 'original-uuid',
-                        warehouseConnectionUuid: 'extra-uuid',
-                    }),
-            ],
+            previewResponses: [() => preview.promise],
+            switchResponses: [() => switched.promise],
         });
         const user = renderPanel();
-        await user.click(
-            await screen.findByRole('button', {
-                name: 'Enable multiple connections',
-            }),
-        );
-        const form = await fillForm(user);
-        expect(
-            within(form).getByLabelText(/^Name of the current connection/),
-        ).toHaveValue('PostgreSQL');
+        await openDialog(user);
+        const dialog = await fillForm(user);
+        await user.click(enableButton(dialog));
 
-        await user.click(
-            within(form).getByRole('button', { name: 'Review the switch' }),
+        expect(await within(dialog).findByRole('status')).toHaveTextContent(
+            'Testing connection…',
         );
+        expect(callsTo(`${switchUrl}/switch`)).toHaveLength(0);
 
-        const summary = await screen.findByRole('dialog');
+        await act(async () => preview.resolve(plan));
         expect(
-            await within(summary).findByText(/Its connection test passed/),
+            await within(dialog).findByText('Enabling multiple connections…'),
         ).toBeInTheDocument();
-        expect(within(summary).getByText('12 explores')).toBeInTheDocument();
-        expect(
-            within(summary).getByText('2 scheduled deliveries'),
-        ).toBeInTheDocument();
-        expect(
-            within(summary).getByText(/There is no way back/),
-        ).toBeInTheDocument();
-        expect(JSON.parse(callsTo(`${switchUrl}/preview`)[0].body!)).toEqual({
+        expect(screen.getAllByRole('dialog')).toHaveLength(1);
+        expect(screen.queryByText(/Review the switch/)).toBeNull();
+
+        await act(async () => switched.resolve(switchResult));
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+        const [previewBody] = bodiesTo(`${switchUrl}/preview`);
+        const [switchBody] = bodiesTo(`${switchUrl}/switch`);
+        expect(bodiesTo(`${switchUrl}/preview`)).toHaveLength(1);
+        expect(bodiesTo(`${switchUrl}/switch`)).toHaveLength(1);
+        expect(previewBody).toEqual({
             original: {
                 name: 'PostgreSQL',
                 listAllDatabases: false,
@@ -290,27 +438,308 @@ describe('Enable multiple connections', () => {
                 }),
             },
         });
+        const { planHash, idempotencyKey, ...switchRequest } = switchBody;
+        expect(switchRequest).toEqual(previewBody);
+        expect(planHash).toBe('plan-hash');
+        expect(idempotencyKey).toEqual(expect.any(String));
+    }, 20_000);
 
-        const confirm = within(summary).getByRole('button', {
-            name: 'Enable multiple connections',
+    it('locks the form while enabling and submits a double click once', async () => {
+        const preview = deferred();
+        routeApi({
+            availability: { canSwitch: true, reason: null },
+            previewResponses: [() => preview.promise],
+            switchResponses: [() => Promise.resolve(switchResult)],
         });
-        await user.click(confirm);
-        await waitFor(() =>
-            expect(callsTo(`${switchUrl}/switch`)).toHaveLength(1),
-        );
-        await user.click(confirm);
+        const user = renderPanel();
+        await openDialog(user);
+        const dialog = await fillForm(user);
+        const button = enableButton(dialog);
 
+        // Two clicks in the same tick, before the button can re-render as disabled.
+        act(() => {
+            button.click();
+            button.click();
+        });
+
+        await within(dialog).findByText('Testing connection…');
+        expect(callsTo(`${switchUrl}/preview`)).toHaveLength(1);
+        const fields = within(dialog).getByRole('group', {
+            name: 'Connection details',
+        });
+        expect(fields).toBeDisabled();
+        // inert also takes links and other non-form controls out of reach.
+        expect(fields).toHaveAttribute('inert');
+        const controls = fields.querySelectorAll(
+            'input, button, select, textarea',
+        );
+        expect(controls.length).toBeGreaterThan(5);
+        controls.forEach((control) => expect(control).toBeDisabled());
+        expect(within(dialog).getByLabelText(/^Host/)).toBeDisabled();
+        expect(
+            within(dialog).getByLabelText(/^Name of the current connection/),
+        ).toBeDisabled();
+        expect(
+            within(dialog).getByRole('button', { name: 'Cancel' }),
+        ).toBeDisabled();
+        expect(enableButton(dialog)).toBeDisabled();
+        expect(
+            within(dialog).queryByRole('button', { name: 'Close' }),
+        ).toBeNull();
+
+        await act(async () => preview.resolve(plan));
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+        expect(callsTo(`${switchUrl}/preview`)).toHaveLength(1);
+        expect(callsTo(`${switchUrl}/switch`)).toHaveLength(1);
+    }, 20_000);
+
+    it('blocks the request while the form has validation errors', async () => {
+        routeApi({ availability: { canSwitch: true, reason: null } });
+        const user = renderPanel();
+        const dialog = await openDialog(user);
+        await user.clear(
+            within(dialog).getByLabelText(/^Name of the current connection/),
+        );
+
+        await user.click(enableButton(dialog));
+
+        expect(within(dialog).getByLabelText(/^Name\s*\*?$/)).toBeInvalid();
+        expect(
+            within(dialog).getByLabelText(/^Name of the current connection/),
+        ).toBeInvalid();
+        expect(within(dialog).queryByRole('status')).toBeNull();
+        expect(callsTo(`${switchUrl}/preview`)).toHaveLength(0);
+        expect(callsTo(`${switchUrl}/switch`)).toHaveLength(0);
+        expect(screen.getByRole('dialog')).toBe(dialog);
+    }, 20_000);
+
+    it('shows a failed connection test in the dialog, keeps the values and never enables', async () => {
+        routeApi({
+            availability: { canSwitch: true, reason: null },
+            previewResponses: [
+                () =>
+                    Promise.reject(
+                        apiError(
+                            'Warehouse connection test failed: password authentication failed',
+                            400,
+                        ),
+                    ),
+            ],
+            switchResponses: [() => Promise.resolve(switchResult)],
+        });
+        const user = renderPanel();
+        await openDialog(user);
+        const dialog = await fillForm(user);
+        await user.click(enableButton(dialog));
+
+        expect(
+            await within(dialog).findByText(
+                'Warehouse connection test failed: password authentication failed',
+            ),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('dialog')).toBe(dialog);
+        expectValuesKept(dialog);
+        expect(callsTo(`${switchUrl}/switch`)).toHaveLength(0);
+        expect(within(dialog).getByLabelText(/^Host/)).toBeEnabled();
+
+        // Fixing a field clears the stale error; the next click goes through.
+        await user.click(within(dialog).getByLabelText(/^Password/));
+        await user.paste('2');
+        expect(
+            within(dialog).queryByText(/password authentication failed/),
+        ).toBeNull();
+        await user.click(enableButton(dialog));
+
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+        expect(callsTo(`${switchUrl}/preview`)).toHaveLength(2);
+        expect(callsTo(`${switchUrl}/switch`)).toHaveLength(1);
+    }, 20_000);
+
+    it('drops the second half of the personal-credentials sentence for another warehouse type that does not require them', async () => {
+        routeApi({ availability: { canSwitch: true, reason: null } });
+        const user = renderPanel({ requireUserCredentials: true });
+        const dialog = await openDialog(user);
+        const sentence = () =>
+            within(dialog).getByText(/People with personal credentials/);
+
+        await user.click(
+            within(dialog).getByRole('combobox', { name: 'Type' }),
+        );
+        await user.click(
+            await screen.findByRole('option', { name: 'Redshift' }),
+        );
+        expect(sentence()).toHaveTextContent(
+            /^People with personal credentials keep them for PostgreSQL\.$/,
+        );
+
+        await user.click(
+            within(dialog).getByRole('button', { name: /advanced/i }),
+        );
+        // BooleanSwitch renders its label as plain text, not a <label>.
+        await user.click(
+            dialog.querySelector<HTMLInputElement>(
+                'input[name="warehouse.requireUserCredentials"]',
+            )!,
+        );
+        expect(sentence()).toHaveTextContent(
+            'People with personal credentials keep them for PostgreSQL, and choose one for the new connection when they first use it.',
+        );
+    }, 20_000);
+
+    it('ignores Escape and overlay clicks while enabling', async () => {
+        const preview = deferred();
+        routeApi({
+            availability: { canSwitch: true, reason: null },
+            previewResponses: [() => preview.promise],
+        });
+        const user = renderPanel();
+        await openDialog(user);
+        const dialog = await fillForm(user);
+        await user.click(enableButton(dialog));
+        await within(dialog).findByText('Testing connection…');
+
+        const overlay = document.querySelector('.mantine-Modal-overlay');
+        expect(overlay).not.toBeNull();
+        await user.keyboard('{Escape}');
+        await user.click(overlay!);
+        expect(screen.getByRole('dialog')).toBe(dialog);
+        expect(
+            within(dialog).getByRole('button', { name: 'Cancel' }),
+        ).toBeDisabled();
+        expect(
+            within(dialog).queryByRole('button', { name: 'Close' }),
+        ).toBeNull();
+
+        await act(async () =>
+            preview.reject(apiError('Connection refused', 400)),
+        );
+        await within(dialog).findByText('Connection refused');
+        expect(callsTo(`${switchUrl}/switch`)).toHaveLength(0);
+
+        // Once nothing is running, the same overlay click closes the dialog.
+        await user.click(document.querySelector('.mantine-Modal-overlay')!);
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    }, 20_000);
+
+    it('replays the same switch without testing again after an unknown outcome', async () => {
+        const replay = deferred();
+        routeApi({
+            availability: { canSwitch: true, reason: null },
+            switchResponses: [
+                () => Promise.reject(apiError('Network hiccup')),
+                () => replay.promise,
+            ],
+        });
+        const user = renderPanel();
+        await openDialog(user);
+        const dialog = await fillForm(user);
+
+        await user.click(enableButton(dialog));
+        // The hook also raises a toast; the dialog shows its own copy.
         await waitFor(() =>
-            expect(callsTo(`${switchUrl}/switch`)).toHaveLength(2),
+            expect(within(dialog).getByText('Network hiccup')).toBeVisible(),
         );
-        const [first, retry] = callsTo(`${switchUrl}/switch`).map(
-            (call) => JSON.parse(call.body!) as Record<string, unknown>,
+        expectValuesKept(dialog);
+        expect(screen.getByRole('dialog')).toBe(dialog);
+
+        await user.click(enableButton(dialog));
+        expect(await within(dialog).findByRole('status')).toHaveTextContent(
+            'Enabling multiple connections…',
         );
+        expect(within(dialog).queryByText('Testing connection…')).toBeNull();
+        expect(callsTo(`${switchUrl}/preview`)).toHaveLength(1);
+
+        await act(async () => replay.resolve(switchResult));
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+        const [first, retry] = bodiesTo(`${switchUrl}/switch`);
+        expect(bodiesTo(`${switchUrl}/switch`)).toHaveLength(2);
+        expect(callsTo(`${switchUrl}/preview`)).toHaveLength(1);
         expect(first.planHash).toBe('plan-hash');
         expect(first.idempotencyKey).toEqual(expect.any(String));
         expect(retry).toEqual(first);
+    }, 30_000);
+
+    it('tests again after a plan-changed refusal and sends the new plan with the same key', async () => {
+        routeApi({
+            availability: { canSwitch: true, reason: null },
+            previewResponses: [
+                () => Promise.resolve(plan),
+                () => Promise.resolve({ ...plan, planHash: 'plan-hash-2' }),
+            ],
+            switchResponses: [
+                () =>
+                    Promise.reject(
+                        apiError(
+                            WAREHOUSE_CONNECTION_SWITCH_PLAN_CHANGED_MESSAGE,
+                            409,
+                        ),
+                    ),
+                () => Promise.resolve(switchResult),
+            ],
+        });
+        const user = renderPanel();
+        await openDialog(user);
+        const dialog = await fillForm(user);
+
+        await user.click(enableButton(dialog));
         await waitFor(() =>
-            expect(screen.queryByText(/Its connection test passed/)).toBeNull(),
+            expect(
+                within(dialog).getByText(
+                    WAREHOUSE_CONNECTION_SWITCH_PLAN_CHANGED_MESSAGE,
+                ),
+            ).toBeVisible(),
         );
-    });
+        expectValuesKept(dialog);
+        // No automatic retry.
+        expect(callsTo(`${switchUrl}/preview`)).toHaveLength(1);
+        expect(callsTo(`${switchUrl}/switch`)).toHaveLength(1);
+
+        await user.click(enableButton(dialog));
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+        const previews = bodiesTo(`${switchUrl}/preview`);
+        const [first, second] = bodiesTo(`${switchUrl}/switch`);
+        expect(previews).toHaveLength(2);
+        expect(previews[1]).toEqual(previews[0]);
+        expect(first.planHash).toBe('plan-hash');
+        expect(second.planHash).toBe('plan-hash-2');
+        expect(second.idempotencyKey).toBe(first.idempotencyKey);
+        const { planHash, idempotencyKey, ...secondRequest } = second;
+        expect(secondRequest).toEqual(previews[0]);
+    }, 30_000);
+
+    it('tests a changed request again with a new key after a failure', async () => {
+        routeApi({
+            availability: { canSwitch: true, reason: null },
+            switchResponses: [
+                () => Promise.reject(apiError('Network hiccup')),
+                () => Promise.resolve(switchResult),
+            ],
+        });
+        const user = renderPanel();
+        await openDialog(user);
+        const dialog = await fillForm(user);
+
+        await user.click(enableButton(dialog));
+        await waitFor(() =>
+            expect(within(dialog).getByText('Network hiccup')).toBeVisible(),
+        );
+
+        await user.click(within(dialog).getByLabelText(/^Host/));
+        await user.paste('2');
+        expect(within(dialog).queryByText('Network hiccup')).toBeNull();
+        await user.click(enableButton(dialog));
+        await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+        const previews = bodiesTo(`${switchUrl}/preview`);
+        const [first, changed] = bodiesTo(`${switchUrl}/switch`);
+        expect(previews).toHaveLength(2);
+        expect(previews[1].connection).toMatchObject({
+            warehouseConnection: { host: 'finance.internal2' },
+        });
+        expect(changed.connection).toEqual(previews[1].connection);
+        expect(changed.idempotencyKey).toEqual(expect.any(String));
+        expect(changed.idempotencyKey).not.toBe(first.idempotencyKey);
+    }, 30_000);
 });

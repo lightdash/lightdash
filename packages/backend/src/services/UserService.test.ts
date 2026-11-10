@@ -1,3 +1,5 @@
+import { SSOClient } from '@aws-sdk/client-sso';
+import { SSOOIDCClient } from '@aws-sdk/client-sso-oidc';
 import { Ability } from '@casl/ability';
 import {
     AnyType,
@@ -15,6 +17,7 @@ import {
     LocalIssuerTypes,
     NotFoundError,
     OpenIdIdentityIssuerType,
+    OpenIdUser,
     OrganizationMemberProfile,
     OrganizationMemberRole,
     OrganizationSettings,
@@ -25,15 +28,18 @@ import {
     ProjectMemberRole,
     SessionUser,
     SnowflakeAuthenticationType,
+    UserWarehouseCredentialPurpose,
     WarehouseTypes,
     type LearnProgress,
     type RegisteredAccount,
 } from '@lightdash/common';
 import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
+import { createOAuthScopedAbility } from '../auth/oauthScopes/scopedAbility';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { LightdashConfig } from '../config/parseConfig';
 import * as winston from '../logging/winston';
+import { AgentCapabilityPolicyModel } from '../models/AgentCapabilityPolicyModel';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
 import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
@@ -57,6 +63,8 @@ import { UserOnboardingModel } from '../models/UserOnboardingModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { getOrganizationSystemRoleScopes } from '../utils/organizationRolePermissions';
+import { type SnowflakeAgentClientResolver } from './AiAccessService/SnowflakeAgentClientResolver';
+import { snowflakeAgentClientMock } from './AiAccessService/SnowflakeAgentClientResolver.mock';
 import { UserService } from './UserService';
 import {
     authenticatedUser,
@@ -170,6 +178,9 @@ const emailModel = {
 
 const inviteLinkModel = {
     getByCode: vi.fn(async () => inviteLink),
+    getByCodeWithInviter: vi.fn<InviteLinkModel['getByCodeWithInviter']>(
+        async () => ({ inviteLink, invitedByUserUuid: null }),
+    ),
     deleteByCode: vi.fn(async () => undefined),
     upsert: vi.fn(async () => inviteLink),
 };
@@ -224,6 +235,7 @@ const sessionModel = {
 };
 
 const organizationMemberProfileModel = {
+    updateOrganizationMember: vi.fn(),
     getOrganizationMemberByUuid:
         vi.fn<OrganizationMemberProfileModel['getOrganizationMemberByUuid']>(),
     getOrganizationAdmins: vi.fn<
@@ -235,6 +247,10 @@ const organizationMemberProfileModel = {
 };
 
 type UserServiceTestOverrides = {
+    snowflakeAgentClientResolver?: Pick<
+        SnowflakeAgentClientResolver,
+        'resolve'
+    >;
     userLearnProgressModel?: Partial<UserLearnProgressModel>;
     featureFlagModel?: Pick<FeatureFlagModel, 'get'>;
     userWarehouseCredentialsModel?: Partial<UserWarehouseCredentialsModel>;
@@ -266,12 +282,21 @@ const rolesModelWithoutExtraRoles = {
     })),
 };
 
+const licensedConfigMock: LightdashConfig = {
+    ...lightdashConfigMock,
+    license: { licenseKey: 'license-key', licenseCertificate: null },
+};
+
 const createUserService = (
     lightdashConfig: LightdashConfig,
     overrides: UserServiceTestOverrides = {},
 ) =>
     new UserService({
         analytics: analyticsMock,
+        snowflakeAgentClientResolver:
+            overrides.snowflakeAgentClientResolver ?? {
+                resolve: vi.fn(async () => null),
+            },
         lightdashConfig,
         inviteLinkModel: inviteLinkModel as unknown as InviteLinkModel,
         userModel: userModel as unknown as UserModel,
@@ -341,6 +366,226 @@ describe('UserService', () => {
 
     afterEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('deleteWarehouseCredentials', () => {
+        const credentialUuid = 'credential-uuid';
+        const setupDelete = () => {
+            const credentials = {
+                deleteAiCredential: vi
+                    .fn<UserWarehouseCredentialsModel['deleteAiCredential']>()
+                    .mockResolvedValue({
+                        warehouseType: WarehouseTypes.SNOWFLAKE,
+                        projectUuid: 'project-uuid',
+                    }),
+                delete: vi
+                    .fn<UserWarehouseCredentialsModel['delete']>()
+                    .mockResolvedValue(undefined),
+            };
+            const flags = {
+                get: vi.fn<FeatureFlagModel['get']>(
+                    async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: true,
+                    }),
+                ),
+            };
+            const service = createUserService(lightdashConfigMock, {
+                userWarehouseCredentialsModel: credentials,
+                featureFlagModel: flags,
+            });
+            return { service, credentials, flags };
+        };
+
+        const disconnectedCalls = () =>
+            vi
+                .mocked(analyticsMock.track)
+                .mock.calls.filter(
+                    ([event]) => event.event === 'agent_identity.disconnected',
+                );
+
+        test.each(['project-uuid', null])(
+            'tracks a deleted AI credential with project %s',
+            async (projectUuid) => {
+                const { service, credentials, flags } = setupDelete();
+                const logger = { info: vi.fn(), warn: vi.fn(), debug: vi.fn() };
+                Object.assign(service, { logger });
+                credentials.deleteAiCredential.mockResolvedValue({
+                    warehouseType: WarehouseTypes.SNOWFLAKE,
+                    projectUuid,
+                });
+                await service.deleteWarehouseCredentials(
+                    sessionUser,
+                    credentialUuid,
+                );
+                expect(logger.info).toHaveBeenCalledExactlyOnceWith(
+                    'Agent sign-in disconnected',
+                    {
+                        userUuid: sessionUser.userUuid,
+                        organizationUuid: sessionUser.organizationUuid,
+                    },
+                );
+                expect(
+                    JSON.stringify(
+                        Object.values(logger).map((mock) => mock.mock.calls),
+                    ),
+                ).not.toContain(sessionUser.email);
+                expect(JSON.stringify(logger.info.mock.calls)).not.toMatch(
+                    /refresh-token|private_key|SELECT/,
+                );
+                expect(
+                    credentials.deleteAiCredential,
+                ).toHaveBeenCalledExactlyOnceWith(
+                    sessionUser.userUuid,
+                    credentialUuid,
+                );
+                expect(credentials.delete).not.toHaveBeenCalled();
+                expect(flags.get).toHaveBeenCalledExactlyOnceWith({
+                    user: sessionUser,
+                    featureFlagId: FeatureFlags.AgentIdentity,
+                });
+                expect(disconnectedCalls()).toEqual([
+                    [
+                        {
+                            userId: sessionUser.userUuid,
+                            event: 'agent_identity.disconnected',
+                            properties: {
+                                organizationId: sessionUser.organizationUuid,
+                                userId: sessionUser.userUuid,
+                                projectId: projectUuid,
+                                warehouseType: WarehouseTypes.SNOWFLAKE,
+                            },
+                        },
+                    ],
+                ]);
+                expect(JSON.stringify(disconnectedCalls())).not.toMatch(
+                    /email|token|sql/i,
+                );
+                expect(analyticsMock.track).toHaveBeenCalledTimes(2);
+            },
+        );
+
+        test('uses null for an absent organization', async () => {
+            const { service } = setupDelete();
+            await service.deleteWarehouseCredentials(
+                { ...sessionUser, organizationUuid: undefined },
+                credentialUuid,
+            );
+            expect(disconnectedCalls()).toEqual([
+                [
+                    {
+                        userId: sessionUser.userUuid,
+                        event: 'agent_identity.disconnected',
+                        properties: {
+                            organizationId: null,
+                            userId: sessionUser.userUuid,
+                            projectId: 'project-uuid',
+                            warehouseType: WarehouseTypes.SNOWFLAKE,
+                        },
+                    },
+                ],
+            ]);
+        });
+
+        test('deletes an ordinary credential without a disconnection event', async () => {
+            const { service, credentials, flags } = setupDelete();
+            credentials.deleteAiCredential.mockResolvedValue(null);
+            await expect(
+                service.deleteWarehouseCredentials(sessionUser, credentialUuid),
+            ).resolves.toBeUndefined();
+            expect(credentials.delete).toHaveBeenCalledExactlyOnceWith(
+                sessionUser.userUuid,
+                credentialUuid,
+            );
+            expect(flags.get).not.toHaveBeenCalled();
+            expect(analyticsMock.track).toHaveBeenCalledExactlyOnceWith({
+                userId: sessionUser.userUuid,
+                event: 'user_warehouse_credentials.deleted',
+                properties: { credentialsId: credentialUuid },
+            });
+            expect(disconnectedCalls()).toEqual([]);
+        });
+
+        test('does not track a missing or already deleted credential', async () => {
+            const { service, credentials, flags } = setupDelete();
+            credentials.deleteAiCredential.mockResolvedValue(null);
+            credentials.delete.mockRejectedValue(
+                new NotFoundError('Credential not found'),
+            );
+            await expect(
+                service.deleteWarehouseCredentials(sessionUser, credentialUuid),
+            ).rejects.toThrow(NotFoundError);
+            expect(flags.get).not.toHaveBeenCalled();
+            expect(analyticsMock.track).not.toHaveBeenCalled();
+        });
+
+        test('does not track a failed AI delete', async () => {
+            const { service, credentials, flags } = setupDelete();
+            credentials.deleteAiCredential.mockRejectedValue(
+                new Error('delete failed'),
+            );
+            await expect(
+                service.deleteWarehouseCredentials(sessionUser, credentialUuid),
+            ).rejects.toThrow('delete failed');
+            expect(credentials.delete).not.toHaveBeenCalled();
+            expect(flags.get).not.toHaveBeenCalled();
+            expect(analyticsMock.track).not.toHaveBeenCalled();
+        });
+
+        test.each(['disabled', 'lookup failed'])(
+            'keeps deletion successful when the flag is %s',
+            async (state) => {
+                const { service, flags } = setupDelete();
+                if (state === 'disabled') {
+                    flags.get.mockResolvedValue({
+                        id: FeatureFlags.AgentIdentity,
+                        enabled: false,
+                    });
+                } else {
+                    flags.get.mockRejectedValue(
+                        new Error('flag lookup failed'),
+                    );
+                }
+                await expect(
+                    service.deleteWarehouseCredentials(
+                        sessionUser,
+                        credentialUuid,
+                    ),
+                ).resolves.toBeUndefined();
+                expect(disconnectedCalls()).toEqual([]);
+                expect(analyticsMock.track).toHaveBeenCalledExactlyOnceWith({
+                    userId: sessionUser.userUuid,
+                    event: 'user_warehouse_credentials.deleted',
+                    properties: { credentialsId: credentialUuid },
+                });
+            },
+        );
+
+        test.each([
+            'user_warehouse_credentials.deleted',
+            'agent_identity.disconnected',
+        ])(
+            'keeps deletion successful when %s tracking throws',
+            async (failingEvent) => {
+                const { service } = setupDelete();
+                vi.mocked(analyticsMock.track).mockImplementation((event) => {
+                    if (event.event === failingEvent)
+                        throw new Error('tracking failed');
+                });
+                try {
+                    await expect(
+                        service.deleteWarehouseCredentials(
+                            sessionUser,
+                            credentialUuid,
+                        ),
+                    ).resolves.toBeUndefined();
+                    expect(analyticsMock.track).toHaveBeenCalledTimes(2);
+                    expect(disconnectedCalls()).toHaveLength(1);
+                } finally {
+                    vi.mocked(analyticsMock.track).mockReset();
+                }
+            },
+        );
     });
 
     describe('joinOrg by allowed email domain', () => {
@@ -557,11 +802,28 @@ describe('UserService', () => {
             expect(account.isServiceAccount()).toBe(false);
         });
 
-        test('should return a service account when the user backs a service account', async () => {
+        test('should not look up service accounts on an unlicensed instance', async () => {
             const service = createUserService({
                 ...lightdashConfigMock,
-                serviceAccount: {
-                    enabled: true,
+                license: { licenseKey: null, licenseCertificate: null },
+            });
+
+            const account = await service.getAccountByUserUuid('userUuid');
+
+            expect(
+                userModel.findServiceAccountByUserUuid,
+            ).not.toHaveBeenCalled();
+            expect(account.isSessionUser()).toBe(true);
+        });
+
+        test('should return a service account when the user backs a service account', async () => {
+            // No env var or feature flag is needed: the licence is the gate.
+            const service = createUserService(licensedConfigMock, {
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: false,
+                    })),
                 },
             });
             (
@@ -601,12 +863,7 @@ describe('UserService', () => {
         });
 
         test('should preserve service-account authentication', async () => {
-            const service = createUserService({
-                ...lightdashConfigMock,
-                serviceAccount: {
-                    enabled: true,
-                },
-            });
+            const service = createUserService(licensedConfigMock);
             (
                 userModel.findServiceAccountByUserUuid as import('vitest').Mock
             ).mockResolvedValueOnce({
@@ -725,6 +982,41 @@ describe('UserService', () => {
                     answer: null,
                 },
             });
+        });
+
+        test('saves the trimmed first and last name', async () => {
+            await userService.completeUserSetup(sessionUser, {
+                firstName: ' Ada ',
+                lastName: 'Lovelace ',
+                jobTitle: '',
+                enableEmailDomainAccess: false,
+                isMarketingOptedIn: true,
+                isTrackingAnonymized: false,
+            });
+
+            expect(vi.mocked(userModel.updateUser)).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                undefined,
+                expect.objectContaining({
+                    firstName: 'Ada',
+                    lastName: 'Lovelace',
+                    isSetupComplete: true,
+                }),
+            );
+        });
+
+        test('rejects a name with HTML', async () => {
+            await expect(
+                userService.completeUserSetup(sessionUser, {
+                    firstName: '<b>Ada</b>',
+                    lastName: 'Lovelace',
+                    jobTitle: '',
+                    enableEmailDomainAccess: false,
+                    isMarketingOptedIn: true,
+                    isTrackingAnonymized: false,
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(vi.mocked(userModel.updateUser)).not.toHaveBeenCalled();
         });
 
         test('does not track when the referral answer is omitted (invited member)', async () => {
@@ -1106,9 +1398,12 @@ describe('UserService', () => {
         };
 
         test('activates the invited user without a password and consumes the invite', async () => {
-            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce(
-                validInviteLink,
-            );
+            vi.mocked(
+                inviteLinkModel.getByCodeWithInviter,
+            ).mockResolvedValueOnce({
+                inviteLink: validInviteLink,
+                invitedByUserUuid: null,
+            });
             vi.mocked(
                 userModel.activateUserWithoutPassword,
             ).mockResolvedValueOnce(memberUser);
@@ -1152,9 +1447,12 @@ describe('UserService', () => {
         });
 
         test('requires SSO instead of activating the invited user when local authentication is disabled', async () => {
-            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce(
-                validInviteLink,
-            );
+            vi.mocked(
+                inviteLinkModel.getByCodeWithInviter,
+            ).mockResolvedValueOnce({
+                inviteLink: validInviteLink,
+                invitedByUserUuid: null,
+            });
             const service = createUserService(lightdashConfigMock);
             vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(false);
 
@@ -1173,9 +1471,9 @@ describe('UserService', () => {
         });
 
         test('rejects an expired invite without activating the user', async () => {
-            vi.mocked(inviteLinkModel.getByCode).mockRejectedValueOnce(
-                new ExpiredError('Invite link expired'),
-            );
+            vi.mocked(
+                inviteLinkModel.getByCodeWithInviter,
+            ).mockRejectedValueOnce(new ExpiredError('Invite link expired'));
             const service = createUserService(lightdashConfigMock);
 
             await expect(
@@ -1190,9 +1488,9 @@ describe('UserService', () => {
         });
 
         test('returns not found for an unknown invite without activating the user', async () => {
-            vi.mocked(inviteLinkModel.getByCode).mockRejectedValueOnce(
-                new NotFoundError('No invite link found'),
-            );
+            vi.mocked(
+                inviteLinkModel.getByCodeWithInviter,
+            ).mockRejectedValueOnce(new NotFoundError('No invite link found'));
             const service = createUserService(lightdashConfigMock);
 
             await expect(
@@ -1206,8 +1504,11 @@ describe('UserService', () => {
         });
 
         test('returns not found when the same invite is consumed again', async () => {
-            vi.mocked(inviteLinkModel.getByCode)
-                .mockResolvedValueOnce(validInviteLink)
+            vi.mocked(inviteLinkModel.getByCodeWithInviter)
+                .mockResolvedValueOnce({
+                    inviteLink: validInviteLink,
+                    invitedByUserUuid: null,
+                })
                 .mockRejectedValueOnce(
                     new NotFoundError('No invite link found'),
                 );
@@ -1250,9 +1551,12 @@ describe('UserService', () => {
                     ],
                 })),
             };
-            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce(
-                validInviteLink,
-            );
+            vi.mocked(
+                inviteLinkModel.getByCodeWithInviter,
+            ).mockResolvedValueOnce({
+                inviteLink: validInviteLink,
+                invitedByUserUuid: null,
+            });
             vi.mocked(
                 userModel.activateUserWithoutPassword,
             ).mockResolvedValueOnce(memberUser);
@@ -1276,9 +1580,12 @@ describe('UserService', () => {
                 ...memberUser,
                 role: OrganizationMemberRole.ADMIN,
             };
-            vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce(
-                validInviteLink,
-            );
+            vi.mocked(
+                inviteLinkModel.getByCodeWithInviter,
+            ).mockResolvedValueOnce({
+                inviteLink: validInviteLink,
+                invitedByUserUuid: null,
+            });
             vi.mocked(
                 userModel.activateUserWithoutPassword,
             ).mockResolvedValueOnce(adminUser);
@@ -1330,9 +1637,9 @@ describe('UserService', () => {
     });
 
     test('keeps password-based invite activation unchanged', async () => {
-        vi.mocked(inviteLinkModel.getByCode).mockResolvedValueOnce({
-            ...inviteLink,
-            expiresAt: new Date('2099-01-01'),
+        vi.mocked(inviteLinkModel.getByCodeWithInviter).mockResolvedValueOnce({
+            inviteLink: { ...inviteLink, expiresAt: new Date('2099-01-01') },
+            invitedByUserUuid: null,
         });
         const service = createUserService(lightdashConfigMock);
         vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(true);
@@ -1371,6 +1678,41 @@ describe('UserService', () => {
                 isOrganizationCreator: false,
             },
         });
+    });
+
+    test('tracks who sent a setup invite when it is accepted', async () => {
+        vi.mocked(inviteLinkModel.getByCodeWithInviter).mockResolvedValueOnce({
+            inviteLink: {
+                ...inviteLink,
+                purpose: InviteLinkPurpose.Setup,
+                expiresAt: new Date('2099-01-01'),
+            },
+            invitedByUserUuid: 'inviter-uuid',
+        });
+        const service = createUserService(lightdashConfigMock);
+        vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(true);
+        vi.spyOn(
+            service,
+            'sendOneTimePasscodeToPrimaryEmail',
+        ).mockResolvedValue({
+            email: inviteLink.email,
+            isVerified: false,
+        });
+
+        await service.activateUserFromInvite(inviteLink.inviteCode, {
+            firstName: 'Invite',
+            lastName: 'User',
+            password: 'password1!',
+        });
+
+        expect(analyticsMock.track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'setup_invite.accepted',
+                properties: expect.objectContaining({
+                    invitedByUserId: 'inviter-uuid',
+                }),
+            }),
+        );
     });
 
     describe('email OTP login', () => {
@@ -3767,6 +4109,177 @@ describe('UserService', () => {
         });
     });
 
+    describe('missing profile names from Google', () => {
+        const namelessUser: SessionUser = {
+            ...sessionUser,
+            firstName: '',
+            lastName: '',
+        };
+        const googleUser = (
+            firstName: string | undefined,
+            lastName: string | undefined,
+        ): OpenIdUser => ({
+            openId: { ...openIdUser.openId, firstName, lastName },
+        });
+        const signInWithExistingIdentity = (savedUser: SessionUser) => {
+            userModel.findSessionUserByOpenId.mockResolvedValueOnce(savedUser);
+            userModel.getOrganizationsForUser.mockResolvedValueOnce([
+                {
+                    organizationUuid: savedUser.organizationUuid,
+                    organizationName: savedUser.organizationName,
+                    organizationCreatedAt: savedUser.organizationCreatedAt,
+                },
+            ]);
+        };
+
+        test.each([
+            [
+                'fills both blank names',
+                { firstName: '', lastName: '' },
+                googleUser('Ana', 'Lee'),
+                { firstName: 'Ana', lastName: 'Lee' },
+            ],
+            [
+                'treats whitespace as blank and trims the Google name',
+                { firstName: '  ', lastName: '' },
+                googleUser(' Ana ', 'Lee'),
+                { firstName: 'Ana', lastName: 'Lee' },
+            ],
+            [
+                'keeps a saved last name while filling the first name',
+                { firstName: '', lastName: 'Custom' },
+                googleUser('Ana', 'Lee'),
+                { firstName: 'Ana', lastName: undefined },
+            ],
+        ])(
+            'existing Google identity %s',
+            async (_name, savedNames, googleProfile, expectedUpdate) => {
+                signInWithExistingIdentity({ ...sessionUser, ...savedNames });
+
+                const user = await userService.loginWithOpenId(
+                    googleProfile,
+                    undefined,
+                    undefined,
+                );
+
+                expect(userModel.updateUser).toHaveBeenCalledExactlyOnceWith(
+                    sessionUser.userUuid,
+                    undefined,
+                    expectedUpdate,
+                );
+                expect(user).toEqual(
+                    expect.objectContaining(
+                        Object.fromEntries(
+                            Object.entries(expectedUpdate).filter(
+                                ([, value]) => value !== undefined,
+                            ),
+                        ),
+                    ),
+                );
+            },
+        );
+
+        test.each([
+            [
+                'the user already has names',
+                sessionUser,
+                googleUser('Ana', 'Lee'),
+            ],
+            [
+                'Google sends no names',
+                namelessUser,
+                googleUser(undefined, undefined),
+            ],
+            ['Google sends blank names', namelessUser, googleUser('  ', '')],
+            [
+                'Google sends names the profile rejects',
+                namelessUser,
+                googleUser('<b>Ana', 'Lee>'),
+            ],
+        ])(
+            'existing Google identity is left unchanged when %s',
+            async (_name, savedUser, googleProfile) => {
+                signInWithExistingIdentity(savedUser);
+
+                await expect(
+                    userService.loginWithOpenId(
+                        googleProfile,
+                        undefined,
+                        undefined,
+                    ),
+                ).resolves.toEqual(
+                    expect.objectContaining({ userUuid: savedUser.userUuid }),
+                );
+                expect(userModel.updateUser).not.toHaveBeenCalled();
+            },
+        );
+
+        test('fills blank names when Google links to a verified-email account', async () => {
+            userModel.findSessionUserByPrimaryEmail.mockResolvedValueOnce(
+                namelessUser,
+            );
+            const service = createUserService({
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    enableOidcToEmailLinking: true,
+                },
+            });
+
+            const user = await service.loginWithOpenId(
+                googleUser('Ana', 'Lee'),
+                undefined,
+                undefined,
+            );
+
+            expect(openIdIdentityModel.createIdentity).toHaveBeenCalledOnce();
+            expect(userModel.updateUser).toHaveBeenCalledExactlyOnceWith(
+                namelessUser.userUuid,
+                undefined,
+                { firstName: 'Ana', lastName: 'Lee' },
+            );
+            expect(user).toEqual(
+                expect.objectContaining({ firstName: 'Ana', lastName: 'Lee' }),
+            );
+        });
+
+        test('fills blank names when Google links to the signed-in user', async () => {
+            const user = await userService.loginWithOpenId(
+                googleUser('Ana', 'Lee'),
+                { ...authenticatedUser, firstName: '', lastName: '' },
+                undefined,
+            );
+
+            expect(userModel.updateUser).toHaveBeenCalledExactlyOnceWith(
+                authenticatedUser.userUuid,
+                undefined,
+                { firstName: 'Ana', lastName: 'Lee' },
+            );
+            expect(user).toEqual(
+                expect.objectContaining({ firstName: 'Ana', lastName: 'Lee' }),
+            );
+        });
+
+        test('leaves names from other identity providers alone', async () => {
+            signInWithExistingIdentity(namelessUser);
+            const service = createUserService(lightdashConfigMock);
+            vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(true);
+
+            await service.loginWithOpenId(
+                {
+                    openId: {
+                        ...googleUser('Ana', 'Lee').openId,
+                        issuerType: OpenIdIdentityIssuerType.OKTA,
+                    },
+                },
+                undefined,
+                undefined,
+            );
+
+            expect(userModel.updateUser).not.toHaveBeenCalled();
+        });
+    });
+
     describe('loginWithOpenId', () => {
         const allowedLoginEvents = () =>
             auditLogSpy.mock.calls.filter(
@@ -4594,6 +5107,9 @@ describe('UserService', () => {
             };
             const service = new UserService({
                 analytics: analyticsMock,
+                snowflakeAgentClientResolver: {
+                    resolve: vi.fn(async () => null),
+                },
                 lightdashConfig: lightdashConfigMock,
                 inviteLinkModel: inviteLinkModel as unknown as InviteLinkModel,
                 userModel: failingUserModel as unknown as UserModel,
@@ -4673,6 +5189,9 @@ describe('UserService', () => {
             };
             const service = new UserService({
                 analytics: analyticsMock,
+                snowflakeAgentClientResolver: {
+                    resolve: vi.fn(async () => null),
+                },
                 lightdashConfig: lightdashConfigMock,
                 inviteLinkModel: inviteLinkModel as unknown as InviteLinkModel,
                 userModel: tokenUserModel as unknown as UserModel,
@@ -4735,6 +5254,126 @@ describe('UserService', () => {
     });
 
     describe('createPendingUserAndInviteLink', () => {
+        test.each(['managed', 'legacy', 'off', 'pat', 'session'] as const)(
+            'handles %s invite role grants before persistence',
+            async (mode) => {
+                const policy = vi
+                    .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
+                    .mockResolvedValue({
+                        allowedGroupUuids: null,
+                        mode: mode === 'legacy' ? 'legacy' : 'managed',
+                        version: 1,
+                        allowedCapabilities: null,
+                    });
+                const actor = { ...sessionUser };
+                if (mode !== 'pat' && mode !== 'session')
+                    actor.ability = createOAuthScopedAbility(actor.ability, {
+                        mode: 'enforce',
+                        scopes: ['read', 'write'],
+                        clientId: 'agent',
+                        getRequest: () => ({
+                            method: 'POST',
+                            routeTemplate: null,
+                        }),
+                    });
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: {
+                        get: vi
+                            .fn()
+                            .mockResolvedValue({ enabled: mode !== 'off' }),
+                    },
+                });
+                try {
+                    const result = service.createPendingUserAndInviteLink(
+                        actor,
+                        inviteUser,
+                    );
+                    if (mode === 'managed') {
+                        await expect(result).rejects.toMatchObject({
+                            refusal: { reason: 'agent_capability_denied' },
+                        });
+                        expect(
+                            userModel.createPendingUser,
+                        ).not.toHaveBeenCalled();
+                        expect(userModel.joinOrg).not.toHaveBeenCalled();
+                        expect(
+                            organizationMemberProfileModel.updateOrganizationMember,
+                        ).not.toHaveBeenCalled();
+                        expect(inviteLinkModel.upsert).not.toHaveBeenCalled();
+                    } else {
+                        await expect(result).resolves.toEqual(inviteLink);
+                        expect(
+                            userModel.createPendingUser,
+                        ).toHaveBeenCalledOnce();
+                    }
+                } finally {
+                    policy.mockRestore();
+                }
+            },
+        );
+
+        test.each([
+            'pending member',
+            'pending setup',
+            'existing without org',
+        ] as const)(
+            'refuses managed OAuth invitations for %s',
+            async (kind) => {
+                const policy = vi
+                    .spyOn(AgentCapabilityPolicyModel.prototype, 'get')
+                    .mockResolvedValue({
+                        allowedGroupUuids: null,
+                        mode: 'managed',
+                        version: 1,
+                        allowedCapabilities: null,
+                    });
+                const originalFind =
+                    userModel.findUserByEmail.getMockImplementation();
+                userModel.findUserByEmail.mockResolvedValue({
+                    ...newUser,
+                    isPending: true,
+                    organizationUuid:
+                        kind === 'existing without org'
+                            ? undefined
+                            : sessionUser.organizationUuid,
+                });
+                const actor = {
+                    ...sessionUser,
+                    ability: createOAuthScopedAbility(sessionUser.ability, {
+                        mode: 'enforce',
+                        scopes: ['read', 'write'],
+                        clientId: 'agent',
+                        getRequest: () => ({
+                            method: 'POST',
+                            routeTemplate: null,
+                        }),
+                    }),
+                };
+                try {
+                    await expect(
+                        userService.createPendingUserAndInviteLink(actor, {
+                            ...inviteUser,
+                            purpose:
+                                kind === 'pending setup'
+                                    ? InviteLinkPurpose.Setup
+                                    : InviteLinkPurpose.Member,
+                        }),
+                    ).rejects.toMatchObject({
+                        refusal: { reason: 'agent_capability_denied' },
+                    });
+                    expect(userModel.createPendingUser).not.toHaveBeenCalled();
+                    expect(userModel.joinOrg).not.toHaveBeenCalled();
+                    expect(
+                        organizationMemberProfileModel.updateOrganizationMember,
+                    ).not.toHaveBeenCalled();
+                    expect(inviteLinkModel.upsert).not.toHaveBeenCalled();
+                } finally {
+                    policy.mockRestore();
+                    userModel.findUserByEmail.mockImplementation(originalFind!);
+                }
+            },
+        );
+
         test('should create user and send invite when email is not found', async () => {
             expect(
                 await userService.createPendingUserAndInviteLink(
@@ -4770,6 +5409,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
         });
         test('should cap invite expiry at the organization setting', async () => {
@@ -4792,6 +5432,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
             dateNowSpy.mockRestore();
         });
@@ -4812,6 +5453,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
             dateNowSpy.mockRestore();
         });
@@ -4829,6 +5471,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
         });
         test('should use a changed organization setting for subsequent links only', async () => {
@@ -4856,6 +5499,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
             expect(vi.mocked(inviteLinkModel.upsert)).toHaveBeenNthCalledWith(
                 2,
@@ -4864,6 +5508,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Member,
+                sessionUser.userUuid,
             );
             dateNowSpy.mockRestore();
         });
@@ -4913,6 +5558,7 @@ describe('UserService', () => {
                 sessionUser.organizationUuid,
                 newUser.userUuid,
                 InviteLinkPurpose.Setup,
+                sessionUser.userUuid,
             );
             expect(vi.mocked(emailClient.sendInviteEmail)).toHaveBeenCalledWith(
                 adminUser,
@@ -5565,6 +6211,7 @@ describe('UserService', () => {
                         refreshToken: 'new-refresh-token',
                     }),
                 }),
+                { strictPersonalOverlay: true },
             );
             expect(credentialsModel.create).not.toHaveBeenCalled();
         });
@@ -5585,6 +6232,7 @@ describe('UserService', () => {
                 sessionUser.userUuid,
                 'sso-credentials-uuid',
                 expect.objectContaining({ name: 'My Snowflake login' }),
+                { strictPersonalOverlay: true },
             );
         });
 
@@ -5625,6 +6273,7 @@ describe('UserService', () => {
                 sessionUser.userUuid,
                 'newest-sso-credentials-uuid',
                 expect.anything(),
+                { strictPersonalOverlay: true },
             );
         });
 
@@ -5862,4 +6511,387 @@ describe('UserService learn progress (CS-186)', () => {
             lastStarted: null,
         });
     });
+});
+
+describe('warehouse credential agent client status', () => {
+    it.each([
+        [
+            'old version',
+            {
+                organizationUuid: sessionUser.organizationUuid!,
+                clientVersion: 'old',
+            },
+            'current',
+            false,
+        ],
+        [
+            'matching version',
+            {
+                organizationUuid: sessionUser.organizationUuid!,
+                clientVersion: 'current',
+            },
+            'current',
+            true,
+        ],
+        ['legacy environment', null, null, true],
+        ['legacy organization', null, 'current', false],
+        [
+            'different organization',
+            { organizationUuid: 'other-org', clientVersion: 'current' },
+            'current',
+            false,
+        ],
+        [
+            'bound environment',
+            {
+                organizationUuid: sessionUser.organizationUuid!,
+                clientVersion: null,
+            },
+            null,
+            true,
+        ],
+    ] as const)(
+        'reports whether %s is current without exposing its binding',
+        async (_name, binding, version, expected) => {
+            const credential = {
+                uuid: 'credential',
+                userUuid: sessionUser.userUuid,
+                purpose: UserWarehouseCredentialPurpose.AI,
+                name: 'Agent sign-in',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                expiresAt: new Date(Date.now() + 86400000),
+                project: null,
+                credentials: {
+                    type: WarehouseTypes.SNOWFLAKE as const,
+                    user: 'agent-user',
+                    authenticationType:
+                        SnowflakeAuthenticationType.SSO as const,
+                },
+                aiClientBinding: binding,
+            };
+            const resolve = vi.fn(async () => ({
+                ...snowflakeAgentClientMock,
+                organizationUuid: sessionUser.organizationUuid!,
+                clientVersion: version,
+            }));
+            const service = createUserService(lightdashConfigMock, {
+                snowflakeAgentClientResolver: { resolve },
+                userWarehouseCredentialsModel: {
+                    getAllByUserUuid: vi.fn(async () => []),
+                    getAiCredentialsByUserUuid: vi.fn(async () => [credential]),
+                },
+            });
+            const [result] = await service.getWarehouseCredentials(sessionUser);
+            expect(result).toMatchObject({ agentClientCurrent: expected });
+            expect(result).not.toHaveProperty('aiClientBinding');
+            expect(resolve).toHaveBeenCalledWith(sessionUser.organizationUuid);
+            resolve.mockRejectedValueOnce(
+                new Error('Unreadable client secret'),
+            );
+            expect(await service.getWarehouseCredentials(sessionUser)).toEqual([
+                { ...result, agentClientCurrent: false },
+            ]);
+        },
+    );
+});
+
+describe('strict personal overlay (agent-identity on)', () => {
+    test('Google callback saves credentials for an org-less user with the flag off', async () => {
+        const flags = { get: vi.fn() };
+        const model = {
+            create: vi.fn(async () => 'credential'),
+            getByUuid: vi.fn(),
+            deleteAllByUserAndWarehouseType: vi.fn(),
+        };
+        const service = createUserService(
+            {
+                ...lightdashConfigMock,
+                auth: {
+                    ...lightdashConfigMock.auth,
+                    google: {
+                        ...lightdashConfigMock.auth.google,
+                        oauth2ClientId: 'google-client',
+                        oauth2ClientSecret: 'google-secret',
+                    },
+                },
+            },
+            {
+                featureFlagModel: flags,
+                userWarehouseCredentialsModel: model,
+            },
+        );
+        await service.createBigqueryWarehouseCredentials(
+            { ...sessionUser, organizationUuid: undefined },
+            'google-refresh',
+        );
+        expect(model.create).toHaveBeenCalledWith(
+            sessionUser.userUuid,
+            expect.objectContaining({
+                credentials: expect.objectContaining({
+                    type: WarehouseTypes.BIGQUERY,
+                }),
+            }),
+            { strictPersonalOverlay: false },
+            undefined,
+        );
+        expect(flags.get).not.toHaveBeenCalled();
+    });
+    test('strict BigQuery re-auth validates before deleting old credentials', async () => {
+        const flags = {
+            get: vi.fn<FeatureFlagModel['get']>(async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled: true,
+            })),
+        };
+        const model = {
+            create: vi.fn(async () => 'credential'),
+            getByUuid: vi.fn(),
+            deleteAllByUserAndWarehouseType: vi.fn(),
+        };
+        const config = {
+            ...lightdashConfigMock,
+            auth: {
+                ...lightdashConfigMock.auth,
+                google: {
+                    ...lightdashConfigMock.auth.google,
+                    oauth2ClientId: '',
+                },
+            },
+        };
+        const service = createUserService(config, {
+            featureFlagModel: flags,
+            userWarehouseCredentialsModel: model,
+        });
+        await expect(
+            service.createBigqueryWarehouseCredentials(
+                sessionUser,
+                'google-refresh',
+            ),
+        ).rejects.toThrow(ParameterError);
+        expect(model.deleteAllByUserAndWarehouseType).not.toHaveBeenCalled();
+        expect(model.create).not.toHaveBeenCalled();
+    });
+
+    test.each([true, false])(
+        'create and update resolve the saving person policy (%s)',
+        async (enabled) => {
+            const flags = {
+                get: vi.fn<FeatureFlagModel['get']>(
+                    async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled,
+                    }),
+                ),
+            };
+            const model = {
+                create: vi.fn(async () => 'credential'),
+                update: vi.fn(async () => 'credential'),
+                getByUuid: vi.fn(),
+            };
+            const service = createUserService(lightdashConfigMock, {
+                featureFlagModel: flags,
+                userWarehouseCredentialsModel: model,
+            });
+            const data = {
+                name: 'Personal',
+                credentials: {
+                    type: WarehouseTypes.POSTGRES as const,
+                    user: 'person',
+                    password: '',
+                },
+            };
+            await service.createWarehouseCredentials(sessionUser, data);
+            await service.updateWarehouseCredentials(
+                sessionUser,
+                'credential',
+                data,
+            );
+            expect(model.create).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                data,
+                { strictPersonalOverlay: enabled },
+                undefined,
+            );
+            expect(model.update).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                'credential',
+                data,
+                { strictPersonalOverlay: enabled },
+            );
+            expect(flags.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.AgentIdentity,
+                user: {
+                    userUuid: sessionUser.userUuid,
+                    organizationUuid: sessionUser.organizationUuid,
+                },
+            });
+        },
+    );
+
+    test.each([true, false])(
+        'SSO callbacks use the saving person policy and Databricks keeps its host (%s)',
+        async (enabled) => {
+            const flags = {
+                get: vi.fn<FeatureFlagModel['get']>(
+                    async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled,
+                    }),
+                ),
+            };
+            const model = {
+                create: vi.fn<UserWarehouseCredentialsModel['create']>(
+                    async () => 'credential',
+                ),
+                getByUuid: vi.fn(),
+                getAllByUserUuid: vi.fn(async () => []),
+                deleteAllByUserAndWarehouseType: vi.fn(),
+                findDatabricksOauthU2mForHostWithSecrets: vi.fn(),
+                upsertAiSnowflakeCredential: vi.fn(
+                    async () => 'agent-credential',
+                ),
+            };
+            const service = createUserService(
+                {
+                    ...lightdashConfigMock,
+                    auth: {
+                        ...lightdashConfigMock.auth,
+                        google: {
+                            ...lightdashConfigMock.auth.google,
+                            oauth2ClientId: 'google-client',
+                            oauth2ClientSecret: 'google-secret',
+                        },
+                    },
+                },
+                {
+                    featureFlagModel: flags,
+                    userWarehouseCredentialsModel: model,
+                },
+            );
+            await service.createBigqueryWarehouseCredentials(
+                sessionUser,
+                'google-refresh',
+            );
+            await service.createSnowflakeWarehouseCredentials(
+                sessionUser,
+                'snowflake-refresh',
+            );
+            await service.createDatabricksWarehouseCredentials(
+                sessionUser,
+                'databricks-refresh',
+                {
+                    serverHostName: 'workspace.example.com',
+                    oauthClientId: 'person-client',
+                },
+            );
+            await service.upsertAiSnowflakeCredential(
+                sessionUser,
+                'agent-refresh',
+                null,
+                { organizationUuid: 'resource-org', clientVersion: 'version' },
+            );
+            expect(model.create).toHaveBeenCalledTimes(3);
+            for (const call of model.create.mock.calls)
+                expect(call[2]).toEqual({ strictPersonalOverlay: enabled });
+            expect(model.create).toHaveBeenLastCalledWith(
+                sessionUser.userUuid,
+                expect.objectContaining({
+                    credentials: expect.objectContaining({
+                        serverHostName: 'workspace.example.com',
+                        refreshToken: 'databricks-refresh',
+                    }),
+                }),
+                { strictPersonalOverlay: enabled },
+                undefined,
+            );
+            expect(model.upsertAiSnowflakeCredential).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                'agent-refresh',
+                null,
+                { organizationUuid: 'resource-org', clientVersion: 'version' },
+                { strictPersonalOverlay: enabled },
+            );
+            expect(flags.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.AgentIdentity,
+                user: {
+                    organizationUuid: sessionUser.organizationUuid,
+                    userUuid: sessionUser.userUuid,
+                },
+            });
+            expect(flags.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.AgentIdentity,
+                user: {
+                    organizationUuid: 'resource-org',
+                    userUuid: sessionUser.userUuid,
+                },
+            });
+        },
+    );
+
+    afterEach(() => vi.restoreAllMocks());
+    test.each([true, false])(
+        'Redshift AWS SSO callback passes the resolved save policy (%s)',
+        async (enabled) => {
+            vi.spyOn(SSOOIDCClient.prototype, 'send').mockResolvedValue({
+                accessToken: 'access-token',
+            } as never);
+            vi.spyOn(SSOClient.prototype, 'send').mockResolvedValue({
+                roleCredentials: {
+                    accessKeyId: 'person-key',
+                    secretAccessKey: 'person-secret',
+                    sessionToken: 'session-token',
+                },
+            } as never);
+            const flags = {
+                get: vi.fn<FeatureFlagModel['get']>(
+                    async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled,
+                    }),
+                ),
+            };
+            const model = {
+                create: vi.fn<UserWarehouseCredentialsModel['create']>(
+                    async () => 'credential',
+                ),
+                getByUuid: vi.fn(),
+            };
+            const service = createUserService(lightdashConfigMock, {
+                featureFlagModel: flags,
+                userWarehouseCredentialsModel: model,
+            });
+            await service.completeRedshiftAwsSsoDeviceAuthorization(
+                sessionUser,
+                {
+                    clientId: 'client',
+                    clientSecret: 'secret',
+                    deviceCode: 'code',
+                    region: 'eu-west-1',
+                    startUrl: 'https://sso.example.test/start',
+                    expiresAt: Date.now() + 60000,
+                },
+                { accountId: '123456789012', roleName: 'analyst' },
+            );
+            expect(model.create).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                expect.objectContaining({
+                    credentials: expect.objectContaining({
+                        type: WarehouseTypes.REDSHIFT,
+                        accessKeyId: 'person-key',
+                        secretAccessKey: 'person-secret',
+                    }),
+                }),
+                { strictPersonalOverlay: enabled },
+                undefined,
+            );
+            expect(flags.get).toHaveBeenCalledWith({
+                featureFlagId: FeatureFlags.AgentIdentity,
+                user: {
+                    organizationUuid: sessionUser.organizationUuid,
+                    userUuid: sessionUser.userUuid,
+                },
+            });
+        },
+    );
 });

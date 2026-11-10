@@ -295,7 +295,7 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
         expect(content).toContain(
             'External source "Databricks finance" (sourceUuid: source-uuid) exposes 2 queryable tables',
         );
-        expect(content).toContain('runComposerQueries');
+        expect(content).toContain('with the `query` tool');
         expect(content).toContain(
             'tables: {"quarterly_targets":"targets-uuid","monthly_actuals":"actuals-uuid"}',
         );
@@ -327,6 +327,25 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
         expect(content).toContain(
             'copy the bracketed reference verbatim into the iterateDataApp brief',
         );
+    });
+
+    it('renders a pipeline node by its node id, without content guidance', () => {
+        const content = buildMessage([
+            {
+                type: 'composer_node',
+                artifactUuid: 'artifact-1',
+                versionUuid: 'version-2',
+                nodeId: 'revenue_by_month',
+                title: 'Revenue by month',
+            },
+        ]);
+
+        expect(content).toContain(
+            '- Pipeline node "Revenue by month" (nodeId: revenue_by_month)',
+        );
+        expect(content).not.toContain('artifact-1');
+        expect(content).not.toContain('readContent');
+        expect(content).not.toContain('runtime overrides');
     });
 
     it('renders a data app restore as one line naming both versions', () => {
@@ -449,13 +468,14 @@ describe('AiAgentService.createPinnedContextMessage Document pins', () => {
         ]);
 
         expect(content).toContain(
-            '- Document "Q3 revenue review" (documentUuid: doc-1, slug: q3-revenue-review)',
+            '- Document "Q3 revenue review" (documentSlug: q3-revenue-review)',
         );
+        expect(content).toContain('type document, slug');
         expect(content).toContain('they mean this Document');
         expect(content).toContain('editContent');
     });
 
-    it('still identifies a Document whose slug could not be resolved', () => {
+    it('marks the slug unavailable when the Document could not be resolved', () => {
         const content = buildMessage([
             {
                 type: 'document',
@@ -467,7 +487,7 @@ describe('AiAgentService.createPinnedContextMessage Document pins', () => {
         ]);
 
         expect(content).toContain(
-            '- Document "(name unavailable)" (documentUuid: doc-1)',
+            '- Document "(name unavailable)" (documentSlug: (slug unavailable))',
         );
     });
 });

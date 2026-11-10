@@ -1,17 +1,23 @@
 import { QuerySourceType } from '../../../../types/querySources';
+import { isSameComposerNodeDefinition } from '../../composerArtifact';
 import {
+    createToolComposerQueriesArgsSchema,
     DEFAULT_COMPOSER_QUERY_LIMIT,
+    getToolComposerQueriesDescription,
     parsePartialToolComposerQueriesArgs,
     toolComposerQueriesArgsSchema,
+    toolComposerQueriesArgsSchemaPersisted,
     toolComposerQueryNodeToSourceQuery,
 } from './toolComposerQueryArgs';
+
+const postHogConnectionUuid = '22222222-2222-4222-8222-222222222222';
 
 describe('toolComposerQueriesArgsSchema node titles', () => {
     const sqlNode = {
         sourceType: QuerySourceType.SQL,
         nodeId: 'signups',
         title: 'Signups by month',
-        description: null,
+        description: 'Counts new signups per calendar month.',
         sql: 'SELECT 1',
     };
     const args = (node: object) => ({
@@ -31,9 +37,16 @@ describe('toolComposerQueriesArgsSchema node titles', () => {
         ).toBe(true);
     });
 
-    it('accepts a null description', () => {
-        const parsed = toolComposerQueriesArgsSchema.parse(args(sqlNode));
-        expect(parsed.queries[0].description).toBeNull();
+    it('requires a description on every node', () => {
+        const { description, ...undescribed } = sqlNode;
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(args(undescribed)).success,
+        ).toBe(false);
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(
+                args({ ...sqlNode, description: null }),
+            ).success,
+        ).toBe(false);
     });
 });
 
@@ -137,6 +150,7 @@ describe('parsePartialToolComposerQueriesArgs', () => {
                     metrics: [],
                     filters: null,
                     sorts: null,
+                    parameters: null,
                     limit: DEFAULT_COMPOSER_QUERY_LIMIT,
                 },
                 {
@@ -189,5 +203,477 @@ describe('parsePartialToolComposerQueriesArgs', () => {
                 limit: DEFAULT_COMPOSER_QUERY_LIMIT,
             },
         ]);
+    });
+});
+
+describe('python composer nodes', () => {
+    const pythonNode = {
+        sourceType: QuerySourceType.PYTHON,
+        nodeId: 'forecast',
+        title: 'Revenue forecast',
+        description: 'Test node.',
+        code: 'def run(inputs, params):\n    return inputs["revenue"]',
+        references: ['revenue'],
+    };
+    const args = {
+        title: null,
+        description: null,
+        terminalNodeId: null,
+        queries: [pythonNode],
+    };
+
+    it('offers the python node only when enabled', () => {
+        expect(toolComposerQueriesArgsSchema.safeParse(args).success).toBe(
+            false,
+        );
+        expect(
+            createToolComposerQueriesArgsSchema({
+                enablePythonNodes: true,
+            }).safeParse(args).success,
+        ).toBe(true);
+    });
+
+    it('describes python nodes only when enabled', () => {
+        expect(
+            getToolComposerQueriesDescription({
+                enablePythonNodes: false,
+            }),
+        ).not.toContain('"python"');
+        expect(
+            getToolComposerQueriesDescription({
+                enablePythonNodes: true,
+            }),
+        ).toContain('"python"');
+    });
+
+    it('converts to a python source query', () => {
+        const [node] = createToolComposerQueriesArgsSchema({
+            enablePythonNodes: true,
+        }).parse(args).queries;
+        if (node.sourceType !== QuerySourceType.PYTHON) {
+            throw new Error('expected a python node');
+        }
+        expect(toolComposerQueryNodeToSourceQuery(node)).toEqual({
+            sourceType: QuerySourceType.PYTHON,
+            nodeId: 'forecast',
+            title: 'Revenue forecast',
+            description: 'Test node.',
+            code: pythonNode.code,
+            references: ['revenue'],
+            limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+        });
+    });
+
+    it('renders a partially streamed python node', () => {
+        const parsed = parsePartialToolComposerQueriesArgs({
+            queries: [
+                {
+                    sourceType: QuerySourceType.PYTHON,
+                    nodeId: 'forecast',
+                    code: 'def run(inp',
+                    references: { rev: 'revenue', partial: 1 },
+                },
+            ],
+        });
+        expect(parsed?.queries).toEqual([
+            {
+                sourceType: QuerySourceType.PYTHON,
+                nodeId: 'forecast',
+                title: 'forecast',
+                description: null,
+                code: 'def run(inp',
+                references: { rev: 'revenue' },
+                limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+            },
+        ]);
+    });
+});
+
+describe('composer api nodes', () => {
+    const hogql =
+        'SELECT toStartOfWeek(timestamp) AS week, count(DISTINCT person_id) AS wau FROM events GROUP BY week';
+    const apiNode = {
+        sourceType: QuerySourceType.API,
+        nodeId: 'weekly_active_users',
+        title: 'Weekly active users',
+        description: 'Counts distinct people per week in PostHog.',
+        connectionUuid: postHogConnectionUuid,
+        payload: { kind: 'query', query: hogql },
+    };
+    const args = {
+        title: null,
+        description: null,
+        terminalNodeId: null,
+        queries: [apiNode],
+    };
+
+    it('offers the api node only when enabled', () => {
+        expect(toolComposerQueriesArgsSchema.safeParse(args).success).toBe(
+            false,
+        );
+        expect(
+            createToolComposerQueriesArgsSchema({
+                enableApiNodes: true,
+            }).safeParse(args).success,
+        ).toBe(true);
+    });
+
+    it('keeps persisted api calls parseable', () => {
+        expect(
+            toolComposerQueriesArgsSchemaPersisted.safeParse(args).success,
+        ).toBe(true);
+    });
+
+    it('never offers api nodes to the agent, which queries live data sources through explores', () => {
+        expect(
+            getToolComposerQueriesDescription({ enablePythonNodes: true }),
+        ).not.toContain('"api"');
+    });
+
+    it('converts to an api source query', () => {
+        const [node] = createToolComposerQueriesArgsSchema({
+            enableApiNodes: true,
+        }).parse(args).queries;
+        if (node.sourceType !== QuerySourceType.API) {
+            throw new Error('expected an api node');
+        }
+        expect(toolComposerQueryNodeToSourceQuery(node)).toEqual({
+            sourceType: QuerySourceType.API,
+            nodeId: 'weekly_active_users',
+            title: 'Weekly active users',
+            description: 'Counts distinct people per week in PostHog.',
+            connectionUuid: postHogConnectionUuid,
+            payload: { kind: 'query', query: hogql },
+            limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+        });
+    });
+
+    it('renders a partially streamed api node once its connection arrives', () => {
+        expect(
+            parsePartialToolComposerQueriesArgs({
+                queries: [
+                    {
+                        sourceType: QuerySourceType.API,
+                        nodeId: 'weekly_active_users',
+                    },
+                ],
+            }),
+        ).toBeNull();
+        expect(
+            parsePartialToolComposerQueriesArgs({
+                queries: [
+                    {
+                        sourceType: QuerySourceType.API,
+                        nodeId: 'weekly_active_users',
+                        connectionUuid: postHogConnectionUuid,
+                        payload: { kind: 'query', query: 'SELECT ev' },
+                    },
+                ],
+            })?.queries,
+        ).toEqual([
+            {
+                sourceType: QuerySourceType.API,
+                nodeId: 'weekly_active_users',
+                title: 'weekly_active_users',
+                description: null,
+                connectionUuid: postHogConnectionUuid,
+                payload: { kind: 'query', query: 'SELECT ev' },
+                limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+            },
+        ]);
+    });
+});
+
+describe('composer node references', () => {
+    const duckdbArgs = (references: unknown) => ({
+        title: null,
+        description: null,
+        terminalNodeId: null,
+        queries: [
+            {
+                sourceType: QuerySourceType.DUCKDB,
+                nodeId: 'summary',
+                title: 'Spend summary',
+                description: 'Test node.',
+                sql: 'SELECT * FROM o',
+                references,
+            },
+        ],
+    });
+
+    it('aliases node ids in the map form', () => {
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(duckdbArgs({ o: 'orders' }))
+                .success,
+        ).toBe(true);
+    });
+
+    it.each([
+        ['map', { o: '11111111-1111-4111-8111-111111111111' }],
+        ['array', ['11111111-1111-4111-8111-111111111111']],
+    ])('rejects a query id in the %s form', (_, references) => {
+        const parsed = toolComposerQueriesArgsSchema.safeParse(
+            duckdbArgs(references),
+        );
+        expect(parsed.success).toBe(false);
+        expect(parsed.error?.issues.map((issue) => issue.message)).toEqual([
+            'References name node ids (letters, digits and underscores), not query ids',
+        ]);
+    });
+
+    it('never mentions query ids in the description', () => {
+        expect(
+            getToolComposerQueriesDescription({
+                enablePythonNodes: true,
+            }),
+        ).not.toMatch(/query ?uuid|query id/i);
+    });
+});
+
+describe('semanticLayer node filters', () => {
+    const semanticArgs = (filters: unknown) => ({
+        title: null,
+        description: null,
+        terminalNodeId: null,
+        queries: [
+            {
+                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                nodeId: 'revenue',
+                title: 'Revenue by customer',
+                description: 'Test node.',
+                exploreName: 'orders',
+                dimensions: ['orders_customer_name'],
+                metrics: ['orders_total_revenue'],
+                filters,
+                sorts: null,
+            },
+        ],
+    });
+
+    it('accepts one flat expression per field kind, or null', () => {
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(
+                semanticArgs({
+                    dimensions: 'orders_customer_name equals=Alice',
+                    metrics: null,
+                }),
+            ).success,
+        ).toBe(true);
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(semanticArgs(null)).success,
+        ).toBe(true);
+    });
+
+    it('rejects structured rules, table calculation filters and empty expressions', () => {
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(
+                semanticArgs({
+                    dimensions: null,
+                    metrics: null,
+                    tableCalculations: 'rank lessThan=10',
+                }),
+            ).success,
+        ).toBe(false);
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(
+                semanticArgs({
+                    type: 'and',
+                    dimensions: [
+                        {
+                            fieldId: 'orders_customer_name',
+                            fieldType: 'string',
+                            fieldFilterType: 'string',
+                            operator: 'equals',
+                            values: ['Alice'],
+                        },
+                    ],
+                    metrics: null,
+                    tableCalculations: null,
+                }),
+            ).success,
+        ).toBe(false);
+        expect(
+            toolComposerQueriesArgsSchema.safeParse(
+                semanticArgs({ dimensions: '' }),
+            ).success,
+        ).toBe(false);
+    });
+
+    it('defaults omitted optional fields to null', () => {
+        const { sorts, ...node } = semanticArgs({
+            dimensions: 'orders_customer_name equals=Alice',
+        }).queries[0];
+        const parsed = toolComposerQueriesArgsSchema.parse({ queries: [node] });
+        expect(parsed).toMatchObject({
+            title: null,
+            description: null,
+            terminalNodeId: null,
+            queries: [
+                {
+                    filters: {
+                        dimensions: 'orders_customer_name equals=Alice',
+                        metrics: null,
+                    },
+                    sorts: null,
+                },
+            ],
+        });
+    });
+});
+
+describe('toolComposerQueriesArgsSchemaPersisted', () => {
+    const args = (node: object) => ({
+        title: null,
+        description: null,
+        terminalNodeId: null,
+        queries: [node],
+    });
+
+    it('parses python nodes and limits above the advertised max', () => {
+        const pythonNode = {
+            sourceType: QuerySourceType.PYTHON,
+            nodeId: 'forecast',
+            title: 'Forecast',
+            description: null,
+            code: 'def run(inputs, params):\n    return inputs["revenue"]',
+            references: ['revenue'],
+            limit: 1_000_000,
+        };
+        expect(
+            toolComposerQueriesArgsSchemaPersisted.safeParse(args(pythonNode))
+                .success,
+        ).toBe(true);
+    });
+
+    it('renders a semanticLayer node with legacy free-form filters unfiltered', () => {
+        const parsed = toolComposerQueriesArgsSchemaPersisted.parse(
+            args({
+                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                nodeId: 'orders',
+                title: 'Orders',
+                description: null,
+                exploreName: 'orders',
+                dimensions: ['orders_status'],
+                metrics: ['orders_count'],
+                filters: {
+                    dimensions: {
+                        id: 'g1',
+                        and: [
+                            {
+                                id: 'r1',
+                                target: { fieldId: 'orders_status' },
+                                operator: 'equals',
+                                values: ['completed'],
+                            },
+                        ],
+                    },
+                },
+                sorts: null,
+                limit: 500,
+            }),
+        );
+        expect(parsed.queries[0]).toMatchObject({
+            nodeId: 'orders',
+            filters: null,
+        });
+    });
+
+    it('parses a semanticLayer node persisted before parameters existed', () => {
+        const parsed = toolComposerQueriesArgsSchemaPersisted.parse(
+            args({
+                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                nodeId: 'orders',
+                title: 'Orders',
+                description: null,
+                exploreName: 'orders',
+                dimensions: ['orders_status'],
+                metrics: ['orders_count'],
+                filters: null,
+                sorts: null,
+                limit: 500,
+            }),
+        );
+        expect(parsed.queries[0]).not.toHaveProperty('parameters');
+    });
+
+    it('parses nodes persisted with a null or missing description', () => {
+        const sqlNode = {
+            sourceType: QuerySourceType.SQL,
+            nodeId: 'signups',
+            title: 'Signups',
+            sql: 'SELECT 1',
+            limit: 500,
+        };
+        const parsed = toolComposerQueriesArgsSchemaPersisted.parse({
+            ...args(sqlNode),
+            queries: [
+                { ...sqlNode, description: null },
+                { ...sqlNode, nodeId: 'legacy' },
+            ],
+        });
+        expect(parsed.queries.map((node) => node.description)).toEqual([
+            null,
+            null,
+        ]);
+    });
+});
+
+describe('semanticLayer node parameters', () => {
+    const semanticNode = {
+        sourceType: QuerySourceType.SEMANTIC_LAYER as const,
+        nodeId: 'orders',
+        title: 'Orders',
+        description: 'Test node.',
+        exploreName: 'orders',
+        dimensions: ['orders_status'],
+        metrics: ['orders_count'],
+        filters: null,
+        sorts: null,
+        limit: 500,
+        additionalMetrics: [],
+    };
+
+    it('accepts parameter values on the node', () => {
+        const parsed = toolComposerQueriesArgsSchema.parse({
+            title: null,
+            description: null,
+            terminalNodeId: null,
+            queries: [
+                {
+                    ...semanticNode,
+                    parameters: { 'orders.metric': 'active_users' },
+                },
+            ],
+        });
+        expect(parsed.queries[0]).toMatchObject({
+            parameters: { 'orders.metric': 'active_users' },
+        });
+    });
+
+    it('carries parameter values to the source query, and none when null or empty', () => {
+        expect(
+            toolComposerQueryNodeToSourceQuery({
+                ...semanticNode,
+                parameters: { 'orders.metric': 'active_users' },
+            }),
+        ).toMatchObject({ parameters: { 'orders.metric': 'active_users' } });
+        expect(
+            toolComposerQueryNodeToSourceQuery({
+                ...semanticNode,
+                parameters: null,
+            }),
+        ).toMatchObject({ parameters: undefined });
+        expect(
+            isSameComposerNodeDefinition(
+                toolComposerQueryNodeToSourceQuery({
+                    ...semanticNode,
+                    parameters: null,
+                }),
+                toolComposerQueryNodeToSourceQuery({
+                    ...semanticNode,
+                    parameters: {},
+                }),
+            ),
+        ).toBe(true);
     });
 });

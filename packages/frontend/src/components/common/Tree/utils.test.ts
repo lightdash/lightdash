@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { type NestableItem } from './types';
-import { convertNestableListToTree, getAllParentPaths } from './utils';
+import {
+    convertNestableListToTree,
+    getAncestorUuids,
+    getParentUuids,
+} from './utils';
 
 describe('convertNestableListToTree', () => {
     it('returns empty array for empty input', () => {
@@ -9,8 +13,8 @@ describe('convertNestableListToTree', () => {
 
     it('returns flat list when items have no parent-child relationships', () => {
         const items: NestableItem[] = [
-            { uuid: '1', name: 'Space A', path: 'a' },
-            { uuid: '2', name: 'Space B', path: 'b' },
+            { uuid: '1', name: 'Space A', path: 'a', parentSpaceUuid: null },
+            { uuid: '2', name: 'Space B', path: 'b', parentSpaceUuid: null },
         ];
         const result = convertNestableListToTree(items);
         expect(result).toHaveLength(2);
@@ -20,10 +24,10 @@ describe('convertNestableListToTree', () => {
         expect(result[1].children).toBeUndefined();
     });
 
-    it('nests child under parent based on path', () => {
+    it('nests child under its parent space', () => {
         const items: NestableItem[] = [
-            { uuid: '1', name: 'Parent', path: 'a' },
-            { uuid: '2', name: 'Child', path: 'a.b' },
+            { uuid: '1', name: 'Parent', path: 'a', parentSpaceUuid: null },
+            { uuid: '2', name: 'Child', path: 'a.b', parentSpaceUuid: '1' },
         ];
         const result = convertNestableListToTree(items);
         expect(result).toHaveLength(1);
@@ -34,9 +38,14 @@ describe('convertNestableListToTree', () => {
 
     it('builds deep nested hierarchy', () => {
         const items: NestableItem[] = [
-            { uuid: '1', name: 'Root', path: 'a' },
-            { uuid: '2', name: 'Child', path: 'a.b' },
-            { uuid: '3', name: 'Grandchild', path: 'a.b.c' },
+            { uuid: '1', name: 'Root', path: 'a', parentSpaceUuid: null },
+            { uuid: '2', name: 'Child', path: 'a.b', parentSpaceUuid: '1' },
+            {
+                uuid: '3',
+                name: 'Grandchild',
+                path: 'a.b.c',
+                parentSpaceUuid: '2',
+            },
         ];
         const result = convertNestableListToTree(items);
         expect(result).toHaveLength(1);
@@ -47,9 +56,14 @@ describe('convertNestableListToTree', () => {
 
     it('handles items in any order (not pre-sorted)', () => {
         const items: NestableItem[] = [
-            { uuid: '3', name: 'Grandchild', path: 'a.b.c' },
-            { uuid: '1', name: 'Root', path: 'a' },
-            { uuid: '2', name: 'Child', path: 'a.b' },
+            {
+                uuid: '3',
+                name: 'Grandchild',
+                path: 'a.b.c',
+                parentSpaceUuid: '2',
+            },
+            { uuid: '1', name: 'Root', path: 'a', parentSpaceUuid: null },
+            { uuid: '2', name: 'Child', path: 'a.b', parentSpaceUuid: '1' },
         ];
         const result = convertNestableListToTree(items);
         expect(result).toHaveLength(1);
@@ -59,10 +73,14 @@ describe('convertNestableListToTree', () => {
     });
 
     it('skips missing ancestors and attaches to nearest present ancestor', () => {
-        // Parent "a.b" is missing — grandchild should attach to "a"
         const items: NestableItem[] = [
-            { uuid: '1', name: 'Root', path: 'a' },
-            { uuid: '3', name: 'Grandchild', path: 'a.b.c' },
+            { uuid: '1', name: 'Root', path: 'a', parentSpaceUuid: null },
+            {
+                uuid: '3',
+                name: 'Grandchild',
+                path: 'a.b.c',
+                parentSpaceUuid: '2',
+            },
         ];
         const result = convertNestableListToTree(items);
         expect(result).toHaveLength(1);
@@ -72,10 +90,20 @@ describe('convertNestableListToTree', () => {
 
     it('handles multiple roots with children', () => {
         const items: NestableItem[] = [
-            { uuid: '1', name: 'Root A', path: 'a' },
-            { uuid: '2', name: 'Root B', path: 'b' },
-            { uuid: '3', name: 'Child A1', path: 'a.a1' },
-            { uuid: '4', name: 'Child B1', path: 'b.b1' },
+            { uuid: '1', name: 'Root A', path: 'a', parentSpaceUuid: null },
+            { uuid: '2', name: 'Root B', path: 'b', parentSpaceUuid: null },
+            {
+                uuid: '3',
+                name: 'Child A1',
+                path: 'a.a1',
+                parentSpaceUuid: '1',
+            },
+            {
+                uuid: '4',
+                name: 'Child B1',
+                path: 'b.b1',
+                parentSpaceUuid: '2',
+            },
         ];
         const result = convertNestableListToTree(items);
         expect(result).toHaveLength(2);
@@ -85,12 +113,75 @@ describe('convertNestableListToTree', () => {
         expect(result[1].children![0].label).toBe('Child B1');
     });
 
-    it('preserves uuid in nodeProps', () => {
+    it('uses the space uuid as the node value', () => {
         const items: NestableItem[] = [
-            { uuid: 'abc-123', name: 'Space', path: 'x' },
+            {
+                uuid: 'abc-123',
+                name: 'Space',
+                path: 'x',
+                parentSpaceUuid: null,
+            },
         ];
         const result = convertNestableListToTree(items);
+        expect(result[0].value).toBe('abc-123');
         expect(result[0].nodeProps).toEqual({ uuid: 'abc-123' });
+    });
+
+    it('keeps spaces that share a path as separate nodes', () => {
+        const items: NestableItem[] = [
+            {
+                uuid: 'product',
+                name: 'Product',
+                path: 'product',
+                parentSpaceUuid: null,
+            },
+            {
+                uuid: 'charts-a',
+                name: 'Charts',
+                path: 'product.charts',
+                parentSpaceUuid: 'product',
+            },
+            {
+                uuid: 'charts-b',
+                name: 'Charts',
+                path: 'product.charts',
+                parentSpaceUuid: 'product',
+            },
+        ];
+        const result = convertNestableListToTree(items);
+        expect(result).toHaveLength(1);
+        expect(result[0].children?.map((node) => node.value)).toEqual([
+            'charts-a',
+            'charts-b',
+        ]);
+    });
+
+    it('nests by parent space when the path points elsewhere', () => {
+        const items: NestableItem[] = [
+            {
+                uuid: 'product',
+                name: 'Product',
+                path: 'product',
+                parentSpaceUuid: null,
+            },
+            {
+                uuid: 'marketing',
+                name: 'Marketing',
+                path: 'marketing',
+                parentSpaceUuid: null,
+            },
+            {
+                uuid: 'charts',
+                name: 'Charts',
+                path: 'marketing.charts',
+                parentSpaceUuid: 'product',
+            },
+        ];
+        const result = convertNestableListToTree(items);
+        expect(result[0].children?.map((node) => node.value)).toEqual([
+            'charts',
+        ]);
+        expect(result[1].children).toBeUndefined();
     });
 
     it('handles large deeply nested chains efficiently', () => {
@@ -104,6 +195,7 @@ describe('convertNestableListToTree', () => {
                 uuid: String(i),
                 name: `Level ${i}`,
                 path: pathParts.join('.'),
+                parentSpaceUuid: i === 0 ? null : String(i - 1),
             });
         }
 
@@ -111,10 +203,8 @@ describe('convertNestableListToTree', () => {
         const result = convertNestableListToTree(items);
         const elapsed = performance.now() - start;
 
-        // Should complete in well under 1 second
         expect(elapsed).toBeLessThan(1000);
 
-        // Verify structure: single chain from root to leaf
         expect(result).toHaveLength(1);
         let node = result[0];
         for (let i = 0; i < depth - 1; i++) {
@@ -126,27 +216,45 @@ describe('convertNestableListToTree', () => {
     });
 });
 
-describe('getAllParentPaths', () => {
-    it('returns path for a root node', () => {
-        const tree = convertNestableListToTree([
-            { uuid: '1', name: 'Root', path: 'a' },
+describe('getParentUuids', () => {
+    it('does not fall back to an ambiguous path ancestor', () => {
+        const parents = getParentUuids([
+            { uuid: '1', name: 'A', path: 'a', parentSpaceUuid: null },
+            { uuid: '2', name: 'A', path: 'a', parentSpaceUuid: null },
+            { uuid: '3', name: 'C', path: 'a.b.c', parentSpaceUuid: 'gone' },
         ]);
-        expect(getAllParentPaths(tree, 'a')).toEqual(['a']);
+        expect(parents.get('3')).toBeNull();
     });
 
-    it('returns all ancestor paths for a nested node', () => {
-        const tree = convertNestableListToTree([
-            { uuid: '1', name: 'Root', path: 'a' },
-            { uuid: '2', name: 'Child', path: 'a.b' },
-            { uuid: '3', name: 'Grandchild', path: 'a.b.c' },
+    it('treats a parent cycle as a root', () => {
+        const parents = getParentUuids([
+            { uuid: '1', name: 'A', path: 'a', parentSpaceUuid: '2' },
+            { uuid: '2', name: 'B', path: 'b', parentSpaceUuid: '1' },
         ]);
-        expect(getAllParentPaths(tree, 'a.b.c')).toEqual(['a', 'a.b', 'a.b.c']);
+        expect([parents.get('1'), parents.get('2')]).toContain(null);
+    });
+});
+
+describe('getAncestorUuids', () => {
+    const items: NestableItem[] = [
+        { uuid: '1', name: 'Root', path: 'a', parentSpaceUuid: null },
+        { uuid: '2', name: 'Child', path: 'a.b', parentSpaceUuid: '1' },
+        { uuid: '3', name: 'Grandchild', path: 'a.b.c', parentSpaceUuid: '2' },
+    ];
+
+    it('returns the uuid for a root node', () => {
+        expect(getAncestorUuids(getParentUuids(items), '1')).toEqual(['1']);
     });
 
-    it('returns empty array for non-existent path', () => {
-        const tree = convertNestableListToTree([
-            { uuid: '1', name: 'Root', path: 'a' },
+    it('returns all ancestor uuids for a nested node, root first', () => {
+        expect(getAncestorUuids(getParentUuids(items), '3')).toEqual([
+            '1',
+            '2',
+            '3',
         ]);
-        expect(getAllParentPaths(tree, 'x.y.z')).toEqual([]);
+    });
+
+    it('returns empty array for an unknown uuid', () => {
+        expect(getAncestorUuids(getParentUuids(items), 'x')).toEqual([]);
     });
 });

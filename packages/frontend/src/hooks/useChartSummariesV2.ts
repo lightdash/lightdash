@@ -7,23 +7,27 @@ import {
     useInfiniteQuery,
     type UseInfiniteQueryOptions,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 
 type UseChartSummariesV2Args = {
     projectUuid: string | undefined;
-    spaceUuid?: string;
+    spaceUuids?: string[];
     pageSize: number;
     page: number;
     search?: string;
 };
 
-const getChartSummariesInProjectV2 = async ({
-    projectUuid,
-    spaceUuid,
-    page,
-    pageSize,
-    search,
-}: UseChartSummariesV2Args) => {
+const getChartSummariesInProjectV2 = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        spaceUuids,
+        page,
+        pageSize,
+        search,
+    }: UseChartSummariesV2Args,
+) => {
     const searchParams = new URLSearchParams({
         projectUuids: projectUuid ?? '',
         contentTypes: ContentType.CHART,
@@ -32,9 +36,9 @@ const getChartSummariesInProjectV2 = async ({
         search: search ?? '',
     });
 
-    if (spaceUuid) {
-        searchParams.set('spaceUuids', spaceUuid);
-    }
+    spaceUuids?.forEach((spaceUuid) => {
+        searchParams.append('spaceUuids', spaceUuid);
+    });
 
     return lightdashApi<ApiChartContentResponse['results']>({
         version: 'v2',
@@ -51,10 +55,11 @@ export const useChartSummariesV2 = (
         ApiError
     > = {},
 ) => {
+    const lightdashApi = useLightdashApi();
     return useInfiniteQuery<ApiChartContentResponse['results'], ApiError>({
         queryKey: ['project', 'chart-summaries-v2', args],
         queryFn: async ({ pageParam }) => {
-            return getChartSummariesInProjectV2({
+            return getChartSummariesInProjectV2(lightdashApi, {
                 ...args,
                 page: pageParam ?? 1,
             });

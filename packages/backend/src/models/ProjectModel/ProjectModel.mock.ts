@@ -4,6 +4,7 @@ import {
     BigqueryCredentials,
     CreateBigqueryCredentials,
     CreatePostgresCredentials,
+    CreateWarehouseCredentials,
     DbtCloudIDEProjectConfig,
     DbtProjectType,
     DefaultSupportedDbtVersion,
@@ -21,9 +22,49 @@ import {
     TableSelectionType,
     WarehouseTypes,
 } from '@lightdash/common';
+import { type LightdashConfig } from '../../config/parseConfig';
 import { ProjectTable } from '../../database/entities/projects';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { type ResolvedCredentialRead } from '../WarehouseConnectionRouter/WarehouseConnectionRouter';
+import { resolveResultsCacheEnabled, type ProjectModel } from './ProjectModel';
+
+/** Wraps a ProjectModel mock so results cache settings resolve against the config, like the real model. */
+export const withResultsCacheConfig = <
+    T extends Pick<
+        ProjectModel,
+        'getResultsCacheSettings' | 'getEffectiveResultsCacheTtlSeconds'
+    >,
+>(
+    projectModel: T,
+    lightdashConfig: Pick<LightdashConfig, 'results'>,
+): T => {
+    const getResultsCacheSettings = async (projectUuid: string) => {
+        const settings =
+            await projectModel.getResultsCacheSettings(projectUuid);
+        return {
+            ...settings,
+            ...resolveResultsCacheEnabled(
+                lightdashConfig.results.cacheEnabled,
+                settings.cacheEnabled,
+            ),
+        };
+    };
+    return Object.assign(Object.create(projectModel), {
+        getResultsCacheSettings,
+        getResultsCacheState: async (projectUuid: string) => {
+            const { cacheEnabled, cacheGeneration } =
+                await getResultsCacheSettings(projectUuid);
+            return {
+                enabled: cacheEnabled,
+                cacheGeneration,
+                ttlSeconds:
+                    await projectModel.getEffectiveResultsCacheTtlSeconds(
+                        projectUuid,
+                    ),
+            };
+        },
+    });
+};
 
 const dbtCloudIDEProjectConfigMock: DbtCloudIDEProjectConfig = {
     type: DbtProjectType.DBT_CLOUD_IDE,
@@ -440,6 +481,16 @@ export const CompletePostgresCredentials: CreatePostgresCredentials = {
 };
 
 export const singleRouteProjectModelMethods = {
+    async getWarehouseCredentialsForProjectUncached(
+        this: {
+            getWarehouseCredentialsForProject: (
+                requestedProjectUuid: string,
+            ) => Promise<CreateWarehouseCredentials>;
+        },
+        requestedProjectUuid: string,
+    ) {
+        return this.getWarehouseCredentialsForProject(requestedProjectUuid);
+    },
     async requireSingleConnectionRoute() {
         return 'single' as const;
     },
@@ -455,6 +506,25 @@ export const singleRouteProjectModelMethods = {
             target: { kind: 'original' as const },
             originalWarehouseConnectionUuid: null,
         };
+    },
+    async getWarehouseConnectionForBinding(
+        this: {
+            getWarehouseCredentialsForProject: (
+                requestedProjectUuid: string,
+            ) => unknown;
+        },
+        requestedProjectUuid: string,
+    ) {
+        return this.getWarehouseCredentialsForProject(requestedProjectUuid);
+    },
+    async getDeployStartOfWeek() {
+        return { kind: 'original' as const };
+    },
+    async getDbtSourceWarehouseType() {
+        return WarehouseTypes.POSTGRES;
+    },
+    async getWarehouseConnectionsMetadata() {
+        return [];
     },
     async getWarehouseCredentialsForBinding(
         this: {

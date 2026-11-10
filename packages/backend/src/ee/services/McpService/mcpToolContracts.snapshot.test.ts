@@ -14,6 +14,7 @@ import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { MCP_FILTER_EXPRESSION_GUIDANCE_SECTION } from '../ai/prompts/filterGuidance';
 import { getMcpAnalystPrompt } from '../ai/prompts/mcpAnalyst';
 import { BuiltInSkills } from '../ai/skills/builtInSkills';
+import { MCP_CUSTOM_CHART_FRAME_TOOL_NAME } from './mcpCustomChartFrameHtml';
 import {
     isProjectScopedMcpTool,
     McpService,
@@ -53,7 +54,10 @@ vi.mock('@sentry/node', () => ({
     wrapMcpServerWithSentry: (server: unknown) => server,
 }));
 
-vi.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
+vi.mock('@modelcontextprotocol/sdk/server/mcp.js', async (importOriginal) => ({
+    ...(await importOriginal<
+        typeof import('@modelcontextprotocol/sdk/server/mcp.js')
+    >()),
     McpServer: vi.fn().mockImplementation(
         // eslint-disable-next-line prefer-arrow-callback
         function MockMcpServer(
@@ -119,16 +123,20 @@ const makeMcpService = (
     featureFlagService = {
         get: vi.fn().mockResolvedValue({ enabled: false }),
     },
+    canAuthorContent = true,
 ): McpService =>
     new McpService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiAgentService: {},
         aiAgentToolsService: {
+            canAuthorContent: vi.fn().mockResolvedValue(canAuthorContent),
             createRuntime: vi.fn(),
             listMcpSkillResources: () => BuiltInSkills.listMcpResources(),
             getMcpSkillResourceBody: (uri: string) =>
                 BuiltInSkills.getMcpResourceBody(uri),
         },
         aiOrganizationSettingsService: {
+            getMcpProjectAccess: vi.fn().mockResolvedValue({ mode: 'all' }),
             isMcpContentWritesEnabled: vi
                 .fn()
                 .mockResolvedValue(mcpContentWritesEnabled),
@@ -180,6 +188,7 @@ const sharedMcpToolDefinitionNames = mcpToolDefinitions.map(
 
 const defaultMcpAnalystPromptOptions = {
     documentsEnabled: false,
+    agentIdentityEnabled: false,
     runSqlEnabled: true,
     runMetricQueryEnabled: true,
     filterExpressionsEnabled: false,
@@ -193,6 +202,9 @@ const registrationOnlyFeatures = {
     mcpContentWritesEnabled: true,
     scheduledDeliveryEnabled: true,
     dataAppBuildsEnabled: true,
+    chartTypeBuildsEnabled: true,
+    customChartTypesEnabled: true,
+    queryEnabled: true,
 } satisfies Omit<
     McpServerToolOptions['featureAvailability'],
     keyof typeof defaultMcpAnalystPromptOptions
@@ -236,6 +248,86 @@ describe('MCP tool contracts', () => {
         expect(sharedMcpToolDefinitionNames).toMatchSnapshot();
     });
 
+    it('resolves agent identity for the request user', async () => {
+        const get = vi.fn().mockResolvedValue({ enabled: true });
+        const service = makeMcpService(true, { get });
+        expect(await service.isAgentIdentityEnabled(defaultSessionUser)).toBe(
+            true,
+        );
+        expect(get).toHaveBeenCalledWith({
+            user: defaultSessionUser,
+            featureFlagId: FeatureFlags.AgentIdentity,
+        });
+    });
+
+    it.each([
+        { runSqlEnabled: false, runMetricQueryEnabled: false, rule: false },
+        { runSqlEnabled: true, runMetricQueryEnabled: false, rule: true },
+        { runSqlEnabled: true, runMetricQueryEnabled: true, rule: true },
+        { runSqlEnabled: false, runMetricQueryEnabled: true, rule: true },
+    ])(
+        'gates the connect rule in the prompt variant sql=$runSqlEnabled metric=$runMetricQueryEnabled',
+        ({ rule, ...queryOptions }) => {
+            const options = {
+                ...defaultMcpAnalystPromptOptions,
+                ...queryOptions,
+            };
+            const connectRule = 'refuses with a connect link';
+            const flagOn = getMcpAnalystPrompt({
+                ...options,
+                agentIdentityEnabled: true,
+            });
+            if (rule) expect(flagOn).toContain(connectRule);
+            else expect(flagOn).not.toContain(connectRule);
+            expect(
+                getMcpAnalystPrompt({
+                    ...options,
+                    agentIdentityEnabled: false,
+                }),
+            ).not.toContain(connectRule);
+        },
+    );
+
+    it('matches the agent-identity tools and instructions snapshot', async () => {
+        const service = makeMcpService();
+        mockRegisteredMcpTools.length = 0;
+        await service.createServer(
+            makeMcpServerOptions({
+                runSqlEnabled: true,
+                runMetricQueryEnabled: true,
+                agentIdentityEnabled: true,
+            }),
+        );
+        const tools = mockRegisteredMcpTools
+            .filter(({ name }) =>
+                [
+                    McpToolName.CONNECT_AGENT,
+                    McpToolName.RUN_SQL,
+                    McpToolName.RUN_METRIC_QUERY,
+                ].includes(name as McpToolName),
+            )
+            .map(({ name, config }) =>
+                name === McpToolName.CONNECT_AGENT
+                    ? {
+                          name,
+                          ...config,
+                          inputSchema: schemaToJson(
+                              config.inputSchema,
+                              'input',
+                          ),
+                          outputSchema: schemaToJson(
+                              config.outputSchema,
+                              'output',
+                          ),
+                      }
+                    : { name, description: config.description },
+            );
+        expect({
+            instructions: getLatestMcpServerInstructions(),
+            tools,
+        }).toMatchSnapshot();
+    });
+
     it('resolves the filter-expression feature flag for the request user', async () => {
         const get = vi.fn().mockResolvedValue({ enabled: true });
         const mcpService = makeMcpService(true, { get });
@@ -246,18 +338,6 @@ describe('MCP tool contracts', () => {
         expect(get).toHaveBeenCalledWith({
             user: defaultSessionUser,
             featureFlagId: FeatureFlags.AiFilterExpressions,
-        });
-    });
-
-    it('resolves the Documents flag for the request user', async () => {
-        const get = vi.fn().mockResolvedValue({ enabled: true });
-        const service = makeMcpService(true, { get });
-        await expect(
-            service.isDocumentsEnabled(defaultSessionUser),
-        ).resolves.toBe(true);
-        expect(get).toHaveBeenCalledWith({
-            user: defaultSessionUser,
-            featureFlagId: FeatureFlags.Documents,
         });
     });
 
@@ -291,10 +371,7 @@ describe('MCP tool contracts', () => {
                     ).toBe(documentsEnabled);
                     if (documentsEnabled) {
                         expect(tool.config.description).toContain(
-                            'Explicit user scope and format instructions take precedence',
-                        );
-                        expect(tool.config.description).toContain(
-                            'do not invent findings or research steps',
+                            'rather than inventing findings or steps',
                         );
                     }
                 }
@@ -310,13 +387,13 @@ describe('MCP tool contracts', () => {
                         .success,
                 ).toBe(true);
                 if (name === 'read_content') {
-                    expect('documentUuid' in tool.config.inputSchema).toBe(
+                    expect('chartId' in tool.config.inputSchema).toBe(
                         documentsEnabled,
                     );
                     expect(
                         z.safeParse(tool.config.inputSchema.slug, undefined)
                             .success,
-                    ).toBe(documentsEnabled);
+                    ).toBe(false);
                 }
                 if (name === 'edit_content') {
                     expect('documentEdit' in tool.config.inputSchema).toBe(
@@ -329,6 +406,23 @@ describe('MCP tool contracts', () => {
                 }
             }
         }
+    });
+
+    it('offers to save Documents from create_content only when Documents are enabled', async () => {
+        const service = makeMcpService();
+        const offer = 'offer once to save it as a Document the user can share';
+        const createContentDescription = async (documentsEnabled: boolean) => {
+            mockRegisteredMcpTools.length = 0;
+            await service.createServer(
+                makeMcpServerOptions({ documentsEnabled }),
+            );
+            return mockRegisteredMcpTools.find(
+                ({ name }) => name === 'create_content',
+            )?.config.description;
+        };
+
+        expect(await createContentDescription(true)).toContain(offer);
+        expect(await createContentDescription(false)).not.toContain(offer);
     });
 
     it('uses the grep-fields MCP analyst prompt', () => {
@@ -544,7 +638,7 @@ describe('MCP tool contracts', () => {
                 {
                     name: McpToolName.GREP_FIELDS,
                     details: [
-                        '1–5 patterns in a SINGLE call',
+                        'cover every angle of the question in one call',
                         'long natural-language phrases',
                         'right grain',
                     ],
@@ -554,7 +648,7 @@ describe('MCP tool contracts', () => {
                     details: [
                         'required filters',
                         'filter type, case-sensitivity',
-                        'batch everything you need at once',
+                        'Batch every explore and field you need into one call',
                     ],
                 },
                 {
@@ -562,14 +656,14 @@ describe('MCP tool contracts', () => {
                     details: [
                         'use route_agent',
                         'returned agentUuid explicitly',
-                        'omit agentUuid; use set_agent for manual selection',
+                        'pass its agentUuid explicitly',
                     ],
                 },
                 {
                     name: McpToolName.SEARCH_FIELD_VALUES,
                     details: [
-                        'dimension before building a filter',
-                        'use it directly instead of searching',
+                        'dimension (e.g. a product name or status) before filtering on it',
+                        'already gives the exact value, filter on it directly',
                     ],
                 },
                 {
@@ -590,7 +684,7 @@ describe('MCP tool contracts', () => {
                 },
                 {
                     name: McpToolName.LIST_CONTENT,
-                    details: ['direct children and content inside that space'],
+                    details: ['child spaces and content inside one space'],
                 },
                 {
                     name: McpToolName.FIND_CONTENT,
@@ -602,8 +696,11 @@ describe('MCP tool contracts', () => {
                     (registered) => registered.name === name,
                 );
                 expect(tool).toBeDefined();
+                const text = `${tool?.config.description}\n${JSON.stringify(
+                    schemaToJson(tool?.config.inputSchema, 'input'),
+                )}`;
                 for (const detail of details) {
-                    expect(tool?.config.description).toContain(detail);
+                    expect(text).toContain(detail);
                 }
             }
         },
@@ -744,7 +841,10 @@ describe('MCP tool contracts', () => {
             makeMcpServerOptions({
                 runSqlEnabled: true,
                 runMetricQueryEnabled: true,
+                queryEnabled: true,
                 dataAppBuildsEnabled: true,
+                chartTypeBuildsEnabled: true,
+                customChartTypesEnabled: true,
             }),
         );
 
@@ -759,6 +859,7 @@ describe('MCP tool contracts', () => {
                           runSqlEnabled: true,
                           runMetricQueryEnabled: true,
                           filterExpressionsEnabled: false,
+                          documentsEnabled: false,
                       })
                     : null,
         }));
@@ -807,6 +908,21 @@ describe('MCP tool contracts', () => {
         expect(registeredNames).not.toContain(McpToolName.GET_QUERY_RESULT);
         expect(registeredNames).toContain(McpToolName.FIND_CONTENT);
         expect(registeredNames).toContain(McpToolName.LIST_CONTENT);
+    });
+
+    it('registers the chart type frame tool for the chart view only', async () => {
+        const mcpService = makeMcpService();
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer(
+            makeMcpServerOptions({ runMetricQueryEnabled: true }),
+        );
+        const tool = mockRegisteredMcpTools.find(
+            ({ name }) => name === MCP_CUSTOM_CHART_FRAME_TOOL_NAME,
+        );
+        expect(McpToolName.GET_CUSTOM_CHART_TYPE_FRAME).toBe(
+            MCP_CUSTOM_CHART_FRAME_TOOL_NAME,
+        );
+        expect(tool?.config._meta).toEqual({ ui: { visibility: ['app'] } });
     });
 
     it('registers only SQL execution tools when metric queries are disabled', async () => {
@@ -903,9 +1019,6 @@ describe('MCP tool contracts', () => {
             );
             const names = mockRegisteredMcpTools.map(({ name }) => name);
             expect(names.includes(McpToolName.LIST_PROJECTS)).toBe(
-                pinnedProjectUuid === undefined,
-            );
-            expect(names.includes(McpToolName.SET_PROJECT)).toBe(
                 pinnedProjectUuid === undefined,
             );
         },
@@ -1221,41 +1334,42 @@ describe('MCP tool contracts', () => {
 
     it.each<{
         settingEnabled: boolean;
-        rules: ConstructorParameters<typeof Ability<PossibleAbilities>>[0];
+        canAuthorContent: boolean;
         expected: boolean;
     }>([
-        {
-            settingEnabled: false,
-            rules: [{ action: 'create', subject: 'ContentAsCode' }],
-            expected: false,
-        },
-        {
-            settingEnabled: true,
-            rules: [],
-            expected: false,
-        },
-        {
-            settingEnabled: true,
-            rules: [{ action: 'create', subject: 'ContentAsCode' }],
-            expected: true,
-        },
-        {
-            settingEnabled: true,
-            rules: [{ action: 'manage', subject: 'ContentAsCode' }],
-            expected: true,
-        },
+        { settingEnabled: false, canAuthorContent: true, expected: false },
+        { settingEnabled: true, canAuthorContent: false, expected: false },
+        { settingEnabled: true, canAuthorContent: true, expected: true },
     ])(
-        'gates MCP content tools by setting and permission',
-        async ({ settingEnabled, rules, expected }) => {
-            const mcpService = makeMcpService(settingEnabled);
-            const user: SessionUser = {
-                ...defaultSessionUser,
-                ability: new Ability<PossibleAbilities>(rules),
-            };
-
-            await expect(mcpService.isContentToolsEnabled(user)).resolves.toBe(
-                expected,
+        'gates MCP content tools by the setting and whether the user can save content',
+        async ({ settingEnabled, canAuthorContent, expected }) => {
+            const mcpService = makeMcpService(
+                settingEnabled,
+                undefined,
+                canAuthorContent,
             );
+
+            await expect(
+                mcpService.isContentToolsEnabled(
+                    defaultSessionUser,
+                    'project-uuid',
+                ),
+            ).resolves.toBe(expected);
         },
     );
+
+    it('checks the pinned project when deciding whether content tools are offered', async () => {
+        const mcpService = makeMcpService();
+        await mcpService.isContentToolsEnabled(
+            defaultSessionUser,
+            'project-uuid',
+        );
+        expect(
+            mcpService['aiAgentToolsService'].canAuthorContent,
+        ).toHaveBeenCalledWith({
+            user: defaultSessionUser,
+            projectUuid: 'project-uuid',
+            spaceUuids: null,
+        });
+    });
 });

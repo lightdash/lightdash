@@ -7,7 +7,7 @@ import Callout from '../../components/common/Callout';
 import EmptyStateLoader from '../../components/common/EmptyStateLoader';
 import MantineModal from '../../components/common/MantineModal';
 import SpaceSelector from '../../components/common/SpaceSelector/SpaceSelector';
-import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
+import { useResolvedProjectUrlIdentifier } from '../../hooks/useResolvedProjectUrlIdentifier';
 import { type DocumentNavigationState } from './documentNavigation';
 import { useCreateDocument } from './useCreateDocument';
 import { useDocumentCreationSpaces } from './useDocumentCreationSpaces';
@@ -29,7 +29,7 @@ const DocumentCreateModal = ({
     const spaces = useDocumentCreationSpaces(projectUuid);
     const create = useCreateDocument(projectUuid);
     const navigate = useNavigate();
-    const projectUrlIdentifier = useProjectUrlIdentifier();
+    const projectUrlIdentifier = useResolvedProjectUrlIdentifier(projectUuid);
     const form = useForm({
         initialValues: { name: '', description: '', spaceUuid: '' },
         validate: {
@@ -93,6 +93,9 @@ const DocumentCreateModal = ({
                     form={FORM_ID}
                     loading={create.isLoading}
                     disabled={!hasDestination || !form.values.name.trim()}
+                    // Anchor for scope walkthroughs (data-tour-via)
+                    data-tour-anchor="document-create-submit"
+                    data-tour-hint="Click Create"
                 >
                     Create
                 </Button>
@@ -106,6 +109,11 @@ const DocumentCreateModal = ({
                         required
                         data-autofocus
                         disabled={create.isLoading}
+                        // Typed anchor for scope walkthroughs (data-tour-via)
+                        data-tour-anchor="document-name"
+                        data-tour-hint="Name the document"
+                        data-tour-input="true"
+                        data-tour-suggest="Country orders review"
                         {...form.getInputProps('name')}
                     />
                     <Textarea

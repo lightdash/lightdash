@@ -6,16 +6,22 @@ import {
     getItemLabelWithoutTableName,
     isAndFilterGroup,
     isField,
+    isFilterableField,
     isOrFilterGroup,
     type AiFilterRule,
+    FilterType,
     type FilterGroup,
     type Filters,
     type ItemsMap,
 } from '@lightdash/common';
-import { Button, Flex, Text } from '@mantine/core';
+import { Box, Button, Flex, Text } from '@mantine/core';
 import { useMemo, type FC } from 'react';
-import { getConditionalRuleLabel } from '../../../../../components/common/Filters/FilterInputs/utils';
+import {
+    getConditionalRuleLabel,
+    getConditionalRuleLabelFromItem,
+} from '../../../../../components/common/Filters/FilterInputs/utils';
 import classes from './AgentVisualizationFilters.module.css';
+import chipClasses from './QueryChip.module.css';
 
 const FilterRuleDisplay: FC<{
     rule: AiFilterRule;
@@ -30,43 +36,52 @@ const FilterRuleDisplay: FC<{
             : getItemLabelWithoutTableName(field)
         : friendlyName(rule.target.fieldId);
 
-    const ruleLabels = getConditionalRuleLabel(
-        rule,
-        rule.target.fieldFilterType,
-        displayName,
-    );
+    // Stored query filters carry no filter type; format their values with the field.
+    const ruleLabels =
+        !rule.target.fieldFilterType && field && isFilterableField(field)
+            ? {
+                  ...getConditionalRuleLabelFromItem(rule, field),
+                  field: displayName,
+              }
+            : getConditionalRuleLabel(
+                  rule,
+                  rule.target.fieldFilterType ?? FilterType.STRING,
+                  displayName,
+              );
 
+    const label = (
+        <Text fz="xs" truncate>
+            <Text fw={600} span fz="xs">
+                {ruleLabels.field}
+            </Text>{' '}
+            <Text span c="dimmed" fz="xs">
+                {ruleLabels.operator}
+            </Text>
+            {ruleLabels.value && (
+                <>
+                    {' '}
+                    <Text fw={600} span fz="xs">
+                        {ruleLabels.value}
+                    </Text>
+                </>
+            )}
+        </Text>
+    );
+    if (compact) {
+        return (
+            <Box component="span" className={chipClasses.chip}>
+                {label}
+            </Box>
+        );
+    }
     return (
         <Button
-            size={compact ? 'compact-xs' : 'xs'}
+            size="xs"
             variant="default"
             className={classes.filterButton}
-            styles={{
-                root: {
-                    cursor: 'default',
-                    pointerEvents: 'none',
-                },
-                label: {
-                    maxWidth: '100%',
-                },
-            }}
+            classNames={{ label: classes.filterButtonLabel }}
         >
-            <Text fz="xs" truncate>
-                <Text fw={600} span fz="xs">
-                    {ruleLabels.field}
-                </Text>{' '}
-                <Text span c="dimmed" fz="xs">
-                    {ruleLabels.operator}
-                </Text>
-                {ruleLabels.value && (
-                    <>
-                        {' '}
-                        <Text fw={600} span fz="xs">
-                            {ruleLabels.value}
-                        </Text>
-                    </>
-                )}
-            </Text>
+            {label}
         </Button>
     );
 };
@@ -167,7 +182,7 @@ const AgentVisualizationFilters: FC<Props> = ({
 
     return (
         <>
-            <Flex gap="xs" wrap="wrap" align="center">
+            <Flex gap={compact ? 4 : 'xs'} wrap="wrap" align="center">
                 {hasDimensionFilters && filters.dimensions && (
                     <FilterGroupDisplay
                         group={filters.dimensions}

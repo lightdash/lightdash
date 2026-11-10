@@ -12,6 +12,7 @@ import {
     TileIneligibleReason,
     UnexpectedServerError,
     type Account,
+    type ActiveMaterializationDetails,
     type DashboardDAO,
     type DashboardFilters,
     type DashboardPreAggregateAudit,
@@ -41,7 +42,9 @@ import type {
 } from '../../../services/AsyncQueryService/PreAggregateStrategy';
 import { type PreAggregationRoute } from '../../../services/AsyncQueryService/types';
 import { type ProjectService } from '../../../services/ProjectService/ProjectService';
+import { isSameResultProducerOwner } from '../../../utils/queryResultProducer';
 import { type PreAggregateDailyStatsModel } from '../../models/PreAggregateDailyStatsModel';
+import { readMaterializationProducer } from './materializationProducer';
 import {
     PreAggregationDuckDbClient,
     PreAggregationDuckDbResolveReason,
@@ -53,7 +56,7 @@ type EePreAggregateStrategyArgs = {
     preAggregationExternalResolver: PreAggregationExternalResolver;
     preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
     preAggregateResultsStorageClient: S3ResultsFileStorageClient;
-    isEnabled: () => boolean;
+    isEnabled: (organizationUuid: string) => Promise<boolean>;
     dashboardModel: Pick<DashboardModel, 'getByIdOrSlug'>;
     savedChartModel: Pick<SavedChartModel, 'get'>;
     projectService: Pick<ProjectService, 'getExplore'>;
@@ -68,7 +71,7 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
 
     private readonly resultsStorageClient: S3ResultsFileStorageClient;
 
-    private readonly isEnabled: () => boolean;
+    private readonly isEnabled: (organizationUuid: string) => Promise<boolean>;
 
     private readonly dashboardModel: Pick<DashboardModel, 'getByIdOrSlug'>;
 
@@ -87,16 +90,18 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
         this.projectService = args.projectService;
     }
 
-    getRoutingDecision({
+    async getRoutingDecision({
+        organizationUuid,
         metricQuery,
         explore,
         context,
     }: {
+        organizationUuid: string;
         metricQuery: MetricQuery;
         explore: Explore;
         context: QueryExecutionContext;
-    }): PreAggregationRoutingDecision {
-        if (!this.isEnabled()) {
+    }): Promise<PreAggregationRoutingDecision> {
+        if (!(await this.isEnabled(organizationUuid))) {
             return { target: 'warehouse' };
         }
 
@@ -188,7 +193,9 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
             };
         }
 
+        const { resultProducer } = resolveArgs;
         const resolverArgs = {
+            executionExplore: resolveArgs.executionExplore,
             projectUuid,
             queryUuid,
             metricQuery: {
@@ -208,6 +215,33 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
             availableParameterDefinitions:
                 resolveArgs.availableParameterDefinitions!,
             useTimezoneAwareDateTrunc: resolveArgs.useTimezoneAwareDateTrunc,
+            ...(resultProducer
+                ? {
+                      authorizeMaterialization: async (
+                          materialization: ActiveMaterializationDetails,
+                      ) => {
+                          const producer = await readMaterializationProducer(
+                              this.resultsStorageClient,
+                              {
+                                  projectUuid,
+                                  queryUuid: materialization.queryUuid,
+                                  materializationUri:
+                                      materialization.materializationUri,
+                              },
+                          );
+                          return (
+                              producer !== null &&
+                              resultProducer.agentIdentity === null &&
+                              resultProducer.credentialOwner.kind ===
+                                  'shared_connection' &&
+                              isSameResultProducerOwner(
+                                  producer,
+                                  resultProducer,
+                              )
+                          );
+                      },
+                  }
+                : {}),
         };
 
         // External pre-aggregates compile against the project warehouse; managed ones against DuckDB
@@ -238,8 +272,10 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
         };
     }
 
-    createPreAggregateWarehouseClient(): WarehouseClient {
-        return this.duckDbClient.createPreAggregateWarehouseClient();
+    createPreAggregateWarehouseClient(
+        projectUuid: string,
+    ): Promise<WarehouseClient> {
+        return this.duckDbClient.createPreAggregateWarehouseClient(projectUuid);
     }
 
     recordStats(params: {

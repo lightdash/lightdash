@@ -4,8 +4,6 @@ import { type ExploreWarningReport } from '../compiler/compilationReport';
 import type {
     ApiAgentAsCodeListResponse,
     ApiAgentAsCodeUpsertResponse,
-    ApiAgentOnboardingFileResponse,
-    ApiAgentOnboardingRunResponse,
     ApiAgentSkillsListingResponse,
     ApiAgentSuggestionsResponse,
     ApiAiAgentAdminConversationsResponse,
@@ -21,6 +19,7 @@ import type {
     ApiAiAgentEvaluationRunSummaryListResponse,
     ApiAiAgentEvaluationSummaryListResponse,
     ApiAiAgentMemoryResponse,
+    ApiAiAgentNodeCitationPipelineResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentReviewItemActivityResponse,
     ApiAiAgentReviewItemPrDiffResponse,
@@ -92,6 +91,7 @@ import type {
     ApiInstallRegistryChartTypeResponse,
     ApiListDataAppVizsResponse,
     ApiListRegistryChartTypesResponse,
+    ApiLiveSourceFieldsResponse,
     ApiManagedAgentActionResponse,
     ApiManagedAgentRunResponse,
     ApiManagedAgentRunsListResponse,
@@ -109,6 +109,7 @@ import type {
     ApiPromoteAiAgentMemoryResponse,
     ApiPromoteAppDiffResponse,
     ApiPromoteAppResponse,
+    ApiReplaceProjectContextResults,
     ApiResolvedHomepageResponse,
     ApiSkillsAsCodeListResponse,
     ApiSkillsAsCodeUpsertResponse,
@@ -124,9 +125,38 @@ import type {
     ManagedAgentRuntimeInfo,
 } from '../ee';
 import type { ApiAiThreadFileResponse } from '../ee/AiAgent/threadFileTypes';
+import type {
+    ApiAppStateAdminOverviewResponse,
+    ApiAppStateHistoryResponse,
+} from '../ee/apps/appState';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
+import type { ApiQueryCostEstimateResponse } from '../utils/queryCostEstimate';
+import { type WeekDay } from '../utils/timeFrames';
 import type { PivotValuesColumn } from '../visualizations/types';
+import {
+    type AgentCapabilityPolicy,
+    type AgentCapabilityPolicyOverview,
+} from './agentCapabilityPolicy';
+import {
+    type AgentConnectionApprovalDecisionResponse,
+    type AgentConnectionApprovalReviewResponse,
+} from './agentConnectionApprovals';
+import type {
+    ApiAiServiceAccountSlotResponse,
+    ApiAiServiceAccountTestResponse,
+    ApiOrganizationAgentIdentityOverviewResponse,
+    ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse,
+    ApiOrganizationAgentIdentityRuleResponse,
+    ApiOrganizationAgentIdentitySnowflakeSetupResponse,
+    ApiOrganizationAgentIdentitySnowflakeVerifyResponse,
+} from './agentIdentity';
+import type {
+    ApiAiAccessForUserResponse,
+    ApiAiMarkerTestResponse,
+    ApiAiWarehouseCapabilitiesResponse,
+    OrganizationAgentIdentitySettings,
+} from './aiPrincipal';
 import {
     type ApiUserActivityDownloadCsv,
     type QueryExecutionContext,
@@ -134,6 +164,7 @@ import {
     type ViewStatistics,
 } from './analytics';
 import {
+    type AnalyticsHistoryBackfillStatus,
     type AnalyticsProjectStatus,
     type EnsureAnalyticsProjectResult,
 } from './analyticsProject';
@@ -152,6 +183,10 @@ import {
 import { type ApiGetSpotlightTableConfig } from './api/spotlight';
 import { type ApiSuccessEmpty } from './api/success';
 import { type Account } from './auth';
+import {
+    type ApiAwsWebIdentityAudienceResponse,
+    type ApiAwsWebIdentityResponse,
+} from './awsWebIdentity';
 import { type BigqueryProjectRecommendation } from './bigQuerySSO';
 import {
     type ApiCatalogAnalyticsResults,
@@ -295,6 +330,15 @@ import type {
     ApiMetricsExplorerTotalResults,
 } from './metricsExplorer';
 import {
+    type ApiMobileAppLinkResponse,
+    type ApiMobileAppLinkStatusResponse,
+} from './mobileAppLink';
+import {
+    type ApiMobileSignInCodeResponse,
+    type ApiMobileSignInCodeStateResponse,
+    type ApiMobileSignInDecisionResponse,
+} from './mobileSignIn';
+import {
     type CreateOAuthClientResponse,
     type OAuthClientSummary,
 } from './oauth';
@@ -312,7 +356,10 @@ import {
     type UpdateAllowedEmailDomains,
 } from './organization';
 import { type OrganizationAccess } from './organizationAccess';
-import { type ApiOrganizationBrandResponse } from './organizationBrand';
+import {
+    type ApiOrganizationBrandResponse,
+    type InstanceBrand,
+} from './organizationBrand';
 import {
     type DomainVerificationStatus,
     type VerifiedDomain,
@@ -347,7 +394,6 @@ import {
     type ApiPreviewExpirationProjectSettingsResponse,
     type ApiPreviewExpiresAtResponse,
 } from './previewExpirationProjectSettings';
-import { type ProjectCiStatus } from './projectCiStatus';
 import {
     type ApiProjectCompileLogResponse,
     type ApiProjectCompileLogsResponse,
@@ -363,6 +409,7 @@ import {
     type EnsurePlaygroundProjectResults,
     type Project,
     type WarehouseCredentials,
+    type WarehouseTypes,
 } from './projects';
 import { type ApiPromotionChangesResponse } from './promotion';
 import {
@@ -377,10 +424,17 @@ import {
     type ApiListQuerySourcesResults,
     type ApiScanQuerySourceSchemaResults,
 } from './querySources';
+import { type ReleaseHighlightsResult } from './releaseHighlights';
 import { type ApiRenameFieldsResponse, type ApiRenameResponse } from './rename';
 import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import { type ResultColumns, type ResultRow } from './results';
-import { type ApiResultsCacheProjectSettingsResponse } from './resultsCacheProjectSettings';
+import {
+    type ApiResultsCacheInvalidationResponse,
+    type ApiResultsCacheProjectSettingsResponse,
+    type ApiResultsCacheStatsResponse,
+    type ApiResultsCacheStatusResponse,
+    type ApiResultsCacheTtlProjectionsResponse,
+} from './resultsCacheProjectSettings';
 import {
     type ApiRoadmapFollowProjectResponse,
     type ApiRoadmapProjectResponse,
@@ -413,6 +467,11 @@ import {
 } from './scheduler';
 import { type SchedulerWithLogs } from './schedulerLog';
 import { type SearchResults } from './search';
+import {
+    type ApiSemanticLayerDraftApplyResponse,
+    type ApiSemanticLayerDraftImpactResponse,
+    type ApiSemanticLayerDraftResponse,
+} from './semanticStudio';
 import { type ShareUrl } from './share';
 import { type SharedSignInStatus } from './sharedSignIn';
 import { type ApiSlackChannelsResponse } from './slack';
@@ -506,6 +565,7 @@ export enum RequestMethod {
     HEADLESS_BROWSER = 'HEADLESS_BROWSER',
     UNKNOWN = 'UNKNOWN',
     BACKEND = 'BACKEND',
+    DESKTOP = 'DESKTOP',
 }
 
 export const isRequestMethod = (
@@ -545,6 +605,11 @@ export type ApiExploresResults = SummaryExplore[];
 
 export interface ApiExploreResults extends Omit<Explore, 'unfilteredTables'> {
     warehouseConnectionUuid: string | null;
+    warehouseConnection: {
+        warehouseConnectionUuid: string | null;
+        warehouseType: WarehouseTypes;
+        startOfWeek: WeekDay | null;
+    };
 }
 
 export type ApiTableGroupsResults = Record<string, GroupType>;
@@ -677,6 +742,7 @@ export type HealthState = {
     defaultProject?: DbtProjectConfig;
     isAuthenticated: boolean;
     requiresOrgRegistration: boolean;
+    instanceBrand: InstanceBrand | null;
     hasEmailClient: boolean;
     /**
      * Instance can provision the sample-data playground project (enterprise
@@ -689,8 +755,6 @@ export type HealthState = {
      */
     hasEmailWhitelabel: boolean;
     hasMicrosoftTeams: boolean;
-    isServiceAccountEnabled: boolean;
-    isOrganizationWarehouseCredentialsEnabled: boolean;
     isAthenaWarehouseIamRoleAuthEnabled: boolean;
     isSaveCredentialsFormEnabled: boolean;
     latest: {
@@ -737,6 +801,9 @@ export type HealthState = {
             maxExpirationTimeInDays: number | undefined;
         };
         snowflake: {
+            enabled: boolean;
+        };
+        snowflakeAi: {
             enabled: boolean;
         };
         databricks: {
@@ -786,6 +853,8 @@ export type HealthState = {
     dashboard: {
         maxTilesPerTab: number;
         maxTabsPerDashboard: number;
+        /** Per-viewer cap on in-flight dashboard tile queries; null means unlimited */
+        maxConcurrentTileQueries: number | null;
         disableSentryTracking: boolean;
     };
     pivotTable: {
@@ -796,7 +865,11 @@ export type HealthState = {
     hasGitlab: boolean;
     hasJira: boolean;
     hasLinear: boolean;
+    hasPostHogOAuth: boolean;
+    hasLinkedInAdsOAuth: boolean;
+    hasGoogleLiveSources: boolean;
     hasHeadlessBrowser: boolean;
+    hasManagedAnalytics?: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
     appearance: {
@@ -806,7 +879,6 @@ export type HealthState = {
     hasBrandfetch: boolean;
     isCustomRolesEnabled: boolean;
     embedding: {
-        enabled: boolean;
         events:
             | {
                   enabled: boolean;
@@ -824,6 +896,7 @@ export type HealthState = {
         analyticsDashboardUuid?: string;
         isAmbientAiEnabled: boolean;
         threadDumpEnabled: boolean;
+        fastDecisionsEnabled: boolean;
     };
     echarts6: {
         enabled: boolean;
@@ -844,6 +917,10 @@ export type HealthState = {
     preAggregates: {
         enabled: boolean;
     };
+    externalSources: {
+        /** Whether the DuckDB engine external sources ingest into is configured. */
+        engineAvailable: boolean;
+    };
     dataApps: {
         /**
          * Origin where data-app preview iframes are served (e.g.,
@@ -858,6 +935,18 @@ export type HealthState = {
          * the frontend hides the per-chart "include sample data" opt-in.
          */
         sampleDataEnabled: boolean;
+        /**
+         * Instance-wide ceiling for data app captures (prompt-bar screenshots,
+         * file attachments, thumbnails, Slack build-outcome images). When false
+         * no org can enable them; the org-level switch is on `GET /org` and
+         * `GET /org/settings`.
+         */
+        capturesEnabled: boolean;
+        /**
+         * Whether app builds can run here: a valid licence and a configured
+         * sandbox provider. Data apps also need the enable-data-apps flag.
+         */
+        runtimeAvailable: boolean;
     };
 };
 
@@ -1047,6 +1136,22 @@ export type ApiExecuteAsyncMetricQueryResults =
         metricQuery: MetricQuery;
         fields: ItemsMap;
         warnings: QueryWarning[];
+    };
+
+/** How a saved chart is drawn, as stored on the chart. */
+export type SavedChartVisualization = Pick<
+    SavedChart,
+    'chartConfig' | 'pivotConfig' | 'tableConfig'
+>;
+
+// Flat (not `ApiExecuteAsyncMetricQueryResults & …`) so the OpenAPI schema
+// keeps its shape; nesting the intersection reads as a breaking change.
+export type ApiExecuteAsyncSavedChartQueryResults =
+    ApiExecuteAsyncQueryResultsCommon & {
+        metricQuery: MetricQuery;
+        fields: ItemsMap;
+        warnings: QueryWarning[];
+        chartVisualization: SavedChartVisualization;
     };
 
 type ApiExecuteAsyncMergeQueryMetadata = {
@@ -1340,6 +1445,15 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | ApiQueryCostEstimateResponse['results']
+    | ApiAppStateAdminOverviewResponse['results']
+    | ApiAppStateHistoryResponse['results']
+    | ReleaseHighlightsResult
+    | AgentConnectionApprovalReviewResponse['results']
+    | AgentConnectionApprovalDecisionResponse['results']
+    | AgentCapabilityPolicy
+    | AgentCapabilityPolicyOverview
+    | OrganizationAgentIdentitySettings
     | ApiAiThreadFileResponse['results']
     | SharedSignInStatus
     | ApiDbtSourceBindingsResponse['results']
@@ -1366,10 +1480,16 @@ type ApiResults =
     | ApiScimRequestLogListResponse['results']
     | EnsurePlaygroundProjectResults
     | AnalyticsProjectStatus
+    | AnalyticsHistoryBackfillStatus
     | EnsureAnalyticsProjectResult
     | CreateTrainingPreviewResults
     | ApiWarehouseConnectCodeResponse['results']
     | ApiWarehouseConnectCodeClaimResponse['results']
+    | ApiMobileAppLinkResponse['results']
+    | ApiMobileAppLinkStatusResponse['results']
+    | ApiMobileSignInCodeResponse['results']
+    | ApiMobileSignInCodeStateResponse['results']
+    | ApiMobileSignInDecisionResponse['results']
     | ApiQueryResults
     | ApiSqlQueryResults
     | ApiCompiledQueryResults
@@ -1380,6 +1500,7 @@ type ApiResults =
     | ApiExploreResults
     | ApiStatusResults
     | ApiRefreshResults
+    | ApiReplaceProjectContextResults
     | ApiCreatePreviewResults
     | ApiDataTimezonePreviewResults
     | WarehouseConnectionTestResults
@@ -1460,7 +1581,6 @@ type ApiResults =
     | PullRequestCreated
     | PullRequestPreview
     | ProjectFiles
-    | ProjectCiStatus
     | ApiGitFileContent
     | GitIntegrationConfiguration
     | GithubUserCredential
@@ -1487,6 +1607,8 @@ type ApiResults =
     | ApiJobStatusResponse['results']
     | ApiJobScheduledResponse['results']
     | ApiSshKeyPairResponse['results']
+    | ApiAwsWebIdentityAudienceResponse['results']
+    | ApiAwsWebIdentityResponse['results']
     | MostPopularAndRecentlyUpdated
     | ApiCalculateTotalResponse['results']
     | Record<string, DbtExposure>
@@ -1541,6 +1663,16 @@ type ApiResults =
     | ApiSkillsAsCodeUpsertResponse['results']
     | ApiCustomRoleAsCodeListResponse['results']
     | ApiCustomRoleAsCodeUpsertResponse['results']
+    | ApiAiWarehouseCapabilitiesResponse['results']
+    | ApiAiMarkerTestResponse
+    | ApiAiAccessForUserResponse['results']
+    | ApiOrganizationAgentIdentityOverviewResponse['results']
+    | ApiOrganizationAgentIdentityProjectsWithoutAiServiceAccountResponse['results']
+    | ApiOrganizationAgentIdentityRuleResponse['results']
+    | ApiOrganizationAgentIdentitySnowflakeSetupResponse['results']
+    | ApiOrganizationAgentIdentitySnowflakeVerifyResponse['results']
+    | ApiAiServiceAccountSlotResponse['results']
+    | ApiAiServiceAccountTestResponse['results']
     | ApiOrganizationRoleSetResponse['results']
     | ApiProjectRoleSetResponse['results']
     | ApiUserAsCodeListResponse['results']
@@ -1559,6 +1691,7 @@ type ApiResults =
     | ApiVirtualViewAsCodeUpsertResponse['results']
     | ApiExternalConnectionAsCodeListResponse['results']
     | ApiExternalConnectionAsCodeUpsertResponse['results']
+    | ApiLiveSourceFieldsResponse['results']
     | ApiSpaceAsCodeListResponse['results']
     | ApiSpaceAsCodeUpsertResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
@@ -1589,6 +1722,7 @@ type ApiResults =
     | ApiScanQuerySourceSchemaResults
     | ApiExecuteAsyncDashboardSqlChartQueryResults
     | ApiExecuteAsyncMetricQueryResults
+    | ApiExecuteAsyncSavedChartQueryResults
     | ApiQueryHistoryListResponse['results']
     | ApiExecuteAsyncDashboardChartQueryResults
     | ApiGetAsyncQueryResults
@@ -1609,6 +1743,7 @@ type ApiResults =
     | ApiAiAgentThreadMessageVizResponse['results']
     | ApiAiAgentThreadMessageVizQueryResponse['results']
     | ApiAiAgentArtifactVizQueryResponse['results']
+    | ApiAiAgentNodeCitationPipelineResponse['results']
     | ApiUpdateUserAgentPreferencesResponse['results']
     | ApiGetUserAgentPreferencesResponse[`results`]
     | ApiGetProjectParametersResults
@@ -1677,6 +1812,10 @@ type ApiResults =
     | ApiImpersonationOrganizationSettingsResponse['results']
     | ApiPreviewExpirationProjectSettingsResponse['results']
     | ApiResultsCacheProjectSettingsResponse['results']
+    | ApiResultsCacheStatusResponse['results']
+    | ApiResultsCacheInvalidationResponse['results']
+    | ApiResultsCacheStatsResponse['results']
+    | ApiResultsCacheTtlProjectionsResponse['results']
     | ApiPreviewExpiresAtResponse['results']
     | ApiContentVerificationResponse['results']
     | ApiContentVerificationDeleteResponse['results']
@@ -1716,8 +1855,6 @@ type ApiResults =
     | ApiHomepageLinkMetadataResponse['results']
     | ApiProjectColorPaletteResponse['results']
     | ApiOrganizationBrandResponse['results']
-    | ApiAgentOnboardingFileResponse['results']
-    | ApiAgentOnboardingRunResponse['results']
     | ManagedAgentRuntimeInfo
     | ApiManagedAgentRunResponse['results']
     | ApiManagedAgentRunsListResponse['results']
@@ -1741,7 +1878,10 @@ type ApiResults =
     | ApiLearnCommandOutputResponse['results']
     | ApiAiProviderCredentialsResponse['results']
     | ApiAiProviderCredentialCreatedResponse['results']
-    | ApiProjectAiCredentialResponse['results'];
+    | ApiProjectAiCredentialResponse['results']
+    | ApiSemanticLayerDraftResponse['results']
+    | ApiSemanticLayerDraftApplyResponse['results']
+    | ApiSemanticLayerDraftImpactResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

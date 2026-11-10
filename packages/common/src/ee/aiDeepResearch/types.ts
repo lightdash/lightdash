@@ -364,6 +364,13 @@ export type AiDeepResearchRunMetrics = {
     chartCount: number | null;
 };
 
+/** The Document a run published its report to. */
+export type AiDeepResearchRunDocument = {
+    documentUuid: string;
+    name: string;
+    slug: string;
+};
+
 export type AiDeepResearchRun = {
     aiDeepResearchRunUuid: string;
     projectUuid: string;
@@ -380,6 +387,8 @@ export type AiDeepResearchRun = {
     reportExpiresAt: string | null;
     reportExpiredAt: string | null;
     isReportExpired: boolean;
+    /** Null until the report is published as a Document. */
+    document: AiDeepResearchRunDocument | null;
     budget: AiDeepResearchBudget;
     executionContextSnapshot: AiDeepResearchExecutionContextSnapshot | null;
     metrics: AiDeepResearchRunMetrics;

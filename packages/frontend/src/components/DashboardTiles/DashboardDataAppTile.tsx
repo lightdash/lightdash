@@ -22,12 +22,19 @@ import {
 } from '@mantine/core';
 import { IconAppsOff, IconCode, IconFilter } from '@tabler/icons-react';
 import React, { useEffect, useMemo, useState, type FC } from 'react';
+import { useLocation } from 'react-router';
 import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
 import { getVisiblePreviewTokenError } from '../../features/apps/hooks/previewTokenQueryOptions';
 import { useAppPreviewToken } from '../../features/apps/hooks/useAppPreviewToken';
+import { useDataAppProjectContext } from '../../features/apps/hooks/useDataAppProjectContext';
 import { useGetApp } from '../../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../../features/apps/previewOrigin';
 import { DashboardTileComments } from '../../features/comments';
+import {
+    selectInvalidateCache,
+    selectRefreshCounter,
+    useDashboardSelector,
+} from '../../features/dashboard/store';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
@@ -40,7 +47,9 @@ import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import DashboardDataAppIframe from './DashboardDataAppIframe';
+import tileClasses from './DashboardTiles.module.css';
 import TileBase from './TileBase/index';
+import { TileHeaderPopover } from './TileBase/TileHeaderPopover';
 
 type Props = Pick<
     React.ComponentProps<typeof TileBase>,
@@ -80,14 +89,14 @@ const DashboardFiltersIndicator: FC<{
     } available to this Data App`;
 
     return (
-        <Popover withArrow position="bottom-end" offset={4} arrowOffset={10}>
+        <TileHeaderPopover>
             <Popover.Dropdown
                 maw="calc(100vw - 24px)"
                 mah="calc(100dvh - 24px)"
-                style={{ overflowY: 'auto' }}
+                className={tileClasses.scrollableDropdown}
             >
                 <Stack gap="xs" align="flex-start">
-                    <Text c="ldGray.7" fw={500} fz="xs">
+                    <Text c="dimmed" fw={500} fz="xs">
                         Dashboard filter{filterRules.length === 1 ? '' : 's'}{' '}
                         available to this Data App:
                     </Text>
@@ -95,7 +104,7 @@ const DashboardFiltersIndicator: FC<{
                         <Badge
                             maw="100%"
                             h="auto"
-                            style={{ whiteSpace: 'normal' }}
+                            className={tileClasses.wrapBadge}
                             key={filterRule.id}
                             variant="outline"
                             color="ldGray.4"
@@ -129,11 +138,12 @@ const DashboardFiltersIndicator: FC<{
                     <MantineIcon icon={IconFilter} />
                 </ActionIcon>
             </Popover.Target>
-        </Popover>
+        </TileHeaderPopover>
     );
 };
 
 const DataAppTile: FC<Props> = (props) => {
+    const { pathname } = useLocation();
     const {
         tile: {
             properties: { title, appUuid, appDeletedAt },
@@ -200,15 +210,12 @@ const DataAppTile: FC<Props> = (props) => {
     // reload, so we bake the counter into the URL to force one, and forward
     // invalidateCache so those re-fired queries bypass the warehouse cache —
     // matching how a chart refreshes.
-    const invalidateCache = useDashboardTileStatusContext(
-        (c) => c.invalidateCache,
-    );
-    const refreshCounter = useDashboardTileStatusContext(
-        (c) => c.refreshCounter,
-    );
+    const invalidateCache = useDashboardSelector(selectInvalidateCache);
+    const refreshCounter = useDashboardSelector(selectRefreshCounter);
 
     const previewOrigin = usePreviewOrigin();
     const { data: project } = useProject(projectUuid);
+    const dataAppProjectContext = useDataAppProjectContext(projectUuid);
     const isPreviewProject = project?.type === ProjectType.PREVIEW;
     // Skip the network calls when the backend already told us the app is
     // gone — `useGetApp` would 404 anyway, but bypassing the request avoids
@@ -239,8 +246,7 @@ const DataAppTile: FC<Props> = (props) => {
         user.data?.ability?.can(
             'manage',
             subject('DataApp', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid,
+                ...dataAppProjectContext,
                 access: userSpaceAccess ? [userSpaceAccess] : [],
                 createdByUserUuid: appCreatedByUserUuid,
             }),
@@ -259,7 +265,16 @@ const DataAppTile: FC<Props> = (props) => {
         data: token,
         isLoading: isTokenLoading,
         error: tokenError,
-    } = useAppPreviewToken(projectUuid, appUuid, latestReadyVersion);
+    } = useAppPreviewToken(
+        projectUuid,
+        appUuid,
+        latestReadyVersion,
+        pathname.startsWith('/minimal')
+            ? 'delivery'
+            : props.isEditMode
+              ? 'builder'
+              : 'dashboard',
+    );
 
     // Bump the iframe URL whenever the active filters change so the app
     // reloads and its mount-time metric queries re-fire — by then the bridge

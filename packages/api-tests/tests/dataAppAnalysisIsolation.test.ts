@@ -130,10 +130,7 @@ describe('Data app analysis isolation', () => {
 
         // Leave flags that are already on alone: deleting an override falls
         // back to the environment default, which may be off.
-        for (const flag of [
-            FeatureFlags.EnableDataApps,
-            FeatureFlags.EnableDataAppAnalysis,
-        ]) {
+        for (const flag of [FeatureFlags.EnableDataApps]) {
             const current = await admin.get<FeatureFlag>(
                 `/api/v2/feature-flag/${flag}`,
             );

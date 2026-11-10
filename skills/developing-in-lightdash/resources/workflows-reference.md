@@ -232,32 +232,18 @@ jobs:
 
 ## Pattern 5: Download-Edit-Upload
 
-Bring existing UI-created content into version control.
+Edit existing content as files while Lightdash stays the source of truth. This is the default for agent edits; the steps are in the [Content Workflow](../SKILL.md#content-workflow).
+
+**Keeping content in git (opt-in).** For version-controlled templates, CI/CD content deploys, or strict change management with code review, and only when the user asks or the repository already tracks content, download into a `lightdash/` folder in the repository and commit it:
 
 ```bash
-# 1. List available projects and set project to download from
-lightdash config list-projects
-lightdash config set-project --name "Production"
-
-# 2. Download content
 lightdash download --nested
-
-# 3. Review what was downloaded
-ls -la lightdash/
-
-# 4. Edit YAML files as needed
-# ... make changes ...
-
-# 5. Validate changes
 lightdash lint --path ./lightdash
-
-# 6. Upload changes
-lightdash upload --force
-
-# 7. Commit to git
 git add lightdash/
 git commit -m "Add charts and dashboards as code"
 ```
+
+Later UI edits are not reflected in the files until someone downloads again.
 
 **Directory structure after download:**
 ```
@@ -276,10 +262,8 @@ lightdash/
 ```
 
 **When to use:**
-- Existing charts/dashboards built in UI
-- Want to start managing as code
-- Need to make bulk edits
-- Migrating to GitOps workflow
+- Agent-driven or bulk edits to existing content (scratch directory, no commit)
+- Migrating to a GitOps workflow the user asked for (commit, as above)
 
 ## Pattern 6: Multi-Environment Promotion
 

@@ -2,12 +2,11 @@ import { configDefaults, defineConfig } from 'vitest/config';
 
 // Files that mutate state every other file reads through: the seed project's
 // data timezone and embed config (secret + allowed dashboards), the admin
-// user's timezone and attributes, the org results cache flag, and the seeded
-// dashboard. They run one at a time, after the parallel group has finished.
+// user's timezone and attributes, the seed project's results cache setting,
+// and the seeded dashboard. They run one at a time, after the parallel group has finished.
 const serialFiles = [
-    'tests/dataTimezone.test.ts',
-    'tests/queryTimezone.test.ts',
-    'tests/queryTimezoneBoundary.test.ts',
+    'tests/aiAgentMarkerPostgres.test.ts',
+    'tests/agentConnectSnowflakeStub.test.ts',
     'tests/userTimezone.test.ts',
     'tests/embedManagement.test.ts',
     'tests/embedChart.test.ts',
@@ -16,6 +15,7 @@ const serialFiles = [
     'tests/dataAppVizRender.test.ts',
     // Toggles the org AI setting and a user attribute other files could read.
     'tests/dataAppAnalysisIsolation.test.ts',
+    'tests/dashboardAnalysisIsolation.test.ts',
     // Asserts every project member's role name; must not overlap a file
     // that assigns a temporary custom role (dataAppVizRender).
     'tests/projectPermissions.test.ts',
@@ -47,10 +47,9 @@ export default defineConfig({
                     include: ['tests/**/*.test.ts'],
                     exclude: [...configDefaults.exclude, ...serialFiles],
                     fileParallelism: true,
-                    // The preview pod is shared with the Cypress jobs; the
-                    // merge suite bounds this group, so more workers only add
-                    // contention.
-                    maxWorkers: 4,
+                    // The preview pod is shared with the Playwright jobs, so
+                    // this is a balance between idle workers and contention.
+                    maxWorkers: 6,
                     sequence: { groupOrder: 0 },
                 },
             },

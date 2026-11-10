@@ -1,7 +1,8 @@
-import { type PinnedItems } from '@lightdash/common';
+import { FeatureFlags, type PinnedItems } from '@lightdash/common';
 import { Box, Stack } from '@mantine/core';
 import { IconClock, IconFlame, IconPin } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { AskAiHero } from './blocks/AskAiHeroBlock';
 import { BlockHeader } from './blocks/BlockShell';
 import { ContentCard } from './blocks/ContentCard';
@@ -16,6 +17,7 @@ import { DEFAULT_GREETING_SUBTITLE } from './greeting';
 import layout from './homepageLayout.module.css';
 import { useCollectionContent } from './hooks/useCollectionContent';
 import { useCollectionSourceContent } from './hooks/useCollectionSourceContent';
+import { useHomepageFavorites } from './hooks/useHomepageFavorites';
 import { useKeySpaces } from './hooks/useKeySpaces';
 import { useHomepageOpening } from './hooks/useOrgHomepageSettings';
 import { useRecentContents } from './hooks/useRecentContents';
@@ -78,6 +80,7 @@ const PinnedCollection: FC<{
 /** The project's most viewed content, resolved through the same live source
  * the Collection block offers — day-0 shows what the org actually uses. */
 const MostPopularSection: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+    const starFor = useHomepageFavorites(projectUuid);
     const { items } = useCollectionSourceContent(projectUuid, {
         title: 'Most popular',
         source: 'most-viewed',
@@ -96,6 +99,7 @@ const MostPopularSection: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         key={content.uuid}
                         content={content}
                         projectUuid={projectUuid}
+                        star={starFor(content)}
                     />
                 ))}
             </Stack>
@@ -109,6 +113,8 @@ const MAX_KEY_SPACES = 4;
 
 export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
     const { opening } = useHomepageOpening(projectUuid);
+    const isNewOnboarding =
+        useServerFeatureFlag(FeatureFlags.NewOnboarding).data?.enabled === true;
     const { spaces: keySpaces } = useKeySpaces(projectUuid, MAX_KEY_SPACES);
     const recent = useRecentContents(projectUuid);
     // Keep the header while loading so the section doesn't pop in under the
@@ -133,7 +139,7 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, pinnedItems }) => {
                         <AskAiHero
                             projectUuid={projectUuid}
                             showGreeting
-                            showRecommendedActions={false}
+                            showRecommendedActions={isNewOnboarding}
                         />
                     </div>
                 ) : (

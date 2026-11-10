@@ -24,12 +24,14 @@ import {
 } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { memo, useState, type FC, type ReactNode } from 'react';
+import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import useHealth from '../../hooks/health/useHealth';
 import useToaster from '../../hooks/toaster/useToaster';
 import { scheduleDownloadQuery } from '../../hooks/useQueryResults';
 import useUser from '../../hooks/user/useUser';
 import { Can } from '../../providers/Ability';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import MantineIcon from '../common/MantineIcon';
 import { NumberInput } from '../common/NumberInput';
 import classes from './ExportResults.module.css';
@@ -91,11 +93,13 @@ const ExportResults: FC<ExportResultsProps> = memo(
         forceShowLimitSelection = false,
         renderDialogActions,
     }) => {
+        const lightdashApi = useLightdashApi();
         const { showToastError, showToastInfo, showToastWarning } =
             useToaster();
 
         const user = useUser(true);
         const health = useHealth();
+        const isEmbedded = useIsEmbedded();
         const [limit, setLimit] = useState<Limit>(Limit.TABLE);
         const [customLimit, setCustomLimit] = useState<number>(1);
         const [format, setFormat] = useState<string>(Values.FORMATTED);
@@ -146,6 +150,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                     };
 
                     return scheduleDownloadQuery(
+                        lightdashApi,
                         projectUuid,
                         queryUuid,
                         downloadOptions,
@@ -163,7 +168,11 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         });
                     },
                     onSuccess: (response) => {
-                        pollJobStatus(response.jobId)
+                        pollJobStatus(
+                            lightdashApi,
+                            response.jobId,
+                            isEmbedded ? projectUuid : undefined,
+                        )
                             .then(async (details) => {
                                 if (!details?.fileUrl) {
                                     throw new Error(

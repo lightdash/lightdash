@@ -1,10 +1,26 @@
+import { AiAccessRefusalReason } from './aiPrincipal';
 import {
+    AiAccessRefusedError,
     BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
     BigqueryTokenError,
+    FEATURE_NOT_ENABLED_CODE,
+    FeatureNotEnabledError,
     isBigqueryTokenErrorMessage,
     isPreviewWarehouseSignInExpiredMessage,
     PreviewWarehouseSignInExpiredError,
 } from './errors';
+
+describe('FeatureNotEnabledError', () => {
+    it('exposes the shared refusal code for API consumers', () => {
+        const error = new FeatureNotEnabledError('test-feature');
+        expect(error.statusCode).toBe(403);
+        expect(error.data).toEqual({
+            code: FEATURE_NOT_ENABLED_CODE,
+            featureFlagId: 'test-feature',
+        });
+        expect(FEATURE_NOT_ENABLED_CODE).toBe('feature_not_enabled');
+    });
+});
 
 describe('isBigqueryTokenErrorMessage', () => {
     it('matches the message a BigqueryTokenError carries', () => {
@@ -53,5 +69,18 @@ describe('PreviewWarehouseSignInExpiredError', () => {
             true,
         );
         expect(isBigqueryTokenErrorMessage(error.message)).toBe(false);
+    });
+});
+
+describe('AiAccessRefusedError settings URLs', () => {
+    it.each([
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING,
+        AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+    ])('points %s to the project agent identity settings', (reason) => {
+        expect(
+            new AiAccessRefusedError(reason, { projectUuid: 'project-uuid' })
+                .refusal.settingsUrl,
+        ).toBe('/generalSettings/projectManagement/project-uuid/agentIdentity');
+        expect(new AiAccessRefusedError(reason).refusal.settingsUrl).toBeNull();
     });
 });

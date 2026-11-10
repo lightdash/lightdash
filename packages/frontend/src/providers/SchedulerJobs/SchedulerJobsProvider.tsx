@@ -12,6 +12,7 @@ import {
 import MantineIcon from '../../components/common/MantineIcon';
 import { getSchedulerJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useLightdashApi } from '../LightdashApi/useLightdashApi';
 import SchedulerJobsContext from './context';
 import JobProgressToastBody from './JobProgressToastBody';
 import { type RegisterJobsParams, type TrackedJob } from './types';
@@ -29,6 +30,7 @@ const TERMINAL_STATUSES = new Set<SchedulerJobStatus>([
 const DEFAULT_TOAST_KEY = 'scheduler-jobs-progress';
 
 const SchedulerJobsProvider: FC<React.PropsWithChildren> = ({ children }) => {
+    const lightdashApi = useLightdashApi();
     const [jobs, setJobs] = useState<TrackedJob[]>([]);
     const [toastKey, setToastKey] = useState<string>(DEFAULT_TOAST_KEY);
     const [toastTitle, setToastTitle] = useState<string | null>(null);
@@ -96,7 +98,7 @@ const SchedulerJobsProvider: FC<React.PropsWithChildren> = ({ children }) => {
     const queryResults = useQueries({
         queries: activeJobs.map((job) => ({
             queryKey: ['schedulerJobStatus', job.jobId],
-            queryFn: () => getSchedulerJobStatus(job.jobId),
+            queryFn: () => getSchedulerJobStatus(lightdashApi, job.jobId),
             refetchInterval: 2000,
             enabled: !TERMINAL_STATUSES.has(job.status),
         })),

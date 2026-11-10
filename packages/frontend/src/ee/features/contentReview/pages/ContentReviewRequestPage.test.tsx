@@ -148,6 +148,36 @@ describe('ContentReviewRequestDetailView', () => {
         expect(screen.getByText('rejected this request')).toBeInTheDocument();
         expect(screen.getByText('Not yet')).toBeInTheDocument();
     });
+
+    it('lets a reviewer approve a Document without verifying it', async () => {
+        renderView({
+            contentType: ContentReviewContentType.DOCUMENT,
+            contentUuid: 'document',
+            content: { name: 'Q3 review', slug: 'q3-review' },
+            moveSet: [
+                {
+                    contentType: ContentReviewContentType.DOCUMENT,
+                    contentUuid: 'document',
+                    name: 'Q3 review',
+                },
+            ],
+            canVerify: false,
+        });
+
+        expect(screen.getByLabelText('Verify on approve')).toBeDisabled();
+        expect(
+            screen.getByRole('link', { name: 'Open Document' }),
+        ).toHaveAttribute('href', '/projects/project/documents/q3-review');
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Approve and move' }),
+        );
+        await waitFor(() =>
+            expect(approve).toHaveBeenCalledWith({
+                requestUuid: 'request-uuid',
+                body: { verify: false, note: null },
+            }),
+        );
+    });
 });
 
 it.each([

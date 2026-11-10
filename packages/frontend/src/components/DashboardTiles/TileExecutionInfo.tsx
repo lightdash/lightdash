@@ -20,6 +20,8 @@ import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../common/MantineIcon';
 import InfoRow from '../common/PageHeader/InfoRow';
+import tileClasses from './DashboardTiles.module.css';
+import { TileHeaderPopover } from './TileBase/TileHeaderPopover';
 
 type TileExecutionInfoProps = {
     cacheMetadata: CacheMetadata;
@@ -87,11 +89,11 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
         : IconClock;
 
     return (
-        <Popover withArrow position="bottom-end" offset={4} arrowOffset={10}>
+        <TileHeaderPopover>
             <Popover.Dropdown
                 maw="calc(100vw - 24px)"
                 mah="calc(100dvh - 24px)"
-                style={{ overflowY: 'auto' }}
+                className={tileClasses.scrollableDropdown}
             >
                 <Stack gap={10} w={240} p={4}>
                     <InfoRow icon={IconLayoutRows} label="Rows">
@@ -146,7 +148,7 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
                     </ActionIcon>
                 )}
             </Popover.Target>
-        </Popover>
+        </TileHeaderPopover>
     );
 };
 

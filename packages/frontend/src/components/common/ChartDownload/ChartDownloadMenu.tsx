@@ -12,11 +12,17 @@ import { memo, useCallback } from 'react';
 import DataAppVizDownloadMenu from '../../../features/apps/DataAppVizDownloadMenu';
 import useEchartsCartesianConfig from '../../../hooks/echarts/useEchartsCartesianConfig';
 import { useAccount } from '../../../hooks/user/useAccount';
+import { useCanExportEmbeddedContent } from '../../../hooks/user/useCanExportEmbeddedContent';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import { type Limit } from '../../ExportResults/types';
 import ExportSelector from '../../ExportSelector';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
-import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationServices,
+    useEditedChartConfig,
+    useVisualizationConfig,
+    useVisualizationInputs,
+} from '../../LightdashVisualization/useVisualizationContext';
 import {
     COLLAPSABLE_CARD_ACTION_ICON_PROPS,
     COLLAPSABLE_CARD_POPOVER_PROPS,
@@ -45,14 +51,11 @@ export type ChartDownloadMenuProps = {
 
 const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
     ({ getDownloadQueryUuid, getGsheetLink, projectUuid, chartName }) => {
-        const {
-            chartRef,
-            visualizationConfig,
-            resultsData,
-            pivotDimensions,
-            chartConfig,
-            columnOrder,
-        } = useVisualizationContext();
+        const { chartRef } = useVisualizationServices();
+        const visualizationConfig = useVisualizationConfig();
+        const chartConfig = useEditedChartConfig();
+        const { resultsData, pivotDimensions, columnOrder } =
+            useVisualizationInputs();
 
         const eChartsOptions = useEchartsCartesianConfig();
 
@@ -73,30 +76,21 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                 projectUuid,
             }),
         );
-        const canExportCsv = isEmbedded
-            ? ability.can(
-                  'export',
-                  subject('SavedChart', {
-                      organizationUuid,
-                      type: 'csv',
-                  }),
-              )
-            : canManageExplore &&
-              ability.can(
-                  'manage',
-                  subject('ExportCsv', {
-                      organizationUuid,
-                      projectUuid,
-                  }),
-              );
+        const canEmbedExportCsv = useCanExportEmbeddedContent('csv');
+        const canEmbedExportImages = useCanExportEmbeddedContent('images');
+        const canExportCsv =
+            canEmbedExportCsv ||
+            (canManageExplore &&
+                ability.can(
+                    'manage',
+                    subject('ExportCsv', {
+                        organizationUuid,
+                        projectUuid,
+                    }),
+                ));
+        // Native image export rides on manage:Explore, so embeds must not fall back to it.
         const canExportImages = isEmbedded
-            ? ability.can(
-                  'export',
-                  subject('SavedChart', {
-                      organizationUuid,
-                      type: 'images',
-                  }),
-              )
+            ? canEmbedExportImages
             : canManageExplore;
         const getChartInstance = useCallback(
             () => chartRef.current?.getEchartsInstance(),
@@ -208,7 +202,7 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                                     .showColumnCalculation
                             }
                             getGsheetLink={
-                                getGsheetLink === undefined
+                                getGsheetLink === undefined || isEmbedded
                                     ? undefined
                                     : () =>
                                           getGsheetLink(

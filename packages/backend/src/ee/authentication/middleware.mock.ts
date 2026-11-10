@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    CommercialFeatureFlags,
     OrganizationMemberRole,
     PossibleAbilities,
     ServiceAccount,
@@ -67,6 +68,30 @@ export const mockRequest = {
             getSessionUserForServiceAccount: vi
                 .fn()
                 .mockResolvedValue(mockSaSessionUser),
+        }),
+        getFeatureFlagService: vi.fn().mockReturnValue({
+            get: vi.fn().mockResolvedValue({
+                id: CommercialFeatureFlags.Scim,
+                enabled: true,
+            }),
+        }),
+    },
+} as unknown as express.Request;
+
+export const mockRequestWithScimDisabled = {
+    ...mockRequest,
+    services: {
+        ...mockRequest.services,
+        getUserService: vi.fn().mockReturnValue({
+            getSessionUserForServiceAccount: vi
+                .fn()
+                .mockResolvedValue(mockSaSessionUser),
+        }),
+        getFeatureFlagService: vi.fn().mockReturnValue({
+            get: vi.fn().mockResolvedValue({
+                id: CommercialFeatureFlags.Scim,
+                enabled: false,
+            }),
         }),
     },
 } as unknown as express.Request;

@@ -5,6 +5,7 @@ import {
     OrganizationMemberRole,
     ParameterError,
     ParseError,
+    SCHEDULER_TASKS,
     SentryConfig,
     WarehouseTypes,
     WeekDay,
@@ -38,6 +39,147 @@ beforeEach(() => {
         S3_BUCKET: 'mock_bucket',
         S3_REGION: 'mock_region',
     };
+});
+
+describe('Python E2B template configuration', () => {
+    it('defaults to the python template at the running version', () => {
+        expect(parseConfig().appRuntime).toMatchObject({
+            e2bPythonTemplateName: 'lightdash-python-runner',
+            e2bPythonTemplateTag: VERSION,
+        });
+    });
+
+    it.each<[NodeJS.ProcessEnv, string, string]>([
+        [
+            { E2B_PYTHON_TEMPLATE_TAG: 'pinned' },
+            'lightdash-python-runner',
+            'pinned',
+        ],
+        [{ E2B_PYTHON_TEMPLATE_TAG: '' }, 'lightdash-python-runner', ''],
+        [{ E2B_PYTHON_TEMPLATE_NAME: 'custom' }, 'custom', VERSION],
+        [{ E2B_PYTHON_TEMPLATE_NAME: '' }, 'lightdash-python-runner', VERSION],
+    ])('uses configured settings: %o', (env, name, tag) => {
+        Object.assign(process.env, env);
+        expect(parseConfig().appRuntime).toMatchObject({
+            e2bPythonTemplateName: name,
+            e2bPythonTemplateTag: tag,
+        });
+    });
+});
+
+describe('RESULTS_CACHE_ENABLED', () => {
+    it.each([
+        [undefined, null],
+        ['', null],
+        ['true', true],
+        [' TRUE ', true],
+        ['false', false],
+        ['False', false],
+        ['1', true],
+        ['0', false],
+    ])('parses %j as %s', (value, expected) => {
+        if (value !== undefined) process.env.RESULTS_CACHE_ENABLED = value;
+        expect(parseConfig().results.cacheEnabled).toBe(expected);
+    });
+});
+
+describe('agent result identity check configuration', () => {
+    it.each([
+        [undefined, true],
+        ['false', false],
+        ['true', true],
+        ['', true],
+        ['FALSE', true],
+        ['0', true],
+    ])('parses %s as %s', (value, expected) => {
+        if (value !== undefined)
+            process.env.AGENT_RESULT_IDENTITY_CHECK_ENABLED = value;
+        expect(parseConfig().ai.agentResultIdentityCheckEnabled).toBe(expected);
+    });
+});
+
+describe('Snowflake AI OAuth configuration', () => {
+    it('ignores legacy OAuth environment settings', () => {
+        process.env.SNOWFLAKE_AI_OAUTH_ACCOUNT = 'legacy-account';
+        process.env.SNOWFLAKE_AI_OAUTH_CLIENT_ID = 'ai-client';
+        process.env.SNOWFLAKE_AI_OAUTH_CLIENT_SECRET = 'ai-secret';
+        process.env.SNOWFLAKE_AI_OAUTH_AUTHORIZATION_ENDPOINT =
+            'https://snowflake.example/authorize';
+        process.env.SNOWFLAKE_AI_OAUTH_TOKEN_ENDPOINT =
+            'https://snowflake.example/token';
+        expect(parseConfig().auth.snowflakeAi).toEqual({
+            loginPath: '/login/snowflake-ai',
+            callbackPath: '/oauth/redirect/snowflake-ai',
+            testAccountUrlOrigin: null,
+        });
+    });
+    it.each([undefined, ''])(
+        'disables the test origin when it is %s',
+        (value) => {
+            if (value !== undefined)
+                process.env.SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN = value;
+            const warning = vi
+                .spyOn(console, 'warn')
+                .mockImplementation(() => {});
+            try {
+                expect(
+                    parseConfig().auth.snowflakeAi.testAccountUrlOrigin,
+                ).toBeNull();
+                expect(warning).not.toHaveBeenCalledWith(
+                    expect.stringContaining(
+                        'SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN',
+                    ),
+                );
+            } finally {
+                warning.mockRestore();
+            }
+        },
+    );
+    it.each(['http://snowflake-ai-stub:3900', 'https://localhost:3900'])(
+        'accepts the exact origin %s and warns once',
+        (value) => {
+            process.env.SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN = value;
+            const warning = vi
+                .spyOn(console, 'warn')
+                .mockImplementation(() => {});
+            try {
+                expect(
+                    parseConfig().auth.snowflakeAi.testAccountUrlOrigin,
+                ).toBe(value);
+                expect(
+                    warning.mock.calls.filter(([message]) =>
+                        String(message).includes(
+                            'SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN',
+                        ),
+                    ),
+                ).toEqual([[expect.stringContaining('for tests only')]]);
+            } finally {
+                warning.mockRestore();
+            }
+        },
+    );
+    it.each([
+        'not-a-url',
+        'null',
+        ' ',
+        'http://snowflake-ai-stub:3900/',
+        'http://snowflake-ai-stub:3900/path',
+        'http://snowflake-ai-stub:3900?query=value',
+        'http://snowflake-ai-stub:3900#fragment',
+        'http://user:secret@snowflake-ai-stub:3900',
+        'http://*.example:3900',
+        'http://SNOWFLAKE-AI-STUB:3900',
+        'http://snowflake-ai-stub:80',
+        ' http://snowflake-ai-stub:3900',
+        'http://snowflake-ai-stub:3900 ',
+        'file://snowflake-ai-stub',
+    ])('rejects an invalid test origin %s', (value) => {
+        process.env.SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN = value;
+        expect(() => parseConfig()).toThrow(ParseError);
+        expect(() => parseConfig()).toThrow(
+            'SNOWFLAKE_AI_TEST_ACCOUNT_URL_ORIGIN',
+        );
+    });
 });
 
 describe('underlying data dimension limit', () => {
@@ -101,6 +243,28 @@ describe('external connection private hosts', () => {
             expect(() => parseConfig()).toThrow(ParseError);
         },
     );
+});
+
+describe('chart registry host access flags', () => {
+    it('defaults to strict: no private hosts, no insecure transport', () => {
+        const { chartRegistry } = parseConfig().appRuntime;
+        expect(chartRegistry.allowPrivateHosts).toBe(false);
+        expect(chartRegistry.allowInsecure).toBe(false);
+    });
+
+    it('LIGHTDASH_CHART_REGISTRY_ALLOW_PRIVATE_HOSTS=true enables private hosts without enabling insecure transport', () => {
+        process.env.LIGHTDASH_CHART_REGISTRY_ALLOW_PRIVATE_HOSTS = 'true';
+        const { chartRegistry } = parseConfig().appRuntime;
+        expect(chartRegistry.allowPrivateHosts).toBe(true);
+        expect(chartRegistry.allowInsecure).toBe(false);
+    });
+
+    it('ignores any value other than "true"', () => {
+        process.env.LIGHTDASH_CHART_REGISTRY_ALLOW_PRIVATE_HOSTS = 'yes';
+        expect(parseConfig().appRuntime.chartRegistry.allowPrivateHosts).toBe(
+            false,
+        );
+    });
 });
 
 describe('explore summary projection threshold', () => {
@@ -258,6 +422,24 @@ describe('query history retention', () => {
         } finally {
             warn.mockRestore();
         }
+    });
+});
+
+describe('dashboard tile query concurrency', () => {
+    it('is unlimited when unset', () => {
+        expect(parseConfig().dashboard.maxConcurrentTileQueries).toBeNull();
+    });
+
+    it('reads the configured cap', () => {
+        process.env.LIGHTDASH_DASHBOARD_MAX_CONCURRENT_TILE_QUERIES = '4';
+
+        expect(parseConfig().dashboard.maxConcurrentTileQueries).toBe(4);
+    });
+
+    it.each(['0', '-1', 'invalid'])('rejects an invalid cap: %s', (value) => {
+        process.env.LIGHTDASH_DASHBOARD_MAX_CONCURRENT_TILE_QUERIES = value;
+
+        expect(() => parseConfig()).toThrow(ParseError);
     });
 });
 
@@ -658,6 +840,171 @@ describe('mobile minimum supported versions', () => {
     });
 });
 
+describe('scoped SSH tunnel release', () => {
+    it.each([
+        [undefined, true],
+        ['true', true],
+        ['false', false],
+    ])('parses %s as %s', (value, expected) => {
+        if (value !== undefined) {
+            process.env.SSH_TUNNEL_SCOPED_RELEASE_ENABLED = value;
+        }
+        expect(parseConfig().warehouseClient.releaseSshTunnelOnScopeExit).toBe(
+            expected,
+        );
+    });
+});
+
+describe('compile credential resolution', () => {
+    const environment = { ...process.env };
+    afterEach(() => {
+        process.env = { ...environment };
+    });
+
+    it.each([
+        [undefined, true],
+        ['true', true],
+        ['false', false],
+        ['FALSE', true],
+        ['0', true],
+        ['', true],
+    ])('parses %s as %s', (value, expected) => {
+        if (value !== undefined) {
+            process.env.COMPILE_CREDENTIAL_RESOLUTION_ENABLED = value;
+        }
+        expect(parseConfig().warehouseClient.resolveCompileCredentials).toBe(
+            expected,
+        );
+        expect(parseConfig().warehouseClient.releaseSshTunnelOnScopeExit).toBe(
+            true,
+        );
+    });
+
+    it('stays enabled when scoped SSH release is disabled', () => {
+        process.env.SSH_TUNNEL_SCOPED_RELEASE_ENABLED = 'false';
+        expect(parseConfig().warehouseClient.resolveCompileCredentials).toBe(
+            true,
+        );
+    });
+});
+
+describe('dbt Cloud preview credential resolution', () => {
+    const environment = { ...process.env };
+    afterEach(() => {
+        process.env = { ...environment };
+    });
+
+    it.each([
+        [undefined, true],
+        ['true', true],
+        ['false', false],
+        ['FALSE', true],
+        ['0', true],
+        ['', true],
+    ])('parses %s as %s', (value, expected) => {
+        if (value !== undefined) {
+            process.env.DBT_CLOUD_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED = value;
+        }
+        expect(
+            parseConfig().warehouseClient.resolveDbtCloudPreviewCredentials,
+        ).toBe(expected);
+        expect(parseConfig().warehouseClient.resolveCompileCredentials).toBe(
+            true,
+        );
+        expect(parseConfig().warehouseClient.releaseSshTunnelOnScopeExit).toBe(
+            true,
+        );
+    });
+
+    it('stays enabled when compile resolution and scoped SSH release are disabled', () => {
+        process.env.COMPILE_CREDENTIAL_RESOLUTION_ENABLED = 'false';
+        process.env.SSH_TUNNEL_SCOPED_RELEASE_ENABLED = 'false';
+        expect(
+            parseConfig().warehouseClient.resolveDbtCloudPreviewCredentials,
+        ).toBe(true);
+    });
+});
+
+describe('timezone preview credential resolution', () => {
+    const environment = { ...process.env };
+    beforeEach(() => {
+        delete process.env.TIMEZONE_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED;
+    });
+    afterEach(() => {
+        process.env = { ...environment };
+    });
+
+    it.each([
+        [undefined, true],
+        ['true', true],
+        ['false', false],
+        ['FALSE', true],
+        ['0', true],
+        ['', true],
+    ])('parses %s as %s', (value, expected) => {
+        if (value !== undefined) {
+            process.env.TIMEZONE_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED = value;
+        }
+        expect(
+            parseConfig().warehouseClient.resolveTimezonePreviewCredentials,
+        ).toBe(expected);
+        expect(parseConfig().warehouseClient.resolveCompileCredentials).toBe(
+            true,
+        );
+        expect(
+            parseConfig().warehouseClient.resolveDbtCloudPreviewCredentials,
+        ).toBe(true);
+        expect(parseConfig().warehouseClient.releaseSshTunnelOnScopeExit).toBe(
+            true,
+        );
+    });
+
+    it('stays enabled when other credential switches and scoped SSH release are disabled', () => {
+        process.env.COMPILE_CREDENTIAL_RESOLUTION_ENABLED = 'false';
+        process.env.DBT_CLOUD_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED = 'false';
+        process.env.SSH_TUNNEL_SCOPED_RELEASE_ENABLED = 'false';
+        expect(
+            parseConfig().warehouseClient.resolveTimezonePreviewCredentials,
+        ).toBe(true);
+    });
+});
+
+describe('test-and-compile credential resolution', () => {
+    const environment = { ...process.env };
+    beforeEach(() => {
+        delete process.env.TEST_AND_COMPILE_CREDENTIAL_RESOLUTION_ENABLED;
+    });
+    afterEach(() => {
+        process.env = { ...environment };
+    });
+    it.each([
+        [undefined, true],
+        ['true', true],
+        ['false', false],
+        ['FALSE', true],
+        ['0', true],
+        ['', true],
+    ])('parses %s as %s', (value, expected) => {
+        if (value !== undefined)
+            process.env.TEST_AND_COMPILE_CREDENTIAL_RESOLUTION_ENABLED = value;
+        const config = parseConfig().warehouseClient;
+        expect(config.resolveTestAndCompileCredentials).toBe(expected);
+        expect(config.resolveCompileCredentials).toBe(true);
+        expect(config.resolveDbtCloudPreviewCredentials).toBe(true);
+        expect(config.resolveTimezonePreviewCredentials).toBe(true);
+        expect(config.releaseSshTunnelOnScopeExit).toBe(true);
+    });
+    it('stays enabled when other credential switches and scoped SSH release are disabled', () => {
+        process.env.COMPILE_CREDENTIAL_RESOLUTION_ENABLED = 'false';
+        process.env.DBT_CLOUD_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED = 'false';
+        process.env.TIMEZONE_PREVIEW_CREDENTIAL_RESOLUTION_ENABLED = 'false';
+        process.env.SSH_TUNNEL_SCOPED_RELEASE_ENABLED = 'false';
+        expect(
+            parseConfig().warehouseClient.resolveTestAndCompileCredentials,
+        ).toBe(true);
+    });
+});
+
 describe('MotherDuck instance cache config', () => {
     afterEach(() => {
         vi.restoreAllMocks();
@@ -860,6 +1207,29 @@ test('Should use explicit apps S3 config when set', () => {
     });
 });
 
+test('Should have no uploads S3 config until a bucket is set', () => {
+    expect(parseConfig().uploads.s3).toBeNull();
+});
+
+test('Should inherit base S3 settings for the uploads bucket', () => {
+    process.env.S3_ACCESS_KEY = 'mock_access_key';
+    process.env.S3_SECRET_KEY = 'mock_secret_key';
+    process.env.S3_FORCE_PATH_STYLE = 'true';
+    process.env.UPLOADS_S3_BUCKET = 'uploads_bucket';
+    const config = parseConfig();
+    expect(config.uploads.s3).toEqual(
+        expect.objectContaining({
+            endpoint: 'mock_endpoint',
+            bucket: 'uploads_bucket',
+            region: 'mock_region',
+            accessKey: 'mock_access_key',
+            secretKey: 'mock_secret_key',
+            forcePathStyle: true,
+        }),
+    );
+    expect(config.s3?.bucket).toEqual('mock_bucket');
+});
+
 describe('S3_AUTH_MODE', () => {
     it('defaults to the existing SigV4 behaviour', () => {
         expect(parseConfig().s3?.authMode).toEqual('default');
@@ -882,6 +1252,52 @@ describe('S3_AUTH_MODE', () => {
         process.env.S3_AUTH_MODE = 'aws_oauth';
 
         expect(() => parseConfig()).toThrow('Invalid S3_AUTH_MODE');
+    });
+
+    it('lets the results bucket keep SigV4 under gcp_oauth', () => {
+        process.env.S3_AUTH_MODE = 'gcp_oauth';
+        process.env.RESULTS_S3_AUTH_MODE = 'default';
+        process.env.RESULTS_S3_ENDPOINT =
+            'https://s3.ap-southeast-2.amazonaws.com';
+        process.env.RESULTS_S3_BUCKET = 'customer_bucket';
+        process.env.RESULTS_S3_REGION = 'ap-southeast-2';
+        process.env.RESULTS_S3_ACCESS_KEY = 'customer_access_key';
+        process.env.RESULTS_S3_SECRET_KEY = 'customer_secret_key';
+
+        const config = parseConfig();
+
+        expect(config.s3?.authMode).toEqual('gcp_oauth');
+        expect(config.results.s3).toEqual({
+            endpoint: 'https://s3.ap-southeast-2.amazonaws.com',
+            bucket: 'customer_bucket',
+            region: 'ap-southeast-2',
+            accessKey: 'customer_access_key',
+            secretKey: 'customer_secret_key',
+            forcePathStyle: false,
+            authMode: 'default',
+        });
+    });
+
+    it('lets the results bucket use gcp_oauth on its own', () => {
+        process.env.RESULTS_S3_AUTH_MODE = 'gcp_oauth';
+
+        const config = parseConfig();
+
+        expect(config.s3?.authMode).toEqual('default');
+        expect(config.results.s3?.authMode).toEqual('gcp_oauth');
+    });
+
+    it('treats an empty results mode as unset', () => {
+        process.env.S3_AUTH_MODE = 'gcp_oauth';
+        process.env.RESULTS_S3_AUTH_MODE = ' ';
+
+        expect(parseConfig().results.s3?.authMode).toEqual('gcp_oauth');
+    });
+
+    it('rejects a results mode it does not know', () => {
+        process.env.RESULTS_S3_AUTH_MODE = 'aws_oauth';
+
+        expect(() => parseConfig()).toThrow('Invalid RESULTS_S3_AUTH_MODE');
     });
 
     it('rejects an expiration time GCS would refuse to sign', () => {
@@ -1143,6 +1559,44 @@ test('Should parse bedrock inference profile prefix from env', () => {
         inferenceProfilePrefix: 'jp',
     });
 });
+
+test('leaves the Bedrock output cap unset when not configured', () => {
+    process.env.BEDROCK_API_KEY = 'test-bedrock-key';
+    process.env.BEDROCK_REGION = 'us-east-1';
+
+    const { bedrock } = parseConfig().ai.copilot.providers;
+    expect(bedrock).toBeDefined();
+    expect(bedrock?.maxOutputTokens).toBeUndefined();
+});
+
+test.each([
+    { BEDROCK_API_KEY: 'test-bedrock-key' },
+    {
+        BEDROCK_ACCESS_KEY_ID: 'test-access-key',
+        BEDROCK_SECRET_ACCESS_KEY: 'test-secret-key',
+    },
+    { BEDROCK_USE_DEFAULT_CREDENTIALS: 'true' },
+])('parses the Bedrock output cap with credentials %o', (credentials) => {
+    Object.assign(process.env, credentials);
+    process.env.BEDROCK_REGION = 'us-east-1';
+    process.env.BEDROCK_MAX_OUTPUT_TOKENS = '32000';
+
+    expect(parseConfig().ai.copilot.providers.bedrock).toMatchObject({
+        maxOutputTokens: 32_000,
+    });
+});
+
+test.each(['abc', '0'])(
+    'rejects invalid BEDROCK_MAX_OUTPUT_TOKENS=%s',
+    (value) => {
+        process.env.BEDROCK_API_KEY = 'test-bedrock-key';
+        process.env.BEDROCK_REGION = 'us-east-1';
+        process.env.BEDROCK_MAX_OUTPUT_TOKENS = value;
+
+        expect(parseConfig).toThrowError(ParseError);
+        expect(parseConfig).toThrowError('BEDROCK_MAX_OUTPUT_TOKENS');
+    },
+);
 
 test('Should configure Gemini only when an explicit API key is set', () => {
     process.env.GEMINI_MODEL_NAME = 'gemini-3.5-flash-lite';
@@ -1482,6 +1936,28 @@ test('Should pass OpenRouter provider routing slugs through from env', () => {
         // Only set by the schema default, so it proves validation succeeded
         // rather than falling back to the raw env object
         sortOrder: 'latency',
+    });
+});
+
+describe('Anthropic context management capability', () => {
+    test.each([
+        [undefined, true],
+        ['true', true],
+        ['', true],
+        ['false', false],
+        ['False', false],
+        ['FALSE', false],
+        [' false ', false],
+        ['0', false],
+    ])('parses %j as supportsContextManagement=%s', (value, expected) => {
+        process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+        process.env.ANTHROPIC_BASE_URL = 'https://gateway.example';
+        if (value !== undefined) {
+            process.env.ANTHROPIC_SUPPORTS_CONTEXT_MANAGEMENT = value;
+        }
+        expect(parseConfig().ai.copilot.providers.anthropic).toMatchObject({
+            supportsContextManagement: expected,
+        });
     });
 });
 
@@ -2039,7 +2515,7 @@ describe('parseAndSanitizeSchedulerTasks', () => {
     });
 
     describe('Default behavior', () => {
-        test('should return all tasks when scheduler tasks environment variables are not set or empty', () => {
+        test('includes analytics content tasks when task lists are unset or empty', () => {
             // Test with no environment variables set
             const config1 = parseConfig();
             expect(config1.scheduler.tasks).toEqual(ALL_TASK_NAMES);
@@ -2053,6 +2529,15 @@ describe('parseAndSanitizeSchedulerTasks', () => {
     });
 
     describe('Include tasks validation', () => {
+        test('can explicitly include only analytics content tasks', () => {
+            process.env.SCHEDULER_INCLUDE_TASKS =
+                'reconcileAnalyticsContent,syncAnalyticsContent';
+            expect(parseConfig().scheduler.tasks).toEqual([
+                SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT,
+                SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
+            ]);
+        });
+
         test.each([
             ['handleScheduledDelivery', ['handleScheduledDelivery']],
             [
@@ -2083,6 +2568,27 @@ describe('parseAndSanitizeSchedulerTasks', () => {
     });
 
     describe('Exclude tasks validation', () => {
+        test('keeps analytics content tasks enabled when other tasks are excluded', () => {
+            process.env.SCHEDULER_EXCLUDE_TASKS = 'appGeneratePipeline';
+            expect(parseConfig().scheduler.tasks).toEqual(
+                ALL_TASK_NAMES.filter(
+                    (task) => task !== SCHEDULER_TASKS.APP_GENERATE_PIPELINE,
+                ),
+            );
+        });
+
+        test('can explicitly exclude analytics content tasks', () => {
+            process.env.SCHEDULER_EXCLUDE_TASKS =
+                'reconcileAnalyticsContent,syncAnalyticsContent';
+            expect(parseConfig().scheduler.tasks).toEqual(
+                ALL_TASK_NAMES.filter(
+                    (task) =>
+                        task !== SCHEDULER_TASKS.RECONCILE_ANALYTICS_CONTENT &&
+                        task !== SCHEDULER_TASKS.SYNC_ANALYTICS_CONTENT,
+                ),
+            );
+        });
+
         test('should return all tasks except excluded ones', () => {
             process.env.SCHEDULER_EXCLUDE_TASKS =
                 'sendEmailNotification,uploadGsheets';
@@ -2218,19 +2724,6 @@ describe('scheduler migration quiesce', () => {
             resumeRampPeriod: 300_000,
         });
     });
-});
-
-test('should set groups.enabled only when the environment variable is set', () => {
-    const undefinedConfig = parseConfig();
-    expect(undefinedConfig.groups.enabled).toBeUndefined();
-
-    process.env.GROUPS_ENABLED = 'true';
-    const trueConfig = parseConfig();
-    expect(trueConfig.groups.enabled).toBe(true);
-
-    process.env.GROUPS_ENABLED = 'false';
-    const falseConfig = parseConfig();
-    expect(falseConfig.groups.enabled).toBe(false);
 });
 
 describe('LD_SETUP_START_OF_WEEK', () => {
@@ -2489,23 +2982,12 @@ describe('getMultiProjectSetupConfig', () => {
 });
 
 describe('legacy feature-flag env vars (compat repair for trivial-batch)', () => {
-    // The change-chart-explore env-var parser was removed when that flag was
-    // migrated to DB-backed resolution. Re-translating it via the legacy
-    // enable list preserves backward compat for self-hosted deployments that
-    // set the var.
     test.each([
-        ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
         ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
-        ['GROUPS_ENABLED', 'user-groups-enabled'],
         ['SHOW_EXECUTION_TIME', 'show-execution-time'],
         ['EMBEDDING_ENABLED', 'embedding'],
-        ['SERVICE_ACCOUNT_ENABLED', 'service-accounts'],
         ['SCIM_ENABLED', 'scim-token-management'],
-        [
-            'ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED',
-            'organization-warehouse-credentials',
-        ],
-        ['METRIC_DASHBOARD_FILTERS_ENABLED', 'metric-dashboard-filters'],
+        ['APPS_RUNTIME_ENABLED', 'enable-data-apps'],
     ])('legacy %s=true translates to enabledFeatureFlags', (envVar, flagId) => {
         process.env[envVar] = 'true';
         const config = parseConfig();
@@ -2659,6 +3141,56 @@ describe('APPS_CODING_AGENT', () => {
     });
 });
 
+describe('Data Apps gateway URLs', () => {
+    test('normalizes sandbox URLs without changing the shared provider URLs', () => {
+        process.env.ANTHROPIC_API_KEY = 'test-key';
+        process.env.ANTHROPIC_BASE_URL = 'https://mesh.example/anthropic';
+        process.env.BEDROCK_API_KEY = 'test-key';
+        process.env.BEDROCK_REGION = 'us-east-1';
+        process.env.BEDROCK_BASE_URL = 'https://mesh.example/bedrock';
+        process.env.OPENAI_API_KEY = 'test-key';
+        process.env.OPENAI_BASE_URL = 'https://mesh.example/openai/v1';
+        process.env.DATA_APPS_ANTHROPIC_BASE_URL =
+            ' https://private.example/anthropic/v1/ ';
+        process.env.DATA_APPS_BEDROCK_BASE_URL =
+            ' https://private.example/bedrock/ ';
+        process.env.DATA_APPS_OPENAI_BASE_URL =
+            ' https://private.example/openai/v1/ ';
+
+        const config = parseConfig();
+        expect(config.appRuntime.dataAppGatewayBaseUrls).toEqual({
+            anthropic: 'https://private.example/anthropic',
+            bedrock: 'https://private.example/bedrock',
+            openai: 'https://private.example/openai/v1',
+        });
+        expect(config.ai.copilot.providers.anthropic?.baseUrl).toBe(
+            process.env.ANTHROPIC_BASE_URL,
+        );
+        expect(config.ai.copilot.providers.bedrock?.baseUrl).toBe(
+            process.env.BEDROCK_BASE_URL,
+        );
+        expect(config.ai.copilot.providers.openai?.baseUrl).toBe(
+            process.env.OPENAI_BASE_URL,
+        );
+    });
+
+    test.each([
+        ['DATA_APPS_ANTHROPIC_BASE_URL', 'gateway.internal'],
+        ['DATA_APPS_BEDROCK_BASE_URL', 'ftp://gateway.internal'],
+        ['DATA_APPS_OPENAI_BASE_URL', 'https://user:secret@gateway.internal'],
+        ['DATA_APPS_OPENAI_BASE_URL', 'https://gateway.internal?token=secret'],
+        ['DATA_APPS_ANTHROPIC_BASE_URL', 'https://gateway.internal#fragment'],
+    ])(
+        'rejects invalid %s even without provider credentials',
+        (name, value) => {
+            process.env[name] = value;
+            expect(() => parseConfig()).toThrow(
+                `environment variable "${name}"`,
+            );
+        },
+    );
+});
+
 describe('ai copilot key management config', () => {
     it('declares no Lightdash-managed providers by default, on or off Lightdash Cloud', () => {
         delete process.env.AI_COPILOT_LIGHTDASH_MANAGED_PROVIDERS;
@@ -2701,5 +3233,77 @@ describe('autopilot run limits', () => {
     ])('rejects %s=%s at boot', (name, value) => {
         process.env[name] = value;
         expect(() => parseConfig()).toThrow(name);
+    });
+});
+
+describe('usage capture infrastructure', () => {
+    it.each([undefined, 'false', 'true'])(
+        'does not depend on the removed ENV gate (%s)',
+        (legacy) => {
+            process.env.LIGHTDASH_LICENSE_KEY = 'test-license';
+            if (legacy === undefined) delete process.env.USAGE_EVENTS_ENABLED;
+            else process.env.USAGE_EVENTS_ENABLED = legacy;
+            expect(parseConfig().usageEvents.enabled).toBe(true);
+        },
+    );
+    it('does not create capture infrastructure without a license', () => {
+        delete process.env.LIGHTDASH_LICENSE_KEY;
+        delete process.env.LIGHTDASH_LICENSE_CERTIFICATE;
+        expect(parseConfig().usageEvents.enabled).toBe(false);
+    });
+});
+
+describe('Docker Hub update check', () => {
+    it('is enabled by default', () => {
+        expect(parseConfig().updateCheck.enabled).toBe(true);
+    });
+    it('is disabled with LIGHTDASH_DISABLE_UPDATE_CHECK=true', () => {
+        process.env.LIGHTDASH_DISABLE_UPDATE_CHECK = 'true';
+        expect(parseConfig().updateCheck.enabled).toBe(false);
+    });
+});
+
+describe('database transaction rollback logging', () => {
+    it('is disabled by default', () => {
+        expect(parseConfig().database.logTransactionRollbacks).toBe(false);
+    });
+    it('is enabled with PG_LOG_TRANSACTION_ROLLBACKS=true', () => {
+        process.env.PG_LOG_TRANSACTION_ROLLBACKS = 'true';
+        expect(parseConfig().database.logTransactionRollbacks).toBe(true);
+    });
+    it('treats any other value as disabled', () => {
+        process.env.PG_LOG_TRANSACTION_ROLLBACKS = 'yes';
+        expect(parseConfig().database.logTransactionRollbacks).toBe(false);
+    });
+});
+
+describe('database slow transaction threshold', () => {
+    it('is disabled by default', () => {
+        expect(parseConfig().database.slowTransactionThresholdMs).toBeNull();
+    });
+    it('treats 0 as disabled', () => {
+        process.env.PG_SLOW_TRANSACTION_THRESHOLD_MS = '0';
+        expect(parseConfig().database.slowTransactionThresholdMs).toBeNull();
+    });
+    it('reads a positive threshold in milliseconds', () => {
+        process.env.PG_SLOW_TRANSACTION_THRESHOLD_MS = '60000';
+        expect(parseConfig().database.slowTransactionThresholdMs).toBe(60000);
+    });
+});
+
+describe('dbt source disk configuration', () => {
+    it('defaults the estimate and leaves the budget unset', () => {
+        expect(parseConfig().dbt).toMatchObject({
+            sourceFetchDiskBudgetBytes: undefined,
+            sourceFetchDiskPerSourceBytes: 256 * 1024 ** 2,
+        });
+    });
+    it('parses both disk settings', () => {
+        process.env.DBT_SOURCE_FETCH_DISK_BUDGET_BYTES = '1073741824';
+        process.env.DBT_SOURCE_FETCH_DISK_PER_SOURCE_BYTES = '134217728';
+        expect(parseConfig().dbt).toMatchObject({
+            sourceFetchDiskBudgetBytes: 1073741824,
+            sourceFetchDiskPerSourceBytes: 134217728,
+        });
     });
 });

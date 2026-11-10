@@ -8,8 +8,10 @@ import {
     PersistentDownloadFileAccessMode,
     PivotConfig,
     PivotConfiguration,
+    type AgentIdentityClaim,
     type AndFilterGroup,
     type ApiExecuteAsyncMetricQueryResults,
+    type ApiSourcePayload,
     type CacheMetadata,
     type ConditionalFormattingConfig,
     type DashboardFilters,
@@ -24,7 +26,10 @@ import {
     type PreAggregateExecutionEngine,
     type QueryExecutionContext,
     type QueryHistory,
+    type QueryResultProducer,
+    type QueryResultReader,
     type QuerySourceTableName,
+    type QuerySurface,
     type QueryUsageMetadata,
     type ResultColumns,
     type ResultsPaginationArgs,
@@ -45,8 +50,10 @@ import type {
     TotalConfiguration,
 } from '../../utils/QueryBuilder/QueryComposer';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
+import type { MeteredApiConnector } from '../QuerySourceService/api/ApiConnector';
 
 export type CommonAsyncQueryArgs = {
+    querySurface?: QuerySurface;
     account: Account;
     projectUuid: string;
     invalidateCache?: boolean;
@@ -62,6 +69,10 @@ export type GetAsyncQueryResultsArgs = Omit<
 > &
     ResultsPaginationArgs & {
         queryUuid: string;
+        aiAccessOnly?: boolean;
+        reader?: QueryResultReader;
+        // Defaults to query.maxPageSize
+        maxPageSize?: number;
     };
 
 export type DownloadAsyncQueryResultsArgs = Omit<
@@ -105,6 +116,7 @@ export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     documentQueryContext?: DocumentQueryContext;
     metricQuery: MetricQuery;
+    limit?: number | null | undefined;
     dataAppPreviewToken?: string;
     customSqlProvenanceChartUuid?: UUID;
     dateZoom?: DateZoom;
@@ -145,6 +157,8 @@ export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     limit?: number | null | undefined;
     pivotResults?: boolean;
     includeUnpublishedDraft?: boolean;
+    /** Keys the app's own per-tile resolution leaves to the chart; used for signed-in users only */
+    excludedParameterKeys?: string[];
     sessionTimezone?: string | null;
     preloadedSavedChart?: SavedChartDAO;
     preloadedProjectParameters?: DbProjectParameter[];
@@ -197,6 +211,27 @@ export type ExecuteAsyncSqlQueryArgs = CommonAsyncQueryArgs & {
     warehouseConnectionUuid?: string | null;
 };
 
+export type EstimateAsyncMetricQueryArgs = Pick<
+    ExecuteAsyncMetricQueryArgs,
+    | 'account'
+    | 'projectUuid'
+    | 'metricQuery'
+    | 'parameters'
+    | 'pivotConfiguration'
+    | 'dateZoom'
+    | 'usePreAggregateCache'
+>;
+
+export type EstimateAsyncSqlQueryArgs = Pick<
+    ExecuteAsyncSqlQueryArgs,
+    | 'account'
+    | 'projectUuid'
+    | 'sql'
+    | 'limit'
+    | 'parameters'
+    | 'warehouseConnectionUuid'
+>;
+
 export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
     sql: string;
     limit?: number;
@@ -204,6 +239,22 @@ export type ExecuteAsyncComposeSqlQueryArgs = CommonAsyncQueryArgs & {
     references?: Record<string, UUID>;
     /** Pivots the result over the columns discovered from the SQL. */
     pivotConfiguration?: PivotConfiguration;
+};
+
+export type ExecuteAsyncPythonQueryArgs = CommonAsyncQueryArgs & {
+    /** Python source defining run(inputs, params) -> pandas.DataFrame. */
+    code: string;
+    limit?: number;
+    /** Input name -> queryUuid of a previous async query exposed as that DataFrame. */
+    references: Record<string, UUID>;
+};
+
+export type ExecuteAsyncApiQueryArgs = CommonAsyncQueryArgs & {
+    connectionUuid: string;
+    /** Resolved through the connection, which checks the caller may use it. */
+    connector: MeteredApiConnector;
+    payload: ApiSourcePayload;
+    limit?: number;
 };
 
 export type ExecuteAsyncExternalSqlQueryArgs = CommonAsyncQueryArgs & {
@@ -227,6 +278,7 @@ export type ExecuteAsyncDashboardSqlChartCommonArgs = CommonAsyncQueryArgs & {
     tileUuid: string;
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];
+    excludedParameterKeys?: string[];
 };
 
 export type ExecuteAsyncDashboardSqlChartByUuidArgs =
@@ -283,7 +335,23 @@ export const SCHEDULER_POLLING_OPTIONS: PollingOptions = {
     maxBackoffMs: 5000,
 };
 
+/** A pre-built client that runs the query instead of the project warehouse. */
+export type WarehouseClientOverride = {
+    client: WarehouseClient;
+    executionSource:
+        | 'pre_aggregate_duckdb'
+        | 'external_source_duckdb'
+        | 'composer_duckdb';
+};
+
+export type WarehouseExecutionSource =
+    | 'warehouse'
+    | WarehouseClientOverride['executionSource'];
+
 export type RunAsyncWarehouseQueryArgs = {
+    authMethod?: QueryResultProducer['authMethod'];
+    resultEntitlementFingerprint?: string | null;
+    agentIdentity?: AgentIdentityClaim | null;
     projectUuid: string;
     userUuid: string;
     organizationUuid: string;
@@ -317,6 +385,7 @@ export type RunAsyncPreAggregateQueryArgs = Omit<
     RunAsyncWarehouseQueryArgs,
     'query'
 > & {
+    resultProducer?: QueryResultProducer;
     preAggregateQuery: string;
     warehouseQuery: string;
     preAggregateExecution: PreAggregateExecutionEngine;
@@ -431,11 +500,17 @@ export type ExecuteAsyncDuckdbSourceQueryArgs = CommonAsyncQueryArgs & {
 
 /** A query's references, bound: the CTEs to attach and the result files they read. */
 export type BoundDuckdbQueryReferences = {
+    hasAgentResults?: boolean;
+    aiSignInCredentialUuid?: string;
     referenceCtes: string[];
     resultFileUris: string[];
 };
 
 export type RunDuckdbQueryArgs = {
+    authMethod?: QueryResultProducer['authMethod'];
+    identityEnabled?: boolean | null;
+    resultEntitlementFingerprint?: string | null;
+    agentIdentity: AgentIdentityClaim | null;
     actor: QueryHistoryActor;
     /** Skip the lookup by result files and run regardless. */
     invalidateCache: boolean;

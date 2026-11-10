@@ -381,6 +381,7 @@ describe('SavedChartService direct-grant write parity', () => {
                 dashboardUuid: OWNING_DASHBOARD,
                 spaceUuid: PRIVATE_SPACE,
             },
+            null,
         );
     });
 
@@ -426,6 +427,7 @@ describe('SavedChartService direct-grant write parity', () => {
                 dashboardUuid: OWNING_DASHBOARD,
                 spaceUuid: PRIVATE_SPACE,
             },
+            null,
         );
         expect(analyticsMock.track).not.toHaveBeenCalled();
     });

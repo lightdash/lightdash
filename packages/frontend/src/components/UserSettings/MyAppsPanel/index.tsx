@@ -68,6 +68,7 @@ const MoveAppToSpaceModal: FC<{
                 latestVersionNumber: app.lastVersionNumber,
                 latestVersionStatus: app.lastVersionStatus,
             }}
+            previewVersion={null}
             onMoved={() =>
                 queryClient.invalidateQueries({ queryKey: ['myApps'] })
             }
@@ -189,7 +190,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 enableSorting: false,
                 size: 150,
                 Cell: ({ row }) => (
-                    <Text fz="sm" c="ldGray.7">
+                    <Text fz="sm" c="dimmed">
                         {row.original.projectName}
                     </Text>
                 ),
@@ -254,7 +255,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                 enableSorting: false,
                 size: 120,
                 Cell: ({ row }) => (
-                    <Text fz="sm" c="ldGray.7">
+                    <Text fz="sm" c="dimmed">
                         {new Date(row.original.createdAt).toLocaleDateString()}
                     </Text>
                 ),
@@ -273,7 +274,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                         <Menu position="bottom-end">
                             <Menu.Target>
                                 <ActionIcon variant="transparent" size="sm">
-                                    <MantineIcon icon={IconDots} size={16} />
+                                    <MantineIcon icon={IconDots} />
                                 </ActionIcon>
                             </Menu.Target>
                             <Menu.Dropdown>
@@ -292,7 +293,6 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                                         leftSection={
                                             <MantineIcon
                                                 icon={IconExternalLink}
-                                                size={14}
                                             />
                                         }
                                     >
@@ -303,10 +303,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                                     component={Link}
                                     to={`/projects/${app.projectUuid}/apps/${app.appUuid}`}
                                     leftSection={
-                                        <MantineIcon
-                                            icon={IconCode}
-                                            size={14}
-                                        />
+                                        <MantineIcon icon={IconCode} />
                                     }
                                 >
                                     Continue building
@@ -314,10 +311,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                                 <Menu.Divider />
                                 <Menu.Item
                                     leftSection={
-                                        <MantineIcon
-                                            icon={IconEdit}
-                                            size={14}
-                                        />
+                                        <MantineIcon icon={IconEdit} />
                                     }
                                     onClick={() => setAppToRename(app)}
                                 >
@@ -328,12 +322,10 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                                         app.spaceUuid ? (
                                             <MantineIcon
                                                 icon={IconFolderSymlink}
-                                                size={14}
                                             />
                                         ) : (
                                             <MantineIcon
                                                 icon={IconFolderPlus}
-                                                size={14}
                                             />
                                         )
                                     }
@@ -347,10 +339,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
                                 <Menu.Item
                                     color="red"
                                     leftSection={
-                                        <MantineIcon
-                                            icon={IconTrash}
-                                            size={14}
-                                        />
+                                        <MantineIcon icon={IconTrash} />
                                     }
                                     onClick={() => setAppToDelete(app)}
                                 >
@@ -384,7 +373,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
         },
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: { maxHeight: 'calc(100dvh - 420px)' },
+            mah: 'calc(100dvh - 420px)',
             onScroll,
         },
         mantineTableProps: {
@@ -403,7 +392,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
             search,
         },
         renderTopToolbar: () => (
-            <Group px="md" py="sm" gap="xs" wrap="nowrap">
+            <Group px="lg" py="sm" gap="xs" wrap="nowrap">
                 <ContentTableSearchInput
                     placeholder="Search apps..."
                     tooltipLabel="Search by app, project, or space"
@@ -444,7 +433,7 @@ const MyAppsPanel: FC<MyAppsPanelProps> = ({
     return (
         <SettingsPage
             title="My apps"
-            description="Manage the data apps you can access and edit."
+            description="Manage the data apps you've created."
         >
             <ContentTable table={table} />
             {appToDelete && (

@@ -9,27 +9,31 @@ import {
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
 import useActiveJob from '../providers/ActiveJob/useActiveJob';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import useToaster from './toaster/useToaster';
 
-const createPreviewProject = async ({
-    projectUuid,
-    name,
-    asyncCopyContent,
-    dbtConnectionOverrides,
-    warehouseConnectionOverrides,
-}: {
-    projectUuid: string;
-    name: string;
-    asyncCopyContent: boolean;
-    dbtConnectionOverrides?: {
-        branch?: string;
-        environment?: DbtProjectEnvironmentVariable[];
-        manifest?: string;
-    };
-    warehouseConnectionOverrides?: { schema?: string };
-}) => {
+const createPreviewProject = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        name,
+        asyncCopyContent,
+        dbtConnectionOverrides,
+        warehouseConnectionOverrides,
+    }: {
+        projectUuid: string;
+        name: string;
+        asyncCopyContent: boolean;
+        dbtConnectionOverrides?: {
+            branch?: string;
+            environment?: DbtProjectEnvironmentVariable[];
+            manifest?: string;
+        };
+        warehouseConnectionOverrides?: { schema?: string };
+    },
+) => {
     const preview = await lightdashApi<ApiCreatePreviewResults>({
         url: `/projects/${projectUuid}/createPreview`,
         method: 'POST',
@@ -72,6 +76,7 @@ const createPreviewProject = async ({
 };
 
 export const useCreatePreviewMutation = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     const { setActiveJobId } = useActiveJob();
     const { showToastApiError, showToastSuccess } = useToaster();
@@ -89,7 +94,7 @@ export const useCreatePreviewMutation = () => {
             };
             warehouseConnectionOverrides?: { schema?: string };
         }
-    >((data) => createPreviewProject(data), {
+    >((data) => createPreviewProject(lightdashApi, data), {
         mutationKey: ['preview_project_create'],
         onSuccess: async ({ projectUuid, compileJobUuid }) => {
             await queryClient.invalidateQueries(['projects']);

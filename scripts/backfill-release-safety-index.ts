@@ -94,6 +94,7 @@ async function main(): Promise<void> {
                     migrations: null,
                     migrationDetails: [],
                     migrationMetadataComplete: false,
+                    declaredAdvisories: [],
                     declaredBreaks: [],
                     config: null,
                     restApi: null,

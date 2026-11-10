@@ -75,6 +75,7 @@ const stored = customChart({
 });
 const makeDocument = (content: DocumentContent): Document => ({
     pinnedListUuid: null,
+    verification: null,
     createdBy: null,
     owner: null,
     documentUuid,
@@ -169,12 +170,18 @@ const setup = (existing: DocumentContent = withCharts([], 'Findings')) => {
         access: [{ userUuid, role: SpaceMemberRole.EDITOR }],
     };
     const projectService = {
+        getExplore: vi.fn().mockResolvedValue({ type: 'default' }),
         compileQuery: vi.fn().mockResolvedValue({
             compilationErrors: [],
             missingParameterReferences: new Set<string>(),
         }),
     };
     const service = new DocumentService({
+        contentVerificationModel: {
+            getByContent: vi.fn().mockResolvedValue(null),
+            verify: vi.fn(),
+            unverify: vi.fn(),
+        },
         analytics: { track: vi.fn() },
         appModel,
         documentModel,

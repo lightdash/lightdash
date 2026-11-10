@@ -17,6 +17,7 @@ import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { type DocumentModel } from '../../models/DocumentModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { EmailModel } from '../../models/EmailModel';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -25,7 +26,6 @@ import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
-import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectDbtSourcesModel } from '../../models/ProjectDbtSourcesModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -47,6 +47,7 @@ import { WarehouseConnectionTablesModel } from '../../models/WarehouseConnection
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
+import { type AiAccessService } from '../AiAccessService/AiAccessService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
@@ -62,10 +63,16 @@ describe('Csv service', () => {
         analytics: analyticsMock,
         userModel: {} as UserModel,
         projectService: new ProjectService({
+            dbtSourceRefCatalogModel: {} as never,
+            refreshTokenRotation: { run: vi.fn() },
+            aiAccessService: {
+                resolvePlan: vi.fn(async () => null),
+            } as unknown as AiAccessService,
             lightdashConfig,
             analytics: analyticsMock,
             analyticsModel: {} as AnalyticsModel,
             dashboardModel: {} as DashboardModel,
+            documentModel: {} as DocumentModel,
             emailClient: {} as EmailClient,
             jobModel: {} as JobModel,
             onboardingModel: {} as OnboardingModel,
@@ -103,8 +110,6 @@ describe('Csv service', () => {
             userOAuthGrantsModel: {} as UserOAuthGrantsModel,
             featureFlagModel: {} as FeatureFlagModel,
             projectParametersModel: {} as ProjectParametersModel,
-            organizationWarehouseCredentialsModel:
-                {} as OrganizationWarehouseCredentialsModel,
             organizationModel: {} as OrganizationModel,
             projectCompileLogModel: {} as ProjectCompileLogModel,
             adminNotificationService: {} as AdminNotificationService,

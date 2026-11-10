@@ -150,7 +150,6 @@ export const AiSqlArtifactActions: FC<ActionsProps> = ({
                 sql={sql}
                 limit={limit}
                 currentVizConfig={getAiArtifactTableConfig(columns)}
-                hasUnrunChanges={false}
                 connectionRequest={NO_CONNECTION_FIELD}
                 redirectOnSuccess={false}
                 onSaved={async ({ savedSqlUuid: newSavedSqlUuid }) => {
@@ -181,7 +180,7 @@ export const AiSqlArtifactVisualization: FC<ContentProps> = ({
         <AiVizSwitchedResult
             projectUuid={projectUuid}
             results={results}
-            seriesSplitQueryUuid={null}
+            pivotQueryUuid={null}
             plan={plan}
             kind={pickVizKind(plan, chosenKind ?? 'table')}
             onKindChange={setChosenKind}

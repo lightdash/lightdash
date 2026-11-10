@@ -2,13 +2,31 @@ import {
     DimensionType,
     FieldType,
     FilterOperator,
+    ForbiddenError,
     NotFoundError,
     ParameterError,
+    type Account,
     type AndFilterGroup,
     type Explore,
 } from '@lightdash/common';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { validExplore } from './ProjectService.mock';
+
+const mockAccount = {
+    authentication: { type: 'session', source: 'src' },
+    organization: { organizationUuid: 'org-uuid' },
+    user: {
+        id: 'user-uuid',
+        type: 'registered',
+        userUuid: 'user-uuid',
+        email: 'user@example.com',
+        firstName: 'Test',
+        lastName: 'User',
+        role: 'member',
+    },
+    isAnonymousUser: () => false,
+    isServiceAccount: () => false,
+} as unknown as Account;
 
 const exploreWithLabelDimension = (labelDimension: string): Explore => ({
     ...validExplore,
@@ -77,11 +95,13 @@ const lookupExplore: Explore = {
                     ...validExplore.tables.a.dimensions.dim1,
                     name: 'code',
                     table: 'lookup',
+                    tablesReferences: ['lookup'],
                 },
                 name: {
                     ...validExplore.tables.a.dimensions.dim1,
                     name: 'name',
                     table: 'lookup',
+                    tablesReferences: ['lookup'],
                 },
             },
             metrics: {},
@@ -109,6 +129,7 @@ describe('getFieldValuesMetricQuery', () => {
 
     test('builds a MetricQuery with correct structure', async () => {
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -117,6 +138,7 @@ describe('getFieldValuesMetricQuery', () => {
             maxLimit: 5000,
             filters: undefined,
             exploreResolver: mockExploreResolver,
+            userAttributes: {},
         });
 
         expect(result.metricQuery.exploreName).toBe(validExplore.name);
@@ -150,6 +172,7 @@ describe('getFieldValuesMetricQuery', () => {
 
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'a',
                 initialFieldId: 'a_missing',
@@ -158,6 +181,7 @@ describe('getFieldValuesMetricQuery', () => {
                 maxLimit: 5000,
                 filters: undefined,
                 exploreResolver: mockExploreResolver,
+                userAttributes: {},
                 authorizeInitialExplore,
             }),
         ).rejects.toThrow('not authorized');
@@ -167,6 +191,7 @@ describe('getFieldValuesMetricQuery', () => {
 
     test('returns null staticResults when warehouse fetching is on', async () => {
         const { staticResults } = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -175,6 +200,7 @@ describe('getFieldValuesMetricQuery', () => {
             maxLimit: 5000,
             filters: undefined,
             exploreResolver: mockExploreResolver,
+            userAttributes: {},
         });
 
         expect(staticResults).toBeNull();
@@ -193,6 +219,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const { staticResults } = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -201,6 +228,7 @@ describe('getFieldValuesMetricQuery', () => {
             maxLimit: 5000,
             filters: undefined,
             exploreResolver: mockExploreResolver,
+            userAttributes: {},
         });
 
         expect(staticResults).toEqual([
@@ -214,6 +242,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const { staticResults } = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -222,6 +251,7 @@ describe('getFieldValuesMetricQuery', () => {
             maxLimit: 5000,
             filters: undefined,
             exploreResolver: mockExploreResolver,
+            userAttributes: {},
         });
 
         expect(staticResults).toEqual([]);
@@ -229,6 +259,7 @@ describe('getFieldValuesMetricQuery', () => {
 
     test('includes compatible filters from input', async () => {
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -253,6 +284,7 @@ describe('getFieldValuesMetricQuery', () => {
                 ],
             },
             exploreResolver: mockExploreResolver,
+            userAttributes: {},
         });
 
         const dims = result.metricQuery.filters?.dimensions;
@@ -276,6 +308,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -294,6 +327,7 @@ describe('getFieldValuesMetricQuery', () => {
                 ],
             },
             exploreResolver: mockExploreResolver,
+            userAttributes: {},
         });
 
         expect(result.explore).toBe(lookupExplore);
@@ -335,6 +369,7 @@ describe('getFieldValuesMetricQuery', () => {
                         code: {
                             ...lookupExplore.tables.lookup.dimensions.code,
                             table: 'dim_airlines',
+                            tablesReferences: ['dim_airlines'],
                         },
                     },
                 },
@@ -348,6 +383,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -356,6 +392,7 @@ describe('getFieldValuesMetricQuery', () => {
             maxLimit: 5000,
             filters: undefined,
             exploreResolver: mockExploreResolver,
+            userAttributes: {},
         });
 
         expect(result.fieldId).toBe('dim_airlines_code');
@@ -376,6 +413,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -384,6 +422,7 @@ describe('getFieldValuesMetricQuery', () => {
             maxLimit: 5000,
             filters: undefined,
             exploreResolver: mockExploreResolver,
+            userAttributes: {},
         });
 
         expect(result.explore).toBe(lookupExplore);
@@ -402,6 +441,7 @@ describe('getFieldValuesMetricQuery', () => {
 
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'a',
                 initialFieldId: 'a_dim1',
@@ -410,6 +450,7 @@ describe('getFieldValuesMetricQuery', () => {
                 maxLimit: 5000,
                 filters: undefined,
                 exploreResolver: mockExploreResolver,
+                userAttributes: {},
             }),
         ).rejects.toThrow(
             /a_dim1 reads options from model 'hidden_model', which has no explore/,
@@ -428,6 +469,7 @@ describe('getFieldValuesMetricQuery', () => {
 
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'a',
                 initialFieldId: 'a_dim1',
@@ -436,6 +478,7 @@ describe('getFieldValuesMetricQuery', () => {
                 maxLimit: 5000,
                 filters: undefined,
                 exploreResolver: mockExploreResolver,
+                userAttributes: {},
             }),
         ).rejects.toThrow(
             "Filter autocomplete options source 'lookup.missing' does not exist",
@@ -454,6 +497,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -462,6 +506,7 @@ describe('getFieldValuesMetricQuery', () => {
             maxLimit: 5000,
             filters: undefined,
             exploreResolver: mockExploreResolver,
+            userAttributes: {},
         });
 
         expect(result.staticResults).toEqual([{ value: 'AAL' }]);
@@ -483,6 +528,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -491,6 +537,7 @@ describe('getFieldValuesMetricQuery', () => {
             maxLimit: 5000,
             filters: undefined,
             exploreResolver: mockExploreResolver,
+            userAttributes: {},
         });
 
         expect(result.labelFieldId).toBeNull();
@@ -504,6 +551,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'alias_table',
             initialFieldId: 'alias_table_dim1',
@@ -512,6 +560,7 @@ describe('getFieldValuesMetricQuery', () => {
             maxLimit: 5000,
             filters: undefined,
             exploreResolver: mockExploreResolver,
+            userAttributes: {},
         });
 
         expect(mockExploreResolver.findJoinAliasExplore).toHaveBeenCalledWith(
@@ -550,6 +599,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'alias_table',
             initialFieldId: 'alias_table_dim1',
@@ -568,6 +618,7 @@ describe('getFieldValuesMetricQuery', () => {
                 ],
             },
             exploreResolver: mockExploreResolver,
+            userAttributes: {},
         });
 
         expect(result.fieldId).toBe('a_dim1');
@@ -590,6 +641,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'b',
             initialFieldId: 'b_dim1',
@@ -598,6 +650,7 @@ describe('getFieldValuesMetricQuery', () => {
             maxLimit: 5000,
             filters: undefined,
             exploreResolver: mockExploreResolver,
+            userAttributes: {},
         });
 
         expect(
@@ -615,6 +668,7 @@ describe('getFieldValuesMetricQuery', () => {
 
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'nonexistent',
                 initialFieldId: 'nonexistent_dim',
@@ -623,6 +677,7 @@ describe('getFieldValuesMetricQuery', () => {
                 maxLimit: 5000,
                 filters: undefined,
                 exploreResolver: mockExploreResolver,
+                userAttributes: {},
             }),
         ).rejects.toThrow(NotFoundError);
     });
@@ -630,6 +685,7 @@ describe('getFieldValuesMetricQuery', () => {
     test('throws NotFoundError when field not found in explore', async () => {
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'a',
                 initialFieldId: 'a_nonexistent',
@@ -638,6 +694,7 @@ describe('getFieldValuesMetricQuery', () => {
                 maxLimit: 5000,
                 filters: undefined,
                 exploreResolver: mockExploreResolver,
+                userAttributes: {},
             }),
         ).rejects.toThrow(NotFoundError);
     });
@@ -645,6 +702,7 @@ describe('getFieldValuesMetricQuery', () => {
     test('throws ParameterError when field is a metric', async () => {
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'a',
                 initialFieldId: 'a_met1',
@@ -653,6 +711,7 @@ describe('getFieldValuesMetricQuery', () => {
                 maxLimit: 5000,
                 filters: undefined,
                 exploreResolver: mockExploreResolver,
+                userAttributes: {},
             }),
         ).rejects.toThrow(ParameterError);
     });
@@ -660,6 +719,7 @@ describe('getFieldValuesMetricQuery', () => {
     test('throws ParameterError when limit exceeds max', async () => {
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'a',
                 initialFieldId: 'a_dim1',
@@ -668,6 +728,7 @@ describe('getFieldValuesMetricQuery', () => {
                 maxLimit: 5000,
                 filters: undefined,
                 exploreResolver: mockExploreResolver,
+                userAttributes: {},
             }),
         ).rejects.toThrow(ParameterError);
     });
@@ -675,6 +736,7 @@ describe('getFieldValuesMetricQuery', () => {
     test('throws ParameterError when limit contains SQL tokens at runtime', async () => {
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'a',
                 initialFieldId: 'a_dim1',
@@ -683,6 +745,7 @@ describe('getFieldValuesMetricQuery', () => {
                 maxLimit: 5000,
                 filters: undefined,
                 exploreResolver: mockExploreResolver,
+                userAttributes: {},
             }),
         ).rejects.toThrow('Query limit must be a non-negative integer');
     });
@@ -690,6 +753,7 @@ describe('getFieldValuesMetricQuery', () => {
     test('throws ParameterError when table is empty string', async () => {
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: '',
                 initialFieldId: 'a_dim1',
@@ -698,6 +762,7 @@ describe('getFieldValuesMetricQuery', () => {
                 maxLimit: 5000,
                 filters: undefined,
                 exploreResolver: mockExploreResolver,
+                userAttributes: {},
             }),
         ).rejects.toThrow(ParameterError);
     });
@@ -705,6 +770,7 @@ describe('getFieldValuesMetricQuery', () => {
     test('throws ParameterError when table is undefined at runtime', async () => {
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: undefined as unknown as string,
                 initialFieldId: 'a_dim1',
@@ -713,6 +779,7 @@ describe('getFieldValuesMetricQuery', () => {
                 maxLimit: 5000,
                 filters: undefined,
                 exploreResolver: mockExploreResolver,
+                userAttributes: {},
             }),
         ).rejects.toThrow(ParameterError);
     });
@@ -723,6 +790,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -731,6 +799,7 @@ describe('getFieldValuesMetricQuery', () => {
             maxLimit: 5000,
             filters: undefined,
             exploreResolver: mockExploreResolver,
+            userAttributes: {},
         });
 
         expect(result.metricQuery.dimensions).toEqual([
@@ -771,6 +840,7 @@ describe('getFieldValuesMetricQuery', () => {
         );
 
         const result = await getFieldValuesMetricQuery({
+            account: mockAccount,
             projectUuid: 'project-uuid',
             table: 'a',
             initialFieldId: 'a_dim1',
@@ -779,6 +849,7 @@ describe('getFieldValuesMetricQuery', () => {
             maxLimit: 5000,
             filters: undefined,
             exploreResolver: mockExploreResolver,
+            userAttributes: {},
         });
 
         expect(result.labelFieldId).toBeNull();
@@ -792,6 +863,7 @@ describe('getFieldValuesMetricQuery', () => {
 
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'a',
                 initialFieldId: 'a_dim1',
@@ -800,6 +872,7 @@ describe('getFieldValuesMetricQuery', () => {
                 maxLimit: 5000,
                 filters: undefined,
                 exploreResolver: mockExploreResolver,
+                userAttributes: {},
             }),
         ).rejects.toThrow(NotFoundError);
     });
@@ -811,6 +884,7 @@ describe('getFieldValuesMetricQuery', () => {
 
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'a',
                 initialFieldId: 'a_dim1',
@@ -819,13 +893,271 @@ describe('getFieldValuesMetricQuery', () => {
                 maxLimit: 5000,
                 filters: undefined,
                 exploreResolver: mockExploreResolver,
+                userAttributes: {},
             }),
         ).rejects.toThrow(ParameterError);
+    });
+
+    describe('user attribute visibility', () => {
+        const defaultArgs = {
+            projectUuid: 'project-uuid',
+            search: '',
+            limit: 10,
+            maxLimit: 5000,
+            filters: undefined,
+            exploreResolver: mockExploreResolver,
+            userAttributes: {},
+        };
+
+        const exploreWithGatedJoinedTable: Explore = {
+            ...validExplore,
+            tables: {
+                ...validExplore.tables,
+                b: {
+                    ...validExplore.tables.b,
+                    requiredAttributes: { is_admin: 'true' },
+                },
+            },
+        };
+
+        const exploreWithGatedBaseTable: Explore = {
+            ...validExplore,
+            tables: {
+                ...validExplore.tables,
+                a: {
+                    ...validExplore.tables.a,
+                    requiredAttributes: { is_admin: 'true' },
+                },
+            },
+        };
+
+        const exploreWithGatedDimension: Explore = {
+            ...validExplore,
+            tables: {
+                ...validExplore.tables,
+                a: {
+                    ...validExplore.tables.a,
+                    dimensions: {
+                        ...validExplore.tables.a.dimensions,
+                        dim1: {
+                            ...validExplore.tables.a.dimensions.dim1,
+                            requiredAttributes: { is_admin: 'true' },
+                        },
+                    },
+                },
+            },
+        };
+
+        test('throws ForbiddenError when the field is on a joined table gated by missing attributes', async () => {
+            mockExploreResolver.findExploreByTableName.mockResolvedValue(
+                undefined,
+            );
+            mockExploreResolver.findExploreContainingTable.mockResolvedValue(
+                exploreWithGatedJoinedTable,
+            );
+
+            await expect(
+                getFieldValuesMetricQuery({
+                    account: mockAccount,
+                    ...defaultArgs,
+                    table: 'b',
+                    initialFieldId: 'b_dim1',
+                    userAttributes: {},
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        test('allows the field on a gated joined table when the user has the attribute', async () => {
+            mockExploreResolver.findExploreByTableName.mockResolvedValue(
+                undefined,
+            );
+            mockExploreResolver.findExploreContainingTable.mockResolvedValue(
+                exploreWithGatedJoinedTable,
+            );
+
+            const result = await getFieldValuesMetricQuery({
+                account: mockAccount,
+                ...defaultArgs,
+                table: 'b',
+                initialFieldId: 'b_dim1',
+                userAttributes: { is_admin: ['true'] },
+            });
+
+            expect(result.fieldId).toBe('b_dim1');
+        });
+
+        test('throws ForbiddenError when the base table is gated by missing attributes', async () => {
+            mockExploreResolver.findExploreByTableName.mockResolvedValue(
+                exploreWithGatedBaseTable,
+            );
+
+            await expect(
+                getFieldValuesMetricQuery({
+                    account: mockAccount,
+                    ...defaultArgs,
+                    table: 'a',
+                    initialFieldId: 'a_dim1',
+                    userAttributes: {},
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        test('throws ForbiddenError when the dimension itself is gated by missing attributes', async () => {
+            mockExploreResolver.findExploreByTableName.mockResolvedValue(
+                exploreWithGatedDimension,
+            );
+
+            await expect(
+                getFieldValuesMetricQuery({
+                    account: mockAccount,
+                    ...defaultArgs,
+                    table: 'a',
+                    initialFieldId: 'a_dim1',
+                    userAttributes: {},
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        test('throws ForbiddenError for a gated dimension even when it serves curated values', async () => {
+            const gatedWithCuratedValues: Explore = {
+                ...exploreWithGatedDimension,
+                tables: {
+                    ...exploreWithGatedDimension.tables,
+                    a: {
+                        ...exploreWithGatedDimension.tables.a,
+                        dimensions: {
+                            dim1: {
+                                ...exploreWithGatedDimension.tables.a.dimensions
+                                    .dim1,
+                                filterAutocomplete: {
+                                    fetchFromWarehouse: false,
+                                    values: [{ value: 'secret' }],
+                                },
+                            },
+                        },
+                    },
+                },
+            };
+            mockExploreResolver.findExploreByTableName.mockResolvedValue(
+                gatedWithCuratedValues,
+            );
+
+            await expect(
+                getFieldValuesMetricQuery({
+                    account: mockAccount,
+                    ...defaultArgs,
+                    table: 'a',
+                    initialFieldId: 'a_dim1',
+                    userAttributes: {},
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        test('throws ForbiddenError when the label dimension is gated by missing attributes', async () => {
+            const gatedLabelExplore = exploreWithLabelDimension('label_dim');
+            const gatedLabel: Explore = {
+                ...gatedLabelExplore,
+                tables: {
+                    ...gatedLabelExplore.tables,
+                    a: {
+                        ...gatedLabelExplore.tables.a,
+                        dimensions: {
+                            ...gatedLabelExplore.tables.a.dimensions,
+                            label_dim: {
+                                ...gatedLabelExplore.tables.a.dimensions
+                                    .label_dim,
+                                requiredAttributes: { is_admin: 'true' },
+                            },
+                        },
+                    },
+                },
+            };
+            mockExploreResolver.findExploreByTableName.mockResolvedValue(
+                gatedLabel,
+            );
+
+            await expect(
+                getFieldValuesMetricQuery({
+                    account: mockAccount,
+                    ...defaultArgs,
+                    table: 'a',
+                    initialFieldId: 'a_dim1',
+                    userAttributes: {},
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        test('throws ForbiddenError when the options source explore is gated by missing attributes', async () => {
+            const sourceExplore = exploreWithFilterAutocomplete({
+                fetchFromWarehouse: true,
+                optionsFromDimension: { model: 'lookup', dimension: 'code' },
+            });
+            const gatedLookupExplore: Explore = {
+                ...lookupExplore,
+                tables: {
+                    lookup: {
+                        ...lookupExplore.tables.lookup,
+                        requiredAttributes: { is_admin: 'true' },
+                    },
+                },
+            };
+            mockExploreResolver.findExploreByTableName.mockImplementation(
+                async (_projectUuid: string, table: string) =>
+                    table === 'lookup' ? gatedLookupExplore : sourceExplore,
+            );
+
+            await expect(
+                getFieldValuesMetricQuery({
+                    account: mockAccount,
+                    ...defaultArgs,
+                    table: 'a',
+                    initialFieldId: 'a_dim1',
+                    userAttributes: {},
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        test('throws ForbiddenError when the options source dimension is gated by missing attributes', async () => {
+            const sourceExplore = exploreWithFilterAutocomplete({
+                fetchFromWarehouse: true,
+                optionsFromDimension: { model: 'lookup', dimension: 'code' },
+            });
+            const gatedLookupDimension: Explore = {
+                ...lookupExplore,
+                tables: {
+                    lookup: {
+                        ...lookupExplore.tables.lookup,
+                        dimensions: {
+                            ...lookupExplore.tables.lookup.dimensions,
+                            code: {
+                                ...lookupExplore.tables.lookup.dimensions.code,
+                                requiredAttributes: { is_admin: 'true' },
+                            },
+                        },
+                    },
+                },
+            };
+            mockExploreResolver.findExploreByTableName.mockImplementation(
+                async (_projectUuid: string, table: string) =>
+                    table === 'lookup' ? gatedLookupDimension : sourceExplore,
+            );
+
+            await expect(
+                getFieldValuesMetricQuery({
+                    account: mockAccount,
+                    ...defaultArgs,
+                    table: 'a',
+                    initialFieldId: 'a_dim1',
+                    userAttributes: {},
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
     });
 
     test('throws ParameterError when filters is truthy but missing .and', async () => {
         await expect(
             getFieldValuesMetricQuery({
+                account: mockAccount,
                 projectUuid: 'project-uuid',
                 table: 'a',
                 initialFieldId: 'a_dim1',
@@ -834,6 +1166,7 @@ describe('getFieldValuesMetricQuery', () => {
                 maxLimit: 5000,
                 filters: { id: 'bad-filter' } as unknown as AndFilterGroup,
                 exploreResolver: mockExploreResolver,
+                userAttributes: {},
             }),
         ).rejects.toThrow(ParameterError);
     });

@@ -1,4 +1,6 @@
 import {
+    FeatureFlags,
+    isAiAgentSemanticArtifactVizQuery,
     isAiAgentSqlArtifactVizQuery,
     isAiSqlChartArtifactConfig,
     parseVizConfig,
@@ -16,11 +18,15 @@ import {
     Text,
     Title,
 } from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
 import { IconExclamationCircle, IconX } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
+import { getAiAgentArtifactResultsUrl } from '../../hooks/aiAgentRouting';
+import { useAgentMaxWidth } from '../../hooks/useAgentMaxWidth';
 import {
     getAiArtifactChartSource,
     useAiArtifactCompiledSql,
@@ -28,6 +34,7 @@ import {
 import { useAiAgentArtifactVizQuery } from '../../hooks/useProjectAiAgents';
 import { clearPreview } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
+import { AiAccessCallout } from './AiAccessCallout';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
 import {
     AiSqlArtifactActions,
@@ -56,7 +63,10 @@ export const AiChartVisualization: FC<Props> = ({
     showCloseButton = true,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
-    const isMobile = useMediaQuery('(max-width: 768px)');
+    const isMobile = useAgentMaxWidth(768);
+    const isEmbed = useIsEmbedded();
+    const identityFlag = useServerFeatureFlag(FeatureFlags.AgentIdentity);
+    const identityEnabled = identityFlag.data?.enabled === true;
 
     const [selectedChartType, setSelectedChartType] =
         useState<AiAgentChartTypeOption | null>(null);
@@ -82,7 +92,7 @@ export const AiChartVisualization: FC<Props> = ({
 
     const semanticVizQueryData =
         queryExecutionHandle.data &&
-        !isAiAgentSqlArtifactVizQuery(queryExecutionHandle.data)
+        isAiAgentSemanticArtifactVizQuery(queryExecutionHandle.data)
             ? queryExecutionHandle.data
             : undefined;
     const sqlVizQueryData =
@@ -91,9 +101,22 @@ export const AiChartVisualization: FC<Props> = ({
             ? queryExecutionHandle.data
             : undefined;
 
+    const queryUuid = (semanticVizQueryData ?? sqlVizQueryData)?.query
+        .queryUuid;
     const queryResults = useInfiniteQueryResults(
         projectUuid,
-        queryExecutionHandle.data?.query.queryUuid,
+        isEmbed || !identityFlag.isLoading ? queryUuid : undefined,
+        undefined,
+        identityEnabled && !isEmbed && queryUuid
+            ? getAiAgentArtifactResultsUrl({
+                  projectUuid,
+                  agentUuid,
+                  artifactUuid,
+                  versionUuid,
+                  queryUuid,
+                  cached: false,
+              })
+            : null,
     );
 
     const compiledSqlQuery = useAiArtifactCompiledSql({
@@ -106,6 +129,19 @@ export const AiChartVisualization: FC<Props> = ({
         queryExecutionHandle.isLoading ||
         (!isSqlArtifact && queryResults.isFetchingRows);
     const isQueryError = queryExecutionHandle.isError || queryResults.error;
+
+    const refusal =
+        getAiAccessRefusal(queryExecutionHandle.error?.error) ??
+        getAiAccessRefusal(queryResults.error?.error);
+    if (refusal) {
+        return (
+            <AiAccessCallout
+                projectUuid={projectUuid}
+                refusal={refusal}
+                variant="inline"
+            />
+        );
+    }
 
     if (isQueryLoading) {
         return (
@@ -208,7 +244,10 @@ export const AiChartVisualization: FC<Props> = ({
                 </Text>
             </Stack>
             <Group gap="sm" display={isMobile ? 'none' : 'flex'}>
-                <ViewSqlButton sql={compiledSqlQuery} />
+                <ViewSqlButton
+                    sql={compiledSqlQuery}
+                    isFormatted={isMergeArtifact}
+                />
                 <AiChartQuickOptions
                     message={message}
                     projectUuid={projectUuid}

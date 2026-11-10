@@ -43,12 +43,15 @@ export const requestingUserRoleFromCustomRole = (customRole: {
     isTechnical: customRole.scopes.some((scope) => TECHNICAL_SCOPES.has(scope)),
 });
 
-const BUSINESS_USER_GUIDANCE = `Assume a business user consuming data, not someone who maintains it:
-- Answer in plain language. Avoid data-modeling jargon (dbt, semantic layer, joins, table/model names as recommendations).
-- Never advise them to use a different table or explore, fix the data model, or change the agent's configuration — they cannot act on that. Pick the best data source yourself and just answer.
-- If the available data cannot answer the question, say so simply and suggest they raise it with their data team.`;
+const BUSINESS_USER_GUIDANCE = `Treat them as a business user who consumes data rather than maintaining it:
+- Answer in plain language, without data-modeling jargon (dbt, semantic layer, joins, table or model names as recommendations).
+- Pick the best data source yourself and answer. Leave out advice to use a different table or explore, fix the data model or change the agent's configuration: they cannot act on it.
+- When the available data cannot answer the question, say so simply and suggest they raise it with their data team.`;
 
 const TECHNICAL_USER_GUIDANCE = `They maintain this project, so technical detail is appropriate: naming explores or fields, explaining modeling limitations, and suggesting semantic-layer changes are all fine when relevant.`;
+
+const PROFILE_USE =
+    'Let this profile shape your answers without reciting it back to the user or mentioning that you were given it.';
 
 export const getRequestingUserSection = (
     requestingUser: AiAgentRequestingUser | null,
@@ -81,14 +84,13 @@ export const getRequestingUserSection = (
 
         return `## Who you are talking to
 
-You don't yet know the user's name — it hasn't been collected.
-- Answer their request first; never block on collecting the name.
-- Then, once and at a natural moment (ideally at the end of your first reply), politely ask for their first and last name so you can address them properly.
-- When they tell you their name, save it with the updateUserName tool and greet them by first name in your reply.
+You don't know the user's name yet.
+- Answer their request first. Then, once and at a natural moment (ideally the end of your first reply), ask for their first and last name so you can address them properly.
+- When they give it, save it with updateUserName and greet them by first name.
 - If they decline or ignore the request, do not ask again in this conversation.
 ${knownIdentity}
 ${guidance}${teamGuidance}
-Do not recite this profile back to the user or mention that you were given it; just let it shape your answers.`;
+${PROFILE_USE}`;
     }
 
     return `## Who you are talking to
@@ -96,6 +98,5 @@ Do not recite this profile back to the user or mention that you were given it; j
 The user you are speaking with is ${identityParts.join(', ')}.
 
 ${guidance}${teamGuidance}
-Do not recite this profile back to the user or mention that you were given it; just let it shape your answers.
-If the user asks to correct or change their name, use the updateUserName tool.`;
+${PROFILE_USE}`;
 };

@@ -1,11 +1,11 @@
 import { Ability } from '@casl/ability';
 import {
-    FeatureFlags,
     PromotionAction,
     type Account,
     type GroupAsCode,
     type PossibleAbilities,
 } from '@lightdash/common';
+import * as auditLogger from '../logging/winston';
 import { type FeatureFlagService } from './FeatureFlag/FeatureFlagService';
 import { GroupsService } from './GroupService';
 
@@ -89,10 +89,9 @@ describe('GroupsService groups as code', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        featureFlagService.get.mockResolvedValue({
-            id: FeatureFlags.UserGroupsEnabled,
-            enabled: true,
-        });
+        featureFlagService.get.mockImplementation(
+            async ({ featureFlagId }) => ({ id: featureFlagId, enabled: true }),
+        );
         groupsModel.upsertGroupAsCode.mockResolvedValue({
             action: PromotionAction.NO_CHANGES,
             groupUuid: 'group-uuid',
@@ -125,13 +124,11 @@ describe('GroupsService groups as code', () => {
         ]);
     });
 
-    it('uses the account organization when resolving the groups feature flag', async () => {
-        vi.mocked(featureFlagService.get).mockImplementationOnce(
-            async ({ user, featureFlagId }) => ({
+    it('is available without any feature flag enabled', async () => {
+        featureFlagService.get.mockImplementation(
+            async ({ featureFlagId }) => ({
                 id: featureFlagId,
-                enabled:
-                    user?.organizationUuid === 'organization-uuid' &&
-                    featureFlagId === FeatureFlags.UserGroupsEnabled,
+                enabled: false,
             }),
         );
         groupsModel.find.mockResolvedValue({ data: [] });
@@ -140,18 +137,15 @@ describe('GroupsService groups as code', () => {
         await expect(
             service.getGroupsAsCode(createAccount('pat'), 'organization-uuid'),
         ).resolves.toStrictEqual([]);
-        expect(featureFlagService.get).toHaveBeenCalledWith({
-            user: {
-                userUuid: 'actor-user-uuid',
-                organizationUuid: 'organization-uuid',
-            },
-            featureFlagId: FeatureFlags.UserGroupsEnabled,
-        });
+        expect(featureFlagService.get).not.toHaveBeenCalled();
     });
 
     it.each(['pat', 'service-account'] as const)(
         'supports %s authorization through the account path',
         async (authenticationType) => {
+            const audit = vi
+                .spyOn(auditLogger, 'logAuditEvent')
+                .mockImplementation(() => {});
             groupsModel.upsertGroupAsCode.mockResolvedValue({
                 action: PromotionAction.CREATE,
                 groupUuid: 'group-uuid',
@@ -172,6 +166,21 @@ describe('GroupsService groups as code', () => {
                 memberEmails: ['first@example.com', 'second@example.com'],
                 actorUserUuid: 'actor-user-uuid',
             });
+            expect(audit).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    actor: expect.objectContaining({
+                        type: authenticationType,
+                    }),
+                    resource: expect.objectContaining({
+                        metadata: expect.objectContaining({
+                            event: 'group.membership_changed',
+                            groupUuid: 'group-uuid',
+                            operation: 'replace',
+                        }),
+                    }),
+                }),
+            );
+            audit.mockRestore();
         },
     );
 
@@ -216,22 +225,6 @@ describe('GroupsService groups as code', () => {
                 group(),
             ),
         ).rejects.toThrow();
-        expect(groupsModel.upsertGroupAsCode).not.toHaveBeenCalled();
-    });
-
-    it('respects the existing groups feature flag', async () => {
-        featureFlagService.get.mockResolvedValueOnce({
-            id: FeatureFlags.UserGroupsEnabled,
-            enabled: false,
-        });
-
-        await expect(
-            service.upsertGroupAsCode(
-                createAccount(),
-                'organization-uuid',
-                group(),
-            ),
-        ).rejects.toThrow('Group service is not enabled');
         expect(groupsModel.upsertGroupAsCode).not.toHaveBeenCalled();
     });
 });

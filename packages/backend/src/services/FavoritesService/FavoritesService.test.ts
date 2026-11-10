@@ -20,6 +20,7 @@ const userUuid = 'reader';
 const spaceUuid = 'space';
 const document: Document = {
     pinnedListUuid: null,
+    verification: null,
     createdBy: null,
     owner: null,
     documentUuid,
@@ -105,6 +106,11 @@ const setup = () => {
         listSummariesByUuid: vi.fn().mockResolvedValue([document]),
     };
     const documentService = new DocumentService({
+        contentVerificationModel: {
+            getByContent: vi.fn().mockResolvedValue(null),
+            verify: vi.fn(),
+            unverify: vi.fn(),
+        },
         documentModel,
         projectModel,
         featureFlagModel,
@@ -327,36 +333,6 @@ describe('Document favorites', () => {
         ).toMatchObject({ isFavorite: false });
     });
 
-    it('hides disabled Documents without failing other favorites or removing stored rows', async () => {
-        const { service, featureFlagModel, stored, userFavoritesModel } =
-            setup();
-        await service.toggleFavorite(
-            makeAccount(),
-            projectUuid,
-            ContentType.DOCUMENT,
-            documentUuid,
-        );
-        featureFlagModel.get.mockResolvedValue({ enabled: false });
-        const chart = { type: ContentType.CHART, data: { uuid: 'chart' } };
-        userFavoritesModel.getFavoriteCharts.mockResolvedValue([chart]);
-        expect(await service.getFavorites(makeAccount(), projectUuid)).toEqual([
-            chart,
-        ]);
-        await expect(
-            service.toggleFavorite(
-                makeAccount(),
-                projectUuid,
-                ContentType.DOCUMENT,
-                documentUuid,
-            ),
-        ).rejects.toThrow(ForbiddenError);
-        expect(stored.get(userUuid)).toHaveLength(1);
-        featureFlagModel.get.mockResolvedValue({ enabled: true });
-        expect(
-            await service.getFavorites(makeAccount(), projectUuid),
-        ).toHaveLength(2);
-    });
-
     it('requires Document view permission even when Space view is allowed', async () => {
         const { service, stored, userFavoritesModel } = setup();
         const builder = new AbilityBuilder<MemberAbility>(Ability);
@@ -458,11 +434,11 @@ describe('Document favorites', () => {
     });
 
     it('does not swallow unexpected Document authorization failures', async () => {
-        const { service, featureFlagModel, stored } = setup();
+        const { service, documentModel, stored } = setup();
         stored.set(userUuid, [
             { contentType: ContentType.DOCUMENT, contentUuid: documentUuid },
         ]);
-        featureFlagModel.get.mockRejectedValue(
+        documentModel.listSummariesByUuid.mockRejectedValue(
             new Error('Database unavailable'),
         );
         await expect(

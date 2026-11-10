@@ -30,8 +30,8 @@ vi.mock('../LightdashVisualization/types', () => ({
     isCustomVisualizationConfig: () => true,
 }));
 
-vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
-    useVisualizationContext: () => ({
+vi.mock('../LightdashVisualization/useVisualizationContext', () => {
+    const useVisualizationContext = () => ({
         isLoading: false,
         visualizationConfig: {
             chartConfig: {
@@ -42,8 +42,16 @@ vi.mock('../LightdashVisualization/useVisualizationContext', () => ({
         resultsData: { setFetchAll: vi.fn() },
         containerWidth: 400,
         containerHeight: 300,
-    }),
-}));
+    });
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationInputs: useVisualizationContext,
+        useVisualizationConfig: () =>
+            useVisualizationContext().visualizationConfig,
+    };
+});
 
 // eslint-disable-next-line import/first
 import CustomVisualization from './index';

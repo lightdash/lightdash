@@ -28,7 +28,9 @@ export class SshController extends BaseController {
     async createSshKeyPair(
         @Request() req: express.Request,
     ): Promise<ApiSshKeyPairResponse> {
-        const results = await this.services.getSshKeyPairService().create();
+        const results = await this.services
+            .getSshKeyPairService()
+            .create(req.account);
         this.setStatus(201);
         return {
             status: 'ok',

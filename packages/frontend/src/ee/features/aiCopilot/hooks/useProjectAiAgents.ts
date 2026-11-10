@@ -2,6 +2,7 @@ import type {
     AiAgent,
     AiAgentModelConfig,
     AiAgentProjectThreadSummary,
+    AiAgentThreadFirstMessage,
     AiAgentThreadFilters,
     AiPromptContext,
     AiPromptContextItem,
@@ -47,7 +48,11 @@ import {
     type UseQueryOptions,
 } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
+import {
+    getAiAccessRefusal,
+    isAiAgentAuthorizationError,
+} from '../../../../features/aiAccess/errors';
 import { invalidateAppQueries } from '../../../../features/apps/hooks/useRestoreAppVersion';
 import useHealth from '../../../../hooks/health/useHealth';
 import { useOrganization } from '../../../../hooks/organization/useOrganization';
@@ -55,16 +60,15 @@ import useToaster from '../../../../hooks/toaster/useToaster';
 import { useActiveProject } from '../../../../hooks/useActiveProject';
 import { type UserWithAbility } from '../../../../hooks/user/useUser';
 import useApp from '../../../../providers/App/useApp';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
+import useIsEmbedded from '../../../providers/Embed/useIsEmbedded';
 import { useAiAgentThreadStreamMutation } from '../streaming/useAiAgentThreadStreamMutation';
 import {
     type AiAgentToolCallHandler,
     type AiAgentToolResultHandler,
 } from '../types';
-import {
-    getAiAgentApiBase,
-    getAiAgentPageBase,
-    isEmbedAiAgentRoute,
-} from './aiAgentRouting';
+import { requestSqlApprovalNotificationPermission } from '../utils/sqlApprovalNotification';
+import { getAiAgentApiBase, getAiAgentPageBase } from './aiAgentRouting';
 import { AI_AGENT_ARTIFACT_KEY } from './useAiAgentArtifacts';
 import {
     AGENT_AI_MCP_SERVERS_KEY,
@@ -76,7 +80,7 @@ const PROJECT_AI_AGENTS_KEY = 'projectAiAgents';
 const AI_AGENTS_KEY = 'aiAgents';
 const AI_AGENT_ARTIFACT_VIZ_QUERY_STALE_TIME = 5 * 60 * 1000;
 
-const listProjectAgents = (projectUuid: string) =>
+const listProjectAgents = (lightdashApi: LightdashApi, projectUuid: string) =>
     lightdashApi<ApiAiAgentSummaryResponse['results']>({
         version: 'v1',
         url: getAiAgentApiBase(projectUuid),
@@ -85,6 +89,7 @@ const listProjectAgents = (projectUuid: string) =>
     });
 
 const getProjectAgent = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
 ): Promise<ApiAiAgentResponse['results']> =>
@@ -106,22 +111,31 @@ export const useProjectAiAgents = ({
     options,
     redirectOnUnauthorized,
 }: UseProjectAiAgentsProps) => {
+    const lightdashApi = useLightdashApi();
+
+    const isEmbed = useIsEmbedded();
     const navigate = useNavigate();
     const { showToastApiError } = useToaster();
 
     return useQuery<ApiAiAgentSummaryResponse['results'], ApiError>({
         queryKey: [PROJECT_AI_AGENTS_KEY, projectUuid],
-        queryFn: () => listProjectAgents(projectUuid!),
+        queryFn: () => listProjectAgents(lightdashApi, projectUuid!),
         ...options,
         onError: (error) => {
-            if (error.error?.statusCode !== 403) {
+            if (
+                !isAiAgentAuthorizationError(error.error) &&
+                !getAiAccessRefusal(error.error)
+            ) {
                 showToastApiError({
                     title: 'Failed to fetch project AI agents',
                     apiError: error.error,
                 });
-            } else if (redirectOnUnauthorized) {
+            } else if (
+                redirectOnUnauthorized &&
+                isAiAgentAuthorizationError(error.error)
+            ) {
                 void navigate(
-                    `${getAiAgentPageBase(projectUuid!)}/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid!, isEmbed)}/not-authorized`,
                 );
             }
         },
@@ -129,22 +143,30 @@ export const useProjectAiAgents = ({
     });
 };
 
+export const getProjectAiAgentQueryKey = (
+    projectUuid: string | undefined,
+    agentUuid: string | undefined,
+) => [PROJECT_AI_AGENTS_KEY, projectUuid, agentUuid] as const;
+
 export const useProjectAiAgent = (
     projectUuid: string | undefined,
     agentUuid: string | undefined,
 ) => {
+    const lightdashApi = useLightdashApi();
+
+    const isEmbed = useIsEmbedded();
     const navigate = useNavigate();
     const { showToastApiError } = useToaster();
 
     return useQuery<ApiAiAgentResponse['results'], ApiError>({
-        queryKey: [PROJECT_AI_AGENTS_KEY, projectUuid, agentUuid],
-        queryFn: () => getProjectAgent(projectUuid!, agentUuid!),
+        queryKey: getProjectAiAgentQueryKey(projectUuid, agentUuid),
+        queryFn: () => getProjectAgent(lightdashApi, projectUuid!, agentUuid!),
         onError: (error) => {
-            if (error.error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error.error)) {
                 void navigate(
-                    `${getAiAgentPageBase(projectUuid!)}/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid!, isEmbed)}/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
                     title: `Failed to fetch project AI agent details`,
                     apiError: error.error,
@@ -162,7 +184,11 @@ export const useProjectAiAgent = (
     });
 };
 
-const createProjectAgent = (projectUuid: string, data: ApiCreateAiAgent) =>
+const createProjectAgent = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    data: ApiCreateAiAgent,
+) =>
     lightdashApi<ApiCreateAiAgentResponse['results']>({
         version: 'v1',
         url: `/projects/${projectUuid}/aiAgents`,
@@ -177,6 +203,8 @@ export const useProjectCreateAiAgentMutation = (
         skipSuccessToast?: boolean;
     },
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
@@ -186,7 +214,8 @@ export const useProjectCreateAiAgentMutation = (
         ApiError,
         ApiCreateAiAgent
     >({
-        mutationFn: (data) => createProjectAgent(projectUuid, data),
+        mutationFn: (data) =>
+            createProjectAgent(lightdashApi, projectUuid, data),
         onSuccess: (result) => {
             if (!options?.skipSuccessToast) {
                 showToastSuccess({
@@ -211,7 +240,11 @@ export const useProjectCreateAiAgentMutation = (
     });
 };
 
-const updateProjectAgent = (projectUuid: string, data: ApiUpdateAiAgent) =>
+const updateProjectAgent = (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    data: ApiUpdateAiAgent,
+) =>
     lightdashApi<ApiAiAgentResponse['results']>({
         version: 'v1',
         url: `/projects/${projectUuid}/aiAgents/${data.uuid}`,
@@ -252,6 +285,8 @@ export const useProjectUpdateAiAgentMutation = (
         showSuccessToast?: boolean;
     },
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
     const showSuccessToast = options?.showSuccessToast ?? true;
@@ -266,7 +301,8 @@ export const useProjectUpdateAiAgentMutation = (
                 | undefined;
         }
     >({
-        mutationFn: (data) => updateProjectAgent(projectUuid, data),
+        mutationFn: (data) =>
+            updateProjectAgent(lightdashApi, projectUuid, data),
         onMutate: async (data) => {
             const agentMcpServersKey = [
                 AGENT_AI_MCP_SERVERS_KEY,
@@ -360,7 +396,11 @@ export const useProjectUploadAiAgentAvatarMutation = (projectUuid: string) => {
     });
 };
 
-const deleteAgent = async (projectUuid: string, agentUuid: string) =>
+const deleteAgent = async (
+    lightdashApi: LightdashApi,
+    projectUuid: string,
+    agentUuid: string,
+) =>
     lightdashApi<ApiSuccessEmpty>({
         version: 'v1',
         url: `/projects/${projectUuid}/aiAgents/${agentUuid}`,
@@ -369,12 +409,15 @@ const deleteAgent = async (projectUuid: string, agentUuid: string) =>
     });
 
 export const useDeleteAiAgentMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
 
     return useMutation<ApiSuccessEmpty, ApiError, string>({
-        mutationFn: (agentUuid) => deleteAgent(projectUuid, agentUuid),
+        mutationFn: (agentUuid) =>
+            deleteAgent(lightdashApi, projectUuid, agentUuid),
         onSuccess: async () => {
             showToastSuccess({
                 title: 'AI agent deleted successfully',
@@ -413,6 +456,7 @@ export const useDeleteAiAgentMutation = (projectUuid: string) => {
 
 // Thread-related functionality
 const getAgentThread = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     threadUuid: string,
@@ -426,6 +470,7 @@ const getAgentThread = async (
     });
 
 const createAgentThreadShare = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     threadUuid: string,
@@ -437,6 +482,8 @@ const createAgentThreadShare = async (
     });
 
 export const useCreateAgentThreadShareMutation = () => {
+    const lightdashApi = useLightdashApi();
+
     const { showToastApiError } = useToaster();
 
     return useMutation<
@@ -445,7 +492,12 @@ export const useCreateAgentThreadShareMutation = () => {
         { projectUuid: string; agentUuid: string; threadUuid: string }
     >({
         mutationFn: ({ projectUuid, agentUuid, threadUuid }) =>
-            createAgentThreadShare(projectUuid, agentUuid, threadUuid),
+            createAgentThreadShare(
+                lightdashApi,
+                projectUuid,
+                agentUuid,
+                threadUuid,
+            ),
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to create AI agent thread share',
@@ -456,6 +508,7 @@ export const useCreateAgentThreadShareMutation = () => {
 };
 
 const cloneAgentThreadShare = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     aiThreadShareUuid: string,
 ) =>
@@ -466,6 +519,8 @@ const cloneAgentThreadShare = async (
     });
 
 export const useCloneAgentThreadShareMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const { showToastApiError } = useToaster();
@@ -476,7 +531,7 @@ export const useCloneAgentThreadShareMutation = (projectUuid: string) => {
         string
     >({
         mutationFn: (aiThreadShareUuid) =>
-            cloneAgentThreadShare(projectUuid, aiThreadShareUuid),
+            cloneAgentThreadShare(lightdashApi, projectUuid, aiThreadShareUuid),
         onSuccess: async (thread) => {
             await queryClient.invalidateQueries({
                 queryKey: [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY],
@@ -487,7 +542,7 @@ export const useCloneAgentThreadShareMutation = (projectUuid: string) => {
             );
         },
         onError: ({ error }) => {
-            if (error.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error)) {
                 void navigate(
                     `/projects/${projectUuid}/ai-agents/not-authorized`,
                     { replace: true },
@@ -505,6 +560,7 @@ export const useCloneAgentThreadShareMutation = (projectUuid: string) => {
 const PROJECT_THREADS_KEY = 'project-threads';
 
 const listProjectThreads = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     filters: AiAgentThreadFilters,
     pagination: { page: number; pageSize: number },
@@ -534,6 +590,9 @@ export const useInfiniteAiAgentThreads = (
         ApiError
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
+
+    const isEmbed = useIsEmbedded();
     const navigate = useNavigate();
     const { showToastApiError } = useToaster();
 
@@ -543,7 +602,7 @@ export const useInfiniteAiAgentThreads = (
     >({
         queryKey: [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY, filters],
         queryFn: ({ pageParam }) =>
-            listProjectThreads(projectUuid, filters, {
+            listProjectThreads(lightdashApi, projectUuid, filters, {
                 page: (pageParam as number) ?? 1,
                 pageSize: DEFAULT_THREADS_PAGE_SIZE,
             }),
@@ -553,11 +612,11 @@ export const useInfiniteAiAgentThreads = (
             return page < totalPageCount ? page + 1 : undefined;
         },
         onError: (error) => {
-            if (error.error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error.error)) {
                 void navigate(
-                    `${getAiAgentPageBase(projectUuid)}/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid, isEmbed)}/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
                     title: 'Failed to fetch AI agent threads',
                     apiError: error.error,
@@ -570,6 +629,7 @@ export const useInfiniteAiAgentThreads = (
 };
 
 const deleteAgentThread = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     threadUuid: string,
@@ -582,6 +642,9 @@ const deleteAgentThread = async (
     });
 
 export const useDeleteAiAgentThreadMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
+    const isEmbed = useIsEmbedded();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
@@ -593,14 +656,14 @@ export const useDeleteAiAgentThreadMutation = (projectUuid: string) => {
         { agentUuid: string; threadUuid: string }
     >({
         mutationFn: ({ agentUuid, threadUuid }) =>
-            deleteAgentThread(projectUuid, agentUuid, threadUuid),
+            deleteAgentThread(lightdashApi, projectUuid, agentUuid, threadUuid),
         onSuccess: async (_result, { agentUuid, threadUuid }) => {
             showToastSuccess({ title: 'Thread deleted' });
             // Leave the thread page before touching the cache, otherwise the
             // still-mounted thread query refetches the deleted thread and 404s
             if (threadUuid === activeThreadUuid) {
                 await navigate(
-                    `${getAiAgentPageBase(projectUuid)}/${agentUuid}/threads`,
+                    `${getAiAgentPageBase(projectUuid, isEmbed)}/${agentUuid}/threads`,
                 );
             }
             queryClient.removeQueries({
@@ -687,6 +750,7 @@ const patchProjectThread = (
 };
 
 const updateAgentThread = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     threadUuid: string,
@@ -700,6 +764,8 @@ const updateAgentThread = async (
     });
 
 export const useRenameAiAgentThreadMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
 
@@ -710,7 +776,13 @@ export const useRenameAiAgentThreadMutation = (projectUuid: string) => {
         { snapshot: ReturnType<typeof snapshotProjectThreads> }
     >({
         mutationFn: ({ agentUuid, threadUuid, title }) =>
-            updateAgentThread(projectUuid, agentUuid, threadUuid, { title }),
+            updateAgentThread(
+                lightdashApi,
+                projectUuid,
+                agentUuid,
+                threadUuid,
+                { title },
+            ),
         onMutate: async ({ threadUuid, title }) => {
             await queryClient.cancelQueries({
                 queryKey: getProjectThreadsQueryKey(projectUuid),
@@ -744,6 +816,7 @@ export const useRenameAiAgentThreadMutation = (projectUuid: string) => {
 };
 
 const setAgentThreadPinned = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     threadUuid: string,
@@ -757,6 +830,8 @@ const setAgentThreadPinned = async (
     });
 
 export const usePinAiAgentThreadMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
 
@@ -767,7 +842,13 @@ export const usePinAiAgentThreadMutation = (projectUuid: string) => {
         { snapshot: ReturnType<typeof snapshotProjectThreads> }
     >({
         mutationFn: ({ agentUuid, threadUuid, pinned }) =>
-            setAgentThreadPinned(projectUuid, agentUuid, threadUuid, pinned),
+            setAgentThreadPinned(
+                lightdashApi,
+                projectUuid,
+                agentUuid,
+                threadUuid,
+                pinned,
+            ),
         onMutate: async ({ threadUuid, pinned }) => {
             await queryClient.cancelQueries({
                 queryKey: getProjectThreadsQueryKey(projectUuid),
@@ -808,20 +889,28 @@ export const useAiAgentThread = (
     threadUuid: string | null | undefined,
     options?: UseQueryOptions<ApiAiAgentThreadResponse['results'], ApiError>,
 ) => {
+    const lightdashApi = useLightdashApi();
+
+    const isEmbed = useIsEmbedded();
     const { showToastApiError } = useToaster();
     const navigate = useNavigate();
 
     return useQuery<ApiAiAgentThreadResponse['results'], ApiError>({
         queryKey: getAiAgentThreadQueryKey(projectUuid, agentUuid, threadUuid),
         queryFn: () => {
-            return getAgentThread(projectUuid, agentUuid!, threadUuid!);
+            return getAgentThread(
+                lightdashApi,
+                projectUuid,
+                agentUuid!,
+                threadUuid!,
+            );
         },
         onError: (error) => {
-            if (error.error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error.error)) {
                 void navigate(
-                    `${getAiAgentPageBase(projectUuid)}/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid, isEmbed)}/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
                     title: 'Failed to fetch AI agent thread',
                     apiError: error.error,
@@ -834,6 +923,7 @@ export const useAiAgentThread = (
 };
 
 const getAgentThreadWorkstreams = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     threadUuid: string,
@@ -859,8 +949,11 @@ export const useAiAgentThreadWorkstreams = (
         ApiAiAgentThreadWorkstreamsResponse['results'],
         ApiError
     >,
-) =>
-    useQuery<ApiAiAgentThreadWorkstreamsResponse['results'], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+
+    const isEmbed = useIsEmbedded();
+    return useQuery<ApiAiAgentThreadWorkstreamsResponse['results'], ApiError>({
         queryKey: [
             AI_AGENTS_KEY,
             projectUuid,
@@ -870,10 +963,20 @@ export const useAiAgentThreadWorkstreams = (
             'workstreams',
         ],
         queryFn: () =>
-            getAgentThreadWorkstreams(projectUuid, agentUuid!, threadUuid!),
-        enabled: !!agentUuid && !!threadUuid,
+            getAgentThreadWorkstreams(
+                lightdashApi,
+                projectUuid,
+                agentUuid!,
+                threadUuid!,
+            ),
         ...options,
+        enabled:
+            !isEmbed &&
+            !!agentUuid &&
+            !!threadUuid &&
+            options?.enabled !== false,
     });
+};
 
 // Helper functions for thread creation
 
@@ -940,6 +1043,8 @@ const toOptimisticContextItem = (
                 status: null,
                 title: null,
             };
+        case 'semantic_model':
+            return item;
         case 'preview_environment':
             return {
                 type: 'preview_environment',
@@ -959,6 +1064,8 @@ const toOptimisticContextItem = (
                 appSlug: null,
                 displayName: null,
             };
+        case 'composer_node':
+            return { ...item, title: item.nodeId };
         case 'data_app':
             return {
                 type: 'data_app',
@@ -1010,12 +1117,15 @@ const toOptimisticContextItem = (
     }
 };
 
-const getOptimisticUserName = (user: UserWithAbility | undefined) => {
+const getOptimisticUserName = (
+    user: UserWithAbility | undefined,
+    isEmbed: boolean,
+) => {
     const name = [user?.firstName?.trim(), user?.lastName?.trim()]
         .filter(Boolean)
         .join(' ');
 
-    return name || user?.email || (isEmbedAiAgentRoute() ? '' : 'Unknown user');
+    return name || user?.email || (isEmbed ? '' : 'Unknown user');
 };
 
 const createOptimisticMessages = (
@@ -1024,6 +1134,7 @@ const createOptimisticMessages = (
     prompt: string,
     user: UserWithAbility | undefined,
     agent: AiAgent,
+    isEmbed: boolean,
     context: AiPromptContext = [],
     hidden = false,
     includeAssistantResponse = true,
@@ -1036,7 +1147,7 @@ const createOptimisticMessages = (
         message: prompt,
         createdAt: new Date().toISOString(),
         user: {
-            name: getOptimisticUserName(user),
+            name: getOptimisticUserName(user, isEmbed),
             uuid: user?.userUuid ?? 'unknown',
         },
         context,
@@ -1078,6 +1189,7 @@ const createOptimisticMessages = (
             tokenUsage: null,
             responseTiming: null,
             jevDecision: null,
+            loadout: null,
         },
     ];
 };
@@ -1104,6 +1216,7 @@ const markOptimisticAssistantMessageAsErrored = (
 };
 
 const generateAgentThreadTitle = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     threadUuid: string,
@@ -1115,6 +1228,8 @@ const generateAgentThreadTitle = async (
     });
 
 const useGenerateAgentThreadTitleMutation = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     return useMutation<
         ApiAiAgentThreadGenerateTitleResponse['results'],
@@ -1122,7 +1237,12 @@ const useGenerateAgentThreadTitleMutation = (projectUuid: string) => {
         { agentUuid: string; threadUuid: string }
     >({
         mutationFn: ({ agentUuid, threadUuid }) =>
-            generateAgentThreadTitle(projectUuid, agentUuid, threadUuid),
+            generateAgentThreadTitle(
+                lightdashApi,
+                projectUuid,
+                agentUuid,
+                threadUuid,
+            ),
         onSuccess: (data, { threadUuid }) => {
             patchProjectThread(queryClient, projectUuid, threadUuid, {
                 title: data.title,
@@ -1135,21 +1255,38 @@ const useGenerateAgentThreadTitleMutation = (projectUuid: string) => {
     });
 };
 
+type CreateAgentThreadRequest = ApiAiAgentThreadCreateRequest & {
+    prompt: string;
+};
+
+type CreatedAgentThread = ApiAiAgentThreadCreateResponse['results'] & {
+    firstMessage: AiAgentThreadFirstMessage;
+};
+
 const createAgentThread = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string | undefined,
-    data: ApiAiAgentThreadCreateRequest,
-) =>
-    lightdashApi<ApiAiAgentThreadCreateResponse['results']>({
+    data: CreateAgentThreadRequest,
+): Promise<CreatedAgentThread> => {
+    const thread = await lightdashApi<
+        ApiAiAgentThreadCreateResponse['results']
+    >({
         url: `${getAiAgentApiBase(projectUuid)}/${agentUuid}/threads`,
         method: 'POST',
         body: JSON.stringify(data),
     });
+    const { firstMessage } = thread;
+    if (firstMessage === null) {
+        throw new Error('Created thread is missing its first message');
+    }
+    return { ...thread, firstMessage };
+};
 
 export const useCreateAgentThreadMutation = (
     projectUuid: string,
     options?: {
-        onCreated?: (thread: ApiAiAgentThreadCreateResponse['results']) => void;
+        onCreated?: (thread: CreatedAgentThread) => void;
         onToolCall?: AiAgentToolCallHandler;
         onToolResult?: AiAgentToolResultHandler;
         // Skip the default `navigate(...)` to the thread page. The launcher
@@ -1157,6 +1294,9 @@ export const useCreateAgentThreadMutation = (
         skipNavigation?: boolean;
     },
 ) => {
+    const lightdashApi = useLightdashApi();
+
+    const isEmbed = useIsEmbedded();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
@@ -1166,9 +1306,9 @@ export const useCreateAgentThreadMutation = (
         useGenerateAgentThreadTitleMutation(projectUuid);
 
     return useMutation<
-        ApiAiAgentThreadCreateResponse['results'],
+        CreatedAgentThread,
         ApiError,
-        ApiAiAgentThreadCreateRequest & {
+        CreateAgentThreadRequest & {
             agentUuid: string;
             optimisticContext?: AiPromptContext;
             enableSqlMode?: boolean;
@@ -1183,7 +1323,12 @@ export const useCreateAgentThreadMutation = (
             toolHints: _toolHints,
             skipAgentResponse: _skipAgentResponse,
             ...data
-        }) => createAgentThread(projectUuid, agentUuid, data),
+        }) => createAgentThread(lightdashApi, projectUuid, agentUuid, data),
+        onMutate: ({ skipAgentResponse }) => {
+            if (!isEmbed && !skipAgentResponse) {
+                requestSqlApprovalNotificationPermission();
+            }
+        },
         onSuccess: async (thread, variables) => {
             const { agentUuid } = variables;
             // Invalidate both user-specific and all-users thread queries
@@ -1195,7 +1340,7 @@ export const useCreateAgentThreadMutation = (
                 queryKey: [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY],
             });
 
-            if (!isEmbedAiAgentRoute()) {
+            if (!isEmbed) {
                 void generateThreadTitle({
                     agentUuid,
                     threadUuid: thread.uuid,
@@ -1223,6 +1368,8 @@ export const useCreateAgentThreadMutation = (
                         pinnedAt: null,
                         battleProfile: variables.battleProfile ?? null,
                         liveStatus: null,
+                        binding: thread.binding,
+                        threadContext: thread.threadContext,
                         compactions: [],
                         messages: createOptimisticMessages(
                             thread.uuid,
@@ -1230,6 +1377,7 @@ export const useCreateAgentThreadMutation = (
                             thread.firstMessage.message,
                             user!.data!,
                             agent,
+                            isEmbed,
                             // Prefer the caller's resolved metadata (name,
                             // chartKind) if provided so the pinned card
                             // renders correctly in the optimistic state.
@@ -1243,7 +1391,7 @@ export const useCreateAgentThreadMutation = (
                         ),
                         createdAt: new Date().toISOString(),
                         user: {
-                            name: getOptimisticUserName(user?.data),
+                            name: getOptimisticUserName(user?.data, isEmbed),
                             uuid: user?.data?.userUuid ?? 'unknown',
                         },
                     } satisfies ApiAiAgentThreadResponse['results'];
@@ -1318,19 +1466,17 @@ export const useCreateAgentThreadMutation = (
 
             if (!options?.skipNavigation) {
                 void navigate(
-                    `${getAiAgentPageBase(
-                        projectUuid,
-                    )}/${agentUuid}/threads/${thread.uuid}`,
+                    `${getAiAgentPageBase(projectUuid, isEmbed)}/${agentUuid}/threads/${thread.uuid}`,
                     { viewTransition: true },
                 );
             }
         },
         onError: ({ error }) => {
-            if (error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error)) {
                 void navigate(
-                    `${getAiAgentPageBase(projectUuid)}/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid, isEmbed)}/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({
                     title: 'Failed to create AI agent',
                     apiError: error,
@@ -1341,6 +1487,7 @@ export const useCreateAgentThreadMutation = (
 };
 
 const createAgentThreadMessage = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     threadUuid: string,
@@ -1363,6 +1510,9 @@ export const useCreateAgentThreadMessageMutation = (
         onToolResult?: AiAgentToolResultHandler;
     },
 ) => {
+    const lightdashApi = useLightdashApi();
+
+    const isEmbed = useIsEmbedded();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
@@ -1392,6 +1542,7 @@ export const useCreateAgentThreadMessageMutation = (
         }) =>
             agentUuid && threadUuid
                 ? createAgentThreadMessage(
+                      lightdashApi,
                       projectUuid,
                       agentUuid,
                       threadUuid,
@@ -1399,6 +1550,9 @@ export const useCreateAgentThreadMessageMutation = (
                   )
                 : Promise.reject(),
         onMutate: (data) => {
+            if (!isEmbed && !data.skipAgentResponse && !data.autoApproveSql) {
+                requestSqlApprovalNotificationPermission();
+            }
             // Temporary uuid for optimistic messages
             const messageUuid = nanoid();
 
@@ -1423,6 +1577,7 @@ export const useCreateAgentThreadMessageMutation = (
                                 data.prompt,
                                 user!.data!,
                                 agent!,
+                                isEmbed,
                                 data.optimisticContext ??
                                     data.context?.map(toOptimisticContextItem),
                                 data.hidden,
@@ -1528,11 +1683,11 @@ export const useCreateAgentThreadMessageMutation = (
             });
         },
         onError: ({ error }) => {
-            if (error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error)) {
                 void navigate(
-                    `${getAiAgentPageBase(projectUuid)}/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid, isEmbed)}/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({
                     title: 'Failed to generate AI agent thread response',
                     apiError: error,
@@ -1593,8 +1748,9 @@ export const useRetryAiAgentThreadMessageMutation = () => {
     });
 };
 
-export const useInterruptAiAgentThreadMessageMutation = () =>
-    useMutation<
+export const useInterruptAiAgentThreadMessageMutation = () => {
+    const lightdashApi = useLightdashApi();
+    return useMutation<
         ApiAiAgentThreadMessageInterruptResponse['results'],
         ApiError,
         {
@@ -1613,8 +1769,11 @@ export const useInterruptAiAgentThreadMessageMutation = () =>
                 body: undefined,
             }),
     });
+};
 
 export const useCreateAiAgentThreadMessageSteerMutation = () => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
 
     return useMutation<
@@ -1673,6 +1832,8 @@ export const useRestoreAiAgentThreadDataAppVersionMutation = (
     agentUuid: string,
     threadUuid: string,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
 
     return useMutation<
@@ -1706,6 +1867,7 @@ export const useRestoreAiAgentThreadDataAppVersionMutation = (
 
 // Feedback and query management functionality
 const updatePromptFeedback = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
     threadUuid: string,
@@ -1724,6 +1886,8 @@ export const useUpdatePromptFeedbackMutation = (
     agentUuid: string,
     threadUuid: string,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     const navigate = useNavigate();
@@ -1739,6 +1903,7 @@ export const useUpdatePromptFeedbackMutation = (
     >({
         mutationFn: ({ messageUuid, humanScore, humanFeedback }) =>
             updatePromptFeedback(
+                lightdashApi,
                 projectUuid,
                 agentUuid,
                 threadUuid,
@@ -1781,11 +1946,11 @@ export const useUpdatePromptFeedbackMutation = (
             );
         },
         onError: ({ error }) => {
-            if (error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error)) {
                 void navigate(
                     `/projects/${projectUuid}/ai-agents/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({
                     title: 'Failed to submit feedback',
                     apiError: error,
@@ -1795,19 +1960,22 @@ export const useUpdatePromptFeedbackMutation = (
     });
 };
 
-const savePromptQuery = async ({
-    projectUuid,
-    agentUuid,
-    threadUuid,
-    messageUuid,
-    savedQueryUuid,
-}: {
-    projectUuid: string;
-    agentUuid: string;
-    threadUuid: string;
-    messageUuid: string;
-    savedQueryUuid: string | null;
-}) =>
+const savePromptQuery = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        agentUuid,
+        threadUuid,
+        messageUuid,
+        savedQueryUuid,
+    }: {
+        projectUuid: string;
+        agentUuid: string;
+        threadUuid: string;
+        messageUuid: string;
+        savedQueryUuid: string | null;
+    },
+) =>
     lightdashApi<ApiSuccessEmpty>({
         url: `${getAiAgentApiBase(
             projectUuid,
@@ -1824,6 +1992,8 @@ export const useSavePromptQuery = (
     threadUuid: string,
     messageUuid: string,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const { showToastApiError } = useToaster();
@@ -1834,7 +2004,7 @@ export const useSavePromptQuery = (
         { savedQueryUuid: string | null }
     >({
         mutationFn: ({ savedQueryUuid }) => {
-            return savePromptQuery({
+            return savePromptQuery(lightdashApi, {
                 projectUuid,
                 agentUuid,
                 threadUuid,
@@ -1854,11 +2024,11 @@ export const useSavePromptQuery = (
             });
         },
         onError: ({ error }) => {
-            if (error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error)) {
                 void navigate(
                     `/projects/${projectUuid}/ai-agents/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({
                     title: 'Failed to save prompt query',
                     apiError: error,
@@ -1868,19 +2038,22 @@ export const useSavePromptQuery = (
     });
 };
 
-const updateArtifactVersion = async ({
-    projectUuid,
-    agentUuid,
-    artifactUuid,
-    versionUuid,
-    savedDashboardUuid,
-}: {
-    projectUuid: string;
-    agentUuid: string;
-    artifactUuid: string;
-    versionUuid: string;
-    savedDashboardUuid: string | null;
-}) =>
+const updateArtifactVersion = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        agentUuid,
+        artifactUuid,
+        versionUuid,
+        savedDashboardUuid,
+    }: {
+        projectUuid: string;
+        agentUuid: string;
+        artifactUuid: string;
+        versionUuid: string;
+        savedDashboardUuid: string | null;
+    },
+) =>
     lightdashApi<ApiSuccessEmpty>({
         url: `/projects/${projectUuid}/aiAgents/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}/savedDashboard`,
         method: `PATCH`,
@@ -1889,19 +2062,22 @@ const updateArtifactVersion = async ({
         }),
     });
 
-const updateArtifactVersionSavedSql = async ({
-    projectUuid,
-    agentUuid,
-    artifactUuid,
-    versionUuid,
-    savedSqlUuid,
-}: {
-    projectUuid: string;
-    agentUuid: string;
-    artifactUuid: string;
-    versionUuid: string;
-    savedSqlUuid: string | null;
-}) =>
+const updateArtifactVersionSavedSql = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        agentUuid,
+        artifactUuid,
+        versionUuid,
+        savedSqlUuid,
+    }: {
+        projectUuid: string;
+        agentUuid: string;
+        artifactUuid: string;
+        versionUuid: string;
+        savedSqlUuid: string | null;
+    },
+) =>
     lightdashApi<ApiSuccessEmpty>({
         url: `/projects/${projectUuid}/aiAgents/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}/savedSql`,
         method: `PATCH`,
@@ -1916,6 +2092,8 @@ export const useUpdateArtifactVersion = (
     artifactUuid: string,
     versionUuid: string,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const { showToastApiError } = useToaster();
@@ -1926,7 +2104,7 @@ export const useUpdateArtifactVersion = (
         { savedDashboardUuid: string | null }
     >({
         mutationFn: ({ savedDashboardUuid }) => {
-            return updateArtifactVersion({
+            return updateArtifactVersion(lightdashApi, {
                 projectUuid,
                 agentUuid,
                 artifactUuid,
@@ -1947,11 +2125,11 @@ export const useUpdateArtifactVersion = (
             });
         },
         onError: ({ error }) => {
-            if (error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error)) {
                 void navigate(
                     `/projects/${projectUuid}/ai-agents/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error)) {
                 showToastApiError({
                     title: 'Failed to save artifact dashboard',
                     apiError: error,
@@ -1967,6 +2145,8 @@ export const useUpdateArtifactVersionSavedSql = (
     artifactUuid: string,
     versionUuid: string,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
 
@@ -1976,7 +2156,7 @@ export const useUpdateArtifactVersionSavedSql = (
         { savedSqlUuid: string | null }
     >({
         mutationFn: ({ savedSqlUuid }) =>
-            updateArtifactVersionSavedSql({
+            updateArtifactVersionSavedSql(lightdashApi, {
                 projectUuid,
                 agentUuid,
                 artifactUuid,
@@ -2005,13 +2185,16 @@ export const useUpdateArtifactVersionSavedSql = (
 };
 
 // Artifact functionality
-const getAiAgentArtifactVizQuery = async (args: {
-    projectUuid: string;
-    agentUuid: string;
-    artifactUuid: string;
-    versionUuid: string;
-    cachedQueryUuid?: string;
-}) =>
+const getAiAgentArtifactVizQuery = async (
+    lightdashApi: LightdashApi,
+    args: {
+        projectUuid: string;
+        agentUuid: string;
+        artifactUuid: string;
+        versionUuid: string;
+        cachedQueryUuid?: string;
+    },
+) =>
     lightdashApi<ApiAiAgentArtifactVizQuery>({
         url: `${getAiAgentApiBase(args.projectUuid)}/${
             args.agentUuid
@@ -2038,12 +2221,14 @@ export const useAiAgentArtifactVizQuery = (
     },
     useQueryOptions?: UseQueryOptions<ApiAiAgentArtifactVizQuery, ApiError>,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const navigate = useNavigate();
     const { data: activeProjectUuid } = useActiveProject();
     const health = useHealth();
     const org = useOrganization();
     const { showToastApiError } = useToaster();
-    const isEmbed = isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
 
     return useQuery<ApiAiAgentArtifactVizQuery, ApiError>({
         queryKey: [
@@ -2062,7 +2247,7 @@ export const useAiAgentArtifactVizQuery = (
         staleTime: AI_AGENT_ARTIFACT_VIZ_QUERY_STALE_TIME,
         ...useQueryOptions,
         queryFn: () => {
-            return getAiAgentArtifactVizQuery({
+            return getAiAgentArtifactVizQuery(lightdashApi, {
                 projectUuid,
                 agentUuid,
                 artifactUuid,
@@ -2071,13 +2256,11 @@ export const useAiAgentArtifactVizQuery = (
             });
         },
         onError: (error: ApiError) => {
-            if (error.error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error.error)) {
                 void navigate(
-                    `${getAiAgentPageBase(
-                        activeProjectUuid ?? projectUuid,
-                    )}/not-authorized`,
+                    `${getAiAgentPageBase(activeProjectUuid ?? projectUuid, isEmbed)}/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
                     title: 'Failed to fetch artifact visualization',
                     apiError: error.error,
@@ -2092,13 +2275,16 @@ export const useAiAgentArtifactVizQuery = (
 };
 
 // Dashboard chart visualization query functionality
-const getAiAgentDashboardChartVizQuery = async (args: {
-    projectUuid: string;
-    agentUuid: string;
-    artifactUuid: string;
-    versionUuid: string;
-    chartIndex: number;
-}) =>
+const getAiAgentDashboardChartVizQuery = async (
+    lightdashApi: LightdashApi,
+    args: {
+        projectUuid: string;
+        agentUuid: string;
+        artifactUuid: string;
+        versionUuid: string;
+        chartIndex: number;
+    },
+) =>
     lightdashApi<ApiAiAgentThreadMessageVizQuery>({
         url: `${getAiAgentApiBase(args.projectUuid)}/${
             args.agentUuid
@@ -2147,12 +2333,14 @@ export const useAiAgentDashboardChartVizQuery = (
         ApiError
     >,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     const navigate = useNavigate();
     const { data: activeProjectUuid } = useActiveProject();
     const health = useHealth();
     const org = useOrganization();
     const { showToastApiError } = useToaster();
-    const isEmbed = isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
 
     return useQuery<ApiAiAgentThreadMessageVizQuery, ApiError>({
         queryKey: getAiAgentDashboardChartVizQueryKey({
@@ -2164,7 +2352,7 @@ export const useAiAgentDashboardChartVizQuery = (
         }),
         ...useQueryOptions,
         queryFn: () => {
-            return getAiAgentDashboardChartVizQuery({
+            return getAiAgentDashboardChartVizQuery(lightdashApi, {
                 projectUuid,
                 agentUuid,
                 artifactUuid,
@@ -2173,13 +2361,11 @@ export const useAiAgentDashboardChartVizQuery = (
             });
         },
         onError: (error: ApiError) => {
-            if (error.error?.statusCode === 403) {
+            if (isAiAgentAuthorizationError(error.error)) {
                 void navigate(
-                    `${getAiAgentPageBase(
-                        activeProjectUuid ?? projectUuid,
-                    )}/not-authorized`,
+                    `${getAiAgentPageBase(activeProjectUuid ?? projectUuid, isEmbed)}/not-authorized`,
                 );
-            } else {
+            } else if (!getAiAccessRefusal(error.error)) {
                 showToastApiError({
                     title: 'Failed to fetch dashboard chart visualization',
                     apiError: error.error,
@@ -2194,6 +2380,7 @@ export const useAiAgentDashboardChartVizQuery = (
 };
 
 const getVerifiedQuestions = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     agentUuid: string,
 ): Promise<ApiAiAgentVerifiedQuestionsResponse['results']> =>
@@ -2208,9 +2395,12 @@ export const useVerifiedQuestions = (
     projectUuid: string | undefined,
     agentUuid: string | undefined,
 ) => {
+    const lightdashApi = useLightdashApi();
+
     return useQuery<ApiAiAgentVerifiedQuestionsResponse['results'], ApiError>({
         queryKey: [AI_AGENTS_KEY, projectUuid, agentUuid, 'verified-questions'],
-        queryFn: () => getVerifiedQuestions(projectUuid!, agentUuid!),
+        queryFn: () =>
+            getVerifiedQuestions(lightdashApi, projectUuid!, agentUuid!),
         enabled: !!projectUuid && !!agentUuid,
     });
 };

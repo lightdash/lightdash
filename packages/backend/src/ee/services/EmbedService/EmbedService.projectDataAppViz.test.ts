@@ -1,7 +1,6 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     applyEmbeddedAbility,
-    FeatureFlags,
     ForbiddenError,
     NotFoundError,
     type AnonymousAccount,
@@ -11,7 +10,10 @@ import {
 } from '@lightdash/common';
 import { verifyPreviewTokenClaims } from '../../../routers/appPreviewToken';
 import { EmbedService } from './EmbedService';
-import { EmbedServiceArgumentsMock } from './EmbedService.mock';
+import {
+    embedLightdashConfigMock,
+    EmbedServiceArgumentsMock,
+} from './EmbedService.mock';
 
 const PROJECT_UUID = 'project-1';
 const OTHER_PROJECT_UUID = 'project-2';
@@ -111,14 +113,16 @@ const account = (canExplore = true) =>
 const buildService = ({
     appModel = {},
     featureFlagModel = { get: vi.fn().mockResolvedValue({ enabled: true }) },
+    chartStudioAvailable = false,
 }: {
     appModel?: Record<string, unknown>;
     featureFlagModel?: Record<string, unknown>;
+    chartStudioAvailable?: boolean;
 }) =>
     new EmbedService({
         ...EmbedServiceArgumentsMock,
         lightdashConfig: {
-            ...EmbedServiceArgumentsMock.lightdashConfig,
+            ...embedLightdashConfigMock(chartStudioAvailable),
             lightdashSecrets: {
                 active: 'test-secret',
                 fallbacks: [],
@@ -183,63 +187,6 @@ describe('EmbedService project chart types', () => {
             ),
         ).rejects.toThrow('Project mismatch');
     });
-
-    it.each([
-        [false, false],
-        [false, true],
-        [true, false],
-        [true, true],
-    ])(
-        'resolves data apps=%s, library=%s for the embed organization',
-        async (dataApps, library) => {
-            const featureFlagModel = {
-                get: vi.fn().mockImplementation(async ({ featureFlagId }) => ({
-                    enabled:
-                        featureFlagId === FeatureFlags.EnableDataApps
-                            ? dataApps
-                            : library,
-                })),
-            };
-            const list = vi
-                .fn()
-                .mockResolvedValue({ data: [], pagination: undefined });
-            const service = buildService({
-                appModel: { listDataAppVisualizations: list },
-                featureFlagModel,
-            });
-            const result = service.listEmbedProjectDataAppVisualizations(
-                account(),
-                PROJECT_UUID,
-            );
-            if (dataApps || library)
-                await expect(result).resolves.toMatchObject({ data: [] });
-            else {
-                await expect(result).rejects.toThrow(
-                    'Chart types are not enabled',
-                );
-                expect(list).not.toHaveBeenCalled();
-            }
-            expect(featureFlagModel.get).toHaveBeenCalledWith({
-                user: {
-                    userUuid: 'embed-user-1',
-                    organizationUuid: ORGANIZATION_UUID,
-                },
-                featureFlagId: FeatureFlags.EnableDataApps,
-            });
-            expect(featureFlagModel.get).toHaveBeenCalledTimes(
-                dataApps ? 1 : 2,
-            );
-            if (!dataApps) {
-                expect(featureFlagModel.get).toHaveBeenCalledWith({
-                    user: {
-                        userUuid: 'embed-user-1',
-                        organizationUuid: ORGANIZATION_UUID,
-                    },
-                    featureFlagId: FeatureFlags.ChartTypeRegistry,
-                });
-            }
-        },
-    );
 
     it.each(['schema', 'metadata', 'preview'] as const)(
         'rejects %s access before reading chart types when Explore is denied',
@@ -410,6 +357,7 @@ describe('EmbedService project chart types', () => {
             payload: {
                 appUuid: DATA_APP_VIZ_UUID,
                 userUuid: 'embed-user-1',
+                viewContext: 'embed',
                 organizationUuid: ORGANIZATION_UUID,
                 projectUuid: PROJECT_UUID,
             },

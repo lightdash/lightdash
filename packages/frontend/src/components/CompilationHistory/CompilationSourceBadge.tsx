@@ -1,4 +1,5 @@
 import { Badge, type DefaultMantineColor } from '@mantine/core';
+import classes from './CompilationSourceBadge.module.css';
 import { SOURCE_LABELS } from './types';
 
 const SOURCE_COLORS: Record<string, DefaultMantineColor> = {
@@ -24,11 +25,10 @@ export const CompilationSourceBadge = ({
             radius="md"
             py={10}
             h={24}
-            style={(theme) => ({
-                border: `1px solid ${theme.colors[color][2]}`,
-                textTransform: 'none',
-                boxShadow: '0px -1px 0px 0px rgba(4, 4, 4, 0.04) inset',
-            })}
+            className={classes.badge}
+            style={{
+                '--source-badge-border': `var(--mantine-color-${color}-2)`,
+            }}
         >
             {source in SOURCE_LABELS
                 ? SOURCE_LABELS[source as keyof typeof SOURCE_LABELS]

@@ -89,9 +89,11 @@ describe('AiAgentModel eval run sweep', () => {
                 enable_content_tools: false,
                 enable_user_context: false,
                 enable_sql_mode: false,
+                enable_sql_auto_approval: false,
+                enable_composer_queries: false,
                 admin_only: false,
                 model_config: null,
-                is_system: false,
+                ai_organization_provider_credential_uuid: null,
                 version: 2,
                 thread_retention_hours: null,
             })

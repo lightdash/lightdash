@@ -87,7 +87,7 @@ const TOOL_CALL_GROUP_DEFINITIONS: ToolCallGroupDefinition[] = [
         representativeToolName: 'editContent',
         liveLabel: 'Editing content',
         doneLabel: 'Edited content',
-        toolNames: ['readContent', 'editContent', 'createContent'],
+        toolNames: ['editContent', 'createContent'],
     },
 ];
 

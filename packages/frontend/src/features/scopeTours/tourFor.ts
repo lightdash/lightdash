@@ -15,3 +15,17 @@ export const tourFor = (
     scope && Object.prototype.hasOwnProperty.call(SCOPE_TOURS, scope)
         ? SCOPE_TOURS[scope]
         : undefined;
+
+/**
+ * Every scope the lesson behind `scope` teaches: the lesson's own scope
+ * first, then the ones it covers with the same controls. A scope whose
+ * entry is a copy of another lesson answers with that lesson's scopes, so
+ * either name leads to the same card and the same progress. An unknown
+ * scope stands for itself.
+ */
+export const lessonScopesFor = (scope: string): string[] => {
+    const tour = tourFor(scope);
+    const primary = tour?.coveredBy ?? scope;
+    const covers = tourFor(primary)?.covers ?? [];
+    return [primary, ...covers.filter((covered) => covered !== primary)];
+};

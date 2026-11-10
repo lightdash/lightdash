@@ -1,7 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
     AiCreditsPausedError,
-    FeatureFlags,
     ForbiddenError,
     type AiCreditContract,
     type AiCreditHold,
@@ -40,30 +39,17 @@ const orgAdmin = () =>
 const member = () => userWith([{ action: 'view', subject: 'Organization' }]);
 
 const buildService = ({
-    flagEnabled = true,
     organizationContract = undefined as AiCreditContract | undefined,
     blockingHold = undefined as AiCreditHold | undefined,
 } = {}) =>
     new AiCreditService({
-        featureFlagModel: {
-            get: vi.fn(async () => ({
-                id: FeatureFlags.AiCredits,
-                enabled: flagEnabled,
-            })),
-        },
         aiCreditUsageModel: {
             summarize: vi.fn(async () => ({
                 ...emptyAccumulator(),
                 billable: { credits: 120, tokens: 3_000_000, calls: 30 },
             })),
-            summarizeByDay: vi.fn(
-                async (_organizationUuid, period, breakdown) =>
-                    buildAiCreditDailyUsage({
-                        period,
-                        breakdown,
-                        entries: [],
-                        names: null,
-                    }),
+            summarizeByDay: vi.fn(async (_organizationUuid, period) =>
+                buildAiCreditDailyUsage({ period, entries: [] }),
             ),
         },
         aiCreditContractModel: {
@@ -93,15 +79,6 @@ describe('AiCreditService.getOrganizationUsage', () => {
     test('only organization admins may see usage', async () => {
         await expect(
             buildService().getOrganizationUsage(member(), now),
-        ).rejects.toBeInstanceOf(ForbiddenError);
-    });
-
-    test('is hidden until the ai-credits flag is on for the organization', async () => {
-        await expect(
-            buildService({ flagEnabled: false }).getOrganizationUsage(
-                orgAdmin(),
-                now,
-            ),
         ).rejects.toBeInstanceOf(ForbiddenError);
     });
 
@@ -144,25 +121,14 @@ describe('AiCreditService.getOrganizationUsage', () => {
 describe('AiCreditService.getOrganizationDailyUsage', () => {
     test('only organization admins may see daily usage', async () => {
         await expect(
-            buildService().getOrganizationDailyUsage(member(), 'user', now),
-        ).rejects.toBeInstanceOf(ForbiddenError);
-    });
-
-    test('is hidden until the ai-credits flag is on for the organization', async () => {
-        await expect(
-            buildService({ flagEnabled: false }).getOrganizationDailyUsage(
-                orgAdmin(),
-                'feature',
-                now,
-            ),
+            buildService().getOrganizationDailyUsage(member(), now),
         ).rejects.toBeInstanceOf(ForbiddenError);
     });
 
     test('covers every day of the contract window containing now', async () => {
         const usage = await buildService({
             organizationContract: contract(),
-        }).getOrganizationDailyUsage(orgAdmin(), 'project', now);
-        expect(usage.breakdown).toBe('project');
+        }).getOrganizationDailyUsage(orgAdmin(), now);
         expect(usage.days[0].date).toBe('2026-09-15');
         expect(usage.days.at(-1)?.date).toBe('2026-10-14');
         expect(usage.days).toHaveLength(30);
@@ -215,10 +181,13 @@ describe('AiCreditService.assertAiCreditsAvailable', () => {
         });
     });
 
-    test('links admins to AI credits settings only while the page is enabled', async () => {
+    test('links admins to AI credits settings only while a contract is in force', async () => {
         await expect(
             check(
-                buildService({ blockingHold: hold('allowance_exhausted') }),
+                buildService({
+                    blockingHold: hold('allowance_exhausted'),
+                    organizationContract: contract(),
+                }),
                 orgAdmin(),
             ),
         ).rejects.toThrow(
@@ -226,10 +195,7 @@ describe('AiCreditService.assertAiCreditsAvailable', () => {
         );
         await expect(
             check(
-                buildService({
-                    blockingHold: hold('allowance_exhausted'),
-                    flagEnabled: false,
-                }),
+                buildService({ blockingHold: hold('allowance_exhausted') }),
                 orgAdmin(),
             ),
         ).rejects.toThrow(

@@ -3,13 +3,13 @@
 See [architecture](architecture.md) for the full pipeline and
 [local testing](local-testing.md) for project provisioning.
 
-The stack is connector + `analytics-project` flag → bucket access → project
+The stack is validated commercial availability → bucket access → project
 provisioning with both system explores → internal documentation. Dedicated
 read-only credentials are deferred to PROD-11103. The credential provider itself
 does not expose an HTTP endpoint or public connector. Its caller must authorize
-the project's org and check the shared flag before constructing the resolver;
+the project's org and check deployment availability before constructing the resolver;
 the source org is always the persisted, authorized project org. See
-[live testing](live-testing.md) for feature-flagged production testing with the
+[live testing](live-testing.md) for production testing with the
 existing writer identity; dedicated reader credentials are deferred.
 
 ## Reuse existing writer configuration
@@ -31,8 +31,11 @@ DuckDB receives the signed URLs, not the access key/secret or bucket-wide secret
 Signed URLs are capabilities: never expose them through API responses, model SQL,
 logs, or project configuration. The connector restricts access to the exact signed
 file list, blocks catalog queries that disclose view SQL, sanitizes native errors,
-disables profiling, disables file/metadata caches and spill, and uses a separate
-in-memory instance for each query. HTTP is allowed only for loopback test storage;
+disables profiling and spill, and uses a separate in-memory instance for each
+query with private engine caches. The backend can also reuse small compressed
+files in an organization-scoped memory cache, staging private copies with exact
+file permissions for each query. See the [cache lifecycle and limits](architecture.md#small-parquet-cache-and-temporary-file-lifecycle),
+including teardown cleanup and the hard-crash limitation. HTTP is allowed only for loopback test storage;
 remote endpoints require HTTPS.
 
 The native HTTP reader can retry a rejected HEAD request with a ranged GET; both

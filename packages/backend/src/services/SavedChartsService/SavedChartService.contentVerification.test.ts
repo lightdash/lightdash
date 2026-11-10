@@ -7,10 +7,12 @@ import {
     DimensionType,
     ExploreSplitError,
     ForbiddenError,
+    MetricType,
     NotFoundError,
     OrganizationMemberRole,
     PossibleAbilities,
     type CreateSavedChartVersion,
+    type Explore,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { fromSession } from '../../auth/account';
@@ -139,7 +141,7 @@ const spacePermissionService = {
 };
 
 const projectModel = {
-    getExploreFromCache: vi.fn(async () => null),
+    getExploreFromCache: vi.fn(async (): Promise<Explore | null> => null),
     getUuidBySlug: vi.fn(async () => 'resolved-project-uuid'),
     getSummary: vi.fn(async () => ({
         organizationUuid: 'org-uuid',
@@ -157,6 +159,9 @@ vi.spyOn(analyticsMock, 'track');
 
 describe('SavedChartService - Content Verification', () => {
     const service = new SavedChartService({
+        featureFlagModel: {
+            get: vi.fn().mockResolvedValue({ enabled: false }),
+        },
         analytics: analyticsMock,
         lightdashConfig: lightdashConfigMock,
         projectModel: projectModel as unknown as ProjectModel,
@@ -297,6 +302,76 @@ describe('SavedChartService - Content Verification', () => {
         );
     });
 
+    describe('new chart defaults', () => {
+        const cartesianChart = (layout: Record<string, unknown>) => ({
+            name: 'Orders by week',
+            tableName: 'orders',
+            metricQuery: {
+                exploreName: 'orders',
+                dimensions: [],
+                metrics: [],
+                filters: {},
+                sorts: [],
+                limit: 500,
+                tableCalculations: [],
+            },
+            chartConfig: {
+                type: ChartType.CARTESIAN as const,
+                config: { layout, eChartsConfig: {} },
+            },
+            tableConfig: { columnOrder: [] },
+            spaceUuid: 'space-uuid',
+            dashboardUuid: null,
+        });
+        const createdLayout = () =>
+            (
+                vi.mocked(savedChartModel.create).mock.calls[0] as unknown as [
+                    string,
+                    string,
+                    {
+                        chartConfig: {
+                            config: { layout: Record<string, unknown> };
+                        };
+                    },
+                ]
+            )[2].chartConfig.config.layout;
+
+        it('turns the incomplete period on for a chart created without it', async () => {
+            await service.create(
+                fromSession(adminUser, 'session-cookie'),
+                'project-uuid',
+                cartesianChart({ xField: 'orders_created_week' }),
+            );
+            expect(createdLayout()).toEqual({
+                xField: 'orders_created_week',
+                showIncompletePeriod: true,
+            });
+        });
+
+        it('keeps an explicit choice on create', async () => {
+            await service.create(
+                fromSession(adminUser, 'session-cookie'),
+                'project-uuid',
+                cartesianChart({ showIncompletePeriod: false }),
+            );
+            expect(createdLayout()).toEqual({ showIncompletePeriod: false });
+        });
+
+        it('copies a duplicated chart config as saved', async () => {
+            await service.duplicate(adminUser, 'project-uuid', 'chart-uuid', {
+                chartName: 'Copy of Orders',
+                chartDesc: 'Orders chart copy',
+            });
+            expect(savedChartModel.create).toHaveBeenCalledWith(
+                'project-uuid',
+                adminUser.userUuid,
+                expect.objectContaining({
+                    chartConfig: savedChartData.chartConfig,
+                }),
+            );
+        });
+    });
+
     describe('CASL authorization', () => {
         it('should allow verifyChart when user is admin', async () => {
             const result = await service.verifyChart(adminUser, 'chart-uuid');
@@ -360,6 +435,55 @@ describe('SavedChartService - Content Verification', () => {
             spaceUuid: 'space-uuid',
             dashboardUuid: null,
         };
+
+        it('rejects missing metric references before creating or saving a chart version', async () => {
+            const explore = {
+                tables: {
+                    orders: { name: 'orders', dimensions: {}, metrics: {} },
+                },
+            } as unknown as Explore;
+            const metricQuery = {
+                ...baseChart.metricQuery,
+                additionalMetrics: [
+                    {
+                        name: 'adjusted_total',
+                        label: 'Adjusted total',
+                        table: 'orders',
+                        type: MetricType.SUM,
+                        sql: '${orders.deleted_dimension}',
+                    },
+                ],
+            };
+            vi.mocked(projectModel.getExploreFromCache).mockResolvedValueOnce(
+                explore,
+            );
+            await expect(
+                service.create(account, 'project-uuid', {
+                    ...baseChart,
+                    metricQuery,
+                }),
+            ).rejects.toThrow(
+                'Custom metric "Adjusted total" references missing fields: orders.deleted_dimension',
+            );
+            expect(savedChartModel.create).not.toHaveBeenCalled();
+
+            vi.mocked(projectModel.getExploreFromCache).mockResolvedValueOnce(
+                explore,
+            );
+            await expect(
+                service.createVersion(
+                    fromSession(adminUser, 'session-cookie'),
+                    'chart-uuid',
+                    {
+                        tableName: baseChart.tableName,
+                        metricQuery,
+                        chartConfig: baseChart.chartConfig,
+                        tableConfig: baseChart.tableConfig,
+                    },
+                ),
+            ).rejects.toThrow('orders.deleted_dimension');
+            expect(savedChartModel.createVersion).not.toHaveBeenCalled();
+        });
 
         it('rejects custom SQL dimensions without CustomFields permission', async () => {
             await expect(

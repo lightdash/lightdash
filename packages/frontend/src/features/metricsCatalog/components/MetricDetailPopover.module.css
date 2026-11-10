@@ -1,4 +1,5 @@
 .target {
+    cursor: default;
     min-width: 0;
     text-align: start;
 }

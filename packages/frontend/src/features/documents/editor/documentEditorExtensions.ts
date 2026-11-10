@@ -4,6 +4,7 @@ import { TableKit } from '@tiptap/extension-table';
 import { type Extensions } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
+import { type LightdashApi } from '../../../api';
 import { createMentionMarkdownExtension } from '../../../ee/features/homepageBuilder/blocks/markdownEditor/contentMentionMarkdown';
 import { SlashCommand } from '../../../ee/features/homepageBuilder/blocks/markdownEditor/SlashCommandExtension';
 import {
@@ -12,8 +13,16 @@ import {
     type EditChartHandler,
 } from './documentChartNode';
 import { DocumentHeadingIds } from './DocumentHeadingIds';
+import {
+    DOCUMENT_SAVED_CHART_NODE,
+    DocumentSavedChartNode,
+} from './documentSavedChartNode';
 import { createDocumentSlashCommandItems } from './documentSlashCommandItems';
 import { DocumentTable } from './documentTableMarkdown';
+import {
+    DOCUMENT_UNSUPPORTED_NODE,
+    DocumentUnsupportedNode,
+} from './documentUnsupportedNode';
 import { EmptyLineCleanup } from './emptyLineCleanup';
 
 export type DocumentEditorExtensionOptions = {
@@ -22,17 +31,19 @@ export type DocumentEditorExtensionOptions = {
     editing?: {
         onInsertChart: ((position: number) => void) | null;
         onEditChart: EditChartHandler | null;
+        /** Opens the saved chart picker at this position. */
+        onInsertSavedChart?: ((position: number) => void) | null;
     };
 };
 
 const DocumentWithCharts = Document.extend({
-    content: `(block | ${DOCUMENT_CHART_NODE})+`,
+    content: `(block | ${DOCUMENT_CHART_NODE} | ${DOCUMENT_SAVED_CHART_NODE} | ${DOCUMENT_UNSUPPORTED_NODE})+`,
 });
 
-export const createDocumentEditorExtensions = ({
-    projectUuid,
-    editing,
-}: DocumentEditorExtensionOptions): Extensions => [
+export const createDocumentEditorExtensions = (
+    lightdashApi: LightdashApi,
+    { projectUuid, editing }: DocumentEditorExtensionOptions,
+): Extensions => [
     DocumentWithCharts,
     StarterKit.configure({
         document: false,
@@ -48,11 +59,13 @@ export const createDocumentEditorExtensions = ({
         transformPastedText: true,
         transformCopiedText: true,
     }),
-    createMentionMarkdownExtension(projectUuid),
+    createMentionMarkdownExtension(lightdashApi, projectUuid),
     DocumentHeadingIds,
     DocumentChartNode.configure({
         onEditChart: editing?.onEditChart ?? null,
     }),
+    DocumentSavedChartNode,
+    DocumentUnsupportedNode,
     ...(editing
         ? [
               EmptyLineCleanup,
@@ -62,6 +75,7 @@ export const createDocumentEditorExtensions = ({
               SlashCommand.configure({
                   items: createDocumentSlashCommandItems({
                       onInsertChart: editing.onInsertChart,
+                      onInsertSavedChart: editing.onInsertSavedChart ?? null,
                   }),
               }),
           ]

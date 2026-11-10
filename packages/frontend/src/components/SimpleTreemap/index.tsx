@@ -1,3 +1,4 @@
+import { Box } from '@mantine/core';
 import { IconChartTreemap } from '@tabler/icons-react';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
 import { memo, useCallback, useEffect, useMemo, useRef, type FC } from 'react';
@@ -6,16 +7,20 @@ import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
 import { isTreemapVisualizationConfig } from '../LightdashVisualization/types';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationConfig,
+    useVisualizationInputs,
+    useVisualizationServices,
+} from '../LightdashVisualization/useVisualizationContext';
 
 const EmptyChart = () => (
-    <div style={{ height: '100%', width: '100%', padding: '50px 0' }}>
+    <Box h="100%" w="100%" py={50}>
         <SuboptimalState
             title="No data available"
             description="Query metrics and dimensions with results."
             icon={IconChartTreemap}
         />
-    </div>
+    </Box>
 );
 
 type SimpleTreemapProps = Omit<EChartsReactProps, 'option'> & {
@@ -36,8 +41,9 @@ const SimpleTreemap: FC<SimpleTreemapProps> = memo(
         onChartReady,
         ...props
     }) => {
-        const { chartRef, isLoading, resultsData, visualizationConfig } =
-            useVisualizationContext();
+        const { chartRef } = useVisualizationServices();
+        const { isLoading, resultsData } = useVisualizationInputs();
+        const visualizationConfig = useVisualizationConfig();
         const treemapConfig = isTreemapVisualizationConfig(visualizationConfig)
             ? visualizationConfig.chartConfig
             : undefined;
@@ -113,7 +119,7 @@ const SimpleTreemap: FC<SimpleTreemapProps> = memo(
                 chartRef.current?.getEchartsInstance().resize();
             window.addEventListener('resize', listener);
             return () => window.removeEventListener('resize', listener);
-        });
+        }, [chartRef]);
 
         if (screenshotError) return <EmptyChart />;
         if (isLoading) return <LoadingChart />;
@@ -124,6 +130,7 @@ const SimpleTreemap: FC<SimpleTreemapProps> = memo(
                 <EChartsReact
                     ref={chartRef}
                     className={props.className}
+                    // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                     style={
                         props.$shouldExpand
                             ? {

@@ -8,8 +8,10 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import { useAppVersionHistory } from '../../apps/hooks/useAppVersionHistory';
 import { useCanCreateDataApp } from '../../apps/hooks/useCanCreateDataApp';
 import { useCanEditDataApp } from '../../apps/hooks/useCanEditDataApp';
+import { useChartStudioAvailable } from '../hooks/useChartStudioAvailable';
 import ChartTypeDetailModal from './ChartTypeDetailModal';
 
+vi.mock('../hooks/useChartStudioAvailable');
 vi.mock('react-router', async (importOriginal) => ({
     ...(await importOriginal<typeof ReactRouter>()),
     useNavigate: () => vi.fn(),
@@ -70,9 +72,11 @@ describe('ChartTypeDetailModal', () => {
             latest: null,
             hasOrigin: false,
         } as unknown as ReturnType<typeof useAppVersionHistory>);
+        // Editing follows Chart Studio, not the data apps flag.
         vi.mocked(useServerFeatureFlag).mockReturnValue({
-            data: { enabled: true },
+            data: { enabled: false },
         } as ReturnType<typeof useServerFeatureFlag>);
+        vi.mocked(useChartStudioAvailable).mockReturnValue(true);
     });
 
     it('offers Edit when the user can manage the chart type', async () => {
@@ -82,6 +86,22 @@ describe('ChartTypeDetailModal', () => {
         expect(
             await screen.findByRole('link', { name: 'Edit' }),
         ).toBeInTheDocument();
+    });
+
+    it('hides Edit without Chart Studio, even with data apps on', async () => {
+        vi.mocked(useServerFeatureFlag).mockReturnValue({
+            data: { enabled: true },
+        } as ReturnType<typeof useServerFeatureFlag>);
+        vi.mocked(useChartStudioAvailable).mockReturnValue(false);
+        vi.mocked(useCanEditDataApp).mockReturnValue(true);
+        renderModal();
+
+        expect(
+            await screen.findByRole('button', { name: 'Preview in explorer' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('link', { name: 'Edit' }),
+        ).not.toBeInTheDocument();
     });
 
     it('hides Edit when the user cannot manage the chart type', async () => {

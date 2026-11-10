@@ -1,6 +1,7 @@
 // Stub the e2b/ai SDKs before importing AppGenerateService so the tests never
 // reach the real sandbox or model client.
 import { generateText } from 'ai';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import {
     AppGenerateService,
     buildAppMetadataSchema,
@@ -44,6 +45,7 @@ type MetadataResult = {
 function buildService() {
     const resolveFastModel = vi.fn().mockResolvedValue(FAST_MODEL_OPTIONS);
     const service = new AppGenerateService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: { appRuntime: {} } as never,
         analytics: { track: vi.fn() } as never,
@@ -52,6 +54,7 @@ function buildService() {
         userModel: {} as never,
         appModel: {} as never,
         featureFlagModel: {} as never,
+        organizationSettingsModel: {} as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
         projectModel: {} as never,
@@ -76,6 +79,7 @@ function buildService() {
         } as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        appThumbnailClient: buildAppThumbnailClientMock(),
         chartRegistryClient: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,

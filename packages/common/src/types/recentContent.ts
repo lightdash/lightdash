@@ -1,8 +1,8 @@
 import type { ApiSuccess } from './api/success';
 import type { UUID } from './api/uuid';
-import type { ChartContent, DashboardContent } from './content';
+import type { ChartContent, DashboardContent, DataAppContent } from './content';
 
-export type RecentContentType = 'chart' | 'dashboard';
+export type RecentContentType = 'chart' | 'dashboard' | 'data_app';
 
 export type RecordRecentContentView = {
     projectUuid: UUID;
@@ -17,7 +17,7 @@ export type RecentContentItem = {
 };
 
 export type RecentContentEntry = RecentContentItem & {
-    content: ChartContent | DashboardContent;
+    content: ChartContent | DashboardContent | DataAppContent;
 };
 
 export type ApiRecentContentResponse = ApiSuccess<RecentContentEntry[]>;

@@ -2,6 +2,7 @@ import {
     AnyType,
     CreateSnowflakeCredentials,
     DimensionType,
+    ForbiddenError,
     getErrorMessage,
     getWarehouseTableType,
     isWeekDay,
@@ -47,6 +48,10 @@ const assertIsSnowflakeLoggingLevel = (
     x: string | undefined,
 ): x is 'ERROR' | 'WARN' | 'INFO' | 'DEBUG' | 'TRACE' =>
     x !== undefined && ['ERROR', 'WARN', 'INFO', 'DEBUG', 'TRACE'].includes(x);
+
+// Identifies Lightdash connections to Snowflake. Must exactly match the
+// connection string ID submitted in the Snowflake Partner Network portal.
+const SNOWFLAKE_APPLICATION_ID = 'Lightdash_Lightdash';
 
 // Prevent snowflake sdk from flooding the output with info logs
 configure({
@@ -116,6 +121,116 @@ export const getSnowflakeTimestampDomain = (
     }
 };
 
+export const SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE =
+    'This Snowflake sign-in is not an agent session. Ask your Snowflake admin to set IS_AGENTIC = TRUE on the security integration used for AI.';
+
+export const isSnowflakeAgentActivatedValue = (value: unknown): boolean =>
+    value === true ||
+    (typeof value === 'string' && value.toUpperCase() === 'TRUE');
+
+export type SnowflakeAgentSessionCheck = {
+    agentActivated: boolean;
+    currentRole: string | null;
+    activeRestrictedSessionScopes: string | null;
+};
+
+const inactiveAgentSession = (): SnowflakeAgentSessionCheck => ({
+    agentActivated: false,
+    currentRole: null,
+    activeRestrictedSessionScopes: null,
+});
+
+const disableSnowflakeCachedResult = async (
+    connection: Connection,
+): Promise<void> =>
+    new Promise<void>((resolve, reject) => {
+        connection.execute({
+            sqlText: 'ALTER SESSION SET USE_CACHED_RESULT = FALSE',
+            complete: (error) => {
+                if (error) reject(error);
+                else resolve();
+            },
+        });
+    });
+
+export const checkSnowflakeAgentSession = async (
+    connection: Connection,
+    options: { throwOnError?: boolean } = {},
+): Promise<SnowflakeAgentSessionCheck> => {
+    try {
+        const rows = await new Promise<unknown[]>((resolve, reject) => {
+            connection.execute({
+                sqlText:
+                    "SELECT SYS_CONTEXT('SNOWFLAKE$CURRENT', 'IS_AGENT_ACTIVATED')::BOOLEAN AS IS_AGENT_ACTIVATED, CURRENT_ROLE() AS CURRENT_ROLE, SYS_CONTEXT('SNOWFLAKE$SESSION', 'ACTIVE_RESTRICTED_SESSION_SCOPES') AS ACTIVE_RESTRICTED_SESSION_SCOPES",
+                complete: (error, _statement, data) => {
+                    if (error) {
+                        reject(error);
+                    } else {
+                        resolve(data ?? []);
+                    }
+                },
+            });
+        });
+        const row = rows[0];
+        if (typeof row !== 'object' || row === null)
+            return inactiveAgentSession();
+        const getValue = (key: string): unknown =>
+            Object.entries(row).find(
+                ([name]) => name.toUpperCase() === key,
+            )?.[1];
+        const currentRole = getValue('CURRENT_ROLE');
+        const activeRestrictedSessionScopes = getValue(
+            'ACTIVE_RESTRICTED_SESSION_SCOPES',
+        );
+        return {
+            agentActivated: isSnowflakeAgentActivatedValue(
+                getValue('IS_AGENT_ACTIVATED'),
+            ),
+            currentRole: typeof currentRole === 'string' ? currentRole : null,
+            activeRestrictedSessionScopes:
+                typeof activeRestrictedSessionScopes === 'string'
+                    ? activeRestrictedSessionScopes
+                    : null,
+        };
+    } catch (error) {
+        if (options.throwOnError) throw error;
+        return inactiveAgentSession();
+    }
+};
+
+export const checkSnowflakeAgentSessionWithToken = async (
+    account: string,
+    token: string,
+    options: { throwOnError?: boolean; accessUrl?: string } = {},
+): Promise<SnowflakeAgentSessionCheck> => {
+    let connection: Connection | null = null;
+    try {
+        connection = createConnection({
+            application: SNOWFLAKE_APPLICATION_ID,
+            account,
+            authenticator: 'OAUTH',
+            token,
+            ...(options.accessUrl?.length
+                ? { accessUrl: options.accessUrl }
+                : {}),
+        });
+        await Util.promisify(connection.connect.bind(connection))();
+        const session = await checkSnowflakeAgentSession(connection, options);
+        if (!session.agentActivated) return session;
+        await disableSnowflakeCachedResult(connection);
+        return session;
+    } catch (error) {
+        if (options.throwOnError) throw error;
+        return inactiveAgentSession();
+    } finally {
+        if (connection) {
+            await new Promise<void>((resolve) => {
+                connection?.destroy(() => resolve());
+            });
+        }
+    }
+};
+
 const EXTERNAL_BROWSER_AUTHENTICATOR = 'EXTERNALBROWSER';
 const OAUTH_AUTHORIZATION_CODE_AUTHENTICATOR = 'OAUTH_AUTHORIZATION_CODE';
 const SESSION_DISCOVERY_LIMIT = 100;
@@ -161,6 +276,12 @@ const getAccessTokenExpiresAt = (token: string): Date | null => {
     }
 };
 
+// snowflake-sdk 3.x token cache keys: SnowflakeTokenCache.v2.<TokenType>.<sha256>
+const OAUTH_ACCESS_TOKEN_KEY_PREFIX =
+    'SnowflakeTokenCache.v2.OauthAccessToken.';
+const OAUTH_REFRESH_TOKEN_KEY_PREFIX =
+    'SnowflakeTokenCache.v2.OauthRefreshToken.';
+
 const createOAuthCredentialManager = (): SnowflakeOAuthCredentialManager => {
     const values = new Map<string, string>();
     let accessToken: string | null = null;
@@ -181,22 +302,18 @@ const createOAuthCredentialManager = (): SnowflakeOAuthCredentialManager => {
                 return;
             }
             values.set(key, token);
-            if (key.endsWith(':{OAUTH_AUTHORIZATION_CODE_ACCESS_TOKEN}')) {
+            if (key.startsWith(OAUTH_ACCESS_TOKEN_KEY_PREFIX)) {
                 accessToken = token;
-            } else if (
-                key.endsWith(':{OAUTH_AUTHORIZATION_CODE_REFRESH_TOKEN}')
-            ) {
+            } else if (key.startsWith(OAUTH_REFRESH_TOKEN_KEY_PREFIX)) {
                 refreshToken = token;
             }
         },
         async remove(key) {
             if (!key) return;
             values.delete(key);
-            if (key.endsWith(':{OAUTH_AUTHORIZATION_CODE_ACCESS_TOKEN}')) {
+            if (key.startsWith(OAUTH_ACCESS_TOKEN_KEY_PREFIX)) {
                 accessToken = null;
-            } else if (
-                key.endsWith(':{OAUTH_AUTHORIZATION_CODE_REFRESH_TOKEN}')
-            ) {
+            } else if (key.startsWith(OAUTH_REFRESH_TOKEN_KEY_PREFIX)) {
                 refreshToken = null;
             }
         },
@@ -658,9 +775,38 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     connectionOptions: ConnectionOptions;
 
+    private readonly logger?: {
+        info: (message: string, metadata?: Record<string, unknown>) => void;
+    };
+
     quotedIdentifiersIgnoreCase?: boolean;
 
     static formatQueryTag(tags: Record<string, string>): string {
+        if (
+            tags.agent_surface !== undefined &&
+            tags.agent_client !== undefined
+        ) {
+            const prioritized: Record<string, string> = {
+                agent: tags.agent ?? 'true',
+                agent_surface: tags.agent_surface,
+                agent_client: tags.agent_client,
+            };
+            for (const key of ['agent_uuid', 'ai_principal', 'user_uuid']) {
+                if (tags[key] !== undefined) prioritized[key] = tags[key];
+            }
+            for (const [key, value] of Object.entries(tags).filter(
+                ([tagKey]) => !Object.hasOwn(prioritized, tagKey),
+            )) {
+                const candidate = { ...prioritized, [key]: value };
+                if (
+                    Array.from(JSON.stringify(candidate)).length <=
+                    SnowflakeWarehouseClient.MAX_QUERY_TAG_LENGTH
+                ) {
+                    prioritized[key] = value;
+                }
+            }
+            return JSON.stringify(prioritized).replace(/'/g, "''");
+        }
         return Array.from(JSON.stringify(tags))
             .slice(0, SnowflakeWarehouseClient.MAX_QUERY_TAG_LENGTH)
             .join('')
@@ -669,14 +815,34 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     private interactiveConnectionPromise?: Promise<Connection>;
 
+    private readonly agentJobControls: boolean;
+
     private readonly privateKey: string | undefined;
 
     private readonly privateKeyPassphrase: string | undefined;
 
     private readonly oauthCredentialManager?: SnowflakeOAuthCredentialManager;
 
-    constructor(credentials: CreateSnowflakeCredentials) {
-        super(credentials, new SnowflakeSqlBuilder(credentials.startOfWeek));
+    constructor(
+        credentials: CreateSnowflakeCredentials,
+        options?: {
+            agentSession?: boolean;
+            agentJobControls?: boolean;
+            logger?: {
+                info: (
+                    message: string,
+                    metadata?: Record<string, unknown>,
+                ) => void;
+            };
+        },
+    ) {
+        super(
+            credentials,
+            new SnowflakeSqlBuilder(credentials.startOfWeek),
+            options,
+        );
+        this.logger = options?.logger;
+        this.agentJobControls = options?.agentJobControls ?? false;
         if (typeof credentials.quotedIdentifiersIgnoreCase !== 'undefined') {
             this.quotedIdentifiersIgnoreCase =
                 credentials.quotedIdentifiersIgnoreCase;
@@ -723,6 +889,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             // See createProgrammaticAccessToken for more details
             authenticationOptions = {
                 authenticator: EXTERNAL_BROWSER_AUTHENTICATOR,
+                role: credentials.role,
             };
         } else if (
             credentials.privateKey &&
@@ -752,6 +919,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             : undefined;
 
         this.connectionOptions = {
+            application: SNOWFLAKE_APPLICATION_ID,
             account: credentials.account,
             ...authenticationOptions,
             database: credentials.database,
@@ -792,11 +960,43 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     private async getConnection(
         connectionOptionsOverrides?: Partial<ConnectionOptions>,
     ) {
-        if (this.isInteractiveAuthenticator()) {
-            return this.createInteractiveConnection(connectionOptionsOverrides);
+        const connection = this.isInteractiveAuthenticator()
+            ? await this.createInteractiveConnection(connectionOptionsOverrides)
+            : await this.createConnection(connectionOptionsOverrides);
+        if (this.credentials.requireAgentSession) {
+            const session = await checkSnowflakeAgentSession(connection);
+            if (!session.agentActivated) {
+                await this.destroyRejectedAgentConnection(connection);
+                throw new ForbiddenError(
+                    SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
+                );
+            }
+            this.logger?.info('Snowflake agent session activated', {
+                currentRole: session.currentRole,
+                activeRestrictedSessionScopes:
+                    session.activeRestrictedSessionScopes,
+            });
         }
+        if (this.credentials.requireAgentSession || this.agentJobControls) {
+            try {
+                await disableSnowflakeCachedResult(connection);
+            } catch {
+                await this.destroyRejectedAgentConnection(connection);
+                throw new ForbiddenError(
+                    SNOWFLAKE_AGENT_SESSION_REQUIRED_MESSAGE,
+                );
+            }
+        }
+        return connection;
+    }
 
-        return this.createConnection(connectionOptionsOverrides);
+    private async destroyRejectedAgentConnection(
+        connection: Connection,
+    ): Promise<void> {
+        this.interactiveConnectionPromise = undefined;
+        await new Promise<void>((resolve) => {
+            connection.destroy(() => resolve());
+        });
     }
 
     private isInteractiveAuthenticator(): boolean {
@@ -892,21 +1092,21 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
             await Util.promisify(connection.connect.bind(connection))();
         } catch (e: unknown) {
-            throw new WarehouseConnectionError(
+            const error = new WarehouseConnectionError(
                 `Snowflake error: ${getErrorMessage(e)}`,
             );
+            if (this.agentJobControls) error.cause = e;
+            throw error;
         }
         return connection;
     }
 
     async openDiagnosticConnection(): Promise<SnowflakeDiagnosticSession> {
         try {
-            const connection = createConnection(
-                await this.getConnectionOptions(),
-            );
-            await Util.promisify(connection.connect.bind(connection))();
+            const connection = await this.getConnection();
             return { connection };
         } catch (error) {
+            if (error instanceof ForbiddenError) throw error;
             throw new SnowflakeDiagnosticError(error);
         }
     }

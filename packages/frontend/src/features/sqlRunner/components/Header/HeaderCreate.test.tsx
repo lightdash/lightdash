@@ -22,6 +22,8 @@ const state = {
     sqlRunner: {
         projectUuid: 'project',
         name: 'SQL query',
+        sql: 'select 1',
+        hasUnrunChanges: false,
         sqlColumns: [],
         selectedChartType: null,
         modals: {

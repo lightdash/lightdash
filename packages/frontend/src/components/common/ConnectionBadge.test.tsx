@@ -5,6 +5,7 @@ import {
 import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
+import { getWarehouseLabel } from '../ProjectConnection/ProjectConnectFlow/utils';
 import ConnectionBadge from './ConnectionBadge';
 import { getConnectionName } from './connectionName';
 
@@ -54,4 +55,22 @@ describe('ConnectionBadge', () => {
 
         expect(container.querySelector('.mantine-Badge-root')).toBeNull();
     });
+});
+
+describe('hostile connection dialect labels', () => {
+    it.each(Object.values(WarehouseTypes))(
+        'renders the %s label as text',
+        (type) => {
+            const name = 'name"`;--\n/* comment */<img src=x onerror=alert(1)>';
+            const label = `${name} · ${getWarehouseLabel(type)}`;
+            const { container } = renderWithProviders(
+                <ConnectionBadge name={label} />,
+            );
+            expect(
+                container.querySelector('.mantine-Badge-root')?.textContent,
+            ).toBe(label);
+            expect(container.querySelector('img')).toBeNull();
+            expect(container.querySelector('script')).toBeNull();
+        },
+    );
 });

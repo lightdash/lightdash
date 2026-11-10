@@ -97,6 +97,21 @@ export const getUnitsOfTimeGreaterOrEqual = (
     return unitsInOrder.slice(index);
 };
 
+/** "To date" bounds only narrow units coarser than a day */
+export const unitOfTimeSupportsToDate = (unit: UnitOfTime): boolean =>
+    getUnitsOfTimeGreaterOrEqual(UnitOfTime.weeks).includes(unit);
+
+export type CurrentPeriodBounds = { toDate: boolean; excludeToday: boolean };
+
+export const getCurrentPeriodBounds = (
+    settings: DateFilterSettings | undefined,
+): CurrentPeriodBounds => {
+    const toDate =
+        settings?.toDate === true &&
+        unitOfTimeSupportsToDate(settings.unitOfTime ?? UnitOfTime.days);
+    return { toDate, excludeToday: toDate && settings?.excludeToday === true };
+};
+
 export type FieldTarget = {
     /** Field ID to filter on */
     fieldId: string;
@@ -203,6 +218,8 @@ export type DashboardFilterRule<
      * Empty or omitted means the filter is not locked anywhere.
      */
     lockedTabUuids?: string[];
+    /** Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling. */
+    sectionId?: string;
 };
 
 export type FilterDashboardToRule = DashboardFilterRule & {
@@ -213,7 +230,11 @@ export type FilterDashboardToRule = DashboardFilterRule & {
 
 export type DashboardFilterRuleOverride = Omit<
     DashboardFilterRule,
-    'tileTargets' | 'lockedTabUuids' | 'required' | 'requiredGroupId'
+    | 'tileTargets'
+    | 'lockedTabUuids'
+    | 'required'
+    | 'requiredGroupId'
+    | 'sectionId'
 >;
 
 export type DateFilterSettings = {
@@ -229,6 +250,10 @@ export type DateFilterSettings = {
     unitOfTime?: UnitOfTime;
     /** For date filters, whether to include completed periods */
     completed?: boolean;
+    /** For "in the current" filters, end the range at today instead of the end of the period */
+    toDate?: boolean;
+    /** With `toDate`, end the range at yesterday instead of today. Ignored unless `toDate` is true */
+    excludeToday?: boolean;
 };
 
 export type DateFilterRule = FilterRule<
@@ -243,7 +268,8 @@ export const isDateFilterRule = (
 ): filter is DateFilterRule =>
     'unitOfTime' in (filter.settings || {}) ||
     'selectedPeriod' in (filter.settings || {}) ||
-    'completed' in (filter.settings || {});
+    'completed' in (filter.settings || {}) ||
+    'toDate' in (filter.settings || {});
 
 export type FilterGroupItem = FilterGroup | FilterRule;
 
@@ -504,6 +530,7 @@ export const applyDimensionOverrides = (
                 lockedTabUuids: dimension.lockedTabUuids,
                 required: dimension.required,
                 requiredGroupId: dimension.requiredGroupId,
+                sectionId: dimension.sectionId,
             };
         },
     );
@@ -518,6 +545,7 @@ export const applyDimensionOverrides = (
             ...o,
             required: undefined,
             requiredGroupId: undefined,
+            sectionId: undefined,
         }));
     overriddenDimensions.push(...newDimensions);
 
@@ -544,6 +572,7 @@ export const applyMetricOverrides = (
                 lockedTabUuids: metric.lockedTabUuids,
                 required: metric.required,
                 requiredGroupId: metric.requiredGroupId,
+                sectionId: metric.sectionId,
             };
         }
         return metric;

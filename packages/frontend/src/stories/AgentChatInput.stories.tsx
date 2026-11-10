@@ -19,6 +19,7 @@ import { ThreadRetentionNotice } from '../ee/features/aiCopilot/components/Threa
 import { store } from '../ee/features/aiCopilot/store';
 import { createQueryClient } from '../providers/ReactQuery/createQueryClient';
 import TrackingProvider from '../providers/Tracking/TrackingProvider';
+import mockHealthResponse from '../testing/__mocks__/api/healthResponse.mock';
 import { mockUserResponse } from '../testing/__mocks__/api/userResponse.mock';
 import AppProviderMock from '../testing/__mocks__/providers/AppProvider.mock';
 
@@ -73,6 +74,7 @@ const models: AiModelOption[] = [
         default: true,
         supportsReasoning: true,
         deprecated: false,
+        supersededBy: null,
     },
     {
         name: 'claude-haiku',
@@ -83,6 +85,7 @@ const models: AiModelOption[] = [
         default: false,
         supportsReasoning: false,
         deprecated: false,
+        supersededBy: null,
     },
 ];
 
@@ -129,17 +132,37 @@ const storyQueryClient = createQueryClient({
 
 [
     FeatureFlags.ExternalSources,
-    FeatureFlags.MultiSourceQuery,
     FeatureFlags.ComposeSqlRunner,
     FeatureFlags.AiThreadRetention,
 ].forEach((flag) => {
     storyQueryClient.setQueryData(['feature-flag', flag], enabledFlag(flag));
 });
 
+const health = mockHealthResponse();
+storyQueryClient.setQueryData(['health'], {
+    ...health,
+    ai: { ...health.ai, fastDecisionsEnabled: true },
+});
+
 storyQueryClient.setQueryData(
     ['ai-organization-runtime-settings'],
     runtimeSettings,
 );
+storyQueryClient.setQueryData(['feature-flag', FeatureFlags.AgentIdentity], {
+    id: FeatureFlags.AgentIdentity,
+    enabled: false,
+});
+storyQueryClient.setQueryData(['projectAiAgents', projectUuid, agentUuid], {
+    ...agents[0],
+    projectUuid,
+    enableSqlMode: true,
+    adminOnly: false,
+    spaceAccess: [],
+    groupAccess: [],
+    userAccess: [],
+    integrations: [],
+    tags: null,
+});
 
 // The suggestions query key includes the SQL-mode toggle and, for
 // post-response mode, the thread/message pair — seed every combination the
@@ -235,7 +258,9 @@ const StatefulInput = ({
     ...props
 }: StatefulInputProps) => {
     const [sqlMode, setSqlMode] = useState(false);
-    const [selectedModelId, setSelectedModelId] = useState(models[0].modelId);
+    const [selectedModelId, setSelectedModelId] = useState(
+        `${models[0].provider}:${models[0].name}`,
+    );
     const [extendedThinking, setExtendedThinking] = useState(false);
 
     return (

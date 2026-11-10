@@ -1,0 +1,10 @@
+.members {
+    overflow: auto;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-xs);
+    padding: var(--mantine-spacing-xxs);
+}
+
+.bottomToolbar {
+    border-top: 1px solid var(--mantine-color-ldGray-3);
+}

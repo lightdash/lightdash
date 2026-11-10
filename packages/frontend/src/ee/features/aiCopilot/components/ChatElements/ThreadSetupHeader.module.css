@@ -1,0 +1,13 @@
+.chevron {
+    transition: transform 150ms ease;
+}
+
+.chevronExpanded {
+    composes: chevron;
+    transform: rotate(90deg);
+}
+
+.contextText {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}

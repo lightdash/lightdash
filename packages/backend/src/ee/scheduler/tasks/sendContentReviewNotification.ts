@@ -68,6 +68,8 @@ const findRequestLocations = (
             return deps.contentReviewRequestModel.findSqlChartLocations(uuids);
         case ContentReviewContentType.DASHBOARD:
             return deps.contentReviewRequestModel.findDashboardLocations(uuids);
+        case ContentReviewContentType.DOCUMENT:
+            return deps.contentReviewRequestModel.findDocumentLocations(uuids);
         default:
             return assertUnreachable(
                 request.contentType,

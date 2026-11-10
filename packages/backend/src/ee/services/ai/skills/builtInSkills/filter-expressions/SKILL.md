@@ -24,13 +24,13 @@ For `run_metric_query`, set `queryConfig.filters` to null when no query filters 
 
 Raw placement examples:
 
-- dimensions: orders_status equals=completed,shipped AND orders_order_date inThePast=2{unit:weeks,completed:true}
-- dimensions (alternatives): orders_promo_code startsWith=VIP OR orders_promo_code endsWith=25
+- dimensions: orders_status equals="completed","shipped" AND orders_order_date inThePast=2{unit:weeks,completed:true}
+- dimensions (alternatives): orders_promo_code startsWith="VIP" OR orders_promo_code endsWith="25"
 - metrics: orders_total_order_amount greaterThan=100
 - tableCalculations: rank lessThanOrEqual=10
 
 - Join flat rules with AND or OR. Do not mix both connectors in one expression.
-- Bare scalars work. Double-quote reserved and whitespace/punctuation strings (apostrophes/parentheses); quote when unsure. Quoted commas/braces literal; backslash escapes. E.g. `orders_product_name equals="Coffee Filters (100pk)"`.
+- Double-quote every string-field value; an unquoted value stops at the first space or punctuation. Commas outside quotes separate values: `orders_product_name equals="Coffee Filters (100pk)","Paper Cups"`. Inside quotes, escape `"` and `\` with a backslash.
 - Limits: 256 rules; 256 values including settings/rule; 256 characters/literal; 16384 characters/expression.
 
 ### string
@@ -76,10 +76,11 @@ Grammar: <field> <operator form>
 - `inThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]`
 - `notInThePast=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]`
 - `inTheNext=<count>{unit:<unit>,completed:<bool>} [1 count; settings required]`
-- `inTheCurrent=<unit> [1 unit]`
-- `notInTheCurrent=<unit> [1 unit]`
+- `inTheCurrent=<unit>[{toDate:true[,excludeToday:true]}] [1 unit; settings optional]`
+- `notInTheCurrent=<unit>[{toDate:true[,excludeToday:true]}] [1 unit; settings optional]`
 - `inBetween=<first value>,<second value> [2 values]`
 - Units: days, weeks, months, quarters, years; completed=false includes partial, true completed only.
+- Current-period bounds: {toDate:true} ends the current week/month/quarter/year at today ("month to date"); {toDate:true,excludeToday:true} ends it at yesterday (today's partial data excluded). Not valid for days.
 
 ### boolean
 

@@ -1,27 +1,49 @@
 import { Ability, type RawRuleOf } from '@casl/ability';
 import {
+    AgentCapability,
     AnyType,
+    assertRegisteredAccount,
     ChartAsCode,
+    ChartKind,
     ContentType,
     CustomDimensionType,
     DashboardAsCode,
     DashboardChartTile,
+    DashboardControlRefKind,
     DashboardDAO,
     DashboardTileTypes,
     DimensionType,
+    FilterOperator,
     ForbiddenError,
+    MergeJoinType,
+    MetricType,
     OrganizationMemberRole,
     PossibleAbilities,
     PromotionAction,
+    reconcileDashboardControlOrder,
+    SavedMergeDefinition,
     SessionUser,
     SpaceMemberRole,
+    SqlChartAsCode,
 } from '@lightdash/common';
+import { type Request } from 'express';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { toSessionUser } from '../../auth/account';
+import { fromOauth } from '../../auth/account/account';
+import { defaultSessionUser } from '../../auth/account/account.mock';
+import { grantFixture } from '../../auth/agentConnectionGrants/grant.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { setupGrantAuthentication } from '../../controllers/authentication/agentConnectionGrants.mock';
+import { allowApiKeyAuthentication } from '../../controllers/authentication/middlewares';
+import { ProjectCoderController } from '../../controllers/ProjectCoderController';
 import { dashboard as dashboardMock } from '../DashboardService/DashboardService.mock';
+import { ProjectService } from '../ProjectService/ProjectService';
+import { PromoteService } from '../PromoteService/PromoteService';
+import { type ServiceRepository } from '../ServiceRepository';
 import { CoderService } from './CoderService';
+import { getControlOrderAsCode } from './controlOrder';
 
-const PROJECT_UUID = 'project-uuid';
+const PROJECT_UUID = '11111111-1111-4111-8111-111111111111';
 const ORG_UUID = 'org-uuid';
 const SPACE_UUID = 'space-uuid';
 const OTHER_SPACE_UUID = 'other-space-uuid';
@@ -69,8 +91,9 @@ const dashboardAsCode = {
     tabs: [],
 } as unknown as DashboardAsCode;
 
-const buildService = () =>
+const buildService = (overrides: AnyType = {}) =>
     new CoderService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         directAccessService: {} as AnyType,
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
@@ -110,7 +133,9 @@ const buildService = () =>
         schedulerModel: {} as AnyType,
         schedulerService: {} as AnyType,
         savedChartService: {} as AnyType,
-        dashboardService: {} as AnyType,
+        dashboardService: {
+            areDashboardControlsEnabled: vi.fn(async () => true),
+        } as AnyType,
         schedulerClient: {} as AnyType,
         promoteService: {
             getPromoteCharts: vi.fn(),
@@ -154,6 +179,7 @@ const buildService = () =>
         organizationMemberProfileModel: {} as AnyType,
         userModel: {} as AnyType,
         warehouseConnectionModel: {} as never,
+        ...overrides,
     });
 
 const registerContentAccessTests = (
@@ -231,7 +257,31 @@ const registerContentAccessTests = (
             });
         });
 
-        it.each(['../dashboard', 'UPPERCASE', '', 'a'.repeat(256)])(
+        it('renames a dashboard whose current slug is longer than any file name allows', async () => {
+            const service = buildService();
+            const from = `${'quarterly-revenue-'.repeat(15)}by-region`;
+            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+                uuid: 'dashboard-uuid',
+                slug: from,
+                spaceUuid: SPACE_UUID,
+            } as AnyType);
+            await service.renameContentSlug(
+                makeUser([
+                    { subject: 'ContentAsCode', action: 'create' },
+                    {
+                        subject: 'Dashboard',
+                        action: 'update',
+                        conditions: { projectUuid: PROJECT_UUID },
+                    },
+                ]),
+                PROJECT_UUID,
+                { ...request, from },
+            );
+            expect(from.length).toBeGreaterThan(255);
+            expect(service.dashboardModel.renameSlug).toHaveBeenCalledOnce();
+        });
+
+        it.each(['../dashboard', 'UPPERCASE', '', 'a'.repeat(201)])(
             'rejects malformed target %s before looking up a dashboard',
             async (to) => {
                 const service = buildService();
@@ -249,6 +299,56 @@ const registerContentAccessTests = (
                 ).not.toHaveBeenCalled();
             },
         );
+    });
+
+    describe('CoderService data app slug rename', () => {
+        const request = {
+            resourceType: ContentType.DATA_APP,
+            from: 'old-app',
+            to: 'new-app',
+        };
+        const writeUser = () =>
+            makeUser([{ subject: 'ContentAsCode', action: 'create' }]);
+
+        // App slugs follow isValidDataAppSlug (consecutive/trailing hyphens,
+        // up to 255 chars) — the chart/dashboard generateSlug check must not
+        // reject them at this entry point.
+        it.each(['sales--report', 'sales-', 'a'.repeat(255)])(
+            'delegates app-style target %s to the app slug renamer',
+            async (to) => {
+                const renameAppSlug = vi.fn(async () => {});
+                const service = buildService({
+                    getAppGenerateService: () => ({ renameAppSlug }),
+                });
+                await service.renameContentSlug(writeUser(), PROJECT_UUID, {
+                    ...request,
+                    to,
+                });
+                expect(renameAppSlug).toHaveBeenCalledExactlyOnceWith(
+                    expect.anything(),
+                    PROJECT_UUID,
+                    { from: request.from, to },
+                );
+            },
+        );
+
+        it('reports data apps unavailable when the EE accessor is absent', async () => {
+            const service = buildService();
+            await expect(
+                service.renameContentSlug(writeUser(), PROJECT_UUID, request),
+            ).rejects.toThrow('Data apps are not available on this instance');
+        });
+
+        it('requires project write access before delegating', async () => {
+            const renameAppSlug = vi.fn(async () => {});
+            const service = buildService({
+                getAppGenerateService: () => ({ renameAppSlug }),
+            });
+            await expect(
+                service.renameContentSlug(makeUser([]), PROJECT_UUID, request),
+            ).rejects.toThrow(ForbiddenError);
+            expect(renameAppSlug).not.toHaveBeenCalled();
+        });
     });
 
     const chartCreateRules: RawRuleOf<Ability<PossibleAbilities>>[] = [
@@ -297,6 +397,45 @@ const registerContentAccessTests = (
                 chartAsCode,
             ),
         ).resolves.toMatchObject({ charts: [{ action: 'create' }] });
+    });
+
+    const spaceOnlyRules: RawRuleOf<Ability<PossibleAbilities>>[] = [
+        {
+            subject: 'SavedChart',
+            action: 'create',
+            conditions: { projectUuid: PROJECT_UUID },
+        },
+    ];
+
+    it('lets agent surfaces create charts on space access alone', async () => {
+        const service = buildService();
+        prepareChartCreate(service);
+
+        await expect(
+            service.upsertChart(
+                makeUser(spaceOnlyRules),
+                PROJECT_UUID,
+                chartAsCode.slug,
+                chartAsCode,
+                { authorization: 'space_access' },
+            ),
+        ).resolves.toMatchObject({ charts: [{ action: 'create' }] });
+    });
+
+    it('still requires the content-as-code scope for uploads', async () => {
+        const service = buildService();
+        prepareChartCreate(service);
+
+        await expect(
+            service.upsertChart(
+                makeUser(spaceOnlyRules),
+                PROJECT_UUID,
+                chartAsCode.slug,
+                chartAsCode,
+            ),
+        ).rejects.toThrow(
+            'You don\'t have permission to upload content as code to this project (content slug "chart")',
+        );
     });
 
     it('allows write-only callers to create formula table calculations', async () => {
@@ -873,6 +1012,217 @@ const registerContentAccessTests = (
         });
     });
 
+    it.each([
+        {
+            name: 'ignoring one in the file',
+            fileConfig: {
+                isDateZoomDisabled: true,
+                controlOrder: [{ kind: 'filter', slug: 'from-file' }],
+            },
+            expectedConfig: { isDateZoomDisabled: true },
+        },
+        {
+            name: 'when the file has no config',
+            fileConfig: undefined,
+            expectedConfig: { isDateZoomDisabled: false },
+        },
+    ])(
+        'keeps the saved control order on upload with the flag off, $name',
+        async ({ fileConfig, expectedConfig }) => {
+            const savedOrder = [{ kind: 'section', id: 'section-1' }];
+            const service = buildService();
+            vi.mocked(
+                service.dashboardService.areDashboardControlsEnabled,
+            ).mockResolvedValue(false);
+            vi.mocked(service.dashboardModel.find).mockResolvedValue([
+                { uuid: 'dashboard-uuid' } as AnyType,
+            ]);
+            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+                uuid: 'dashboard-uuid',
+                slug: 'dashboard',
+                name: 'Dashboard',
+                spaceUuid: SPACE_UUID,
+                filters: { dimensions: [], metrics: [], tableCalculations: [] },
+                config: { isDateZoomDisabled: false, controlOrder: savedOrder },
+            } as AnyType);
+            vi.mocked(
+                service.promoteService.getPromotedDashboard,
+            ).mockResolvedValue({
+                promotedDashboard: {
+                    dashboard: { uuid: 'dashboard-uuid', name: 'Dashboard' },
+                    projectUuid: PROJECT_UUID,
+                    space: { name: 'Space' },
+                    spaceAccessContext: {
+                        organizationUuid: ORG_UUID,
+                        projectUuid: PROJECT_UUID,
+                        access: [],
+                    },
+                },
+                upstreamDashboard: {
+                    dashboard: { uuid: 'dashboard-uuid', name: 'Dashboard' },
+                    projectUuid: PROJECT_UUID,
+                    space: { name: 'Space' },
+                    spaceAccessContext: {
+                        organizationUuid: ORG_UUID,
+                        projectUuid: PROJECT_UUID,
+                        access: [],
+                    },
+                },
+            } as AnyType);
+            vi.mocked(
+                service.promoteService.getPromotionDashboardChanges,
+            ).mockResolvedValue([
+                {
+                    dashboards: [
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: { uuid: 'dashboard-uuid' },
+                        },
+                    ],
+                    charts: [],
+                    spaces: [],
+                },
+                [],
+            ] as AnyType);
+            const user = makeUser([
+                { subject: 'ContentAsCode', action: 'create' },
+                {
+                    subject: 'Dashboard',
+                    action: 'update',
+                    conditions: { projectUuid: PROJECT_UUID },
+                },
+                {
+                    subject: 'Dashboard',
+                    action: 'promote',
+                    conditions: { projectUuid: PROJECT_UUID },
+                },
+            ]);
+
+            await expect(
+                service.upsertDashboard(
+                    user,
+                    PROJECT_UUID,
+                    dashboardAsCode.slug,
+                    {
+                        ...dashboardAsCode,
+                        config: fileConfig,
+                    } as unknown as DashboardAsCode,
+                ),
+            ).resolves.toMatchObject({
+                dashboards: [{ action: PromotionAction.UPDATE }],
+            });
+            expect(
+                vi.mocked(service.promoteService.getPromotedDashboard).mock
+                    .calls[0][1].config,
+            ).toEqual({ ...expectedConfig, controlOrder: savedOrder });
+        },
+    );
+    it('keeps the saved dimension filter ids of the dashboard it overwrites', async () => {
+        const service = buildService();
+        const target = { fieldId: 'orders_status', tableName: 'orders' };
+        vi.mocked(service.dashboardModel.find).mockResolvedValue([
+            { uuid: 'dashboard-uuid' } as AnyType,
+        ]);
+        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+            uuid: 'dashboard-uuid',
+            slug: 'dashboard',
+            name: 'Dashboard',
+            spaceUuid: SPACE_UUID,
+            tiles: [],
+            filters: {
+                dimensions: [{ id: 'saved-filter-id', target }],
+                metrics: [],
+                tableCalculations: [],
+            },
+        } as AnyType);
+        vi.mocked(
+            service.promoteService.getPromotedDashboard,
+        ).mockRejectedValue(new Error('stop after filters'));
+        const user = makeUser([
+            { subject: 'ContentAsCode', action: 'create' },
+            {
+                subject: 'Dashboard',
+                action: 'update',
+                conditions: { projectUuid: PROJECT_UUID },
+            },
+        ]);
+
+        await expect(
+            service.upsertDashboard(user, PROJECT_UUID, dashboardAsCode.slug, {
+                ...dashboardAsCode,
+                filters: {
+                    dimensions: [
+                        { target, operator: 'equals', values: ['shipped'] },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            } as AnyType),
+        ).rejects.toThrow('stop after filters');
+
+        expect(service.dashboardModel.find).toHaveBeenCalledWith({
+            slug: dashboardAsCode.slug,
+            projectUuid: PROJECT_UUID,
+        });
+        expect(
+            vi.mocked(service.promoteService.getPromotedDashboard).mock
+                .calls[0][1].filters.dimensions,
+        ).toEqual([expect.objectContaining({ id: 'saved-filter-id' })]);
+    });
+
+    it('carries no filter ids from a dashboard in another project', async () => {
+        const service = buildService();
+        const target = { fieldId: 'orders_status', tableName: 'orders' };
+        vi.mocked(service.dashboardModel.find).mockImplementation(
+            async ({ projectUuid }) =>
+                projectUuid === 'other-project-uuid'
+                    ? [{ uuid: 'dashboard-uuid' } as AnyType]
+                    : [],
+        );
+        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+            uuid: 'dashboard-uuid',
+            slug: 'dashboard',
+            name: 'Dashboard',
+            spaceUuid: SPACE_UUID,
+            tiles: [],
+            filters: {
+                dimensions: [{ id: 'saved-filter-id', target }],
+                metrics: [],
+                tableCalculations: [],
+            },
+        } as AnyType);
+        vi.mocked(service.dashboardModel.create).mockRejectedValue(
+            new Error('stop after filters'),
+        );
+        const user = makeUser([
+            { subject: 'ContentAsCode', action: 'create' },
+            {
+                subject: 'Dashboard',
+                action: 'create',
+                conditions: { projectUuid: PROJECT_UUID },
+            },
+        ]);
+
+        await expect(
+            service.upsertDashboard(user, PROJECT_UUID, dashboardAsCode.slug, {
+                ...dashboardAsCode,
+                filters: {
+                    dimensions: [
+                        { target, operator: 'equals', values: ['shipped'] },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            } as AnyType),
+        ).rejects.toThrow('stop after filters');
+
+        const dimensions = vi.mocked(service.dashboardModel.create).mock
+            .calls[0]?.[1]?.filters?.dimensions;
+        expect(dimensions).toHaveLength(1);
+        expect(dimensions).not.toEqual([
+            expect.objectContaining({ id: 'saved-filter-id' }),
+        ]);
+    });
     it('rejects moving a dashboard out of a restricted current space before promotion', async () => {
         const service = buildService();
         vi.mocked(service.dashboardModel.find).mockResolvedValue([
@@ -1429,6 +1779,159 @@ const registerContentAccessTests = (
         expect(service.dashboardModel.create).toHaveBeenCalled();
     });
 
+    describe('parameter controls', () => {
+        const upsertWithControls = async (
+            projectParameters: { name: string; config: AnyType }[],
+            enabled = true,
+            sectionSlug = 'calendar',
+        ) => {
+            const service = buildService();
+            vi.mocked(
+                service.dashboardService.areDashboardControlsEnabled,
+            ).mockResolvedValue(enabled);
+            service.projectService = {
+                projectParametersModel: {
+                    find: vi.fn(async () => projectParameters),
+                },
+            } as AnyType;
+            (service as AnyType).projectModel.findExploresFromCache = vi.fn(
+                async () => ({}),
+            );
+            vi.mocked(service.savedChartModel.get).mockResolvedValue({
+                tableName: 'orders',
+            } as AnyType);
+            vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
+                space: { uuid: SPACE_UUID } as AnyType,
+                created: false,
+            });
+            vi.mocked(service.savedChartModel.find).mockResolvedValue([
+                {
+                    uuid: 'accessible-chart-uuid',
+                    slug: 'accessible-chart',
+                    spaceUuid: SPACE_UUID,
+                } as AnyType,
+            ]);
+            vi.mocked(service.dashboardModel.create).mockResolvedValue({
+                uuid: 'dashboard-uuid',
+                tiles: [],
+            } as AnyType);
+            const user = makeUser([
+                { subject: 'ContentAsCode', action: 'create' },
+                {
+                    subject: 'Dashboard',
+                    action: 'create',
+                    conditions: { projectUuid: PROJECT_UUID },
+                },
+                {
+                    subject: 'SavedChart',
+                    action: 'view',
+                    conditions: { projectUuid: PROJECT_UUID },
+                },
+            ]);
+
+            await service.upsertDashboard(
+                user,
+                PROJECT_UUID,
+                dashboardAsCode.slug,
+                {
+                    ...dashboardAsCode,
+                    parameters: {
+                        week_start: {
+                            parameterName: 'week_start',
+                            value: 'stale',
+                        },
+                        currency: { parameterName: 'currency', value: 'EUR' },
+                    },
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlSections: [
+                            { slug: 'calendar', name: 'Calendar' },
+                        ],
+                        parameterControls: [
+                            {
+                                slug: 'week-start',
+                                sectionSlug,
+                                label: null,
+                                value: 'monday',
+                                valueType: { type: 'string', multiple: false },
+                                parameters: {
+                                    week_start: {
+                                        except: ['accessible-chart'],
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                    tiles: [
+                        {
+                            type: DashboardTileTypes.SAVED_CHART,
+                            x: 0,
+                            y: 0,
+                            h: 3,
+                            w: 3,
+                            properties: { chartSlug: 'accessible-chart' },
+                        },
+                    ],
+                } as unknown as DashboardAsCode,
+            );
+            return vi.mocked(service.dashboardModel.create).mock.calls[0][1];
+        };
+
+        it('creates a dashboard with tile targets on tile uuids and control values mirrored', async () => {
+            const created = await upsertWithControls([
+                { name: 'week_start', config: { label: 'Week start' } },
+            ]);
+            const section = created.config?.controlSections?.[0];
+            expect(section).toEqual({ id: section?.id, name: 'Calendar' });
+            expect(section?.id).toMatch(
+                /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+            );
+            expect(created.config?.parameterControls?.[0].sectionId).toBe(
+                section?.id,
+            );
+            const tileUuid = created.tiles[0].uuid!;
+            expect(created.parameters).toEqual({
+                week_start: { parameterName: 'week_start', value: 'monday' },
+            });
+            expect(created.config?.parameterControls?.[0].parameters).toEqual({
+                week_start: { except: [tileUuid] },
+            });
+        });
+
+        it('uses legacy values and ignores incoming controls when disabled', async () => {
+            const created = await upsertWithControls([], false, 'missing');
+            expect(created.parameters).toEqual({
+                week_start: { parameterName: 'week_start', value: 'stale' },
+                currency: { parameterName: 'currency', value: 'EUR' },
+            });
+            expect(created.config?.parameterControls).toBeUndefined();
+        });
+
+        it('rejects values outside a known fixed option set', async () => {
+            await expect(
+                upsertWithControls([
+                    {
+                        name: 'week_start',
+                        config: { type: 'string', options: ['tuesday'] },
+                    },
+                ]),
+            ).rejects.toThrow('has a value outside its allowed options');
+        });
+
+        it('rejects a control whose parameter type differs from its value type', async () => {
+            await expect(
+                upsertWithControls([
+                    {
+                        name: 'week_start',
+                        config: { label: 'Week start', type: 'date' },
+                    },
+                ]),
+            ).rejects.toThrow(
+                'Parameter week_start does not take the values of control week_start',
+            );
+        });
+    });
+
     it('allows chart create to create a placeholder dashboard in the same allowed space', async () => {
         const service = buildService();
         vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
@@ -1482,8 +1985,25 @@ describe.each(['create', 'manage'] as const)(
 );
 
 describe('CoderService upsertDashboard tile chart versions', () => {
-    it('does not re-version unchanged tile charts on a forced dashboard upload', async () => {
+    it('preserves tile identities and references without re-versioning charts on a forced upload', async () => {
         const service = buildService();
+        const existingTile: DashboardChartTile = {
+            uuid: 'commented-tile',
+            type: DashboardTileTypes.SAVED_CHART,
+            x: 0,
+            y: 0,
+            w: 6,
+            h: 5,
+            tabUuid: null,
+            properties: { savedChartUuid: 'chart-uuid', chartSlug: 'chart' },
+        };
+        vi.mocked(service.savedChartModel.find).mockResolvedValue([
+            {
+                uuid: 'chart-uuid',
+                slug: 'chart',
+                spaceUuid: SPACE_UUID,
+            } as AnyType,
+        ]);
         vi.mocked(service.dashboardModel.find).mockResolvedValue([
             { uuid: 'dashboard-uuid' } as AnyType,
         ]);
@@ -1493,6 +2013,7 @@ describe('CoderService upsertDashboard tile chart versions', () => {
             name: 'Dashboard',
             spaceUuid: SPACE_UUID,
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            tiles: [existingTile],
         } as AnyType);
         vi.mocked(
             service.promoteService.getPromotedDashboard,
@@ -1540,6 +2061,7 @@ describe('CoderService upsertDashboard tile chart versions', () => {
         ] as AnyType);
         const user = makeSessionUser([
             { subject: 'ContentAsCode', action: 'create' },
+            { subject: 'SavedChart', action: 'view' },
             {
                 subject: 'Dashboard',
                 action: 'update',
@@ -1557,12 +2079,79 @@ describe('CoderService upsertDashboard tile chart versions', () => {
                 user,
                 PROJECT_UUID,
                 dashboardAsCode.slug,
-                dashboardAsCode,
+                {
+                    ...dashboardAsCode,
+                    tiles: [
+                        {
+                            ...existingTile,
+                            uuid: undefined,
+                            tileSlug: 'chart',
+                            properties: { chartSlug: 'chart' },
+                        },
+                    ],
+                    filters: {
+                        dimensions: [
+                            {
+                                label: 'Order status',
+                                target: {
+                                    fieldId: 'orders_status',
+                                    tableName: 'orders',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                values: ['completed'],
+                                tileTargets: { chart: false },
+                            },
+                        ],
+                    },
+                    config: {
+                        isDateZoomDisabled: false,
+                        dateZoomConfig: {
+                            controls: [],
+                            tileTargets: {
+                                chart: {
+                                    controlUuid: 'zoom-control',
+                                    fieldId: 'orders_order_date',
+                                    tableName: 'orders',
+                                },
+                            },
+                        },
+                    },
+                },
                 { force: true },
             ),
         ).resolves.toMatchObject({
             dashboards: [{ action: PromotionAction.UPDATE }],
         });
+
+        expect(
+            service.promoteService.getPromotedDashboard,
+        ).toHaveBeenCalledWith(
+            user,
+            expect.objectContaining({
+                tiles: [expect.objectContaining({ uuid: 'commented-tile' })],
+                filters: expect.objectContaining({
+                    dimensions: [
+                        expect.objectContaining({
+                            tileTargets: { 'commented-tile': false },
+                        }),
+                    ],
+                }),
+                config: {
+                    isDateZoomDisabled: false,
+                    dateZoomConfig: {
+                        controls: [],
+                        tileTargets: {
+                            'commented-tile': {
+                                controlUuid: 'zoom-control',
+                                fieldId: 'orders_order_date',
+                                tableName: 'orders',
+                            },
+                        },
+                    },
+                },
+            }),
+            PROJECT_UUID,
+        );
 
         // The forced upload updates the dashboard but must not write a second
         // version of tile charts already handled by the chart upload path.
@@ -1682,6 +2271,9 @@ describe.each(['create', 'upsert'] as const)(
                 expect.objectContaining({ tiles: updatedTiles }),
                 user,
                 PROJECT_UUID,
+                undefined,
+                null,
+                expect.any(Function),
             );
             expect(result.dashboards[0].data.tiles).toEqual(updatedTiles);
             expect(tiles[0].properties).toMatchObject({
@@ -1690,3 +2282,2858 @@ describe.each(['create', 'upsert'] as const)(
         });
     },
 );
+
+describe('bound grant upload effects', () => {
+    const setupBound = (publish = true, bound = true) => {
+        const service = buildService();
+        const projectService: ProjectService = Object.create(
+            ProjectService.prototype,
+        );
+        service.projectService = projectService;
+        vi.spyOn(projectService, 'getExplore').mockResolvedValue({
+            tables: {
+                orders: {
+                    name: 'orders',
+                    dimensions: { amount: { name: 'amount', sql: 'amount' } },
+                    metrics: {},
+                },
+            },
+        } as AnyType);
+        Object.assign(service.projectModel, {
+            getConnectionRoute: vi.fn().mockResolvedValue('original'),
+        });
+        const grant = grantFixture();
+        const account = fromOauth(
+            {
+                ...defaultSessionUser,
+                organizationUuid: ORG_UUID,
+                ability: new Ability<PossibleAbilities>([
+                    { action: 'manage', subject: 'all' },
+                ]),
+            },
+            { accessToken: 'token', client: { id: grant.clientId } },
+            null,
+            {
+                ...grant,
+                revision: 1,
+                approvedProjectUuids: [PROJECT_UUID],
+                approvedCapabilities: Object.values(AgentCapability).filter(
+                    (capability) =>
+                        publish || capability !== AgentCapability.Publish,
+                ),
+            },
+        );
+        if (!bound) account.authentication.agentConnectionGrant = null;
+        const user = toSessionUser(account);
+        const prepare = vi
+            .spyOn(service, 'prepareDirectAccessReplace')
+            .mockResolvedValue(null);
+        const apply = vi
+            .spyOn(service, 'applyDirectAccessPolicy')
+            .mockResolvedValue(undefined);
+        const space = vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
+            space: { uuid: SPACE_UUID } as AnyType,
+            created: false,
+        });
+        const call = (
+            kind: 'chart' | 'dashboard' | 'sql',
+            payload: Record<string, unknown>,
+            publicSpaceCreate = false,
+        ) => {
+            const options = { account, syncEnabled: false, publicSpaceCreate };
+            if (kind === 'chart')
+                return service.upsertChart(
+                    user,
+                    PROJECT_UUID,
+                    'chart',
+                    { ...chartAsCode, ...payload },
+                    options,
+                );
+            if (kind === 'dashboard')
+                return service.upsertDashboard(
+                    user,
+                    PROJECT_UUID,
+                    'dashboard',
+                    { ...dashboardAsCode, ...payload },
+                    options,
+                );
+            return service.upsertSqlChart(
+                user,
+                PROJECT_UUID,
+                'sql',
+                {
+                    name: 'SQL',
+                    slug: 'sql',
+                    spaceSlug: 'space',
+                    sql: 'select 1',
+                    ...payload,
+                } as SqlChartAsCode,
+                options,
+            );
+        };
+        return { service, account, call, prepare, apply, space };
+    };
+    const prepareVerificationUpload = (
+        service: CoderService,
+        kind: 'chart' | 'dashboard',
+        mode: 'create' | 'update',
+        verified: boolean | undefined,
+    ) => {
+        Object.assign(service.contentVerificationModel, {
+            getByContent: vi.fn().mockResolvedValue(
+                verified === false
+                    ? {
+                          verifiedBy: { userUuid: 'user' },
+                          verifiedAt: new Date(),
+                      }
+                    : null,
+            ),
+            verify: vi.fn().mockResolvedValue(undefined),
+            unverify: vi.fn().mockResolvedValue(undefined),
+        });
+        vi.mocked(service.savedChartModel.create).mockResolvedValue({
+            uuid: 'chart-uuid',
+        } as AnyType);
+        vi.mocked(service.dashboardModel.create).mockResolvedValue({
+            ...dashboardAsCode,
+            uuid: 'dashboard-uuid',
+        } as AnyType);
+        if (mode === 'create') return;
+        if (kind === 'chart') {
+            const chart = {
+                ...chartAsCode,
+                uuid: 'chart-uuid',
+                spaceUuid: SPACE_UUID,
+            };
+            vi.mocked(service.savedChartModel.get).mockResolvedValue(
+                chart as AnyType,
+            );
+            vi.mocked(service.savedChartModel.find).mockResolvedValue([
+                chart,
+            ] as AnyType);
+            vi.mocked(
+                service.promoteService.getPromoteCharts,
+            ).mockResolvedValue({
+                promotedChart: { chart },
+                upstreamChart: { chart: { ...chart } },
+            } as AnyType);
+            vi.mocked(service.promoteService.getChartChanges).mockResolvedValue(
+                {
+                    charts: [
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: { uuid: chart.uuid },
+                        },
+                    ],
+                    spaces: [],
+                    dashboards: [],
+                } as AnyType,
+            );
+        } else {
+            const dashboard = {
+                ...dashboardAsCode,
+                uuid: 'dashboard-uuid',
+                spaceUuid: SPACE_UUID,
+            };
+            vi.mocked(service.dashboardModel.find).mockResolvedValue([
+                dashboard,
+            ] as AnyType);
+            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue(
+                dashboard as AnyType,
+            );
+            const promotion = {
+                dashboard,
+                projectUuid: PROJECT_UUID,
+                space: { name: 'Space' },
+                spaceAccessContext: {
+                    organizationUuid: ORG_UUID,
+                    projectUuid: PROJECT_UUID,
+                    access: [],
+                },
+            };
+            vi.mocked(
+                service.promoteService.getPromotedDashboard,
+            ).mockResolvedValue({
+                promotedDashboard: promotion,
+                upstreamDashboard: {
+                    ...promotion,
+                    dashboard: { ...dashboard },
+                },
+            } as AnyType);
+            vi.mocked(
+                service.promoteService.getPromotionDashboardChanges,
+            ).mockResolvedValue([
+                {
+                    dashboards: [
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: { uuid: dashboard.uuid },
+                        },
+                    ],
+                    charts: [],
+                    spaces: [],
+                },
+                [],
+            ] as AnyType);
+        }
+    };
+    it.each(
+        (['chart', 'dashboard', 'sql'] as const).flatMap((kind) =>
+            (['create', 'update'] as const).flatMap((mode) =>
+                [true, false].map((bound) => ({ kind, mode, bound })),
+            ),
+        ),
+    )(
+        'persists $kind $mode upload identity through authentication (bound=$bound)',
+        async ({ kind, mode, bound }) => {
+            const { service } = setupBound();
+            const auth = setupGrantAuthentication({
+                ...defaultSessionUser,
+                organizationUuid: ORG_UUID,
+                ability: new Ability<PossibleAbilities>([
+                    { action: 'manage', subject: 'all' },
+                ]),
+            });
+            auth.grant.approvedProjectUuids = [PROJECT_UUID];
+            auth.grant.approvedCapabilities = Object.values(AgentCapability);
+            auth.token.scope = ['read', 'write'];
+            if (!bound)
+                auth.token.agentConnectionGrantUuid = null as unknown as string;
+            auth.req.params = { projectUuid: PROJECT_UUID };
+            auth.req.method = 'POST';
+            auth.req.route.stack[0].handle = Object.defineProperty(
+                () => {},
+                'name',
+                {
+                    value: {
+                        chart: 'ProjectCoderController_upsertChartAsCode',
+                        dashboard:
+                            'ProjectCoderController_upsertDashboardAsCode',
+                        sql: 'ProjectCoderController_upsertSqlChartAsCode',
+                    }[kind],
+                },
+            );
+            auth.req.body = {
+                chart: chartAsCode,
+                dashboard: dashboardAsCode,
+                sql: {
+                    name: 'SQL',
+                    slug: 'sql',
+                    spaceSlug: 'space',
+                    sql: 'select 1',
+                },
+            }[kind];
+            if (kind !== 'sql')
+                prepareVerificationUpload(service, kind, mode, undefined);
+            const chartRow = {
+                ...chartAsCode,
+                uuid: 'chart-uuid',
+                projectUuid: PROJECT_UUID,
+                spaceUuid: SPACE_UUID,
+            };
+            const dashboardRow = {
+                ...dashboardAsCode,
+                uuid: 'dashboard-uuid',
+                projectUuid: PROJECT_UUID,
+                spaceUuid: SPACE_UUID,
+            };
+            Object.assign(service.savedChartModel, {
+                transaction: vi.fn(async (fn) => fn('transaction')),
+                updateInTransaction: vi.fn(),
+                createVersion: vi.fn(),
+                renameSlug: vi.fn(),
+            });
+            Object.assign(service.dashboardModel, {
+                addVersion: vi.fn().mockResolvedValue(dashboardRow),
+            });
+            Object.assign(service.savedSqlModel, {
+                create: vi.fn().mockResolvedValue({
+                    savedSqlUuid: 'sql-uuid',
+                    slug: 'sql',
+                }),
+                update: vi.fn(),
+            });
+            if (mode === 'update' && kind === 'sql')
+                vi.mocked(service.savedSqlModel.find).mockResolvedValue([
+                    {
+                        saved_sql_uuid: 'sql-uuid',
+                        space_uuid: SPACE_UUID,
+                        sql: 'select 1',
+                        slug: 'sql',
+                    },
+                ] as AnyType);
+            if (mode === 'update' && kind === 'chart') {
+                vi.mocked(service.savedChartModel.get).mockResolvedValue(
+                    chartRow as AnyType,
+                );
+                vi.mocked(
+                    service.promoteService.getChartChanges,
+                ).mockResolvedValue({
+                    charts: [
+                        { action: PromotionAction.UPDATE, data: chartRow },
+                    ],
+                    spaces: [],
+                    dashboards: [],
+                } as AnyType);
+                service.promoteService.upsertCharts =
+                    PromoteService.prototype.upsertCharts.bind({
+                        savedChartModel: service.savedChartModel,
+                    } as unknown as PromoteService);
+            }
+            if (mode === 'update' && kind === 'dashboard') {
+                vi.mocked(
+                    service.promoteService.getPromotionDashboardChanges,
+                ).mockResolvedValue([
+                    {
+                        charts: [],
+                        spaces: [],
+                        dashboards: [
+                            {
+                                action: PromotionAction.UPDATE,
+                                data: dashboardRow,
+                            },
+                        ],
+                    },
+                    [],
+                ] as AnyType);
+                service.promoteService.updateDashboard =
+                    PromoteService.prototype.updateDashboard.bind({
+                        dashboardModel: service.dashboardModel,
+                    } as unknown as PromoteService);
+            }
+            auth.downstream.mockImplementation(async () => {
+                assertRegisteredAccount(auth.req.account!);
+                const user = toSessionUser(auth.req.account!);
+                const options = {
+                    account: auth.req.account!,
+                    syncEnabled: false,
+                };
+                if (kind === 'chart')
+                    await service.upsertChart(
+                        user,
+                        PROJECT_UUID,
+                        'chart',
+                        chartAsCode,
+                        options,
+                    );
+                else if (kind === 'dashboard')
+                    await service.upsertDashboard(
+                        user,
+                        PROJECT_UUID,
+                        'dashboard',
+                        dashboardAsCode,
+                        options,
+                    );
+                else
+                    await service.upsertSqlChart(
+                        user,
+                        PROJECT_UUID,
+                        'sql',
+                        auth.req.body as SqlChartAsCode,
+                        options,
+                    );
+            });
+            expect(await auth.run(allowApiKeyAuthentication)).toEqual({
+                status: 200,
+                error: undefined,
+            });
+            const persistedClaims = {
+                chart: {
+                    create: () =>
+                        vi.mocked(service.savedChartModel.create).mock
+                            .calls[0][3],
+                    update: () =>
+                        vi.mocked(service.savedChartModel.createVersion).mock
+                            .calls[0][5],
+                },
+                dashboard: {
+                    create: () =>
+                        vi.mocked(service.dashboardModel.create).mock
+                            .calls[0][4],
+                    update: () =>
+                        vi.mocked(service.dashboardModel.addVersion).mock
+                            .calls[0][5],
+                },
+                sql: {
+                    create: () =>
+                        vi.mocked(service.savedSqlModel.create).mock
+                            .calls[0][5],
+                    update: () =>
+                        vi.mocked(service.savedSqlModel.update).mock
+                            .calls[0][2],
+                },
+            };
+            const persisted = persistedClaims[kind][mode]();
+            expect(persisted).toEqual(
+                bound
+                    ? {
+                          sub: `user:${auth.user.userUuid}`,
+                          subject: { type: 'user', uuid: auth.user.userUuid },
+                          act: {
+                              sub: 'cli:lightdash-cli',
+                              surface: 'cli',
+                              client_id: 'lightdash-cli',
+                              agent_uuid: null,
+                              agent_connection_grant: {
+                                  grantUuid: auth.grant.grantUuid,
+                                  revision: 1,
+                              },
+                          },
+                      }
+                    : null,
+            );
+        },
+    );
+    const sqlQuery = (
+        kind: 'calculation' | 'dimension' | 'metric',
+        sql: string,
+    ): ChartAsCode['metricQuery'] => ({
+        ...chartAsCode.metricQuery,
+        ...(kind === 'calculation'
+            ? {
+                  tableCalculations: [
+                      { name: 'custom', displayName: 'Custom', sql },
+                  ],
+              }
+            : {}),
+        ...(kind === 'dimension'
+            ? {
+                  customDimensions: [
+                      {
+                          id: 'custom',
+                          name: 'Custom',
+                          table: 'orders',
+                          type: CustomDimensionType.SQL,
+                          dimensionType: DimensionType.NUMBER,
+                          sql,
+                      },
+                  ],
+              }
+            : {}),
+        ...(kind === 'metric'
+            ? {
+                  additionalMetrics: [
+                      {
+                          name: 'custom',
+                          table: 'orders',
+                          type: MetricType.SUM,
+                          sql,
+                      },
+                  ],
+              }
+            : {}),
+    });
+    const sqlCases = (['calculation', 'dimension', 'metric'] as const).flatMap(
+        (kind) =>
+            (['create', 'add', 'change', 'unchanged'] as const).flatMap(
+                (mode) =>
+                    (['denied', 'approved', 'unbound'] as const).map(
+                        (approval) => ({ kind, mode, approval }),
+                    ),
+            ),
+    );
+    it.each(sqlCases)(
+        '$approval grant chart $mode with SQL $kind respects Raw SQL before writes',
+        async ({ kind, mode, approval }) => {
+            const { service, account, call, space, apply } = setupBound(
+                true,
+                approval !== 'unbound',
+            );
+            if (
+                approval === 'denied' &&
+                account.authentication.agentConnectionGrant
+            ) {
+                account.authentication.agentConnectionGrant.approvedCapabilities =
+                    account.authentication.agentConnectionGrant.approvedCapabilities.filter(
+                        (capability) => capability !== AgentCapability.RawSql,
+                    );
+            }
+            prepareVerificationUpload(
+                service,
+                'chart',
+                mode === 'create' ? 'create' : 'update',
+                undefined,
+            );
+            if (mode !== 'create') {
+                vi.mocked(service.savedChartModel.get).mockResolvedValue({
+                    ...chartAsCode,
+                    metricQuery:
+                        mode === 'add'
+                            ? chartAsCode.metricQuery
+                            : sqlQuery(
+                                  kind,
+                                  mode === 'unchanged'
+                                      ? 'select 2'
+                                      : 'select 1',
+                              ),
+                } as AnyType);
+            }
+            const upload = call('chart', {
+                metricQuery: sqlQuery(kind, 'select 2'),
+            });
+            if (approval === 'denied' && mode !== 'unchanged') {
+                await expect(upload).rejects.toThrow(
+                    'not approved for Raw SQL',
+                );
+                expect(space).not.toHaveBeenCalled();
+                expect(apply).not.toHaveBeenCalled();
+                expect(service.savedChartModel.create).not.toHaveBeenCalled();
+                expect(
+                    service.promoteService.upsertCharts,
+                ).not.toHaveBeenCalled();
+                expect(service.dashboardModel.create).not.toHaveBeenCalled();
+                expect(
+                    service.contentAsCodeSnapshotModel.upsert,
+                ).not.toHaveBeenCalled();
+            } else {
+                await expect(upload).resolves.toBeDefined();
+                expect(
+                    mode === 'create'
+                        ? service.savedChartModel.create
+                        : service.promoteService.upsertCharts,
+                ).toHaveBeenCalledOnce();
+            }
+        },
+    );
+    const configureSqlApproval = (
+        approval: 'denied' | 'approved' | 'unbound',
+    ) => {
+        const context = setupBound(true, approval !== 'unbound');
+        if (approval === 'denied') {
+            context.account.authentication.agentConnectionGrant!.approvedCapabilities =
+                [AgentCapability.ContentWrite, AgentCapability.DeployUpload];
+        }
+        return context;
+    };
+    const expectNoChartWrites = (context: ReturnType<typeof setupBound>) => {
+        expect(context.space).not.toHaveBeenCalled();
+        expect(context.apply).not.toHaveBeenCalled();
+        expect(context.service.savedChartModel.create).not.toHaveBeenCalled();
+        expect(
+            context.service.promoteService.upsertCharts,
+        ).not.toHaveBeenCalled();
+        expect(
+            context.service.promoteService.getChartChanges,
+        ).not.toHaveBeenCalled();
+        expect(context.service.dashboardModel.create).not.toHaveBeenCalled();
+        expect(
+            context.service.contentAsCodeSnapshotModel.upsert,
+        ).not.toHaveBeenCalled();
+    };
+    const mergeWithQuery = (
+        query: ChartAsCode['metricQuery'],
+    ): SavedMergeDefinition => ({
+        queries: {
+            extra: {
+                explore: query.exploreName,
+                dimensions: query.dimensions,
+                metrics: query.metrics,
+                tableCalculations: query.tableCalculations,
+                customDimensions: query.customDimensions,
+                additionalMetrics: query.additionalMetrics,
+            },
+        },
+        join: MergeJoinType.FULL,
+        keys: { orders_amount: ['extra.orders_amount'] },
+        limit: 500,
+    });
+    const sqlMerge = (
+        kind: 'calculation' | 'dimension' | 'metric' | 'outer calculation',
+        sql: string,
+    ): SavedMergeDefinition =>
+        kind === 'outer calculation'
+            ? {
+                  ...mergeWithQuery(chartAsCode.metricQuery),
+                  tableCalculations: [
+                      { name: 'custom', displayName: 'Custom', sql },
+                  ],
+              }
+            : mergeWithQuery(sqlQuery(kind, sql));
+    it.each(
+        (['calculation', 'dimension', 'metric'] as const).flatMap((kind) =>
+            (['item fields', 'tableName', 'exploreName'] as const).flatMap(
+                (change) =>
+                    (['denied', 'approved', 'unbound'] as const).map(
+                        (approval) => ({ kind, change, approval }),
+                    ),
+            ),
+        ),
+    )(
+        '$approval chart $kind with changed $change checks the whole item and explore',
+        async ({ kind, change, approval }) => {
+            const context = configureSqlApproval(approval);
+            const { service, call } = context;
+            prepareVerificationUpload(service, 'chart', 'update', undefined);
+            const metricQuery = sqlQuery(kind, '${amount}');
+            vi.mocked(service.savedChartModel.get).mockResolvedValue({
+                ...chartAsCode,
+                metricQuery,
+            } as AnyType);
+            const changedQuery = {
+                ...metricQuery,
+                ...(change === 'exploreName'
+                    ? { exploreName: 'payments' }
+                    : {}),
+                ...(change === 'item fields' && kind === 'calculation'
+                    ? {
+                          tableCalculations: metricQuery.tableCalculations.map(
+                              (item) => ({ ...item, displayName: 'Changed' }),
+                          ),
+                      }
+                    : {}),
+                ...(change === 'item fields' && kind === 'dimension'
+                    ? {
+                          customDimensions: metricQuery.customDimensions?.map(
+                              (item) => ({ ...item, table: 'payments' }),
+                          ),
+                      }
+                    : {}),
+                ...(change === 'item fields' && kind === 'metric'
+                    ? {
+                          additionalMetrics: metricQuery.additionalMetrics?.map(
+                              (item) => ({ ...item, type: MetricType.AVERAGE }),
+                          ),
+                      }
+                    : {}),
+            };
+            const upload = call('chart', {
+                metricQuery: changedQuery,
+                ...(change === 'tableName' ? { tableName: 'payments' } : {}),
+            });
+            if (approval === 'denied') {
+                await expect(upload).rejects.toThrow(
+                    'not approved for Raw SQL',
+                );
+                expectNoChartWrites(context);
+            } else {
+                await expect(upload).resolves.toBeDefined();
+                expect(
+                    service.promoteService.upsertCharts,
+                ).toHaveBeenCalledOnce();
+            }
+        },
+    );
+    it.each(
+        (
+            ['calculation', 'dimension', 'metric', 'outer calculation'] as const
+        ).flatMap((kind) =>
+            (['create', 'add', 'change', 'unchanged'] as const).flatMap(
+                (mode) =>
+                    (['denied', 'approved', 'unbound'] as const).map(
+                        (approval) => ({ kind, mode, approval }),
+                    ),
+            ),
+        ),
+    )(
+        '$approval merge $mode with SQL $kind checks Raw SQL before writes',
+        async ({ kind, mode, approval }) => {
+            const context = configureSqlApproval(approval);
+            const { service, call } = context;
+            prepareVerificationUpload(
+                service,
+                'chart',
+                mode === 'create' ? 'create' : 'update',
+                undefined,
+            );
+            if (mode !== 'create') {
+                vi.mocked(service.savedChartModel.get).mockResolvedValue({
+                    ...chartAsCode,
+                    merge:
+                        mode === 'add'
+                            ? undefined
+                            : sqlMerge(
+                                  kind,
+                                  mode === 'unchanged'
+                                      ? 'select 2'
+                                      : 'select 1',
+                              ),
+                } as AnyType);
+            }
+            const upload = call('chart', { merge: sqlMerge(kind, 'select 2') });
+            if (approval === 'denied' && mode !== 'unchanged') {
+                await expect(upload).rejects.toThrow(
+                    'not approved for Raw SQL',
+                );
+                expectNoChartWrites(context);
+            } else {
+                await expect(upload).resolves.toBeDefined();
+                expect(
+                    mode === 'create'
+                        ? service.savedChartModel.create
+                        : service.promoteService.upsertCharts,
+                ).toHaveBeenCalledOnce();
+            }
+        },
+    );
+    it.each(['item table', 'query explore', 'chart explore'] as const)(
+        'refuses unchanged merge SQL with changed %s without Raw SQL',
+        async (change) => {
+            const context = configureSqlApproval('denied');
+            const { service, call } = context;
+            prepareVerificationUpload(service, 'chart', 'update', undefined);
+            const merge = sqlMerge('dimension', '${amount}');
+            vi.mocked(service.savedChartModel.get).mockResolvedValue({
+                ...chartAsCode,
+                merge,
+            } as AnyType);
+            const incomingMerge = {
+                ...merge,
+                queries: {
+                    extra: {
+                        ...merge.queries.extra,
+                        ...(change === 'query explore'
+                            ? { explore: 'payments' }
+                            : {}),
+                        ...(change === 'item table'
+                            ? {
+                                  customDimensions:
+                                      merge.queries.extra.customDimensions?.map(
+                                          (item) => ({
+                                              ...item,
+                                              table: 'payments',
+                                          }),
+                                      ),
+                              }
+                            : {}),
+                    },
+                },
+            };
+            await expect(
+                call('chart', {
+                    merge: incomingMerge,
+                    ...(change === 'chart explore'
+                        ? {
+                              tableName: 'payments',
+                              metricQuery: {
+                                  ...chartAsCode.metricQuery,
+                                  exploreName: 'payments',
+                              },
+                          }
+                        : {}),
+                }),
+            ).rejects.toThrow('not approved for Raw SQL');
+            expectNoChartWrites(context);
+        },
+    );
+    it('compares persisted merge metric UUIDs as part of the whole item', async () => {
+        const context = configureSqlApproval('denied');
+        const { service, call } = context;
+        prepareVerificationUpload(service, 'chart', 'update', undefined);
+        const query = sqlQuery('metric', 'select 1');
+        const storedMerge = mergeWithQuery({
+            ...query,
+            additionalMetrics: query.additionalMetrics?.map((metric) => ({
+                ...metric,
+                uuid: 'stored-uuid',
+            })),
+        });
+        vi.mocked(service.savedChartModel.get).mockResolvedValue({
+            ...chartAsCode,
+            merge: storedMerge,
+        } as AnyType);
+        await expect(
+            call('chart', { merge: mergeWithQuery(query) }),
+        ).rejects.toThrow('not approved for Raw SQL');
+        expectNoChartWrites(context);
+    });
+    it.each([
+        'calculation',
+        'dimension',
+        'metric',
+        'outer calculation',
+    ] as const)(
+        'checks legacy merge SQL %s after normalization',
+        async (kind) => {
+            const context = configureSqlApproval('denied');
+            const { service, call } = context;
+            prepareVerificationUpload(service, 'chart', 'create', undefined);
+            await expect(
+                call('chart', {
+                    merge: {
+                        primarySourceId: 'orders',
+                        sources: [
+                            { id: 'orders', kind: 'chart' },
+                            {
+                                id: 'extra',
+                                kind: 'query',
+                                metricQuery:
+                                    kind === 'outer calculation'
+                                        ? chartAsCode.metricQuery
+                                        : sqlQuery(kind, 'select 1'),
+                            },
+                        ],
+                        joinType: MergeJoinType.FULL,
+                        joinKey: [
+                            {
+                                name: 'orders_amount',
+                                fieldIdBySourceId: {
+                                    orders: 'orders_amount',
+                                    extra: 'orders_amount',
+                                },
+                            },
+                        ],
+                        tableCalculations:
+                            kind === 'outer calculation'
+                                ? [
+                                      {
+                                          name: 'outer',
+                                          displayName: 'Outer',
+                                          sql: 'select 1',
+                                      },
+                                  ]
+                                : [],
+                    },
+                }),
+            ).rejects.toThrow('not approved for Raw SQL');
+            expectNoChartWrites(context);
+        },
+    );
+    it('allows a downloaded chart with unchanged SQL in every component without Raw SQL', async () => {
+        const { service, call } = configureSqlApproval('denied');
+        prepareVerificationUpload(service, 'chart', 'update', undefined);
+        const metricQuery = {
+            ...sqlQuery('dimension', '${amount}'),
+            tableCalculations: [
+                {
+                    name: 'custom',
+                    displayName: 'Custom',
+                    sql: 'select 1',
+                    format: undefined,
+                    type: undefined,
+                    template: undefined,
+                    formula: undefined,
+                    totalMode: undefined,
+                },
+            ],
+            additionalMetrics: sqlQuery(
+                'metric',
+                'select 1',
+            ).additionalMetrics?.map((item) => ({
+                ...item,
+                uuid: 'stored-metric-uuid',
+                label: undefined,
+                description: undefined,
+            })),
+        };
+        const storedChart = {
+            ...chartAsCode,
+            uuid: 'chart-uuid',
+            spaceUuid: SPACE_UUID,
+            metricQuery,
+            merge: {
+                ...mergeWithQuery(metricQuery),
+                tableCalculations: [
+                    { name: 'outer', displayName: 'Outer', sql: 'select 1' },
+                ],
+            },
+        };
+        vi.mocked(service.savedChartModel.get).mockResolvedValue(
+            storedChart as AnyType,
+        );
+        Object.assign(service.contentVerificationModel, {
+            getByContentUuids: vi.fn().mockResolvedValue(new Map()),
+        });
+        const downloaded = await service.getCurrentChartAsCode('chart-uuid');
+        expect(
+            downloaded.metricQuery.additionalMetrics?.[0],
+        ).not.toHaveProperty('uuid');
+        let payload: ChartAsCode;
+        try {
+            payload = JSON.parse(JSON.stringify(downloaded));
+        } catch (error) {
+            throw new Error('Could not serialize chart download', {
+                cause: error,
+            });
+        }
+        await expect(call('chart', payload)).resolves.toBeDefined();
+        expect(service.promoteService.upsertCharts).toHaveBeenCalledOnce();
+    });
+    it.each(['formula', 'template', 'modelled metric'] as const)(
+        'allows merge %s without Raw SQL using the source explore',
+        async (kind) => {
+            const { service, call } = configureSqlApproval('denied');
+            prepareVerificationUpload(service, 'chart', 'create', undefined);
+            const query =
+                kind === 'modelled metric'
+                    ? sqlQuery('metric', '${orders.amount}')
+                    : {
+                          ...chartAsCode.metricQuery,
+                          tableCalculations: [
+                              {
+                                  name: 'custom',
+                                  displayName: 'Custom',
+                                  ...(kind === 'formula'
+                                      ? { formula: 'SUM(A:A)' }
+                                      : {
+                                            template: {
+                                                type: 'percent_of_column_total',
+                                                fieldId: 'orders_amount',
+                                            },
+                                        }),
+                              },
+                          ],
+                      };
+            const merge = {
+                ...mergeWithQuery({
+                    ...query,
+                    exploreName: 'payments',
+                } as ChartAsCode['metricQuery']),
+                tableCalculations: [
+                    {
+                        name: 'outer',
+                        displayName: 'Outer',
+                        sql: '',
+                        formula: 'SUM(A:A)',
+                    },
+                ],
+            };
+            await expect(call('chart', { merge })).resolves.toBeDefined();
+            expect(service.savedChartModel.create).toHaveBeenCalledOnce();
+            if (kind === 'modelled metric') {
+                expect(service.projectService!.getExplore).toHaveBeenCalledWith(
+                    expect.anything(),
+                    PROJECT_UUID,
+                    'payments',
+                );
+            }
+        },
+    );
+    it.each(['formula', 'template', 'modelled metric'] as const)(
+        'allows %s without Raw SQL',
+        async (kind) => {
+            const { service, account, call } = setupBound();
+            account.authentication.agentConnectionGrant!.approvedCapabilities =
+                [AgentCapability.ContentWrite, AgentCapability.DeployUpload];
+            prepareVerificationUpload(service, 'chart', 'create', undefined);
+            const metricQuery =
+                kind === 'modelled metric'
+                    ? sqlQuery('metric', '${orders.amount}')
+                    : {
+                          ...chartAsCode.metricQuery,
+                          tableCalculations: [
+                              {
+                                  name: 'custom',
+                                  displayName: 'Custom',
+                                  ...(kind === 'formula'
+                                      ? { formula: 'SUM(A:A)' }
+                                      : {
+                                            template: {
+                                                type: 'percent_of_column_total',
+                                                fieldId: 'orders_amount',
+                                            },
+                                        }),
+                              },
+                          ],
+                      };
+            await expect(call('chart', { metricQuery })).resolves.toBeDefined();
+            expect(service.savedChartModel.create).toHaveBeenCalledOnce();
+        },
+    );
+    it.each(
+        (['create', 'change', 'unchanged'] as const).flatMap((mode) =>
+            (['denied', 'approved', 'unbound'] as const).map((approval) => ({
+                mode,
+                approval,
+            })),
+        ),
+    )(
+        '$approval grant SQL chart $mode checks Raw SQL before writes',
+        async ({ mode, approval }) => {
+            const { service, account, call, space, apply } = setupBound(
+                true,
+                approval !== 'unbound',
+            );
+            if (
+                approval === 'denied' &&
+                account.authentication.agentConnectionGrant
+            ) {
+                account.authentication.agentConnectionGrant.approvedCapabilities =
+                    [
+                        AgentCapability.ContentWrite,
+                        AgentCapability.DeployUpload,
+                    ];
+            }
+            Object.assign(service.savedSqlModel, {
+                create: vi.fn().mockResolvedValue({
+                    savedSqlUuid: 'sql-uuid',
+                    slug: 'sql',
+                }),
+                update: vi.fn().mockResolvedValue(undefined),
+            });
+            if (mode !== 'create')
+                vi.mocked(service.savedSqlModel.find).mockResolvedValue([
+                    {
+                        saved_sql_uuid: 'sql-uuid',
+                        space_uuid: SPACE_UUID,
+                        sql: mode === 'unchanged' ? 'select 2' : 'select 1',
+                    },
+                ] as AnyType);
+            const upload = call('sql', { sql: 'select 2' });
+            if (approval === 'denied' && mode !== 'unchanged') {
+                await expect(upload).rejects.toThrow(
+                    'not approved for Raw SQL',
+                );
+                expect(space).not.toHaveBeenCalled();
+                expect(apply).not.toHaveBeenCalled();
+                expect(service.savedSqlModel.create).not.toHaveBeenCalled();
+                expect(service.savedSqlModel.update).not.toHaveBeenCalled();
+            } else {
+                await expect(upload).resolves.toBeDefined();
+                expect(
+                    mode === 'create'
+                        ? service.savedSqlModel.create
+                        : service.savedSqlModel.update,
+                ).toHaveBeenCalledOnce();
+            }
+        },
+    );
+    const verificationCases = (['chart', 'dashboard'] as const).flatMap(
+        (kind) =>
+            (['create', 'update'] as const).flatMap((mode) =>
+                [true, false].map((verified) => ({ kind, mode, verified })),
+            ),
+    );
+    it.each(verificationCases)(
+        'refuses $kind $mode with verified=$verified without Publish before any write',
+        async ({ kind, mode, verified }) => {
+            const { service, call, space, prepare, apply } = setupBound(false);
+            prepareVerificationUpload(service, kind, mode, verified);
+            const result = await call(kind, { verified }).catch(
+                (error) => error,
+            );
+            expect(service.savedChartModel.create).not.toHaveBeenCalled();
+            expect(service.dashboardModel.create).not.toHaveBeenCalled();
+            expect(service.promoteService.upsertCharts).not.toHaveBeenCalled();
+            expect(
+                service.promoteService.getOrCreateDashboard,
+            ).not.toHaveBeenCalled();
+            expect(
+                service.promoteService.updateDashboard,
+            ).not.toHaveBeenCalled();
+            expect(
+                service.contentVerificationModel.verify,
+            ).not.toHaveBeenCalled();
+            expect(
+                service.contentVerificationModel.unverify,
+            ).not.toHaveBeenCalled();
+            expect(
+                service.contentAsCodeSnapshotModel.upsert,
+            ).not.toHaveBeenCalled();
+            expect(space).not.toHaveBeenCalled();
+            expect(prepare).not.toHaveBeenCalled();
+            expect(apply).not.toHaveBeenCalled();
+            expect(result).toBeInstanceOf(ForbiddenError);
+            expect(result.message).toContain('Publish');
+        },
+    );
+    it.each(
+        verificationCases.flatMap((entry) =>
+            ['approved', 'unbound'].map((authorization) => ({
+                ...entry,
+                authorization,
+            })),
+        ),
+    )(
+        'allows $authorization $kind $mode with verified=$verified',
+        async ({ kind, mode, verified, authorization }) => {
+            const { service, call } = setupBound(
+                authorization === 'approved',
+                authorization !== 'unbound',
+            );
+            prepareVerificationUpload(service, kind, mode, verified);
+            await expect(call(kind, { verified })).resolves.toBeDefined();
+            if (mode === 'create') {
+                expect(
+                    kind === 'chart'
+                        ? service.savedChartModel.create
+                        : service.dashboardModel.create,
+                ).toHaveBeenCalledOnce();
+            } else {
+                expect(
+                    kind === 'chart'
+                        ? service.promoteService.upsertCharts
+                        : service.promoteService.updateDashboard,
+                ).toHaveBeenCalledOnce();
+            }
+            const verificationWrite = verified
+                ? service.contentVerificationModel.verify
+                : service.contentVerificationModel.unverify;
+            expect(verificationWrite).toHaveBeenCalledOnce();
+        },
+    );
+    it.each(
+        (['chart', 'dashboard'] as const).flatMap((kind) =>
+            (['create', 'update'] as const).map((mode) => ({ kind, mode })),
+        ),
+    )(
+        'allows $kind $mode without a verified field or Publish',
+        async ({ kind, mode }) => {
+            const { service, call } = setupBound(false);
+            prepareVerificationUpload(service, kind, mode, undefined);
+            await expect(call(kind, {})).resolves.toBeDefined();
+            expect(
+                service.contentVerificationModel.verify,
+            ).not.toHaveBeenCalled();
+            expect(
+                service.contentVerificationModel.unverify,
+            ).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['chart', 'dashboard', 'sql'] as const)(
+        'refuses assigning and clearing access before any %s write',
+        async (kind) => {
+            await Promise.all(
+                [
+                    { users: [], groups: [] },
+                    {
+                        users: [
+                            {
+                                email: 'reader@example.com',
+                                role: SpaceMemberRole.VIEWER,
+                            },
+                        ],
+                        groups: [],
+                    },
+                ].map(async (access) => {
+                    const { service, call, prepare, apply, space } =
+                        setupBound();
+                    const result = await call(kind, { access }).catch(
+                        (error) => error,
+                    );
+                    expect(prepare).not.toHaveBeenCalled();
+                    expect(result).toBeInstanceOf(ForbiddenError);
+                    expect(result.message).toContain('access');
+                    expect(apply).not.toHaveBeenCalled();
+                    expect(space).not.toHaveBeenCalled();
+                    expect(
+                        service.spaceModel.createSpace,
+                    ).not.toHaveBeenCalled();
+                    expect(
+                        service.savedChartModel.create,
+                    ).not.toHaveBeenCalled();
+                    expect(
+                        service.dashboardModel.create,
+                    ).not.toHaveBeenCalled();
+                }),
+            );
+        },
+    );
+    it.each(['chart', 'dashboard', 'sql'] as const)(
+        'refuses private and public destination space creation before any %s write',
+        async (kind) => {
+            await Promise.all(
+                [false, true].map(async (publicSpaceCreate) => {
+                    const { service, call, prepare, apply, space } =
+                        setupBound();
+                    vi.mocked(service.spaceModel.find).mockResolvedValue([]);
+                    const result = await call(
+                        kind,
+                        { spaceSlug: 'missing' },
+                        publicSpaceCreate,
+                    ).catch((error) => error);
+                    expect(space).not.toHaveBeenCalled();
+                    expect(result).toBeInstanceOf(ForbiddenError);
+                    expect(result.message).toContain('space');
+                    expect(prepare).not.toHaveBeenCalled();
+                    expect(apply).not.toHaveBeenCalled();
+                    expect(space).not.toHaveBeenCalled();
+                    expect(
+                        service.spaceModel.createSpace,
+                    ).not.toHaveBeenCalled();
+                    expect(
+                        service.savedChartModel.create,
+                    ).not.toHaveBeenCalled();
+                    expect(
+                        service.dashboardModel.create,
+                    ).not.toHaveBeenCalled();
+                }),
+            );
+        },
+    );
+    it.each(['chart', 'dashboard', 'sql'] as const)(
+        'retains the bound account through the %s upload controller',
+        async (kind) => {
+            const { service, account, prepare, space } = setupBound();
+            const controller = new ProjectCoderController({
+                getCoderService: () => service,
+            } as unknown as ServiceRepository);
+            const req = { account } as unknown as Request;
+            const access = { users: [], groups: [] };
+            const uploaders = {
+                chart: () =>
+                    controller.upsertChartAsCode(
+                        PROJECT_UUID,
+                        'chart',
+                        { ...chartAsCode, access },
+                        req,
+                    ),
+                dashboard: () =>
+                    controller.upsertDashboardAsCode(
+                        PROJECT_UUID,
+                        'dashboard',
+                        { ...dashboardAsCode, access },
+                        req,
+                    ),
+                sql: () =>
+                    controller.upsertSqlChartAsCode(
+                        PROJECT_UUID,
+                        'sql',
+                        {
+                            name: 'SQL',
+                            slug: 'sql',
+                            spaceSlug: 'space',
+                            sql: 'select 1',
+                            description: null,
+                            limit: 500,
+                            config: {
+                                type: ChartKind.TABLE,
+                                metadata: { version: 1 },
+                                columns: {},
+                                display: undefined,
+                            },
+                            chartKind: ChartKind.TABLE,
+                            version: 1,
+                            access,
+                        },
+                        req,
+                    ),
+            };
+            const result = uploaders[kind]();
+            await expect(result).rejects.toThrow('access');
+            expect(prepare).not.toHaveBeenCalled();
+            expect(space).not.toHaveBeenCalled();
+        },
+    );
+    it.each(['chart', 'dashboard', 'sql'] as const)(
+        'keeps a simple %s upload into an existing space',
+        async (kind) => {
+            const { service, call } = setupBound();
+            vi.mocked(service.savedChartModel.create).mockResolvedValue({
+                uuid: 'created-chart',
+                spaceUuid: SPACE_UUID,
+            } as AnyType);
+            vi.mocked(service.dashboardModel.create).mockResolvedValue({
+                ...dashboardMock,
+                projectUuid: PROJECT_UUID,
+                tiles: [],
+                tabs: [],
+            });
+            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+                ...dashboardMock,
+                projectUuid: PROJECT_UUID,
+                tiles: [],
+                tabs: [],
+            });
+            const createSql = vi.fn().mockResolvedValue({
+                savedSqlUuid: 'created-sql',
+                slug: 'sql',
+            });
+            Object.assign(service.savedSqlModel, { create: createSql });
+            await expect(call(kind, {})).resolves.toBeDefined();
+            const creators = {
+                chart: service.savedChartModel.create,
+                dashboard: service.dashboardModel.create,
+                sql: createSql,
+            };
+            expect(creators[kind]).toHaveBeenCalledOnce();
+            expect(service.spaceModel.createSpace).not.toHaveBeenCalled();
+        },
+    );
+});
+
+describe.each([true, false])(
+    'CoderService section exports with saved parameter controls=%s',
+    (withControls) => {
+        it.each([true, false])(
+            'exports saved sections with controls enabled=%s',
+            async (enabled) => {
+                const service = buildService();
+                const dashboard: DashboardDAO = {
+                    ...dashboardMock,
+                    uuid: 'dashboard-uuid',
+                    slug: 'dashboard',
+                    spaceUuid: SPACE_UUID,
+                    tabs: [],
+                    tiles: [],
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlSections: [
+                            { id: 'saved-section', name: 'Saved section' },
+                        ],
+                        // Stored by earlier versions; never downloaded
+                        ...({
+                            parameterSections: { currency: 'saved-section' },
+                        } as object),
+                        ...(withControls && {
+                            parameterControls: [
+                                {
+                                    id: 'saved-control',
+                                    label: 'Currency',
+                                    value: 'USD',
+                                    valueType: {
+                                        type: 'string' as const,
+                                        multiple: false,
+                                    },
+                                    parameters: {},
+                                    sectionId: 'saved-section',
+                                },
+                            ],
+                        }),
+                    },
+                    filters: {
+                        dimensions: [
+                            {
+                                id: 'filter',
+                                target: {
+                                    fieldId: 'orders_status',
+                                    tableName: 'orders',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                label: undefined,
+                                sectionId: 'saved-section',
+                            },
+                        ],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                };
+                vi.mocked(service.dashboardModel.find).mockResolvedValue([
+                    dashboard,
+                ]);
+                vi.mocked(
+                    service.dashboardModel.getByIdOrSlug,
+                ).mockResolvedValue(dashboard);
+                service.dashboardModel.getSlugAliasesForUuids = vi.fn(
+                    async () => [],
+                );
+                service.contentVerificationModel.getByContentUuids = vi.fn(
+                    async () => new Map(),
+                );
+                vi.spyOn(
+                    service as AnyType,
+                    'filterPrivateContent',
+                ).mockImplementation(
+                    async (
+                        _user: AnyType,
+                        _project: AnyType,
+                        content: AnyType,
+                    ) => content,
+                );
+                vi.mocked(
+                    service.dashboardService.areDashboardControlsEnabled,
+                ).mockResolvedValue(enabled);
+                const result = await (service as AnyType).findDashboardsAsCode(
+                    makeSessionUser([]),
+                    PROJECT_UUID,
+                    undefined,
+                );
+                expect(
+                    service.dashboardService.areDashboardControlsEnabled,
+                ).toHaveBeenCalledOnce();
+                const exported = result.dashboards[0];
+                const current = await service.getCurrentDashboardAsCode(
+                    makeSessionUser([]),
+                    dashboard.uuid,
+                );
+                const draft = await service.getDashboardAsCodeWithOverlay(
+                    makeSessionUser([]),
+                    dashboard.uuid,
+                    { name: 'Draft name' },
+                );
+                for (const writeback of [current, draft]) {
+                    expect(writeback.config?.controlSections).toEqual(
+                        exported.config.controlSections,
+                    );
+                    expect(writeback.filters).toEqual(exported.filters);
+                    expect(writeback.config?.parameterControls).toEqual(
+                        exported.config.parameterControls,
+                    );
+                }
+
+                expect(exported.config.controlSections).toEqual([
+                    { slug: 'saved-section', name: 'Saved section' },
+                ]);
+                expect(exported.filters.dimensions[0].sectionSlug).toBe(
+                    'saved-section',
+                );
+                if (!enabled)
+                    expect(exported.config.parameterControls).toBeUndefined();
+                else if (withControls)
+                    expect(
+                        exported.config.parameterControls[0].sectionSlug,
+                    ).toBe('saved-section');
+                expect(
+                    exported.filters.dimensions[0].sectionId,
+                ).toBeUndefined();
+                expect(exported.config).not.toHaveProperty('parameterSections');
+                expect(exported.config).not.toHaveProperty(
+                    'parameterSectionSlugs',
+                );
+            },
+        );
+    },
+);
+
+describe('CoderService section uploads with the flag disabled', () => {
+    it('prepares a reupload without replacing saved parameter controls', async () => {
+        const service = buildService();
+        const savedConfig: NonNullable<DashboardDAO['config']> = {
+            isDateZoomDisabled: false,
+            controlSections: [{ id: 'saved-section', name: 'Saved section' }],
+            parameterControls: [
+                {
+                    id: 'saved-control',
+                    label: 'Currency',
+                    value: 'USD',
+                    valueType: { type: 'string', multiple: false },
+                    parameters: {},
+                    sectionId: 'saved-section',
+                },
+            ],
+        };
+        const existing: DashboardDAO = {
+            ...dashboardMock,
+            uuid: 'dashboard-uuid',
+            slug: 'dashboard',
+            spaceUuid: SPACE_UUID,
+            tabs: [],
+            tiles: [],
+            config: savedConfig,
+        };
+        vi.mocked(service.dashboardModel.find).mockResolvedValue([existing]);
+        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue(
+            existing,
+        );
+        vi.mocked(
+            service.dashboardService.areDashboardControlsEnabled,
+        ).mockResolvedValue(false);
+        vi.mocked(
+            service.promoteService.getPromotedDashboard,
+        ).mockRejectedValue(new Error('captured upload'));
+        const sectionName = 'Saved section';
+        const uploaded = {
+            ...dashboardAsCode,
+            filters: {
+                dimensions: [
+                    {
+                        target: {
+                            fieldId: 'orders_status',
+                            tableName: 'orders',
+                        },
+                        operator: FilterOperator.EQUALS,
+                        label: undefined,
+                        sectionSlug: 'saved-section',
+                    },
+                ],
+            },
+            config: {
+                isDateZoomDisabled: false,
+                controlSections: [
+                    {
+                        slug: 'saved-section',
+                        name: sectionName,
+                    },
+                ],
+                // Disabled incoming controls must be ignored before resolving their references.
+                parameterControls: [
+                    {
+                        sectionSlug: 'unknown-section',
+                        label: 'Incoming',
+                        value: 'EUR',
+                        valueType: { type: 'string', multiple: false },
+                        parameters: {},
+                    },
+                ],
+            },
+        } as DashboardAsCode;
+        const upload = service.upsertDashboard(
+            makeSessionUser([
+                { subject: 'ContentAsCode', action: 'create' },
+                { subject: 'Dashboard', action: 'update' },
+            ]),
+            PROJECT_UUID,
+            'dashboard',
+            uploaded,
+        );
+        await expect(upload).rejects.toThrow('captured upload');
+        expect(
+            service.promoteService.getPromotedDashboard,
+        ).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                config: expect.objectContaining({
+                    controlSections: [
+                        expect.objectContaining({
+                            id: 'saved-section',
+                            name: sectionName,
+                        }),
+                    ],
+                    parameterControls: savedConfig.parameterControls,
+                }),
+                filters: expect.objectContaining({
+                    dimensions: [
+                        expect.objectContaining({
+                            sectionId: 'saved-section',
+                        }),
+                    ],
+                }),
+            }),
+            PROJECT_UUID,
+        );
+    });
+});
+
+describe('CoderService dashboard control order as code', () => {
+    const status = { fieldId: 'orders_status', tableName: 'orders' };
+    const city = { fieldId: 'orders_city', tableName: 'orders' };
+    const statusFilter = (id: string, extra: AnyType = {}) => ({
+        id,
+        label: undefined,
+        target: status,
+        operator: FilterOperator.EQUALS,
+        values: [id],
+        ...extra,
+    });
+    const savedOrder = [
+        { kind: 'parameter', id: 'region-id' },
+        { kind: 'filter', id: 'metric-id' },
+        { kind: 'section', id: 'section-id' },
+        { kind: 'filter', id: 'second-id' },
+        { kind: 'filter', id: 'first-id' },
+    ];
+    const savedDashboard = (config: AnyType = {}, firstFilter: AnyType = {}) =>
+        ({
+            uuid: 'dashboard-uuid',
+            slug: 'dashboard',
+            name: 'Dashboard',
+            description: null,
+            updatedAt: new Date('2026-01-01'),
+            spaceUuid: SPACE_UUID,
+            tabs: [],
+            tiles: [],
+            filters: {
+                dimensions: [
+                    statusFilter('first-id', firstFilter),
+                    statusFilter('second-id', {
+                        target: city,
+                        sectionId: 'section-id',
+                    }),
+                ],
+                metrics: [
+                    {
+                        id: 'metric-id',
+                        label: undefined,
+                        target: {
+                            fieldId: 'orders_total',
+                            tableName: 'orders',
+                        },
+                        operator: FilterOperator.GREATER_THAN,
+                        values: [1],
+                    },
+                ],
+                tableCalculations: [],
+            },
+            config: {
+                isDateZoomDisabled: false,
+                controlSections: [{ id: 'section-id', name: 'Calendar' }],
+                parameterControls: [
+                    {
+                        id: 'region-id',
+                        label: 'Region',
+                        value: null,
+                        valueType: { type: 'string', multiple: false },
+                        parameters: { region: 'all' },
+                    },
+                ],
+                controlOrder: savedOrder,
+                ...config,
+            },
+        }) as unknown as DashboardDAO;
+    const withoutOrder = () => {
+        const dashboard = savedDashboard();
+        const { controlOrder: _order, ...config } = dashboard.config!;
+        return { ...dashboard, config };
+    };
+    const download = (
+        dashboard: DashboardDAO,
+        controlsEnabled: boolean,
+        withFilterSlugs = false,
+    ) => {
+        const { downloadedAt: _downloadedAt, ...file } = (
+            CoderService as unknown as {
+                transformDashboard: (...args: AnyType[]) => DashboardAsCode;
+            }
+        ).transformDashboard(
+            dashboard,
+            [{ uuid: SPACE_UUID, name: 'Space', path: 'space' }],
+            new Map(),
+            controlsEnabled,
+            withFilterSlugs,
+        );
+        return file as DashboardAsCode;
+    };
+    const upload = async (
+        file: DashboardAsCode,
+        {
+            enabled = true,
+            saved = savedDashboard(),
+        }: { enabled?: boolean; saved?: DashboardDAO } = {},
+    ) => {
+        const service = buildService();
+        vi.mocked(
+            service.dashboardService.areDashboardControlsEnabled,
+        ).mockResolvedValue(enabled);
+        service.projectService = {
+            projectParametersModel: {
+                find: vi.fn(async () => [
+                    { name: 'region', config: { label: 'Region' } },
+                ]),
+            },
+        } as AnyType;
+        (service as AnyType).projectModel.findExploresFromCache = vi.fn(
+            async () => ({}),
+        );
+        vi.mocked(service.dashboardModel.find).mockResolvedValue([
+            { uuid: 'dashboard-uuid' } as AnyType,
+        ]);
+        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue(
+            saved,
+        );
+        vi.mocked(
+            service.promoteService.getPromotedDashboard,
+        ).mockRejectedValue(new Error('stop after config'));
+        const user = makeSessionUser([
+            { subject: 'ContentAsCode', action: 'manage' },
+            {
+                subject: 'Dashboard',
+                action: 'update',
+                conditions: { projectUuid: PROJECT_UUID },
+            },
+        ]);
+        await expect(
+            service.upsertDashboard(user, PROJECT_UUID, 'dashboard', file),
+        ).rejects.toThrow('stop after config');
+        return vi.mocked(service.promoteService.getPromotedDashboard).mock
+            .calls[0][1];
+    };
+    const rejection = async (file: DashboardAsCode) => {
+        const service = buildService();
+        vi.mocked(service.dashboardModel.find).mockResolvedValue([
+            { uuid: 'dashboard-uuid' } as AnyType,
+        ]);
+        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue(
+            savedDashboard(),
+        );
+        service.projectService = {
+            projectParametersModel: { find: vi.fn(async () => []) },
+        } as AnyType;
+        (service as AnyType).projectModel.findExploresFromCache = vi.fn(
+            async () => ({}),
+        );
+        return service
+            .upsertDashboard(
+                makeSessionUser([
+                    { subject: 'ContentAsCode', action: 'manage' },
+                    { subject: 'Dashboard', action: 'update' },
+                ]),
+                PROJECT_UUID,
+                'dashboard',
+                file,
+            )
+            .catch((error: Error) => error.message);
+    };
+    const withOrder = (controlOrder: AnyType) => {
+        const file = download(savedDashboard(), true);
+        return { ...file, config: { ...file.config!, controlOrder } };
+    };
+    const validSlugs =
+        'Valid slugs are filter: orders-status, orders-city, orders-total; parameter: region; section: calendar';
+    // The list for the bar a never-reordered dashboard renders
+    const defaultList = [
+        { kind: DashboardControlRefKind.FILTER, slug: 'orders-status' },
+        { kind: DashboardControlRefKind.FILTER, slug: 'orders-total' },
+        { kind: DashboardControlRefKind.PARAMETER, slug: 'region' },
+        {
+            kind: DashboardControlRefKind.SECTION,
+            slug: 'calendar',
+            newLine: true,
+        },
+        { kind: DashboardControlRefKind.FILTER, slug: 'orders-city' },
+    ];
+    const withList = (
+        file: DashboardAsCode,
+        controlOrder: NonNullable<DashboardAsCode['config']>['controlOrder'],
+    ) => ({ ...file, config: { ...file.config!, controlOrder } });
+
+    it('downloads without filter slugs or an order with the flag off, whatever is stored', () => {
+        const file = JSON.stringify(download(savedDashboard(), false));
+        expect(file).toBe(JSON.stringify(download(withoutOrder(), false)));
+        expect(file).not.toContain('orders-status');
+        expect(file).not.toContain('controlOrder');
+    });
+
+    it('keeps a flag-off download and upload of a dashboard without sections byte for byte', async () => {
+        const dashboard = savedDashboard();
+        const { controlSections: _sections, ...config } = dashboard.config!;
+        const noSections = {
+            ...dashboard,
+            filters: {
+                ...dashboard.filters,
+                dimensions: dashboard.filters.dimensions.map(
+                    ({ sectionId: _sectionId, ...filter }) => filter,
+                ),
+            },
+            config,
+        };
+        const file = download(noSections, false);
+        expect(JSON.stringify(file)).toMatchInlineSnapshot(
+            `"{"name":"Dashboard","description":null,"updatedAt":"2026-01-01T00:00:00.000Z","tiles":[],"filters":{"dimensions":[{"target":{"fieldId":"orders_status","tableName":"orders"},"operator":"equals","values":["first-id"],"tileTargets":{}},{"target":{"fieldId":"orders_city","tableName":"orders"},"operator":"equals","values":["second-id"],"tileTargets":{}}],"metrics":[{"id":"metric-id","target":{"fieldId":"orders_total","tableName":"orders"},"operator":"greaterThan","values":[1]}],"tableCalculations":[]},"tabs":[],"slug":"dashboard","config":{"isDateZoomDisabled":false,"parameterControls":[{"slug":"region","label":"Region","value":null,"valueType":{"type":"string","multiple":false},"parameters":{"region":"all"}}]},"spaceSlug":"space","version":1,"contentType":"dashboard","verification":null}"`,
+        );
+        const saved = await upload(file, { enabled: false, saved: noSections });
+        expect(JSON.stringify(saved)).toMatchInlineSnapshot(
+            `"{"uuid":"dashboard-uuid","slug":"dashboard","name":"Dashboard","description":null,"updatedAt":"2026-01-01T00:00:00.000Z","spaceUuid":"space-uuid","tabs":[],"tiles":[],"filters":{"metrics":[{"id":"metric-id","target":{"fieldId":"orders_total","tableName":"orders"},"operator":"greaterThan","values":[1]}],"tableCalculations":[],"dimensions":[{"id":"first-id","target":{"fieldId":"orders_status","tableName":"orders"},"operator":"equals","values":["first-id"],"tileTargets":{}},{"id":"second-id","target":{"fieldId":"orders_city","tableName":"orders"},"operator":"equals","values":["second-id"],"tileTargets":{}}]},"config":{"isDateZoomDisabled":false,"parameterControls":[{"id":"region-id","label":"Region","value":null,"valueType":{"type":"string","multiple":false},"parameters":{"region":"all"}}],"controlOrder":[{"kind":"parameter","id":"region-id"},{"kind":"filter","id":"metric-id"},{"kind":"section","id":"section-id"},{"kind":"filter","id":"second-id"},{"kind":"filter","id":"first-id"}]},"spaceSlug":"space","version":1,"contentType":"dashboard","verification":null,"projectUuid":"11111111-1111-4111-8111-111111111111","organizationUuid":"org-uuid"}"`,
+        );
+    });
+
+    it('downloads a never-reordered dashboard without filter slugs or an order with the flag on', () => {
+        const file = JSON.stringify(download(withoutOrder(), true));
+        expect(file).not.toContain('orders-status');
+        expect(file).not.toContain('controlOrder');
+    });
+
+    it('writes filter slugs and the full order once an order is stored', () => {
+        const file = download(savedDashboard(), true);
+        expect(
+            [...file.filters!.dimensions!, ...file.filters!.metrics!].map(
+                ({ slug }) => slug,
+            ),
+        ).toEqual(['orders-status', 'orders-city', 'orders-total']);
+        expect(file.config?.controlOrder).toEqual([
+            { kind: 'parameter', slug: 'region' },
+            { kind: 'filter', slug: 'orders-total' },
+            { kind: 'section', slug: 'calendar' },
+            { kind: 'filter', slug: 'orders-city' },
+            { kind: 'filter', slug: 'orders-status' },
+        ]);
+    });
+
+    it('round-trips the order and every id', async () => {
+        const saved = await upload(download(savedDashboard(), true));
+        expect(saved.config?.controlOrder).toEqual(savedOrder);
+        expect(saved.filters.dimensions.map(({ id }) => id)).toEqual([
+            'first-id',
+            'second-id',
+        ]);
+        expect(saved.filters.metrics[0].id).toBe('metric-id');
+        expect(saved.config?.parameterControls?.[0].id).toBe('region-id');
+        expect(saved.config?.controlSections?.[0].id).toBe('section-id');
+    });
+
+    it('swaps two filters when the file swaps their refs', async () => {
+        const base = savedDashboard();
+        const saved = {
+            ...base,
+            filters: {
+                ...base.filters,
+                dimensions: base.filters.dimensions.map(
+                    ({ sectionId: _sectionId, ...filter }) => filter,
+                ),
+            },
+        } as DashboardDAO;
+        const file = download(saved, true);
+        const swapped = {
+            ...file,
+            config: {
+                ...file.config!,
+                controlOrder: [
+                    { kind: 'filter', slug: 'orders-city' },
+                    { kind: 'filter', slug: 'orders-status' },
+                ],
+            },
+        } as DashboardAsCode;
+        const result = await upload(swapped, { saved });
+        expect(result.config?.controlOrder).toEqual([
+            { kind: 'filter', id: 'second-id' },
+            { kind: 'filter', id: 'first-id' },
+        ]);
+        expect(
+            download(
+                {
+                    ...saved,
+                    config: {
+                        ...saved.config!,
+                        controlOrder: result.config!.controlOrder,
+                    },
+                } as DashboardDAO,
+                true,
+            ).config?.controlOrder?.slice(0, 2),
+        ).toEqual(swapped.config?.controlOrder);
+    });
+
+    it('round-trips bar line starts', async () => {
+        const orderWithLines = savedOrder.map((ref) =>
+            ref.id === 'section-id' || ref.id === 'first-id'
+                ? { ...ref, newLine: true }
+                : ref,
+        );
+        const file = download(
+            savedDashboard({ controlOrder: orderWithLines }),
+            true,
+        );
+        expect(file.config?.controlOrder).toEqual([
+            { kind: 'parameter', slug: 'region' },
+            { kind: 'filter', slug: 'orders-total' },
+            { kind: 'section', slug: 'calendar', newLine: true },
+            { kind: 'filter', slug: 'orders-city' },
+            { kind: 'filter', slug: 'orders-status', newLine: true },
+        ]);
+        const saved = await upload(file, {
+            saved: savedDashboard({ controlOrder: orderWithLines }),
+        });
+        expect(saved.config?.controlOrder).toEqual(orderWithLines);
+    });
+
+    it('passes a section member line start to the next bar control', async () => {
+        const memberLine = savedOrder.map((ref) =>
+            ref.id === 'second-id' ? { ...ref, newLine: true } : ref,
+        );
+        const file = download(
+            savedDashboard({ controlOrder: memberLine }),
+            true,
+        );
+        expect(
+            file.config?.controlOrder?.filter(({ newLine }) => newLine),
+        ).toEqual([{ kind: 'filter', slug: 'orders-status', newLine: true }]);
+        const saved = await upload({
+            ...file,
+            config: {
+                ...file.config!,
+                controlOrder: [
+                    { kind: DashboardControlRefKind.PARAMETER, slug: 'region' },
+                    {
+                        kind: DashboardControlRefKind.FILTER,
+                        slug: 'orders-total',
+                    },
+                    { kind: DashboardControlRefKind.SECTION, slug: 'calendar' },
+                    {
+                        kind: DashboardControlRefKind.FILTER,
+                        slug: 'orders-city',
+                        newLine: true,
+                    },
+                    {
+                        kind: DashboardControlRefKind.FILTER,
+                        slug: 'orders-status',
+                    },
+                ],
+            },
+        });
+        expect(saved.config?.controlOrder).toEqual(memberLine);
+    });
+
+    it('keeps the list order and line starts when the file reorders the filters array', async () => {
+        const orderWithLines = savedOrder.map((ref) =>
+            ref.id === 'first-id' ? { ...ref, newLine: true } : ref,
+        );
+        const saved = savedDashboard({
+            controlOrder: orderWithLines,
+            controlSections: [],
+        });
+        const ungrouped = {
+            ...saved,
+            filters: {
+                ...saved.filters,
+                dimensions: saved.filters.dimensions.map(
+                    ({ sectionId: _sectionId, ...filter }) => filter,
+                ),
+            },
+        } as DashboardDAO;
+        const file = download(ungrouped, true);
+        const result = await upload(
+            {
+                ...file,
+                filters: {
+                    ...file.filters,
+                    dimensions: [...file.filters!.dimensions!].reverse(),
+                },
+            },
+            { saved: ungrouped },
+        );
+        const lineStarts = (order: AnyType[]) =>
+            order.map(({ newLine }) => newLine === true);
+        expect(lineStarts(result.config!.controlOrder!)).toEqual(
+            lineStarts(file.config!.controlOrder!),
+        );
+        expect(result.filters.dimensions.map(({ id }) => id)).toEqual([
+            'second-id',
+            'first-id',
+        ]);
+        const reconciled = reconcileDashboardControlOrder({
+            controlOrder: result.config!.controlOrder,
+            filters: result.filters,
+            parameterControls: result.config!.parameterControls!,
+            sections: [],
+        }).map(({ id, newLine }) => [id, newLine]);
+        expect(reconciled.filter(([, newLine]) => newLine)).toHaveLength(1);
+        const fileLinePosition = file.config!.controlOrder!.findIndex(
+            ({ newLine }) => newLine,
+        );
+        expect(reconciled[fileLinePosition][1]).toBe(true);
+    });
+
+    it('keeps a stored order with line starts verbatim on a flag-off upload', async () => {
+        const orderWithLines = savedOrder.map((ref) =>
+            ref.id === 'section-id' || ref.id === 'second-id'
+                ? { ...ref, newLine: true }
+                : ref,
+        );
+        const saved = savedDashboard({ controlOrder: orderWithLines });
+        const result = await upload(
+            withOrder([{ kind: 'filter', slug: 'orders-total' }]),
+            { enabled: false, saved },
+        );
+        expect(result.config?.controlOrder).toEqual(orderWithLines);
+    });
+
+    it('matches a section renamed in a flag-off upload by its slug and keeps the stored order', async () => {
+        const file = download(savedDashboard(), true);
+        const result = await upload(
+            {
+                ...file,
+                config: {
+                    ...file.config!,
+                    controlSections: [
+                        { ...file.config!.controlSections![0], name: 'Dates' },
+                    ],
+                },
+            },
+            { enabled: false },
+        );
+        expect(result.config!.controlSections).toEqual([
+            { id: 'section-id', name: 'Dates', slug: 'calendar' },
+        ]);
+        expect(result.filters.dimensions[1].sectionId).toBe('section-id');
+        expect(result.config?.controlOrder).toBe(savedOrder);
+    });
+
+    it('keeps the stored order verbatim when a flag-off upload re-mints same-field filters', async () => {
+        const base = savedDashboard();
+        const [first, second] = base.filters.dimensions;
+        const saved = {
+            ...base,
+            filters: {
+                ...base.filters,
+                dimensions: [first, { ...second, target: status }],
+            },
+        } as DashboardDAO;
+        const result = await upload(download(saved, true), {
+            enabled: false,
+            saved,
+        });
+        const ids = result.filters.dimensions.map(({ id }) => id);
+        expect(ids).not.toContain('first-id');
+        expect(result.config?.controlOrder).toBe(savedOrder);
+    });
+
+    it('never swaps the ids of two filters on one field after a UI reorder', async () => {
+        const sameField = savedDashboard();
+        const [first, second] = sameField.filters.dimensions;
+        const before = {
+            ...sameField,
+            filters: {
+                ...sameField.filters,
+                dimensions: [first, { ...second, target: status }],
+            },
+        } as DashboardDAO;
+        const file = download(before, true);
+        expect(file.filters!.dimensions!.map(({ slug }) => slug)).toEqual([
+            'orders-status-1',
+            'orders-status-2',
+        ]);
+        const reordered = {
+            ...before,
+            filters: {
+                ...before.filters,
+                dimensions: [...before.filters.dimensions].reverse(),
+            },
+        } as DashboardDAO;
+        const result = await upload(file, { saved: reordered });
+        const ids = result.filters.dimensions.map(({ id }) => id);
+        expect(ids).not.toContain('first-id');
+        expect(ids).not.toContain('second-id');
+        expect(ids[0]).not.toBe(ids[1]);
+        expect(result.config?.controlOrder).toEqual(
+            savedOrder.map((ref) => {
+                if (ref.id === 'first-id') return { ...ref, id: ids[0] };
+                if (ref.id === 'second-id') return { ...ref, id: ids[1] };
+                return ref;
+            }),
+        );
+    });
+
+    it('stores no slugs on upload', async () => {
+        const result = await upload(download(savedDashboard(), true));
+        expect(JSON.stringify(result)).not.toMatch(
+            /"slug":"(orders|region|calendar)/,
+        );
+    });
+
+    it('changes only the order when the file only reorders the list', async () => {
+        const file = download(savedDashboard(), true);
+        const unchanged = await upload(file);
+        const reordered = await upload({
+            ...file,
+            config: {
+                ...file.config!,
+                controlOrder: [...file.config!.controlOrder!].reverse(),
+            },
+        });
+        expect(reordered.config?.controlOrder).toEqual(
+            [...savedOrder].reverse(),
+        );
+        expect({
+            ...reordered,
+            config: { ...reordered.config, controlOrder: undefined },
+        }).toEqual({
+            ...unchanged,
+            config: { ...unchanged.config, controlOrder: undefined },
+        });
+    });
+
+    it('gives agent reads filter slugs and no order when none is stored', () => {
+        const file = download(withoutOrder(), true, true);
+        expect(
+            [...file.filters!.dimensions!, ...file.filters!.metrics!].map(
+                ({ slug }) => slug,
+            ),
+        ).toEqual(['orders-status', 'orders-city', 'orders-total']);
+        expect(file.config).not.toHaveProperty('controlOrder');
+    });
+
+    it('gives agent reads the stored order and keeps it when sent back', async () => {
+        const file = download(savedDashboard(), true, true);
+        expect(file.config?.controlOrder).toHaveLength(savedOrder.length);
+        expect(file.config?.controlOrder).toEqual(
+            download(savedDashboard(), true).config?.controlOrder,
+        );
+        const saved = await upload(file);
+        expect(saved.config?.controlOrder).toEqual(savedOrder);
+    });
+
+    it.each([true, false])(
+        'resolves the flag for agent reads of dashboards without controls config (enabled=%s)',
+        async (enabled) => {
+            const service = buildService();
+            const dashboard = {
+                ...withoutOrder(),
+                config: { isDateZoomDisabled: false },
+            } as DashboardDAO;
+            vi.mocked(service.dashboardModel.find).mockResolvedValue([
+                dashboard as AnyType,
+            ]);
+            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue(
+                dashboard,
+            );
+            service.dashboardModel.getSlugAliasesForUuids = vi.fn(
+                async () => [],
+            );
+            service.contentVerificationModel.getByContentUuids = vi.fn(
+                async () => new Map(),
+            );
+            (service as AnyType).savedChartModel = {
+                getLatestVersionQueriesBySlugs: vi.fn(async () => ({})),
+            };
+            vi.spyOn(
+                service as AnyType,
+                'filterPrivateContent',
+            ).mockImplementation(
+                async (_user: AnyType, _project: AnyType, content: AnyType) =>
+                    content,
+            );
+            vi.mocked(
+                service.dashboardService.areDashboardControlsEnabled,
+            ).mockResolvedValue(enabled);
+            const user = makeSessionUser([]);
+            const exported = await (service as AnyType).findDashboardsAsCode(
+                user,
+                PROJECT_UUID,
+                undefined,
+            );
+            expect(
+                service.dashboardService.areDashboardControlsEnabled,
+            ).not.toHaveBeenCalled();
+            expect(exported.dashboards[0].config).not.toHaveProperty(
+                'controlOrder',
+            );
+            const { dashboards } = await service.getDashboardsForRead(
+                user,
+                PROJECT_UUID,
+                ['dashboard'],
+            );
+            expect(
+                service.dashboardService.areDashboardControlsEnabled,
+            ).toHaveBeenCalledOnce();
+            expect(dashboards[0].config).not.toHaveProperty('controlOrder');
+            expect(dashboards[0].filters?.dimensions?.[0].slug).toBe(
+                enabled ? 'orders-status' : undefined,
+            );
+        },
+    );
+
+    it('gives agent reads exactly the file download with the flag off', () => {
+        expect(JSON.stringify(download(withoutOrder(), false, true))).toBe(
+            JSON.stringify(download(withoutOrder(), false)),
+        );
+    });
+
+    it('gives agent reads no config for a dashboard without one', () => {
+        const { config: _config, ...dashboard } = withoutOrder();
+        const file = download(dashboard as DashboardDAO, true, true);
+        expect(file).not.toHaveProperty('config');
+        expect(file.filters?.dimensions?.[0].slug).toBe('orders-status');
+    });
+
+    it('stores no order when an agent edit leaves the default order untouched', async () => {
+        const dashboard = {
+            ...withoutOrder(),
+            tiles: [
+                {
+                    uuid: 'tile-uuid',
+                    type: DashboardTileTypes.MARKDOWN,
+                    x: 0,
+                    y: 0,
+                    h: 3,
+                    w: 3,
+                    tabUuid: undefined,
+                    properties: { title: 'Notes', content: 'Hello' },
+                },
+            ],
+        } as unknown as DashboardDAO;
+        const file = download(dashboard, true, true);
+        const saved = await upload(
+            {
+                ...file,
+                tiles: file.tiles.map((tile) => ({
+                    ...tile,
+                    properties: { ...tile.properties, title: 'Renamed tile' },
+                })) as DashboardAsCode['tiles'],
+            },
+            { saved: dashboard },
+        );
+        expect(saved.tiles[0].properties.title).toBe('Renamed tile');
+        expect(saved.config).not.toHaveProperty('controlOrder');
+        // The slugs the agent read only resolve refs in the file: ids are kept, slugs never stored
+        expect(
+            [...saved.filters.dimensions, ...saved.filters.metrics].map(
+                (filter) => [filter.id, 'slug' in filter],
+            ),
+        ).toEqual([
+            ['first-id', false],
+            ['second-id', false],
+            ['metric-id', false],
+        ]);
+    });
+
+    it('stores no config when an agent edits a dashboard that had none', async () => {
+        const { config: _config, ...dashboard } = withoutOrder();
+        const file = download(dashboard as DashboardDAO, true, true);
+        const saved = await upload(file, {
+            saved: dashboard as DashboardDAO,
+        });
+        expect(saved.config).toBeUndefined();
+    });
+
+    it('stores the default config for a dashboard that had none with the flag off', async () => {
+        const { config: _config, ...dashboard } = withoutOrder();
+        const file = download(dashboard as DashboardDAO, false);
+        const saved = await upload(
+            { ...file, config: { isDateZoomDisabled: false } },
+            { saved: dashboard as DashboardDAO, enabled: false },
+        );
+        expect(saved.config).toEqual({ isDateZoomDisabled: false });
+    });
+
+    it('stores a config when an agent reorders a dashboard that had none', async () => {
+        const { config: _config, ...dashboard } = withoutOrder();
+        const file = download(dashboard as DashboardDAO, true, true);
+        const saved = await upload(
+            {
+                ...file,
+                config: {
+                    isDateZoomDisabled: false,
+                    controlOrder: [
+                        'orders-total',
+                        'orders-city',
+                        'orders-status',
+                    ].map((slug) => ({
+                        kind: DashboardControlRefKind.FILTER,
+                        slug,
+                    })),
+                },
+            },
+            { saved: dashboard as DashboardDAO },
+        );
+        expect(saved.config).toEqual({
+            isDateZoomDisabled: false,
+            controlOrder: [
+                { kind: 'filter', id: 'metric-id' },
+                { kind: 'filter', id: 'second-id' },
+                { kind: 'filter', id: 'first-id' },
+            ],
+        });
+    });
+
+    const withCountryFilter = (file: DashboardAsCode) => ({
+        ...file,
+        filters: {
+            ...file.filters,
+            dimensions: [
+                ...file.filters!.dimensions!,
+                {
+                    slug: 'orders-country',
+                    label: undefined,
+                    target: { fieldId: 'orders_country', tableName: 'orders' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['Lisbon'],
+                },
+            ],
+        },
+    });
+
+    it('keeps the list when an agent swaps only the filters array', async () => {
+        const dashboard = withoutOrder();
+        const unsectioned = {
+            ...dashboard,
+            filters: {
+                ...dashboard.filters,
+                dimensions: dashboard.filters.dimensions.map(
+                    ({ sectionId: _section, ...filter }) => filter,
+                ),
+            },
+        } as DashboardDAO;
+        const file = withList(download(unsectioned, true, true), [
+            { kind: DashboardControlRefKind.FILTER, slug: 'orders-status' },
+            { kind: DashboardControlRefKind.FILTER, slug: 'orders-city' },
+        ]);
+        const saved = await upload(
+            {
+                ...file,
+                filters: {
+                    ...file.filters,
+                    dimensions: [...file.filters!.dimensions!].reverse(),
+                },
+            },
+            { saved: unsectioned },
+        );
+        expect(saved.filters.dimensions.map(({ id }) => id)).toEqual([
+            'second-id',
+            'first-id',
+        ]);
+        const filterIds = saved
+            .config!.controlOrder!.filter(({ kind }) => kind === 'filter')
+            .map(({ id }) => id);
+        expect(filterIds.indexOf('first-id')).toBeLessThan(
+            filterIds.indexOf('second-id'),
+        );
+    });
+
+    it('stores a list with a member ref away from its section as given', async () => {
+        const member = defaultList[4];
+        const saved = await upload(
+            withList(download(withoutOrder(), true, true), [
+                member,
+                ...defaultList.slice(0, 4),
+            ]),
+            { saved: withoutOrder() as DashboardDAO },
+        );
+        expect(saved.config?.controlOrder).toEqual([
+            { kind: 'filter', id: 'second-id' },
+            { kind: 'filter', id: 'first-id' },
+            { kind: 'filter', id: 'metric-id' },
+            { kind: 'parameter', id: 'region-id' },
+            { kind: 'section', id: 'section-id', newLine: true },
+        ]);
+    });
+
+    const uploadNeverReordered = (
+        file: DashboardAsCode,
+        controlOrder: AnyType,
+    ) =>
+        upload(
+            { ...file, config: { ...file.config!, controlOrder } },
+            { saved: withoutOrder() as DashboardDAO },
+        );
+
+    // The bar as a download writes it, with derived slugs
+    const barOf = (saved: AnyType) =>
+        getControlOrderAsCode({
+            controlOrder: saved.config!.controlOrder,
+            filters: saved.filters,
+            parameterControls: saved.config!.parameterControls!,
+            sections: saved.config!.controlSections!,
+        }).map(({ kind, slug, newLine }) => [kind, slug, newLine ?? false]);
+
+    it('stores a partial list that puts a saved control first', async () => {
+        const saved = await uploadNeverReordered(
+            download(withoutOrder(), true),
+            [{ kind: DashboardControlRefKind.PARAMETER, slug: 'region' }],
+        );
+        expect(saved.config?.controlOrder).toEqual([
+            { kind: 'parameter', id: 'region-id' },
+        ]);
+        expect(barOf(saved)).toEqual([
+            ['parameter', 'region', false],
+            ['filter', 'orders-status', false],
+            ['filter', 'orders-total', false],
+            ['section', 'calendar', false],
+            ['filter', 'orders-city', false],
+        ]);
+    });
+
+    it('stores a list that only places a section on its own line', async () => {
+        const saved = await uploadNeverReordered(
+            download(withoutOrder(), true),
+            [
+                {
+                    kind: DashboardControlRefKind.SECTION,
+                    slug: 'calendar',
+                    newLine: true,
+                },
+            ],
+        );
+        expect(saved.config?.controlOrder).toEqual([
+            { kind: 'section', id: 'section-id', newLine: true },
+        ]);
+    });
+
+    it('stores a list that renders the default bar as given', async () => {
+        const saved = await uploadNeverReordered(
+            download(withoutOrder(), true, true),
+            defaultList,
+        );
+        expect(saved.config?.controlOrder).toEqual([
+            { kind: 'filter', id: 'first-id' },
+            { kind: 'filter', id: 'metric-id' },
+            { kind: 'parameter', id: 'region-id' },
+            { kind: 'section', id: 'section-id', newLine: true },
+            { kind: 'filter', id: 'second-id' },
+        ]);
+    });
+
+    // The saved dashboard as the first upload left it
+    const afterUpload = (result: AnyType) =>
+        ({
+            ...withoutOrder(),
+            filters: result.filters,
+            config: result.config,
+        }) as DashboardDAO;
+
+    it('stores an order when an agent adds a filter without a ref, the filter trailing the bar', async () => {
+        const saved = await upload(
+            withCountryFilter(
+                withList(download(withoutOrder(), true, true), defaultList),
+            ),
+            { saved: withoutOrder() as DashboardDAO },
+        );
+        expect(saved.config?.controlOrder).toBeDefined();
+        expect(barOf(saved)).toEqual([
+            ['filter', 'orders-status', false],
+            ['filter', 'orders-total', false],
+            ['parameter', 'region', false],
+            ['section', 'calendar', true],
+            ['filter', 'orders-city', false],
+            ['filter', 'orders-country', false],
+        ]);
+    });
+
+    it.each([
+        [
+            'a partial list',
+            () => ({
+                ...download(withoutOrder(), true),
+                config: {
+                    ...download(withoutOrder(), true).config!,
+                    controlOrder: [
+                        {
+                            kind: DashboardControlRefKind.PARAMETER,
+                            slug: 'region',
+                        },
+                    ],
+                },
+            }),
+        ],
+        [
+            'a filter added without a ref',
+            () =>
+                withCountryFilter(
+                    withList(download(withoutOrder(), true, true), defaultList),
+                ),
+        ],
+    ])(
+        'stores the same result when %s is uploaded twice',
+        async (_name, makeFile) => {
+            const first = await upload(makeFile() as DashboardAsCode, {
+                saved: withoutOrder() as DashboardDAO,
+            });
+            const second = await upload(makeFile() as DashboardAsCode, {
+                saved: afterUpload(first),
+            });
+            expect(second.config?.controlOrder).toEqual(
+                first.config?.controlOrder,
+            );
+            expect(barOf(second)).toEqual(barOf(first));
+        },
+    );
+
+    it('stores no order for an empty list', async () => {
+        const saved = await uploadNeverReordered(
+            download(withoutOrder(), true),
+            [],
+        );
+        expect(saved.config).not.toHaveProperty('controlOrder');
+    });
+
+    it('stores no order when an agent read is sent back unchanged', async () => {
+        const saved = await upload(download(withoutOrder(), true, true), {
+            saved: withoutOrder() as DashboardDAO,
+        });
+        expect(saved.config).not.toHaveProperty('controlOrder');
+    });
+
+    it('stores a partial list on create', async () => {
+        const service = buildService();
+        service.projectService = {
+            projectParametersModel: {
+                find: vi.fn(async () => [
+                    { name: 'region', config: { label: 'Region' } },
+                ]),
+            },
+        } as AnyType;
+        (service as AnyType).projectModel.findExploresFromCache = vi.fn(
+            async () => ({}),
+        );
+        vi.mocked(service.dashboardModel.find).mockResolvedValue([]);
+        vi.spyOn(
+            service as AnyType,
+            'assertContentAccessForMissingSpace',
+        ).mockResolvedValue(undefined);
+        vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
+            space: { uuid: SPACE_UUID },
+            created: false,
+        } as AnyType);
+        vi.spyOn(
+            service as AnyType,
+            'assertSpaceContentAccess',
+        ).mockResolvedValue(undefined);
+        vi.mocked(service.dashboardModel.create).mockRejectedValue(
+            new Error('stop after config'),
+        );
+        const file = download(withoutOrder(), true);
+        await expect(
+            service.upsertDashboard(
+                makeSessionUser([
+                    { subject: 'ContentAsCode', action: 'manage' },
+                    { subject: 'Dashboard', action: 'create' },
+                ]),
+                PROJECT_UUID,
+                'dashboard',
+                {
+                    ...file,
+                    config: {
+                        ...file.config!,
+                        controlOrder: [
+                            {
+                                kind: DashboardControlRefKind.PARAMETER,
+                                slug: 'region',
+                            },
+                        ],
+                    },
+                },
+            ),
+        ).rejects.toThrow('stop after config');
+        const created = vi.mocked(service.dashboardModel.create).mock
+            .calls[0][1] as AnyType;
+        expect(created.config.controlOrder).toEqual([
+            { kind: 'parameter', id: created.config.parameterControls[0].id },
+        ]);
+    });
+
+    it('stores the order when an agent edit moves a ref', async () => {
+        const [first, ...rest] = defaultList;
+        const saved = await uploadNeverReordered(
+            download(withoutOrder(), true, true),
+            [...rest, first],
+        );
+        expect(saved.config?.controlOrder).toEqual([
+            { kind: 'filter', id: 'metric-id' },
+            { kind: 'parameter', id: 'region-id' },
+            { kind: 'section', id: 'section-id', newLine: true },
+            { kind: 'filter', id: 'second-id' },
+            { kind: 'filter', id: 'first-id' },
+        ]);
+    });
+
+    it('keeps storing a list that renders the default bar once an order is stored', async () => {
+        const saved = await upload(
+            withList(download(savedDashboard(), true, true), defaultList),
+        );
+        expect(saved.config?.controlOrder).toEqual([
+            { kind: 'filter', id: 'first-id' },
+            { kind: 'filter', id: 'metric-id' },
+            { kind: 'parameter', id: 'region-id' },
+            { kind: 'section', id: 'section-id', newLine: true },
+            { kind: 'filter', id: 'second-id' },
+        ]);
+    });
+
+    it('resets the order when the file has none', async () => {
+        const file = download(savedDashboard(), true);
+        const { controlOrder: _order, ...config } = file.config!;
+        const saved = await upload({ ...file, config });
+        expect(saved.config).not.toHaveProperty('controlOrder');
+    });
+
+    it.each([
+        [
+            'an unknown slug',
+            [{ kind: 'filter', slug: 'missing' }],
+            'Unknown filter slug "missing"',
+        ],
+        [
+            'a duplicate ref',
+            [
+                { kind: 'section', slug: 'calendar' },
+                { kind: 'section', slug: 'calendar' },
+            ],
+            'The section "calendar" appears more than once',
+        ],
+        [
+            'a date zoom ref',
+            [{ kind: 'dateZoom', slug: 'zoom' }],
+            'Date zoom controls cannot be ordered yet',
+        ],
+        [
+            'a non-boolean newLine',
+            [{ kind: 'section', slug: 'calendar', newLine: 'yes' }],
+            'Invalid newLine on the section "calendar"',
+        ],
+        [
+            'a malformed ref',
+            [{ kind: 'filter', id: 'first-id' }],
+            'Invalid entry {"kind":"filter","id":"first-id"}',
+        ],
+    ])(
+        'rejects %s and lists the valid slugs',
+        async (_name, order, message) => {
+            expect(await rejection(withOrder(order))).toBe(
+                `${message} in controlOrder. ${validSlugs}`,
+            );
+        },
+    );
+
+    it('rejects parameter refs when the file stores no parameter controls', async () => {
+        const file = withOrder([{ kind: 'parameter', slug: 'region' }]);
+        const { parameterControls: _controls, ...config } = file.config;
+        expect(await rejection({ ...file, config })).toBe(
+            'Unknown parameter slug "region" in controlOrder. Valid slugs are filter: orders-status, orders-city, orders-total; parameter: none; section: calendar',
+        );
+    });
+
+    it.each([
+        [
+            'a duplicated slug',
+            'orders-status',
+            'Dashboard filter slug "orders-status" is duplicated',
+        ],
+        [
+            'a malformed slug',
+            'Orders Status',
+            'Invalid dashboard filter slug "Orders Status"',
+        ],
+    ])('rejects %s on filters', async (_name, slug, message) => {
+        const file = download(savedDashboard(), true);
+        const [first] = file.filters!.dimensions!;
+        const [metric] = file.filters!.metrics!;
+        expect(
+            await rejection({
+                ...file,
+                filters: {
+                    ...file.filters,
+                    dimensions: [{ ...first, slug }],
+                    metrics: [{ ...metric, slug: 'orders-status' }],
+                },
+            }),
+        ).toBe(message);
+    });
+
+    it('looks up the flag for filter slugs alone and drops them when it is off', async () => {
+        const saved = withoutOrder();
+        const { parameterControls: _controls, ...config } = saved.config!;
+        const plain = { ...saved, config } as DashboardDAO;
+        const file = download(savedDashboard(), true);
+        const { controlOrder: _order, ...fileConfig } = file.config!;
+        const { parameterControls: _fileControls, ...withoutControls } =
+            fileConfig;
+        const [first, second] = file.filters!.dimensions!;
+        const result = await upload(
+            {
+                ...file,
+                filters: {
+                    ...file.filters,
+                    dimensions: [first, { ...second, slug: first.slug }],
+                },
+                config: withoutControls,
+            },
+            { enabled: false, saved: plain },
+        );
+        expect(result.config).not.toHaveProperty('controlOrder');
+        expect(JSON.stringify(result.filters)).not.toContain('"slug"');
+    });
+
+    it('ignores duplicated filter slugs with the flag off', async () => {
+        const file = download(savedDashboard(), true);
+        const [first, second] = file.filters!.dimensions!;
+        const result = await upload(
+            {
+                ...file,
+                filters: {
+                    ...file.filters,
+                    dimensions: [first, { ...second, slug: first.slug }],
+                },
+            },
+            { enabled: false },
+        );
+        expect(result.filters.dimensions).toHaveLength(2);
+    });
+
+    it.each([true, false])(
+        'uploads over saved filters that predate the metric list, flag on: %s',
+        async (enabled) => {
+            const saved = savedDashboard();
+            const { metrics: _metrics, ...filters } = saved.filters;
+            const result = await upload(download(saved, true), {
+                enabled,
+                saved: { ...saved, filters } as unknown as DashboardDAO,
+            });
+            expect(result.config?.controlOrder).toEqual(savedOrder);
+        },
+    );
+
+    it('compares a new order against saved filters that predate the metric list', async () => {
+        const saved = withoutOrder();
+        const { metrics: _metrics, ...filters } = saved.filters;
+        const file = download(saved, true, true);
+        const result = await upload(
+            {
+                ...file,
+                filters: { ...file.filters, metrics: [] },
+                config: {
+                    ...file.config!,
+                    controlOrder: [
+                        {
+                            kind: DashboardControlRefKind.PARAMETER,
+                            slug: 'region',
+                        },
+                    ],
+                },
+            },
+            { saved: { ...saved, filters } as unknown as DashboardDAO },
+        );
+        expect(result.config?.controlOrder).toEqual([
+            { kind: 'parameter', id: 'region-id' },
+        ]);
+    });
+
+    it('mints an id for a hand-written metric filter the order points at', async () => {
+        const file = download(savedDashboard(), true);
+        const [{ id: _id, ...metric }] = file.filters!.metrics!;
+        const result = await upload({
+            ...file,
+            filters: { ...file.filters, metrics: [metric as AnyType] },
+        });
+        const metricId = result.filters.metrics[0].id;
+        expect(metricId).toMatch(/^[0-9a-f-]{36}$/);
+        expect(result.config?.controlOrder).toContainEqual({
+            kind: 'filter',
+            id: metricId,
+        });
+    });
+
+    it('ignores the order and filter slugs in the file with the flag off', async () => {
+        const file = download(savedDashboard(), true);
+        const [first, second] = file.filters!.dimensions!;
+        const result = await upload(
+            {
+                ...file,
+                filters: {
+                    ...file.filters,
+                    dimensions: [{ ...first, slug: 'renamed' }, second],
+                },
+                config: {
+                    ...file.config!,
+                    controlOrder: [
+                        {
+                            kind: DashboardControlRefKind.SECTION,
+                            slug: 'calendar',
+                        },
+                    ],
+                },
+            },
+            { enabled: false },
+        );
+        expect(result.config?.controlOrder).toEqual(savedOrder);
+        expect(result.filters.dimensions.map(({ id }) => id)).toEqual([
+            'first-id',
+            'second-id',
+        ]);
+        expect(result.filters.dimensions[0]).not.toHaveProperty('slug');
+    });
+
+    it('stores a hand-written metric filter without an id with the flag off', async () => {
+        const file = withOrder([{ kind: 'filter', slug: 'orders-total' }]);
+        const [{ id: _id, ...metric }] = file.filters!.metrics!;
+        const { slug: _slug, ...stored } = metric;
+        const result = await upload(
+            {
+                ...file,
+                filters: { ...file.filters, metrics: [metric as AnyType] },
+            },
+            { enabled: false },
+        );
+        expect(result.filters.metrics).toStrictEqual([stored]);
+        expect(result.config?.controlOrder).toBe(savedOrder);
+    });
+
+    it('keeps no ids from the source when uploading into another project', async () => {
+        const source = savedDashboard();
+        const target = {
+            ...source,
+            filters: { dimensions: [], metrics: [], tableCalculations: [] },
+            config: { isDateZoomDisabled: false },
+        } as unknown as DashboardDAO;
+        const result = await upload(download(source, true), {
+            saved: target,
+        });
+        const ids = [
+            ...result.filters.dimensions.map(({ id }) => id),
+            ...result.config!.parameterControls!.map(({ id }) => id),
+            ...result.config!.controlSections!.map(({ id }) => id),
+        ];
+        expect(ids).toHaveLength(4);
+        ids.forEach((id) => expect(id).toMatch(/^[0-9a-f-]{36}$/));
+    });
+
+    describe('section and parameter control identity', () => {
+        const regionControl = (id: string, label: string) => ({
+            id,
+            label,
+            value: null,
+            valueType: { type: 'string', multiple: false },
+            parameters: { region: 'all' },
+        });
+        const withControls = (
+            controlSections: AnyType[],
+            parameterControls: AnyType[],
+        ) =>
+            savedDashboard({
+                controlSections,
+                parameterControls,
+                controlOrder: undefined,
+            });
+        const uploadIds = async (
+            saved: DashboardDAO,
+            edit: (file: DashboardAsCode) => DashboardAsCode = (file) => file,
+        ) => {
+            const result = await upload(edit(download(saved, true)), {
+                saved,
+            });
+            return {
+                sections: result.config!.controlSections!.map(({ id }) => id),
+                parameters: result.config!.parameterControls!.map(
+                    ({ id }) => id,
+                ),
+            };
+        };
+
+        it('keeps the id of a uniquely named section or labelled control', async () => {
+            const ids = await uploadIds(
+                withControls(
+                    [
+                        { id: 'section-id', name: 'Calendar' },
+                        { id: 'other-id', name: 'Other' },
+                    ],
+                    [regionControl('region-id', 'Region')],
+                ),
+            );
+            expect(ids).toEqual({
+                sections: ['section-id', 'other-id'],
+                parameters: ['region-id'],
+            });
+        });
+
+        it('mints ids for two sections with one name and two controls with one label', async () => {
+            const ids = await uploadIds(
+                withControls(
+                    [
+                        { id: 'section-id', name: 'Calendar' },
+                        { id: 'twin-id', name: 'Calendar' },
+                    ],
+                    [
+                        regionControl('region-id', 'Region'),
+                        {
+                            ...regionControl('twin-control-id', 'Region'),
+                            parameters: { country: 'all' },
+                        },
+                    ],
+                ),
+            );
+            [...ids.sections, ...ids.parameters].forEach((id) =>
+                expect(id).not.toMatch(
+                    /section-id|twin-id|region-id|twin-control-id/,
+                ),
+            );
+            expect(new Set(ids.sections).size).toBe(2);
+            expect(new Set(ids.parameters).size).toBe(2);
+        });
+
+        it('mints an id for a section or control renamed in the file', async () => {
+            const ids = await uploadIds(
+                withControls(
+                    [{ id: 'section-id', name: 'Calendar' }],
+                    [regionControl('region-id', 'Region')],
+                ),
+                (file) => ({
+                    ...file,
+                    config: {
+                        ...file.config!,
+                        controlSections: [
+                            {
+                                ...file.config!.controlSections![0],
+                                name: 'Dates',
+                            },
+                        ],
+                        parameterControls: [
+                            {
+                                ...file.config!.parameterControls![0],
+                                label: 'Area',
+                            },
+                        ],
+                    },
+                }),
+            );
+            expect(ids.sections[0]).not.toBe('section-id');
+            expect(ids.parameters[0]).not.toBe('region-id');
+        });
+
+        it('ignores a stored section or control slug on download', () => {
+            const file = download(
+                withControls(
+                    [{ id: 'section-id', name: 'Calendar', slug: 'custom' }],
+                    [{ ...regionControl('region-id', 'Region'), slug: 'kept' }],
+                ),
+                true,
+            );
+            expect(file.config?.controlSections?.[0].slug).toBe('calendar');
+            expect(file.config?.parameterControls?.[0].slug).toBe('region');
+        });
+    });
+});

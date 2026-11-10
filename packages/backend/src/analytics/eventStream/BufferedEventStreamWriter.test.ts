@@ -78,6 +78,44 @@ describe('BufferedEventStreamWriter', () => {
         s3Mocks.putObject.mockResolvedValue({});
     });
 
+    it('bounds uploads to eight groups while capturing every organization', async () => {
+        let active = 0;
+        let maximum = 0;
+        s3Mocks.putObject.mockImplementation(async () => {
+            active += 1;
+            maximum = Math.max(maximum, active);
+            await new Promise((resolve) => {
+                setTimeout(resolve, 1);
+            });
+            active -= 1;
+            return {};
+        });
+        const writer = createWriter(metrics);
+        for (let index = 0; index < 100; index += 1)
+            writer.push('query_events', row({ org_id: `org-${index}` }));
+        await writer.flush();
+        expect(maximum).toBeGreaterThan(0);
+        expect(maximum).toBeLessThanOrEqual(8);
+        expect(s3Mocks.putObject).toHaveBeenCalledTimes(100);
+        await writer.close();
+    });
+
+    it('bounds the buffer and contains upload failures', async () => {
+        s3Mocks.putObject.mockRejectedValue(new Error('storage unavailable'));
+        const writer = createWriter(metrics, { bufferMaxSize: 2 });
+        expect(() => {
+            writer.push('query_events', row());
+            writer.push('query_events', row());
+            writer.push('query_events', row());
+        }).not.toThrow();
+        expect(s3Mocks.putObject).not.toHaveBeenCalled();
+        expect(metrics.incrementUsageEventsDropped).toHaveBeenCalledOnce();
+        await expect(writer.flush()).resolves.toBeUndefined();
+        expect(s3Mocks.putObject).toHaveBeenCalledTimes(3);
+        expect(metrics.incrementUsageEventsPutFailure).toHaveBeenCalledOnce();
+        await writer.close();
+    });
+
     it('writes rows as gzipped JSONL under the partitioned raw zone key', async () => {
         const writer = createWriter(metrics);
         const testRow = row();

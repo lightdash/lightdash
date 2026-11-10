@@ -10,6 +10,7 @@ import {
     Project,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
+import { assertAgentCommandAllowed } from '../../agentConnections/commandPolicy';
 import { LightdashAnalytics } from '../../analytics/analytics';
 import { getConfig } from '../../config';
 import GlobalState from '../../globalState';
@@ -93,6 +94,7 @@ type RefreshHandlerOptions = {
 };
 
 export const refreshHandler = async (options: RefreshHandlerOptions) => {
+    assertAgentCommandAllowed('refresh');
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
     const executionId = uuidv4();

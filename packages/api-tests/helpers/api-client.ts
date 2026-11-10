@@ -17,6 +17,7 @@ type ApiResponse<T = unknown> = {
     ok: boolean;
     status: number;
     body: T;
+    headers: Headers;
 };
 
 // Errors raised before the request was sent, so any method is safe to retry.
@@ -159,6 +160,7 @@ export class ApiClient {
             ok: resp.ok,
             status: resp.status,
             body: respBody,
+            headers: resp.headers,
         };
     }
 

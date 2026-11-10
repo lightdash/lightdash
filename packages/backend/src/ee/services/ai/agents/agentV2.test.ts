@@ -1,4 +1,9 @@
-import { type AnyType } from '@lightdash/common';
+import {
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
+    type AnyType,
+} from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import {
     APICallError,
     asSchema,
@@ -12,7 +17,10 @@ import {
     registerAiUsageTracker,
     type AiUsageEvent,
 } from '../../../../analytics/aiUsage';
-import { validExplore } from '../../../../services/ProjectService/ProjectService.mock';
+import {
+    metricQueryMock,
+    validExplore,
+} from '../../../../services/ProjectService/ProjectService.mock';
 import { MCP_UNTRUSTED_OUTPUT_NOTICE } from '../AiAgentMcpRuntimeClient';
 import { AiDecisionClient } from '../decisions/AiDecisionClient';
 import { getLoadAgentTools } from '../tools/loadAgentTools';
@@ -26,6 +34,7 @@ import {
     AiAgentEmptyResponseError,
     AiAgentStepCapReachedError,
     EMPTY_RESPONSE_MESSAGE,
+    OUTPUT_LIMIT_REACHED_MESSAGE,
     PROVIDER_BILLING_MESSAGE,
     STEP_CAP_REACHED_MESSAGE,
 } from '../utils/errorMessages';
@@ -44,6 +53,7 @@ import {
     getDataAnswerFastResponse,
     getDataAppBuildFastResponse,
     getDeepResearchBudgetInstruction,
+    getDocumentNudgeOutcome,
     getDocumentWriteFastResponse,
     getFastDataAnswerPreparedContext,
     getPromptMcpServers,
@@ -51,13 +61,20 @@ import {
     getStepBudgetOverride,
     normalizeToolOutput,
     recordAgentStepUsage,
+    resolveAgentLoadout,
     scopeAgentConversation,
+    shouldOfferDocument,
     storeInvalidAgentToolCall,
     streamAgentResponse,
     withEarlyToolProgress,
     type AgentMcpToolSetup,
 } from './agentV2';
 import { createIntentToolGate } from './referenceToolGating';
+
+vi.mock('@sentry/node', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@sentry/node')>()),
+    captureException: vi.fn(() => 'test-event'),
+}));
 
 vi.mock('ai', async (importOriginal) => ({
     ...(await importOriginal<typeof import('ai')>()),
@@ -93,20 +110,21 @@ const buildAgentArgs = (
             projectUuid: 'project-1',
         },
         aiAgentMemoryEnabled: false,
-        availableSkills: [],
+        builtInSkills: [],
+        customSkills: [],
         callOptions: {},
         canManageAgent: false,
         canRunSql: true,
+        liveSources: [],
         compactionSummary: null,
         debugLoggingEnabled: false,
         deepResearchRuns: [],
         enableAiWriteback: false,
-        enableCodingAgent: false,
+        enableContentReads: false,
         enableContentTools: false,
         enableDataAccess: false,
         enableDataAnswerFastResponse: false,
         enableEditProjectContext: false,
-        enablePreviewDeploySetup: false,
         enableRepoDiscovery: false,
         execution,
         forceToolHints: false,
@@ -140,6 +158,11 @@ const mcpToolSetup = () => ({
     unavailableMcpServers: [],
     closeMcpClients: vi.fn().mockResolvedValue(undefined),
 });
+
+const loadoutFor = (
+    args: AiAgentArgs,
+    setup: AgentMcpToolSetup = mcpToolSetup(),
+) => resolveAgentLoadout(args, setup, { types: [], totalCount: 0 });
 
 describe('flags-off agent turns', () => {
     it.each(['generate', 'stream'] as const)(
@@ -204,14 +227,11 @@ describe('flags-off agent turns', () => {
                 expect(options.experimental_repairToolCall).toBeUndefined();
                 expect(options.tools).toHaveProperty('generateVisualization');
                 expect(options.tools).toHaveProperty('loadProjectContext');
-                for (const tool of [
-                    'runQuery',
-                    'exportChartAsCode',
-                    'loadAgentTools',
-                ])
-                    expect(options.tools).not.toHaveProperty(tool);
+                expect(options.tools).toHaveProperty('runQuery');
+                expect(options.tools).toHaveProperty('exportChartAsCode');
+                expect(options.tools).not.toHaveProperty('loadAgentTools');
                 expect(JSON.stringify(options.messages)).toContain(
-                    'Call the `loadProjectContext` tool BEFORE grepFields',
+                    'Load it with `loadProjectContext` before discovery',
                 );
                 expect(
                     options.tools.generateVisualization.description,
@@ -274,7 +294,9 @@ describe('MCP context preparation at the agent boundary', () => {
             );
             const getProjectContextDocument = vi.fn();
             const getAiAgentMemoryContextEntries = vi.fn();
+            const assertToolOperation = vi.fn().mockResolvedValue(undefined);
             Object.assign(dependencies, {
+                assertToolOperation,
                 consumePromptSteers: async () => [],
                 updateProgress: vi.fn().mockResolvedValue(undefined),
                 getProjectContextDocument,
@@ -316,7 +338,7 @@ describe('MCP context preparation at the agent boundary', () => {
             expect(messages).toContain('Revenue excludes refunds.');
             expect(messages).toContain('partial selection');
             expect(messages).not.toContain(
-                'Call the `loadProjectContext` tool BEFORE',
+                'Load it with `loadProjectContext` before discovery',
             );
             expect(options.tools).toHaveProperty('loadProjectContext');
             expect(options.experimental_repairToolCall).toEqual(
@@ -334,9 +356,38 @@ describe('MCP context preparation at the agent boundary', () => {
             expect(firstStep.activeTools).not.toContain(
                 'generateVisualization',
             );
+            assertToolOperation.mockRejectedValueOnce(
+                new AiAccessRefusedError(
+                    AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                ),
+            );
+            await expect(
+                options.tools.loadAgentTools.execute(
+                    {},
+                    { toolCallId: 'denied-load', messages: options.messages },
+                ),
+            ).resolves.toMatchObject({
+                structuredContent: {
+                    refusal: {
+                        reason: AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    },
+                },
+            });
+            expect(
+                (
+                    await options.prepareStep({
+                        stepNumber: 1,
+                        messages: options.messages,
+                    })
+                ).activeTools,
+            ).not.toContain('generateVisualization');
             await options.tools.loadAgentTools.execute(
                 {},
                 { toolCallId: 'load', messages: options.messages },
+            );
+            expect(assertToolOperation).toHaveBeenCalledWith(
+                'agent_tool',
+                'loadAgentTools',
             );
             const nextStep = await options.prepareStep({
                 stepNumber: 1,
@@ -585,6 +636,22 @@ describe('empty finishes and interrupts', () => {
         finishReason: 'tool-calls',
     };
 
+    const lengthFinish: Awaited<ReturnType<MockLanguageModelV4['doGenerate']>> =
+        {
+            content: [],
+            finishReason: { unified: 'length', raw: 'max_tokens' },
+            usage: {
+                inputTokens: {
+                    total: 1,
+                    noCache: 1,
+                    cacheRead: 0,
+                    cacheWrite: 0,
+                },
+                outputTokens: { total: 10, text: 0, reasoning: 10 },
+            },
+            warnings: [],
+        };
+
     const buildInterruptibleDependencies = (interrupted: boolean) => {
         const updatePrompt = vi.fn().mockResolvedValue(undefined);
         const dependencies = buildAgentDependencies(updatePrompt);
@@ -614,6 +681,7 @@ describe('empty finishes and interrupts', () => {
                 }),
                 isThreadSqlAutoApproved: async () => autoApproved,
                 recordSqlApproval: async () => true,
+                listSqlApprovalDecisions: async () => [],
                 updateProgress: vi.fn().mockResolvedValue(undefined),
                 runSqlJob,
                 consumePromptSteers: async () => [],
@@ -668,11 +736,96 @@ describe('empty finishes and interrupts', () => {
                 }),
             ).resolves.toBe(autoApproved ? 'The answer is 1.' : '');
             expect(runSqlJob).toHaveBeenCalledTimes(autoApproved ? 1 : 0);
+            // Only the final answer is persisted; step updates would mark the
+            // prompt responded mid-run.
+            expect(
+                updatePrompt.mock.calls
+                    .map(([update]) => update)
+                    .filter((update) => 'response' in update)
+                    .map((update) => update.response),
+            ).toEqual([autoApproved ? 'The answer is 1.' : '']);
             expect(updatePrompt).not.toHaveBeenCalledWith(
                 expect.objectContaining({ errorMessage: expect.any(String) }),
             );
         },
     );
+
+    it('generate: tracks a timed-out SQL approval with the run identifiers', async () => {
+        const { generateText: generateWithSdk } =
+            await vi.importActual<typeof import('ai')>('ai');
+        vi.mocked(generateText).mockImplementationOnce(generateWithSdk);
+        const { dependencies } = buildInterruptibleDependencies(false);
+        const trackEvent = vi.fn();
+        Object.assign(dependencies, {
+            getPrompt: async () => ({
+                promptUuid: 'prompt-1',
+                threadUuid: 'thread-1',
+                createdByUserUuid: 'prompted-user',
+            }),
+            waitForSqlApproval: async () => 'timeout',
+            listSqlApprovalDecisions: async () => [],
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            consumePromptSteers: async () => [],
+            trackEvent,
+        });
+        const args = buildAgentArgs();
+        let calls = 0;
+        args.model = new MockLanguageModelV4({
+            doGenerate: async () => {
+                calls += 1;
+                return {
+                    content:
+                        calls === 1
+                            ? [
+                                  {
+                                      type: 'tool-call' as const,
+                                      toolCallId: 'sql-call',
+                                      toolName: 'runSql',
+                                      input: '{"sql":"SELECT 1","limit":10}',
+                                  },
+                              ]
+                            : [{ type: 'text' as const, text: 'Timed out.' }],
+                    finishReason: {
+                        unified: calls === 1 ? 'tool-calls' : 'stop',
+                        raw: undefined,
+                    },
+                    usage: {
+                        inputTokens: {
+                            total: 1,
+                            noCache: 1,
+                            cacheRead: 0,
+                            cacheWrite: 0,
+                        },
+                        outputTokens: { total: 1, text: 1, reasoning: 0 },
+                    },
+                    warnings: [],
+                };
+            },
+        });
+
+        await generateAgentResponse({
+            args,
+            dependencies,
+            mcpToolSetup: mcpToolSetup(),
+        });
+
+        expect(trackEvent).toHaveBeenCalledWith({
+            event: 'ai_agent.sql_approval_decided',
+            userId: 'prompted-user',
+            properties: {
+                organizationId: 'organization-1',
+                projectId: 'project-1',
+                aiAgentId: 'agent-1',
+                threadId: 'thread-1',
+                toolCallId: 'sql-call',
+                toolName: 'runSql',
+                decision: 'timed_out',
+                source: 'web',
+                isAutoApproved: false,
+                isThreadAutoApproval: false,
+            },
+        });
+    });
 
     it('generate: replays a persisted rejected SQL approval without executing it again', async () => {
         const { generateText: generateWithSdk } =
@@ -807,6 +960,33 @@ describe('empty finishes and interrupts', () => {
         });
     });
 
+    it('generate: distinguishes output exhaustion from a generic empty response', async () => {
+        const { generateText: generateWithSdk } =
+            await vi.importActual<typeof import('ai')>('ai');
+        vi.mocked(generateText).mockImplementationOnce(generateWithSdk);
+        const { updatePrompt, dependencies } =
+            buildInterruptibleDependencies(false);
+        Object.assign(dependencies, { consumePromptSteers: async () => [] });
+        const args = buildAgentArgs();
+        args.model = new MockLanguageModelV4({ doGenerate: lengthFinish });
+
+        await expect(
+            generateAgentResponse({
+                args,
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            }),
+        ).rejects.toMatchObject({
+            name: 'AiAgentEmptyResponseError',
+            finishReason: 'length',
+        });
+        expect(updatePrompt).toHaveBeenCalledWith(
+            expect.objectContaining({
+                errorMessage: OUTPUT_LIMIT_REACHED_MESSAGE,
+            }),
+        );
+    });
+
     const runStreamOnFinish = async (
         interrupted: boolean,
         execution?: Record<string, unknown>,
@@ -826,7 +1006,7 @@ describe('empty finishes and interrupts', () => {
         });
         expect(capturedOptions.experimental_repairToolCall).toBeUndefined();
         // AI SDK 7: `usage` aggregates every step; the final step keeps its own usage.
-        await capturedOptions.onFinish({
+        await capturedOptions.onEnd({
             usage: { totalTokens: 100 },
             totalUsage: { totalTokens: 100 },
             steps: [{ text: '', usage: { totalTokens: 10 } }],
@@ -861,6 +1041,54 @@ describe('empty finishes and interrupts', () => {
                 errorMessage: EMPTY_RESPONSE_MESSAGE,
             }),
         );
+    });
+
+    it('stream: distinguishes output exhaustion from a generic empty response', async () => {
+        const { streamText: streamWithSdk } =
+            await vi.importActual<typeof import('ai')>('ai');
+        vi.mocked(streamText).mockImplementationOnce(streamWithSdk);
+        const { updatePrompt, dependencies } =
+            buildInterruptibleDependencies(false);
+        Object.assign(dependencies, { consumePromptSteers: async () => [] });
+        const stream: Awaited<
+            ReturnType<MockLanguageModelV4['doStream']>
+        >['stream'] = new ReadableStream({
+            start(controller) {
+                controller.enqueue({ type: 'stream-start', warnings: [] });
+                controller.enqueue({
+                    type: 'finish',
+                    finishReason: lengthFinish.finishReason,
+                    usage: lengthFinish.usage,
+                });
+                controller.close();
+            },
+        });
+        const args = buildAgentArgs();
+        args.model = new MockLanguageModelV4({ doStream: { stream } });
+        const captureException = vi.mocked(Sentry.captureException);
+        captureException.mockClear();
+        try {
+            const result = await streamAgentResponse({
+                args,
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            });
+            await result.consumeStream();
+            expect(captureException).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    name: 'AiAgentEmptyResponseError',
+                    finishReason: 'length',
+                }),
+                expect.anything(),
+            );
+            expect(updatePrompt).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    errorMessage: OUTPUT_LIMIT_REACHED_MESSAGE,
+                }),
+            );
+        } finally {
+            vi.mocked(streamText).mockReset();
+        }
     });
 
     it('generate: still throws the step-cap error at the cap when not interrupted', async () => {
@@ -945,7 +1173,7 @@ describe('generateAgentResponse token usage persistence', () => {
             await stepTotals.reduce(
                 (chain, totalTokens) =>
                     chain.then(() =>
-                        options.onStepFinish({
+                        options.onStepEnd({
                             usage: { totalTokens },
                             toolCalls: [],
                             toolResults: [],
@@ -1777,8 +2005,6 @@ describe('buildDeepResearchExecutionContextSnapshot', () => {
                 ],
                 projectContextEnabled: true,
                 enableAiWriteback: false,
-                enableCodingAgent: false,
-                enablePreviewDeploySetup: false,
                 enableRepoDiscovery: true,
                 execution: {
                     mode: 'deep_research',
@@ -1786,13 +2012,21 @@ describe('buildDeepResearchExecutionContextSnapshot', () => {
                 },
                 repoFsRoot: 'dbt',
                 repoFsSupportsCodeSearch: true,
-                availableSkills: [{ name: 'modeling' }],
                 canManageAgent: false,
                 canRunSql: true,
+                liveSources: [],
                 enableDataAccess: true,
                 enableContentTools: true,
                 autoApproveSql: true,
             } as unknown as AiAgentArgs,
+            [
+                {
+                    name: 'modeling',
+                    description: 'Modeling',
+                    resources: [],
+                    source: 'custom',
+                },
+            ],
             {
                 generateVisualization: {} as never,
                 mcp_github__search_issues: {} as never,
@@ -1941,10 +2175,6 @@ describe('withEarlyToolProgress', () => {
     });
 });
 
-// Change B: the workstream tools (listWorkstreams, closePullRequest) are shared
-// by the general coding agent (editRepo) and the dbt-writeback agent
-// (editDbtProject). Both can now drive several PRs per thread, so the gate
-// widened from `enableCodingAgent` to `enableCodingAgent || enableAiWriteback`.
 describe('getAgentTools workstream tool gate', () => {
     // Tool factories only capture their inputs at construction, so a Proxy that
     // hands back a fresh vi.fn() for every dependency access is enough to build
@@ -1960,12 +2190,13 @@ describe('getAgentTools workstream tool gate', () => {
     };
 
     type ToolFlags = {
-        enableCodingAgent: boolean;
         enableAiWriteback: boolean;
         aiAgentMemoryEnabled?: boolean;
         canCreateDashboards?: boolean;
+        canCreateScheduledDeliveries?: boolean;
         canRunSql?: boolean;
         enableComposerQueries?: boolean;
+        enableContentReads?: boolean;
         enableContentTools?: boolean;
         enableDocuments?: boolean;
         enableDataAccess?: boolean;
@@ -1976,6 +2207,7 @@ describe('getAgentTools workstream tool gate', () => {
     const buildArgs = (flags: ToolFlags): AiAgentArgs =>
         ({
             canCreateDashboards: true,
+            canCreateScheduledDeliveries: true,
             agentSettings: {
                 uuid: 'agent-1',
                 name: 'test-agent',
@@ -1983,17 +2215,19 @@ describe('getAgentTools workstream tool gate', () => {
             },
             autoApproveSql: false,
             autoApproveSqlUserUuid: null,
-            availableSkills: [],
+            builtInSkills: [],
+            customSkills: [],
             callOptions: {},
             compactionSummary: null,
             canManageAgent: false,
             canRunSql: true,
+            liveSources: [],
             debugLoggingEnabled: false,
+            enableContentReads: flags.enableContentTools ?? false,
             enableContentTools: false,
             enableDataAccess: false,
             enableEditProjectContext: false,
             enableGenerateDataApp: false,
-            enablePreviewDeploySetup: false,
             enableRepoDiscovery: false,
             enableFilterExpressions: false,
             execution: {
@@ -2025,15 +2259,12 @@ describe('getAgentTools workstream tool gate', () => {
     const buildToolsForArgs = (args: AiAgentArgs) =>
         getAgentTools(
             args,
+            loadoutFor(args, mcpStub),
             depsStub(),
             [],
             mcpStub,
             new Map(),
             {},
-            {
-                types: [],
-                totalCount: 0,
-            },
             new AgentContext([]),
         );
 
@@ -2047,7 +2278,6 @@ describe('getAgentTools workstream tool gate', () => {
         async (enabled) => {
             const args = buildArgs({
                 enableDataAccess: true,
-                enableCodingAgent: false,
                 enableAiWriteback: false,
             });
             if (enabled)
@@ -2058,12 +2288,12 @@ describe('getAgentTools workstream tool gate', () => {
                 });
             const tools = getAgentTools(
                 args,
+                loadoutFor(args, mcpStub),
                 depsStub(),
                 [validExplore],
                 mcpStub,
                 new Map(),
                 {},
-                { types: [], totalCount: 0 },
                 new AgentContext([validExplore]),
             );
             const result = await tools.getMetadata.execute!(
@@ -2079,27 +2309,174 @@ describe('getAgentTools workstream tool gate', () => {
     );
 
     it.each([false, true])(
-        'offers chart export only with fast decisions and data access (data=%s)',
+        'offers chart export only with data access (data=%s)',
         (enableDataAccess) => {
             const args = buildArgs({
-                enableCodingAgent: false,
                 enableAiWriteback: false,
                 enableDataAccess,
             });
-            expect(buildToolsForArgs(args)).not.toHaveProperty(
-                'exportChartAsCode',
+            expect('exportChartAsCode' in buildToolsForArgs(args)).toBe(
+                enableDataAccess,
             );
-            const enabled = buildToolsForArgs({
-                ...args,
-                decisions: new AiDecisionClient({
-                    apiKey: null,
-                    model: 'test',
-                    timeoutMs: 100,
-                }),
-            });
-            expect('exportChartAsCode' in enabled).toBe(enableDataAccess);
         },
     );
+
+    it('loads only the skills the run lists', async () => {
+        const args = {
+            ...buildArgs({
+                enableAiWriteback: false,
+                enableDataAccess: true,
+            }),
+            builtInSkills: [
+                {
+                    name: 'developing-in-lightdash',
+                    description: 'Charts and dashboards',
+                    resources: [],
+                    source: 'builtIn' as const,
+                },
+            ],
+            customSkills: [
+                {
+                    name: 'revenue-review',
+                    description: 'Revenue reviews',
+                    resources: [],
+                    source: 'custom' as const,
+                },
+            ],
+        };
+        const loadSkill = vi.fn().mockResolvedValue({
+            name: 'revenue-review',
+            body: 'Review revenue.',
+            metadata: {
+                name: 'revenue-review',
+                builtIn: false,
+                uuid: null,
+                versionNumber: null,
+                contentHash: null,
+            },
+        });
+        const dependencies = new Proxy(
+            { loadSkill },
+            { get: (target, key) => Reflect.get(target, key) ?? vi.fn() },
+        ) as unknown as AiAgentDependencies;
+        const tools = getAgentTools(
+            args,
+            loadoutFor(args, mcpStub),
+            dependencies,
+            [],
+            mcpStub,
+            new Map(),
+            {},
+            new AgentContext([]),
+        );
+        const load = (name: string) =>
+            tools.loadSkill.execute!(
+                { name, resourceName: null, arguments: null },
+                { toolCallId: name, messages: [], context: {} },
+            );
+
+        expect(JSON.stringify(await load('developing-in-lightdash'))).toContain(
+            'was not found',
+        );
+        expect(JSON.stringify(await load('Revenue-Review'))).toContain(
+            'Review revenue.',
+        );
+    });
+
+    it('registers Slack chart images for delivery', async () => {
+        const args = buildArgs({
+            enableAiWriteback: false,
+            enableDataAccess: true,
+        });
+        const deferSlackVisualization = vi.fn().mockResolvedValue(undefined);
+        const dependencies = new Proxy(
+            {
+                deferSlackVisualization,
+                getPrompt: vi.fn().mockResolvedValue({
+                    organizationUuid: 'org-1',
+                    projectUuid: 'project-1',
+                    agentUuid: 'agent-1',
+                    promptUuid: 'prompt-1',
+                    threadUuid: 'thread-1',
+                    threadCreatedFrom: 'slack',
+                    threadEmbedSpaceUuid: null,
+                    externalUserId: null,
+                    createdByUserUuid: 'user-1',
+                    userUuid: 'user-1',
+                    prompt: 'Show a bar chart',
+                    createdAt: new Date('2026-10-19T00:00:00Z'),
+                    response: null,
+                    errorMessage: null,
+                    humanScore: null,
+                    modelConfig: null,
+                    battleProfile: null,
+                    response_slack_ts: 'response-ts',
+                    slackUserId: 'slack-user',
+                    slackChannelId: 'slack-channel',
+                    promptSlackTs: 'prompt-ts',
+                    slackThreadTs: 'thread-ts',
+                }),
+                runAsyncQuery: vi.fn().mockResolvedValue({
+                    queryUuid: '11111111-1111-4111-8111-111111111111',
+                    rows: [{ a_dim1: 'one', a_met1: 1 }],
+                    cacheMetadata: { cacheHit: false },
+                    fields: {},
+                }),
+                createOrUpdateArtifact: vi.fn().mockResolvedValue({
+                    artifactUuid: 'artifact-1',
+                    versionUuid: 'version-1',
+                }),
+            },
+            { get: (target, key) => Reflect.get(target, key) ?? vi.fn() },
+        ) as unknown as AiAgentDependencies;
+        const tools = getAgentTools(
+            args,
+            loadoutFor(args, mcpStub),
+            dependencies,
+            [validExplore],
+            mcpStub,
+            new Map(),
+            {},
+            new AgentContext([validExplore]),
+        );
+        await tools.generateVisualization.execute!(
+            {
+                title: 'Bar',
+                description: 'One row',
+                queryConfig: {
+                    exploreName: validExplore.name,
+                    dimensions: metricQueryMock.dimensions,
+                    metrics: metricQueryMock.metrics,
+                    sorts: [],
+                    limit: null,
+                    parameters: null,
+                    customMetrics: null,
+                    tableCalculations: null,
+                    filters: null,
+                },
+                chartConfig: {
+                    defaultVizType: 'bar',
+                    xAxisDimension: 'a_dim1',
+                    yAxisMetrics: ['a_met1'],
+                    groupBy: null,
+                    xAxisType: 'category',
+                    stackBars: null,
+                    lineType: null,
+                    xAxisLabel: 'Dimension',
+                    yAxisLabel: 'Metric',
+                    secondaryYAxisMetric: null,
+                    secondaryYAxisLabel: null,
+                },
+            },
+            { toolCallId: 'viz', messages: [], context: {} },
+        );
+        expect(deferSlackVisualization).toHaveBeenCalledWith(
+            expect.objectContaining({
+                artifactUuid: 'artifact-1',
+                versionUuid: 'version-1',
+            }),
+        );
+    });
 
     it.each([
         [false, false, false],
@@ -2111,20 +2488,20 @@ describe('getAgentTools workstream tool gate', () => {
         [true, true, false],
         [true, true, true],
     ])(
-        'gates Document schemas and instructions together (documents=%s, content=%s, data=%s)',
+        'gates Document and chart schemas and instructions separately (documents=%s, content=%s, data=%s)',
         (enableDocuments, enableContentTools, enableDataAccess) => {
             const args = buildArgs({
-                enableCodingAgent: false,
                 enableAiWriteback: false,
                 enableDocuments,
                 enableContentTools,
                 enableDataAccess,
             });
             const tools = buildToolsForArgs(args);
-            const contentEnabled = enableContentTools && enableDataAccess;
-            const documentsEnabled = contentEnabled && enableDocuments;
+            const chartsEnabled = enableContentTools && enableDataAccess;
+            const documentsEnabled = enableDocuments && enableDataAccess;
             const systemMessage = getAgentMessages(
                 args,
+                loadoutFor(args, mcpStub),
                 [],
                 mcpStub,
                 tools,
@@ -2135,24 +2512,47 @@ describe('getAgentTools workstream tool gate', () => {
             if (!systemMessage || typeof systemMessage.content !== 'string') {
                 throw new Error('Expected a string system message');
             }
+            const contentTypes = (name: string): unknown[] => {
+                const { jsonSchema } = asSchema(tools[name].inputSchema);
+                const { type } = (
+                    jsonSchema as {
+                        properties: {
+                            type: { enum?: unknown[]; const?: unknown };
+                        };
+                    }
+                ).properties;
+                return type.enum ?? [type.const];
+            };
 
+            expect(systemMessage.content.includes('## Documents')).toBe(
+                documentsEnabled,
+            );
+            expect(systemMessage.content.includes('## Content tools')).toBe(
+                chartsEnabled,
+            );
             expect(
                 systemMessage.content.includes(
-                    'Create a Document only when the user explicitly asks',
+                    'Want me to save this as a Document you can share?',
                 ),
             ).toBe(documentsEnabled);
-            for (const name of [
-                'createContent',
-                'readContent',
-                'editContent',
-            ]) {
-                expect(Object.hasOwn(tools, name)).toBe(contentEnabled);
-                if (contentEnabled) {
-                    expect(
-                        JSON.stringify(
-                            asSchema(tools[name].inputSchema).jsonSchema,
-                        ).includes('"document"'),
-                    ).toBe(documentsEnabled);
+            // buildArgs ties content reads to the content setting.
+            expect(Object.hasOwn(tools, 'readContent')).toBe(chartsEnabled);
+            if (chartsEnabled) {
+                expect(contentTypes('readContent').includes('document')).toBe(
+                    documentsEnabled,
+                );
+            }
+            for (const name of ['createContent', 'editContent']) {
+                expect(Object.hasOwn(tools, name)).toBe(
+                    chartsEnabled || documentsEnabled,
+                );
+                if (chartsEnabled || documentsEnabled) {
+                    expect(contentTypes(name).includes('document')).toBe(
+                        documentsEnabled,
+                    );
+                    expect(contentTypes(name).includes('chart')).toBe(
+                        chartsEnabled,
+                    );
                 }
             }
         },
@@ -2162,7 +2562,6 @@ describe('getAgentTools workstream tool gate', () => {
         'matches the %s filter prompt to the selected tool contracts',
         (enableFilterExpressions) => {
             const args = buildArgs({
-                enableCodingAgent: false,
                 enableAiWriteback: false,
                 enableDataAccess: true,
                 enableFilterExpressions,
@@ -2170,6 +2569,7 @@ describe('getAgentTools workstream tool gate', () => {
             const tools = buildToolsForArgs(args);
             const systemMessage = getAgentMessages(
                 args,
+                loadoutFor(args, mcpStub),
                 [],
                 mcpStub,
                 tools,
@@ -2204,7 +2604,6 @@ describe('getAgentTools workstream tool gate', () => {
 
     it('exposes listWorkstreams + closePullRequest when AI writeback is enabled (coding agent off)', () => {
         const names = toolNames({
-            enableCodingAgent: false,
             enableAiWriteback: true,
         });
         expect(names).toContain('listWorkstreams');
@@ -2216,12 +2615,10 @@ describe('getAgentTools workstream tool gate', () => {
 
     it('exposes the data app tools only when the data app gate is satisfied', () => {
         const withGate = toolNames({
-            enableCodingAgent: false,
             enableAiWriteback: false,
             enableGenerateDataApp: true,
         });
         const withoutGate = toolNames({
-            enableCodingAgent: false,
             enableAiWriteback: false,
             enableGenerateDataApp: false,
         });
@@ -2229,14 +2626,15 @@ describe('getAgentTools workstream tool gate', () => {
         expect(withGate).toContain('generateDataApp');
         expect(withGate).toContain('iterateDataApp');
         expect(withGate).toContain('listDataAppThemes');
+        expect(withGate).toContain('listDataAppConnections');
         expect(withoutGate).not.toContain('generateDataApp');
         expect(withoutGate).not.toContain('iterateDataApp');
         expect(withoutGate).not.toContain('listDataAppThemes');
+        expect(withoutGate).not.toContain('listDataAppConnections');
     });
 
     it('exposes loadProjectContext when AI agent memory is enabled', () => {
         const names = toolNames({
-            enableCodingAgent: false,
             enableAiWriteback: false,
             aiAgentMemoryEnabled: true,
         });
@@ -2246,7 +2644,6 @@ describe('getAgentTools workstream tool gate', () => {
 
     it('uses grepFields and getMetadata as the only field discovery path', () => {
         const names = toolNames({
-            enableCodingAgent: false,
             enableAiWriteback: false,
         });
 
@@ -2257,7 +2654,6 @@ describe('getAgentTools workstream tool gate', () => {
 
     it('matches dashboard detail guidance to the available content tool', () => {
         const contentTools = buildTools({
-            enableCodingAgent: false,
             enableAiWriteback: false,
             enableContentTools: true,
             enableDataAccess: true,
@@ -2270,7 +2666,6 @@ describe('getAgentTools workstream tool gate', () => {
         );
 
         const legacyTools = buildTools({
-            enableCodingAgent: false,
             enableAiWriteback: false,
             enableContentTools: false,
             enableDataAccess: true,
@@ -2285,9 +2680,35 @@ describe('getAgentTools workstream tool gate', () => {
         );
     });
 
+    it('offers content reads to users who cannot author content', () => {
+        const names = toolNames({
+            enableAiWriteback: false,
+            enableDataAccess: true,
+            enableContentReads: true,
+            enableContentTools: false,
+            canCreateDashboards: false,
+        });
+
+        expect(names).toEqual(
+            expect.arrayContaining([
+                'readContent',
+                'listContent',
+                'runContentQuery',
+            ]),
+        );
+        for (const name of [
+            'createContent',
+            'editContent',
+            'createScheduledDelivery',
+            'getDashboardCharts',
+            'generateDashboard',
+        ]) {
+            expect(names).not.toContain(name);
+        }
+    });
+
     it('withholds generateDashboard from users who cannot save one', () => {
         const names = toolNames({
-            enableCodingAgent: false,
             enableAiWriteback: false,
             canCreateDashboards: false,
         });
@@ -2302,37 +2723,60 @@ describe('getAgentTools workstream tool gate', () => {
     it('exposes generateDashboard when the user can save one', () => {
         expect(
             toolNames({
-                enableCodingAgent: false,
                 enableAiWriteback: false,
                 canCreateDashboards: true,
             }),
         ).toContain('generateDashboard');
     });
 
+    it('withholds createScheduledDelivery from users who cannot schedule', () => {
+        const names = toolNames({
+            enableAiWriteback: false,
+            enableDataAccess: true,
+            enableContentTools: true,
+            canCreateScheduledDeliveries: false,
+        });
+
+        expect(names).not.toContain('createScheduledDelivery');
+        expect(names).toContain('createContent');
+        expect(names).toContain('editContent');
+    });
+
+    it('exposes createScheduledDelivery when the user can schedule', () => {
+        expect(
+            toolNames({
+                enableAiWriteback: false,
+                enableDataAccess: true,
+                enableContentTools: true,
+                canCreateScheduledDeliveries: true,
+            }),
+        ).toContain('createScheduledDelivery');
+    });
+
     it('does not expose loadMcpTools when there are no MCP tools', () => {
         expect(
             toolNames({
-                enableCodingAgent: false,
                 enableAiWriteback: false,
             }),
         ).not.toContain('loadMcpTools');
     });
 
     it('exposes loadMcpTools when live MCP tools are registered', () => {
+        const args = buildArgs({
+            enableAiWriteback: false,
+        });
+        const setup: AgentMcpToolSetup = {
+            ...mcpStub,
+            tools: { mcp_linear__search_issues: {} as never },
+        };
         const tools = getAgentTools(
-            buildArgs({
-                enableCodingAgent: false,
-                enableAiWriteback: false,
-            }),
+            args,
+            loadoutFor(args, setup),
             depsStub(),
             [],
-            {
-                ...mcpStub,
-                tools: { mcp_linear__search_issues: {} as never },
-            },
+            setup,
             new Map(),
             {},
-            { types: [], totalCount: 0 },
             new AgentContext([]),
         );
 
@@ -2369,20 +2813,8 @@ describe('getAgentTools workstream tool gate', () => {
         ).toEqual([{ name: 'Linear', toolNames: ['mcp_linear__get_issue'] }]);
     });
 
-    it('still exposes them for the general coding agent (writeback off) — unchanged', () => {
+    it('omits them when writeback is disabled', () => {
         const names = toolNames({
-            enableCodingAgent: true,
-            enableAiWriteback: false,
-        });
-        expect(names).toContain('listWorkstreams');
-        expect(names).toContain('closePullRequest');
-        expect(names).toContain('getPullRequestDiff');
-        expect(names).toContain('editRepo');
-    });
-
-    it('omits them when neither coding agent nor writeback is enabled', () => {
-        const names = toolNames({
-            enableCodingAgent: false,
             enableAiWriteback: false,
         });
         expect(names).not.toContain('listWorkstreams');
@@ -2392,12 +2824,12 @@ describe('getAgentTools workstream tool gate', () => {
 
     it('withholds runSql when composer queries are enabled — a sql node supersedes it', () => {
         const names = toolNames({
-            enableCodingAgent: false,
             enableAiWriteback: false,
             canRunSql: true,
             enableComposerQueries: true,
         });
-        expect(names).toContain('runComposerQueries');
+        expect(names).toContain('query');
+        expect(names).not.toContain('runComposerQueries');
         expect(names).not.toContain('runSql');
         // The SQL discovery companions stay: composer sql nodes need them.
         expect(names).toContain('listWarehouseTables');
@@ -2406,13 +2838,12 @@ describe('getAgentTools workstream tool gate', () => {
 
     it('keeps runSql when composer queries are disabled', () => {
         const names = toolNames({
-            enableCodingAgent: false,
             enableAiWriteback: false,
             canRunSql: true,
             enableComposerQueries: false,
         });
         expect(names).toContain('runSql');
-        expect(names).not.toContain('runComposerQueries');
+        expect(names).not.toContain('query');
     });
 
     const buildResearchArgs = (
@@ -2420,7 +2851,6 @@ describe('getAgentTools workstream tool gate', () => {
         canUseRawSql = true,
     ) => {
         const args = buildArgs({
-            enableCodingAgent: false,
             enableAiWriteback: true,
         });
         args.canRunSql = canUseRawSql;
@@ -2480,19 +2910,20 @@ describe('getAgentTools workstream tool gate', () => {
             researchMcpToolServers.mcp_external__run_sql = 'external-mcp';
         }
 
+        const setup: AgentMcpToolSetup = {
+            ...mcpStub,
+            tools: researchMcpTools,
+            mcpToolNameToServerUuid: researchMcpToolServers,
+        };
         return Object.keys(
             getAgentTools(
                 args,
+                loadoutFor(args, setup),
                 depsStub(),
                 [],
-                {
-                    ...mcpStub,
-                    tools: researchMcpTools,
-                    mcpToolNameToServerUuid: researchMcpToolServers,
-                },
+                setup,
                 new Map(),
                 {},
-                { types: [], totalCount: 0 },
                 new AgentContext([]),
             ),
         );
@@ -2701,7 +3132,7 @@ describe('buildAgentMessages', () => {
         ).toBeNull();
     });
 
-    it('finishes a document write-up once the document saves cleanly', () => {
+    it('finishes a document write-up with an absolute link once the document saves cleanly', () => {
         const save = (
             output: unknown,
             input: unknown = { type: 'document' },
@@ -2712,6 +3143,7 @@ describe('buildAgentMessages', () => {
                 toolResults: [{ toolCallId: 'save-1', toolName, output }],
             },
         ];
+        const siteUrl = 'https://app.lightdash.cloud/';
         const saved = (warnings: string[] = []) => ({
             result: '<document />',
             metadata: {
@@ -2722,23 +3154,33 @@ describe('buildAgentMessages', () => {
             },
         });
 
-        expect(getDocumentWriteFastResponse(save(saved()))).toBe(
-            'Saved [Revenue \\[Q3\\]](/projects/p/documents/revenue).',
+        expect(getDocumentWriteFastResponse(save(saved()), siteUrl)).toBe(
+            'Saved [Revenue \\[Q3\\]](https://app.lightdash.cloud/projects/p/documents/revenue).',
         );
         expect(
             getDocumentWriteFastResponse(
                 save(saved(), { type: 'document' }, 'editContent'),
+                siteUrl,
             ),
-        ).toBe('Saved [Revenue \\[Q3\\]](/projects/p/documents/revenue).');
+        ).toBe(
+            'Saved [Revenue \\[Q3\\]](https://app.lightdash.cloud/projects/p/documents/revenue).',
+        );
         expect(
-            getDocumentWriteFastResponse(save(saved(['Chart 2 failed']))),
+            getDocumentWriteFastResponse(
+                save(saved(['Chart 2 failed'])),
+                siteUrl,
+            ),
         ).toBeNull();
         expect(
-            getDocumentWriteFastResponse(save(saved(), { type: 'chart' })),
+            getDocumentWriteFastResponse(
+                save(saved(), { type: 'chart' }),
+                siteUrl,
+            ),
         ).toBeNull();
         expect(
             getDocumentWriteFastResponse(
                 save({ result: 'failed', metadata: { status: 'error' } }),
+                siteUrl,
             ),
         ).toBeNull();
     });
@@ -2906,6 +3348,7 @@ describe('buildAgentMessages', () => {
         const messages = (seed?: string) =>
             getAgentMessages(
                 args,
+                loadoutFor(args),
                 [validExplore],
                 mcpToolSetup(),
                 {},
@@ -3047,6 +3490,7 @@ describe('scopeAgentConversation', () => {
         args.forceToolHints = true;
         const messages = getAgentMessages(
             args,
+            loadoutFor(args),
             [],
             mcpToolSetup(),
             {},
@@ -3163,7 +3607,7 @@ describe('external MCP tool call activity', () => {
             }
 
             const finish = (event: Record<string, unknown>) =>
-                options.experimental_onToolCallFinish?.({
+                options.onToolExecutionEnd?.({
                     stepNumber: 0,
                     messages: [],
                     ...event,
@@ -3254,3 +3698,313 @@ describe('external MCP tool call activity', () => {
         },
     );
 });
+
+describe('shouldOfferDocument', () => {
+    const chartTurn = (toolCallId: string): ModelMessage => ({
+        role: 'assistant',
+        content: [
+            {
+                type: 'tool-call',
+                toolCallId,
+                toolName: 'generateVisualization',
+                input: {},
+            },
+        ],
+    });
+
+    it('waits for a chart in an earlier reply', () => {
+        expect(
+            shouldOfferDocument([
+                { role: 'user', content: 'Revenue by month' },
+            ]),
+        ).toBe(false);
+        expect(
+            shouldOfferDocument([
+                { role: 'user', content: 'Revenue by month' },
+                chartTurn('chart-1'),
+                { role: 'user', content: 'Break it down by status' },
+            ]),
+        ).toBe(true);
+    });
+
+    it('offers only once per thread', () => {
+        expect(
+            shouldOfferDocument([
+                { role: 'user', content: 'Revenue by month' },
+                chartTurn('chart-1'),
+                { role: 'user', content: 'Break it down by status' },
+                chartTurn('chart-2'),
+                {
+                    role: 'assistant',
+                    content:
+                        'Here it is.\n\nWant me to save this as a Document you can share?',
+                },
+                { role: 'user', content: 'Which status grew fastest?' },
+            ]),
+        ).toBe(false);
+    });
+
+    it('adds the offer hint to the latest question only when Documents apply', () => {
+        const history: ModelMessage[] = [
+            { role: 'user', content: 'Revenue by month' },
+            chartTurn('chart-1'),
+            { role: 'user', content: 'Break it down by status' },
+        ];
+        const latestQuestion = (documents: boolean) => {
+            const args = buildAgentArgs();
+            args.enableDataAccess = true;
+            args.enableContentTools = true;
+            args.enableDocuments = documents;
+            args.messageHistory = history;
+            return getAgentMessages(
+                args,
+                loadoutFor(args),
+                [],
+                mcpToolSetup(),
+                {},
+                new Map(),
+                null,
+                { types: [], totalCount: 0 },
+            ).findLast((message) => message.role === 'user')?.content;
+        };
+
+        expect(JSON.stringify(latestQuestion(true))).toContain(
+            'end it with this line on its own: \\"Want me to save this as a Document you can share?\\"',
+        );
+        expect(JSON.stringify(latestQuestion(false))).not.toContain(
+            'save this as a Document',
+        );
+    });
+
+    it('stops offering once a Document was saved', () => {
+        expect(
+            shouldOfferDocument([
+                { role: 'user', content: 'Revenue by month' },
+                chartTurn('chart-1'),
+                { role: 'user', content: 'Write it up' },
+                {
+                    role: 'assistant',
+                    content: [
+                        {
+                            type: 'tool-call',
+                            toolCallId: 'document-1',
+                            toolName: 'createContent',
+                            input: { type: 'document' },
+                        },
+                    ],
+                },
+                { role: 'user', content: 'And by region?' },
+            ]),
+        ).toBe(false);
+    });
+});
+
+describe('getDocumentNudgeOutcome', () => {
+    const offer = 'Want me to save this as a Document you can share?';
+    const nudgedArgs = (messageHistory: ModelMessage[]) => {
+        const args = buildAgentArgs();
+        args.enableDataAccess = true;
+        args.enableContentTools = true;
+        args.enableDocuments = true;
+        args.messageHistory = messageHistory;
+        return args;
+    };
+    const documentSave = (output: unknown) => [
+        {
+            toolCalls: [
+                {
+                    toolCallId: 'document-1',
+                    toolName: 'createContent',
+                    input: { type: 'document' },
+                },
+            ],
+            toolResults: [
+                { toolCallId: 'document-1', toolName: 'createContent', output },
+            ],
+        },
+    ];
+    const offeredHistory: ModelMessage[] = [
+        { role: 'user', content: 'Break it down by status' },
+        { role: 'assistant', content: `Here it is.\n\n${offer}` },
+        { role: 'user', content: 'Yes please' },
+    ];
+
+    it('reports the offer when the reply ends with it', () => {
+        expect(
+            getDocumentNudgeOutcome(
+                nudgedArgs([{ role: 'user', content: 'Break it down' }]),
+                [],
+                `Done.\n\n${offer}`,
+            ),
+        ).toEqual({
+            documentNudgesEnabled: true,
+            documentOfferShown: true,
+            documentOfferAccepted: false,
+        });
+    });
+
+    it('reports acceptance when this turn saves a Document after the offer', () => {
+        expect(
+            getDocumentNudgeOutcome(
+                nudgedArgs(offeredHistory),
+                documentSave({ metadata: { status: 'success' } }),
+                'Saved.',
+            ).documentOfferAccepted,
+        ).toBe(true);
+        expect(
+            getDocumentNudgeOutcome(nudgedArgs(offeredHistory), [], 'Okay.')
+                .documentOfferAccepted,
+        ).toBe(false);
+    });
+
+    it('reports nothing when Documents are off', () => {
+        const args = nudgedArgs(offeredHistory);
+        args.enableDocuments = false;
+
+        expect(
+            getDocumentNudgeOutcome(
+                args,
+                documentSave({ metadata: { status: 'success' } }),
+                offer,
+            ),
+        ).toEqual({
+            documentNudgesEnabled: false,
+            documentOfferShown: false,
+            documentOfferAccepted: false,
+        });
+    });
+});
+
+describe.each(['generate', 'stream'] as const)(
+    'AI access refusal callback in %s mode',
+    (mode) => {
+        const captureFinish = async (
+            callback: AiAgentDependencies['onAiAccessRefusal'],
+        ) => {
+            const dependencies = new Proxy(
+                buildAgentDependencies(vi.fn().mockResolvedValue(undefined)),
+                {
+                    get: (target, property) =>
+                        property === 'onAiAccessRefusal'
+                            ? callback
+                            : Reflect.get(target, property),
+                },
+            );
+            Object.assign(dependencies, {
+                consumePromptSteers: async () => [],
+            });
+            let options: AnyType;
+            if (mode === 'generate') {
+                vi.mocked(generateText).mockImplementationOnce((async (
+                    captured: AnyType,
+                ) => {
+                    options = captured;
+                    return {
+                        text: 'Answer',
+                        steps: [{ usage: { totalTokens: 1 } }],
+                        finalStep: { usage: { totalTokens: 1 } },
+                        usage: { totalTokens: 1 },
+                        finishReason: 'stop',
+                    };
+                }) as AnyType);
+                await generateAgentResponse({
+                    args: buildAgentArgs(),
+                    dependencies,
+                    mcpToolSetup: mcpToolSetup(),
+                });
+            } else {
+                vi.mocked(streamText).mockImplementationOnce(((
+                    captured: AnyType,
+                ) => {
+                    options = captured;
+                    return {};
+                }) as AnyType);
+                await streamAgentResponse({
+                    args: buildAgentArgs(),
+                    dependencies,
+                    mcpToolSetup: mcpToolSetup(),
+                });
+            }
+            return (
+                toolOutput:
+                    | { type: 'tool-result'; output: unknown }
+                    | { type: 'tool-error'; error: unknown },
+            ) =>
+                options.onToolExecutionEnd({
+                    stepNumber: 0,
+                    messages: [],
+                    toolCall: {
+                        toolCallId: 'call-1',
+                        toolName: 'runQuery',
+                        input: {},
+                    },
+                    toolOutput: {
+                        toolCallId: 'call-1',
+                        toolName: 'runQuery',
+                        input: {},
+                        ...toolOutput,
+                    },
+                    toolExecutionMs: 1,
+                });
+        };
+        const error = new AiAccessRefusedError(
+            AiAccessRefusalReason.NEEDS_SIGN_IN,
+            { connectUrl: 'https://example.com/connect' },
+        );
+
+        it('reports a returned structured refusal synchronously', async () => {
+            const callback = vi.fn();
+            const finish = await captureFinish(callback);
+            finish({
+                type: 'tool-result',
+                output: {
+                    result: 'Unrelated model text',
+                    structuredContent: { refusal: error.refusal },
+                },
+            });
+            expect(callback).toHaveBeenCalledExactlyOnceWith(error.refusal);
+        });
+
+        it('reports a thrown access refusal synchronously', async () => {
+            const callback = vi.fn();
+            const finish = await captureFinish(callback);
+            finish({ type: 'tool-error', error });
+            expect(callback).toHaveBeenCalledExactlyOnceWith(error.refusal);
+        });
+
+        it('ignores ordinary errors, text-only refusals and invalid structured content', async () => {
+            const callback = vi.fn();
+            const finish = await captureFinish(callback);
+            finish({ type: 'tool-error', error: new Error(error.message) });
+            finish({
+                type: 'tool-result',
+                output: { result: JSON.stringify(error.refusal) },
+            });
+            finish({
+                type: 'tool-result',
+                output: {
+                    structuredContent: { refusal: { message: error.message } },
+                },
+            });
+            finish({
+                type: 'tool-result',
+                output: { structuredContent: { refusal: null } },
+            });
+            expect(callback).not.toHaveBeenCalled();
+        });
+
+        it('allows an absent callback', async () => {
+            const finish = await captureFinish(undefined);
+            expect(() => finish({ type: 'tool-error', error })).not.toThrow();
+        });
+
+        it('keeps the tool loop running if the callback throws', async () => {
+            const callback = vi.fn(() => {
+                throw new Error('Callback failed');
+            });
+            const finish = await captureFinish(callback);
+            expect(() => finish({ type: 'tool-error', error })).not.toThrow();
+            expect(callback).toHaveBeenCalledExactlyOnceWith(error.refusal);
+        });
+    },
+);

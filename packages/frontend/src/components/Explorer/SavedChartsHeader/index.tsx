@@ -20,6 +20,7 @@ import {
 import DismissedDraftAlert from '../../../features/contentAsCode/components/DismissedDraftAlert';
 import DraftOverlayFailureAlert from '../../../features/contentAsCode/components/DraftOverlayFailureAlert';
 import DraftStaleAlert from '../../../features/contentAsCode/components/DraftStaleAlert';
+import { useCanUploadContentAsCode } from '../../../features/contentAsCode/hooks/useCanUploadContentAsCode';
 import {
     useDraftStaleness,
     useRebaseDraftMutation,
@@ -63,6 +64,7 @@ import { FavoriteActionIcon } from '../../common/FavoriteActionIcon';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
+import { Z_INDEX_FLOATING } from '../../common/Page/constants';
 import {
     HeaderActions,
     HeaderBreadcrumbs,
@@ -82,6 +84,7 @@ import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import ExploreFromHereButton from '../../ExploreFromHereButton';
 import ChartActionsMenu from './ChartActionsMenu';
 import ChartEditActions from './ChartEditActions';
+import classes from './SavedChartsHeader.module.css';
 import { TitleBreadCrumbs } from './TitleBreadcrumbs';
 import { useVerifiedChartSavePending } from './useVerifiedChartSavePending';
 
@@ -158,6 +161,7 @@ const SavedChartsHeader: FC = () => {
     const compact = useCompactContentHeader();
     const { search } = useLocation();
     const projectUuid = useProjectUuid();
+    const canUploadContentAsCode = useCanUploadContentAsCode(projectUuid);
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const dashboardUuid = useSearchParams('fromDashboard');
     const isFromDashboard = !!dashboardUuid;
@@ -226,6 +230,10 @@ const SavedChartsHeader: FC = () => {
         savedChart?.uuid,
     );
     const chartViewStats = useChartViewStats(savedChart?.uuid);
+    const managedFromRepository = savedChart?.managedFromRepository && {
+        contentType: 'chart' as const,
+        source: savedChart.managedFromRepository,
+    };
 
     const schedulerDeepLink = useSchedulerDeepLink();
 
@@ -273,7 +281,8 @@ const SavedChartsHeader: FC = () => {
         (userCanManageChart ||
             userCanCreateDeliveriesAndAlerts ||
             userCanManageExplore ||
-            userCanViewContentAsCode);
+            userCanViewContentAsCode ||
+            canUploadContentAsCode);
 
     const canEditChart =
         showChartActions &&
@@ -491,13 +500,11 @@ const SavedChartsHeader: FC = () => {
                                                 ? `Verified by ${savedChart.verification.verifiedBy.firstName} ${savedChart.verification.verifiedBy.lastName}`
                                                 : 'Verified'
                                         }
-                                        zIndex={10000}
+                                        zIndex={Z_INDEX_FLOATING}
                                     >
                                         <IconCircleCheckFilled
                                             size={16}
-                                            style={{
-                                                color: 'var(--mantine-color-green-6)',
-                                            }}
+                                            className={classes.verifiedIcon}
                                             {...verifiedTourProps}
                                         />
                                     </Tooltip>
@@ -537,7 +544,16 @@ const SavedChartsHeader: FC = () => {
                                 onConfirm={() => setIsRenamingChart(false)}
                             />
                             {!isFullscreen && (
-                                <HeaderMetadata gap="xs">
+                                <HeaderMetadata
+                                    gap="xs"
+                                    data-tour-scope="manage:DeletedContent"
+                                    data-tour-step="1"
+                                    data-tour-route="/projects/:projectUuid/saved/:savedQueryUuid"
+                                    data-tour-label="Inspect the restored chart"
+                                    data-tour-docs="explore/version-history.mdx#recently-deleted-charts-and-dashboards:p2:1-3"
+                                    data-tour-return='[data-tour-nav="browse"] >> [data-tour-nav="all-charts"] >> [data-tour-anchor="chart-row"][data-tour-value="Orders over time"]'
+                                    data-tour-resultdocs="explore/version-history.mdx#recently-deleted-charts-and-dashboards:li1"
+                                >
                                     <UpdatedInfo
                                         updatedAt={savedChart.updatedAt}
                                         user={
@@ -554,6 +570,9 @@ const SavedChartsHeader: FC = () => {
                                             title={savedChart.name}
                                             description={savedChart.description}
                                             slug={savedChart.slug}
+                                            managedFromRepository={
+                                                managedFromRepository
+                                            }
                                             updatedAt={savedChart.updatedAt}
                                             spaceName={savedChart.spaceName}
                                             spaceUuid={savedChart.spaceUuid}
@@ -803,6 +822,7 @@ const SavedChartsHeader: FC = () => {
                         title={savedChart.name}
                         description={savedChart.description}
                         slug={savedChart.slug}
+                        managedFromRepository={managedFromRepository}
                         updatedAt={savedChart.updatedAt}
                         spaceName={savedChart.spaceName}
                         spaceUuid={savedChart.spaceUuid}

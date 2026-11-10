@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { type ReactNode } from 'react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
+import { mockedLightdashApi } from '../testing/mockedLightdashApi';
 import DocumentHistoryPage from './DocumentHistory';
 
 const mocks = vi.hoisted(() => ({
@@ -16,7 +17,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.unmock('@uiw/react-markdown-preview');
-vi.mock('../api', () => ({ lightdashApi: mocks.api }));
+vi.mock('../api');
 vi.mock('../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
 }));
@@ -76,6 +77,7 @@ const previous = versionOf(1, 'Earlier findings');
 
 const document: Document = {
     pinnedListUuid: null,
+    verification: null,
     createdBy: null,
     owner: null,
     ownerUserUuid: null,
@@ -148,8 +150,8 @@ const renderPage = (search = '') => {
 
 describe('Document history page', () => {
     beforeEach(() => {
-        mocks.api.mockReset();
-        mocks.api.mockImplementation(respond);
+        mockedLightdashApi.mockReset();
+        mockedLightdashApi.mockImplementation(respond);
         mocks.flag = {
             data: { enabled: true },
             isInitialLoading: false,
@@ -175,7 +177,7 @@ describe('Document history page', () => {
         expect(
             screen.getByRole('button', { name: /^Version 1, saved/ }),
         ).toHaveAttribute('aria-pressed', 'false');
-        expect(mocks.api).not.toHaveBeenCalledWith(
+        expect(mockedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({
                 url: expect.stringContaining('/versions/'),
             }),
@@ -227,10 +229,56 @@ describe('Document history page', () => {
         expect(router.state.location.search).toBe('');
     });
 
+    test('compares an older version with the current one and keeps comparing across versions', async () => {
+        const router = renderPage('?version=version-1');
+        const compare = await screen.findByRole('button', {
+            name: 'Compare with current version',
+        });
+        expect(compare).toHaveAttribute('aria-pressed', 'false');
+        fireEvent.click(compare);
+        expect(
+            await screen.findByText(
+                'Changes from version 1 to the current version 2.',
+            ),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('listitem', {
+                name: 'removed: Earlier findings',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('listitem', { name: 'added: Current findings' }),
+        ).toBeInTheDocument();
+        expect(router.state.location.search).toBe(
+            '?version=version-1&compare=1',
+        );
+
+        fireEvent.click(
+            screen.getByRole('button', {
+                name: 'Compare with current version',
+            }),
+        );
+        expect(await screen.findByText('Earlier findings')).toBeInTheDocument();
+        expect(
+            screen.queryByText(/^Changes from version/),
+        ).not.toBeInTheDocument();
+        expect(router.state.location.search).toBe('?version=version-1');
+    });
+
+    test('offers no comparison on the current version', async () => {
+        renderPage('?compare=1');
+        expect(await screen.findByText('Current findings')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', {
+                name: 'Compare with current version',
+            }),
+        ).not.toBeInTheDocument();
+    });
+
     test('opens a linked version directly', async () => {
         renderPage('?version=version-1');
         expect(await screen.findByText('Earlier findings')).toBeInTheDocument();
-        expect(mocks.api).toHaveBeenCalledWith(
+        expect(mockedLightdashApi).toHaveBeenCalledWith(
             expect.objectContaining({
                 url: '/projects/project-uuid/documents/document-uuid/versions/version-1',
             }),
@@ -262,16 +310,5 @@ describe('Document history page', () => {
                 '/projects/project-slug/documents/weekly-review',
             ),
         );
-    });
-
-    test('fails closed when the feature flag is off', async () => {
-        mocks.flag = {
-            data: { enabled: false },
-            isInitialLoading: false,
-            isError: false,
-        };
-        renderPage();
-        expect(await screen.findByText('Project home')).toBeInTheDocument();
-        expect(mocks.api).not.toHaveBeenCalled();
     });
 });

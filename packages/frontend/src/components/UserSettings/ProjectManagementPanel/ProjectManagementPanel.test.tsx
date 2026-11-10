@@ -258,3 +258,41 @@ describe('ProjectManagementPanel bulk delete', () => {
         expect(getRowCheckbox('bob preview')).not.toBeChecked();
     });
 });
+
+describe('ProjectManagementPanel CLI reference', () => {
+    it('offers a start-preview command the CLI accepts', async () => {
+        const user = userEvent.setup();
+        mockProjects([
+            project({
+                projectUuid: 'prod',
+                name: 'Production',
+                type: ProjectType.DEFAULT,
+                createdByUserUuid: ME,
+                createdByUserName: 'David Attenborough',
+            }),
+        ]);
+
+        renderPanel();
+        const row = (await screen.findByText('Production')).closest('tr');
+        if (!row) throw new Error('No table row for "Production"');
+        // The row's last button opens its menu.
+        const rowButtons = within(row).getAllByRole('button');
+        await user.click(rowButtons[rowButtons.length - 1]);
+        await user.click(
+            await screen.findByRole('menuitem', { name: 'CLI reference' }),
+        );
+        const dialog = await screen.findByRole('dialog', {
+            name: 'CLI reference: Production',
+        });
+
+        // `lightdash start-preview` has no --project option and requires
+        // --name. It copies from the CLI's active project, which
+        // LIGHTDASH_PROJECT sets for a single command.
+        expect(
+            within(dialog).getByText(
+                'LIGHTDASH_PROJECT=prod lightdash start-preview --name <name>',
+            ),
+        ).toBeInTheDocument();
+        expect(dialog).not.toHaveTextContent('start-preview --project');
+    });
+});

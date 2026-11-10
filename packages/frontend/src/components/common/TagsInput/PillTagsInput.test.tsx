@@ -43,6 +43,19 @@ describe('PillTagsInput', () => {
         expect(getField()).toHaveValue('');
     });
 
+    it('splits pasted spreadsheet cells alongside custom separators', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(<ControlledInput splitChars={[';']} />);
+
+        await user.click(getField());
+        await user.paste('one;two\tthree\r\nfour');
+
+        ['one', 'two', 'three', 'four'].forEach((tag) => {
+            expect(screen.getByText(tag)).toBeInTheDocument();
+        });
+        expect(getField()).toHaveValue('');
+    });
+
     it('rejects the whole batch and keeps the text when any tag is invalid', async () => {
         const onChange = vi.fn();
         renderWithProviders(

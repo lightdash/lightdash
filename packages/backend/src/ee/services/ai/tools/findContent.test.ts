@@ -3,6 +3,7 @@ import {
     toolFindContentOutputSchema,
     toolGetDashboardChartsOutputSchema,
     type ContentVerificationInfo,
+    type DashboardChartSummary,
     type DashboardSearchResult,
     type ToolFindContentOutput,
     type ToolGetDashboardChartsOutput,
@@ -56,13 +57,14 @@ const makeVerification = (
 
 const makeMockChart = (
     i: number,
-    overrides: Partial<DashboardSearchResult['charts'][number]> = {},
-): DashboardSearchResult['charts'][number] => ({
+    overrides: Partial<DashboardChartSummary> = {},
+): DashboardChartSummary => ({
     uuid: `chart-uuid-${i}`,
     name: `Chart ${i}`,
     description: i % 2 === 0 ? `Description for chart ${i}` : undefined,
     chartType: ChartKind.VERTICAL_BAR,
     viewsCount: i * 10,
+    exploreName: i % 2 === 0 ? 'orders' : 'customers',
     verification: null,
     ...overrides,
 });
@@ -140,6 +142,7 @@ const makeMockSpace = (): FindContentResult => ({
     childSpaceCount: 1,
     appCount: 0,
     directAccess: true,
+    canEdit: true,
     verification: null,
     space: {
         uuid: 'space-uuid-1',
@@ -774,6 +777,7 @@ describe('getFindContent', () => {
                 childSpaceCount: 1,
                 appCount: 0,
                 directAccess: true,
+                canEdit: true,
                 space: {
                     uuid: 'space-uuid-1',
                     name: 'Marketing',
@@ -902,7 +906,9 @@ describe('getFindContent', () => {
                 'Error finding content for search queries: revenue',
             );
             expect(output.result).toContain('search index unavailable');
-            expect(output.structuredContent).toEqual({ error: output.result });
+            expect(output.structuredContent).toEqual({
+                error: output.result,
+            });
         });
     });
 });
@@ -940,6 +946,8 @@ describe('getGetDashboardCharts', () => {
 
         const chartMatches = output.result.match(/<chart /g);
         expect(chartMatches).toHaveLength(3);
+        expect(output.result).toContain('exploreName="orders"');
+        expect(output.result).toContain('exploreName="customers"');
 
         expect(
             toolGetDashboardChartsOutputSchema.safeParse(output).success,
@@ -958,6 +966,7 @@ describe('getGetDashboardCharts', () => {
                     description: 'Description for chart 0',
                     chartType: ChartKind.VERTICAL_BAR,
                     viewsCount: 0,
+                    exploreName: 'orders',
                     verification: null,
                 },
                 {
@@ -966,6 +975,7 @@ describe('getGetDashboardCharts', () => {
                     description: null,
                     chartType: ChartKind.VERTICAL_BAR,
                     viewsCount: 10,
+                    exploreName: 'customers',
                     verification: null,
                 },
                 {
@@ -974,6 +984,7 @@ describe('getGetDashboardCharts', () => {
                     description: 'Description for chart 2',
                     chartType: ChartKind.VERTICAL_BAR,
                     viewsCount: 20,
+                    exploreName: 'orders',
                     verification: null,
                 },
             ],
@@ -1041,7 +1052,9 @@ describe('getGetDashboardCharts', () => {
             'Error getting charts for dashboard: missing-dash',
         );
         expect(output.result).toContain('Dashboard not found');
-        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(output.structuredContent).toEqual({
+            error: output.result,
+        });
         expect(
             toolGetDashboardChartsOutputSchema.safeParse(output).success,
         ).toBe(true);

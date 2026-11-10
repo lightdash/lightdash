@@ -12,16 +12,22 @@ import {
 import { nanoid as nanoidGenerator } from 'nanoid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import { ShareModel } from '../../models/ShareModel';
+import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
+import { recordAgentAction } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
 
 type ShareServiceArguments = {
+    agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
     analytics: LightdashAnalytics;
     shareModel: ShareModel;
     lightdashConfig: Pick<LightdashConfig, 'siteUrl'>;
 };
 
 export class ShareService extends BaseService {
+    private readonly agentActionLogModel: Pick<AgentActionLogModel, 'insert'>;
+
     private readonly lightdashConfig: Pick<LightdashConfig, 'siteUrl'>;
 
     private readonly analytics: LightdashAnalytics;
@@ -54,6 +60,7 @@ export class ShareService extends BaseService {
 
     constructor(args: ShareServiceArguments) {
         super();
+        this.agentActionLogModel = args.agentActionLogModel;
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
         this.shareModel = args.shareModel;
@@ -117,6 +124,22 @@ export class ShareService extends BaseService {
             createdByUserUuid: user.userUuid,
         });
 
+        await recordAgentAction({
+            model: this.agentActionLogModel,
+            agentIdentity: getContentWriteAgentIdentity({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+            }),
+            projectUuid: null,
+            objectType: 'share',
+            objectUuid: null,
+            objectId: shareUrl.nanoid,
+            versionUuid: null,
+            action: 'create',
+            outcome: 'allowed',
+            policyLayer: null,
+            reasonCode: null,
+        });
         this.analytics.track({
             userId: user.userUuid,
             event: 'share_url.created',

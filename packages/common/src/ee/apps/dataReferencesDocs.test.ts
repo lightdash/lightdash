@@ -33,16 +33,18 @@ const FENCE_RE = /```(\w+)?\n([\s\S]*?)```/g;
 // placeholder snippets). Keyed by `<doc>#<fenced-block-index>`, where the
 // index counts ALL fenced blocks in the doc, any language.
 const KNOWN_UNPARSEABLE: Record<string, string> = {
-    'skill.md#12': 'adjacent JSX fragment (axis defaults snippet)',
-    'skill.md#19': 'adjacent JSX fragment (screenshot crop snippet)',
-    'skill.md#21':
+    'skill.md#15': 'adjacent JSX fragment (axis defaults snippet)',
+    'skill.md#22': 'adjacent JSX fragment (screenshot crop snippet)',
+    'skill.md#24':
         'bare comment as JSX ternary alternate (loading-states skeleton)',
-    'skill.md#26': '`{...}` placeholder in DropdownMenu snippet',
-    'skill.md#30': 'adjacent JSX fragment (dialog snippet)',
+    'skill.md#29': '`{...}` placeholder in DropdownMenu snippet',
+    'skill.md#33': 'adjacent JSX fragment (dialog snippet)',
 };
 
 // Samples whose references legitimately cannot fully resolve.
 const KNOWN_UNRESOLVED: Record<string, string> = {
+    'references/custom-sql.md#1':
+        'deliberately unsupported helper and interpolated SQL example',
     'references/d3.md#3':
         'sunburst addFilter field comes from the clicked hierarchy node (runtime value)',
     'references/drilldown.md#1':
@@ -110,6 +112,32 @@ const describeBlock = (r: BlockResult) =>
     `${r.key} ("${r.firstLine.slice(0, 60)}")`;
 
 describe('data-app docs as extractor fixtures', () => {
+    it('captures the exact SQL from the canonical custom-SQL example', () => {
+        const example = results.find(
+            (r) => r.key === 'references/custom-sql.md#0',
+        );
+        expect(example?.references).toHaveLength(1);
+        expect(example?.references[0]).toMatchObject({
+            kind: 'query',
+            explore: 'orders',
+            unresolved: [],
+            customSql: {
+                additionalMetrics: [
+                    {
+                        table: 'orders',
+                        sql: "CASE WHEN ${orders.status} = 'completed' THEN 1 ELSE 0 END",
+                    },
+                ],
+                customDimensions: [
+                    { table: 'orders', sql: 'UPPER(${orders.status})' },
+                ],
+                tableCalculations: [
+                    '1.0 * ${orders.completed_count} / NULLIF(SUM(${orders.completed_count}) OVER (), 0)',
+                ],
+            },
+        });
+    });
+
     it('found the template docs and a meaningful number of samples', () => {
         // The suite must not silently pass on zero scanned blocks.
         expect(existsSync(TEMPLATE_DIR)).toBe(true);

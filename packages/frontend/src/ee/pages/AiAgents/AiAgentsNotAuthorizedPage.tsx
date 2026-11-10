@@ -14,11 +14,12 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
-import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
+import useIsEmbedded from '../../providers/Embed/useIsEmbedded';
+import classes from './AiAgentsNotAuthorizedPage.module.css';
 
 const AiAgentsNotAuthorizedPage: FC = () => {
     const projectUuid = useProjectUuid();
-    const isEmbed = isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
 
     return (
         <AiAgentPageLayout isEmbed={isEmbed}>
@@ -38,10 +39,7 @@ const AiAgentsNotAuthorizedPage: FC = () => {
                             right={0}
                             bg="white"
                             p={4}
-                            style={{
-                                borderRadius: '50%',
-                                border: '1px solid #e0e0e0',
-                            }}
+                            className={classes.lockBadge}
                         >
                             <MantineIcon
                                 icon={IconLock}

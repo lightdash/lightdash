@@ -249,5 +249,6 @@ describe('CartesianChartDataModel getSpec', () => {
 
         expect(spec.useUTC).toBe(true);
         expect(spec.xAxis.type).toBe(VizIndexType.TIME);
+        expect(spec.xAxis.axisLabel.hideOverlap).toBe(true);
     });
 });

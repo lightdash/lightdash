@@ -3,7 +3,9 @@ import { type ProjectMemberProfile } from '../types/projectMemberProfile';
 import { type ProjectMemberRole } from '../types/projectMemberRole';
 import { ProjectType } from '../types/projects';
 import { SpaceMemberRole } from '../types/space';
+import { AGENT_DEFAULT_CAPABILITY_SUBJECTS } from './agentCapabilityScopes';
 import {
+    DEVELOPER_EMBED_SUBJECTS,
     INTERACTIVE_VIEWER_EMBED_SUBJECTS,
     VIEWER_EMBED_SUBJECTS,
     type MemberAbility,
@@ -18,6 +20,9 @@ export const projectMemberAbilities: Record<
     ) => void
 > = {
     viewer(member, { can }) {
+        AGENT_DEFAULT_CAPABILITY_SUBJECTS.forEach((resource) => {
+            can('view', resource, { projectUuid: member.projectUuid });
+        });
         VIEWER_EMBED_SUBJECTS.forEach((resource) => {
             can('view', resource, {
                 projectUuid: member.projectUuid,
@@ -286,6 +291,11 @@ export const projectMemberAbilities: Record<
     },
     developer(member, { can }) {
         projectMemberAbilities.editor(member, { can });
+        DEVELOPER_EMBED_SUBJECTS.forEach((resource) => {
+            can('view', resource, {
+                projectUuid: member.projectUuid,
+            });
+        });
         can('manage', 'PreAggregation', {
             projectUuid: member.projectUuid,
         });
@@ -443,6 +453,9 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
         can('manage', 'AiAgentThread', {
+            projectUuid: member.projectUuid,
+        });
+        can('view', 'AiAgentThreadContext', {
             projectUuid: member.projectUuid,
         });
 

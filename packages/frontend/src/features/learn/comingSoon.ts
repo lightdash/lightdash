@@ -1,9 +1,7 @@
 /** Modules awaiting an interactive format. This inventory does not grant permissions. */
 export const COMING_SOON_SCOPES = [
-    'view:Document',
-    'manage:Document',
-    'view:ContentAsCode',
-    'create:ContentAsCode',
+    // view and create are content-as-code lessons (codeLessons.ts); manage
+    // only waives upload checks a learner's copy already passes (CS-283).
     'manage:ContentAsCode',
     'promote:SavedChart',
     'promote:Dashboard',
@@ -20,11 +18,8 @@ export const COMING_SOON_SCOPES = [
     'view:EmbedDataApps',
     'view:EmbedAiAgent',
     'view:EmbedAiAgentDebug',
+    'view:EmbedCompiledSql',
     'view:Analytics',
-    'view:AiAgentDocument',
-    'manage:AiAgentDocument',
     'view:AiAgentSkill',
     'manage:AiAgentSkill',
-    // Withdrawn until Recently deleted has a product-agreed entry point (CS-311)
-    'manage:DeletedContent',
 ] as const;

@@ -28,6 +28,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { PullRequestsModel } from '../../models/PullRequestsModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
 import { GithubAppService } from '../GithubAppService/GithubAppService';
 import { user } from '../ProjectService/ProjectService.mock';
 import { GitIntegrationService } from './GitIntegrationService';
@@ -44,6 +45,11 @@ import {
     SCHEMA_YML,
     SPACE_MODEL,
 } from './GitIntegrationService.mock';
+
+vi.mock('@lightdash/warehouses', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@lightdash/warehouses')>()),
+    warehouseSqlBuilderFromType: vi.fn(() => warehouseClientMock),
+}));
 
 vi.mock('../../clients/github/Github.ts', () => ({
     getFileContent: vi.fn(),

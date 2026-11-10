@@ -1,4 +1,7 @@
-import { type AiDeepResearchTerminalReason } from '@lightdash/common';
+import {
+    type AiDeepResearchRunDocument,
+    type AiDeepResearchTerminalReason,
+} from '@lightdash/common';
 
 export type DeepResearchRunStatus =
     | 'queued'
@@ -21,6 +24,7 @@ export type DeepResearchRunView = {
     projectUuid: string;
     agentUuid: string;
     threadUuid: string;
+    promptUuid: string;
     question: string;
     status: DeepResearchRunStatus;
     terminalReason: AiDeepResearchTerminalReason | null;
@@ -49,6 +53,8 @@ export type DeepResearchRunView = {
     reportExpiresAt: string | null;
     reportExpiredAt: string | null;
     isReportExpired: boolean;
+    /** The Document the report was published to, once there is one. */
+    document: AiDeepResearchRunDocument | null;
     errorMessage: string | null;
 };
 
@@ -63,6 +69,7 @@ export type DeepResearchReportView = Pick<
     | 'sourceCount'
     | 'resultMarkdown'
     | 'isReportExpired'
+    | 'document'
 >;
 
 export type DeepResearchRunRegistration = {

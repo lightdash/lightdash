@@ -80,6 +80,7 @@ export const classifyPromptInputRequest = async ({
     organizationUuid,
     projectUuid,
     agentUuid,
+    credentialUuid,
     threadUuid,
     promptUuid,
     orgAiCopilotConfigResolver,
@@ -90,6 +91,8 @@ export const classifyPromptInputRequest = async ({
     organizationUuid: string;
     projectUuid: string;
     agentUuid: string;
+    /** The agent's credential pin; the judge must run on it. */
+    credentialUuid: string | null;
     threadUuid: string;
     promptUuid: string;
     orgAiCopilotConfigResolver: ReviewJudgeConfigResolver;
@@ -129,6 +132,7 @@ export const classifyPromptInputRequest = async ({
     try {
         const model = await resolveReviewJudgeModel({
             organizationUuid,
+            credentialUuid,
             orgAiCopilotConfigResolver,
             instanceCopilotConfig,
         });
@@ -207,6 +211,7 @@ export const runPromptInputRequestClassification = async ({
     threadUuid,
     promptUuid,
     userUuid,
+    credentialUuid,
     orgAiCopilotConfigResolver,
     instanceCopilotConfig,
     aiAgentModel,
@@ -218,6 +223,8 @@ export const runPromptInputRequestClassification = async ({
     organizationUuid: string;
     projectUuid: string;
     agentUuid: string;
+    /** The agent's credential pin; the judge must run on it. */
+    credentialUuid: string | null;
     threadUuid: string;
     promptUuid: string;
     userUuid: string;
@@ -236,6 +243,7 @@ export const runPromptInputRequestClassification = async ({
         organizationUuid,
         projectUuid,
         agentUuid,
+        credentialUuid,
         threadUuid,
         promptUuid,
         orgAiCopilotConfigResolver,

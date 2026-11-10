@@ -1,10 +1,10 @@
 import {
+    type AgentIdentityClaim,
     type AppThreadOrigin,
     type AppVersionDependencies,
     type AppVersionResources,
     type AppVersionStatus,
     type AppVersionStatusHistoryEntry,
-    type DataAppAutoAnalysis,
     type DataAppCodingAgent,
     type DataAppCodingAgentSessionUsage,
     type DataAppGenerationUsage,
@@ -45,9 +45,9 @@ export type DbApp = {
     // no icon is chosen or the app is not a chart type. Stored as text so an
     // icon retired from the curated set does not fail to read back.
     icon: string | null;
-    // Whether AI analysis runs when the app loads; 'inherit' takes the org
-    // default. Stored as text so an unknown value reads back, not fails.
-    auto_analysis: DataAppAutoAnalysis;
+    // When the builder-side "add AI analysis" offer was dismissed for this
+    // app (closed, or acted on once); null = never dismissed.
+    add_analysis_dismissed_at: Date | null;
     design_uuid: string | null;
     // The production app this (preview) app was promoted into. Null until the
     // app is first promoted. Lives on the preview side so a single production
@@ -80,7 +80,6 @@ export type AppsTable = Knex.CompositeTableType<
                 | 'sandbox_id'
                 | 'template'
                 | 'icon'
-                | 'auto_analysis'
                 | 'design_uuid'
                 | 'upstream_app_uuid'
                 | 'registry_slug'
@@ -98,7 +97,7 @@ export type AppsTable = Knex.CompositeTableType<
             | 'space_uuid'
             | 'sandbox_id'
             | 'icon'
-            | 'auto_analysis'
+            | 'add_analysis_dismissed_at'
             | 'design_uuid'
             | 'upstream_app_uuid'
             | 'registry_slug'
@@ -113,6 +112,7 @@ export type AppsTable = Knex.CompositeTableType<
 >;
 
 export type DbAppVersion = {
+    agent_identity: AgentIdentityClaim | null;
     app_version_id: string;
     app_id: string;
     version: number;
@@ -137,6 +137,10 @@ export type DbAppVersion = {
     generation_usage: DataAppGenerationUsage | null;
     // Registry version string this app version was installed/updated from.
     registry_version: string | null;
+    // When the version's thumbnail was last written; null = no thumbnail.
+    thumbnail_captured_at: Date | null;
+    // True when the thumbnail was set by hand; null = no thumbnail.
+    thumbnail_is_manual: boolean | null;
     // Thread the version belongs to. Null only for rows written before
     // threads existed or by an old pod mid-rollout; reads coalesce to thread 1.
     app_thread_uuid: string | null;
@@ -222,7 +226,12 @@ export type AppVersionsTable = Knex.CompositeTableType<
     DbAppVersion,
     Pick<
         DbAppVersion,
-        'app_id' | 'version' | 'prompt' | 'status' | 'created_by_user_uuid'
+        | 'app_id'
+        | 'version'
+        | 'prompt'
+        | 'status'
+        | 'created_by_user_uuid'
+        | 'agent_identity'
     > &
         Partial<
             Pick<
@@ -249,6 +258,8 @@ export type AppVersionsTable = Knex.CompositeTableType<
             | 'data_references'
             | 'generation_usage'
             | 'registry_version'
+            | 'thumbnail_captured_at'
+            | 'thumbnail_is_manual'
             | 'app_thread_uuid'
         >
     >

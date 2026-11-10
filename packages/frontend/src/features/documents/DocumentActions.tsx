@@ -1,13 +1,16 @@
 import { subject } from '@casl/ability';
 import {
+    canMutateVerifiedContent,
+    ContentReviewContentType,
     DirectAccessResourceType,
     ContentType,
-    FeatureFlags,
     getDocumentUrl,
     type Document,
 } from '@lightdash/common';
 import { ActionIcon, Box, Menu, Tooltip } from '@mantine/core';
 import {
+    IconCircleCheck,
+    IconCircleCheckFilled,
     IconCode,
     IconDatabaseExport,
     IconHistory,
@@ -17,6 +20,7 @@ import {
     IconTrash,
     IconPin,
     IconPinnedOff,
+    IconSend,
     IconUserCircle,
     IconUsers,
 } from '@tabler/icons-react';
@@ -26,12 +30,16 @@ import { CopyActionIcon } from '../../components/common/CopyActionIcon';
 import { FavoriteActionIcon } from '../../components/common/FavoriteActionIcon';
 import MantineIcon from '../../components/common/MantineIcon';
 import DocumentDeleteModal from '../../components/common/modal/DocumentDeleteModal';
+import { RequestReviewModal } from '../../ee/features/contentReview';
 import { useFavoriteMutation } from '../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../hooks/favorites/useFavorites';
 import { useDocumentPinningMutation } from '../../hooks/pinning/useDocumentPinningMutation';
+import {
+    useUnverifyDocumentMutation,
+    useVerifyDocumentMutation,
+} from '../../hooks/useContentVerification';
 import { useProject } from '../../hooks/useProject';
 import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import DirectAccessModal from '../directAccess/components/DirectAccessModal';
 import { useCanManageDirectAccess } from '../directAccess/hooks/useCanManageDirectAccess';
@@ -49,21 +57,23 @@ import { useCanEditDocument } from './useCanEditDocument';
 import { useDocumentCreationSpaces } from './useDocumentCreationSpaces';
 import { useExportDocumentPdf } from './useExportDocumentPdf';
 
-const DocumentActions = ({ document }: { document: Document }) => {
+const DocumentActions = ({
+    document,
+    canRequestReview,
+}: {
+    document: Document;
+    canRequestReview: boolean;
+}) => {
     const { user } = useApp();
-    const documentFlag = useServerFeatureFlag(FeatureFlags.Documents);
     const pinMutation = useDocumentPinningMutation();
     const isPinned = document.pinnedListUuid !== null;
-    const canPin =
-        !documentFlag.isError &&
-        documentFlag.data?.enabled === true &&
-        user.data?.ability.can(
-            'manage',
-            subject('PinnedItems', {
-                organizationUuid: document.organizationUuid,
-                projectUuid: document.projectUuid,
-            }),
-        );
+    const canPin = user.data?.ability.can(
+        'manage',
+        subject('PinnedItems', {
+            organizationUuid: document.organizationUuid,
+            projectUuid: document.projectUuid,
+        }),
+    );
     const [isShareOpen, setShareOpen] = useState(false);
     const favorites = useFavorites(document.projectUuid);
     const favoriteMutation = useFavoriteMutation(document.projectUuid);
@@ -75,11 +85,34 @@ const DocumentActions = ({ document }: { document: Document }) => {
     const [isCodeOpen, setCodeOpen] = useState(false);
     const [isDuplicateOpen, setDuplicateOpen] = useState(false);
     const [isOwnerOpen, setOwnerOpen] = useState(false);
+    const [isRequestReviewOpen, setRequestReviewOpen] = useState(false);
     const canEdit = useCanEditDocument(document);
+    // Pinning, favorites, sharing, promotion and as-code need a Space first
+    const isPersonal = document.spaceUuid === null;
     const { writableSpaces } = useDocumentCreationSpaces(document.projectUuid);
     const navigate = useNavigate();
     const projectUrlIdentifier = useProjectUrlIdentifier();
-    const canDelete = useCanDeleteDocument(document);
+    const verificationTarget = {
+        organizationUuid: document.organizationUuid,
+        projectUuid: document.projectUuid,
+    };
+    const canDelete =
+        useCanDeleteDocument(document) &&
+        !!user.data &&
+        canMutateVerifiedContent(
+            user.data.ability,
+            verificationTarget,
+            document.verification,
+            user.data.userUuid,
+        );
+    const canManageVerification =
+        !isPersonal &&
+        user.data?.ability.can(
+            'manage',
+            subject('ContentVerification', verificationTarget),
+        ) === true;
+    const verifyDocument = useVerifyDocumentMutation();
+    const unverifyDocument = useUnverifyDocumentMutation();
     const exportPdf = useExportDocumentPdf();
     const canPromote = canEdit;
     const { data: project } = useProject(document.projectUuid);
@@ -97,23 +130,25 @@ const DocumentActions = ({ document }: { document: Document }) => {
     const url = `${window.location.origin}${getDocumentUrl(projectUrlIdentifier, document.documentUuid, document.slug)}`;
     return (
         <>
-            <FavoriteActionIcon
-                variant="default"
-                size="lg"
-                name={document.name}
-                isFavorite={isFavorite}
-                disabled={
-                    favorites.isLoading ||
-                    favorites.isError ||
-                    favoriteMutation.isLoading
-                }
-                onToggle={() =>
-                    favoriteMutation.mutate({
-                        contentType: ContentType.DOCUMENT,
-                        contentUuid: document.documentUuid,
-                    })
-                }
-            />
+            {!isPersonal && (
+                <FavoriteActionIcon
+                    variant="default"
+                    size="lg"
+                    name={document.name}
+                    isFavorite={isFavorite}
+                    disabled={
+                        favorites.isLoading ||
+                        favorites.isError ||
+                        favoriteMutation.isLoading
+                    }
+                    onToggle={() =>
+                        favoriteMutation.mutate({
+                            contentType: ContentType.DOCUMENT,
+                            contentUuid: document.documentUuid,
+                        })
+                    }
+                />
+            )}
             <CopyActionIcon
                 variant="default"
                 size="lg"
@@ -145,7 +180,7 @@ const DocumentActions = ({ document }: { document: Document }) => {
                     </Tooltip>
                 </Menu.Target>
                 <Menu.Dropdown>
-                    {isAvailable && canManage && (
+                    {isAvailable && canManage && !isPersonal && (
                         <Menu.Item
                             leftSection={<MantineIcon icon={IconUsers} />}
                             onClick={() => setShareOpen(true)}
@@ -153,7 +188,7 @@ const DocumentActions = ({ document }: { document: Document }) => {
                             Share
                         </Menu.Item>
                     )}
-                    {canPin && (
+                    {canPin && !isPersonal && (
                         <Menu.Item
                             leftSection={
                                 <MantineIcon
@@ -189,7 +224,49 @@ const DocumentActions = ({ document }: { document: Document }) => {
                             Duplicate
                         </Menu.Item>
                     )}
-                    {canPromote && (
+                    {canManageVerification && (
+                        <Menu.Item
+                            leftSection={
+                                document.verification ? (
+                                    <MantineIcon
+                                        icon={IconCircleCheckFilled}
+                                        size={18}
+                                        color="green.6"
+                                    />
+                                ) : (
+                                    <IconCircleCheck size={18} />
+                                )
+                            }
+                            disabled={
+                                verifyDocument.isLoading ||
+                                unverifyDocument.isLoading
+                            }
+                            onClick={() => {
+                                const target = {
+                                    projectUuid: document.projectUuid,
+                                    documentUuid: document.documentUuid,
+                                };
+                                if (document.verification) {
+                                    unverifyDocument.mutate(target);
+                                } else {
+                                    verifyDocument.mutate(target);
+                                }
+                            }}
+                        >
+                            {document.verification
+                                ? 'Remove verification'
+                                : 'Verify'}
+                        </Menu.Item>
+                    )}
+                    {canRequestReview && (
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconSend} />}
+                            onClick={() => setRequestReviewOpen(true)}
+                        >
+                            Request review
+                        </Menu.Item>
+                    )}
+                    {canPromote && !isPersonal && (
                         <Tooltip
                             label="You must enable first an upstream project in settings > Data ops"
                             disabled={hasUpstreamProject}
@@ -223,12 +300,14 @@ const DocumentActions = ({ document }: { document: Document }) => {
                     >
                         Version history
                     </Menu.Item>
-                    <Menu.Item
-                        leftSection={<MantineIcon icon={IconCode} />}
-                        onClick={() => setCodeOpen(true)}
-                    >
-                        View as code
-                    </Menu.Item>
+                    {!isPersonal && (
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconCode} />}
+                            onClick={() => setCodeOpen(true)}
+                        >
+                            View as code
+                        </Menu.Item>
+                    )}
                     <Menu.Item
                         leftSection={<MantineIcon icon={IconFileTypePdf} />}
                         disabled={exportPdf.isLoading}
@@ -268,6 +347,16 @@ const DocumentActions = ({ document }: { document: Document }) => {
                     onConfirm={() =>
                         promoteDocument.mutate(document.documentUuid)
                     }
+                />
+            )}
+            {isRequestReviewOpen && (
+                <RequestReviewModal
+                    projectUuid={document.projectUuid}
+                    contentType={ContentReviewContentType.DOCUMENT}
+                    contentUuid={document.documentUuid}
+                    contentName={document.name}
+                    opened
+                    onClose={() => setRequestReviewOpen(false)}
                 />
             )}
             {isCodeOpen && (

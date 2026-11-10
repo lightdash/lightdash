@@ -1,0 +1,7 @@
+.summary[data-severity='paused'] {
+    border-color: var(--mantine-color-orange-outline);
+}
+
+.summary[data-severity='attention'] {
+    border-color: var(--mantine-primary-color-filled);
+}

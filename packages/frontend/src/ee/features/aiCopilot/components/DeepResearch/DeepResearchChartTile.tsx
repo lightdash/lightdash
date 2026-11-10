@@ -33,6 +33,15 @@ const getErrorMessage = (error: unknown): string => {
     return '';
 };
 
+const getResultsUrl = (
+    projectUuid: string,
+    runUuid: string,
+    queryUuid: string | undefined,
+): string | null =>
+    queryUuid
+        ? `/ee/projects/${projectUuid}/ai-deep-research/${runUuid}/queries/${queryUuid}/results?`
+        : null;
+
 export const DeepResearchChartTile = ({
     chartKey,
     chart,
@@ -49,6 +58,7 @@ export const DeepResearchChartTile = ({
         projectUuid,
         liveQuery.data?.query.queryUuid,
         chart.title,
+        getResultsUrl(projectUuid, runUuid, liveQuery.data?.query.queryUuid),
     );
 
     const visualizationConfig = useMemo<ToolRunQueryArgs>(

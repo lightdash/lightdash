@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import knex, { Knex } from 'knex';
+import { usageContentInventoryQuery } from './usageContentInventory';
 import { UsageDimensionsModel } from './UsageDimensionsModel';
 
 // Real Postgres: opt in with the port of an isolated LOCAL instance.
@@ -14,10 +15,10 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
         const organization = { organization_id: 1, organization_uuid: org };
         const read = async () => {
             const rows = [];
-            for await (const line of new UsageDimensionsModel(db).getJsonLines(
-                organization,
-                'content',
-            )) {
+            for await (const line of new UsageDimensionsModel(
+                db,
+                'https://lightdash.example.com/base/?query=value#hash',
+            ).getJsonLines(organization, 'content')) {
                 rows.push(JSON.parse(line));
             }
             return rows;
@@ -50,8 +51,13 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 CREATE INDEX ON dashboard_versions(dashboard_id);
                 CREATE TABLE dashboard_tile_charts (dashboard_version_id integer, saved_chart_id integer);
                 CREATE INDEX ON dashboard_tile_charts(saved_chart_id);
+                -- Production tile primary keys start with dashboard_version_id.
+                CREATE INDEX ON dashboard_tile_charts(dashboard_version_id);
                 CREATE TABLE dashboard_tile_sql_charts (dashboard_version_id integer, saved_sql_uuid uuid);
+                CREATE INDEX ON dashboard_tile_sql_charts(dashboard_version_id);
                 CREATE TABLE dashboard_tile_data_apps (dashboard_version_id integer, app_uuid uuid);
+                CREATE INDEX ON dashboard_tile_data_apps(dashboard_version_id);
+                CREATE INDEX ON dashboard_tile_data_apps(app_uuid);
                 CREATE TABLE content_verification (content_uuid uuid, project_uuid uuid, content_type text);
                 CREATE TABLE scheduler (enabled boolean, deleted_at timestamptz, project_uuid uuid, saved_chart_uuid uuid, saved_sql_uuid uuid, dashboard_uuid uuid, app_uuid uuid);
                 CREATE TABLE users (user_id integer PRIMARY KEY, user_uuid uuid UNIQUE, first_name text, last_name text, is_active boolean);
@@ -88,6 +94,8 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 UPDATE dashboards SET space_id=4 WHERE dashboard_id=1003;
                 INSERT INTO dashboard_versions VALUES(6,1004),(7,1003);
                 INSERT INTO dashboard_tile_charts VALUES(6,1),(7,1);
+                INSERT INTO dashboard_tile_sql_charts VALUES(6,md5('sql-1')::uuid),(7,md5('sql-1')::uuid),(1,md5('sql-2')::uuid);
+                INSERT INTO dashboard_tile_data_apps VALUES(6,md5('app-1')::uuid),(7,md5('app-1')::uuid),(1,md5('app-2')::uuid);
                 INSERT INTO saved_queries VALUES(2000,md5('other chart')::uuid,md5('other project')::uuid,2,null,'Other chart',now(),null);
                 INSERT INTO saved_sql VALUES(md5('other sql')::uuid,md5('other project')::uuid,md5('other space')::uuid,null,'Other SQL',now(),null);
                 INSERT INTO apps VALUES(md5('other app')::uuid,md5('other project')::uuid,md5('other space')::uuid,'Other app',now(),null);
@@ -107,6 +115,42 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             await db.destroy();
         });
 
+        it('paginates projects without requiring content or exposing another organization', async () => {
+            await db.raw(`INSERT INTO projects
+                SELECT n, md5('empty-project-' || n)::uuid, 1, 'Empty project ' || n
+                FROM generate_series(4, 1004) n`);
+            const readProjects = async () => {
+                const projects = [];
+                for await (const line of new UsageDimensionsModel(
+                    db,
+                    'https://lightdash.example.com/',
+                ).getJsonLines(organization, 'projects')) {
+                    projects.push(JSON.parse(line));
+                }
+                return projects;
+            };
+            const projects = await readProjects();
+            expect(projects).toHaveLength(1003);
+            expect(new Set(projects.map((row) => row.project_id)).size).toBe(
+                1003,
+            );
+            expect(projects.every((row) => row.org_id === org)).toBe(true);
+            expect(projects.map((row) => row.name)).not.toContain(
+                'Other organization',
+            );
+            const emptyProject = projects.find(
+                (row) => row.name === 'Empty project 1004',
+            );
+            expect(emptyProject).toBeDefined();
+            await db('projects')
+                .where('project_uuid', emptyProject.project_id)
+                .update({ name: 'Renamed empty project' });
+            expect(await readProjects()).toContainEqual({
+                ...emptyProject,
+                name: 'Renamed empty project',
+            });
+        });
+
         it('paginates every type without omissions, fanout or cross-tenant dependencies', async () => {
             const rows = await read();
             expect(rows).toHaveLength(4020);
@@ -118,26 +162,32 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             const item = (name: string) =>
                 rows.find((r) => r.content_name === name);
             expect(item('Chart 1')).toMatchObject({
+                content_url: `https://lightdash.example.com/projects/${project}/saved/${item('Chart 1').content_id}/view`,
                 dashboard_references: 2,
                 enabled_schedules: 2,
                 is_verified: true,
                 owner_status: 'Not recorded',
             });
             expect(item('SQL 1')).toMatchObject({
+                content_url: `https://lightdash.example.com/projects/${project}/sql-runner/${item('SQL 1').content_id}`,
                 enabled_schedules: 1,
                 dashboard_references: 2,
                 is_verified: null,
             });
             expect(item('App 1')).toMatchObject({
+                content_url: null,
                 enabled_schedules: 1,
                 dashboard_references: 2,
                 is_verified: null,
             });
-            expect(item('Chart 2')).toMatchObject({
-                dashboard_references: 0,
-                enabled_schedules: 0,
-            });
+            for (const prefix of ['Chart', 'SQL', 'App']) {
+                expect(item(`${prefix} 2`)).toMatchObject({
+                    dashboard_references: 0,
+                    enabled_schedules: 0,
+                });
+            }
             expect(item('Dashboard 1')).toMatchObject({
+                content_url: `https://lightdash.example.com/projects/${project}/dashboards/${item('Dashboard 1').content_id}/view`,
                 enabled_schedules: 1,
                 dashboard_references: 0,
                 owner_name: 'An Owner',
@@ -170,6 +220,156 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             });
         });
 
+        it('uses the latest dashboard version even when it removes all previous references', async () => {
+            await db.raw(`
+                INSERT INTO dashboard_versions VALUES(8,1),(9,2);
+                INSERT INTO dashboard_tile_charts VALUES(8,2),(8,2);
+                INSERT INTO dashboard_tile_sql_charts VALUES(8,md5('sql-2')::uuid),(8,md5('sql-2')::uuid);
+                INSERT INTO dashboard_tile_data_apps VALUES(8,md5('app-2')::uuid),(8,md5('app-2')::uuid);
+            `);
+            const rows = await read();
+            expect(rows).toHaveLength(4020);
+            for (const prefix of ['Chart', 'SQL', 'App']) {
+                expect(
+                    rows.find((row) => row.content_name === `${prefix} 1`),
+                ).toMatchObject({ dashboard_references: 0 });
+                expect(
+                    rows.find((row) => row.content_name === `${prefix} 2`),
+                ).toMatchObject({ dashboard_references: 1 });
+            }
+        });
+
+        it('keeps inventory pagination scoped across multiple tenant projects', async () => {
+            await db.raw(`
+                INSERT INTO saved_queries VALUES(3000,md5('second project chart')::uuid,md5('same org project')::uuid,3,null,'Second project chart',now(),null);
+                INSERT INTO saved_sql VALUES(md5('second project sql')::uuid,md5('same org project')::uuid,md5('same org space')::uuid,null,'Second project SQL',now(),null);
+                INSERT INTO apps VALUES(md5('second project app')::uuid,md5('same org project')::uuid,md5('same org space')::uuid,'Second project app',now(),null);
+                INSERT INTO dashboard_tile_charts VALUES(2,3000),(6,3000);
+                INSERT INTO dashboard_tile_sql_charts VALUES(2,md5('second project sql')::uuid),(6,md5('second project sql')::uuid);
+                INSERT INTO dashboard_tile_data_apps VALUES(2,md5('second project app')::uuid),(6,md5('second project app')::uuid);
+            `);
+            const rows = await read();
+            expect(rows).toHaveLength(4023);
+            for (const name of [
+                'Second project chart',
+                'Second project SQL',
+                'Second project app',
+            ]) {
+                expect(
+                    rows.find((row) => row.content_name === name),
+                ).toMatchObject({
+                    org_id: org,
+                    project_name: 'Same org, different project',
+                    space_name: 'Other project space',
+                    dashboard_references: 1,
+                });
+            }
+            const empty = [];
+            for await (const line of new UsageDimensionsModel(
+                db,
+                'https://lightdash.example.com',
+            ).getJsonLines(
+                {
+                    organization_id: 999,
+                    organization_uuid: '10000000-0000-0000-0000-000000000999',
+                },
+                'content',
+            ))
+                empty.push(line);
+            expect(empty).toEqual([]);
+        });
+
+        it('exports content with extensive dashboard version history within the page deadline', async () => {
+            // A hundred dashboards retain historical tiles; only their latest
+            // versions count, including when a chart was removed.
+            await db.raw(`
+                INSERT INTO dashboard_versions
+                    SELECT n, 10 + (n - 10) / 160 FROM generate_series(10,16009) n;
+                INSERT INTO dashboard_tile_charts
+                    SELECT v, c FROM generate_series(10,16009) v
+                    CROSS JOIN generate_series(1,20) c
+                    WHERE (v - 10) % 160 < 159 OR c <> 2;
+                INSERT INTO dashboard_tile_sql_charts
+                    SELECT v, md5('sql-'||c)::uuid FROM generate_series(10,16009) v
+                    CROSS JOIN generate_series(1,20) c
+                    WHERE (v - 10) % 160 < 159 OR c <> 2;
+                INSERT INTO dashboard_tile_data_apps
+                    SELECT v, md5('app-'||c)::uuid FROM generate_series(10,16009) v
+                    CROSS JOIN generate_series(1,20) c
+                    WHERE (v - 10) % 160 < 159 OR c <> 2;
+                -- Most histories belong to other dashboards, as on a shared instance.
+                INSERT INTO dashboard_versions
+                    SELECT n, 200 + n % 800 FROM generate_series(20000,519999) n;
+                ANALYZE dashboard_versions;
+                ANALYZE dashboard_tile_charts;
+                ANALYZE dashboard_tile_sql_charts;
+                ANALYZE dashboard_tile_data_apps;
+            `);
+            const rows = await read();
+            expect(rows).toHaveLength(4020);
+            for (const prefix of ['Chart', 'SQL', 'App']) {
+                expect(
+                    rows.find((r) => r.content_name === `${prefix} 1`),
+                ).toMatchObject({ dashboard_references: 102 });
+                expect(
+                    rows.find((r) => r.content_name === `${prefix} 2`),
+                ).toMatchObject({ dashboard_references: 0 });
+                expect(
+                    rows.find((r) => r.content_name === `${prefix} 3`),
+                ).toMatchObject({ dashboard_references: 100 });
+            }
+        }, 60000);
+
+        it('exports a page from a project with many current dashboards within the page deadline', async () => {
+            await db.raw(`
+                INSERT INTO dashboards
+                    SELECT n, md5('large-dashboard-' || n)::uuid, 1, 'Large dashboard', now(), null, null
+                    FROM generate_series(10000,59999) n;
+                INSERT INTO dashboard_versions
+                    SELECT n, n FROM generate_series(10000,59999) n;
+                INSERT INTO dashboard_tile_charts
+                    SELECT n, ((n - 10000) * 10 + c) % 1000 + 1
+                    FROM generate_series(10000,59999) n
+                    CROSS JOIN generate_series(0,9) c;
+                ANALYZE dashboards;
+                ANALYZE dashboard_versions;
+                ANALYZE dashboard_tile_charts;
+            `);
+            const page = await db.transaction(async (transaction) => {
+                await transaction.raw('SET TRANSACTION READ ONLY');
+                await transaction.raw("SET LOCAL statement_timeout = '10s'");
+                return usageContentInventoryQuery(
+                    transaction,
+                    organization.organization_id,
+                    org,
+                    'saved_chart',
+                    null,
+                    1000,
+                    'https://lightdash.example.com/projects/',
+                );
+            });
+            expect(page).toHaveLength(1000);
+            for (const row of page) {
+                let content: {
+                    content_name: string;
+                    dashboard_references: number;
+                };
+                try {
+                    content = JSON.parse(row.json);
+                } catch (error) {
+                    throw new Error('Expected valid content inventory JSON', {
+                        cause: error,
+                    });
+                }
+                const chartNumber = Number(content.content_name.split(' ')[1]);
+                const addedReferences = chartNumber <= 1000 ? 500 : 0;
+                const existingReferences = chartNumber === 1 ? 2 : 0;
+                expect(content.dashboard_references).toBe(
+                    addedReferences + existingReferences,
+                );
+            }
+        }, 30000);
+
         it('abandons a page waiting for a table lock and can retry afterward', async () => {
             const blocker = await db.transaction();
             try {
@@ -183,51 +383,103 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             expect(await read()).toHaveLength(4020);
         });
 
-        it('cancels a slow page on the server and releases its read lock for DDL', async () => {
-            await db.raw(`
+        const delayContentPage = async (seconds: 6 | 30) => {
+            await db.raw('ALTER TABLE saved_queries RENAME TO chart_source');
+            await db.raw(
+                `CREATE VIEW saved_queries AS
+                SELECT saved_query_id, saved_query_uuid, project_uuid, space_id,
+                    dashboard_uuid, created_at, deleted_at,
+                    name || (SELECT '' FROM pg_sleep(${seconds})) AS name
+                FROM chart_source`,
+            );
+        };
+
+        it('allows a content page longer than five seconds to complete', async () => {
+            await delayContentPage(6);
+            const iterator = new UsageDimensionsModel(
+                db,
+                'https://lightdash.example.com/base/?query=value#hash',
+            ).getJsonLines(organization, 'content');
+            try {
+                expect((await iterator.next()).done).toBe(false);
+            } finally {
+                await iterator.return(undefined);
+            }
+        }, 15000);
+
+        it.each([
+            {
+                dimension: 'agents' as const,
+                timeout: 5000,
+                table: 'agent_source',
+            },
+            {
+                dimension: 'content' as const,
+                timeout: 10000,
+                table: 'chart_source',
+            },
+        ])(
+            'cancels a slow $dimension page and releases its read lock for DDL',
+            async ({ dimension, timeout, table }) => {
+                if (dimension === 'content') {
+                    await delayContentPage(30);
+                } else {
+                    await db.raw(`
                 CREATE TABLE agent_source (ai_agent_uuid uuid, organization_uuid uuid, name text);
                 INSERT INTO agent_source VALUES(md5('agent')::uuid,'${org}','Agent');
                 CREATE VIEW ai_agent AS SELECT ai_agent_uuid, organization_uuid,
                     name || (SELECT '' FROM pg_sleep(30)) AS name FROM agent_source;
             `);
-            // The view deliberately holds a read lock while executing pg_sleep.
-            const iterator = new UsageDimensionsModel(db).getJsonLines(
-                organization,
-                'agents',
-            );
-            const pending = iterator.next().catch((error: unknown) => error);
-            // Wait until Postgres is executing this page before queueing DDL.
-            let active = false;
-            for (let attempt = 0; attempt < 100; attempt += 1) {
-                // eslint-disable-next-line no-await-in-loop
-                const result = await db.raw(
-                    `SELECT 1 FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND state='active' AND query LIKE '%json_build_object%' AND wait_event='PgSleep'`,
-                );
-                if (result.rows.length > 0) {
-                    active = true;
-                    break;
                 }
-                // eslint-disable-next-line no-await-in-loop
-                await new Promise((resolve) => {
-                    setTimeout(resolve, 10);
+                // The view deliberately holds a read lock while executing pg_sleep.
+                const iterator = new UsageDimensionsModel(
+                    db,
+                    'https://lightdash.example.com/base/?query=value#hash',
+                ).getJsonLines(organization, dimension);
+                const pending = iterator
+                    .next()
+                    .catch((error: unknown) => error);
+                // Wait until Postgres is executing this page before queueing DDL.
+                let active = false;
+                for (let attempt = 0; attempt < 100; attempt += 1) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const result = await db.raw(
+                        `SELECT 1 FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND state='active' AND query LIKE ? AND wait_event='PgSleep'`,
+                        [
+                            dimension === 'content'
+                                ? '%WITH inventory%'
+                                : '%json_build_object%',
+                        ],
+                    );
+                    if (result.rows.length > 0) {
+                        active = true;
+                        break;
+                    }
+                    // eslint-disable-next-line no-await-in-loop
+                    await new Promise((resolve) => {
+                        setTimeout(resolve, 10);
+                    });
+                }
+                expect(active).toBe(true);
+                const start = Date.now();
+                await db.transaction(async (trx) => {
+                    await trx.raw("SET LOCAL statement_timeout = '12s'");
+                    await trx.raw(
+                        'ALTER TABLE ?? ADD COLUMN after_export integer',
+                        [table],
+                    );
                 });
-            }
-            expect(active).toBe(true);
-            const start = Date.now();
-            await db.transaction(async (trx) => {
-                await trx.raw("SET LOCAL statement_timeout = '7s'");
-                await trx.raw(
-                    'ALTER TABLE agent_source ADD COLUMN after_export integer',
+                expect(await pending).toMatchObject({ code: '57014' });
+                expect(Date.now() - start).toBeGreaterThan(timeout - 1000);
+                expect(Date.now() - start).toBeLessThan(timeout + 2000);
+                const settings = await db.raw(
+                    "SELECT current_setting('statement_timeout') AS timeout, current_setting('lock_timeout') AS lock_timeout",
                 );
-            });
-            expect(await pending).toMatchObject({ code: '57014' });
-            expect(Date.now() - start).toBeLessThan(7000);
-            const settings = await db.raw(
-                "SELECT current_setting('statement_timeout') AS timeout, current_setting('lock_timeout') AS lock_timeout",
-            );
-            expect(settings.rows).toEqual([
-                { timeout: '0', lock_timeout: '0' },
-            ]);
-        }, 15000);
+                expect(settings.rows).toEqual([
+                    { timeout: '0', lock_timeout: '0' },
+                ]);
+            },
+            20000,
+        );
     },
 );

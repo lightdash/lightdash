@@ -24,6 +24,8 @@ export type ExpectedFilter = {
     settings?: {
         completed?: boolean;
         unitOfTime?: UnitOfTime;
+        toDate?: true;
+        excludeToday?: true;
     };
 };
 
@@ -595,6 +597,13 @@ const aiDateUnits = [
     UnitOfTime.years,
 ] as const;
 
+const toDateUnits = [
+    UnitOfTime.weeks,
+    UnitOfTime.months,
+    UnitOfTime.quarters,
+    UnitOfTime.years,
+] as const;
+
 const relativeDatePrompts = [
     {
         id: 'plain_dimension',
@@ -765,6 +774,26 @@ const dateSeeds: CaseSeed[] = [
                     operator,
                     unit,
                 )}.`,
+            })),
+        ),
+    ),
+    ...toDateUnits.flatMap((unit) =>
+        [false, true].flatMap((excludeToday) =>
+            relativeDatePrompts.map<CaseSeed>((example) => ({
+                id: `inTheCurrent_toDate${excludeToday ? '_excludeToday' : ''}_${unit}_${example.id}`,
+                family: 'date',
+                fieldId: example.fieldId,
+                operator: FilterOperator.IN_THE_CURRENT,
+                values: [1],
+                settings: {
+                    completed: false,
+                    unitOfTime: unit,
+                    toDate: true,
+                    ...(excludeToday ? { excludeToday: true } : {}),
+                },
+                prompt: `Find orders where ${example.phrase} is in the current ${unitOfTimeExamples[unit].label.slice(0, -1)} to date${
+                    excludeToday ? ', excluding today' : ''
+                }.`,
             })),
         ),
     ),

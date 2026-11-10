@@ -1,9 +1,10 @@
 import Lightdash from '@lightdash/sdk';
-import { ExampleLayout } from '../components/ExampleLayout';
 import {
-    parseEmbedUrl,
-    type EmbedConfigState,
-} from '../hooks/useEmbedConfig';
+    CompiledSqlScopeSelect,
+    useCompiledSqlScope,
+} from '../components/CompiledSqlScopeSelect';
+import { ExampleLayout } from '../components/ExampleLayout';
+import { parseEmbedUrl, type EmbedConfigState } from '../hooks/useEmbedConfig';
 import { getRepoSourceUrl } from '../lib/repo';
 import { emptyStateBoxStyle, emptyStateStyle } from '../styles';
 import {
@@ -22,17 +23,21 @@ const sourceUrl = getRepoSourceUrl(
 
 const defaultMetricsCatalogEmbedUrl =
     import.meta.env.VITE_METRICS_CATALOG_EMBED_URL ?? '';
+const noSqlMetricsCatalogEmbedUrl =
+    import.meta.env.VITE_METRICS_CATALOG_NO_SQL_EMBED_URL ?? '';
 
 export function MetricsCatalogExamplePage({
     embedConfig,
 }: MetricsCatalogExamplePageProps) {
-    const metricsCatalogEmbedConfig = parseEmbedUrl(
+    const compiledSqlScope = useCompiledSqlScope(
         defaultMetricsCatalogEmbedUrl,
+        noSqlMetricsCatalogEmbedUrl,
     );
+    const metricsCatalogEmbedConfig = parseEmbedUrl(compiledSqlScope.embedUrl);
     const instanceUrl =
         metricsCatalogEmbedConfig.instanceUrl ?? embedConfig.instanceUrl;
     const token = metricsCatalogEmbedConfig.token ?? embedConfig.token;
-    const remountKey = defaultMetricsCatalogEmbedUrl || embedConfig.remountKey;
+    const remountKey = compiledSqlScope.embedUrl || embedConfig.remountKey;
 
     return (
         <ExampleLayout
@@ -60,6 +65,14 @@ export function MetricsCatalogExamplePage({
                         Owners filter with{' '}
                         <code>hiddenFilters={"{['owners']}"}</code>.
                     </p>
+                    <CompiledSqlScopeSelect
+                        envVarName="VITE_METRICS_CATALOG_NO_SQL_EMBED_URL"
+                        isWithoutScopeAvailable={
+                            compiledSqlScope.isWithoutScopeAvailable
+                        }
+                        scope={compiledSqlScope.scope}
+                        onChange={compiledSqlScope.setScope}
+                    />
                     <div style={dashboardContainerStyle}>
                         <Lightdash.MetricsCatalog
                             key={remountKey}

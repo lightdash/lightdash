@@ -144,6 +144,9 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                                 justify="space-between"
                                 mb="xs"
                                 className={styles.iconHeader}
+                                data-has-remove={
+                                    row.original.icon ? true : undefined
+                                }
                             >
                                 {row.original.icon ? (
                                     <Button
@@ -161,7 +164,7 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                                     <span />
                                 )}
                                 <CloseButton
-                                    size={44}
+                                    mod="touch-dismiss"
                                     aria-label={getUiString(
                                         'metrics.closeIconPicker',
                                     )}

@@ -1,7 +1,65 @@
 .button {
-    &:disabled,
-    &[data-disabled] {
-        background-color: transparent;
-        cursor: unset;
+    transition:
+        transform 160ms ease,
+        background-color 160ms ease,
+        color 160ms ease;
+
+    &[data-starred='true'] {
+        color: var(--mantine-color-yellow-6);
+    }
+
+    &:hover:not(:disabled, [data-disabled]),
+    &:focus-visible {
+        transform: scale(1.08);
+    }
+
+    &:active:not(:disabled, [data-disabled]) {
+        transform: scale(0.94);
+    }
+
+    &[data-starred='true'][data-interacted] svg {
+        animation: star 320ms ease-out;
+    }
+
+    &[data-starred='false'][data-interacted] svg {
+        animation: unstar 240ms ease-out;
+    }
+}
+
+@keyframes star {
+    0% {
+        transform: scale(0.75) rotate(-20deg);
+    }
+    55% {
+        transform: scale(1.22) rotate(8deg);
+    }
+    100% {
+        transform: scale(1) rotate(0);
+    }
+}
+
+@keyframes unstar {
+    0% {
+        transform: scale(1.15) rotate(12deg);
+    }
+    100% {
+        transform: scale(1) rotate(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .button {
+        transition: none;
+        transform: none;
+
+        &:hover,
+        &:focus-visible,
+        &:active {
+            transform: none;
+        }
+
+        &[data-interacted] svg {
+            animation: none;
+        }
     }
 }

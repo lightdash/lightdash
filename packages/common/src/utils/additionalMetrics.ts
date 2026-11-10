@@ -1,10 +1,19 @@
-import { getReferencedDimensionCaseInsensitive } from '../compiler/referenceLookup';
+import {
+    getAllReferences,
+    getParsedReference,
+} from '../compiler/exploreCompiler';
+import {
+    getReferencedDimensionCaseInsensitive,
+    getReferencedTable,
+} from '../compiler/referenceLookup';
 import { convertColumnMetric } from '../types/dbt';
 import { type CompiledTable, type Explore } from '../types/explore';
 import {
     DimensionType,
     getMinMaxBaseDimensionMetadata,
+    isCustomSqlDimension,
     MetricType,
+    type CustomDimension,
     type Metric,
 } from '../types/field';
 import {
@@ -137,9 +146,32 @@ const dimensionRefExistsInExplore = (
     );
 };
 
+export const getMissingAdditionalMetricReferences = (
+    metric: AdditionalMetric,
+    explore: Explore,
+    customDimensions: CustomDimension[] = [],
+): string[] =>
+    getAllReferences(metric.sql).filter((ref) => {
+        if (ref === 'TABLE') return false;
+        const { refTable, refName } = getParsedReference(ref, metric.table);
+        const table = getReferencedTable(refTable, explore.tables);
+        return (
+            !table ||
+            (!table.dimensions[refName] &&
+                !table.metrics[refName] &&
+                !customDimensions.some(
+                    (dimension) =>
+                        isCustomSqlDimension(dimension) &&
+                        dimension.table === refTable &&
+                        dimension.id === refName,
+                ))
+        );
+    });
+
 const isMetricCompatibleWithExplore = (
     metric: AdditionalMetric,
     explore: Explore,
+    customDimensions: CustomDimension[],
 ): boolean => {
     const table = explore.tables[metric.table];
     if (!table) return false;
@@ -155,6 +187,12 @@ const isMetricCompatibleWithExplore = (
         return false;
     }
     if (metric.baseMetricName && !table.metrics[metric.baseMetricName]) {
+        return false;
+    }
+    if (
+        getMissingAdditionalMetricReferences(metric, explore, customDimensions)
+            .length > 0
+    ) {
         return false;
     }
     if (
@@ -188,9 +226,10 @@ const isMetricCompatibleWithExplore = (
 export const getCompatibleDashboardMetrics = (
     registry: AdditionalMetric[],
     explore: Explore | undefined,
+    customDimensions: CustomDimension[] = [],
 ): AdditionalMetric[] => {
     if (!explore) return [];
     return registry.filter((metric) =>
-        isMetricCompatibleWithExplore(metric, explore),
+        isMetricCompatibleWithExplore(metric, explore, customDimensions),
     );
 };

@@ -13,6 +13,7 @@ import {
     type ApiContentAsCodeProposeResponse,
     type ApiContentAsCodePullResponse,
     type ApiContentAsCodeSettingsResponse,
+    type ApiContentAsCodeSnapshotPruneResponse,
     type ApiContentAsCodeUploadAdvisoryResponse,
     type ApiContentAsCodeWritebacksResponse,
     type ApiContentDraftRebaseResponse,
@@ -43,7 +44,9 @@ import {
     type ApiVirtualViewAsCodeListResponse,
     type ApiVirtualViewAsCodeUpsertResponse,
     type ChartAsCode,
+    type ContentAsCodeReleasableType,
     type ContentAsCodeSettingsStamp,
+    type ContentAsCodeSnapshotPrune,
     type ContentDraftRebaseRequest,
     type ContentSlugRenameRequest,
     type DashboardAsCode,
@@ -59,6 +62,7 @@ import {
 } from '@lightdash/common';
 import {
     Body,
+    Delete,
     Get,
     Middlewares,
     OperationId,
@@ -73,6 +77,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../auth/account';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import { BaseController } from './baseController';
 import {
     CODE_READ_MIDDLEWARES,
@@ -435,7 +440,10 @@ export class ProjectCoderController extends BaseController {
      * @summary Rebase content draft
      */
     @Tags('Projects')
-    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @Middlewares([
+        ...CODE_WRITE_MIDDLEWARES,
+        requireOAuthScopeOperation('ProjectCoderController.rebaseContentDraft'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/code/drafts/{draftUuid}/rebase')
     @OperationId('rebaseContentDraft')
@@ -507,7 +515,10 @@ export class ProjectCoderController extends BaseController {
      * @summary Reopen content draft
      */
     @Tags('Projects')
-    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @Middlewares([
+        ...CODE_WRITE_MIDDLEWARES,
+        requireOAuthScopeOperation('ProjectCoderController.reopenContentDraft'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/code/drafts/{draftUuid}/reopen')
     @OperationId('reopenContentDraft')
@@ -548,6 +559,58 @@ export class ProjectCoderController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 body,
+            );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Called by the CLI after a full upload of a directory so content whose
+     * file was removed from the repo stops being Git-managed.
+     * @summary Prune content-as-code snapshots
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Post('/code/snapshots/prune')
+    @OperationId('pruneContentAsCodeSnapshots')
+    async pruneContentAsCodeSnapshots(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body() body: ContentAsCodeSnapshotPrune,
+    ): Promise<ApiContentAsCodeSnapshotPruneResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getContentAsCodeWritebackService()
+            .pruneSnapshots(toSessionUser(req.account), projectUuid, body);
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Stop managing one chart or dashboard from the repo so UI saves publish
+     * directly again. The content itself is kept.
+     * @summary Release content-as-code snapshot
+     */
+    @Tags('Projects')
+    @Middlewares(CODE_WRITE_MIDDLEWARES)
+    @SuccessResponse('200', 'Success')
+    @Delete('/code/snapshots/{contentType}/{slug}')
+    @OperationId('releaseContentAsCodeSnapshot')
+    async releaseContentAsCodeSnapshot(
+        @Path() projectUuid: string,
+        @Path() contentType: ContentAsCodeReleasableType,
+        @Path() slug: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.services
+            .getContentAsCodeWritebackService()
+            .releaseSnapshot(
+                toSessionUser(req.account),
+                projectUuid,
+                contentType,
+                slug,
             );
         return { status: 'ok', results: undefined };
     }
@@ -1003,6 +1066,7 @@ export class ProjectCoderController extends BaseController {
                 slug,
                 { ...chart, description: chart.description ?? undefined },
                 {
+                    account: req.account,
                     skipSpaceCreate: chart.skipSpaceCreate,
                     publicSpaceCreate: chart.publicSpaceCreate,
                     force: chart.force,
@@ -1039,18 +1103,18 @@ export class ProjectCoderController extends BaseController {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         return codeSuccess(
-            await this.services
-                .getCoderService()
-                .upsertSqlChart(
-                    toSessionUser(req.account),
-                    projectUuid,
-                    slug,
-                    { ...sqlChart, description: sqlChart.description ?? null },
-                    sqlChart.skipSpaceCreate,
-                    sqlChart.publicSpaceCreate,
-                    sqlChart.force,
-                    sqlChart.spaceNames,
-                ),
+            await this.services.getCoderService().upsertSqlChart(
+                toSessionUser(req.account),
+                projectUuid,
+                slug,
+                { ...sqlChart, description: sqlChart.description ?? null },
+                {
+                    account: req.account,
+                    skipSpaceCreate: sqlChart.skipSpaceCreate,
+                    publicSpaceCreate: sqlChart.publicSpaceCreate,
+                    spaceNames: sqlChart.spaceNames,
+                },
+            ),
         );
     }
 
@@ -1090,6 +1154,7 @@ export class ProjectCoderController extends BaseController {
                     description: dashboard.description ?? undefined,
                 },
                 {
+                    account: req.account,
                     skipSpaceCreate: dashboard.skipSpaceCreate,
                     publicSpaceCreate: dashboard.publicSpaceCreate,
                     force: dashboard.force,
@@ -1551,6 +1616,7 @@ export class ProjectCoderController extends BaseController {
     /**
      * List the Documents you can view, in code representation
      * @summary List Documents as code
+     * @param schemaVersion The newest Document schema version the client reads. An older version is refused with an upgrade message.
      */
     @Tags('Projects')
     @Middlewares(CODE_READ_MIDDLEWARES)
@@ -1562,12 +1628,17 @@ export class ProjectCoderController extends BaseController {
         @Request() req: express.Request,
         @Query() slugs?: string[],
         @Query() offset?: number,
+        @Query() schemaVersion?: number,
     ): Promise<ApiDocumentAsCodeListResponse> {
         assertRegisteredAccount(req.account);
         return codeSuccess(
             await this.services
                 .getDocumentService()
-                .listAsCode(req.account, projectUuid, { slugs, offset }),
+                .listAsCode(req.account, projectUuid, {
+                    slugs,
+                    offset,
+                    schemaVersion,
+                }),
         );
     }
 

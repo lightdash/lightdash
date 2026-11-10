@@ -10,7 +10,7 @@ import { MantineProvider } from '@mantine/core';
 import { captureException } from '@sentry/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChartColorMappingContext } from '../../hooks/useChartColorConfig/context';
 import { getMantineThemeOverride } from '../../theme';
 
@@ -92,12 +92,25 @@ const mocks = vi.hoisted(() => ({
     previewTokenHook: vi.fn(),
     setFetchAll: vi.fn(),
     canViewUnderlyingData: { current: true },
+    canDrillInto: { current: false },
     openUnderlyingDataModal: vi.fn(),
     metricQueryData: {
         current: undefined as
-            | { openUnderlyingDataModal: (...args: unknown[]) => void }
+            | {
+                  openUnderlyingDataModal: (...args: unknown[]) => void;
+                  openDrillDownModal?: (...args: unknown[]) => void;
+              }
             | undefined,
     },
+    merge: {
+        current: null as {
+            mergeResults: {
+                fieldOrigins: Record<string, { kind: 'tableCalculation' }>;
+            };
+            additionalSources: [];
+        } | null,
+    },
+    showToastError: vi.fn(),
     isLoading: { current: false },
     explore: { current: undefined as { name: string } | undefined },
     exploreHook: vi.fn(),
@@ -155,7 +168,7 @@ vi.mock('../../features/apps/previewOrigin', () => ({
 vi.mock('../../hooks/useContextMenuPermissions', () => ({
     useContextMenuPermissions: () => ({
         canViewUnderlyingData: mocks.canViewUnderlyingData.current,
-        canDrillInto: false,
+        canDrillInto: mocks.canDrillInto.current,
     }),
 }));
 vi.mock('../../hooks/useExplore', () => ({
@@ -163,6 +176,13 @@ vi.mock('../../hooks/useExplore', () => ({
         mocks.exploreHook(...args);
         return { data: mocks.explore.current };
     },
+    useExploreQueries: (names: unknown[]) => names.map(() => undefined),
+}));
+vi.mock('../../features/mergeQuery/context/useMerge', () => ({
+    useMergeSafe: () => mocks.merge.current,
+}));
+vi.mock('../../hooks/toaster/useToaster', () => ({
+    default: () => ({ showToastError: mocks.showToastError }),
 }));
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({ data: { enabled: true } }),
@@ -188,79 +208,85 @@ vi.mock('../LightdashVisualization/types', () => ({
 }));
 vi.mock('../LightdashVisualization/useVisualizationContext', async () => {
     const { useMemo } = await import('react');
-    return {
-        useVisualizationContext: () => {
-            const dataAppVizUuid = mocks.dataAppVizUuid.current;
-            const dataAppVizVersion = mocks.dataAppVizVersion.current;
-            const fieldMapping = mocks.fieldMapping.current;
-            const isLoading = mocks.isLoading.current;
-            const vizContextOverrides = mocks.vizContextOverrides.current;
-            return useMemo(
-                () => ({
-                    visualizationConfig: {
-                        chartConfig: {
-                            validConfig:
-                                dataAppVizUuid === null
-                                    ? null
-                                    : {
-                                          dataAppVizUuid: dataAppVizUuid,
-                                          dataAppVizVersion: dataAppVizVersion,
-                                          fieldMapping: fieldMapping,
-                                          optionValues: { title: 12 },
-                                      },
-                            setDataAppVizVersion: mocks.setDataAppVizVersion,
-                        },
+    const useVisualizationContext = () => {
+        const dataAppVizUuid = mocks.dataAppVizUuid.current;
+        const dataAppVizVersion = mocks.dataAppVizVersion.current;
+        const fieldMapping = mocks.fieldMapping.current;
+        const isLoading = mocks.isLoading.current;
+        const vizContextOverrides = mocks.vizContextOverrides.current;
+        return useMemo(
+            () => ({
+                visualizationConfig: {
+                    chartConfig: {
+                        validConfig:
+                            dataAppVizUuid === null
+                                ? null
+                                : {
+                                      dataAppVizUuid: dataAppVizUuid,
+                                      dataAppVizVersion: dataAppVizVersion,
+                                      fieldMapping: fieldMapping,
+                                      optionValues: { title: 12 },
+                                  },
+                        setDataAppVizVersion: mocks.setDataAppVizVersion,
                     },
-                    savedChartUuid: 'saved-chart-uuid',
-                    resultsData: {
-                        rows: [
-                            {
-                                orders_category: {
-                                    value: {
-                                        raw: 'Hardware',
-                                        formatted: 'Hardware',
-                                    },
+                },
+                savedChartUuid: 'saved-chart-uuid',
+                resultsData: {
+                    rows: [
+                        {
+                            orders_category: {
+                                value: {
+                                    raw: 'Hardware',
+                                    formatted: 'Hardware',
                                 },
                             },
-                        ],
-                        setFetchAll: mocks.setFetchAll,
-                    },
-                    itemsMap: {
-                        orders_category: {
-                            fieldType: FieldType.DIMENSION,
-                            type: DimensionType.STRING,
-                            name: 'category',
-                            label: 'Category',
-                            table: 'orders',
-                            tableLabel: 'Orders',
-                            sql: '${TABLE}.category',
-                            hidden: false,
-                            colors: { Hardware: '#00ff00' },
                         },
-                        orders_count: {
-                            fieldType: FieldType.METRIC,
-                            type: MetricType.COUNT,
-                            name: 'count',
-                            label: 'Count',
-                            table: 'orders',
-                            tableLabel: 'Orders',
-                            sql: '${TABLE}.count',
-                            hidden: false,
-                        },
+                    ],
+                    setFetchAll: mocks.setFetchAll,
+                },
+                itemsMap: {
+                    orders_category: {
+                        fieldType: FieldType.DIMENSION,
+                        type: DimensionType.STRING,
+                        name: 'category',
+                        label: 'Category',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        sql: '${TABLE}.category',
+                        hidden: false,
+                        colors: { Hardware: '#00ff00' },
                     },
-                    colorPalette: ['#7162FF'],
-                    isLoading: isLoading,
-                    ...vizContextOverrides,
-                }),
-                [
-                    dataAppVizUuid,
-                    dataAppVizVersion,
-                    fieldMapping,
-                    isLoading,
-                    vizContextOverrides,
-                ],
-            );
-        },
+                    orders_count: {
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.COUNT,
+                        name: 'count',
+                        label: 'Count',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        sql: '${TABLE}.count',
+                        hidden: false,
+                    },
+                },
+                colorPalette: ['#7162FF'],
+                isLoading: isLoading,
+                ...vizContextOverrides,
+            }),
+            [
+                dataAppVizUuid,
+                dataAppVizVersion,
+                fieldMapping,
+                isLoading,
+                vizContextOverrides,
+            ],
+        );
+    };
+    return {
+        useVisualizationContext,
+        useVisualizationServices: useVisualizationContext,
+        useVisualizationLayout: useVisualizationContext,
+        useVisualizationInputs: useVisualizationContext,
+        useVisualizationConfig: () =>
+            useVisualizationContext().visualizationConfig,
     };
 });
 vi.mock('../MetricQueryData/useMetricQueryDataContext', () => ({
@@ -1747,7 +1773,7 @@ describe('DataAppVizRenderer underlying-data gating', () => {
     it('gated surfaces disable the explore fetch itself', () => {
         mocks.embedToken.current = 'embed-jwt';
         renderRenderer();
-        expect(mocks.exploreHook).toHaveBeenLastCalledWith(
+        expect(mocks.exploreHook).toHaveBeenCalledWith(
             'orders',
             expect.objectContaining({ enabled: false }),
         );
@@ -1755,7 +1781,7 @@ describe('DataAppVizRenderer underlying-data gating', () => {
 
     it('the happy path enables the explore fetch', () => {
         renderRenderer();
-        expect(mocks.exploreHook).toHaveBeenLastCalledWith(
+        expect(mocks.exploreHook).toHaveBeenCalledWith(
             'orders',
             expect.objectContaining({ enabled: true }),
         );
@@ -1871,6 +1897,96 @@ describe('DataAppVizRenderer point menu', () => {
         const props = lastIframeProps();
         expect(props.dataAppVizContext?.pointMenu).toEqual({ enabled: false });
         expect(props.onVizPointMenuIntent).toBeUndefined();
+    });
+});
+
+describe('DataAppVizRenderer drill-down on a merged result', () => {
+    const lastIframeProps = () =>
+        (
+            mocks.iframePreview.mock.calls.at(-1) as unknown[] | undefined
+        )?.[0] as { onVizDrillDownIntent?: (intent: unknown) => void };
+
+    beforeEach(() => {
+        mocks.metadata.current = {
+            ...readyMetadata(),
+            schema: {
+                ...readyMetadata().schema,
+                fields: [
+                    ...readyMetadata().schema.fields,
+                    {
+                        name: 'value',
+                        label: 'Value',
+                        type: 'metric' as const,
+                        required: true,
+                    },
+                ],
+            },
+        };
+        mocks.metadataError.current = undefined;
+        mocks.token.current = 'preview-token';
+        mocks.embedToken.current = undefined;
+        mocks.dataAppVizUuid.current = 'viz-uuid';
+        mocks.fieldMapping.current = {
+            category: 'orders_category',
+            value: 'orders_count',
+        };
+        mocks.iframePreview.mockClear();
+        mocks.showToastError.mockClear();
+        mocks.canDrillInto.current = true;
+        mocks.vizContextOverrides.current = {
+            resultsData: {
+                rows: [],
+                setFetchAll: mocks.setFetchAll,
+                metricQuery: {
+                    exploreName: 'orders',
+                    dimensions: ['orders_category'],
+                    metrics: ['orders_count'],
+                    filters: {},
+                    sorts: [],
+                    limit: 500,
+                    tableCalculations: [],
+                },
+                queryUuid: 'source-query-uuid',
+            },
+        };
+        // A merge table calculation passes the metric check but no source owns it
+        mocks.merge.current = {
+            mergeResults: {
+                fieldOrigins: { orders_count: { kind: 'tableCalculation' } },
+            },
+            additionalSources: [],
+        };
+    });
+
+    afterEach(() => {
+        mocks.canDrillInto.current = false;
+        mocks.merge.current = null;
+        mocks.fieldMapping.current = { category: 'orders_category' };
+    });
+
+    it('never opens the drill for a column no source owns', () => {
+        const openDrillDownModal = vi.fn();
+        mocks.metricQueryData.current = {
+            openUnderlyingDataModal: vi.fn(),
+            openDrillDownModal,
+        };
+        renderRenderer();
+        const { onVizDrillDownIntent } = lastIframeProps();
+        expect(onVizDrillDownIntent).toBeTypeOf('function');
+
+        expect(() =>
+            onVizDrillDownIntent?.({
+                row: {
+                    orders_category: {
+                        value: { raw: 'Hardware', formatted: 'Hardware' },
+                    },
+                    orders_count: { value: { raw: 3, formatted: '3' } },
+                },
+                metric: 'value',
+            }),
+        ).toThrow();
+        expect(openDrillDownModal).not.toHaveBeenCalled();
+        expect(mocks.showToastError).toHaveBeenCalledTimes(1);
     });
 });
 

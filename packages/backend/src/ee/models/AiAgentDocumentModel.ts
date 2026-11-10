@@ -6,9 +6,11 @@ import {
     AiAgentDocumentSummary,
     AlreadyExistsError,
     NotFoundError,
+    ProjectType,
 } from '@lightdash/common';
+import { omit } from 'es-toolkit/compat';
 import { Knex } from 'knex';
-import { omit } from 'lodash';
+import { ProjectTableName } from '../../database/entities/projects';
 import {
     AiAgentDocumentAccessTableName,
     AiAgentDocumentTableName,
@@ -40,6 +42,10 @@ const mapRowToDocument = (row: DbDocumentWithAccess): AiAgentDocument => ({
 const mapRowToSummary = (row: DbDocumentWithAccess): AiAgentDocumentSummary => {
     const data = omit(mapRowToDocument(row), 'storageKey');
     return data;
+};
+
+export type AiAgentOwnedDocument = AiAgentDocumentSummary & {
+    content: string;
 };
 
 const mapRowToContext = (
@@ -221,20 +227,77 @@ export class AiAgentDocumentModel {
     }
 
     /**
+     * SQL that holds unless the project is the organization's Learn training
+     * project or a learner's copy of it (a preview the training flow made).
+     * The same rule as `isTrainingProject`, negated, for use inside a scope.
+     */
+    private static notTrainingProjectSubquery(qb: Knex, projectUuid: string) {
+        return qb.raw(
+            `NOT EXISTS (
+                SELECT 1 FROM ?? AS training
+                WHERE training.project_uuid = ?
+                  AND (
+                      training.project_type = ?
+                      OR (training.project_type = ? AND training.provisioning_source = ?)
+                  )
+            )`,
+            [
+                ProjectTableName,
+                projectUuid,
+                ProjectType.TRAINING,
+                ProjectType.PREVIEW,
+                'training',
+            ],
+        );
+    }
+
+    /** Whether the project is the Learn training project or a learner's copy of it. */
+    async isTrainingProject(projectUuid: string): Promise<boolean> {
+        const row = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .andWhere((builder) => {
+                void builder
+                    .where('project_type', ProjectType.TRAINING)
+                    .orWhere((copy) => {
+                        void copy
+                            .where('project_type', ProjectType.PREVIEW)
+                            .andWhere('provisioning_source', 'training');
+                    });
+            })
+            .first('project_uuid');
+        return row !== undefined;
+    }
+
+    /**
      * A document is org level, and so reaches every agent, only when it has no
      * project and no grants. Access rows always restrict; having none is not a
      * wildcard, so a project document nobody was granted reaches no agent.
+     *
+     * An agent in a Learn training project or a learner's copy reaches only
+     * that project's own documents: organization documents stay with real
+     * projects, so a learner never reads company material through a copy.
      */
     private static agentScope(
         qb: Knex,
         agentUuid: string,
         projectUuid: string | null,
     ) {
+        const outsideTraining = (builder: Knex.QueryBuilder) => {
+            if (projectUuid) {
+                void builder.andWhere(
+                    AiAgentDocumentModel.notTrainingProjectSubquery(
+                        qb,
+                        projectUuid,
+                    ),
+                );
+            }
+        };
         return (builder: Knex.QueryBuilder) => {
             void builder.where((orgLevel) => {
                 void orgLevel
                     .whereNull(`${AiAgentDocumentTableName}.project_uuid`)
                     .andWhere(AiAgentDocumentModel.noAgentAccessSubquery(qb));
+                outsideTraining(orgLevel);
             });
             void builder.orWhere((granted) => {
                 void granted
@@ -242,9 +305,12 @@ export class AiAgentDocumentModel {
                         AiAgentDocumentModel.agentAccessSubquery(qb, agentUuid),
                     )
                     .andWhere((inScope) => {
-                        void inScope.whereNull(
-                            `${AiAgentDocumentTableName}.project_uuid`,
-                        );
+                        void inScope.where((orgWide) => {
+                            void orgWide.whereNull(
+                                `${AiAgentDocumentTableName}.project_uuid`,
+                            );
+                            outsideTraining(orgWide);
+                        });
                         if (projectUuid) {
                             void inScope.orWhere(
                                 `${AiAgentDocumentTableName}.project_uuid`,
@@ -276,6 +342,51 @@ export class AiAgentDocumentModel {
             .orderBy(`${AiAgentDocumentTableName}.created_at`, 'desc');
 
         return rows.map(mapRowToSummary);
+    }
+
+    // In the agent's project and granted to no other agent, so a caller can
+    // rewrite the whole set without touching anything shared.
+    async findOwnedByAgent(args: {
+        organizationUuid: string;
+        agentUuid: string;
+        projectUuid: string;
+    }): Promise<AiAgentOwnedDocument[]> {
+        const rows = await this.baseSelect()
+            .where(
+                `${AiAgentDocumentTableName}.organization_uuid`,
+                args.organizationUuid,
+            )
+            .andWhere(
+                `${AiAgentDocumentTableName}.project_uuid`,
+                args.projectUuid,
+            )
+            .andWhere(
+                AiAgentDocumentModel.agentAccessSubquery(
+                    this.database,
+                    args.agentUuid,
+                ),
+            )
+            .andWhere(
+                this.database.raw(
+                    `NOT EXISTS (
+                        SELECT 1 FROM ?? AS other
+                        WHERE other.ai_agent_document_uuid = ??.ai_agent_document_uuid
+                          AND other.ai_agent_uuid <> ?
+                    )`,
+                    [
+                        AiAgentDocumentAccessTableName,
+                        AiAgentDocumentTableName,
+                        args.agentUuid,
+                    ],
+                ),
+            )
+            .orderBy(`${AiAgentDocumentTableName}.name`, 'asc');
+
+        return rows.flatMap((row) =>
+            row.content === null
+                ? []
+                : [{ ...mapRowToSummary(row), content: row.content }],
+        );
     }
 
     async findAllContextForAgent(args: {
@@ -374,6 +485,7 @@ export class AiAgentDocumentModel {
         organizationUuid: string;
         name: string;
         content: string;
+        mimeType?: string;
         summary: AiAgentDocumentStructuredSummary;
         updatedByUserUuid: string;
     }): Promise<AiAgentDocument> {
@@ -382,6 +494,9 @@ export class AiAgentDocumentModel {
             .andWhere('organization_uuid', args.organizationUuid)
             .update({
                 name: args.name,
+                ...(args.mimeType !== undefined
+                    ? { mime_type: args.mimeType }
+                    : {}),
                 content: args.content,
                 content_size_bytes: Buffer.byteLength(args.content, 'utf8'),
                 summary: args.summary,

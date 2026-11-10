@@ -19,6 +19,7 @@ import {
     type ApiDataAppVizRenderMetadataResponse,
     type ApiDataAppVizUpgradeImpactResponse,
     type ApiDeleteAppResponse,
+    type ApiDismissAddAnalysisOfferResponse,
     type ApiDuplicateAppRequest,
     type ApiDuplicateAppResponse,
     type ApiEmbedProjectAppsResponse,
@@ -29,6 +30,7 @@ import {
     type ApiGetDataAppVizResponse,
     type ApiImportAppCodeResponse,
     type ApiInstallRegistryChartTypeResponse,
+    type ApiInstallStarterChartTypesResponse,
     type ApiListDataAppVizsResponse,
     type ApiListRegistryChartTypesResponse,
     type ApiMyAppsResponse,
@@ -42,12 +44,14 @@ import {
     type ApiUpdateAppResponse,
     type ApiUpgradeAppResponse,
     type DataAppActivityFilters,
+    type DataAppViewContext,
     type DataAppVizListSortBy,
     type DataAppVizListSortDirection,
     type GenerateAppRequestBody,
     type ImportAppCodeRequestBody,
     type InstallRegistryChartTypeBody,
     type MyAppsSortBy,
+    type RecordDataAppViewOutcome,
     type UpgradeAppRequestBody,
     type UUID,
     type UuidOrSlug,
@@ -70,6 +74,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
+import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -225,6 +230,32 @@ export class AppGenerateController extends BaseController {
                 projectUuid,
                 chartSlug,
                 body,
+            );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Install the library's starter chart types into a new project, skipping
+     * any already installed. Returns nothing installed while the library is off.
+     * @summary Install the starter chart types from the chart registry
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/registry/starter-charts/install')
+    @OperationId('installStarterChartTypes')
+    async installStarterChartTypes(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiInstallStarterChartTypesResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results =
+            await this.getAppGenerateService().installStarterChartTypes(
+                toSessionUser(req.account),
+                projectUuid,
             );
         return {
             status: 'ok',
@@ -404,7 +435,13 @@ export class AppGenerateController extends BaseController {
     /**
      * @summary Get data app visualization render metadata for a saved chart
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AppGenerateController.getChartDataAppVizRenderMetadata',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get(
         '/visualizations/{dataAppVizUuid}/charts/{savedChartUuid}/render-metadata',
@@ -435,7 +472,13 @@ export class AppGenerateController extends BaseController {
     /**
      * @summary Get a data app visualization preview token for a saved chart
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AppGenerateController.getChartDataAppVizPreviewToken',
+        ),
+    ])
     @SuccessResponse('200', 'Success')
     @Get(
         '/visualizations/{dataAppVizUuid}/charts/{savedChartUuid}/versions/{version}/preview-token',
@@ -682,7 +725,11 @@ export class AppGenerateController extends BaseController {
      * Get an app with its version history, paginated backwards.
      * @summary Get app with versions
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AppGenerateController.getApp'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{appUuidOrSlug}')
     @OperationId('getApp')
@@ -1039,6 +1086,33 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
+     * Dismiss the builder-side "add AI analysis" offer for this app, for
+     * everyone who builds it. One-way: the offer also disappears on its own
+     * once a build wires up the analysis surface.
+     * @summary Dismiss the add-AI-analysis offer
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/analysis-offer/dismiss')
+    @OperationId('dismissAddAnalysisOffer')
+    async dismissAddAnalysisOffer(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: UUID,
+    ): Promise<ApiDismissAddAnalysisOfferResponse> {
+        assertRegisteredAccount(req.account);
+        await this.getAppGenerateService().dismissAddAnalysisOffer(
+            toSessionUser(req.account),
+            projectUuid,
+            appUuid,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
      * Delete an app. When soft delete is enabled, the app is marked as
      * deleted and can be restored via the admin flow. Otherwise the app
      * row, every version, and all S3 artifacts are permanently removed.
@@ -1094,7 +1168,11 @@ export class AppGenerateController extends BaseController {
      * Mints a short-lived JWT for accessing an app version preview in an iframe.
      * @summary Get preview token
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AppGenerateController.getPreviewToken'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{appUuid}/versions/{version}/preview-token')
     @OperationId('getAppPreviewToken')
@@ -1103,6 +1181,7 @@ export class AppGenerateController extends BaseController {
         @Path() projectUuid: string,
         @Path() appUuid: string,
         @Path() version: number,
+        @Query() viewContext: DataAppViewContext = 'unknown',
     ): Promise<ApiPreviewTokenResponse> {
         assertRegisteredAccount(req.account);
         const token = await this.getAppGenerateService().getPreviewToken(
@@ -1110,11 +1189,34 @@ export class AppGenerateController extends BaseController {
             projectUuid,
             appUuid,
             version,
+            viewContext,
         );
         return {
             status: 'ok',
             results: { token },
         };
+    }
+
+    /**
+     * Records a technical observation authorized by an exact-version preview token.
+     * @summary Record app outcome
+     */
+    @Post('/{appUuid}/versions/{version}/view-outcome')
+    @SuccessResponse('200', 'Success')
+    @OperationId('recordDataAppViewOutcome')
+    async recordViewOutcome(
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Path() version: number,
+        @Body() body: RecordDataAppViewOutcome,
+    ): Promise<ApiSuccessEmpty> {
+        this.getAppGenerateService().recordViewOutcome(
+            projectUuid,
+            appUuid,
+            version,
+            body,
+        );
+        return { status: 'ok', results: undefined };
     }
 
     /**
@@ -1147,7 +1249,11 @@ export class AppGenerateController extends BaseController {
      * Import source code for a data app version.
      * @summary Import app code
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AppGenerateController.importAppCode'),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/upload')
     @OperationId('importAppCode')
@@ -1191,6 +1297,11 @@ export class AppGenerateController extends BaseController {
         };
     }
 
+    /**
+     * Save a PNG as the thumbnail of one version of a data app
+     * @summary Upload app thumbnail
+     * @param version the version to save it for; defaults to the latest ready version
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Post('/{appUuid}/thumbnail')
@@ -1199,6 +1310,7 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() appUuid: string,
+        @Query() version?: number,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         const mimeType = req.headers['content-type'];
@@ -1222,6 +1334,7 @@ export class AppGenerateController extends BaseController {
             req,
             contentLength,
             appUuid,
+            version ?? null,
         );
 
         return {
@@ -1230,6 +1343,11 @@ export class AppGenerateController extends BaseController {
         };
     }
 
+    /**
+     * Remove the thumbnail of one version of a data app
+     * @summary Delete app thumbnail
+     * @param version the version to remove it from; defaults to the latest ready version
+     */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Delete('/{appUuid}/thumbnail')
@@ -1238,12 +1356,14 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() appUuid: string,
+        @Query() version?: number,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         await this.getAppGenerateService().deleteThumbnail(
             toSessionUser(req.account),
             projectUuid,
             appUuid,
+            version ?? null,
         );
         return {
             status: 'ok',
@@ -1273,11 +1393,43 @@ export class AppGenerateController extends BaseController {
     }
 
     /**
+     * Get a short-lived URL for the thumbnail of one version of a data app
+     * @summary Get app version thumbnail
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{appUuid}/versions/{version}/thumbnail')
+    @OperationId('getAppVersionThumbnailUrl')
+    async getAppVersionThumbnailUrl(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() appUuid: UUID,
+        @Path() version: number,
+    ): Promise<ApiAppThumbnailUrlResponse> {
+        assertRegisteredAccount(req.account);
+        const result =
+            await this.getAppGenerateService().getVersionThumbnailUrl(
+                toSessionUser(req.account),
+                projectUuid,
+                appUuid,
+                version,
+            );
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
      * List schedulers for a data app
      * @summary List app schedulers
      * @param includeLatestRun include the most recent run for each scheduler
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation('AppGenerateController.getAppSchedulers'),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{appUuid}/schedulers')
     @OperationId('getAppSchedulers')

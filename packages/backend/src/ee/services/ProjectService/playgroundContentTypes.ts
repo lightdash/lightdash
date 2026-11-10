@@ -1,4 +1,5 @@
 import {
+    type AiAgentDocumentStructuredSummary,
     type CreateChartInSpace,
     type CreateDashboard,
     type CreateDashboardChartTile,
@@ -75,12 +76,27 @@ export type PlaygroundDataAppDefinition = {
     source: Record<string, string>;
 };
 
+/**
+ * A knowledge document on the training agent. Each learner's training copy
+ * gets its own when the copy is made, scoped to the copy and granted to the
+ * copy's agent.
+ */
+export type PlaygroundAgentKnowledgeDocumentDefinition = {
+    name: string;
+    originalFilename: string;
+    /** Markdown the agent can consult. */
+    content: string;
+    /** Written ahead of time, so seeding makes no model call. */
+    summary: AiAgentDocumentStructuredSummary;
+};
+
 /** The project's AI agent, the one the Ask AI walkthrough talks to. */
 export type PlaygroundAgentDefinition = {
     name: string;
     slug: string;
     description: string;
     instruction: string;
+    knowledgeDocuments?: PlaygroundAgentKnowledgeDocumentDefinition[];
 };
 
 /**
@@ -95,6 +111,21 @@ export type PlaygroundDeepResearchDefinition = {
     resultMarkdown: string;
     durationMs: number;
     warehouseQueryCount: number;
+};
+
+/**
+ * A written report with live charts. Each learner's training copy gets its
+ * own when the copy is made, so the shared training project carries none.
+ * The body is markdown with a `<document-chart id="c1">` block wherever a
+ * chart sits; each block's chart is one of the bundle's charts, by key.
+ */
+export type PlaygroundDocumentDefinition = {
+    slug: string;
+    name: string;
+    description: string;
+    markdown: string;
+    /** Chart blocks by id (`c1`, `c2`, …), each naming a chart key. */
+    charts: Record<string, string>;
 };
 
 export type PlaygroundMetricsTreeDefinition = {
@@ -128,4 +159,5 @@ export type PlaygroundContent = {
     dataApps?: PlaygroundDataAppDefinition[];
     agent?: PlaygroundAgentDefinition;
     deepResearch?: PlaygroundDeepResearchDefinition;
+    documents?: PlaygroundDocumentDefinition[];
 };

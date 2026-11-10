@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import { Box, Center, Flex, Loader } from '@mantine/core';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useOutletContext, useParams, useSearchParams } from 'react-router';
-import { matchesModelConfig } from '../../../components/common/ModelSelector/utils';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useApp from '../../../providers/App/useApp';
 import { ReviewVerificationPanel } from '../../features/aiCopilot/components/Admin/ReviewVerificationPanel';
@@ -22,8 +21,7 @@ import {
     type DeepResearchRunRegistration,
     type StartDeepResearchArgs,
 } from '../../features/aiCopilot/deepResearch/types';
-import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
-import { emitEmbedAiAgentThreadChange } from '../../features/aiCopilot/hooks/embedAiAgentThreadChange';
+import { useEmitEmbedAiAgentThreadChange } from '../../features/aiCopilot/hooks/embedAiAgentThreadChange';
 import {
     useAiAgentReviewItemByPreviewThread,
     useUpdateAiAgentReviewItemStatus,
@@ -36,7 +34,6 @@ import {
     useTrackDeepResearchFollowUp,
 } from '../../features/aiCopilot/hooks/useDeepResearch';
 import { useDeepResearchAccess } from '../../features/aiCopilot/hooks/useDeepResearchAccess';
-import { useModelOptions } from '../../features/aiCopilot/hooks/useModelOptions';
 import { usePendingThreadRefetch } from '../../features/aiCopilot/hooks/usePendingThreadRefetch';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
 import {
@@ -45,6 +42,7 @@ import {
     useAiAgentThreadWorkstreams,
     useCreateAgentThreadMessageMutation,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
+import { useThreadModel } from '../../features/aiCopilot/hooks/useThreadModel';
 import {
     selectThreadSqlMode,
     setThreadSqlMode,
@@ -55,13 +53,15 @@ import {
 } from '../../features/aiCopilot/store/hooks';
 import { type AiAgentToolResult } from '../../features/aiCopilot/types';
 import { getDashboardNavigationUrlFromContentToolResult } from '../../features/aiCopilot/utils/contentToolResultNavigation';
+import useIsEmbedded from '../../providers/Embed/useIsEmbedded';
 import { type AgentContext } from './AgentPage';
 
 const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const { agentUuid, threadUuid, promptUuid } = useParams();
     const projectUuid = useProjectUuid();
     const [searchParams] = useSearchParams();
-    const isEmbed = isEmbedAiAgentRoute();
+    const isEmbed = useIsEmbedded();
+    const emitEmbedAiAgentThreadChange = useEmitEmbedAiAgentThreadChange();
     const { user } = useApp();
 
     const {
@@ -80,7 +80,14 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             agentUuid,
             threadUuid,
         });
-    }, [agentUuid, isEmbed, projectUuid, thread, threadUuid]);
+    }, [
+        agentUuid,
+        emitEmbedAiAgentThreadChange,
+        isEmbed,
+        projectUuid,
+        thread,
+        threadUuid,
+    ]);
 
     // Pull requests the coding agent has opened in this thread (its workstreams).
     const { data: workstreams } = useAiAgentThreadWorkstreams(
@@ -195,23 +202,11 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     );
     const dispatch = useAiAgentStoreDispatch();
 
-    const firstAssistantMessage = thread?.messages?.find(
-        (m) => m.role === 'assistant',
-    );
-    const threadModelConfig = firstAssistantMessage?.modelConfig ?? null;
-
-    const { data: availableModels } = useModelOptions({
+    const threadModel = useThreadModel({
         projectUuid,
         agentUuid,
-        options: { enabled: !!threadModelConfig },
+        messages: thread?.messages,
     });
-
-    const isThreadModelUnavailable =
-        !!threadModelConfig &&
-        !!availableModels &&
-        !availableModels.some((model) =>
-            matchesModelConfig(model, threadModelConfig),
-        );
 
     const disabledReasons: { when: boolean; message: string }[] = [
         {
@@ -222,10 +217,6 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         {
             when: !isEmbed && !!thread && !isThreadFromCurrentUser,
             message: 'This thread is read-only. It belongs to another user.',
-        },
-        {
-            when: isThreadModelUnavailable,
-            message: `The model used in this thread (${threadModelConfig?.modelProvider} ${threadModelConfig?.modelName}) is no longer available. Start a new thread to continue.`,
         },
     ];
     const activeDisabledReason = disabledReasons.find((r) => r.when);
@@ -242,8 +233,13 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         [thread?.messages],
     );
 
-    // Expand the thread's pinned dashboard into tiles, mentionable by tile name.
+    const boundDashboardUuid =
+        thread?.binding?.type === 'dashboard'
+            ? thread.binding.dashboardUuid
+            : null;
+    // Expand the thread's bound or pinned dashboard into tiles, mentionable by tile name.
     const pinnedDashboardUuid = useMemo(() => {
+        if (boundDashboardUuid) return boundDashboardUuid;
         for (const message of thread?.messages ?? []) {
             if (message.role !== 'user') continue;
             for (const item of message.context ?? []) {
@@ -251,13 +247,18 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             }
         }
         return null;
-    }, [thread?.messages]);
+    }, [boundDashboardUuid, thread?.messages]);
 
     const { contentMentionItems: pinnedDashboardTileItems } = usePinnedContext({
         projectUuid,
         dashboardUuidOrSlug: pinnedDashboardUuid,
     });
-    const dashboardUuid = searchParams.get('dashboardUuid');
+    const pageDashboardUuid = searchParams.get('dashboardUuid');
+    // A bound thread never pins a different dashboard from the page.
+    const dashboardUuid =
+        boundDashboardUuid && pageDashboardUuid !== boundDashboardUuid
+            ? null
+            : pageDashboardUuid;
     const dataAppUuid = searchParams.get('dataAppUuid');
     const documentUuid = searchParams.get('documentUuid');
     const {
@@ -296,7 +297,6 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     }) => {
         void createAgentThreadMessage({
             prompt: message,
-            modelConfig: threadModelConfig ?? undefined,
             context: mergeAiPromptContextInput(pageContextInput, context),
             optimisticContext: mergeAiPromptContextItems(
                 pagePreviewItems,
@@ -324,7 +324,6 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             (
                 await createAgentThreadMessage({
                     prompt: question,
-                    modelConfig: threadModelConfig ?? undefined,
                     context: pageContextInput,
                     optimisticContext: pagePreviewItems,
                     skipAgentResponse: true,
@@ -347,7 +346,6 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             createPrompt: (question) =>
                 createAgentThreadMessage({
                     prompt: question,
-                    modelConfig: threadModelConfig ?? undefined,
                     context: pageContextInput,
                     optimisticContext: pagePreviewItems,
                     skipAgentResponse: true,
@@ -444,6 +442,10 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                         projectUuid={projectUuid}
                         agentUuid={agentUuid}
                         threadUuid={threadUuid}
+                        threadModelName={threadModel?.name ?? null}
+                        threadModelWarning={
+                            threadModel?.deprecationWarning ?? null
+                        }
                         contentMentionPriorityItems={contentMentionItems}
                         latestAssistantMessageUuid={
                             [...(thread.messages ?? [])]

@@ -91,9 +91,7 @@ import {
     type TooltipComponentFormatterCallback,
     type TooltipComponentOption,
 } from 'echarts';
-import groupBy from 'lodash/groupBy';
-import toNumber from 'lodash/toNumber';
-import uniq from 'lodash/uniq';
+import { groupBy, toNumber, uniq } from 'es-toolkit/compat';
 import { type SeriesLike } from '../colors/series';
 import { sanitizeEchartsFontFamily } from '../fonts';
 import {
@@ -109,10 +107,10 @@ import {
 import { getCartesianConditionalFormattingColor } from './conditionalFormatting';
 import { EMPTY_X_AXIS } from './config';
 import { defaultAxisLabelGap, defaultGrid, legendTopSpacing } from './grid';
+import { applyIncompletePeriodStyle } from './incompletePeriod';
 import {
-    getLegendDoubleClickTooltip,
-    LEGEND_INTERACTION_HINT,
-    type LegendDoubleClickTooltip,
+    getLegendLabelTooltipStyle,
+    type LegendLabelTooltipStyle,
 } from './legendTooltip';
 import {
     detectTimeAxisMode,
@@ -462,7 +460,11 @@ export const mergeLegendSettings = <
     outsideLabelWidth: number = OUTSIDE_LEGEND_FALLBACK_LABEL_WIDTH,
 ): MergedLegendSettings => {
     const normalizedConfig = removeEmptyProperties(legendConfig);
-    if (!normalizedConfig || Object.keys(normalizedConfig).length === 0) {
+    // A persisted legend selection alone is not a layout config
+    const hasLayoutConfig = Object.keys(normalizedConfig ?? {}).some(
+        (key) => key !== 'selected',
+    );
+    if (!normalizedConfig || !hasLayoutConfig) {
         return {
             show: series.length > 1,
             type: 'scroll',
@@ -583,13 +585,13 @@ const getLegendItemName = (params: unknown): string =>
 
 /**
  * Layers the shared legend typography over the merged legend settings without
- * dropping the outside-placement truncation, and shows the full label in the
- * hover tooltip whenever labels can be truncated.
+ * dropping the outside-placement truncation. Only truncated labels get a hover
+ * tooltip, which shows the full label.
  */
 export const composeLegendConfig = (
     mergedLegend: MergedLegendSettings,
     legendStyle: LegendStyle,
-    doubleClickTooltip: LegendDoubleClickTooltip,
+    labelTooltipStyle: LegendLabelTooltipStyle,
 ) => {
     const isTruncated = mergedLegend.textStyle?.overflow === 'truncate';
     return {
@@ -598,13 +600,11 @@ export const composeLegendConfig = (
         textStyle: { ...legendStyle.textStyle, ...mergedLegend.textStyle },
         tooltip: isTruncated
             ? {
-                  ...doubleClickTooltip,
+                  ...labelTooltipStyle,
                   formatter: (params: unknown) =>
-                      `<div style="font-weight: 500">${encodeHtml(
-                          getLegendItemName(params),
-                      )}</div>${LEGEND_INTERACTION_HINT}`,
+                      encodeHtml(getLegendItemName(params)),
               }
-            : doubleClickTooltip,
+            : { show: false },
     };
 };
 
@@ -1254,30 +1254,38 @@ const applyReadableColorsToMarkLine = (
 ) => {
     const baseStyle = getReferenceLineStyle(baseColor, backgroundColor);
 
-    // Apply readable color adjustment to each reference line
-    const adjustedData = markLine.data?.map((item: any) => {
-        if (!item.lineStyle?.color || !backgroundColor) {
-            return item;
-        }
+    // ECharts throws on a mark line with no value and no type, so drop them.
+    const adjustedData = markLine.data
+        ?.filter(
+            (item) =>
+                item.type != null || item.xAxis != null || item.yAxis != null,
+        )
+        .map((item: any) => {
+            if (!item.lineStyle?.color || !backgroundColor) {
+                return item;
+            }
 
-        const adjustedColor = getReadableColor(
-            item.lineStyle.color,
-            backgroundColor,
-        );
-        const itemStyle = getReferenceLineStyle(adjustedColor, backgroundColor);
+            const adjustedColor = getReadableColor(
+                item.lineStyle.color,
+                backgroundColor,
+            );
+            const itemStyle = getReferenceLineStyle(
+                adjustedColor,
+                backgroundColor,
+            );
 
-        return {
-            ...item,
-            lineStyle: {
-                ...item.lineStyle,
-                color: adjustedColor,
-            },
-            label: {
-                ...itemStyle.label,
-                position: item.label?.position,
-            },
-        };
-    });
+            return {
+                ...item,
+                lineStyle: {
+                    ...item.lineStyle,
+                    color: adjustedColor,
+                },
+                label: {
+                    ...itemStyle.label,
+                    position: item.label?.position,
+                },
+            };
+        });
 
     return {
         ...markLine,
@@ -3100,6 +3108,7 @@ export const getStackTotalSeries = (
     resolvedTimezone?: string,
     // User-configured max per value axis, used to clamp overflowing totals
     valueAxisMaxes?: (number | undefined)[],
+    parameters?: ParametersValuesMap,
 ) => {
     const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
     return Object.entries(seriesGroupedByStack).reduce<EChartsSeries[]>(
@@ -3127,7 +3136,7 @@ export const getStackTotalSeries = (
                         itemsMap,
                         undefined,
                         undefined,
-                        undefined,
+                        parameters,
                         resolvedTimezone,
                     );
                 }
@@ -4121,6 +4130,7 @@ export const buildCartesianLegendState = (
         pivotDimensions,
         itemsMap,
         resolvedTimezone,
+        parameters,
         series,
         axes,
         dynamicRadius,
@@ -4217,6 +4227,7 @@ export const buildCartesianLegendState = (
                 validCartesianConfig?.layout.connectNulls,
                 resolvedTimezone,
                 valueAxisMaxes,
+                parameters,
             ),
         ];
     })();
@@ -4268,7 +4279,7 @@ export const buildCartesianLegendState = (
                         itemsMap,
                         undefined,
                         undefined,
-                        undefined,
+                        parameters,
                         resolvedTimezone,
                     );
                     maxCharCount = Math.max(maxCharCount, formatted.length);
@@ -4539,7 +4550,10 @@ export const buildCartesianEchartsOptionFromData = (
         sortedAxes,
         sortedSeriesForChart,
     }: CartesianLegendState,
-    { chartWidth = null }: { chartWidth?: number | null } = {},
+    {
+        chartWidth = null,
+        now = new Date(),
+    }: { chartWidth?: number | null; now?: Date } = {},
 ) => {
     const {
         validCartesianConfig,
@@ -4549,9 +4563,10 @@ export const buildCartesianEchartsOptionFromData = (
         series,
         rows,
         timeAxisMode,
+        resolvedTimezone,
     } = data;
 
-    const legendDoubleClickTooltip = getLegendDoubleClickTooltip(theme);
+    const legendLabelTooltipStyle = getLegendLabelTooltipStyle(theme);
 
     const legendConfigWithInstructionsTooltip = (() => {
         // Use line icon only for line/area charts, otherwise use square with border radius
@@ -4586,7 +4601,7 @@ export const buildCartesianEchartsOptionFromData = (
         return composeLegendConfig(
             mergedLegendConfig,
             legendStyle,
-            legendDoubleClickTooltip,
+            legendLabelTooltipStyle,
         );
     })();
 
@@ -4618,23 +4633,38 @@ export const buildCartesianEchartsOptionFromData = (
                 ? dataZoomLastIndex
                 : Math.min(dataZoomLastIndex, dataZoomSpan);
 
+        const orderedSeries = assignSeriesZByOrder(
+            relocateMarkLinesToVisibleSeries(
+                resolvedLabels.series,
+                validCartesianConfigLegend,
+            ),
+        );
+        const incompletePeriod =
+            validCartesianConfig?.layout?.showIncompletePeriod && itemsMap
+                ? applyIncompletePeriodStyle({
+                      series: orderedSeries,
+                      rows: dataToRender,
+                      tooltip,
+                      xFieldId: validCartesianConfig.layout.xField,
+                      flipAxes: !!flipAxes,
+                      itemsMap,
+                      timezone: resolvedTimezone,
+                      now,
+                  })
+                : { series: orderedSeries, rows: dataToRender, tooltip };
+
         const baseOptions = {
             xAxis: resolvedLabels.xAxis,
             yAxis: resolvedLabels.yAxis,
             useUTC: true,
-            series: assignSeriesZByOrder(
-                relocateMarkLinesToVisibleSeries(
-                    resolvedLabels.series,
-                    validCartesianConfigLegend,
-                ),
-            ),
+            series: incompletePeriod.series,
             animation,
             legend: legendConfigWithInstructionsTooltip,
             dataset: {
                 id: 'lightdashResults',
-                source: dataToRender,
+                source: incompletePeriod.rows,
             },
-            tooltip,
+            tooltip: incompletePeriod.tooltip,
             grid: currentGrid,
             textStyle: {
                 fontFamily: sanitizeEchartsFontFamily(theme.chartFont),

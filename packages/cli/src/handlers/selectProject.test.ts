@@ -1,17 +1,25 @@
 import { LightdashError, ProjectType } from '@lightdash/common';
 import inquirer from 'inquirer';
 import type { MockedFunction, MockInstance } from 'vitest';
+import { slotFixture } from '../agentConnections/fixtures';
 import { Config, unsetPreviewProject } from '../config';
+import { runWithAgentConnectionSelection } from '../credentials';
 import GlobalState from '../globalState';
 import { lightdashApi } from './dbt/apiClient';
 import { logSelectedProject, selectProject } from './selectProject';
 
+const selected = vi.hoisted(() => ({ credential: vi.fn() }));
+vi.mock('../credentials', async (original) => ({
+    ...(await original<typeof import('../credentials')>()),
+    resolveCredential: selected.credential,
+}));
 vi.mock('inquirer');
 vi.mock('../analytics/analytics');
 vi.mock('./dbt/apiClient', () => ({
     lightdashApi: vi.fn(),
 }));
 vi.mock('../config', () => ({
+    getConfig: vi.fn(async () => ({})),
     unsetPreviewProject: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -298,3 +306,58 @@ describe('logSelectedProject', () => {
         expect(output).toContain('"my-preview"');
     });
 });
+
+it('never clears a saved preview with a selected connection', async () => {
+    vi.stubEnv('LIGHTDASH_AGENT_CONNECTION', 'work');
+    mockLightdashApi.mockRejectedValue(
+        new LightdashError({
+            name: 'NotFoundError',
+            message: 'gone',
+            statusCode: 404,
+            data: {},
+        }),
+    );
+    try {
+        await selectProject({
+            context: { project: MAIN_UUID, previewProject: PREVIEW_UUID },
+        }).catch(() => undefined);
+        expect(unsetPreviewProject).not.toHaveBeenCalled();
+    } finally {
+        vi.unstubAllEnvs();
+    }
+});
+
+it.each([0, 1, 2])(
+    'uses only the slot projects for a default (count=%s)',
+    async (count) => {
+        vi.clearAllMocks();
+        const slot = slotFixture();
+        selected.credential.mockResolvedValue({
+            kind: 'agent_connection',
+            token: 'agent',
+            slot: {
+                ...slot,
+                lastReported: {
+                    ...slot.lastReported,
+                    approvedProjects: [MAIN_UUID, PREVIEW_UUID]
+                        .slice(0, count)
+                        .map((projectUuid) => ({ projectUuid })),
+                },
+            },
+        });
+        const result = runWithAgentConnectionSelection('work', () =>
+            selectProject({
+                context: { project: 'personal', previewProject: 'preview' },
+            }),
+        );
+        if (count === 1)
+            await expect(result).resolves.toEqual({
+                projectUuid: MAIN_UUID,
+                isPreview: false,
+            });
+        else await expect(result).rejects.toThrow('--project');
+        expect(mockLightdashApi).not.toHaveBeenCalled();
+        expect(unsetPreviewProject).not.toHaveBeenCalled();
+        expect(inquirer.prompt).not.toHaveBeenCalled();
+    },
+);

@@ -1,5 +1,6 @@
 import { act } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { BrandedAppNameSync } from '../components/common/DocumentTitle';
 import type { QueryEvent } from '../features/apps/hooks/useAppSdkBridge';
 import { renderWithProviders } from '../testing/testUtils';
 
@@ -19,6 +20,8 @@ const mocks = vi.hoisted(() => ({
     appUuid: 'app-uuid',
     appName: 'Sales app',
     isLoading: false,
+    spaceUuid: null as string | null,
+    recordView: vi.fn(),
 }));
 
 vi.mock('react-router', () => ({
@@ -58,9 +61,10 @@ vi.mock('../features/apps/hooks/useGetApp', () => ({
             : {
                   pages: [
                       {
+                          appUuid: 'canonical-app-uuid',
                           name: mocks.appName,
                           description: null,
-                          spaceUuid: null,
+                          spaceUuid: mocks.spaceUuid,
                           spaceName: null,
                           createdByUserUuid: 'user-uuid',
                           latestReadyVersion: 5,
@@ -73,8 +77,21 @@ vi.mock('../features/apps/hooks/useGetApp', () => ({
     }),
 }));
 
+vi.mock('../hooks/organization/useWhiteLabelBrand', () => ({
+    useWhiteLabelBrand: () => ({
+        logoUrl: null,
+        name: null,
+        isResolved: true,
+        isInstanceBrandResolved: true,
+    }),
+}));
+
 vi.mock('../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-uuid',
+}));
+
+vi.mock('../hooks/useRecordContentView', () => ({
+    useRecordContentView: mocks.recordView,
 }));
 
 vi.mock('../providers/Fullscreen/useNativeFullscreenToggle', () => ({
@@ -163,24 +180,57 @@ describe('AppPreviewTest', () => {
         mocks.appUuid = 'app-uuid';
         mocks.appName = 'Sales app';
         mocks.isLoading = false;
+        mocks.spaceUuid = null;
+        mocks.recordView.mockClear();
+    });
+
+    it('records the resolved app UUID after a space app loads, but not personal apps', () => {
+        const { rerender } = renderWithProviders(<AppPreviewTest />);
+        expect(mocks.recordView).toHaveBeenLastCalledWith(
+            'project-uuid',
+            'data_app',
+            undefined,
+        );
+        mocks.spaceUuid = 'space';
+        rerender(<AppPreviewTest />);
+        expect(mocks.recordView).toHaveBeenLastCalledWith(
+            'project-uuid',
+            'data_app',
+            'canonical-app-uuid',
+        );
+        mocks.isLoading = true;
+        rerender(<AppPreviewTest />);
+        expect(mocks.recordView).toHaveBeenLastCalledWith(
+            'project-uuid',
+            'data_app',
+            undefined,
+        );
     });
 
     it('sets the tab title when the app loads and updates it when the app changes', () => {
+        const BrandedAppPreview = () => (
+            <>
+                <BrandedAppNameSync />
+                <AppPreviewTest />
+            </>
+        );
         mocks.isLoading = true;
-        const { rerender } = renderWithProviders(<AppPreviewTest />);
+        const { rerender } = renderWithProviders(<BrandedAppPreview />);
         expect(document.title).not.toContain('Sales app');
 
         mocks.isLoading = false;
-        rerender(<AppPreviewTest />);
+        mocks.spaceUuid = null;
+        mocks.recordView.mockClear();
+        rerender(<BrandedAppPreview />);
         expect(document.title).toBe('(DEV) Sales app - Lightdash');
 
         mocks.appName = 'Revenue app';
-        rerender(<AppPreviewTest />);
+        rerender(<BrandedAppPreview />);
         expect(document.title).toBe('(DEV) Revenue app - Lightdash');
 
         mocks.appUuid = 'another-app-uuid';
         mocks.appName = 'Inventory app';
-        rerender(<AppPreviewTest />);
+        rerender(<BrandedAppPreview />);
         expect(document.title).toBe('(DEV) Inventory app - Lightdash');
     });
 

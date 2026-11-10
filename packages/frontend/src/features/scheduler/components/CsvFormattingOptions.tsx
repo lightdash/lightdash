@@ -18,6 +18,7 @@ import { useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { NumberInput } from '../../../components/common/NumberInput';
 import useHealth from '../../../hooks/health/useHealth';
+import classes from './CsvFormattingOptions.module.css';
 import { Limit, Values } from './types';
 
 type XlsxFileLayout = NonNullable<SchedulerCsvOptions['xlsxFileLayout']>;
@@ -52,10 +53,7 @@ const HelpTooltip: FC<{ label: string }> = ({ label }) => (
             size="md"
             display="inline"
             color="gray"
-            style={{
-                marginLeft: '4px',
-                marginBottom: '-4px',
-            }}
+            className={classes.infoIcon}
         />
     </Tooltip>
 );
@@ -188,7 +186,7 @@ export const CsvFormattingOptions: FC<CsvFormattingOptionsProps> = ({
             <Button
                 variant="subtle"
                 size="compact-sm"
-                style={{ alignSelf: 'start' }}
+                className={classes.toggleButton}
                 leftSection={<MantineIcon icon={IconSettings} />}
                 rightSection={
                     <MantineIcon

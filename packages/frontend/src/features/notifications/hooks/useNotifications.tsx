@@ -7,7 +7,8 @@ import {
     type Notification,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type NotificationForResource<T extends ApiNotificationResourceType> = Extract<
     Notification,
@@ -15,6 +16,7 @@ type NotificationForResource<T extends ApiNotificationResourceType> = Extract<
 >;
 
 const getNotifications = async <T extends ApiNotificationResourceType>(
+    lightdashApi: LightdashApi,
     type: T,
 ): Promise<NotificationForResource<T>[]> => {
     const results = await lightdashApi<ApiGetNotifications['results']>({
@@ -29,18 +31,21 @@ const getNotifications = async <T extends ApiNotificationResourceType>(
 export const useGetNotifications = <T extends ApiNotificationResourceType>(
     type: T,
     enabled: boolean,
-) =>
-    useQuery<NotificationForResource<T>[], ApiError>(
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<NotificationForResource<T>[], ApiError>(
         ['notifications', type],
-        () => getNotifications(type),
+        () => getNotifications(lightdashApi, type),
         {
             refetchInterval: 3 * 60 * 1000, // 3 minutes
             retry: (_, error) => error.error.statusCode !== 403,
             enabled,
         },
     );
+};
 
 const updateNotification = (
+    lightdashApi: LightdashApi,
     notificationId: string,
     toUpdate: ApiNotificationUpdateParams,
 ) =>
@@ -51,6 +56,7 @@ const updateNotification = (
     });
 
 export const useUpdateNotification = () => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
 
     return useMutation<
@@ -62,7 +68,7 @@ export const useUpdateNotification = () => {
         >
     >(
         ({ notificationId, toUpdate }) =>
-            updateNotification(notificationId, toUpdate),
+            updateNotification(lightdashApi, notificationId, toUpdate),
         {
             mutationKey: ['update-notification'],
             onSuccess: async (_, { resourceType }) => {

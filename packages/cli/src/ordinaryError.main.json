@@ -1,0 +1,20 @@
+{
+    "revision": "5c5020ab229d1f9fbd7bca1982c5cbe5b4c4f8f9",
+    "outputs": {
+        "api": {
+            "stdout": "",
+            "stderr": "Representative API failure\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n",
+            "code": 1
+        },
+        "authorization": {
+            "stdout": "",
+            "stderr": "Representative authorization failure\nLooks like you did not authenticate or the personal access token expired.\n\n\ud83d\udc40 See https://docs.lightdash.com/guides/cli/cli-authentication for help and examples\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n",
+            "code": 1
+        },
+        "unexpected": {
+            "stdout": "",
+            "stderr": "Representative unexpected failure\nError: Representative unexpected failure\n    at Command.<anonymous> (<CHECKOUT>/packages/cli/src/ordinaryError.fixture.cjs:LINE:COLUMN)\n    at Command.listener [as _actionHandler] (<CHECKOUT>/node_modules/.pnpm/commander@9.5.0/node_modules/commander/lib/command.js:LINE:COLUMN)\n    at <CHECKOUT>/node_modules/.pnpm/commander@9.5.0/node_modules/commander/lib/command.js:LINE:COLUMN\n    at Command._chainOrCall (<CHECKOUT>/node_modules/.pnpm/commander@9.5.0/node_modules/commander/lib/command.js:LINE:COLUMN)\n    at Command._parseCommand (<CHECKOUT>/node_modules/.pnpm/commander@9.5.0/node_modules/commander/lib/command.js:LINE:COLUMN)\n    at <CHECKOUT>/node_modules/.pnpm/commander@9.5.0/node_modules/commander/lib/command.js:LINE:COLUMN\n    at Command._chainOrCall (<CHECKOUT>/node_modules/.pnpm/commander@9.5.0/node_modules/commander/lib/command.js:LINE:COLUMN)\n    at Command._dispatchSubcommand (<CHECKOUT>/node_modules/.pnpm/commander@9.5.0/node_modules/commander/lib/command.js:LINE:COLUMN)\n    at Command._parseCommand (<CHECKOUT>/node_modules/.pnpm/commander@9.5.0/node_modules/commander/lib/command.js:LINE:COLUMN)\n    at <CHECKOUT>/node_modules/.pnpm/commander@9.5.0/node_modules/commander/lib/command.js:LINE:COLUMN\nError: Representative unexpected failure\n    at Command.<anonymous> (<CHECKOUT>/packages/cli/src/ordinaryError.fixture.cjs:LINE:COLUMN)\n    at Command.listener [as _actionHandler] (<CHECKOUT>/node_modules/.pnpm/commander@9.5.0/node_modules/commander/lib/command.js:LINE:COLUMN)\n    at <CHECKOUT>/node_modules/.pnpm/commander@9.5.0/node_modules/commander/lib/command.js:LINE:COLUMN\n    at Command._chainOrCall (<CHECKOUT>/node_modules/.pnpm/commander@9.5.0/node_modules/commander/lib/command.js:LINE:COLUMN)\n    at Command._parseCommand (<CHECKOUT>/node_modules/.pnpm/commander@9.5.0/node_modules/commander/lib/command.js:LINE:COLUMN)\n    at <CHECKOUT>/node_modules/.pnpm/commander@9.5.0/node_modules/commander/lib/command.js:LINE:COLUMN\n    at Command._chainOrCall (<CHECKOUT>/node_modules/.pnpm/commander@9.5.0/node_modules/commander/lib/command.js:LINE:COLUMN)\n    at Command._dispatchSubcommand (<CHECKOUT>/node_modules/.pnpm/commander@9.5.0/node_modules/commander/lib/command.js:LINE:COLUMN)\n    at Command._parseCommand (<CHECKOUT>/node_modules/.pnpm/commander@9.5.0/node_modules/commander/lib/command.js:LINE:COLUMN)\n    at <CHECKOUT>/node_modules/.pnpm/commander@9.5.0/node_modules/commander/lib/command.js:LINE:COLUMN\n\nReport this issue with 1-click:\n\n  \ud83d\udc1b https://github.com/lightdash/lightdash/issues/new?assignees=&labels=\ud83d\udc1b+bug&template=bug_report.md&title=Representative%20unexpected%20failure\n\n\ud83d\udca1 Run lightdash diagnostics for more info.\n\n",
+            "code": 1
+        }
+    }
+}

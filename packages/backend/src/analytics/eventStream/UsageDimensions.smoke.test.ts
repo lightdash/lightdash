@@ -7,10 +7,12 @@ import {
 import { randomUUID } from 'crypto';
 import knex from 'knex';
 import { gzipSync } from 'zlib';
+import Logger from '../../logging/logger';
 import { UsageDimensionsModel } from '../../models/UsageDimensionsModel';
 import { createAnalyticsExplores } from '../../services/ProjectService/analyticsProject/createAnalyticsExplores';
 import { createS3AnalyticsSourceResolver } from '../../services/ProjectService/analyticsProject/S3AnalyticsSource';
 import { MetricQueryBuilder } from '../../utils/QueryBuilder/MetricQueryBuilder';
+import { peopleMembershipHistoryKey } from './peopleMembership';
 import { usageDimensionKey } from './usageDimensions';
 import { UsageEventsCompactor } from './UsageEventsCompactor';
 
@@ -18,6 +20,231 @@ import { UsageEventsCompactor } from './UsageEventsCompactor';
 describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
     'Postgres usage dimensions to local S3 and joined explores',
     () => {
+        it('pages chart dimensions across tenant projects without including interleaved tenants', async () => {
+            vi.unstubAllGlobals();
+            const schema = `usage_chart_pages_${randomUUID().replaceAll('-', '')}`;
+            const db = knex({
+                client: 'pg',
+                connection: {
+                    host: 'localhost',
+                    port: Number(process.env.USAGE_DIMENSIONS_SMOKE_PGPORT),
+                    user: process.env.PGUSER ?? 'postgres',
+                    password: process.env.PGPASSWORD ?? 'password',
+                    database: process.env.PGDATABASE ?? 'postgres',
+                },
+                searchPath: [schema],
+                pool: { min: 0, max: 1 },
+            });
+            const fixture = (table: string) => db(table);
+            const org = randomUUID();
+            const project = randomUUID();
+            const secondProject = randomUUID();
+            const otherProject = randomUUID();
+            const dashboard = randomUUID();
+            const deletedDashboard = randomUUID();
+            const space = randomUUID();
+            const sqlChart = randomUUID();
+            try {
+                await db.raw('CREATE SCHEMA ??', [schema]);
+                await db.raw(`
+                    CREATE TABLE projects (project_uuid uuid PRIMARY KEY, organization_id integer);
+                    CREATE TABLE spaces (space_id integer PRIMARY KEY, space_uuid uuid UNIQUE, name text, deleted_at timestamptz);
+                    CREATE TABLE dashboards (dashboard_uuid uuid PRIMARY KEY, space_id integer, deleted_at timestamptz);
+                    CREATE TABLE saved_queries (saved_query_id integer PRIMARY KEY, saved_query_uuid uuid UNIQUE, project_uuid uuid, space_id integer, dashboard_uuid uuid, name text, slug text, last_version_chart_kind text, deleted_at timestamptz);
+                    CREATE UNIQUE INDEX ON saved_queries(project_uuid, slug);
+                    CREATE TABLE saved_sql (saved_sql_uuid uuid PRIMARY KEY, project_uuid uuid, space_uuid uuid, dashboard_uuid uuid, name text, slug text, last_version_chart_kind text, deleted_at timestamptz);
+                `);
+                await fixture('projects').insert([
+                    { project_uuid: project, organization_id: 1 },
+                    { project_uuid: secondProject, organization_id: 1 },
+                    { project_uuid: otherProject, organization_id: 2 },
+                ]);
+                await fixture('spaces').insert([
+                    { space_id: 1, space_uuid: space, name: 'First space' },
+                    {
+                        space_id: 2,
+                        space_uuid: randomUUID(),
+                        name: 'Second space',
+                    },
+                    {
+                        space_id: 3,
+                        space_uuid: randomUUID(),
+                        name: 'Deleted space',
+                        deleted_at: new Date(),
+                    },
+                ]);
+                await fixture('dashboards').insert([
+                    { dashboard_uuid: dashboard, space_id: 1 },
+                    {
+                        dashboard_uuid: deletedDashboard,
+                        space_id: 2,
+                        deleted_at: new Date(),
+                    },
+                ]);
+                await db.raw(
+                    `INSERT INTO saved_queries (saved_query_id, saved_query_uuid, project_uuid, space_id, name, slug, last_version_chart_kind)
+                    SELECT n * 2, md5('tenant-chart-' || n)::uuid,
+                        CASE WHEN n % 2 = 0 THEN ?::uuid ELSE ?::uuid END,
+                        CASE WHEN n % 2 = 0 THEN 2 ELSE 1 END,
+                        'Tenant chart ' || n, 'tenant-chart-' || n, 'table'
+                    FROM generate_series(1, 1005) n`,
+                    [secondProject, project],
+                );
+                await db.raw(
+                    `INSERT INTO saved_queries (saved_query_id, saved_query_uuid, project_uuid, name, slug, last_version_chart_kind)
+                    SELECT n * 2 - 1, md5('other-chart-' || n)::uuid, ?::uuid,
+                        'Other chart ' || n, 'other-chart-' || n, 'table'
+                    FROM generate_series(1, 1006) n`,
+                    [otherProject],
+                );
+                await fixture('saved_queries')
+                    .where('saved_query_id', 2)
+                    .update({ space_id: null, dashboard_uuid: dashboard });
+                await fixture('saved_queries')
+                    .where('saved_query_id', 4)
+                    .update({ deleted_at: new Date() });
+                await fixture('saved_queries')
+                    .where('saved_query_id', 6)
+                    .update({ space_id: 3 });
+                await fixture('saved_queries')
+                    .where('saved_query_id', 8)
+                    .update({
+                        space_id: null,
+                        dashboard_uuid: deletedDashboard,
+                    });
+                await fixture('saved_sql').insert([
+                    {
+                        saved_sql_uuid: sqlChart,
+                        project_uuid: project,
+                        space_uuid: space,
+                        name: 'Tenant SQL chart',
+                        slug: 'tenant-sql-chart',
+                        last_version_chart_kind: 'table',
+                    },
+                    {
+                        saved_sql_uuid: randomUUID(),
+                        project_uuid: otherProject,
+                        name: 'Other SQL chart',
+                        slug: 'other-sql-chart',
+                    },
+                ]);
+                await db.raw(`
+                    ALTER TABLE saved_queries RENAME TO chart_source;
+                    CREATE TEMP SEQUENCE chart_timeout;
+                    CREATE FUNCTION chart_name(value text) RETURNS text AS $$
+                    BEGIN
+                        IF nextval('chart_timeout') = 1 THEN
+                            RAISE EXCEPTION 'statement timeout' USING ERRCODE = '57014';
+                        END IF;
+                        RETURN value;
+                    END;
+                    $$ LANGUAGE plpgsql;
+                    CREATE VIEW saved_queries AS SELECT saved_query_id,
+                        saved_query_uuid, project_uuid, space_id, dashboard_uuid,
+                        chart_name(name) AS name, slug, last_version_chart_kind,
+                        deleted_at FROM chart_source;
+                `);
+                const result: Record<string, unknown>[] = [];
+                for await (const line of new UsageDimensionsModel(
+                    db,
+                    'https://lightdash.example.com/base',
+                ).getJsonLines(
+                    { organization_id: 1, organization_uuid: org },
+                    'charts',
+                )) {
+                    result.push(JSON.parse(line));
+                }
+                expect(result).toHaveLength(1006);
+                expect(new Set(result.map((row) => row.chart_id)).size).toBe(
+                    1006,
+                );
+                expect(result.every((row) => row.org_id === org)).toBe(true);
+                expect(result.slice(0, 1005).map((row) => row.name)).toEqual(
+                    Array.from(
+                        { length: 1005 },
+                        (_, n) => `Tenant chart ${n + 1}`,
+                    ),
+                );
+                expect(result[0]).toEqual({
+                    org_id: org,
+                    chart_id: expect.any(String),
+                    name: 'Tenant chart 1',
+                    slug: 'tenant-chart-1',
+                    url: `https://lightdash.example.com/projects/${project}/saved/${result[0].chart_id}/view`,
+                    chart_kind: 'table',
+                    space_name: 'First space',
+                    is_deleted: false,
+                });
+                expect(result.slice(1, 4).map((row) => row.is_deleted)).toEqual(
+                    [true, true, true],
+                );
+                expect(result[999].url).toContain(
+                    `/projects/${secondProject}/`,
+                );
+                expect(result[1000].url).toContain(`/projects/${project}/`);
+                expect(result[1005]).toEqual({
+                    org_id: org,
+                    chart_id: sqlChart,
+                    name: 'Tenant SQL chart',
+                    slug: 'tenant-sql-chart',
+                    url: `https://lightdash.example.com/projects/${project}/sql-runner/${sqlChart}`,
+                    chart_kind: 'table',
+                    space_name: 'First space',
+                    is_deleted: false,
+                });
+                const emptyResult = [];
+                for await (const line of new UsageDimensionsModel(
+                    db,
+                    'https://lightdash.example.com',
+                ).getJsonLines(
+                    { organization_id: 3, organization_uuid: randomUUID() },
+                    'charts',
+                )) {
+                    emptyResult.push(line);
+                }
+                expect(emptyResult).toEqual([]);
+
+                await db.raw('ALTER SEQUENCE chart_timeout RESTART WITH 1');
+                const iterator = new UsageDimensionsModel(
+                    db,
+                    'https://lightdash.example.com',
+                ).getJsonLines(
+                    { organization_id: 1, organization_uuid: org },
+                    'charts',
+                );
+                try {
+                    for (let row = 0; row < 1000; row += 1) {
+                        // eslint-disable-next-line no-await-in-loop
+                        expect((await iterator.next()).done).toBe(false);
+                    }
+                    await fixture('projects')
+                        .where('project_uuid', secondProject)
+                        .update({ organization_id: 2 });
+                    const remaining = [];
+                    for await (const line of iterator) {
+                        try {
+                            remaining.push(JSON.parse(line));
+                        } catch (error) {
+                            throw new Error('Expected chart snapshot JSON', {
+                                cause: error,
+                            });
+                        }
+                    }
+                    expect(remaining.map((row) => row.name)).toEqual([
+                        'Tenant chart 1001',
+                        'Tenant chart 1003',
+                        'Tenant chart 1005',
+                        'Tenant SQL chart',
+                    ]);
+                } finally {
+                    await iterator.return(undefined);
+                }
+            } finally {
+                await db.raw('DROP SCHEMA IF EXISTS ?? CASCADE', [schema]);
+                await db.destroy();
+            }
+        });
+
         it('refreshes batched snapshots and joins current names without losing events', async () => {
             vi.unstubAllGlobals();
             const endpoint = process.env.USAGE_EVENTS_S3_ENDPOINT ?? '';
@@ -61,7 +288,9 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
             const otherOrg = randomUUID();
             const user = randomUUID();
             const otherUser = randomUUID();
+            const userWithoutPrimaryEmail = randomUUID();
             const chart = randomUUID();
+            const sqlChart = randomUUID();
             const dashboard = randomUUID();
             const project = randomUUID();
             const agent = randomUUID();
@@ -88,8 +317,13 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     CREATE TABLE saved_queries (saved_query_id integer PRIMARY KEY, saved_query_uuid uuid UNIQUE, project_uuid uuid, space_id integer, dashboard_uuid uuid, name text, slug text, last_version_chart_kind text, deleted_at timestamp, created_at timestamp DEFAULT CURRENT_TIMESTAMP);
                     CREATE INDEX ON saved_queries(project_uuid);
                     CREATE TABLE saved_sql (saved_sql_uuid uuid PRIMARY KEY, project_uuid uuid, space_uuid uuid, dashboard_uuid uuid, name text, slug text, last_version_chart_kind text, deleted_at timestamp, created_at timestamp DEFAULT CURRENT_TIMESTAMP);
-                    CREATE TABLE users (user_id integer PRIMARY KEY, user_uuid uuid UNIQUE, first_name text, last_name text, is_active boolean, is_internal boolean);
-                    CREATE TABLE organization_memberships (organization_id integer, user_id integer, PRIMARY KEY(organization_id, user_id));
+                    CREATE TABLE users (user_id integer PRIMARY KEY, user_uuid uuid UNIQUE, first_name text, last_name text, is_active boolean, is_internal boolean, is_setup_complete boolean DEFAULT true);
+                    CREATE TABLE emails (user_id integer REFERENCES users(user_id), email text UNIQUE, is_primary boolean);
+                    CREATE UNIQUE INDEX ON emails(user_id) WHERE is_primary;
+                    CREATE TABLE organization_memberships (organization_id integer, user_id integer, role text DEFAULT 'member', role_uuid uuid, created_at timestamp DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(organization_id, user_id));
+                    CREATE TABLE groups (group_uuid uuid PRIMARY KEY, organization_id integer, name text);
+                    CREATE TABLE group_memberships (group_uuid uuid, organization_id integer, user_id integer, PRIMARY KEY(group_uuid, user_id));
+                    CREATE INDEX group_memberships_user_org_idx ON group_memberships (user_id, organization_id);
                 `);
                 await fixture('organizations').insert([
                     { organization_id: 1, organization_uuid: org },
@@ -159,7 +393,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     [project, rows],
                 );
                 await fixture('saved_sql').insert({
-                    saved_sql_uuid: randomUUID(),
+                    saved_sql_uuid: sqlChart,
                     project_uuid: project,
                     dashboard_uuid: dashboard,
                     name: 'SQL chart',
@@ -177,7 +411,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     },
                     {
                         user_id: 2,
-                        user_uuid: randomUUID(),
+                        user_uuid: userWithoutPrimaryEmail,
                         first_name: 'Same',
                         last_name: 'Name',
                         is_active: true,
@@ -190,6 +424,28 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         last_name: 'Org',
                         is_active: true,
                         is_internal: false,
+                    },
+                ]);
+                await fixture('emails').insert([
+                    {
+                        user_id: 1,
+                        email: 'primary@example.com',
+                        is_primary: true,
+                    },
+                    {
+                        user_id: 1,
+                        email: 'alias@example.com',
+                        is_primary: false,
+                    },
+                    {
+                        user_id: 2,
+                        email: 'no-primary@example.com',
+                        is_primary: false,
+                    },
+                    {
+                        user_id: 3,
+                        email: 'other-org@example.com',
+                        is_primary: true,
                     },
                 ]);
                 await fixture('organization_memberships').insert([
@@ -266,11 +522,14 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     new UsageEventsCompactor({
                         s3Config: storage,
                         prometheusMetrics: null,
-                        usageDimensionsModel: new UsageDimensionsModel(db),
+                        usageDimensionsModel: new UsageDimensionsModel(
+                            db,
+                            'https://lightdash.example.com/base/?query=value#hash',
+                        ),
                     }).run(new Date('2026-01-02'));
                 const summary = await run();
                 expect(summary.dimensions).toEqual({
-                    refreshed: 10,
+                    refreshed: 14,
                     failed: 0,
                 });
                 const source = createS3AnalyticsSourceResolver({
@@ -281,6 +540,32 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                     type: 'duckdb_parquet',
                     resolveSource: source,
                 });
+                const expectedUsers = [
+                    {
+                        user_id: user,
+                        name: 'Same Name',
+                        email: 'primary@example.com',
+                    },
+                    {
+                        user_id: userWithoutPrimaryEmail,
+                        name: 'Same Name',
+                        email: null,
+                    },
+                ];
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT user_id, name, email FROM lightdash_users ORDER BY email NULLS LAST',
+                        )
+                    ).rows,
+                ).toEqual(expectedUsers);
+                expect(
+                    (
+                        await reader.runQuery(
+                            'SELECT user_id, name, email FROM lightdash_people ORDER BY email NULLS LAST',
+                        )
+                    ).rows,
+                ).toEqual(expectedUsers);
                 const explore = createAnalyticsExplores()[0];
                 const sql = (
                     dimensions: string[],
@@ -308,6 +593,29 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         parameterDefinitions: {},
                         timezone: 'UTC',
                     }).compileQuery().query;
+                const peopleExplore = createAnalyticsExplores().find(
+                    (e) => e.name === 'people_adoption',
+                )!;
+                const peopleQuery = sql([], peopleExplore, [
+                    'people_adoption_eligible_people',
+                    'people_adoption_people_without_observed_activity',
+                ]);
+                // Legacy queries have unknown intent; a UUID is not human activity.
+                expect((await reader.runQuery(peopleQuery)).rows).toEqual([
+                    {
+                        people_adoption_eligible_people: '2',
+                        people_adoption_people_without_observed_activity: '2',
+                    },
+                ]);
+                const snapshotKey = peopleMembershipHistoryKey(org, new Date());
+                expect(
+                    (
+                        await s3.headObject({
+                            Bucket: storage.bucket,
+                            Key: snapshotKey,
+                        })
+                    ).ContentLength,
+                ).toBeGreaterThan(0);
                 expect(sql([])).not.toContain('JOIN');
                 const healthExplore = createAnalyticsExplores().find(
                     (e) => e.name === 'content_health',
@@ -455,25 +763,80 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 expect(
                     (
                         await reader.runQuery(
-                            "SELECT name, space_name FROM lightdash_charts WHERE name = 'SQL chart'",
+                            "SELECT name, space_name, url FROM lightdash_charts WHERE name = 'SQL chart'",
                         )
                     ).rows,
-                ).toEqual([{ name: 'SQL chart', space_name: 'Shared space' }]);
+                ).toEqual([
+                    {
+                        name: 'SQL chart',
+                        space_name: 'Shared space',
+                        url: `https://lightdash.example.com/projects/${project}/sql-runner/${sqlChart}`,
+                    },
+                ]);
+                expect(
+                    (
+                        await reader.runQuery(
+                            sql([
+                                'query_events_chart_url',
+                                'query_events_dashboard_url',
+                            ]),
+                        )
+                    ).rows,
+                ).toContainEqual({
+                    query_events_chart_url: `https://lightdash.example.com/projects/${project}/saved/${chart}/view`,
+                    query_events_dashboard_url: `https://lightdash.example.com/projects/${project}/dashboards/${dashboard}/view`,
+                    query_events_total_queries: '1',
+                });
+                expect(
+                    (
+                        await reader.runQuery(
+                            `SELECT content_type, content_url FROM lightdash_content WHERE content_id IN ('${chart}', '${sqlChart}', '${dashboard}')`,
+                        )
+                    ).rows,
+                ).toEqual(
+                    expect.arrayContaining([
+                        {
+                            content_type: 'saved_chart',
+                            content_url: `https://lightdash.example.com/projects/${project}/saved/${chart}/view`,
+                        },
+                        {
+                            content_type: 'sql_chart',
+                            content_url: `https://lightdash.example.com/projects/${project}/sql-runner/${sqlChart}`,
+                        },
+                        {
+                            content_type: 'dashboard',
+                            content_url: `https://lightdash.example.com/projects/${project}/dashboards/${dashboard}/view`,
+                        },
+                    ]),
+                );
                 const originalSnapshot = await s3.headObject({
                     Bucket: storage.bucket,
                     Key: usageDimensionKey(org, 'charts'),
+                });
+                const originalPeopleSnapshot = await s3.headObject({
+                    Bucket: storage.bucket,
+                    Key: usageDimensionKey(org, 'people'),
+                });
+                const originalPeopleHistory = await s3.headObject({
+                    Bucket: storage.bucket,
+                    Key: snapshotKey,
                 });
                 const originalContentSnapshot = await s3.headObject({
                     Bucket: storage.bucket,
                     Key: usageDimensionKey(org, 'content'),
                 });
-                const failingModel = new UsageDimensionsModel(db);
+                const failingModel = new UsageDimensionsModel(
+                    db,
+                    'https://lightdash.example.com/base/?query=value#hash',
+                );
                 const read = failingModel.getJsonLines.bind(failingModel);
                 vi.spyOn(failingModel, 'getJsonLines').mockImplementation(
                     async function* interruptedExport(organization, dimension) {
                         if (
                             organization.organization_uuid === org &&
-                            (dimension === 'charts' || dimension === 'content')
+                            (dimension === 'charts' ||
+                                dimension === 'content' ||
+                                dimension === 'people')
                         ) {
                             yield '{}\n';
                             throw new Error(
@@ -489,7 +852,7 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         prometheusMetrics: null,
                         usageDimensionsModel: failingModel,
                     }).run(new Date('2026-01-02')),
-                ).rejects.toThrow('2 refreshes failed');
+                ).rejects.toThrow('3 refreshes failed');
                 expect(
                     (
                         await s3.headObject({
@@ -506,8 +869,24 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         })
                     ).ETag,
                 ).toBe(originalContentSnapshot.ETag);
+                expect(
+                    (
+                        await s3.headObject({
+                            Bucket: storage.bucket,
+                            Key: usageDimensionKey(org, 'people'),
+                        })
+                    ).ETag,
+                ).toBe(originalPeopleSnapshot.ETag);
+                expect(
+                    (
+                        await s3.headObject({
+                            Bucket: storage.bucket,
+                            Key: snapshotKey,
+                        })
+                    ).ETag,
+                ).toBe(originalPeopleHistory.ETag);
                 expect((await run()).dimensions).toEqual({
-                    refreshed: 10,
+                    refreshed: 14,
                     failed: 0,
                 });
                 await fixture('ai_agent')
@@ -522,10 +901,25 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                 await fixture('users')
                     .where('user_id', 1)
                     .update({ first_name: 'User renamed' });
+                await fixture('emails')
+                    .where('user_id', 1)
+                    .update({ is_primary: false });
+                await fixture('emails')
+                    .where('email', 'alias@example.com')
+                    .update({ is_primary: true });
                 expect((await run()).dimensions).toEqual({
-                    refreshed: 10,
+                    refreshed: 14,
                     failed: 0,
                 });
+                expect(
+                    (
+                        await reader.runQuery(`SELECT name, email FROM lightdash_users WHERE user_id = '${user}'
+                        UNION ALL SELECT name, email FROM lightdash_people WHERE user_id = '${user}'`)
+                    ).rows,
+                ).toEqual([
+                    { name: 'User renamed Name', email: 'alias@example.com' },
+                    { name: 'User renamed Name', email: 'alias@example.com' },
+                ]);
                 expect((await reader.runQuery(joinedSql)).rows).toEqual(
                     expect.arrayContaining([
                         expect.objectContaining({
@@ -600,6 +994,47 @@ describe.skipIf(!process.env.USAGE_DIMENSIONS_SMOKE_PGPORT)(
                         (row) => row.lightdash_users_name === 'Unknown user',
                     ),
                 ).toBe(true);
+
+                // Exercise bounded population pagination without a user-id group
+                // index that production does not have. Enrichment stays set-based.
+                await db.raw(`INSERT INTO users (user_id,user_uuid,first_name,is_active,is_internal)
+                    SELECT n, md5('person-' || n)::uuid, 'Person ' || n, true, false
+                    FROM generate_series(100, 10099) n`);
+                await db.raw(`INSERT INTO organization_memberships (organization_id,user_id)
+                    SELECT 1, n FROM generate_series(100,10099) n`);
+                const groupA = randomUUID();
+                const groupB = randomUUID();
+                await fixture('groups').insert([
+                    { group_uuid: groupA, organization_id: 1, name: 'Group A' },
+                    { group_uuid: groupB, organization_id: 1, name: 'Group B' },
+                ]);
+                await db.raw(
+                    `INSERT INTO group_memberships SELECT g.group_uuid, 1, u.user_id FROM groups g CROSS JOIN users u WHERE u.user_id >= 100`,
+                );
+                await db.raw('DROP INDEX group_memberships_user_org_idx');
+                const started = Date.now();
+                const exported = [];
+                for await (const line of new UsageDimensionsModel(
+                    db,
+                    'https://lightdash.example.com/',
+                ).getJsonLines(
+                    { organization_id: 1, organization_uuid: org },
+                    'people',
+                ))
+                    exported.push(JSON.parse(line));
+                expect(exported).toHaveLength(10001);
+                expect(new Set(exported.map((p) => p.user_id)).size).toBe(
+                    10001,
+                );
+                expect(
+                    exported.find((p) => p.name === 'Person 100').group_names,
+                ).toContain('Group A');
+                expect(
+                    exported.find((p) => p.name === 'Person 100').group_names,
+                ).toContain('Group B');
+                Logger.info(
+                    `People snapshot: 10001 members, 20000 group memberships, ${Date.now() - started}ms`,
+                );
             } finally {
                 if (bucketCreated) {
                     const objects = await s3.listObjectsV2({

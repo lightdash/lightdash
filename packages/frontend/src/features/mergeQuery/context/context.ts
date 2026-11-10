@@ -27,6 +27,10 @@ export type MergeEditorSource = {
     /** Keep saved-query-only fields intact while the merge is edited. */
     additionalMetrics?: MetricQuery['additionalMetrics'];
     customDimensions?: MetricQuery['customDimensions'];
+    tableCalculations?: MetricQuery['tableCalculations'];
+    metricOverrides?: MetricQuery['metricOverrides'];
+    dimensionOverrides?: MetricQuery['dimensionOverrides'];
+    timezone?: MetricQuery['timezone'];
 };
 
 export type MergeFocus =
@@ -121,9 +125,17 @@ export type MergeContextValue = {
     /** Calculations evaluated over the merged result. */
     tableCalculations: MergeTableCalculation[];
     addSource: (sourceId: string, initialFocus?: MergeFocus) => void;
-    removeSource: (sourceId: string) => void;
+    removeSource: (
+        sourceId: string,
+        namesByHandle?: Record<string, string>,
+    ) => void;
     setFocus: (focus: MergeFocus) => void;
-    setSourceExplore: (sourceId: string, exploreName: string | null) => void;
+    setSourceExplore: (
+        sourceId: string,
+        exploreName: string | null,
+        /** Current names by handle; the other sources keep theirs. */
+        namesByHandle: Record<string, string>,
+    ) => void;
     toggleSourceField: (
         sourceId: string,
         fieldId: string,

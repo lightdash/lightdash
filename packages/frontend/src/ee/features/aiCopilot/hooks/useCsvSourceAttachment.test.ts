@@ -261,7 +261,7 @@ describe('useCsvSourceAttachment', () => {
         });
 
         expect(mocks.getSource).toHaveBeenCalledOnce();
-        expect(mocks.deleteSource).toHaveBeenCalledWith({
+        expect(mocks.deleteSource).toHaveBeenCalledWith(expect.anything(), {
             projectUuid: 'project-1',
             sourceUuid: source.sourceUuid,
         });
@@ -390,7 +390,7 @@ describe('useCsvSourceAttachment', () => {
         );
         await act(() => result.current.discardSource(source.sourceUuid));
 
-        expect(mocks.deleteSource).toHaveBeenCalledWith({
+        expect(mocks.deleteSource).toHaveBeenCalledWith(expect.anything(), {
             projectUuid: 'project-1',
             sourceUuid: source.sourceUuid,
         });
@@ -431,7 +431,7 @@ describe('useCsvSourceAttachment', () => {
         unmount();
 
         await waitFor(() =>
-            expect(mocks.deleteSource).toHaveBeenCalledWith({
+            expect(mocks.deleteSource).toHaveBeenCalledWith(expect.anything(), {
                 projectUuid: 'project-1',
                 sourceUuid: source.sourceUuid,
             }),
@@ -453,7 +453,7 @@ describe('useCsvSourceAttachment', () => {
             ),
         );
 
-        expect(mocks.deleteSource).toHaveBeenCalledWith({
+        expect(mocks.deleteSource).toHaveBeenCalledWith(expect.anything(), {
             projectUuid: 'project-1',
             sourceUuid: source.sourceUuid,
         });

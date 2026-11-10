@@ -1,5 +1,6 @@
 import {
     listWarehouseTablesToolDefinition,
+    QueryExecutionContext,
     type ToolListWarehouseTablesStructuredContent,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -37,7 +38,7 @@ export const getListWarehouseTables = ({
             | ExecuteToolErrorResult
         > => {
             try {
-                const all = await listWarehouseTables();
+                const all = await listWarehouseTables(QueryExecutionContext.AI);
 
                 const searchLower = search?.toLowerCase();
                 let matches: ToolListWarehouseTablesStructuredContent['tables'] =
@@ -68,6 +69,9 @@ export const getListWarehouseTables = ({
                                         schema: schemaName,
                                         table: tableName,
                                         qualifiedName: `${database}.${schemaName}.${tableName}`,
+                                        partitionColumn:
+                                            tables[tableName].partitionColumn
+                                                ?.field ?? null,
                                     });
                                 }
                             }
@@ -162,7 +166,13 @@ export const getListWarehouseTables = ({
                         lines.push(`\n${key}:`);
                         previousSchema = key;
                     }
-                    lines.push(`  - ${key}.${m.table}`);
+                    lines.push(
+                        `  - ${key}.${m.table}${
+                            m.partitionColumn
+                                ? ` (partitioned by ${m.partitionColumn})`
+                                : ''
+                        }`,
+                    );
                 }
 
                 return {

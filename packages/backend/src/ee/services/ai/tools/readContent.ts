@@ -2,7 +2,6 @@ import {
     assertUnreachable,
     mcpReadContentArgsSchema,
     mcpReadContentToolDefinition,
-    ParameterError,
     readContentToolDefinition,
     toolReadContentArgsSchema,
     type ToolReadContentStructuredContent,
@@ -10,17 +9,23 @@ import {
 import { tool, type FlexibleSchema } from 'ai';
 import { z } from 'zod';
 import type { ReadContentFn } from '../types/aiAgentDependencies';
+import { toAbsoluteHref } from '../utils/absoluteHref';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorOutput } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     readContent: ReadContentFn;
+    siteUrl: string;
     documentsEnabled?: boolean;
 };
 
 const toolDefinition = readContentToolDefinition.for('agent');
 
 type ReadContentResult = Awaited<ReturnType<ReadContentFn>>;
+
+// Shown with every dashboard read so the first filter edit has the right shape without a skill round trip.
+const DASHBOARD_READ_HINT =
+    'Filter rules under /filters/dimensions need "target": { "fieldId", "tableName" }; per-tile overrides go in "tileTargets" keyed by tileSlug. Each saved_chart tile carries a read-only "chartQuery" (exploreName, fieldIds) to pick targets without reading charts; never patch chartQuery. Load the "developing-in-lightdash" skill resource "dashboard-reference" before editing filters or tiles.';
 
 const contentResult = ({
     content,
@@ -30,7 +35,13 @@ const contentResult = ({
     content: unknown;
     href: string;
     type: ReadContentResult['type'];
-}) => `<${type} href="${href}" />\n---\n${JSON.stringify(content, null, 2)}`;
+}) =>
+    [
+        `<${type} href="${href}" />`,
+        ...(type === 'dashboard' ? [DASHBOARD_READ_HINT] : []),
+        '---',
+        JSON.stringify(content, null, 2),
+    ].join('\n');
 
 const toStructuredContent = (
     read: ReadContentResult,
@@ -43,6 +54,7 @@ const toStructuredContent = (
     switch (read.type) {
         case 'dashboard':
         case 'chart':
+        case 'sql_chart':
         case 'data_app':
             return { ...base, type: read.type, content: read.content };
         case 'document':
@@ -60,6 +72,7 @@ const toStructuredContent = (
 
 export const getReadContent = ({
     readContent,
+    siteUrl,
     documentsEnabled = false,
 }: Dependencies) => {
     const definition = documentsEnabled
@@ -72,40 +85,17 @@ export const getReadContent = ({
         ...definition,
         inputSchema,
         execute: async (args) => {
-            const { slug, type, documentUuid, chartId } = args;
+            const { slug, type } = args;
             try {
                 (documentsEnabled
                     ? mcpReadContentArgsSchema
                     : toolReadContentArgsSchema
                 ).parse(args);
-                const getReadArgs = (): Parameters<ReadContentFn>[0] => {
-                    if (type === 'document' && documentUuid !== undefined) {
-                        if (slug !== undefined) {
-                            throw new ParameterError(
-                                'Documents require exactly one of slug or documentUuid.',
-                            );
-                        }
-                        return {
-                            type,
-                            documentUuid,
-                            chartId: chartId ?? null,
-                        };
-                    }
-                    if (slug === undefined || documentUuid !== undefined) {
-                        throw new ParameterError(
-                            'Reading content requires a slug, or documentUuid for Documents.',
-                        );
-                    }
-                    if (type === 'document') {
-                        return { type, slug, chartId: chartId ?? null };
-                    }
-                    if (chartId !== undefined) {
-                        throw new ParameterError(
-                            'chartId is only available when reading Documents.',
-                        );
-                    }
-                    return { slug, type };
-                };
+                // chartId only applies to Documents; ignore it elsewhere.
+                const getReadArgs = (): Parameters<ReadContentFn>[0] =>
+                    type === 'document'
+                        ? { type, slug, chartId: args.chartId ?? null }
+                        : { slug, type };
                 const read = await readContent(getReadArgs());
                 const structuredContent = toStructuredContent(read);
                 const metadata = {
@@ -121,10 +111,17 @@ export const getReadContent = ({
                         : {}),
                 };
 
+                const absoluteHref = toAbsoluteHref(
+                    siteUrl,
+                    structuredContent.href,
+                );
                 return {
                     result: contentResult({
-                        content: read.type === 'document' ? read : read.content,
-                        href: structuredContent.href,
+                        content:
+                            read.type === 'document'
+                                ? { ...read, href: absoluteHref }
+                                : read.content,
+                        href: absoluteHref,
                         type: structuredContent.type,
                     }),
                     metadata,

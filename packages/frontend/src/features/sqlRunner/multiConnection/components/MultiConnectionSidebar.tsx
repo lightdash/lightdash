@@ -1,17 +1,9 @@
 import { ChartKind } from '@lightdash/common';
-import {
-    ActionIcon,
-    Group,
-    ScrollArea,
-    Stack,
-    Title,
-    Tooltip,
-} from '@mantine/core';
-import { IconReload } from '@tabler/icons-react';
+import { ScrollArea, Stack, Title } from '@mantine/core';
 import { type FC } from 'react';
-import MantineIcon from '../../../../components/common/MantineIcon';
 import { VisualizationConfigPanel } from '../../../../components/DataViz/VisualizationConfigPanel';
 import scrollAreaClasses from '../../../../styles/ScrollArea.module.css';
+import { ConnectionHeader } from '../../components/ConnectionHeader';
 import classes from '../../components/Sidebar.module.css';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { setSelectedChartType, SidebarTabs } from '../../store/sqlRunnerSlice';
@@ -22,7 +14,12 @@ import { MultiConnectionTablesPanel } from './MultiConnectionTablesPanel';
 
 export const MultiConnectionSidebar: FC = () => {
     const dispatch = useAppDispatch();
-    const { projectUuid, activeConnectionUuid } = useActiveConnection();
+    const {
+        projectUuid,
+        activeConnectionUuid,
+        activeConnection,
+        hasSeveralConnections,
+    } = useActiveConnection();
     const {
         mutate: refreshCatalog,
         isLoading: isRefreshing,
@@ -40,27 +37,25 @@ export const MultiConnectionSidebar: FC = () => {
 
     return (
         <Stack gap="sm" className={classes.root}>
-            <Group justify="space-between" wrap="nowrap" gap="xs">
-                <Title order={4}>{isTablesTab ? 'Tables' : 'Chart'}</Title>
-                {isTablesTab && (
-                    <Tooltip label="Refresh tables" position="right">
-                        <ActionIcon
-                            size="sm"
-                            aria-label="Refresh tables"
-                            disabled={!activeConnectionUuid}
-                            onClick={() => refreshCatalog()}
-                        >
-                            <MantineIcon icon={IconReload} />
-                        </ActionIcon>
-                    </Tooltip>
-                )}
-            </Group>
+            {!isTablesTab && <Title order={4}>Chart</Title>}
 
-            <Stack className={classes.panel} data-active={isTablesTab}>
-                <ConnectionPicker />
+            <Stack gap="xs" className={classes.panel} data-active={isTablesTab}>
+                {hasSeveralConnections ? (
+                    <ConnectionPicker />
+                ) : (
+                    activeConnection && (
+                        <ConnectionHeader
+                            name={activeConnection.name}
+                            warehouseType={activeConnection.warehouseType}
+                            connections={null}
+                        />
+                    )
+                )}
                 <MultiConnectionTablesPanel
                     isRefreshing={isRefreshing}
                     refreshError={error?.error.message ?? null}
+                    onRefresh={() => refreshCatalog()}
+                    isRefreshDisabled={!activeConnectionUuid}
                 />
             </Stack>
 

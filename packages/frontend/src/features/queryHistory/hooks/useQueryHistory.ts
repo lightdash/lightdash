@@ -8,7 +8,8 @@ import {
     type InfiniteData,
     type UseInfiniteQueryOptions,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 export type QueryHistoryListResults = ApiQueryHistoryListResponse['results'];
 
@@ -25,6 +26,7 @@ const createQueryString = (params: Record<string, unknown>): string => {
 };
 
 const getQueryHistory = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     filters: QueryHistoryListFilters,
     page: number,
@@ -65,11 +67,13 @@ export const useInfiniteQueryHistory = (
         QueryHistoryListResults,
         ApiError
     > = {},
-) =>
-    useInfiniteQuery<QueryHistoryListResults, ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useInfiniteQuery<QueryHistoryListResults, ApiError>({
         queryKey: ['query-history', projectUuid, filters, pageSize],
         queryFn: ({ pageParam }) =>
             getQueryHistory(
+                lightdashApi,
                 projectUuid!,
                 filters,
                 (pageParam as number) ?? 1,
@@ -85,3 +89,4 @@ export const useInfiniteQueryHistory = (
         ...infiniteQueryOpts,
         enabled: !!projectUuid && (infiniteQueryOpts.enabled ?? true),
     });
+};

@@ -1,10 +1,10 @@
 import {
-    CreateWarehouseCredentials,
     DbtProjectEnvironmentVariable,
     SupportedDbtVersions,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import type { DbtTargetResult } from '../services/WarehouseClientFactory/CredentialResolver';
 import { CachedWarehouse } from '../types';
 import { DEFAULT_GITLAB_HOST_DOMAIN } from '../utils/credentialDestination';
 import { DbtGitProjectAdapter } from './dbtGitProjectAdapter';
@@ -15,7 +15,8 @@ type DbtGitlabProjectAdapterArgs = {
     gitlabRepository: string;
     gitlabBranch: string;
     projectDirectorySubPath: string;
-    warehouseCredentials: CreateWarehouseCredentials;
+    dbtTarget: DbtTargetResult;
+    explicitCredentials: boolean;
     hostDomain?: string;
     targetName: string | undefined;
     environment: DbtProjectEnvironmentVariable[] | undefined;
@@ -34,7 +35,8 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
         gitlabPersonalAccessToken,
         gitlabRepository,
         projectDirectorySubPath,
-        warehouseCredentials,
+        dbtTarget,
+        explicitCredentials,
         hostDomain,
         targetName,
         environment,
@@ -54,7 +56,8 @@ export class DbtGitlabProjectAdapter extends DbtGitProjectAdapter {
             remoteRepositoryUrl,
             repository: gitlabRepository,
             projectDirectorySubPath,
-            warehouseCredentials,
+            dbtTarget,
+            explicitCredentials,
             targetName,
             environment,
             environmentVariableAllowlist,

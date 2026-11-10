@@ -11,7 +11,8 @@ import {
     useQuery,
     useQueryClient,
 } from '@tanstack/react-query';
-import { lightdashApi } from '../../../api';
+import { type LightdashApi } from '../../../api';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 
 type UseMetricsCatalogOptions = {
     projectUuid?: string;
@@ -26,29 +27,32 @@ type UseMetricsCatalogOptions = {
 
 export const MIN_METRICS_CATALOG_SEARCH_LENGTH = 2;
 
-const getMetricsCatalog = async ({
-    projectUuid,
-    search,
-    categories,
-    categoriesFilterMode,
-    tables,
-    ownerUserUuids,
-    paginateArgs,
-    sortBy,
-    sortDirection,
-}: {
-    projectUuid: string;
-    paginateArgs?: KnexPaginateArgs;
-} & Pick<
-    UseMetricsCatalogOptions,
-    | 'search'
-    | 'categories'
-    | 'categoriesFilterMode'
-    | 'tables'
-    | 'sortBy'
-    | 'sortDirection'
-    | 'ownerUserUuids'
->) => {
+const getMetricsCatalog = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        search,
+        categories,
+        categoriesFilterMode,
+        tables,
+        ownerUserUuids,
+        paginateArgs,
+        sortBy,
+        sortDirection,
+    }: {
+        projectUuid: string;
+        paginateArgs?: KnexPaginateArgs;
+    } & Pick<
+        UseMetricsCatalogOptions,
+        | 'search'
+        | 'categories'
+        | 'categoriesFilterMode'
+        | 'tables'
+        | 'sortBy'
+        | 'sortDirection'
+        | 'ownerUserUuids'
+    >,
+) => {
     const urlParams = new URLSearchParams({
         ...(paginateArgs
             ? {
@@ -100,6 +104,7 @@ export const useMetricsCatalog = ({
     ownerUserUuids,
     pageSize,
 }: UseMetricsCatalogOptions & Pick<KnexPaginateArgs, 'pageSize'>) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useInfiniteQuery<ApiMetricsCatalog['results'], ApiError>({
         queryKey: [
@@ -115,7 +120,7 @@ export const useMetricsCatalog = ({
             ownerUserUuids,
         ],
         queryFn: ({ pageParam }) =>
-            getMetricsCatalog({
+            getMetricsCatalog(lightdashApi, {
                 projectUuid: projectUuid!,
                 search,
                 sortBy,
@@ -157,15 +162,18 @@ type UseMetricOptions = {
     metricName: string | undefined;
 };
 
-const getMetric = async ({
-    projectUuid,
-    tableName,
-    metricName,
-}: {
-    projectUuid: string;
-    tableName: string;
-    metricName: string;
-}) => {
+const getMetric = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+        tableName,
+        metricName,
+    }: {
+        projectUuid: string;
+        tableName: string;
+        metricName: string;
+    },
+) => {
     return lightdashApi<ApiGetMetricPeek['results']>({
         url: `/projects/${projectUuid}/dataCatalog/metrics/${tableName}/${metricName}`,
         method: 'GET',
@@ -179,10 +187,11 @@ export const useMetric = ({
     metricName,
     enabled = true,
 }: UseMetricOptions & { enabled?: boolean }) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<ApiGetMetricPeek['results'], ApiError>({
         queryKey: ['metric', projectUuid, tableName, metricName],
         queryFn: () =>
-            getMetric({
+            getMetric(lightdashApi, {
                 projectUuid: projectUuid!,
                 tableName: tableName!,
                 metricName: metricName!,
@@ -191,11 +200,14 @@ export const useMetric = ({
     });
 };
 
-const hasMetricsInCatalog = async ({
-    projectUuid,
-}: {
-    projectUuid: string;
-}) => {
+const hasMetricsInCatalog = async (
+    lightdashApi: LightdashApi,
+    {
+        projectUuid,
+    }: {
+        projectUuid: string;
+    },
+) => {
     return lightdashApi<boolean>({
         url: `/projects/${projectUuid}/dataCatalog/metrics/has`,
         method: 'GET',
@@ -208,9 +220,11 @@ export const useHasMetricsInCatalog = ({
 }: {
     projectUuid: string | undefined;
 }) => {
+    const lightdashApi = useLightdashApi();
     return useQuery<boolean, ApiError>({
         queryKey: ['has-metrics', projectUuid],
-        queryFn: () => hasMetricsInCatalog({ projectUuid: projectUuid! }),
+        queryFn: () =>
+            hasMetricsInCatalog(lightdashApi, { projectUuid: projectUuid! }),
         enabled: !!projectUuid,
     });
 };

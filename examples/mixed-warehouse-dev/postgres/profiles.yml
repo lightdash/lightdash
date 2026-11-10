@@ -1,0 +1,12 @@
+postgres_dev:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('PGHOST', 'localhost') }}"
+      port: "{{ env_var('PGPORT', '5432') | as_number }}"
+      user: "{{ env_var('PGUSER', 'postgres') }}"
+      pass: "{{ env_var('PGPASSWORD', '') }}"
+      dbname: "{{ env_var('PG_WAREHOUSE_DATABASE') }}"
+      schema: jaffle
+      threads: 1

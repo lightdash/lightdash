@@ -16,6 +16,7 @@ import {
     UpdateEmailWhitelabel,
     type RegisteredAccount,
 } from '@lightdash/common';
+import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import {
     PostmarkClient,
@@ -30,6 +31,7 @@ import { BaseService } from '../BaseService';
 
 type EmailWhitelabelServiceArguments = {
     lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
     organizationEmailDomainModel: OrganizationEmailDomainModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     featureFlagModel: FeatureFlagModel;
@@ -50,6 +52,8 @@ export const EMAIL_WHITELABEL_VERIFICATION_TIMEOUT_MS = 72 * 60 * 60 * 1000;
 export class EmailWhitelabelService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
+    private readonly analytics: LightdashAnalytics;
+
     private readonly organizationEmailDomainModel: OrganizationEmailDomainModel;
 
     private readonly organizationMemberProfileModel: OrganizationMemberProfileModel;
@@ -60,6 +64,7 @@ export class EmailWhitelabelService extends BaseService {
 
     constructor({
         lightdashConfig,
+        analytics,
         organizationEmailDomainModel,
         organizationMemberProfileModel,
         featureFlagModel,
@@ -67,6 +72,7 @@ export class EmailWhitelabelService extends BaseService {
     }: EmailWhitelabelServiceArguments) {
         super({ serviceName: 'EmailWhitelabelService' });
         this.lightdashConfig = lightdashConfig;
+        this.analytics = analytics;
         this.organizationEmailDomainModel = organizationEmailDomainModel;
         this.organizationMemberProfileModel = organizationMemberProfileModel;
         this.featureFlagModel = featureFlagModel;
@@ -302,6 +308,10 @@ export class EmailWhitelabelService extends BaseService {
         this.logger.info('Email whitelabel domain set up', {
             organizationUuid,
             domain,
+        });
+        this.analytics.trackAccount(account, {
+            event: 'email_whitelabel_domain.created',
+            properties: { organizationId: organizationUuid },
         });
         return EmailWhitelabelService.toWhitelabel(row);
     }

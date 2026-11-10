@@ -23,6 +23,8 @@ const mocks = vi.hoisted(() => ({
     useInfiniteQueryResults: vi.fn(),
     useExplore: vi.fn(),
     search: '',
+    identityEnabled: false,
+    identityLoading: false,
 }));
 
 vi.mock('react-router', async (importOriginal) => ({
@@ -44,6 +46,13 @@ vi.mock('../features/aiCopilot/hooks/useProjectAiAgents', () => ({
     useAiAgentArtifactVizQuery: mocks.useAiAgentArtifactVizQuery,
 }));
 
+vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({
+        data: { enabled: mocks.identityEnabled },
+        isLoading: mocks.identityLoading,
+    }),
+}));
+
 vi.mock('../../hooks/useQueryResults', () => ({
     useInfiniteQueryResults: mocks.useInfiniteQueryResults,
 }));
@@ -60,8 +69,8 @@ vi.mock('../../hooks/useExplore', () => ({
     useExplore: mocks.useExplore,
 }));
 
-vi.mock('../features/aiCopilot/hooks/aiAgentRouting', () => ({
-    isEmbedAiAgentRoute: () => false,
+vi.mock('../providers/Embed/useIsEmbedded', () => ({
+    default: () => false,
 }));
 
 vi.mock('../../components/MetricQueryData/MetricQueryDataProvider', () => ({
@@ -228,6 +237,8 @@ describe('MinimalAiAgentArtifact', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mocks.search = '';
+        mocks.identityEnabled = false;
+        mocks.identityLoading = false;
         mocks.useExplore.mockReturnValue({ data: undefined });
         mocks.useAiAgentArtifact.mockReturnValue({
             data: buildArtifact(),
@@ -255,6 +266,33 @@ describe('MinimalAiAgentArtifact', () => {
         );
     });
 
+    it.each([true, false])(
+        'uses artifact-scoped in-app rows only with agent identity enabled (%s)',
+        (enabled) => {
+            mocks.identityEnabled = enabled;
+            renderWithProviders(<MinimalAiAgentArtifact />);
+            expect(mocks.useInfiniteQueryResults).toHaveBeenCalledWith(
+                PROJECT_UUID,
+                vizQueryData.query.queryUuid,
+                undefined,
+                enabled
+                    ? `/projects/${PROJECT_UUID}/aiAgents/${AGENT_UUID}/artifacts/${ARTIFACT_UUID}/versions/${VERSION_UUID}/query-results?queryUuid=${vizQueryData.query.queryUuid}&cached=false`
+                    : null,
+            );
+        },
+    );
+
+    it('waits for the identity flag before choosing the in-app row endpoint', () => {
+        mocks.identityLoading = true;
+        renderWithProviders(<MinimalAiAgentArtifact />);
+        expect(mocks.useInfiniteQueryResults).toHaveBeenCalledWith(
+            PROJECT_UUID,
+            undefined,
+            undefined,
+            null,
+        );
+    });
+
     it('binds the screenshot query to the requested cached execution', () => {
         mocks.search = 'cachedQueryUuid=55555555-5555-4555-8555-555555555555';
         renderWithProviders(<MinimalAiAgentArtifact />);
@@ -271,6 +309,8 @@ describe('MinimalAiAgentArtifact', () => {
         expect(mocks.useInfiniteQueryResults).toHaveBeenCalledWith(
             PROJECT_UUID,
             vizQueryData.query.queryUuid,
+            undefined,
+            `/projects/${PROJECT_UUID}/aiAgents/${AGENT_UUID}/artifacts/${ARTIFACT_UUID}/versions/${VERSION_UUID}/query-results?queryUuid=55555555-5555-4555-8555-555555555555&cached=true`,
         );
     });
 
@@ -291,6 +331,8 @@ describe('MinimalAiAgentArtifact', () => {
             expect(mocks.useInfiniteQueryResults).toHaveBeenCalledWith(
                 PROJECT_UUID,
                 undefined,
+                undefined,
+                null,
             );
             expect(screen.queryByTestId('visualization-provider')).toBeNull();
             expect(getReadyIndicator()).toHaveAttribute(

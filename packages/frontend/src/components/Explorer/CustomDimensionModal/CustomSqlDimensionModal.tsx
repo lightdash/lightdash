@@ -15,6 +15,7 @@ import {
     Group,
     Select,
     Stack,
+    Text,
     TextInput,
     Tooltip,
 } from '@mantine/core';
@@ -36,13 +37,21 @@ import {
     explorerActions,
     selectCustomDimensions,
     selectTableCalculations,
+    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { SqlEditor } from '../../../features/tableCalculation/components/SqlForm';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useEditorTheme } from '../../../hooks/useEditorTheme';
+import { useExplore } from '../../../hooks/useExplore';
 import { useCustomDimensionsAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
+import {
+    useExploreWarehouseConnection,
+    useMixedWarehouseConnectionsEnabled,
+} from '../../../hooks/useExploreWarehouseConnection';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { getWarehouseSqlCaption } from '../../../utils/mixedWarehouseConnections';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import classes from './CustomSqlDimensionModal.module.css';
@@ -80,11 +89,22 @@ export const CustomSqlDimensionModal: FC<{
 
     const { showToastSuccess, showToastError } = useToaster();
     const { setAceEditor } = useCustomDimensionsAceEditorCompleter();
-    const isAmbientAiEnabled = useAmbientAiEnabled();
+    const projectUuid = useProjectUuid();
+    const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid);
 
     const dispatch = useExplorerDispatch();
     const customDimensions = useExplorerSelector(selectCustomDimensions);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
+    const tableName = useExplorerSelector(selectTableName);
+    const { data: explore } = useExplore(tableName);
+    const { warehouseType } = useExploreWarehouseConnection(
+        tableName,
+        projectUuid,
+    );
+    const sqlCaption = getWarehouseSqlCaption(
+        warehouseType,
+        useMixedWarehouseConnectionsEnabled(),
+    );
 
     const toggleModal = () =>
         dispatch(explorerActions.toggleCustomDimensionModal());
@@ -117,6 +137,13 @@ export const CustomSqlDimensionModal: FC<{
 
                 if (isEditing && item && customDimensionId === item.id) {
                     return null;
+                }
+
+                if (
+                    !isEditing &&
+                    explore?.tables[table]?.dimensions[customDimensionId]
+                ) {
+                    return 'A model dimension with this ID already exists';
                 }
 
                 const isInvalid = [
@@ -218,12 +245,9 @@ export const CustomSqlDimensionModal: FC<{
             size="xl"
             confirmBeforeClose={form.isDirty()}
             modalRootProps={{
-                styles: {
-                    content: {
-                        minWidth: isExpanded ? '90vw' : 'auto',
-                        height: isExpanded ? '70vh' : 'auto',
-                    },
-                },
+                classNames: isExpanded
+                    ? { content: classes.expandedContent }
+                    : undefined,
             }}
             modalBodyProps={{
                 px: 'md',
@@ -292,6 +316,11 @@ export const CustomSqlDimensionModal: FC<{
                         data-tour-input="true"
                         data-tour-suggest="CASE WHEN ${orders.amount} < 100 THEN 'small' ELSE 'large' END"
                     >
+                        {sqlCaption !== null && (
+                            <Text size="xs" c="dimmed">
+                                {sqlCaption}
+                            </Text>
+                        )}
                         <SqlEditor
                             mode="sql"
                             placeholder="Enter SQL"

@@ -4,15 +4,27 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 let mockEmbedWriteContext: { canUpdateSavedChart: boolean } | undefined;
 
+const requestFromInstance = (lightdashApi: LightdashApi, url: string) =>
+    lightdashApi({ url, method: 'GET', body: undefined });
+
 vi.mock('../src/ee/pages/EmbedDashboard', async () => {
     const { default: useEmbed } =
         await import('../src/ee/providers/Embed/useEmbed');
+    const { useLightdashApi } =
+        await import('../src/providers/LightdashApi/useLightdashApi');
 
     return {
         default: function MockEmbedDashboard() {
             const { onExplore } = useEmbed();
+            const lightdashApi = useLightdashApi();
             return (
                 <div data-testid="embed-dashboard">
+                    <button
+                        data-testid="dashboard-request"
+                        onClick={() =>
+                            void requestFromInstance(lightdashApi, '/dashboard')
+                        }
+                    />
                     <button
                         data-testid="saved-chart-explore"
                         onClick={() =>
@@ -44,12 +56,33 @@ vi.mock('../src/components/MonacoEditor', () => ({
 vi.mock('../src/ee/pages/EmbedChart', async () => {
     const { default: useEmbed } =
         await import('../src/ee/providers/Embed/useEmbed');
+    const { useLightdashApi } =
+        await import('../src/providers/LightdashApi/useLightdashApi');
 
     return {
         default: function MockEmbedChart() {
-            const { embedToken } = useEmbed();
+            const { embedToken, onExplore } = useEmbed();
+            const lightdashApi = useLightdashApi();
             return (
-                <div data-testid="embed-chart-view" data-token={embedToken} />
+                <div data-testid="embed-chart-view" data-token={embedToken}>
+                    <button
+                        data-testid="chart-request"
+                        onClick={() =>
+                            void requestFromInstance(lightdashApi, '/chart')
+                        }
+                    />
+                    <button
+                        data-testid="chart-saved-explore"
+                        onClick={() =>
+                            onExplore({
+                                chart: {
+                                    uuid: 'test-chart-uuid',
+                                    tableName: 'payments',
+                                } as never,
+                            })
+                        }
+                    />
+                </div>
             );
         },
     };
@@ -75,7 +108,12 @@ vi.mock('../src/ee/pages/EmbedExplore', async () => {
             chartView?: boolean;
             runQueryOnLoad?: boolean;
         }) {
-            const { onExplore, onBackToDashboard } = useEmbed();
+            const {
+                onExplore,
+                onBackToDashboard,
+                backDestination,
+                onChartSaved,
+            } = useEmbed();
             return (
                 <div
                     data-testid={
@@ -115,9 +153,19 @@ vi.mock('../src/ee/pages/EmbedExplore', async () => {
                             })
                         }
                     />
+                    <button
+                        data-testid="explore-save"
+                        onClick={() =>
+                            onChartSaved?.(
+                                { uuid: 'new-chart-uuid' } as never,
+                                'created',
+                            )
+                        }
+                    />
                     {onBackToDashboard && (
                         <button
                             data-testid="explore-back"
+                            data-back-destination={backDestination}
                             onClick={onBackToDashboard}
                         />
                     )}
@@ -267,6 +315,73 @@ vi.mock('../src/pages/MetricsCatalog', async () => {
     };
 });
 
+vi.mock('../src/ee/pages/AiAgents/AgentPage', async () => {
+    const { Outlet, useParams } = await import('react-router');
+    const { default: useIsEmbedded } =
+        await import('../src/ee/providers/Embed/useIsEmbedded');
+    const { useEmitEmbedAgentContentEvents } =
+        await import('../src/ee/features/aiCopilot/hooks/useEmitEmbedAgentContentEvents');
+
+    return {
+        default: function MockAgentPage() {
+            const { agentUuid, projectUuid } = useParams();
+            const isEmbedded = useIsEmbedded();
+            useEmitEmbedAgentContentEvents({ projectUuid, agentUuid });
+            return (
+                <div
+                    data-testid="agent-page"
+                    data-agent-uuid={agentUuid}
+                    data-embedded={String(isEmbedded)}
+                >
+                    <Outlet />
+                </div>
+            );
+        },
+    };
+});
+
+vi.mock('../src/ee/pages/AiAgents/AiAgentNewThreadPage', async () => {
+    const { useParams } = await import('react-router');
+    const { useEmitEmbedAiAgentThreadChange } =
+        await import('../src/ee/features/aiCopilot/hooks/embedAiAgentThreadChange');
+    const { default: useEmbedForSetup } =
+        await import('../src/ee/providers/Embed/useEmbed');
+
+    return {
+        default: function MockAiAgentNewThreadPage() {
+            const { projectUuid, agentUuid } = useParams();
+            const emitThreadChange = useEmitEmbedAiAgentThreadChange();
+            const { aiAgentThreadSetup } = useEmbedForSetup();
+            return (
+                <button
+                    data-testid="agent-new-thread"
+                    data-thread-setup={JSON.stringify(aiAgentThreadSetup)}
+                    onClick={() =>
+                        emitThreadChange({
+                            projectUuid: projectUuid!,
+                            agentUuid: agentUuid!,
+                            threadUuid: 'created-thread-uuid',
+                        })
+                    }
+                />
+            );
+        },
+    };
+});
+
+vi.mock('../src/ee/pages/AiAgents/AgentThreadPage', async () => {
+    const { useParams } = await import('react-router');
+
+    return {
+        default: function MockAgentThreadPage() {
+            const { threadUuid } = useParams();
+            return (
+                <div data-testid="agent-thread" data-thread-uuid={threadUuid} />
+            );
+        },
+    };
+});
+
 vi.mock('../src/hooks/health/useHealth', () => ({
     default: () => ({ data: undefined }),
 }));
@@ -275,7 +390,14 @@ import { FilterOperator } from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import { lightdashApi } from '../src/api';
+import { type LightdashApi } from '../src/api';
+import { store as aiAgentStore } from '../src/ee/features/aiCopilot/store';
+import {
+    setParts,
+    startStreaming,
+    type StreamPart,
+} from '../src/ee/features/aiCopilot/store/aiAgentThreadStreamSlice';
+import { parseEmbedHash } from '../src/ee/providers/Embed/embedAiAgentThreadSetup';
 import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
 import { EMBED_KEY, type InMemoryEmbed } from '../src/ee/providers/Embed/types';
 import {
@@ -466,6 +588,27 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
         expect(mockNavigate).not.toHaveBeenCalled();
     });
 
+    it('reports an invalid token to onError instead of failing silently', async () => {
+        const onError = vi.fn();
+        render(
+            <Dashboard
+                token="not-a-jwt"
+                instanceUrl={mockInstanceUrl}
+                onError={onError}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(onError).toHaveBeenCalledWith({
+                kind: 'invalid_token',
+                status: null,
+                message: 'Invalid JWT token',
+                retryable: false,
+                fatal: true,
+            });
+        });
+    });
+
     it('should handle explore navigation without syncing URL', async () => {
         const mockOnExplore = vi.fn();
 
@@ -492,6 +635,38 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
         });
     });
 
+    it('opens saved tiles inside the SDK dashboard when the host has no onExplore', async () => {
+        const { getByTestId, queryByTestId } = render(
+            <Dashboard
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                filters={[]}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(getByTestId('embed-dashboard')).toBeTruthy();
+        });
+
+        fireEvent.click(getByTestId('saved-chart-explore'));
+
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.savedChartUuid).toBe(
+                'saved-chart-uuid',
+            );
+        });
+        expect(window.location.pathname).toBe('/test');
+        expect(getByTestId('explore-back').dataset.backDestination).toBe(
+            'dashboard',
+        );
+
+        fireEvent.click(getByTestId('explore-back'));
+        await waitFor(() => {
+            expect(getByTestId('embed-dashboard')).toBeTruthy();
+        });
+        expect(queryByTestId('embed-explore')).toBeNull();
+    });
+
     it('should render drill-down explores inside the SDK dashboard', async () => {
         const { getByTestId } = render(
             <Dashboard
@@ -511,6 +686,9 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
             expect(getByTestId('embed-explore')).toBeTruthy();
             expect(window.location.pathname).toBe('/test');
         });
+        expect(getByTestId('explore-back').dataset.backDestination).toBe(
+            'dashboard',
+        );
     });
 
     it('returns to the SDK dashboard in one click from a nested drill-down', async () => {
@@ -579,6 +757,9 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
             undefined,
         );
         expect(onExplore).not.toHaveBeenCalled();
+        expect(getByTestId('explore-back').dataset.backDestination).toBe(
+            'explore',
+        );
 
         fireEvent.click(getByTestId('explore-back'));
 
@@ -588,6 +769,53 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
             );
         });
         expect(queryByTestId('explore-back')).toBeNull();
+    });
+
+    it('emits a chartSaved event through onEvent when the Explore saves a chart', async () => {
+        const onEvent = vi.fn();
+        const { findByTestId } = render(
+            <Explore
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                exploreId="payments"
+                savedChart={{ tableName: 'payments' } as never}
+                onEvent={onEvent}
+            />,
+        );
+
+        fireEvent.click(await findByTestId('explore-save'));
+
+        expect(onEvent).toHaveBeenCalledTimes(1);
+        expect(onEvent).toHaveBeenCalledWith({
+            type: 'chartSaved',
+            payload: { chartUuid: 'new-chart-uuid', action: 'created' },
+        });
+    });
+
+    it('labels the drill-down back destination as the Explore, whatever the token content type', async () => {
+        const metricsCatalogToken =
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InR5cGUiOiJtZXRyaWNzQ2F0YWxvZyIsInByb2plY3RVdWlkIjoidGVzdC1wcm9qZWN0LXV1aWQifX0.test';
+        const { getByTestId } = render(
+            <Explore
+                token={metricsCatalogToken}
+                instanceUrl={mockInstanceUrl}
+                exploreId="payments"
+                savedChart={
+                    { uuid: 'saved-chart-uuid', tableName: 'payments' } as never
+                }
+            />,
+        );
+
+        await waitFor(() => {
+            expect(getByTestId('embed-explore')).toBeTruthy();
+        });
+        fireEvent.click(getByTestId('explore-drill-down'));
+
+        await waitFor(() => {
+            expect(getByTestId('explore-back').dataset.backDestination).toBe(
+                'explore',
+            );
+        });
     });
 
     it('restores the unsaved root query on back from a nested drill-down', async () => {
@@ -774,10 +1002,85 @@ describe('SDK Chart edit mode', () => {
         });
         expect(queryByTestId('embed-chart-edit')).toBeNull();
         expect(onExplore).not.toHaveBeenCalled();
+        expect(getByTestId('explore-back').dataset.backDestination).toBe(
+            'chart',
+        );
 
         fireEvent.click(getByTestId('explore-back'));
 
         expect(await findByTestId('embed-chart-edit')).toBeInTheDocument();
+        expect(queryByTestId('embed-explore')).toBeNull();
+    });
+
+    it('emits a chartSaved event through onEvent when the chart is saved', async () => {
+        mockEmbedWriteContext = { canUpdateSavedChart: true };
+        const onEvent = vi.fn();
+        const { findByTestId } = render(
+            <Chart
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                id="test-chart-uuid"
+                isEditMode
+                onEvent={onEvent}
+            />,
+        );
+
+        fireEvent.click(
+            within(await findByTestId('embed-chart-edit')).getByTestId(
+                'explore-save',
+            ),
+        );
+
+        expect(onEvent).toHaveBeenCalledWith({
+            type: 'chartSaved',
+            payload: { chartUuid: 'new-chart-uuid', action: 'created' },
+        });
+    });
+
+    it('hands the saved chart to the host onExplore when provided', async () => {
+        const onExplore = vi.fn();
+        const { findByTestId, queryByTestId } = render(
+            <Chart
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                id="test-chart-uuid"
+                onExplore={onExplore}
+            />,
+        );
+
+        fireEvent.click(await findByTestId('chart-saved-explore'));
+
+        await waitFor(() => {
+            expect(onExplore).toHaveBeenCalledWith({
+                chart: { uuid: 'test-chart-uuid', tableName: 'payments' },
+            });
+        });
+        expect(queryByTestId('embed-explore')).toBeNull();
+    });
+
+    it('opens the saved chart inside the SDK chart when the host has no onExplore', async () => {
+        const { findByTestId, getByTestId, queryByTestId } = render(
+            <Chart
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                id="test-chart-uuid"
+            />,
+        );
+
+        fireEvent.click(await findByTestId('chart-saved-explore'));
+
+        await waitFor(() => {
+            expect(getByTestId('embed-explore').dataset.savedChartUuid).toBe(
+                'test-chart-uuid',
+            );
+        });
+        expect(getByTestId('explore-back').dataset.backDestination).toBe(
+            'chart',
+        );
+
+        fireEvent.click(getByTestId('explore-back'));
+
+        expect(await findByTestId('embed-chart-view')).toBeInTheDocument();
         expect(queryByTestId('embed-explore')).toBeNull();
     });
 
@@ -817,6 +1120,155 @@ describe('SDK AI agent', () => {
         expect(container.querySelector('iframe')?.getAttribute('src')).toBe(
             `${mockInstanceUrl}/embed/test-project-uuid/ai-agents/test-agent-uuid/threads#${mockToken}`,
         );
+    });
+
+    it('reloads the iframe in the new scheme when the host changes theme', async () => {
+        const { container, rerender } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                theme="light"
+            />,
+        );
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+        const themeParam = () =>
+            new URL(
+                container.querySelector('iframe')?.getAttribute('src') ?? '',
+            ).searchParams.get('theme');
+        expect(themeParam()).toBe('light');
+
+        rerender(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                theme="dark"
+            />,
+        );
+        await waitFor(() => {
+            expect(themeParam()).toBe('dark');
+        });
+    });
+
+    it('passes the thread binding and context in the iframe hash', async () => {
+        const { container } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                binding={{
+                    type: 'dashboard',
+                    dashboardUuid: 'test-dashboard-uuid',
+                }}
+                threadContext="Earlier: revenue & churn"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+
+        const iframeSrc = new URL(
+            container.querySelector('iframe')?.getAttribute('src') ?? '',
+        );
+        expect(iframeSrc.search).toBe('');
+        expect(parseEmbedHash(iframeSrc.hash)).toEqual({
+            token: mockToken,
+            aiAgentThreadSetup: {
+                binding: {
+                    type: 'dashboard',
+                    dashboardUuid: 'test-dashboard-uuid',
+                },
+                threadContext: 'Earlier: revenue & churn',
+            },
+            aiAgentNavigationDisabled: false,
+        });
+    });
+
+    it('passes a chart binding in the iframe hash', async () => {
+        const { container } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                binding={{ type: 'chart', chartUuid: 'test-chart-uuid' }}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+
+        const iframeSrc = new URL(
+            container.querySelector('iframe')?.getAttribute('src') ?? '',
+        );
+        expect(parseEmbedHash(iframeSrc.hash)).toEqual({
+            token: mockToken,
+            aiAgentThreadSetup: {
+                binding: { type: 'chart', chartUuid: 'test-chart-uuid' },
+                threadContext: null,
+            },
+            aiAgentNavigationDisabled: false,
+        });
+    });
+
+    it('passes disableNavigation in the iframe hash', async () => {
+        const { container } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                disableNavigation
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+
+        const iframeSrc = new URL(
+            container.querySelector('iframe')?.getAttribute('src') ?? '',
+        );
+        expect(iframeSrc.search).toBe('');
+        expect(parseEmbedHash(iframeSrc.hash)).toEqual({
+            token: mockToken,
+            aiAgentThreadSetup: null,
+            aiAgentNavigationDisabled: true,
+        });
+    });
+
+    it('reloads the iframe when the host changes the thread setup', async () => {
+        const { container, rerender } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+        const firstIframe = container.querySelector('iframe');
+
+        rerender(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                threadContext="Added later"
+            />,
+        );
+
+        const secondIframe = container.querySelector('iframe');
+        expect(secondIframe).not.toBe(firstIframe);
+        expect(
+            parseEmbedHash(new URL(secondIframe?.src ?? '').hash)
+                .aiAgentThreadSetup,
+        ).toEqual({ binding: null, threadContext: 'Added later' });
     });
 
     it('names the iframe without Lightdash branding', async () => {
@@ -878,25 +1330,377 @@ describe('SDK AI agent', () => {
             window.location.origin,
         );
 
-        window.dispatchEvent(
-            new MessageEvent('message', {
-                origin: mockInstanceUrl,
-                data: {
-                    type: 'lightdash:aiAgentThreadChanged',
-                    payload: {
-                        projectUuid: 'test-project-uuid',
-                        agentUuid: 'test-agent-uuid',
-                        threadUuid: 'test-thread-uuid',
-                    },
-                    timestamp: Date.now(),
-                },
-            }),
-        );
-
+        // The listener attaches in an effect after the iframe renders, so
+        // resend until it is listening.
         await waitFor(() => {
+            window.dispatchEvent(
+                new MessageEvent('message', {
+                    origin: mockInstanceUrl,
+                    data: {
+                        type: 'lightdash:aiAgentThreadChanged',
+                        payload: {
+                            projectUuid: 'test-project-uuid',
+                            agentUuid: 'test-agent-uuid',
+                            threadUuid: 'test-thread-uuid',
+                        },
+                        timestamp: Date.now(),
+                    },
+                }),
+            );
             expect(onThreadChange).toHaveBeenCalledWith({
                 threadUuid: 'test-thread-uuid',
             });
+        });
+    });
+
+    it('relays content events from the agent iframe to onEvent', async () => {
+        const onEvent = vi.fn();
+        const { container } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                onEvent={onEvent}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+        const iframeSrc = new URL(
+            container.querySelector('iframe')?.getAttribute('src') ?? '',
+        );
+        expect(iframeSrc.searchParams.get('targetOrigin')).toBe(
+            window.location.origin,
+        );
+
+        const postFromAgent = (origin: string, data: unknown) =>
+            window.dispatchEvent(new MessageEvent('message', { origin, data }));
+
+        await waitFor(() => {
+            postFromAgent(mockInstanceUrl, {
+                type: 'lightdash:dashboardSaved',
+                payload: {
+                    dashboardUuid: 'test-dashboard-uuid',
+                    action: 'updated',
+                },
+                timestamp: Date.now(),
+            });
+            expect(onEvent).toHaveBeenCalled();
+        });
+        onEvent.mockClear();
+
+        postFromAgent('https://evil.example.com', {
+            type: 'lightdash:dashboardSaved',
+            payload: {
+                dashboardUuid: 'test-dashboard-uuid',
+                action: 'updated',
+            },
+        });
+        postFromAgent(mockInstanceUrl, {
+            type: 'lightdash:dashboardSaved',
+            payload: { dashboardUuid: 'test-dashboard-uuid' },
+        });
+        postFromAgent(mockInstanceUrl, {
+            type: 'lightdash:chartSaved',
+            payload: { chartUuid: 'test-chart-uuid', action: 'deleted' },
+        });
+        postFromAgent(mockInstanceUrl, {
+            type: 'lightdash:chartSaved',
+            payload: { chartUuid: 'test-chart-uuid', action: 'created' },
+        });
+
+        expect(onEvent).toHaveBeenCalledTimes(1);
+        expect(onEvent).toHaveBeenCalledWith({
+            type: 'chartSaved',
+            payload: { chartUuid: 'test-chart-uuid', action: 'created' },
+        });
+    });
+});
+
+describe('SDK native AI agent', () => {
+    const mockToken =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InR5cGUiOiJhaUFnZW50IiwicHJvamVjdFV1aWQiOiJ0ZXN0LXByb2plY3QtdXVpZCIsImFnZW50VXVpZCI6InRlc3QtYWdlbnQtdXVpZCJ9fQ.test';
+    const mockInstanceUrl = 'http://localhost:3000';
+
+    beforeEach(() => {
+        mockNavigate.mockClear();
+    });
+
+    afterEach(() => {
+        mockNavigate.mockClear();
+    });
+
+    it('renders the agent in the host page instead of an iframe', async () => {
+        const { container, findByTestId } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                renderMode="native"
+            />,
+        );
+
+        const agentPage = await findByTestId('agent-page');
+        expect(agentPage.getAttribute('data-agent-uuid')).toBe(
+            'test-agent-uuid',
+        );
+        expect(agentPage.getAttribute('data-embedded')).toBe('true');
+        expect(await findByTestId('agent-new-thread')).toBeTruthy();
+        expect(container.querySelector('iframe')).toBeNull();
+    });
+
+    it('opens the thread passed by the host', async () => {
+        const { findByTestId } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                threadUuid="test-thread-uuid"
+                renderMode="native"
+            />,
+        );
+
+        const thread = await findByTestId('agent-thread');
+        expect(thread.getAttribute('data-thread-uuid')).toBe(
+            'test-thread-uuid',
+        );
+    });
+
+    it('gives new threads the binding and context from the host', async () => {
+        const { findByTestId } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                binding={{
+                    type: 'dashboard',
+                    dashboardUuid: 'test-dashboard-uuid',
+                }}
+                threadContext="Earlier conversation"
+                renderMode="native"
+            />,
+        );
+
+        const newThread = await findByTestId('agent-new-thread');
+        expect(
+            JSON.parse(newThread.getAttribute('data-thread-setup') ?? 'null'),
+        ).toEqual({
+            binding: {
+                type: 'dashboard',
+                dashboardUuid: 'test-dashboard-uuid',
+            },
+            threadContext: 'Earlier conversation',
+        });
+    });
+
+    it('gives new threads a chart binding from the host', async () => {
+        const { findByTestId } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                binding={{ type: 'chart', chartUuid: 'test-chart-uuid' }}
+                renderMode="native"
+            />,
+        );
+
+        const newThread = await findByTestId('agent-new-thread');
+        expect(
+            JSON.parse(newThread.getAttribute('data-thread-setup') ?? 'null'),
+        ).toEqual({
+            binding: { type: 'chart', chartUuid: 'test-chart-uuid' },
+            threadContext: null,
+        });
+    });
+
+    it('starts unbound threads when the host passes no setup', async () => {
+        const { findByTestId } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                renderMode="native"
+            />,
+        );
+
+        const newThread = await findByTestId('agent-new-thread');
+        expect(newThread).toHaveAttribute('data-thread-setup', 'null');
+    });
+
+    it('reports agent dashboard edits to onEvent once', async () => {
+        const onEvent = vi.fn();
+        const { findByTestId } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                onEvent={onEvent}
+                renderMode="native"
+            />,
+        );
+        await findByTestId('agent-page');
+
+        const dashboardEdit = {
+            type: 'toolCall',
+            toolCallId: 'native-dashboard-edit',
+            toolName: 'editContent',
+            isPreliminary: false,
+            toolArgs: { type: 'dashboard', slug: 'jaffle', patch: [] },
+            toolResult: {
+                result: '{}',
+                metadata: {
+                    status: 'success',
+                    slug: 'jaffle',
+                    name: 'Jaffle',
+                    uuid: 'test-dashboard-uuid',
+                    href: '/projects/test-project-uuid/dashboards/jaffle',
+                    warnings: [],
+                    versionUuids: { before: null, after: null },
+                },
+            },
+        } as unknown as StreamPart;
+
+        act(() => {
+            aiAgentStore.dispatch(
+                startStreaming({
+                    threadUuid: 'native-thread',
+                    messageUuid: 'native-message',
+                    projectUuid: 'test-project-uuid',
+                    agentUuid: 'test-agent-uuid',
+                    autoApproveSql: false,
+                }),
+            );
+            aiAgentStore.dispatch(
+                setParts({
+                    threadUuid: 'native-thread',
+                    parts: [dashboardEdit],
+                }),
+            );
+        });
+        act(() => {
+            aiAgentStore.dispatch(
+                setParts({
+                    threadUuid: 'native-thread',
+                    parts: [dashboardEdit, { type: 'text', text: 'Done' }],
+                }),
+            );
+        });
+
+        await waitFor(() => {
+            expect(onEvent).toHaveBeenCalledWith({
+                type: 'dashboardSaved',
+                payload: {
+                    dashboardUuid: 'test-dashboard-uuid',
+                    action: 'updated',
+                },
+            });
+        });
+        expect(
+            onEvent.mock.calls.filter(
+                ([event]) => event.type === 'dashboardSaved',
+            ),
+        ).toHaveLength(1);
+    });
+
+    it('reports thread changes to onThreadChange', async () => {
+        const onThreadChange = vi.fn();
+        const { findByTestId } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                onThreadChange={onThreadChange}
+                renderMode="native"
+            />,
+        );
+
+        fireEvent.click(await findByTestId('agent-new-thread'));
+
+        expect(onThreadChange).toHaveBeenCalledWith({
+            threadUuid: 'created-thread-uuid',
+        });
+    });
+
+    it.each(['iframe', 'native'] as const)(
+        'reports an invalid token to onError in %s mode',
+        async (renderMode) => {
+            const onError = vi.fn();
+            render(
+                <AiAgent
+                    token="not-a-jwt"
+                    instanceUrl={mockInstanceUrl}
+                    agentUuid="test-agent-uuid"
+                    renderMode={renderMode}
+                    onError={onError}
+                />,
+            );
+
+            await waitFor(() => {
+                expect(onError).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        kind: 'invalid_token',
+                        fatal: true,
+                    }),
+                );
+            });
+        },
+    );
+
+    it('opens a new thread when the host clears threadUuid', async () => {
+        const { findByTestId, rerender } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                threadUuid="test-thread-uuid"
+                renderMode="native"
+            />,
+        );
+        await findByTestId('agent-thread');
+
+        rerender(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                renderMode="native"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(mockNavigate).toHaveBeenCalledWith(
+                '/embed/test-project-uuid/ai-agents/test-agent-uuid/threads',
+            );
+        });
+    });
+
+    it('follows a threadUuid change from the host', async () => {
+        const { findByTestId, rerender } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                renderMode="native"
+            />,
+        );
+        await findByTestId('agent-new-thread');
+        expect(mockNavigate).not.toHaveBeenCalled();
+
+        rerender(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                threadUuid="other-thread-uuid"
+                renderMode="native"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(mockNavigate).toHaveBeenCalledWith(
+                '/embed/test-project-uuid/ai-agents/test-agent-uuid/threads/other-thread-uuid',
+            );
         });
     });
 });
@@ -1021,8 +1825,18 @@ describe('SDK token rotation', () => {
     const tokenB = `${header}.${payload}.signature-b`;
     const instanceUrl = 'http://localhost:3000';
     const originalLocation = window.location;
-    const storedToken = () =>
-        getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY)?.token;
+    const sentToken = (fetchMock: ReturnType<typeof vi.fn>) =>
+        fetchMock.mock.calls.at(-1)?.[1].headers['lightdash-embed-token'];
+    const stubFetch = () => {
+        const fetchMock = vi.fn().mockImplementation(
+            async () =>
+                new Response(JSON.stringify({ status: 'ok', results: {} }), {
+                    status: 200,
+                }),
+        );
+        vi.stubGlobal('fetch', fetchMock);
+        return fetchMock;
+    };
 
     beforeEach(() => {
         clearInMemoryStorage();
@@ -1040,29 +1854,24 @@ describe('SDK token rotation', () => {
     });
 
     it('sends the rotated token on the next request without remounting', async () => {
-        const fetchMock = vi.fn().mockResolvedValue(
-            new Response(JSON.stringify({ status: 'ok', results: {} }), {
-                status: 200,
-            }),
-        );
-        vi.stubGlobal('fetch', fetchMock);
+        const fetchMock = stubFetch();
 
         const { rerender, getByTestId } = render(
             <Dashboard token={tokenA} instanceUrl={instanceUrl} filters={[]} />,
         );
-        await waitFor(() => expect(storedToken()).toBe(tokenA));
+        await waitFor(() => getByTestId('embed-dashboard'));
+        fireEvent.click(getByTestId('dashboard-request'));
+        await waitFor(() => expect(sentToken(fetchMock)).toBe(tokenA));
         const mountedDashboard = getByTestId('embed-dashboard');
 
         rerender(
             <Dashboard token={tokenB} instanceUrl={instanceUrl} filters={[]} />,
         );
-        await waitFor(() => expect(storedToken()).toBe(tokenB));
-
+        await waitFor(() => getByTestId('embed-dashboard'));
         expect(getByTestId('embed-dashboard')).toBe(mountedDashboard);
 
-        await lightdashApi({ url: '/anything', method: 'GET' });
-        const [, requestInit] = fetchMock.mock.calls[0];
-        expect(requestInit.headers['lightdash-embed-token']).toBe(tokenB);
+        fireEvent.click(getByTestId('dashboard-request'));
+        await waitFor(() => expect(sentToken(fetchMock)).toBe(tokenB));
     });
 
     it('ignores an older token promise that resolves after a newer one', async () => {
@@ -1091,7 +1900,9 @@ describe('SDK token rotation', () => {
         });
 
         expect(getByTestId('embed-chart-view').dataset.token).toBe(tokenB);
-        expect(storedToken()).toBe(tokenB);
+        const fetchMock = stubFetch();
+        fireEvent.click(getByTestId('chart-request'));
+        await waitFor(() => expect(sentToken(fetchMock)).toBe(tokenB));
     });
 
     const renderProvider = (
@@ -1126,12 +1937,81 @@ describe('SDK token rotation', () => {
         window.location = { ...window.location, hash: `#${tokenA}` };
 
         const { rerender } = render(renderProvider(queryClient, undefined));
-        expect(storedToken()).toBe(tokenA);
+        expect(getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY)?.token).toBe(
+            tokenA,
+        );
 
         window.location = { ...window.location, hash: '' };
         rerender(renderProvider(queryClient, undefined));
 
-        expect(storedToken()).toBe(tokenA);
+        expect(getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY)?.token).toBe(
+            tokenA,
+        );
+    });
+});
+
+describe('SDK components with different tokens on one page', () => {
+    const header = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9';
+    const payload =
+        'eyJjb250ZW50Ijp7InByb2plY3RVdWlkIjoidGVzdC1wcm9qZWN0LXV1aWQifX0';
+    const dashboardToken = `${header}.${payload}.dashboard`;
+    const chartToken = `${header}.${payload}.chart`;
+    const instanceUrl = 'http://localhost:3000';
+
+    beforeEach(() => {
+        clearInMemoryStorage();
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it('sends each component its own token, whichever rendered last', async () => {
+        const fetchMock = vi.fn().mockImplementation(
+            async () =>
+                new Response(JSON.stringify({ status: 'ok', results: {} }), {
+                    status: 200,
+                }),
+        );
+        vi.stubGlobal('fetch', fetchMock);
+
+        const { getByTestId, rerender } = render(
+            <>
+                <Dashboard
+                    token={dashboardToken}
+                    instanceUrl={instanceUrl}
+                    filters={[]}
+                />
+                <Chart token={chartToken} instanceUrl={instanceUrl} id="c1" />
+            </>,
+        );
+        await waitFor(() => getByTestId('dashboard-request'));
+        await waitFor(() => getByTestId('chart-request'));
+        rerender(
+            <>
+                <Dashboard
+                    token={dashboardToken}
+                    instanceUrl={instanceUrl}
+                    filters={[]}
+                />
+                <Chart token={chartToken} instanceUrl={instanceUrl} id="c1" />
+            </>,
+        );
+
+        fireEvent.click(getByTestId('dashboard-request'));
+        fireEvent.click(getByTestId('chart-request'));
+
+        await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+        const tokenByUrl = Object.fromEntries(
+            fetchMock.mock.calls.map(([url, init]) => [
+                new URL(url).pathname,
+                init.headers['lightdash-embed-token'],
+            ]),
+        );
+        expect(tokenByUrl).toEqual({
+            '/api/v1/dashboard': dashboardToken,
+            '/api/v1/chart': chartToken,
+        });
     });
 });
 

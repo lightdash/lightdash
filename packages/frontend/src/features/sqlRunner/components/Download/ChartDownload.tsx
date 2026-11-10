@@ -10,6 +10,7 @@ import {
     ActionIcon,
     SegmentedControl,
     Popover,
+    Tooltip,
 } from '@mantine/core';
 import { IconDownload, IconPhoto, IconTableExport } from '@tabler/icons-react';
 import { memo, useState } from 'react';
@@ -35,9 +36,14 @@ export const ChartDownload: React.FC<Props> = memo(
         return (
             <Popover>
                 <Popover.Target>
-                    <ActionIcon variant="default" disabled={disabled}>
-                        <MantineIcon icon={IconDownload} />
-                    </ActionIcon>
+                    <Tooltip label="Download chart" position="bottom">
+                        <ActionIcon
+                            aria-label="Download chart"
+                            disabled={disabled}
+                        >
+                            <MantineIcon icon={IconDownload} />
+                        </ActionIcon>
+                    </Tooltip>
                 </Popover.Target>
                 <Popover.Dropdown miw={250}>
                     <Stack gap="xs">

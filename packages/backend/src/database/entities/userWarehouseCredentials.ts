@@ -1,3 +1,4 @@
+import { UserWarehouseCredentialPurpose } from '@lightdash/common';
 import { Knex } from 'knex';
 import { WarehouseType } from './warehouseCredentials';
 
@@ -6,10 +7,12 @@ export type DbUserWarehouseCredentials = {
     name: string;
     created_at: Date;
     updated_at: Date;
+    expires_at: Date | null;
     user_uuid: string;
     warehouse_type: WarehouseType;
     encrypted_credentials: Buffer;
     project_uuid: string | null;
+    purpose: UserWarehouseCredentialPurpose;
 };
 export const UserWarehouseCredentialsTableName = 'user_warehouse_credentials';
 export type UserWarehouseCredentialsTable = Knex.CompositeTableType<
@@ -25,11 +28,13 @@ type Create = Pick<
     | 'warehouse_type'
     | 'encrypted_credentials'
     | 'project_uuid'
->;
+    | 'purpose'
+> &
+    Partial<Pick<DbUserWarehouseCredentials, 'expires_at'>>;
 type Update = Pick<
     DbUserWarehouseCredentials,
     'name' | 'warehouse_type' | 'encrypted_credentials' | 'updated_at'
->;
+> & { user_warehouse_credentials_uuid?: string; expires_at?: Date | null };
 
 export type DbProjectUserWarehouseCredentialPreference = {
     user_uuid: string;

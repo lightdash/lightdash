@@ -28,6 +28,10 @@ import * as os from 'os';
 import pLimit from 'p-limit';
 import * as path from 'path';
 import { getConfig } from '../../config';
+import {
+    getAgentConnectionChildEnvironment,
+    getAgentConnectionSelection,
+} from '../../credentials';
 import { CLI_VERSION } from '../../env';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
@@ -320,13 +324,22 @@ export type RunDataAppBuildCommand = (
 ) => Promise<void>;
 
 const runDataAppBuildCommand: RunDataAppBuildCommand = async (command) => {
-    await execa(command.command, command.args, {
-        cwd: command.cwd,
-        env: command.env,
-        localDir: command.preferLocal ? command.cwd : undefined,
-        preferLocal: command.preferLocal,
-        timeout: command.timeoutMs,
-    });
+    await (getAgentConnectionSelection() !== null
+        ? execa(command.command, command.args, {
+              cwd: command.cwd,
+              localDir: command.preferLocal ? command.cwd : undefined,
+              preferLocal: command.preferLocal,
+              timeout: command.timeoutMs,
+              extendEnv: false,
+              env: await getAgentConnectionChildEnvironment(command.env),
+          })
+        : execa(command.command, command.args, {
+              cwd: command.cwd,
+              env: command.env,
+              localDir: command.preferLocal ? command.cwd : undefined,
+              preferLocal: command.preferLocal,
+              timeout: command.timeoutMs,
+          }));
 };
 
 const commandFailureOutput = (error: unknown): string => {
@@ -884,7 +897,15 @@ export const appsValidateHandler = async (
         ),
     ];
     const liveProjectUuid = options.live
-        ? (await getConfig()).context?.project
+        ? (
+              await (getAgentConnectionSelection() === null
+                  ? getConfig()
+                  : getConfig({ readOnly: true }).then(async (currentConfig) =>
+                        (
+                            await import('../../agentConnections/projectSelection')
+                        ).configWithAgentProject(currentConfig),
+                    ))
+          ).context?.project
         : undefined;
     const liveIndexes = new Map<string, Promise<DataAppExploreIndex>>();
     const loadLiveIndex = (

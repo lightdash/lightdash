@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 import * as fs from 'fs';
 import * as https from 'https';
+import * as os from 'os';
 import * as path from 'path';
 
 vi.mock('https');
@@ -12,7 +13,7 @@ vi.mock('./knexfile', () => ({
 // eslint-disable-next-line import/first
 import { resolveMigrationFile } from './migrateOrRollbackDatabase';
 
-const TEMP_DIR = path.join(__dirname, '..', '..', 'temp_migrations');
+const TEMP_DIR = path.join(os.tmpdir(), 'lightdash_temp_migrations');
 const mockedGet = https.get as unknown as import('vitest').Mock;
 
 function mockHttpsGet(statusCode: number, body: string) {

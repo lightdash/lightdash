@@ -22,12 +22,16 @@ import {
     IconEyeOff,
     IconFilter,
 } from '@tabler/icons-react';
-import { type FC, type ReactNode } from 'react';
+import { useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useCompactContentHeader } from '../../components/common/Page/useCompactContentHeader';
-import PinnedParameters from '../../components/PinnedParameters';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import {
+    selectIsAddFilterDisabled,
+    useDashboardAllFilters,
+    useDashboardSelector,
+} from '../dashboard/store';
 import { DateZoom } from '../dateZoom';
 import { Parameters } from '../parameters';
 import classes from './DashboardFiltersBar.module.css';
@@ -53,6 +57,20 @@ type Props = {
     onParameterReorder: (order: string[]) => void;
     isDateZoomDisabled: boolean;
     onCollapse: () => void;
+    /** Replaces the filters and the requirements button. Defaults to both. */
+    filterArea?: ReactNode;
+    /**
+     * Shows the bar in place on a narrow screen, as edit mode does, instead
+     * of behind its drawer button, and closes the drawer (default false).
+     */
+    isCompactDrawerSuppressed?: boolean;
+    /** How the filter row aligns its items (default `flex-start`). */
+    filtersAlign?: 'flex-start' | 'center';
+    /**
+     * Wraps the parameters in their own column beside a filter area that
+     * spans several lines (default false: inline with the filters).
+     */
+    isParametersColumn?: boolean;
 };
 
 export const DashboardFiltersBar: FC<Props> = ({
@@ -73,14 +91,25 @@ export const DashboardFiltersBar: FC<Props> = ({
     onParameterReorder,
     isDateZoomDisabled,
     onCollapse,
+    filterArea,
+    isCompactDrawerSuppressed = false,
+    filtersAlign = 'flex-start',
+    isParametersColumn = false,
 }) => {
     const compact = useCompactContentHeader();
     const [opened, { open, close }] = useDisclosure(false);
-    const getUiString = useUiStrings();
-    const isAddFilterDisabled = useDashboardContext(
-        (c) => c.isAddFilterDisabled,
+    // The drawer is closed once the bar is shown in place, so it never comes
+    // back open on its own
+    const [wasDrawerSuppressed, setWasDrawerSuppressed] = useState(
+        isCompactDrawerSuppressed,
     );
-    const allFilters = useDashboardContext((c) => c.allFilters);
+    if (wasDrawerSuppressed !== isCompactDrawerSuppressed) {
+        setWasDrawerSuppressed(isCompactDrawerSuppressed);
+        if (isCompactDrawerSuppressed) close();
+    }
+    const getUiString = useUiStrings();
+    const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
+    const allFilters = useDashboardAllFilters();
     const setIsDateZoomDisabled = useDashboardContext(
         (c) => c.setIsDateZoomDisabled,
     );
@@ -109,6 +138,15 @@ export const DashboardFiltersBar: FC<Props> = ({
 
     const renderFilters = !isAddFilterDisabled || isEditMode || hasFilters;
 
+    const wrapParameters = (node: ReactNode) =>
+        isParametersColumn ? (
+            <Group className={classes.parameters} gap="xs">
+                {node}
+            </Group>
+        ) : (
+            node
+        );
+
     const content = (
         <div className={classes.content}>
             <Group
@@ -136,7 +174,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                     {hasTilesThatSupportFilters && (
                         <Group
                             className={classes.filters}
-                            align="flex-start"
+                            align={filtersAlign}
                             gap="xs"
                             wrap="wrap"
                         >
@@ -156,12 +194,16 @@ export const DashboardFiltersBar: FC<Props> = ({
                                     }
                                 />
                             )}
-                            <DashboardFilters
-                                isEditMode={isEditMode}
-                                activeTabUuid={activeTabUuid}
-                            />
+                            {filterArea ?? (
+                                <>
+                                    <DashboardFilters
+                                        isEditMode={isEditMode}
+                                        activeTabUuid={activeTabUuid}
+                                    />
 
-                            {isEditMode && <FilterRequirementsButton />}
+                                    {isEditMode && <FilterRequirementsButton />}
+                                </>
+                            )}
 
                             {hasDashboardTiles && hasParameters && (
                                 <>
@@ -169,30 +211,35 @@ export const DashboardFiltersBar: FC<Props> = ({
                                         <Divider orientation="vertical" />
                                     )}
 
-                                    <Parameters
-                                        isEditMode={isEditMode}
-                                        parameterValues={parameterValues}
-                                        onParameterChange={onParameterChange}
-                                        onClearAll={onParameterClearAll}
-                                        parameters={parameters}
-                                        shadowedReservedNames={
-                                            shadowedReservedNames
-                                        }
-                                        isLoading={isParameterLoading}
-                                        missingRequiredParameters={
-                                            missingRequiredParameters
-                                        }
-                                        pinnedParameters={pinnedParameters}
-                                        onParameterPin={onParameterPin}
-                                        parameterOrder={parameterOrder}
-                                        onParameterReorder={onParameterReorder}
-                                        separator={
-                                            compact
-                                                ? undefined
-                                                : parametersSeparator
-                                        }
-                                    />
-                                    <PinnedParameters isEditMode={isEditMode} />
+                                    {wrapParameters(
+                                        <Parameters
+                                            isEditMode={isEditMode}
+                                            parameterValues={parameterValues}
+                                            onParameterChange={
+                                                onParameterChange
+                                            }
+                                            onClearAll={onParameterClearAll}
+                                            parameters={parameters}
+                                            shadowedReservedNames={
+                                                shadowedReservedNames
+                                            }
+                                            isLoading={isParameterLoading}
+                                            missingRequiredParameters={
+                                                missingRequiredParameters
+                                            }
+                                            pinnedParameters={pinnedParameters}
+                                            onParameterPin={onParameterPin}
+                                            parameterOrder={parameterOrder}
+                                            onParameterReorder={
+                                                onParameterReorder
+                                            }
+                                            separator={
+                                                compact
+                                                    ? undefined
+                                                    : parametersSeparator
+                                            }
+                                        />,
+                                    )}
                                 </>
                             )}
                         </Group>
@@ -275,7 +322,7 @@ export const DashboardFiltersBar: FC<Props> = ({
         </div>
     );
 
-    if (!compact || isEditMode) return content;
+    if (!compact || isEditMode || isCompactDrawerSuppressed) return content;
 
     return (
         <Box px="sm" py="xs">

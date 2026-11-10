@@ -2,6 +2,7 @@ import {
     ParameterError,
     QuerySourceType,
     type DuckdbSourceQuery,
+    type FeatureFlags,
     type QuerySourceDefinition,
     type QuerySourceSchema,
     type SourceQuery,
@@ -34,6 +35,8 @@ export class DuckdbQuerySource implements QuerySourceClient {
     };
 
     readonly supportsPivot = true;
+
+    readonly requiredFeatureFlags: FeatureFlags[] = [];
 
     private readonly asyncQueryService: AsyncQueryService;
 
@@ -124,6 +127,7 @@ export class DuckdbQuerySource implements QuerySourceClient {
         account,
         projectUuid,
         context,
+        querySurface,
         query,
         resolvedReferences,
         parameters,
@@ -152,6 +156,7 @@ export class DuckdbQuerySource implements QuerySourceClient {
             limit: sourceQuery.limit,
             references,
             context,
+            querySurface,
             parameters,
             invalidateCache,
             pivotConfiguration: pivotConfiguration ?? undefined,

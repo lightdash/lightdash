@@ -16,6 +16,7 @@ import {
 } from '@lightdash/common';
 import type { WarehouseClient } from '@lightdash/warehouses';
 import Logger from '../logging/logger';
+import { agentExecutionContext } from '../services/AiAccessService/agentExecutionContext';
 import type { CachedWarehouse, DbtClient } from '../types';
 import { DbtBaseProjectAdapter } from './dbtBaseProjectAdapter';
 
@@ -98,7 +99,7 @@ const withMissingEntries = (
 };
 
 const trackingParams = {
-    projectUuid: 'project-uuid',
+    projectUuid: '11111111-1111-4111-8111-111111111111',
     organizationUuid: 'organization-uuid',
     userUuid: 'user-uuid',
     jobUuid: 'job-uuid',
@@ -106,11 +107,15 @@ const trackingParams = {
 
 const makeHarness = ({
     models,
+    excludedModels = [],
+    disabledModels = [],
     cachedCatalog,
     warehouseTables,
     adapterType = 'postgres',
 }: {
     models: DbtModelNode[];
+    excludedModels?: DbtModelNode[];
+    disabledModels?: DbtModelNode[];
     cachedCatalog: WarehouseCatalog | undefined;
     warehouseTables: WarehouseTables;
     adapterType?: 'postgres' | 'snowflake';
@@ -133,6 +138,13 @@ const makeHarness = ({
     const dbtClient = {
         getDbtManifest: vi.fn(async () => ({
             manifest: {
+                nodes: Object.fromEntries(
+                    [...models, ...excludedModels].map((model) => [
+                        model.unique_id,
+                        model,
+                    ]),
+                ),
+                disabled: { models: disabledModels },
                 metadata: {
                     adapter_type: adapterType,
                     dbt_schema_version:
@@ -201,6 +213,65 @@ describe('DbtBaseProjectAdapter warehouse catalog cache', () => {
     afterEach(() => {
         vi.restoreAllMocks();
     });
+
+    it('passes raw excluded and disabled models to join resolution before selection and validation', async () => {
+        const orders = makeModel('fct_orders');
+        const excluded = makeModel('dim_calendar');
+        const disabled = makeModel('dim_disabled');
+        const harness = makeHarness({
+            models: [orders],
+            excludedModels: [excluded],
+            disabledModels: [disabled],
+            cachedCatalog: undefined,
+            warehouseTables: { fct_orders: ['id'] },
+        });
+        await harness.compile();
+        expect(
+            vi
+                .mocked(iterateExplores)
+                .mock.calls.at(-1)?.[0]
+                .map((model) => model.name),
+        ).toEqual(['fct_orders']);
+        expect(vi.mocked(iterateExplores).mock.calls.at(-1)?.[5]).toMatchObject(
+            {
+                modelInventory: [orders, excluded, disabled].map(
+                    ({ name, package_name, lightdash_source_name }) => ({
+                        name,
+                        package_name,
+                        lightdash_source_name,
+                    }),
+                ),
+                allowCrossSourceJoinFallback: true,
+            },
+        );
+    });
+
+    it.each([false, true])(
+        'uses the fetched catalog to compile but only persists it when unbound, bound=%s',
+        async (bound) => {
+            const harness = makeHarness({
+                models: [makeModel('orders')],
+                cachedCatalog: undefined,
+                warehouseTables: { orders: ['id'] },
+            });
+            const result = await agentExecutionContext.run(
+                {
+                    agentConnectionExecution: bound
+                        ? { grantUuid: 'grant', revision: 1 }
+                        : null,
+                } as never,
+                harness.compile,
+            );
+            expect(result).toEqual([
+                { name: 'orders', typed: DimensionType.NUMBER },
+            ]);
+            expect(harness.getCatalog).toHaveBeenCalledOnce();
+            if (bound)
+                expect(harness.onWarehouseCatalogChange).not.toHaveBeenCalled();
+            else
+                expect(harness.onWarehouseCatalogChange).toHaveBeenCalledOnce();
+        },
+    );
 
     it('records missing tables and columns on a full fetch', async () => {
         const harness = makeHarness({

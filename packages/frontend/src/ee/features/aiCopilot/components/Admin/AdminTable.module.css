@@ -1,0 +1,15 @@
+.resultsCount {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
+}
+
+.loadMoreFooter {
+    border-top: 1px solid var(--mantine-color-ldGray-3);
+}
+
+.unresolvedChannel {
+    border: 1px dashed var(--mantine-color-ldGray-4);
+}

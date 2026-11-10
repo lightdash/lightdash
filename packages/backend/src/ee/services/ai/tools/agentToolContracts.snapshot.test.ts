@@ -1,12 +1,16 @@
 import {
     agentToolDefinitions,
     agentToolDefinitionsByName,
+    AI_DEFAULT_MAX_QUERY_LIMIT,
+    queryConfigBaseSchema,
 } from '@lightdash/common';
 import { asSchema, type FlexibleSchema, type ToolSet } from 'ai';
 import { DISTILL_TOOL_POLICIES } from '../../AiAgentMemoryService/transcriptToolPolicy';
+import type { PromptSection } from '../loadout';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { AgentContext } from '../utils/AgentContext';
 import { getStaticToolDescription } from '../utils/toolDescription';
+import { getAnalyzeFieldImpact } from './analyzeFieldImpact';
 import { getClosePullRequest } from './closePullRequest';
 import { getCreateContent } from './createContent';
 import { getCreateScheduledDelivery } from './createScheduledDelivery';
@@ -15,7 +19,6 @@ import { getDiscoverRepos } from './discoverRepos';
 import { getEditContent } from './editContent';
 import { getEditDbtProject } from './editDbtProject';
 import { getEditProjectContext } from './editProjectContext';
-import { getEditRepo } from './editRepo';
 import { getExploreRepo } from './exploreRepo';
 import { getExportChartAsCode } from './exportChartAsCode';
 import { getFindContent } from './findContent';
@@ -26,10 +29,13 @@ import { getGenerateHashes } from './generateHashes';
 import { getGenerateUuids } from './generateUuids';
 import { getGetDashboardCharts } from './getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from './getKnowledgeDocumentContent';
+import { getGetMetadata } from './getMetadata';
 import { getGetProjectInfo } from './getProjectInfo';
 import { getGetPullRequestDiff } from './getPullRequestDiff';
+import { getGrepFields } from './grepFields';
 import { getIterateDataApp } from './iterateDataApp';
 import { getListContent } from './listContent';
+import { getListDataAppConnections } from './listDataAppConnections';
 import { getListDataAppThemes } from './listDataAppThemes';
 import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
 import { getListProjects } from './listProjects';
@@ -45,8 +51,9 @@ import { getRunQuery } from './runQuery';
 import { getRunSavedChart } from './runSavedChart';
 import { getRunSql } from './runSql';
 import { getSearchFieldValues } from './searchFieldValues';
-import { getSetupPreviewDeploy } from './setupPreviewDeploy';
+import { getSearchSemanticLayer } from './searchSemanticLayer';
 import { getUpdateUserName } from './updateUserName';
+import { getVisualize } from './visualize';
 
 const schemaToJson = (schema: FlexibleSchema | undefined): unknown => {
     if (!schema) {
@@ -75,10 +82,7 @@ const sharedAgentToolDefinitionNames = agentToolDefinitions.map(
     (toolDefinition) => toolDefinition.for('agent').name,
 );
 
-const makeAgentTools = (
-    enableFilterExpressions = false,
-    enableMergeQueries = true,
-) => {
+const makeAgentTools = (enableFilterExpressions = false) => {
     const noop = vi.fn();
     const noopAsync = vi.fn().mockResolvedValue(undefined);
 
@@ -89,12 +93,19 @@ const makeAgentTools = (
         // Historical contract retained so persisted discoverFields calls still
         // parse and render, although the agent no longer executes this tool.
         discoverFields: agentToolDefinitionsByName.discoverFields.for('agent'),
-        createContent: getCreateContent({ createContent: noop }),
+        createContent: getCreateContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            createContent: noop,
+        }),
         createScheduledDelivery: getCreateScheduledDelivery({
+            siteUrl: 'https://app.lightdash.cloud',
             createScheduledDelivery: noop,
         }),
         updateUserName: getUpdateUserName({ updateUserName: noopAsync }),
-        editContent: getEditContent({ editContent: noop }),
+        editContent: getEditContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            editContent: noop,
+        }),
         findContent: getFindContent({
             findContent: noop,
             siteUrl: 'https://lightdash.example',
@@ -122,7 +133,10 @@ const makeAgentTools = (
             getKnowledgeDocumentContent: noop,
         }),
         getProjectInfo: getGetProjectInfo({ getProjectInfo: noop }),
-        listContent: getListContent({ listContent: noop }),
+        listContent: getListContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            listContent: noop,
+        }),
         listKnowledgeDocuments: getListKnowledgeDocuments({
             listKnowledgeDocuments: noop,
         }),
@@ -135,17 +149,14 @@ const makeAgentTools = (
         generateDataApp: getGenerateDataApp({ generateDataApp: noop }),
         iterateDataApp: getIterateDataApp({ iterateDataApp: noop }),
         listDataAppThemes: getListDataAppThemes({ listDataAppThemes: noop }),
+        listDataAppConnections: getListDataAppConnections({
+            listDataAppConnections: noop,
+        }),
         editDbtProject: getEditDbtProject({
             editDbtProject: noop,
         }),
         editProjectContext: getEditProjectContext({
             editProjectContext: noop,
-        }),
-        editRepo: getEditRepo({
-            editRepo: noop,
-        }),
-        setupPreviewDeploy: getSetupPreviewDeploy({
-            setupPreviewDeploy: noop,
         }),
         exploreRepo: getExploreRepo({ exploreRepo: noop }),
         discoverRepos: getDiscoverRepos({ discoverRepos: noop }),
@@ -154,30 +165,34 @@ const makeAgentTools = (
         getPullRequestDiff: getGetPullRequestDiff({
             getPullRequestDiff: noop,
         }),
-        readContent: getReadContent({ readContent: noop }),
+        readContent: getReadContent({
+            siteUrl: 'https://app.lightdash.cloud',
+            readContent: noop,
+        }),
         runContentQuery: getRunContentQuery({
             enableDataAccess: true,
             getSavedChart: noop,
+            getSqlChart: noop,
+            runSqlChartQuery: noop,
             maxLimit: 500,
             maxContextRows: Number.POSITIVE_INFINITY,
             runAsyncQuery: noop,
             runSavedChartQuery: noop,
             updateProgress: noopAsync,
             validateContent: noop,
+            sqlQuerying: null,
         }),
         generateVisualization: getRunQuery({
             agentContext: new AgentContext([]),
             createOrUpdateArtifact: noop,
             enableDataAccess: true,
             slackLinksOnly: false,
-            enableMergeQueries,
             enableFilterExpressions,
             getPrompt: noop,
             maxLimit: 500,
             projectParameterDefinitions: {},
             maxContextRows: Number.POSITIVE_INFINITY,
             exposeQueryUuid: false,
-            runAsyncMergeQuery: noop,
             runAsyncQuery: noop,
             sendFile: noop,
             updateProgress: noopAsync,
@@ -193,38 +208,81 @@ const makeAgentTools = (
             updateProgress: noopAsync,
         }),
         runSql: getRunSql({
-            hyphenatedIdentifiers: true,
             createOrUpdateArtifact: noop,
             enableDataAccess: true,
             slackLinksOnly: false,
             getPrompt: noop,
             recordSqlApproval: noop,
             isThreadSqlAutoApproved: noop,
+            listSqlApprovalDecisions: noop,
+            trackSqlApprovalTimeout: noop,
             storeToolResults: noop,
             runSqlJob: noop,
             sendFile: noop,
             siteUrl: 'https://lightdash.example',
-            maxQueryLimit: 500,
+            // The runSqlMaxLimit production ships when AI_COPILOT_RUN_SQL_MAX_LIMIT is unset.
+            maxQueryLimit: AI_DEFAULT_MAX_QUERY_LIMIT,
             updateProgress: noopAsync,
             updateSlackMessage: noop,
             waitForSqlApproval: noop,
         }),
-        runComposerQueries: getRunComposerQueries({
-            createOrUpdateArtifact: noop,
-            listThreadComposerPipelines: noop,
+        query: getRunComposerQueries({
+            agentContext: new AgentContext([]),
+            filterValueHints: null,
+            listThreadComposerQueryNodes: noop,
+            registerThreadComposerQueryNodes: noop,
             enableDataAccess: true,
             canRunSql: true,
+            enablePythonNodes: false,
             getPrompt: noop,
             recordSqlApproval: noop,
+            isThreadSqlAutoApproved: noop,
+            listSqlApprovalDecisions: noop,
+            trackSqlApprovalTimeout: noop,
+            storeToolResults: noop,
+            siteUrl: 'https://lightdash.example',
+            updateSlackMessage: noop,
             runComposerQueries: noop,
             maxQueryLimit: 500,
             updateProgress: noopAsync,
             waitForSqlApproval: noop,
+            projectParameterDefinitions: {},
+        }),
+        visualize: getVisualize({
+            getPrompt: noop,
+            getExplore: noop,
+            listThreadComposerQueryNodes: noop,
+            getThreadComposerNodeColumns: noop,
+            runComposerQueries: noop,
+            resolveCustomChartType: noop,
+            createOrUpdateArtifact: noop,
+            updateProgress: noopAsync,
+            slackLinksOnly: false,
+            maxQueryLimit: 500,
         }),
         searchFieldValues: getSearchFieldValues({
             searchFieldValues: noop,
             getExplore: noop,
             enableFilterExpressions,
+        }),
+        grepFields: getGrepFields({
+            availableExplores: [],
+            findExplores: noop,
+            verifiedFieldUsage: new Map(),
+        }),
+        getMetadata: getGetMetadata({
+            availableExplores: [],
+            projectParameterDefinitions: {},
+        }),
+        analyzeFieldImpact: getAnalyzeFieldImpact({
+            analyzeFieldImpact: noop,
+            updateProgress: noopAsync,
+        }),
+        searchSemanticLayer: getSearchSemanticLayer({
+            searchSemanticLayer: noop,
+            updateProgress: noopAsync,
+            maxPageSize: 500,
+            toolDescriptionMaxChars: 600,
         }),
     };
 };
@@ -246,35 +304,32 @@ describe('AI agent tool contracts', () => {
             ),
         ).toMatchSnapshot();
     });
-    it.each(
-        [false, true].flatMap((enableFilterExpressions) =>
-            [false, true].map((enableMergeQueries) => ({
-                enableFilterExpressions,
-                enableMergeQueries,
-            })),
-        ),
-    )(
-        'keeps MCP polling out of Agent query guidance: expressions=$enableFilterExpressions merge=$enableMergeQueries',
-        ({ enableFilterExpressions, enableMergeQueries }) => {
+    it.each([false, true])(
+        'keeps MCP polling out of Agent query guidance: expressions=%s',
+        (enableFilterExpressions) => {
             const { generateVisualization, runSql } = makeAgentTools(
                 enableFilterExpressions,
-                enableMergeQueries,
             );
+            const runQueryDescription =
+                agentToolDefinitionsByName.runQuery.for('agent').description;
             for (const description of [
                 generateVisualization.description,
                 runSql.description,
-                agentToolDefinitionsByName.runQuery.for('agent').description,
+                runQueryDescription,
                 agentToolDefinitionsByName.runSql.for('agent').description,
             ]) {
-                expect(description).toContain('execution');
                 expect(description).not.toMatch(
                     /get_query_result|render_chart|structuredContent|nextPollAfterMs|heartbeatAt|~50s/,
                 );
             }
-            expect(generateVisualization.description).toContain(
-                'queryConfig.parameters',
+            expect(generateVisualization.description).toContain('execution');
+            expect(runQueryDescription).toContain('execution');
+            expect(
+                queryConfigBaseSchema.shape.parameters.description,
+            ).toContain('requires parameters');
+            expect(runSql.description).toContain(
+                `max ${AI_DEFAULT_MAX_QUERY_LIMIT}`,
             );
-            expect(runSql.description).toContain('max 500');
         },
     );
 
@@ -284,7 +339,7 @@ describe('AI agent tool contracts', () => {
                 'mcp-artifact-integration',
             );
         }
-        for (const tool of Object.values(makeAgentTools(true, true))) {
+        for (const tool of Object.values(makeAgentTools(true))) {
             expect(tool.description).not.toContain('mcp-artifact-integration');
         }
     });
@@ -309,16 +364,31 @@ describe('AI agent tool contracts', () => {
             enableFilterExpressions: true,
             enableGenerateDataApp: true,
         },
+        {
+            name: 'structured-filter-with-composer',
+            enableFilterExpressions: false,
+            enableGenerateDataApp: false,
+            composer: true,
+        },
     ])(
         'matches the $name Agent system prompt snapshot',
-        ({ enableFilterExpressions, enableGenerateDataApp }) => {
+        ({ enableFilterExpressions, enableGenerateDataApp, composer }) => {
             expect(
                 getSystemPromptV2({
                     availableExplores: [],
                     date: '2026-08-27',
                     enableFilterExpressions,
-                    enableContentTools: enableGenerateDataApp,
-                    enableGenerateDataApp,
+                    canRunQuery: !composer,
+                    promptSections: new Set<PromptSection>([
+                        ...(enableGenerateDataApp
+                            ? ([
+                                  'contentTools',
+                                  'schedulingTools',
+                                  'generateDataApp',
+                              ] as const)
+                            : []),
+                        ...(composer ? (['queryingComposer'] as const) : []),
+                    ]),
                 }).content,
             ).toMatchSnapshot();
         },

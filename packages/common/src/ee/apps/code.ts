@@ -18,6 +18,14 @@ export type DataAppManifestExternalConnection = {
     connectionSlug: string;
 };
 
+// Where a library chart type was installed from. Present only on bundles
+// downloaded from a registry install; upload re-installs that exact version.
+export type DataAppManifestRegistryProvenance = {
+    slug: string;
+    version: string;
+    url: string;
+};
+
 export type DataAppManifest = {
     codeVersion: 1;
     // Read but no longer written: pre-slug bundles carry both ids and uploads
@@ -63,6 +71,7 @@ export type DataAppManifest = {
     // direct policy; absent → the existing policy is left untouched (bundles
     // downloaded before this field, or exports made while sharing is off).
     access?: ContentAsCodeDirectAccess;
+    registry?: DataAppManifestRegistryProvenance;
     downloadedAt: string; // ISO
     scaffoldingVersion?: string; // CLI/SDK version the vendored scaffolding came from (Phase 2)
 };

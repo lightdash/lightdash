@@ -34,6 +34,7 @@ export const ComposerSubmitButton = ({
     <ActionIcon
         {...tourAttributes}
         variant="filled"
+        color={destructive ? 'red' : accent === 'indigo' ? 'indigo' : undefined}
         size={size === 'lg' ? 'lg' : 'md'}
         className={`${classes.submitButton} ${className ?? ''}`}
         data-composer-size={size}
@@ -44,11 +45,6 @@ export const ComposerSubmitButton = ({
         onClick={onClick}
         aria-label={label}
     >
-        <MantineIcon
-            icon={icon}
-            color="ldGray.0"
-            size={size === 'lg' ? 20 : 18}
-            stroke={2}
-        />
+        <MantineIcon icon={icon} size={size === 'lg' ? 20 : 18} stroke={2} />
     </ActionIcon>
 );

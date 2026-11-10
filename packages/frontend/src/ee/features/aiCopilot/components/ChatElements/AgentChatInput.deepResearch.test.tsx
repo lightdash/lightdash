@@ -1,20 +1,26 @@
-import { screen } from '@testing-library/react';
+import { FeatureFlags } from '@lightdash/common';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
-import { readAiAgentFastMode } from '../../hooks/useAiAgentFastMode';
 import { store } from '../../store';
 import { AgentChatInput } from './AgentChatInput';
 
-const { useHasActiveDeepResearchRunMock, useServerFeatureFlagMock } =
-    vi.hoisted(() => ({
-        useHasActiveDeepResearchRunMock: vi.fn(() => false),
-        useServerFeatureFlagMock: vi.fn(() => ({
-            data: { enabled: false },
-        })),
-    }));
+const {
+    useHasActiveDeepResearchRunMock,
+    useServerFeatureFlagMock,
+    useHealthMock,
+} = vi.hoisted(() => ({
+    useHasActiveDeepResearchRunMock: vi.fn(() => false),
+    useServerFeatureFlagMock: vi.fn(() => ({
+        data: { enabled: false },
+    })),
+    useHealthMock: vi.fn(() => ({
+        data: { ai: { fastDecisionsEnabled: false } },
+    })),
+}));
 
 vi.mock('../../hooks/useDeepResearch', () => ({
     useHasActiveDeepResearchRun: useHasActiveDeepResearchRunMock,
@@ -22,6 +28,10 @@ vi.mock('../../hooks/useDeepResearch', () => ({
 
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: useServerFeatureFlagMock,
+}));
+
+vi.mock('../../../../../hooks/health/useHealth', () => ({
+    default: useHealthMock,
 }));
 
 const renderInput = ({
@@ -52,8 +62,11 @@ const renderInput = ({
         adminOnly: false,
     };
     if (enableCsvAttachment) {
-        useServerFeatureFlagMock.mockReturnValue({
-            data: { enabled: true },
+        useServerFeatureFlagMock.mockImplementation((flag?: FeatureFlags) => ({
+            data: { enabled: flag !== FeatureFlags.AgentIdentity },
+        }));
+        useHealthMock.mockReturnValue({
+            data: { ai: { fastDecisionsEnabled: true } },
         });
     }
 
@@ -112,6 +125,9 @@ describe('AgentChatInput Deep Research mode', () => {
         useServerFeatureFlagMock.mockReturnValue({
             data: { enabled: false },
         });
+        useHealthMock.mockReturnValue({
+            data: { ai: { fastDecisionsEnabled: false } },
+        });
     });
 
     const openComposerOptions = async () => {
@@ -143,7 +159,9 @@ describe('AgentChatInput Deep Research mode', () => {
         expect(
             screen.getByRole('menuitem', { name: 'Enable deep research' }),
         ).toBeInTheDocument();
-        expect(screen.getByRole('separator')).toBeInTheDocument();
+        expect(
+            within(screen.getByRole('menu')).getByRole('separator'),
+        ).toBeInTheDocument();
     };
 
     it('exposes every action from one menu in an existing thread', async () => {
@@ -197,28 +215,6 @@ describe('AgentChatInput Deep Research mode', () => {
 
         expect(inputClick).toHaveBeenCalledOnce();
         inputClick.mockRestore();
-    });
-
-    it('saves the Fast mode choice from the composer toolbar', async () => {
-        window.localStorage.removeItem('lightdash-ai-agent-fast-mode');
-        renderInput({ enableCsvAttachment: true });
-        const user = userEvent.setup();
-        const fastButton = await screen.findByRole('button', { name: 'Fast' });
-        expect(fastButton).toHaveAttribute('aria-pressed', 'true');
-
-        await user.click(fastButton);
-
-        expect(fastButton).toHaveAttribute('aria-pressed', 'false');
-        expect(readAiAgentFastMode()).toBe(false);
-        window.localStorage.removeItem('lightdash-ai-agent-fast-mode');
-    });
-
-    it('hides Fast mode when fast decisions are off', () => {
-        renderInput({ onSqlModeChange: vi.fn() });
-
-        expect(
-            screen.queryByRole('button', { name: 'Fast' }),
-        ).not.toBeInTheDocument();
     });
 
     it('toggles SQL Runner from the action menu', async () => {
@@ -333,7 +329,9 @@ describe('AgentChatInput Deep Research mode', () => {
                 .getAllByRole('menuitem')
                 .map((menuItem) => menuItem.textContent),
         ).toEqual(['Attach a document']);
-        expect(screen.queryByRole('separator')).not.toBeInTheDocument();
+        expect(
+            within(screen.getByRole('menu')).queryByRole('separator'),
+        ).not.toBeInTheDocument();
     });
 
     it('hides the action menu while the composer is disabled', () => {

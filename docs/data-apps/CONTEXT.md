@@ -99,6 +99,21 @@ its upstream project. The first promotion creates a linked upstream app;
 later ones append a version to it.
 _Avoid_: publish, deploy, push, sync
 
+**Thumbnail**:
+A still image of one ready version of a data app, captured automatically
+when the version becomes ready or by hand from the running app. A data
+app's thumbnail is the thumbnail of its latest ready version.
+_Avoid_: screenshot (an image attached to a prompt as context), preview (the
+running app), cover image
+
+**Obscured thumbnail**:
+An automatically captured thumbnail whose text and values have been made
+unreadable before it is stored, so it shows the app's layout and charts
+without the data the capturing user could see. Thumbnails set by hand are
+never obscured.
+_Avoid_: blurred thumbnail, redacted thumbnail, pixelated thumbnail (the
+mechanism, not the concept)
+
 ### Threads
 
 **Thread**:
@@ -112,8 +127,9 @@ agent's transcript)
 
 **Clear agent context**:
 To start a fresh thread on a data app. The coding agent forgets the current
-thread and starts from the app's current source; the app, its versions, and
-its sandbox are unchanged. Blocked while a build is in progress.
+thread, its sandbox is discarded, and the next prompt runs in a fresh one
+built from the latest ready version; the app and its versions are unchanged.
+Blocked while a build is in progress.
 _Avoid_: clear chat, reset, new chat
 
 **History**:
@@ -187,8 +203,8 @@ _Avoid_: integration, data source, proxy (unqualified)
 
 **Sandbox**:
 The isolated environment where the coding agent writes and builds an app's
-source. Per app and ephemeral: a duplicate gets a fresh one on its first
-prompt.
+source. Per app and ephemeral: a duplicate, or an app whose agent context was
+cleared, gets a fresh one on its next prompt.
 _Avoid_: container, VM, workspace, environment
 
 **Preview**:

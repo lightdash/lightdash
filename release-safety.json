@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "2.428.1",
-  "previousVersion": "2.428.0",
-  "releaseDate": "2026-10-05T11:07:00.611Z",
+  "version": "3.203.1",
+  "previousVersion": "3.203.0",
+  "releaseDate": "2026-11-10T16:19:00.627Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -38,8 +38,9 @@
     "changes": []
   },
   "upgrade": {
-    "minPreviousVersion": "1.111.0",
+    "minPreviousVersion": "2.497.1",
     "requiredStops": []
   },
-  "declaredBreaks": []
+  "declaredBreaks": [],
+  "declaredAdvisories": []
 }

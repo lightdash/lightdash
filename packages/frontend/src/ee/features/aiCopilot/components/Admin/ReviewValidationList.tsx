@@ -63,15 +63,15 @@ export const ReviewValidationList: FC<Props> = ({ previewProjectUuid }) => {
 
     return (
         <Stack gap="xs" pt="xs">
-            <Text fz="xs" fw={600} tt="uppercase" lts={0.4} c="ldGray.7">
+            <Text fz="xs" fw={600} tt="uppercase" lts={0.4} c="dimmed">
                 {total} validation {total === 1 ? 'error' : 'errors'}
             </Text>
 
-            <List size="xs" spacing={4} c="ldGray.7">
+            <List size="xs" spacing={4} c="dimmed">
                 {errors.slice(0, MAX_VISIBLE_ERRORS).map((error) => (
                     <List.Item key={error.validationUuid}>
                         <Tooltip label={error.error} maw={320} openDelay={300}>
-                            <Text fz="xs" c="ldGray.7" lineClamp={1}>
+                            <Text fz="xs" c="dimmed" lineClamp={1}>
                                 <Text span inherit fw={600}>
                                     {getValidationName(error)}
                                 </Text>

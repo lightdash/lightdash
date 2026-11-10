@@ -2,7 +2,7 @@ import {
     AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
     AI_AGENT_DOCUMENT_MAX_NAME_LENGTH,
     assertUnreachable,
-    type AiAgentDocumentSummary,
+    type AiAgentDocumentListItem,
 } from '@lightdash/common';
 import {
     Box,
@@ -29,20 +29,21 @@ import {
     markdownSanitizeRehypePlugins,
     mdEditorComponents,
     rehypeRemoveHeaderLinks,
-    useMdEditorStyle,
 } from '../../../../utils/markdownUtils';
 import {
     useAiAgentDocumentContent,
     useUpdateAiAgentDocumentContent,
 } from '../hooks/useAiAgentDocuments';
+import { getGitBackedActionProps } from '../utils/gitBackedDocument';
 import classes from './AiAgentKnowledgeDocumentModal.module.css';
+import { GitBackedActionTooltip } from './GitBackedDocumentAction';
 
 const MARKDOWN_REMARK_PLUGINS = [remarkFrontmatter];
 
 type LoadedDocumentModalProps = {
     agentUuid: string;
     content: string;
-    document: AiAgentDocumentSummary;
+    document: AiAgentDocumentListItem;
     onClose: () => void;
     projectUuid: string;
 };
@@ -55,7 +56,7 @@ const LoadedDocumentModal = ({
     projectUuid,
 }: LoadedDocumentModalProps) => {
     const { colorScheme } = useMantineColorScheme();
-    const markdownStyle = useMdEditorStyle();
+
     const updateDocument = useUpdateAiAgentDocumentContent(
         projectUuid,
         agentUuid,
@@ -138,13 +139,23 @@ const LoadedDocumentModal = ({
                         >
                             Download
                         </Button>
-                        <Button
-                            size="xs"
-                            leftSection={<MantineIcon icon={IconEdit} />}
-                            onClick={() => setMode('edit')}
+                        <GitBackedActionTooltip
+                            managed={document.managedByContentAsCode}
                         >
-                            Edit
-                        </Button>
+                            <Button
+                                size="xs"
+                                leftSection={<MantineIcon icon={IconEdit} />}
+                                {...getGitBackedActionProps(
+                                    document.managedByContentAsCode,
+                                )}
+                                onClick={() => {
+                                    if (document.managedByContentAsCode) return;
+                                    setMode('edit');
+                                }}
+                            >
+                                Edit
+                            </Button>
+                        </GitBackedActionTooltip>
                     </Group>
                 );
             case 'edit':
@@ -196,10 +207,17 @@ const LoadedDocumentModal = ({
                         data-color-mode={colorScheme}
                         h="100%"
                         className={classes.markdownViewer}
+                        // Walkthrough: a look at the document once it is open.
+                        // See scripts/scope-tours.
+                        data-tour-scope="manage:AiAgentDocument"
+                        data-tour-look="2"
+                        data-tour-after='[data-tour-anchor="knowledge-document-open"]'
+                        data-tour-label="Read the document"
+                        data-tour-docs="agents/knowledge-documents.mdx#how-they-work:li1:1-2"
                     >
                         <MDEditor.Markdown
                             source={form.values.content}
-                            style={markdownStyle}
+                            className={classes.markdown}
                             components={mdEditorComponents}
                             rehypePlugins={markdownSanitizeRehypePlugins}
                             rehypeRewrite={rehypeRemoveHeaderLinks}
@@ -211,10 +229,7 @@ const LoadedDocumentModal = ({
                         component="pre"
                         fz="sm"
                         ff="monospace"
-                        style={{
-                            whiteSpace: 'pre-wrap',
-                            overflowWrap: 'anywhere',
-                        }}
+                        className={classes.rawContent}
                     >
                         {form.values.content}
                     </Text>
@@ -252,7 +267,7 @@ const LoadedDocumentModal = ({
                             autosize
                             minRows={24}
                             maxRows={40}
-                            styles={{ input: { fontFamily: 'monospace' } }}
+                            classNames={{ input: classes.monospaceInput }}
                             {...form.getInputProps('content')}
                         />
                     )}
@@ -272,7 +287,7 @@ const LoadedDocumentModal = ({
 
 type Props = {
     agentUuid: string;
-    document: AiAgentDocumentSummary | null;
+    document: AiAgentDocumentListItem | null;
     onClose: () => void;
     projectUuid: string;
 };

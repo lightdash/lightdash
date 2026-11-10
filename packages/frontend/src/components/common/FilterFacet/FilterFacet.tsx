@@ -277,7 +277,7 @@ const FilterFacet = ({
             }
         >
             <Group gap={6} wrap="nowrap">
-                <Text fz="xs" fw={500} c="ldGray.7">
+                <Text fz="xs" fw={500} c="dimmed">
                     {label}
                 </Text>
                 {hasSelection && showSelectionCount && (
@@ -323,7 +323,7 @@ const FilterFacet = ({
                         {label}
                     </Text>
                     <CloseButton
-                        size={44}
+                        mod="touch-dismiss"
                         aria-label={interpolateUiString(
                             getUiString('filters.closeFacet'),
                             { filter: label },

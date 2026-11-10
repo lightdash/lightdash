@@ -134,25 +134,35 @@ step "Ensure Python/dbt venv"
 # ~30-60s pip install on every new worktree. A worktree that already has a real
 # (non-symlink) venv is left untouched.
 SHARED_VENV="${HOME}/.lightdash/dev-venv"
-if test -f venv/bin/dbt && test -f venv/bin/dbt1.7; then
+# dbt-core 1.7 imports distutils, removed in Python 3.12, so this venv is pinned
+# to python3.11 and a venv that cannot import distutils is rebuilt.
+dbt17_venv_ok() {
+    test -x "$1/bin/dbt" && test -x "$1/bin/dbt1.7" \
+        && "$1/bin/python" -c 'import distutils' >/dev/null 2>&1
+}
+build_dbt17_venv() {
+    command -v python3.11 >/dev/null 2>&1 \
+        || fail "venv-python" "dbt-core 1.7 needs python3.11 (it imports distutils, removed in Python 3.12) but python3.11 is not installed; run 'brew install python@3.11' and re-run"
+    rm -rf "$1"
+    python3.11 -m venv "$1" || fail "venv" "python3.11 -m venv $1 failed"
+    "$1/bin/pip" install dbt-core==1.7.0 dbt-postgres==1.7.0 'protobuf>=4.0.0,<5.0.0' >/dev/null 2>&1 \
+        || fail "venv" "pip install dbt 1.7 into $1 failed"
+    ln -sf dbt "$1/bin/dbt1.7"
+    dbt17_venv_ok "$1" || fail "venv" "$1 still cannot import distutils after rebuild"
+}
+if dbt17_venv_ok venv; then
     echo "SKIP: venv present"
-elif [ ! -e venv ]; then
-    if ! test -f "$SHARED_VENV/bin/dbt"; then
+elif [ ! -e venv ] || [ -L venv ]; then
+    if ! dbt17_venv_ok "$SHARED_VENV"; then
+        echo "Shared venv $SHARED_VENV is missing or cannot import distutils (dbt-core 1.7 needs Python 3.11) — rebuilding with python3.11"
         mkdir -p "$(dirname "$SHARED_VENV")"
-        python3 -m venv "$SHARED_VENV" || fail "venv" "python3 -m venv (shared cache) failed"
-        "$SHARED_VENV/bin/pip" install dbt-core==1.7.0 dbt-postgres==1.7.0 'protobuf>=4.0.0,<5.0.0' >/dev/null 2>&1 \
-            || fail "venv" "pip install dbt into shared cache failed"
-        ln -sf dbt "$SHARED_VENV/bin/dbt1.7"
+        build_dbt17_venv "$SHARED_VENV"
     fi
-    ln -s "$SHARED_VENV" venv || fail "venv" "could not symlink venv -> $SHARED_VENV"
-    test -f venv/bin/dbt || fail "venv" "shared venv symlink is broken"
+    ln -sfn "$SHARED_VENV" venv || fail "venv" "could not symlink venv -> $SHARED_VENV"
     echo "OK: venv linked to shared cache ($SHARED_VENV)"
 else
-    # venv exists but is incomplete — rebuild in place (legacy path)
-    python3 -m venv venv || fail "venv" "python3 -m venv failed"
-    ./venv/bin/pip install dbt-core==1.7.0 dbt-postgres==1.7.0 'protobuf>=4.0.0,<5.0.0' >/dev/null 2>&1 \
-        || fail "venv" "pip install dbt failed"
-    ln -sf dbt venv/bin/dbt1.7
+    echo "venv is incomplete or cannot import distutils (dbt-core 1.7 needs Python 3.11) — rebuilding in place with python3.11"
+    build_dbt17_venv venv
     echo "OK: venv ready"
 fi
 
@@ -384,7 +394,7 @@ docker compose -p "$LD_COMPOSE_PROJECT" -f "$INSTANCE_COMPOSE" --env-file .env.d
 # ---------------------------------------------------------------------------
 # The Docker sandbox provider launches agent containers from local images that
 # are built once per machine, never pulled. A missing image only surfaces later
-# as a runtime 404 ("No such image: lightdash-agent-onboarding:local") when a
+# as a runtime 404 ("No such image: lightdash-ai-writeback:local") when a
 # sandbox-backed feature first runs, so build any that are absent now. Env
 # overrides mean the operator points at their own image — leave those alone.
 if grep -q "^SANDBOX_PROVIDER=docker" .env.development.local 2>/dev/null; then
@@ -405,7 +415,6 @@ if grep -q "^SANDBOX_PROVIDER=docker" .env.development.local 2>/dev/null; then
     }
     ensure_sandbox_image lightdash-sandbox:local ./sandboxes/data-apps/build-local-image.sh SANDBOX_DOCKER_IMAGE
     ensure_sandbox_image lightdash-ai-writeback:local ./sandboxes/ai-writeback/build-local-image.sh SANDBOX_AI_WRITEBACK_DOCKER_IMAGE
-    ensure_sandbox_image lightdash-agent-onboarding:local ./sandboxes/agent-onboarding/build-local-image.sh SANDBOX_AGENT_ONBOARDING_DOCKER_IMAGE
 fi
 
 step "Wait for PostgreSQL"
@@ -428,6 +437,24 @@ SEEDED="$(db_has "SELECT 1 FROM emails WHERE email='demo@lightdash.com'")"
 DBT_BUILT="$(db_has "SELECT 1 FROM information_schema.tables WHERE table_schema='jaffle' AND table_name='orders'")"
 BOOTSTRAPPED=false
 BOOTSTRAPPED_EE_BASE=false
+
+# A base snapshot outlives image upgrades: cloning a PG16 cluster into a PG18
+# container leaves Postgres restart-looping. Drop any base whose PG_VERSION
+# differs from the running image so the full-setup path rewrites it.
+# PG_VERSION sits at the volume root (pg<=16 layout) or under <major>/docker (pg17+).
+base_volume_pg_major() {
+    docker run --rm -v "$1:/v:ro" alpine sh -c \
+        'for f in /v/PG_VERSION /v/data/PG_VERSION /v/*/docker/PG_VERSION; do [ -f "$f" ] && { cat "$f"; exit; }; done' 2>/dev/null | tr -d '[:space:]'
+}
+IMAGE_PG_MAJOR="$(docker exec "$DB_CONTAINER" printenv PG_MAJOR 2>/dev/null | tr -d '[:space:]')"
+for _base in "$SHARED_BASE_VOLUME" "$EE_BASE_VOLUME"; do
+    docker volume inspect "$_base" >/dev/null 2>&1 || continue
+    _base_major="$(base_volume_pg_major "$_base")"
+    if [ -n "$IMAGE_PG_MAJOR" ] && [ -n "$_base_major" ] && [ "$_base_major" != "$IMAGE_PG_MAJOR" ]; then
+        echo "Dropping stale base $_base: snapshot is PG${_base_major}, image is PG${IMAGE_PG_MAJOR} — rebuilding via full setup"
+        docker volume rm "$_base" >/dev/null || fail "stale-base" "could not remove stale base volume $_base (another container may still mount it)"
+    fi
+done
 
 # Prefer the EE base when in EE mode and it exists — it's already EE-migrated,
 # so the EE migrate pass below becomes a fast no-pending check instead of applying
@@ -520,6 +547,10 @@ if [ "$EE_MODE" = true ]; then
             pnpm -F backend exec knex seed:run --specific=01_embed.ts --knexfile src/knexfile.ts \
             || fail "ee-seed" "EE seed failed"
     fi
+    # DBs restored from an older EE base lack the agent.
+    PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development.local -e .env.development -- \
+        pnpm -F backend exec knex seed:run --specific=02_ai_agent.ts --knexfile src/knexfile.ts \
+        || fail "ee-agent-seed" "EE agent seed failed"
     echo "OK: EE migration pass complete"
 
     # Seed the dedicated EE base for future EE instances (one-time). Captured here,

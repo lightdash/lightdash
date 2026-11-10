@@ -1,4 +1,7 @@
-import type { ToolErrorStructuredContent } from '@lightdash/common';
+import type {
+    AiAccessRefusal,
+    ToolErrorStructuredContent,
+} from '@lightdash/common';
 
 /**
  * Success envelope of an agent tool: the model-facing `result` text, the tool
@@ -16,8 +19,25 @@ export type ExecuteStructuredToolResult<
 };
 
 /** Failure envelope: `structuredContent` mirrors the error text as `{ error }`. */
-export type ExecuteToolErrorResult<TMetadata = { status: 'error' }> = {
+interface ToolErrorWithRefusal extends ToolErrorStructuredContent {
+    refusal?: AiAccessRefusal;
+}
+
+interface ToolErrorMetadata extends Record<string, unknown> {
+    status: 'error';
+    requiresSnowflakeReauthentication?: true;
+    refusal?: AiAccessRefusal;
+}
+
+export interface ExecuteToolErrorResult<TMetadata = ToolErrorMetadata> {
     result: string;
     metadata: TMetadata;
-    structuredContent: ToolErrorStructuredContent;
-};
+    structuredContent: ToolErrorWithRefusal;
+}
+
+/** A failure the model should read as plain text, with no access refusal. */
+export const toolFailure = (result: string): ExecuteToolErrorResult => ({
+    result,
+    metadata: { status: 'error' },
+    structuredContent: { error: result },
+});

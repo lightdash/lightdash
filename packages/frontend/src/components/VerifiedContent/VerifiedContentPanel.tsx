@@ -1,6 +1,7 @@
 import {
     assertUnreachable,
     ContentType,
+    getDocumentUrl,
     type VerifiedContentListItem,
 } from '@lightdash/common';
 import {
@@ -12,13 +13,13 @@ import {
     Stack,
     Text,
     Tooltip,
-    useMantineTheme,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAppWindow,
     IconCircleX,
     IconDots,
+    IconFileText,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
@@ -27,6 +28,7 @@ import {
     useUnverifyChartMutation,
     useUnverifyDashboardMutation,
     useUnverifyDataAppMutation,
+    useUnverifyDocumentMutation,
 } from '../../hooks/useContentVerification';
 import { useVerifiedContentList } from '../../hooks/useVerifiedContentList';
 import {
@@ -68,13 +70,18 @@ const getItemPresentation = (
                 typeLabel: 'Data app',
                 typeIcon: IconAppWindow,
             };
+        case ContentType.DOCUMENT:
+            return {
+                href: getDocumentUrl(projectUuid, item.contentUuid, item.slug),
+                typeLabel: 'Document',
+                typeIcon: IconFileText,
+            };
         default:
             return assertUnreachable(item, 'Unknown verified content type');
     }
 };
 
 const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
-    const theme = useMantineTheme();
     const { data: verifiedContent, isLoading } =
         useVerifiedContentList(projectUuid);
 
@@ -89,6 +96,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
     const { mutate: unverifyChart } = useUnverifyChartMutation();
     const { mutate: unverifyDashboard } = useUnverifyDashboardMutation();
     const { mutate: unverifyDataApp } = useUnverifyDataAppMutation();
+    const { mutate: unverifyDocument } = useUnverifyDocumentMutation();
 
     const handleUnverify = useCallback(
         (item: VerifiedContentListItem) => {
@@ -100,15 +108,27 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
 
     const handleConfirmUnverify = useCallback(() => {
         if (!itemToUnverify) return;
-        if (itemToUnverify.contentType === ContentType.CHART) {
-            unverifyChart(itemToUnverify.contentUuid);
-        } else if (itemToUnverify.contentType === ContentType.DASHBOARD) {
-            unverifyDashboard(itemToUnverify.contentUuid);
-        } else {
-            unverifyDataApp({
-                projectUuid,
-                appUuid: itemToUnverify.contentUuid,
-            });
+        switch (itemToUnverify.contentType) {
+            case ContentType.CHART:
+                unverifyChart(itemToUnverify.contentUuid);
+                break;
+            case ContentType.DASHBOARD:
+                unverifyDashboard(itemToUnverify.contentUuid);
+                break;
+            case ContentType.DATA_APP:
+                unverifyDataApp({
+                    projectUuid,
+                    appUuid: itemToUnverify.contentUuid,
+                });
+                break;
+            case ContentType.DOCUMENT:
+                unverifyDocument({
+                    projectUuid,
+                    documentUuid: itemToUnverify.contentUuid,
+                });
+                break;
+            default:
+                assertUnreachable(itemToUnverify, 'Unknown verified content');
         }
         closeUnverifyModal();
         setItemToUnverify(null);
@@ -118,6 +138,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
         unverifyChart,
         unverifyDashboard,
         unverifyDataApp,
+        unverifyDocument,
         projectUuid,
     ]);
 
@@ -176,7 +197,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 size: 140,
                 minSize: 80,
                 Cell: ({ row }) => (
-                    <TruncatedText maxWidth="100%" c="ldGray.7">
+                    <TruncatedText maxWidth="100%" c="dimmed">
                         {row.original.spaceName}
                     </TruncatedText>
                 ),
@@ -190,7 +211,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 Cell: ({ row }) => {
                     const { firstName, lastName } = row.original.verifiedBy;
                     return (
-                        <TruncatedText maxWidth="100%" c="ldGray.7">
+                        <TruncatedText maxWidth="100%" c="dimmed">
                             {`${firstName} ${lastName}`}
                         </TruncatedText>
                     );
@@ -205,7 +226,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
                 Cell: ({ row }) => {
                     const date = new Date(row.original.verifiedAt);
                     return (
-                        <Text fz="sm" c="ldGray.7">
+                        <Text fz="sm" c="dimmed">
                             {date.toLocaleDateString()}
                         </Text>
                     );
@@ -260,49 +281,13 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
             isLoading,
         },
         mantineTableContainerProps: {
-            style: { maxHeight: 'calc(100vh - 300px)' },
+            mah: 'calc(100vh - 300px)',
         },
         mantineTableProps: {
             highlightOnHover: true,
             withColumnBorders: Boolean(items.length),
         },
-        mantineTableHeadCellProps: (props) => {
-            const isFirstColumn =
-                props.table.getAllColumns().indexOf(props.column) === 0;
-            const isLastColumn =
-                props.table.getAllColumns().indexOf(props.column) ===
-                props.table.getAllColumns().length - 1;
-
-            return {
-                bg: 'ldGray.0',
-                h: '3xl',
-                pos: 'relative',
-                style: {
-                    userSelect: 'none',
-                    padding: `${theme.spacing.xs} ${theme.spacing.xl}`,
-                    borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                    borderRight: props.column.getIsResizing()
-                        ? `2px solid ${theme.colors.blue[3]}`
-                        : `1px solid ${
-                              isLastColumn || isFirstColumn
-                                  ? 'transparent'
-                                  : theme.colors.ldGray[2]
-                          }`,
-                    borderTop: 'none',
-                    borderLeft: 'none',
-                },
-            };
-        },
-        mantineTableBodyCellProps: () => ({
-            h: 48,
-            style: {
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                borderRight: 'none',
-                borderLeft: 'none',
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                borderTop: 'none',
-            },
-        }),
+        mantineTableBodyCellProps: { h: 48 },
     });
 
     if (!isLoading && items.length === 0) {
@@ -310,7 +295,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
             <SettingsEmptyState
                 icon={IconCircleX}
                 title="No verified content"
-                description="Charts, dashboards, and data apps that are verified will appear here."
+                description="Charts, dashboards, data apps, and Documents that are verified will appear here."
             />
         );
     }

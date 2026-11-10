@@ -15,11 +15,43 @@ import {
     type WarehouseSqlBuilder,
 } from '../types/warehouse';
 import { type VizColumn } from '../visualizations/types';
+import assertUnreachable from './assertUnreachable';
 import { getDefaultTimeFrames, timeFrameConfigs, WeekDay } from './timeFrames';
 import { defaultNullSafeEqualSql, quoteFieldReference } from './warehouse';
 
 const isIntervalColumnType = (type: DimensionType): boolean =>
     type === DimensionType.DATE || type === DimensionType.TIMESTAMP;
+
+export const getVirtualViewWarehouseType = (
+    adapterType: SupportedDbtAdapter,
+): WarehouseTypes => {
+    switch (adapterType) {
+        case SupportedDbtAdapter.BIGQUERY:
+            return WarehouseTypes.BIGQUERY;
+        case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.SPARK:
+            return WarehouseTypes.DATABRICKS;
+        case SupportedDbtAdapter.SNOWFLAKE:
+            return WarehouseTypes.SNOWFLAKE;
+        case SupportedDbtAdapter.REDSHIFT:
+            return WarehouseTypes.REDSHIFT;
+        case SupportedDbtAdapter.POSTGRES:
+            return WarehouseTypes.POSTGRES;
+        case SupportedDbtAdapter.DUCKDB:
+            return WarehouseTypes.DUCKDB;
+        case SupportedDbtAdapter.TRINO:
+            return WarehouseTypes.TRINO;
+        case SupportedDbtAdapter.CLICKHOUSE:
+            return WarehouseTypes.CLICKHOUSE;
+        case SupportedDbtAdapter.ATHENA:
+            return WarehouseTypes.ATHENA;
+        default:
+            return assertUnreachable(
+                adapterType,
+                `Unsupported adapter type: ${adapterType}`,
+            );
+    }
+};
 
 /**
  * Build one dimension per column, plus the default time-interval dimensions
@@ -29,7 +61,7 @@ const isIntervalColumnType = (type: DimensionType): boolean =>
 export const buildDimensionsFromColumns = (args: {
     tableName: string;
     tableLabel: string;
-    columns: VizColumn[];
+    columns: Array<VizColumn & { label?: string }>;
     warehouseSqlBuilder: WarehouseSqlBuilder;
     qualifyColumnReferences?: boolean;
 }): Record<string, Dimension> => {
@@ -41,7 +73,7 @@ export const buildDimensionsFromColumns = (args: {
 
     return columns.reduce<Record<string, Dimension>>((acc, column) => {
         const type = column.type ?? DimensionType.STRING;
-        const columnLabel = friendlyName(column.reference);
+        const columnLabel = column.label ?? friendlyName(column.reference);
         const columnReference = quoteFieldReference(
             column.reference,
             fieldQuoteChar,
@@ -109,11 +141,11 @@ export const createVirtualView = (
     virtualViewName: string,
     sql: string,
     columns: VizColumn[],
-    warehouseClient: WarehouseClient,
+    warehouseSqlBuilder: WarehouseSqlBuilder,
     label?: string,
     parameterValues?: ParametersValuesMap,
 ): Explore => {
-    const exploreCompiler = new ExploreCompiler(warehouseClient);
+    const exploreCompiler = new ExploreCompiler(warehouseSqlBuilder);
 
     const tableLabel = friendlyName(virtualViewName);
 
@@ -121,7 +153,7 @@ export const createVirtualView = (
         tableName: virtualViewName,
         tableLabel,
         columns,
-        warehouseSqlBuilder: warehouseClient,
+        warehouseSqlBuilder,
     });
 
     const compiledTable: Table = {
@@ -131,7 +163,9 @@ export const createVirtualView = (
         dimensions,
         metrics: {},
         lineageGraph: { nodes: [], edges: [] },
-        database: warehouseClient.credentials.type,
+        database: getVirtualViewWarehouseType(
+            warehouseSqlBuilder.getAdapterType(),
+        ),
         schema: '', // TODO: what should this be?
     };
 
@@ -142,7 +176,7 @@ export const createVirtualView = (
         baseTable: virtualViewName,
         joinedTables: [],
         tables: { [virtualViewName]: compiledTable },
-        targetDatabase: warehouseClient.getAdapterType(),
+        targetDatabase: warehouseSqlBuilder.getAdapterType(),
         meta: {},
     });
 
@@ -168,6 +202,7 @@ export const createTemporaryVirtualView = (
     // Create a fake warehouseClient for compilation purposes
     const fakeWarehouseClient: WarehouseClient = {
         getSessionTimezone: async () => null,
+        getTablePartitioning: async () => null,
         credentials: {
             type: WarehouseTypes.BIGQUERY,
             project: '',

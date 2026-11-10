@@ -8,11 +8,7 @@ import EmbedProviderContext from '../../../../providers/Embed/context';
 import { AiSavedChartPreviewPanel } from './AiSavedChartPreviewPanel';
 
 const mocks = vi.hoisted(() => ({
-    isEmbed: vi.fn(),
     onExplore: vi.fn(),
-}));
-vi.mock('../../hooks/aiAgentRouting', () => ({
-    isEmbedAiAgentRoute: () => mocks.isEmbed(),
 }));
 vi.mock('../../store/hooks', () => ({
     useAiAgentStoreDispatch: () => vi.fn(),
@@ -61,7 +57,6 @@ const renderPanel = ({
     canExplore?: boolean;
     scopes?: EmbedScope[];
 }) => {
-    mocks.isEmbed.mockReturnValue(isEmbed);
     const ability = new Ability<PossibleAbilities>(
         scopes.map((subject) => ({ subject, action: 'view' })),
     );
@@ -80,10 +75,15 @@ const renderPanel = ({
                         : undefined,
                     onExplore: mocks.onExplore,
                     t: () => undefined,
+                    backDestination: 'aiAgent',
+                    dispatchEmbedEvent: () => false,
+                    isEmbedEventReady: false,
                     mode: 'direct',
                     theme: 'light',
                     backgroundColor: null,
                     timezone: null,
+                    aiAgentThreadSetup: null,
+                    aiAgentNavigationDisabled: false,
                 }}
             >
                 <AiSavedChartPreviewPanel savedChartPreview={preview} />

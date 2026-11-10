@@ -383,6 +383,16 @@ export class AiAgentSkillModel {
             const hash = getAiAgentSkillContentHash(args.content);
             // A restore always records the act, even when content equals the current version.
             if (args.source !== 'restore' && current.content_hash === hash) {
+                if (args.revive) {
+                    await trx(AiAgentSkillTableName)
+                        .where('ai_agent_skill_uuid', args.skillUuid)
+                        .update({
+                            deleted_at: null,
+                            deleted_by_user_uuid: null,
+                            updated_by_user_uuid: args.userUuid,
+                            updated_at: trx.fn.now(),
+                        });
+                }
                 return false;
             }
             const latest = await trx(AiAgentSkillVersionTableName)

@@ -1,5 +1,6 @@
 import {
     type Document,
+    ContentReviewContentType,
     DirectAccessResourceType,
     PromotionAction,
     type PromotionChanges,
@@ -33,10 +34,26 @@ const mocks = vi.hoisted(() => ({
     promotionDiff: undefined as PromotionChanges | undefined,
     requestDiff: vi.fn(),
     promote: vi.fn(),
+    canRequestReview: false,
+    reviewModal: vi.fn(),
+    verify: vi.fn(),
+    unverify: vi.fn(),
+    verification: null as Document['verification'],
+    spaceUuid: 'space' as string | null,
 }));
 vi.mock('../../providers/App/useApp', () => ({
     default: () => ({
         user: { data: { ability: { can: () => mocks.canPin } } },
+    }),
+}));
+vi.mock('../../hooks/useContentVerification', () => ({
+    useVerifyDocumentMutation: () => ({
+        mutate: mocks.verify,
+        isLoading: false,
+    }),
+    useUnverifyDocumentMutation: () => ({
+        mutate: mocks.unverify,
+        isLoading: false,
     }),
 }));
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
@@ -132,6 +149,12 @@ vi.mock('../directAccess/hooks/useCanManageDirectAccess', () => ({
 vi.mock('../directAccess/hooks/useDirectAccess', () => ({
     useDirectAccessAvailability: () => ({ isAvailable: mocks.isAvailable }),
 }));
+vi.mock('../../ee/features/contentReview', () => ({
+    RequestReviewModal: (props: unknown) => {
+        mocks.reviewModal(props);
+        return <div>Request review form</div>;
+    },
+}));
 vi.mock('../directAccess/components/DirectAccessModal', () => ({
     default: (props: unknown) => {
         mocks.modal(props);
@@ -141,6 +164,7 @@ vi.mock('../directAccess/components/DirectAccessModal', () => ({
 
 const document: Document = {
     pinnedListUuid: null,
+    verification: null,
     createdBy: null,
     owner: null,
     documentUuid: 'document',
@@ -192,18 +216,86 @@ describe('Document actions', () => {
         mocks.promotionDiff = undefined;
         mocks.requestDiff.mockReset();
         mocks.promote.mockReset();
+        mocks.canRequestReview = false;
+        mocks.reviewModal.mockReset();
     });
     const renderActions = () =>
         render(
             <MantineProvider>
                 <DocumentActions
+                    canRequestReview={mocks.canRequestReview}
                     document={{
                         ...document,
                         pinnedListUuid: mocks.isPinned ? 'pins' : null,
+                        verification: mocks.verification,
+                        spaceUuid: mocks.spaceUuid,
                     }}
                 />
             </MantineProvider>,
         );
+
+    describe('verification', () => {
+        beforeEach(() => {
+            mocks.verify.mockReset();
+            mocks.unverify.mockReset();
+            mocks.verification = null;
+            mocks.spaceUuid = 'space';
+        });
+        const openMenu = () => {
+            renderActions();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Document actions' }),
+            );
+        };
+
+        it('lets a verification manager verify the Document', async () => {
+            openMenu();
+            fireEvent.click(
+                await screen.findByRole('menuitem', { name: 'Verify' }),
+            );
+            expect(mocks.verify).toHaveBeenCalledWith({
+                projectUuid: 'project',
+                documentUuid: 'document',
+            });
+        });
+
+        it('offers to remove verification from a verified Document', async () => {
+            mocks.verification = {
+                verifiedBy: {
+                    userUuid: 'admin',
+                    firstName: 'A',
+                    lastName: 'B',
+                },
+                verifiedAt: new Date('2026-10-01'),
+            };
+            openMenu();
+            fireEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Remove verification',
+                }),
+            );
+            expect(mocks.unverify).toHaveBeenCalledWith({
+                projectUuid: 'project',
+                documentUuid: 'document',
+            });
+        });
+
+        it.each([
+            ['a personal Document', { spaceUuid: null, canPin: true }],
+            [
+                'a user who cannot manage verification',
+                { spaceUuid: 'space', canPin: false },
+            ],
+        ] as const)('hides verification for %s', async (_case, state) => {
+            mocks.spaceUuid = state.spaceUuid;
+            mocks.canPin = state.canPin;
+            openMenu();
+            await screen.findByRole('menuitem', { name: 'Version history' });
+            expect(
+                screen.queryByRole('menuitem', { name: 'Verify' }),
+            ).not.toBeInTheDocument();
+        });
+    });
 
     it.each([false, true])(
         'toggles the exact Document with current pin state %s',
@@ -238,6 +330,42 @@ describe('Document actions', () => {
             screen.queryByRole('menuitem', { name: 'Pin to homepage' }),
         ).not.toBeInTheDocument();
     });
+    describe('a personal Document', () => {
+        const personal = { ...document, spaceUuid: null };
+        const renderPersonal = () =>
+            render(
+                <MantineProvider>
+                    <DocumentActions
+                        document={personal}
+                        canRequestReview={false}
+                    />
+                </MantineProvider>,
+            );
+
+        it('hides actions that need a space first', async () => {
+            mocks.canEdit = true;
+            mocks.upstreamProjectUuid = 'upstream';
+            renderPersonal();
+            expect(
+                screen.queryByRole('button', { name: /favorites/ }),
+            ).not.toBeInTheDocument();
+            fireEvent.click(
+                screen.getByRole('button', { name: 'Document actions' }),
+            );
+            await screen.findByRole('menuitem', { name: 'Export PDF' });
+            [
+                'Share',
+                'Pin to homepage',
+                'Promote document',
+                'View as code',
+            ].forEach((name) =>
+                expect(
+                    screen.queryByRole('menuitem', { name }),
+                ).not.toBeInTheDocument(),
+            );
+        });
+    });
+
     it('exports this Document as a PDF', async () => {
         renderActions();
         fireEvent.click(
@@ -325,6 +453,39 @@ describe('Document actions', () => {
         );
     });
 
+    it('requests review of a personal Document', async () => {
+        mocks.canRequestReview = true;
+        renderActions();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Document actions' }),
+        );
+        fireEvent.click(
+            await screen.findByRole('menuitem', { name: 'Request review' }),
+        );
+        expect(
+            await screen.findByText('Request review form'),
+        ).toBeInTheDocument();
+        expect(mocks.reviewModal).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectUuid: 'project',
+                contentType: ContentReviewContentType.DOCUMENT,
+                contentUuid: 'document',
+                contentName: 'Weekly report',
+            }),
+        );
+    });
+
+    it('does not offer a review request when the Document is not eligible', async () => {
+        renderActions();
+        fireEvent.click(
+            screen.getByRole('button', { name: 'Document actions' }),
+        );
+        await screen.findByRole('menuitem', { name: 'View as code' });
+        expect(
+            screen.queryByRole('menuitem', { name: 'Request review' }),
+        ).not.toBeInTheDocument();
+    });
+
     it('opens version history for a reader', async () => {
         mocks.canManage = false;
         renderActions();
@@ -399,6 +560,7 @@ describe('Document actions', () => {
         view.rerender(
             <MantineProvider>
                 <DocumentActions
+                    canRequestReview={mocks.canRequestReview}
                     document={{
                         ...document,
                         pinnedListUuid: mocks.isPinned ? 'pins' : null,
@@ -484,7 +646,7 @@ describe('Document actions', () => {
         };
         view.rerender(
             <MantineProvider>
-                <DocumentActions document={document} />
+                <DocumentActions document={document} canRequestReview={false} />
             </MantineProvider>,
         );
         fireEvent.click(await screen.findByRole('button', { name: 'Promote' }));

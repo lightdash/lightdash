@@ -8,8 +8,9 @@ import { Link, useParams } from 'react-router';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
-import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
+import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
 import { useEmbedAiAgentDashboardOpener } from '../../hooks/useEmbedAiAgentDashboardOpener';
+import { useIsAiAgentNavigationDisabled } from '../../hooks/useIsAiAgentNavigationDisabled';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
 import { PinnedReviewContextGroup } from '../PinnedContextCard/PinnedReviewEntityCard';
 import { isReviewEntityItem } from '../PinnedContextCard/reviewEntityItem';
@@ -48,12 +49,14 @@ export const UserBubble: FC<Props> = ({
     projectUuid: projectUuidProp,
     agentUuid: agentUuidProp,
 }) => {
+    const isEmbed = useIsEmbedded();
     const { agentUuid: paramsAgentUuid } = useParams();
     const paramsProjectUuid = useProjectUuid();
     const projectUuid = projectUuidProp ?? paramsProjectUuid;
     const agentUuid = agentUuidProp ?? paramsAgentUuid;
     const openChartEditor = useAiThreadChartEdit();
     const openEmbedDashboard = useEmbedAiAgentDashboardOpener(projectUuid);
+    const navigationDisabled = useIsAiAgentNavigationDisabled();
     const timeAgo = useTimeAgo(message.createdAt);
     const name = getVisibleUserName(message.user.name);
     const app = useApp();
@@ -86,15 +89,20 @@ export const UserBubble: FC<Props> = ({
         >
             <Stack gap={0} align="flex-end">
                 {showUserName ? (
-                    <Text size="sm" c="ldGray.7" fw={600}>
+                    <Text size="sm" c="dimmed" fw={600}>
                         {name}
                     </Text>
                 ) : null}
                 <Tooltip label={format(parseISO(message.createdAt), 'PPpp')}>
-                    {isEmbedAiAgentRoute() ? (
+                    {isEmbed ? (
                         // The message permalink lives in the full app, which an
                         // embed cannot open.
-                        <Text c="dimmed" fz="xs">
+                        <Text
+                            c="dimmed"
+                            fz="xs"
+                            className={styles.timestamp}
+                            data-pinned={showUserName || undefined}
+                        >
                             {timeAgo}
                         </Text>
                     ) : (
@@ -102,6 +110,8 @@ export const UserBubble: FC<Props> = ({
                             component={Link}
                             c="dimmed"
                             fz="xs"
+                            className={styles.timestamp}
+                            data-pinned={showUserName || undefined}
                             to={`/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${message.threadUuid}/messages/${message.uuid}`}
                         >
                             {timeAgo}
@@ -145,10 +155,10 @@ export const UserBubble: FC<Props> = ({
 
             <Card
                 pos="relative"
-                radius="md"
-                py={6}
-                px="sm"
-                color="white"
+                radius="lg"
+                py="xs"
+                px="md"
+                withBorder={false}
                 className={`${styles.messageCard} ${
                     isEmptyMessage ? styles.emptyMessageCard : ''
                 }`}
@@ -176,15 +186,17 @@ export const UserBubble: FC<Props> = ({
                             // every other reference is static there.
                             const embedDashboardUuid =
                                 openEmbedDashboard &&
+                                !navigationDisabled &&
                                 segment.item.type === 'dashboard'
                                     ? segment.item.dashboardUuid
                                     : null;
-                            const href = openEmbedDashboard
-                                ? null
-                                : getPromptContextItemHref(
-                                      segment.item,
-                                      projectUuid,
-                                  );
+                            const href =
+                                openEmbedDashboard || navigationDisabled
+                                    ? null
+                                    : getPromptContextItemHref(
+                                          segment.item,
+                                          projectUuid,
+                                      );
                             // Chart references open the in-place editor when
                             // the host provides one; the href keeps modified
                             // clicks (new tab) working.

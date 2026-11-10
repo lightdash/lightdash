@@ -1,7 +1,11 @@
 import {
+    AgentActorSurface,
+    ApiConnectorType,
     assertUnreachable,
+    ChartKind,
     ChartType,
     ConflictError,
+    ExploreType,
     ForbiddenError,
     getUserAbilityBuilder,
     MergeJoinType,
@@ -17,6 +21,24 @@ import {
     type RegisteredAccount,
     type SemanticChartAsCode,
 } from '@lightdash/common';
+import { fromSession } from '../../auth/account';
+import { defaultSessionUser } from '../../auth/account/account.mock';
+import * as auditLogger from '../../logging/winston';
+import { type DocumentModel } from '../../models/DocumentModel';
+import {
+    agentActionTestCases,
+    runContentVersionCallback,
+    withAgentActionScope,
+} from '../AiAccessService/agentActionTestUtils.mock';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../AiAccessService/agentExecutionContext';
+import {
+    buildApiSourceExplores,
+    toScannedLiveSourceFields,
+} from '../QuerySourceService/api/apiSourceExplores';
+import { getInitialLiveSourceFieldEdits } from '../QuerySourceService/api/liveSourceFields';
 import { DocumentService } from './DocumentService';
 
 const userUuid = 'document-author';
@@ -94,12 +116,20 @@ const merge: ChartBlock = {
     },
 };
 
+const agentActionLogModel = { insert: vi.fn().mockResolvedValue(undefined) };
+
 describe('Document as-code chart round-trip', () => {
     test.each([semantic, merge])(
         'preserves durable $content.source charts',
         async (cell) => {
             const content = toContent([markdown, cell]);
             const service = new DocumentService({
+                agentActionLogModel,
+                contentVerificationModel: {
+                    getByContent: vi.fn().mockResolvedValue(null),
+                    verify: vi.fn(),
+                    unverify: vi.fn(),
+                },
                 spaceModel: {
                     find: vi.fn().mockResolvedValue([{ path: 'reports' }]),
                 },
@@ -129,6 +159,7 @@ describe('Document as-code chart round-trip', () => {
 
 const document: Document = {
     pinnedListUuid: null,
+    verification: null,
     createdBy: null,
     owner: null,
     documentUuid,
@@ -182,13 +213,40 @@ const makeAccount = (role = OrganizationMemberRole.EDITOR): RegisteredAccount =>
         isServiceAccount: () => false,
     }) as unknown as RegisteredAccount;
 
-const setup = () => {
+const setup = (dependencies: Record<string, unknown> = {}) => {
     const documentModel = {
         get: vi.fn().mockResolvedValue(document),
         getBySlug: vi.fn().mockResolvedValue(document),
-        create: vi.fn().mockResolvedValue(document),
+        create: vi
+            .fn<DocumentModel['create']>()
+            .mockImplementation(async (_input, _identity, callback) => {
+                await runContentVersionCallback(
+                    callback,
+                    document.version.versionUuid,
+                    document.documentUuid,
+                );
+                return document;
+            }),
         updateMetadata: vi.fn().mockResolvedValue(document),
-        updateContent: vi.fn().mockResolvedValue(document),
+        updateContent: vi
+            .fn<DocumentModel['updateContent']>()
+            .mockImplementation(
+                async (
+                    _project,
+                    _document,
+                    _input,
+                    _user,
+                    _identity,
+                    callback,
+                ) => {
+                    await runContentVersionCallback(
+                        callback,
+                        document.version.versionUuid,
+                        document.documentUuid,
+                    );
+                    return document;
+                },
+            ),
     };
     const projectModel = {
         getSummary: vi
@@ -208,6 +266,7 @@ const setup = () => {
         resolveAccess: vi.fn().mockResolvedValue(context),
     };
     const projectService = {
+        getExplore: vi.fn().mockResolvedValue({ type: ExploreType.DEFAULT }),
         compileQuery: vi.fn().mockResolvedValue({
             compilationErrors: [],
             missingParameterReferences: new Set<string>(),
@@ -219,6 +278,12 @@ const setup = () => {
         getOrganizationMemberByUuid: vi.fn().mockResolvedValue({}),
     };
     const service = new DocumentService({
+        agentActionLogModel,
+        contentVerificationModel: {
+            getByContent: vi.fn().mockResolvedValue(null),
+            verify: vi.fn(),
+            unverify: vi.fn(),
+        },
         analytics,
         documentModel,
         projectModel,
@@ -226,6 +291,7 @@ const setup = () => {
         organizationMemberProfileModel,
         spacePermissionService,
         projectService,
+        ...dependencies,
     } as unknown as ConstructorParameters<typeof DocumentService>[0]);
     return {
         service,
@@ -324,6 +390,8 @@ describe('DocumentService mutation analytics', () => {
             chartCount: 2,
             customChartCount: 0,
             mergeChartCount: 1,
+            sqlChartCount: 0,
+            savedChartLinkCount: 0,
             markdownLength: toContent([markdown, semantic, merge]).markdown
                 .length,
         });
@@ -397,14 +465,18 @@ describe('DocumentService mutations', () => {
                 source.slug,
                 input,
             );
-            expect(documentModel.create).toHaveBeenCalledWith({
-                ...input,
-                projectUuid,
-                createdByUserUuid: userUuid,
-                description: source.description,
-                schemaVersion: 2,
-                content: source.version.content,
-            });
+            expect(documentModel.create).toHaveBeenCalledWith(
+                {
+                    ...input,
+                    projectUuid,
+                    createdByUserUuid: userUuid,
+                    description: source.description,
+                    schemaVersion: 2,
+                    content: source.version.content,
+                },
+                null,
+                expect.any(Function),
+            );
             expect(source.version.versionNumber).toBe(5);
             expect(source.version.content).toEqual(toContent([markdown, cell]));
             expect(documentModel.updateMetadata).not.toHaveBeenCalled();
@@ -426,6 +498,8 @@ describe('DocumentService mutations', () => {
         });
         expect(documentModel.create).toHaveBeenCalledWith(
             expect.objectContaining({ description: '' }),
+            null,
+            expect.any(Function),
         );
     });
 
@@ -649,22 +723,6 @@ describe('DocumentService mutations', () => {
         },
     );
 
-    test.each(mutations)(
-        'rejects %s while the Documents flag is off',
-        async (mutation) => {
-            const { service, featureFlagModel, documentModel } = setup();
-            featureFlagModel.get.mockResolvedValue({ enabled: false });
-
-            await expect(mutate(service, mutation)).rejects.toThrow(
-                ForbiddenError,
-            );
-            expect(documentModel.create).not.toHaveBeenCalled();
-            expect(documentModel.get).not.toHaveBeenCalled();
-            expect(documentModel.updateMetadata).not.toHaveBeenCalled();
-            expect(documentModel.updateContent).not.toHaveBeenCalled();
-        },
-    );
-
     test.each([
         { projectUuid: 'foreign-project', organizationUuid },
         { projectUuid, organizationUuid: 'foreign-organization' },
@@ -791,6 +849,8 @@ describe('DocumentService mutations', () => {
                 documentUuid,
                 { ...request, expectedSpaceUuid: spaceUuid },
                 userUuid,
+                null,
+                expect.any(Function),
             );
         },
     );
@@ -801,11 +861,15 @@ describe('DocumentService mutations', () => {
         await expect(
             service.create(makeAccount(), projectUuid, createInput),
         ).resolves.toMatchObject(document);
-        expect(documentModel.create).toHaveBeenCalledWith({
-            ...createInput,
-            projectUuid,
-            createdByUserUuid: userUuid,
-        });
+        expect(documentModel.create).toHaveBeenCalledWith(
+            {
+                ...createInput,
+                projectUuid,
+                createdByUserUuid: userUuid,
+            },
+            null,
+            expect.any(Function),
+        );
         expect(projectService.compileQuery).not.toHaveBeenCalled();
         expect(projectService.compileMergeQuery).not.toHaveBeenCalled();
     });
@@ -920,10 +984,15 @@ describe('DocumentService mutations', () => {
 
         await service.create(account, projectUuid, input);
 
+        expect(projectService.getExplore).toHaveBeenCalledWith(
+            account,
+            projectUuid,
+            'orders',
+        );
         expect(projectService.compileQuery).toHaveBeenCalledWith({
             account,
             projectUuid,
-            exploreName: 'orders',
+            explore: { type: ExploreType.DEFAULT },
             body: {
                 ...chart.metricQuery,
                 filters: {
@@ -936,11 +1005,15 @@ describe('DocumentService mutations', () => {
             usePreAggregateCache: false,
         });
         expect(projectService.compileMergeQuery).not.toHaveBeenCalled();
-        expect(documentModel.create).toHaveBeenCalledWith({
-            ...input,
-            projectUuid,
-            createdByUserUuid: userUuid,
-        });
+        expect(documentModel.create).toHaveBeenCalledWith(
+            {
+                ...input,
+                projectUuid,
+                createdByUserUuid: userUuid,
+            },
+            null,
+            expect.any(Function),
+        );
     });
 
     test.each([
@@ -1195,6 +1268,62 @@ describe('DocumentService mutations', () => {
     });
 });
 
+describe('DocumentService personal Documents', () => {
+    const personalTarget = {
+        type: 'personalDocument',
+        organizationUuid,
+        projectUuid,
+        createdByUserUuid: userUuid,
+        spaceUuid: null,
+    };
+
+    test('creates a personal Document owned by its creator when no Space is given', async () => {
+        const { service, documentModel, spacePermissionService } = setup();
+        const personalInput: CreateDocumentRequest = {
+            name: document.name,
+            description: document.description,
+            schemaVersion: 2,
+            content: document.version.content,
+        };
+
+        await service.create(makeAccount(), projectUuid, personalInput);
+
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            userUuid,
+            personalTarget,
+        );
+        expect(documentModel.create).toHaveBeenCalledWith(
+            {
+                ...personalInput,
+                spaceUuid: null,
+                projectUuid,
+                createdByUserUuid: userUuid,
+            },
+            null,
+            expect.any(Function),
+        );
+    });
+
+    test('authorizes edits to a personal Document through its creator', async () => {
+        const { service, documentModel, spacePermissionService } = setup();
+        documentModel.get.mockResolvedValue({ ...document, spaceUuid: null });
+
+        await service.updateMetadata(makeAccount(), projectUuid, documentUuid, {
+            name: 'Renamed',
+        });
+
+        expect(spacePermissionService.resolveAccess).toHaveBeenCalledWith(
+            userUuid,
+            personalTarget,
+        );
+        expect(documentModel.updateMetadata).toHaveBeenCalledWith(
+            projectUuid,
+            documentUuid,
+            { name: 'Renamed', expectedSpaceUuid: null },
+        );
+    });
+});
+
 describe('DocumentService ownership', () => {
     const ownerUuid = 'document-owner';
 
@@ -1315,6 +1444,8 @@ describe('DocumentService ownership', () => {
                 createdByUserUuid: userUuid,
                 ownerUserUuid: ownerUuid,
             }),
+            null,
+            expect.any(Function),
         );
     });
 
@@ -1343,15 +1474,607 @@ describe('DocumentService ownership', () => {
         ).not.toHaveBeenCalled();
         expect(documentModel.updateMetadata).not.toHaveBeenCalled();
     });
+});
 
-    test('rejects owner changes when Documents are disabled', async () => {
-        const { service, documentModel, featureFlagModel } = setup();
-        featureFlagModel.get.mockResolvedValue({ enabled: false });
+describe('DocumentService SQL charts', () => {
+    const sqlChart: ChartBlock = {
+        type: 'chart',
+        content: {
+            source: 'sql',
+            chart: {
+                name: 'Orders by status',
+                sql: 'select status, count(*) as orders from orders group by 1',
+                limit: 100,
+                chartKind: ChartKind.TABLE,
+                config: {
+                    type: ChartKind.TABLE,
+                    metadata: { version: 1 },
+                    columns: {},
+                    display: {},
+                },
+            },
+        },
+    };
+    const withContent = (content: DocumentContent): Document => ({
+        ...document,
+        version: { ...document.version, content },
+    });
+
+    test('adding one needs SQL Runner access', async () => {
+        const { service, documentModel } = setup();
+        const input = { ...createInput, content: toContent([sqlChart]) };
+
         await expect(
-            service.updateMetadata(makeAccount(), projectUuid, documentUuid, {
-                ownerUserUuid: ownerUuid,
+            service.create(
+                makeAccount(OrganizationMemberRole.EDITOR),
+                projectUuid,
+                input,
+            ),
+        ).rejects.toThrow('You need SQL Runner access');
+        await service.create(
+            makeAccount(OrganizationMemberRole.DEVELOPER),
+            projectUuid,
+            input,
+        );
+        expect(documentModel.create).toHaveBeenCalledTimes(1);
+    });
+
+    test('editing the text around one does not', async () => {
+        const { service, documentModel } = setup();
+        documentModel.get.mockResolvedValue(withContent(toContent([sqlChart])));
+
+        await service.updateContent(
+            makeAccount(OrganizationMemberRole.EDITOR),
+            projectUuid,
+            documentUuid,
+            { baseVersionUuid, content: toContent([markdown, sqlChart]) },
+        );
+        expect(documentModel.updateContent).toHaveBeenCalledTimes(1);
+    });
+
+    test('duplicating a Document keeps its SQL charts without SQL Runner access', async () => {
+        const { service, documentModel } = setup();
+        documentModel.getBySlug.mockResolvedValue(
+            withContent(toContent([sqlChart])),
+        );
+
+        await service.duplicate(
+            makeAccount(OrganizationMemberRole.EDITOR),
+            projectUuid,
+            document.slug,
+            { name: 'Copy', spaceUuid },
+        );
+        expect(documentModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({ content: toContent([sqlChart]) }),
+            null,
+            expect.any(Function),
+        );
+    });
+
+    test('changing one needs SQL Runner access', async () => {
+        const { service, documentModel } = setup();
+        documentModel.get.mockResolvedValue(withContent(toContent([sqlChart])));
+        const changed: ChartBlock = {
+            type: 'chart',
+            content: {
+                ...sqlChart.content,
+                chart: {
+                    ...sqlChart.content.chart,
+                    sql: 'select 1 as orders',
+                },
+            } as DocumentChartContent,
+        };
+
+        await expect(
+            service.updateContent(
+                makeAccount(OrganizationMemberRole.EDITOR),
+                projectUuid,
+                documentUuid,
+                { baseVersionUuid, content: toContent([changed]) },
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(documentModel.updateContent).not.toHaveBeenCalled();
+    });
+
+    test('stores a named connection by uuid and reads its name back', async () => {
+        const connections = [
+            {
+                name: 'analytics',
+                warehouseConnectionUuid: 'connection-uuid',
+                isOriginal: false,
+            },
+        ];
+        const { service, documentModel } = setup({
+            projectModel: {
+                getSummary: vi
+                    .fn()
+                    .mockResolvedValue({ projectUuid, organizationUuid }),
+                getConnectionRoute: vi.fn().mockResolvedValue('multi'),
+            },
+            warehouseConnectionModel: {
+                getProject: vi.fn().mockResolvedValue({}),
+                list: vi.fn().mockResolvedValue(connections),
+            },
+        });
+        const named: ChartBlock = {
+            type: 'chart',
+            content: {
+                ...sqlChart.content,
+                chart: { ...sqlChart.content.chart, connection: 'analytics' },
+            } as DocumentChartContent,
+        };
+        const stored = toContent([
+            {
+                type: 'chart',
+                content: {
+                    ...sqlChart.content,
+                    chart: {
+                        ...sqlChart.content.chart,
+                        warehouseConnectionUuid: 'connection-uuid',
+                    },
+                } as DocumentChartContent,
+            },
+        ]);
+        documentModel.create.mockResolvedValue(withContent(stored));
+
+        const created = await service.create(
+            makeAccount(OrganizationMemberRole.DEVELOPER),
+            projectUuid,
+            { ...createInput, content: toContent([named]) },
+        );
+
+        expect(documentModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({ content: stored }),
+            null,
+            expect.any(Function),
+        );
+        expect(created.version.content.charts.c1).toEqual({
+            source: 'sql',
+            chart: {
+                ...sqlChart.content.chart,
+                connection: 'analytics',
+                warehouseConnectionUuid: 'connection-uuid',
+            },
+        });
+    });
+
+    test('rejects a connection this project does not have', async () => {
+        const { service } = setup({
+            projectModel: {
+                getSummary: vi
+                    .fn()
+                    .mockResolvedValue({ projectUuid, organizationUuid }),
+                getConnectionRoute: vi.fn().mockResolvedValue('original'),
+            },
+            warehouseConnectionModel: { getProject: vi.fn(), list: vi.fn() },
+        });
+        const named: ChartBlock = {
+            type: 'chart',
+            content: {
+                ...sqlChart.content,
+                chart: { ...sqlChart.content.chart, connection: 'missing' },
+            } as DocumentChartContent,
+        };
+
+        await expect(
+            service.create(
+                makeAccount(OrganizationMemberRole.DEVELOPER),
+                projectUuid,
+                { ...createInput, content: toContent([named]) },
+            ),
+        ).rejects.toThrow('no connection named "missing"');
+    });
+});
+
+describe('DocumentService saved chart links', () => {
+    const chartUuid = 'a5632229-9bb1-4e73-9c57-553f0b5915f8';
+    const linkedChart = {
+        kind: 'chart',
+        uuid: chartUuid,
+        slugs: ['old-revenue', 'monthly-revenue'],
+        spaceUuid,
+        dashboardUuid: null,
+        isDeleted: false,
+    };
+    const withLink = (tag: string): DocumentContent => ({
+        markdown: `# Findings\n\n${tag}`,
+        charts: {},
+    });
+    const setupLinks = (found: unknown[], access?: unknown[]) => {
+        const result = setup();
+        Object.assign(result.documentModel, {
+            findSavedChartsForLinks: vi
+                .fn()
+                .mockImplementation(async (_project, kind: string) =>
+                    found.filter(
+                        (candidate) =>
+                            (candidate as { kind: string }).kind === kind,
+                    ),
+                ),
+        });
+        Object.assign(result.spacePermissionService, {
+            resolveAccessBatch: vi
+                .fn()
+                .mockResolvedValue(access ?? [{ context: result.context }]),
+        });
+        return result;
+    };
+    const create = (service: DocumentService, content: DocumentContent) =>
+        service.create(makeAccount(), projectUuid, {
+            ...createInput,
+            content,
+        });
+
+    test.each([
+        ['current slug', 'monthly-revenue'],
+        ['renamed slug', 'old-revenue'],
+    ])('stores a link made by %s under the chart uuid', async (_, slug) => {
+        const { service, documentModel } = setupLinks([linkedChart]);
+        await create(
+            service,
+            withLink(`<saved-chart slug="${slug}" title="Live">`),
+        );
+        expect(documentModel.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                content: withLink(
+                    `<saved-chart uuid="${chartUuid}" title="Live">`,
+                ),
             }),
-        ).rejects.toThrow('Documents are not enabled');
-        expect(documentModel.updateMetadata).not.toHaveBeenCalled();
+            null,
+            expect.any(Function),
+        );
+    });
+
+    test.each([
+        [
+            'no chart',
+            [],
+            `<saved-chart slug="monthly-revenue"> doesn't match a chart in this project`,
+        ],
+        [
+            'a deleted chart',
+            [{ ...linkedChart, isDeleted: true }],
+            `<saved-chart slug="monthly-revenue"> doesn't match a chart in this project`,
+        ],
+        [
+            'a dashboard chart',
+            [{ ...linkedChart, spaceUuid: null, dashboardUuid: 'dashboard' }],
+            `<saved-chart slug="monthly-revenue"> is a chart saved in a dashboard, which can't be linked`,
+        ],
+    ])('rejects a link to %s', async (_, found, message) => {
+        const { service, documentModel } = setupLinks(found);
+        await expect(
+            create(service, withLink('<saved-chart slug="monthly-revenue">')),
+        ).rejects.toThrow(new ParameterError(message));
+        expect(documentModel.create).not.toHaveBeenCalled();
+    });
+
+    test('rejects a link to a chart the author cannot view', async () => {
+        const { service, documentModel } = setupLinks(
+            [linkedChart],
+            [{ context: null }],
+        );
+        await expect(
+            create(service, withLink('<saved-chart slug="monthly-revenue">')),
+        ).rejects.toThrow(
+            new ForbiddenError(
+                `You don't have access to the chart in <saved-chart slug="monthly-revenue">`,
+            ),
+        );
+        expect(documentModel.create).not.toHaveBeenCalled();
+    });
+
+    test('keeps a link the Document already had without checking access', async () => {
+        const linked = withLink(`<saved-chart uuid="${chartUuid}">`);
+        const { service, documentModel, spacePermissionService } = setupLinks(
+            [linkedChart],
+            [{ context: null }],
+        );
+        documentModel.get.mockResolvedValue({
+            ...document,
+            version: { ...document.version, content: linked },
+        });
+        await service.updateContent(makeAccount(), projectUuid, documentUuid, {
+            baseVersionUuid,
+            content: {
+                ...linked,
+                markdown: linked.markdown.replace('Findings', 'Results'),
+            },
+        });
+        expect(documentModel.updateContent).toHaveBeenCalled();
+        expect(
+            (
+                spacePermissionService as unknown as {
+                    resolveAccessBatch: ReturnType<typeof vi.fn>;
+                }
+            ).resolveAccessBatch,
+        ).not.toHaveBeenCalled();
+    });
+});
+
+describe('DocumentService saved chart links to deleted charts', () => {
+    test('a Document whose linked chart was deleted stays editable', async () => {
+        const linked: DocumentContent = {
+            markdown:
+                '# Findings\n\n<saved-chart uuid="a5632229-9bb1-4e73-9c57-553f0b5915f8">',
+            charts: {},
+        };
+        const { service, documentModel } = setup();
+        Object.assign(documentModel, {
+            findSavedChartsForLinks: vi.fn().mockResolvedValue([]),
+        });
+        documentModel.get.mockResolvedValue({
+            ...document,
+            version: { ...document.version, content: linked },
+        });
+        await service.updateContent(makeAccount(), projectUuid, documentUuid, {
+            baseVersionUuid,
+            content: {
+                ...linked,
+                markdown: linked.markdown.replace('Findings', 'Results'),
+            },
+        });
+        expect(documentModel.updateContent).toHaveBeenCalledWith(
+            projectUuid,
+            documentUuid,
+            expect.objectContaining({
+                content: {
+                    ...linked,
+                    markdown: linked.markdown.replace('Findings', 'Results'),
+                },
+            }),
+            userUuid,
+            null,
+            expect.any(Function),
+        );
+    });
+});
+
+describe('document agent attribution', () => {
+    afterEach(() => vi.restoreAllMocks());
+    test.each([
+        [AgentActorSurface.MCP, true],
+        [AgentActorSurface.IN_APP_AGENT, true],
+        [AgentActorSurface.SLACK_AGENT, true],
+        [AgentActorSurface.IN_APP_AGENT, false],
+        [null, true],
+    ] as const)(
+        '%s enabled=%s attributes create and update after commit',
+        async (surface, enabled) => {
+            const { service, documentModel } = setup();
+            const account = makeAccount();
+            const scope = createAgentExecutionContext({
+                account: fromSession({
+                    ...defaultSessionUser,
+                    userUuid,
+                    organizationUuid,
+                }),
+                surface: surface ?? AgentActorSurface.IN_APP_AGENT,
+                clientId: 'trusted-client',
+                agentUuid: 'agent',
+                agentIdentityEnabled: enabled,
+            });
+            const claim = surface && enabled ? scope.claim : null;
+            agentActionLogModel.insert.mockClear();
+            const log = vi
+                .spyOn(auditLogger, 'logAuditEvent')
+                .mockImplementation(() => {});
+            const run = async () => {
+                await service.create(account, projectUuid, createInput);
+                expect(documentModel.create).toHaveBeenLastCalledWith(
+                    expect.any(Object),
+                    claim,
+                    expect.any(Function),
+                );
+                expect(
+                    log.mock.calls.filter(
+                        ([event]) =>
+                            event.resource.metadata?.event ===
+                            'agent_content.write',
+                    ),
+                ).toHaveLength(claim ? 1 : 0);
+                expect(agentActionLogModel.insert).toHaveBeenCalledTimes(
+                    claim ? 1 : 0,
+                );
+                if (claim)
+                    expect(agentActionLogModel.insert).toHaveBeenLastCalledWith(
+                        expect.objectContaining({
+                            agent_identity: claim,
+                            object_type: 'document',
+                            outcome: 'allowed',
+                        }),
+                        expect.any(Object),
+                    );
+                agentActionLogModel.insert.mockClear();
+                log.mockClear();
+                await service.updateContent(
+                    account,
+                    projectUuid,
+                    documentUuid,
+                    { baseVersionUuid, content: document.version.content },
+                );
+                expect(documentModel.updateContent).toHaveBeenLastCalledWith(
+                    projectUuid,
+                    documentUuid,
+                    expect.any(Object),
+                    userUuid,
+                    claim,
+                    expect.any(Function),
+                );
+                expect(
+                    log.mock.calls.filter(
+                        ([event]) =>
+                            event.resource.metadata?.event ===
+                            'agent_content.write',
+                    ),
+                ).toHaveLength(claim ? 1 : 0);
+                expect(agentActionLogModel.insert).toHaveBeenCalledTimes(
+                    claim ? 1 : 0,
+                );
+                if (claim)
+                    expect(agentActionLogModel.insert).toHaveBeenLastCalledWith(
+                        expect.objectContaining({
+                            agent_identity: claim,
+                            object_type: 'document',
+                            outcome: 'allowed',
+                        }),
+                        expect.any(Object),
+                    );
+                agentActionLogModel.insert.mockClear();
+            };
+            if (surface) await agentExecutionContext.run(scope, run);
+            else await run();
+        },
+    );
+});
+
+describe.each(agentActionTestCases)(
+    'document metadata and move: %s',
+    (_, surface, enabled, count) => {
+        test.each(['update', 'move'] as const)('%s', async (action) => {
+            agentActionLogModel.insert.mockClear();
+            const { service, documentModel, spacePermissionService, context } =
+                setup();
+            Object.assign(spacePermissionService, {
+                resolveAccessBatch: vi
+                    .fn()
+                    .mockResolvedValue([{ context }, { context }]),
+            });
+            Object.assign(documentModel, {
+                moveToSpace: vi.fn().mockResolvedValue(undefined),
+            });
+            const user = { ...defaultSessionUser, userUuid, organizationUuid };
+            await withAgentActionScope(user, surface, enabled, () =>
+                action === 'update'
+                    ? service.updateMetadata(
+                          makeAccount(),
+                          projectUuid,
+                          documentUuid,
+                          { name: 'new name' },
+                      )
+                    : service.moveToSpace(makeAccount(), {
+                          projectUuid,
+                          itemUuid: documentUuid,
+                          targetSpaceUuid: 'destination',
+                      }),
+            );
+            expect(agentActionLogModel.insert).toHaveBeenCalledTimes(count);
+            if (count)
+                expect(agentActionLogModel.insert).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        object_type: 'document',
+                        object_uuid: documentUuid,
+                        action,
+                        outcome: 'allowed',
+                    }),
+                );
+        });
+    },
+);
+
+describe('DocumentService live data source charts', () => {
+    const ga4Explore = () => {
+        const apiSource = {
+            connector: ApiConnectorType.GA4,
+            propertyId: '123',
+        } as const;
+        const scannedFields = toScannedLiveSourceFields(
+            apiSource.connector,
+            {},
+        );
+        const [explore] = buildApiSourceExplores({
+            connectionUuid: '03386598-7a51-45b2-b1f9-5ef55bd09016',
+            sourceName: 'google_analytics',
+            name: 'Google Analytics',
+            apiSource,
+            scannedFields,
+            edits: getInitialLiveSourceFieldEdits({
+                scannedFields,
+                isExistingSource: true,
+            }),
+        });
+        return explore;
+    };
+    const liveChart = (
+        exploreName: string,
+        overrides: Partial<SemanticChartAsCode['metricQuery']> = {},
+    ): ChartBlock => ({
+        type: 'chart',
+        content: {
+            source: 'semantic',
+            chart: {
+                ...chart,
+                tableName: exploreName,
+                metricQuery: {
+                    ...chart.metricQuery,
+                    exploreName,
+                    dimensions: [`${exploreName}_date`],
+                    metrics: [`${exploreName}_sessions`],
+                    ...overrides,
+                },
+            },
+        },
+    });
+
+    test('validates a live chart against its integration, not as SQL', async () => {
+        const { service, documentModel, projectService } = setup();
+        const explore = ga4Explore();
+        projectService.getExplore.mockResolvedValue(explore);
+        documentModel.create.mockResolvedValueOnce(document);
+
+        await service.create(makeAccount(), projectUuid, {
+            ...createInput,
+            content: toContent([markdown, liveChart(explore.name)]),
+        });
+
+        expect(projectService.compileQuery).not.toHaveBeenCalled();
+        expect(documentModel.create).toHaveBeenCalled();
+    });
+
+    test('rejects a live chart its integration cannot answer', async () => {
+        const { service, documentModel, projectService } = setup();
+        const explore = ga4Explore();
+        projectService.getExplore.mockResolvedValue(explore);
+
+        await expect(
+            service.create(makeAccount(), projectUuid, {
+                ...createInput,
+                content: toContent([
+                    markdown,
+                    liveChart(explore.name, {
+                        tableCalculations: [
+                            {
+                                name: 'double',
+                                displayName: 'Double',
+                                sql: `\${${explore.name}_sessions} * 2`,
+                            },
+                        ],
+                    }),
+                ]),
+            }),
+        ).rejects.toThrow(/^Invalid chart "c1": /);
+        expect(projectService.compileQuery).not.toHaveBeenCalled();
+        expect(documentModel.create).not.toHaveBeenCalled();
+    });
+
+    test('compiles a warehouse chart against the explore it looked up', async () => {
+        const { service, documentModel, projectService } = setup();
+        const explore = { type: ExploreType.DEFAULT, name: 'orders' };
+        projectService.getExplore.mockResolvedValue(explore);
+        documentModel.create.mockResolvedValueOnce(document);
+
+        await service.create(makeAccount(), projectUuid, {
+            ...createInput,
+            content: toContent([markdown, semantic]),
+        });
+
+        expect(projectService.getExplore).toHaveBeenCalledWith(
+            expect.anything(),
+            projectUuid,
+            'orders',
+        );
+        expect(projectService.compileQuery).toHaveBeenCalledWith(
+            expect.objectContaining({ explore }),
+        );
     });
 });

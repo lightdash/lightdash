@@ -9,32 +9,35 @@ import {
     Alert,
     Box,
     Button,
+    Divider,
+    Loader,
     Group,
     Menu,
     NavLink,
     Paper,
     rem,
+    ScrollArea,
     Stack,
     Text,
     TextInput,
-    Title,
     Tooltip,
 } from '@mantine/core';
+import { useInViewport } from '@mantine/hooks';
 import {
     IconBrandSlack,
     IconChevronDown,
-    IconCirclePlus,
-    IconDots,
     IconInfoCircle,
     IconPencil,
     IconPin,
     IconPinnedOff,
     IconTrash,
 } from '@tabler/icons-react';
-import { useRef, useState, type FC } from 'react';
+import { differenceInCalendarDays, parseISO } from 'date-fns';
+import { useEffect, useRef, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
+import TruncatedText from '../../../../../components/common/TruncatedText';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useCanManageAiAgentThread } from '../../hooks/useAiAgentPermission';
 import { useAiOrganizationSettings } from '../../hooks/useAiOrganizationSettings';
@@ -47,7 +50,6 @@ import {
 import { AgentNamePill } from '../AgentNamePill';
 import { AiAgentIcon } from '../AiAgentIcon';
 import classes from './agentSidebar.module.css';
-import { SidebarButton } from './SidebarButton';
 
 type ThreadRenameInputProps = {
     initialTitle: string;
@@ -125,7 +127,11 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
     onTogglePin,
 }) => {
     const isPinned = thread.pinnedAt !== null;
-    const threadTitle = (thread.title || thread.firstMessage.message).trim();
+    const threadTitle = (
+        thread.title ||
+        thread.firstMessage?.message ||
+        ''
+    ).trim();
     const hasTitle = threadTitle.length > 0;
     const canManageThread = useCanManageAiAgentThread({
         projectUuid,
@@ -151,7 +157,6 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
 
     return (
         <NavLink
-            color="gray"
             component={Link}
             key={thread.uuid}
             to={`/projects/${projectUuid}/ai-agents/${thread.agentUuid}/threads/${thread.uuid}`}
@@ -164,16 +169,29 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
             px="xs"
             py={rem(4)}
             className={classes.threadNavLink}
+            classNames={{ section: classes.threadSection }}
             label={
-                <Text
-                    truncate="end"
-                    size="xs"
-                    fw={500}
-                    c={hasTitle ? 'ldGray.9' : 'dimmed'}
+                <TruncatedText
+                    inline
+                    className={classes.threadTitle}
+                    display="block"
+                    maxWidth="100%"
+                    tooltipMaxWidth={400}
+                    tooltipOpenDelay={500}
+                    tooltipPosition="right"
+                    fz="sm"
+                    fw={isActive ? 500 : 400}
+                    c={
+                        hasTitle
+                            ? isActive
+                                ? 'ldGray.9'
+                                : 'ldGray.7'
+                            : 'dimmed'
+                    }
                     fs={hasTitle ? undefined : 'italic'}
                 >
                     {hasTitle ? threadTitle : 'Untitled thread'}
-                </Text>
+                </TruncatedText>
             }
             description={
                 showAgentName ? (
@@ -188,11 +206,13 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
             rightSection={
                 <Group gap={4} wrap="nowrap">
                     {thread.createdFrom === 'slack' && (
-                        <Tooltip
-                            label={'Threads created in slack are read only'}
-                        >
-                            <IconBrandSlack size={18} stroke={1} />
-                        </Tooltip>
+                        <Box ml="xs">
+                            <Tooltip
+                                label={'Threads created in slack are read only'}
+                            >
+                                <IconBrandSlack size={18} stroke={1} />
+                            </Tooltip>
+                        </Box>
                     )}
                     {canManageThread && (
                         <Menu
@@ -200,21 +220,30 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
                             width={160}
                             returnFocus={false}
                         >
-                            <Menu.Target>
-                                <ActionIcon
-                                    size="xs"
-                                    color="ldGray"
-                                    variant="subtle"
+                            <Tooltip label="Thread options" position="right">
+                                <Box
+                                    component="span"
                                     className={classes.threadMenuButton}
-                                    aria-label="Thread options"
-                                    onClick={(event) => {
-                                        event.preventDefault();
-                                        event.stopPropagation();
-                                    }}
                                 >
-                                    <MantineIcon icon={IconDots} size={12} />
-                                </ActionIcon>
-                            </Menu.Target>
+                                    <Menu.Target>
+                                        <ActionIcon
+                                            size="xs"
+                                            color="gray"
+                                            variant="subtle"
+                                            aria-label="Thread options"
+                                            onClick={(event) => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                            }}
+                                        >
+                                            <MantineIcon
+                                                icon={IconChevronDown}
+                                                size={14}
+                                            />
+                                        </ActionIcon>
+                                    </Menu.Target>
+                                </Box>
+                            </Tooltip>
                             {/* Clicks bubble through the portal to the row link */}
                             <Menu.Dropdown
                                 onClick={(event) => {
@@ -265,6 +294,45 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
     );
 };
 
+type ThreadDateGroup = {
+    title: string;
+    threads: AiAgentProjectThreadSummary[];
+};
+
+const DATE_GROUP_TITLES = [
+    'Today',
+    'Yesterday',
+    'Previous 7 days',
+    'Previous 30 days',
+    'Older',
+] as const;
+
+const getDateGroupTitle = (
+    createdAt: string,
+    now: Date,
+): (typeof DATE_GROUP_TITLES)[number] => {
+    const days = differenceInCalendarDays(now, parseISO(createdAt));
+    // Calendar days, matching the chat's Today / Yesterday dividers.
+    if (days <= 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    if (days <= 7) return 'Previous 7 days';
+    if (days <= 30) return 'Previous 30 days';
+    return 'Older';
+};
+
+// Threads arrive newest first, so each date bucket stays in order.
+const groupThreadsByDate = (
+    threads: AiAgentProjectThreadSummary[],
+): ThreadDateGroup[] => {
+    const now = new Date();
+    return DATE_GROUP_TITLES.map((title) => ({
+        title,
+        threads: threads.filter(
+            (thread) => getDateGroupTitle(thread.createdAt, now) === title,
+        ),
+    })).filter((group) => group.threads.length > 0);
+};
+
 type ThreadGroupProps = {
     title: string;
     threads: AiAgentProjectThreadSummary[];
@@ -287,28 +355,30 @@ const ThreadGroup: FC<ThreadGroupProps> = ({
     onDelete,
     onRename,
     onTogglePin,
-}) => (
-    <Stack gap="xs">
-        <Title order={6} c="dimmed" size="xs" ml="xs">
-            {title}
-        </Title>
-        <Box>
-            {threads.map((thread) => (
-                <ThreadNavLink
-                    key={thread.uuid}
-                    thread={thread}
-                    isActive={thread.uuid === threadUuid}
-                    projectUuid={projectUuid}
-                    showAgentName={showAgentName}
-                    deletionDisabled={deletionDisabled}
-                    onDelete={onDelete}
-                    onRename={onRename}
-                    onTogglePin={onTogglePin}
-                />
-            ))}
-        </Box>
-    </Stack>
-);
+}) => {
+    return (
+        <Stack component="section" aria-label={title} gap={2}>
+            <Text size="xs" fw={500} c="dimmed" mx="xs" mb={2}>
+                {title}
+            </Text>
+            <Box>
+                {threads.map((thread) => (
+                    <ThreadNavLink
+                        key={thread.uuid}
+                        thread={thread}
+                        isActive={thread.uuid === threadUuid}
+                        projectUuid={projectUuid}
+                        showAgentName={showAgentName}
+                        deletionDisabled={deletionDisabled}
+                        onDelete={onDelete}
+                        onRename={onRename}
+                        onTogglePin={onTogglePin}
+                    />
+                ))}
+            </Box>
+        </Stack>
+    );
+};
 
 type ThreadListProps = {
     projectUuid: string;
@@ -327,8 +397,17 @@ const ThreadList: FC<ThreadListProps> = ({
         useInfiniteAiAgentThreads(projectUuid, { agentUuid });
 
     const threads = data?.pages.flatMap((page) => page.data) ?? [];
+    // Older threads load as the end of the list scrolls into view.
+    const { ref: loadMoreRef, inViewport: isLoadMoreVisible } = useInViewport();
+    useEffect(() => {
+        if (isLoadMoreVisible && hasNextPage && !isFetchingNextPage) {
+            void fetchNextPage();
+        }
+    }, [isLoadMoreVisible, hasNextPage, isFetchingNextPage, fetchNextPage]);
     const pinnedThreads = threads.filter((thread) => thread.pinnedAt !== null);
-    const recentThreads = threads.filter((thread) => thread.pinnedAt === null);
+    const recentGroups = groupThreadsByDate(
+        threads.filter((thread) => thread.pinnedAt === null),
+    );
 
     const deletionDisabledFlag = useServerFeatureFlag(
         FeatureFlags.AiDisableThreadDeletion,
@@ -353,7 +432,7 @@ const ThreadList: FC<ThreadListProps> = ({
     };
 
     if (!isSuccess) {
-        return null;
+        return <Box className={classes.threadList} aria-hidden />;
     }
 
     const groupHandlers = {
@@ -377,68 +456,63 @@ const ThreadList: FC<ThreadListProps> = ({
     };
 
     return (
-        <Stack gap="md" className={classes.threadList}>
-            {pinnedThreads.length > 0 && (
-                <ThreadGroup
-                    title="Pinned"
-                    threads={pinnedThreads}
-                    {...groupHandlers}
-                />
-            )}
-
-            <Stack gap="xs" className={classes.threadItems}>
-                {threads.length === 0 ? (
-                    <>
-                        <Title order={6} c="dimmed" size="xs" ml="xs">
-                            Recent
-                        </Title>
-                        <Paper variant="dotted" p="sm">
-                            <Text
-                                truncate="end"
-                                size="sm"
-                                c="dimmed"
-                                ta="center"
-                            >
-                                No threads yet
-                            </Text>
-                        </Paper>
-                    </>
-                ) : (
-                    recentThreads.length > 0 && (
-                        <ThreadGroup
-                            title="Recent"
-                            threads={recentThreads}
-                            {...groupHandlers}
-                        />
-                    )
+        <ScrollArea
+            type="scroll"
+            scrollbars="y"
+            scrollHideDelay={800}
+            classNames={{
+                root: classes.threadList,
+                viewport: classes.threadListViewport,
+                content: classes.threadListContent,
+            }}
+        >
+            <Stack gap="lg">
+                <Divider mx="xs" />
+                {pinnedThreads.length > 0 && (
+                    <ThreadGroup
+                        title="Pinned"
+                        threads={pinnedThreads}
+                        {...groupHandlers}
+                    />
                 )}
-            </Stack>
 
-            <Box>
+                {recentGroups.map((group) => (
+                    <ThreadGroup
+                        key={group.title}
+                        title={group.title}
+                        threads={group.threads}
+                        {...groupHandlers}
+                    />
+                ))}
+
+                {threads.length === 0 && (
+                    <Paper variant="dotted" p="sm">
+                        <Text truncate="end" size="sm" c="dimmed" ta="center">
+                            No threads yet
+                        </Text>
+                    </Paper>
+                )}
+
                 {hasNextPage && (
-                    <Button
-                        size="compact-xs"
-                        variant="subtle"
-                        loading={isFetchingNextPage}
-                        onClick={() => fetchNextPage()}
-                        leftSection={<MantineIcon icon={IconChevronDown} />}
-                    >
-                        View more
-                    </Button>
+                    <Box ref={loadMoreRef} className={classes.loadMore}>
+                        {isFetchingNextPage && (
+                            <Loader size="xs" color="ldGray.5" />
+                        )}
+                    </Box>
                 )}
-            </Box>
 
-            <MantineModal
-                opened={threadToDelete !== null}
-                onClose={() => setThreadToDelete(null)}
-                title="Delete thread"
-                variant="delete"
-                resourceType="thread"
-                description="The whole conversation and everything derived from it will be permanently deleted. This action cannot be undone."
-                onConfirm={handleConfirmDelete}
-                confirmLoading={isDeletingThread}
-            />
-        </Stack>
+                <MantineModal
+                    opened={threadToDelete !== null}
+                    onClose={() => setThreadToDelete(null)}
+                    title="Delete thread"
+                    variant="delete"
+                    resourceType="thread"
+                    description="The whole conversation and everything derived from it will be permanently deleted. This action cannot be undone."
+                    onConfirm={handleConfirmDelete}
+                    confirmLoading={isDeletingThread}
+                />
+            </Stack>
+        </ScrollArea>
     );
 };
 
@@ -452,7 +526,7 @@ const TrialAlert = () => (
         p="xs"
         title={
             <Text size="xs" fw={500}>
-                You're currently using Lightdash AI Agents in free trial mode
+                You're currently using AI agents in free trial mode
             </Text>
         }
     >
@@ -494,21 +568,6 @@ export const AgentSidebar: FC<AgentSidebarProps> = ({
             className={classes.sidebarSurface}
             data-collapsed={isAgentSidebarCollapsed ? 'true' : undefined}
         >
-            <Box>
-                <SidebarButton
-                    leftSection={<MantineIcon icon={IconCirclePlus} />}
-                    component={Link}
-                    to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`}
-                    size="sm"
-                    {...(!isAgentSidebarCollapsed && {
-                        fullWidth: true,
-                        justify: 'flex-start',
-                    })}
-                >
-                    {isAgentSidebarCollapsed ? '' : 'New thread'}
-                </SidebarButton>
-            </Box>
-
             {projectUuid && !isAgentSidebarCollapsed && (
                 <ThreadList
                     projectUuid={projectUuid}
@@ -543,21 +602,6 @@ export const AutoModeSidebar: FC<AutoModeSidebarProps> = ({
             className={classes.sidebarSurface}
             data-collapsed={isAgentSidebarCollapsed ? 'true' : undefined}
         >
-            <Box>
-                <SidebarButton
-                    leftSection={<MantineIcon icon={IconCirclePlus} />}
-                    component={Link}
-                    to={`/projects/${projectUuid}/ai-agents`}
-                    size="sm"
-                    {...(!isAgentSidebarCollapsed && {
-                        fullWidth: true,
-                        justify: 'flex-start',
-                    })}
-                >
-                    {isAgentSidebarCollapsed ? '' : 'New thread'}
-                </SidebarButton>
-            </Box>
-
             {projectUuid && !isAgentSidebarCollapsed && (
                 <ThreadList
                     projectUuid={projectUuid}

@@ -81,7 +81,12 @@ async function main() {
                     .select('project_id')
                     .where('project_uuid', SEED_PROJECT.project_uuid),
             )
-            .update({ encrypted_credentials: encryptedWarehouseCreds });
+            .update({
+                encrypted_credentials: encryptedWarehouseCreds,
+                warehouse_credential_generation: db.raw('?? + 1', [
+                    'warehouse_credential_generation',
+                ]),
+            });
 
         console.log(
             `Updated encrypted_credentials for ${updatedCreds} warehouse credential(s)`,

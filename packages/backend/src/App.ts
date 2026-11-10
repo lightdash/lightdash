@@ -18,7 +18,6 @@ import { MotherduckInstanceCache } from '@lightdash/warehouses';
 import { trace } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import flash from 'connect-flash';
-import connectSessionKnex from 'connect-session-knex';
 import cors from 'cors';
 import { EventEmitter } from 'events';
 import express, { Express, NextFunction, Request, Response } from 'express';
@@ -43,11 +42,16 @@ import { createEventStreamWriter } from './analytics/eventStream/createEventStre
 import { EventStreamSink } from './analytics/eventStream/EventStreamSink';
 import { eventStreamRegistry } from './analytics/eventStream/registry';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
+import { KnexSessionStore } from './auth/KnexSessionStore';
 import { getFrontendBuildHash } from './buildHash';
 import {
     ClientProviderMap,
     ClientRepository,
 } from './clients/ClientRepository';
+import {
+    startDockerHubVersionPolling,
+    stopDockerHubVersionPolling,
+} from './clients/DockerHub/DockerHub';
 import { setGithubRateLimitObserver } from './clients/github/Github';
 import { SlackClient } from './clients/Slack/SlackClient';
 import { createStaticAssetsFallbackHandler } from './clients/StaticAssets/staticAssetsFallbackMiddleware';
@@ -65,6 +69,10 @@ import {
     oneLoginPassportStrategy,
     OpenIDClientOktaStrategy,
 } from './controllers/authentication';
+import {
+    AGENT_CONNECTION_REQUEST_PATH,
+    parseAgentConnectionApprovalBody,
+} from './controllers/authentication/agentConnectionApproval';
 import { databricksPassportStrategy } from './controllers/authentication/strategies/databricksStrategy';
 import { slackPassportStrategy } from './controllers/authentication/strategies/slackStrategy';
 import { snowflakePassportStrategy } from './controllers/authentication/strategies/snowflakeStrategy';
@@ -88,6 +96,7 @@ import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { apiV1Router } from './routers/apiV1Router';
 import { createAppPreviewRouter } from './routers/appPreviewRouter';
+import { createMobileAppRedirectHandler } from './routers/mobileApp';
 import {
     createAndroidAssetLinksHandler,
     createAppleAppSiteAssociationHandler,
@@ -108,7 +117,11 @@ import {
     ServiceProviderMap,
     ServiceRepository,
 } from './services/ServiceRepository';
-import { initOtelTracing, shutdownOtelTracing } from './tracing/tracing';
+import {
+    getActiveTraceId,
+    initOtelTracing,
+    shutdownOtelTracing,
+} from './tracing/tracing';
 import { personaliseSharedSignInError } from './utils/sharedSignInExpiry';
 import { UtilProviderMap, UtilRepository } from './utils/UtilRepository';
 import { VERSION } from './version';
@@ -133,7 +146,13 @@ const schedulerWorkerFactory = (context: {
     prometheusMetrics?: PrometheusMetrics;
 }) =>
     new SchedulerWorker({
+        getAgentConnectionGrantService: () =>
+            context.serviceRepository.getAgentConnectionGrantService(),
+        agentActionLogModel: context.models.getAgentActionLogModel(),
         usageDimensionsModel: context.models.getUsageDimensionsModel(),
+        usageHistoryModel: context.models.getUsageHistoryModel(),
+        usageProcessingModel: context.models.getUsageProcessingModel(),
+        featureFlagModel: context.models.getFeatureFlagModel(),
         lightdashConfig: context.lightdashConfig,
         analytics: context.analytics,
         // SlackClient should initialize before UnfurlService and AiAgentService
@@ -167,8 +186,12 @@ const schedulerWorkerFactory = (context: {
             context.models.getOrganizationSettingsModel(),
         emailWhitelabelService:
             context.serviceRepository.getEmailWhitelabelService(),
+        mobileAppLinkModel: context.models.getMobileAppLinkModel(),
         warehouseConnectCodeModel:
             context.models.getWarehouseConnectCodeModel(),
+        mobileSignInCodeModel: context.models.getMobileSignInCodeModel(),
+        agentConnectionApprovalRequestModel:
+            context.models.getAgentConnectionApprovalRequestModel(),
         aiUsageLedgerModel: context.models.getAiUsageLedgerModel(),
         learnSandboxService: context.serviceRepository.getLearnSandboxService(),
         resolveOrganizationName: createOrganizationNameResolver(
@@ -204,6 +227,7 @@ export type AppArguments = {
     customExpressMiddlewares?: Array<(app: Express) => void>; // Array of custom middleware functions
     pgWireServerFactory?: (
         serviceRepository: ServiceRepository,
+        analytics: LightdashAnalytics,
     ) => PgWireServerInstance;
     beforeShutdown?: (serviceRepository: ServiceRepository) => Promise<void>;
 };
@@ -223,9 +247,7 @@ export default class App {
 
     private pgWireServer: PgWireServerInstance | undefined;
 
-    private readonly pgWireServerFactory:
-        | ((serviceRepository: ServiceRepository) => PgWireServerInstance)
-        | undefined;
+    private readonly pgWireServerFactory: AppArguments['pgWireServerFactory'];
 
     private readonly beforeShutdown:
         | ((serviceRepository: ServiceRepository) => Promise<void>)
@@ -289,6 +311,12 @@ export default class App {
             this.environment === 'production'
                 ? args.knexConfig.production
                 : args.knexConfig.development,
+            {
+                logRollbacks:
+                    this.lightdashConfig.database.logTransactionRollbacks,
+                slowTransactionThresholdMs:
+                    this.lightdashConfig.database.slowTransactionThresholdMs,
+            },
         );
         this.utils = new UtilRepository({
             utilProviders: args.utilProviders,
@@ -351,6 +379,9 @@ export default class App {
         this.featureFlagCheckFlushInterval.unref();
 
         this.prometheusMetrics.start();
+        if (this.lightdashConfig.updateCheck.enabled) {
+            startDockerHubVersionPolling();
+        }
         MotherduckInstanceCache.configure(
             this.lightdashConfig.motherduckInstanceCache,
         );
@@ -405,6 +436,7 @@ export default class App {
         if (pgWirePort && this.pgWireServerFactory) {
             this.pgWireServer = this.pgWireServerFactory(
                 this.serviceRepository,
+                this.analytics,
             );
             await this.pgWireServer.listen(pgWirePort);
             Logger.info(
@@ -442,6 +474,14 @@ export default class App {
     }
 
     private async initExpress(expressApp: Express) {
+        // Lets a caller find the request's trace in their own trace store; the
+        // browser-sent sentry-trace ID is not continued in OTel mode.
+        expressApp.use((_req, res, next) => {
+            const traceId = getActiveTraceId();
+            if (traceId) res.setHeader('x-trace-id', traceId);
+            next();
+        });
+
         // Short-circuit CORS preflights for data-app iframe asset fetches.
         //
         // The data-app preview iframe uses `sandbox="allow-scripts allow-modals"`
@@ -484,14 +524,7 @@ export default class App {
             ),
         );
 
-        const KnexSessionStore = connectSessionKnex(expressSession);
-
-        const store = new KnexSessionStore({
-            knex: this.database as AnyType,
-            createtable: false,
-            tablename: 'sessions',
-            sidfieldname: 'sid',
-        });
+        const store = new KnexSessionStore(this.database);
 
         // Use custom middlewares if provided
         this.customExpressMiddlewares.forEach((middleware) =>
@@ -503,6 +536,14 @@ export default class App {
                 this.prometheusMetrics.httpServerRequestMetricsMiddleware(),
             );
         }
+
+        expressApp.post(
+            [
+                AGENT_CONNECTION_REQUEST_PATH,
+                `${AGENT_CONNECTION_REQUEST_PATH}/:requestUuid/decision`,
+            ],
+            parseAgentConnectionApprovalBody,
+        );
 
         // Raise body-parser limit for the data-apps gsheet export route only.
         // Must run BEFORE the global parser below — `express.json()` is a no-op
@@ -649,10 +690,18 @@ export default class App {
 
         expressApp.use(helmet(helmetConfig));
 
-        // Allow MCP-related icons to be embedded cross-origin so MCP hosts
-        // (e.g. claude.ai) can display them in connector listings.
+        // Allow site icons to be embedded cross-origin so MCP hosts
+        // (e.g. claude.ai) can display them in connector listings. Claude
+        // reads /favicon.ico from the server origin; the rest are the icons
+        // the MCP server advertises in its initialize response.
         expressApp.use(
-            ['/logo-icon.svg', '/favicon-32x32.png', '/apple-touch-icon.png'],
+            [
+                '/favicon.ico',
+                '/favicon-16x16.png',
+                '/favicon-32x32.png',
+                '/apple-touch-icon.png',
+                '/logo-icon.svg',
+            ],
             helmet.crossOriginResourcePolicy({ policy: 'cross-origin' }),
         );
 
@@ -701,11 +750,12 @@ export default class App {
                     this.lightdashConfig.appRuntime,
                     this.lightdashConfig.lightdashSecrets,
                     embedFrameAncestors,
-                    (p) => {
-                        void analyticsModel.addAppViewEvent(
-                            p.appUuid,
-                            p.userUuid,
-                        );
+                    (p, navigationId) => {
+                        void analyticsModel
+                            .addAppViewEvent(p.appUuid, p.userUuid)
+                            .catch(() =>
+                                Logger.warn('Failed to record app view'),
+                            );
                         this.analytics.track({
                             event: 'data_app.view',
                             userId: p.userUuid,
@@ -713,6 +763,24 @@ export default class App {
                                 organizationId: p.organizationUuid,
                                 projectId: p.projectUuid,
                                 appUuid: p.appUuid,
+                                viewContext: p.viewContext,
+                                version: p.version,
+                                navigationId,
+                            },
+                        });
+                    },
+                    (p, navigationId, outcome) => {
+                        this.analytics.track({
+                            event: 'data_app.view_outcome',
+                            userId: p.userUuid,
+                            properties: {
+                                organizationId: p.organizationUuid,
+                                projectId: p.projectUuid,
+                                appUuid: p.appUuid,
+                                viewContext: p.viewContext,
+                                version: p.version,
+                                navigationId,
+                                outcome,
                             },
                         });
                     },
@@ -907,6 +975,15 @@ export default class App {
                 this.lightdashConfig.mobileAppAssociation,
             ),
         );
+        // Outside the app-link paths so a scan always reaches the server.
+        expressApp.get(
+            '/m/app/:scanId',
+            createMobileAppRedirectHandler(
+                this.serviceRepository.getMobileAppService(),
+                this.lightdashConfig.mobileAppStores,
+                this.lightdashConfig.trustProxy,
+            ),
+        );
 
         // OpenAI Apps domain verification: serves the portal-issued token so
         // OpenAI can confirm we control the domain hosting the MCP server
@@ -1078,6 +1155,7 @@ export default class App {
             passport.use('snowflake', snowflakePassportStrategy);
             refresh.use('snowflake', snowflakePassportStrategy);
         }
+
         if (databricksPassportStrategy) {
             passport.use('databricks', databricksPassportStrategy);
             refresh.use('databricks', databricksPassportStrategy);
@@ -1159,6 +1237,7 @@ export default class App {
             clearInterval(this.featureFlagCheckFlushInterval);
             this.featureFlagCheckFlushInterval = undefined;
         }
+        stopDockerHubVersionPolling();
         try {
             this.analytics.trackFeatureFlagChecks(
                 flushFeatureFlagChecks(),

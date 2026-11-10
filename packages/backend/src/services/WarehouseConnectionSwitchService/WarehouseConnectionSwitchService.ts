@@ -1,15 +1,18 @@
 import { subject } from '@casl/ability';
 import {
     assertRegisteredAccount,
+    canUseExtraConnectionWarehouseType,
     ConflictError,
+    FeatureFlags,
     ForbiddenError,
     ParameterError,
     ProjectType,
-    sensitiveCredentialsFieldNames,
+    SnowflakeAuthenticationType,
     validateWarehouseConnectionName,
     WAREHOUSE_CONNECTION_ALREADY_MULTI_MESSAGE,
     WAREHOUSE_CONNECTION_NAME_CONFLICT_MESSAGE,
     WAREHOUSE_CONNECTION_SWITCH_PLAN_CHANGED_MESSAGE,
+    WarehouseTypes,
     type Account,
     type ApiCreateWarehouseConnectionRequest,
     type ApiExecuteWarehouseConnectionSwitchRequest,
@@ -38,12 +41,20 @@ import {
     type WarehouseConnectionSwitchModel,
     type WarehouseConnectionSwitchProject,
 } from '../../models/WarehouseConnectionSwitchModel/WarehouseConnectionSwitchModel';
+import { stripSensitiveWarehouseCredentials } from '../../utils/stripSensitiveWarehouseCredentials';
 import { BaseService } from '../BaseService';
 import { type FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { type LicenseService } from '../LicenseService/LicenseService';
 import {
+    assertExtraConnectionAuthentication,
+    shouldTestExtraCredentials,
+} from '../WarehouseConnectionService/extraConnectionAuthentication';
+import { assertExtraConnectionSettings } from '../WarehouseConnectionService/extraConnectionSettings';
+import {
     ENTITLEMENT_REASON,
     getMultipleConnectionsBlockReason,
+    getProvisionedOriginalBlockReason,
+    PROVISIONED_WAREHOUSE_REASON,
     ROLLOUT_REASON,
     WAREHOUSE_TYPE_REASON,
 } from '../WarehouseConnectionService/multipleConnectionsGate';
@@ -51,8 +62,6 @@ import { type WarehouseCredentialPolicy } from '../WarehouseConnectionService/Wa
 
 export const DEFAULT_PROJECT_ONLY_REASON =
     'Only a default project can have multiple connections.';
-export const ORIGINAL_ORGANIZATION_CREDENTIALS_REASON =
-    'A project whose warehouse uses organisation credentials cannot have multiple connections yet.';
 export const EXTRA_CONNECTION_WAREHOUSE_TYPE_MISMATCH_MESSAGE =
     'An extra connection must use the same warehouse type as the original connection.';
 const IDEMPOTENCY_KEY_USED_MESSAGE =
@@ -99,16 +108,6 @@ const sortedJson = (value: unknown): unknown => {
     }
     return value;
 };
-
-const withoutSecrets = (credentials: CreateWarehouseCredentials) =>
-    Object.fromEntries(
-        Object.entries(credentials).filter(
-            ([key]) =>
-                !(sensitiveCredentialsFieldNames as readonly string[]).includes(
-                    key,
-                ),
-        ),
-    );
 
 const databaseOf = (credentials: CreateWarehouseCredentials): string | null => {
     if ('dbname' in credentials && typeof credentials.dbname === 'string') {
@@ -161,13 +160,12 @@ export class WarehouseConnectionSwitchService extends BaseService {
         projectUuid: string,
         operation: 'switch_preview' | 'switch',
         error: unknown,
-        credentialSource: 'project' | 'organization' | null = null,
+        credentialSource: 'project' | null = null,
     ): Promise<boolean> {
         const message = error instanceof Error ? error.message : null;
         let reason:
             | 'already_multi'
             | 'unsupported_project'
-            | 'organization_credentials'
             | 'license_required'
             | 'feature_disabled'
             | 'warehouse_type_mismatch'
@@ -177,13 +175,14 @@ export class WarehouseConnectionSwitchService extends BaseService {
             reason = 'already_multi';
         } else if (message === DEFAULT_PROJECT_ONLY_REASON) {
             reason = 'unsupported_project';
-        } else if (message === ORIGINAL_ORGANIZATION_CREDENTIALS_REASON) {
-            reason = 'organization_credentials';
         } else if (message === ENTITLEMENT_REASON) {
             reason = 'license_required';
         } else if (message === ROLLOUT_REASON) {
             reason = 'feature_disabled';
-        } else if (message === WAREHOUSE_TYPE_REASON) {
+        } else if (
+            message === WAREHOUSE_TYPE_REASON ||
+            message === PROVISIONED_WAREHOUSE_REASON
+        ) {
             reason = 'warehouse_type_mismatch';
         } else if (
             message === WAREHOUSE_CONNECTION_SWITCH_PLAN_CHANGED_MESSAGE
@@ -235,10 +234,10 @@ export class WarehouseConnectionSwitchService extends BaseService {
                 this.trackedTestErrors.has(error)) ||
             message === WAREHOUSE_CONNECTION_ALREADY_MULTI_MESSAGE ||
             message === DEFAULT_PROJECT_ONLY_REASON ||
-            message === ORIGINAL_ORGANIZATION_CREDENTIALS_REASON ||
             message === ENTITLEMENT_REASON ||
             message === ROLLOUT_REASON ||
             message === WAREHOUSE_TYPE_REASON ||
+            message === PROVISIONED_WAREHOUSE_REASON ||
             message?.startsWith('Warehouse connection test failed')
         ) {
             return;
@@ -328,6 +327,11 @@ export class WarehouseConnectionSwitchService extends BaseService {
         ) {
             return DEFAULT_PROJECT_ONLY_REASON;
         }
+        const provisionedReason = await getProvisionedOriginalBlockReason(
+            this.projectModel,
+            project,
+        );
+        if (provisionedReason !== null) return provisionedReason;
         const gateReason = await getMultipleConnectionsBlockReason(
             {
                 licenseService: this.licenseService,
@@ -337,9 +341,7 @@ export class WarehouseConnectionSwitchService extends BaseService {
             project,
         );
         if (gateReason !== null) return gateReason;
-        return project.originalOrganizationWarehouseCredentialsUuid === null
-            ? null
-            : ORIGINAL_ORGANIZATION_CREDENTIALS_REASON;
+        return null;
     }
 
     private async assertCanSwitch(
@@ -366,29 +368,18 @@ export class WarehouseConnectionSwitchService extends BaseService {
     private static toSource(
         request: ApiCreateWarehouseConnectionRequest,
     ): WarehouseConnectionCredentialSource {
-        if (
-            (request.warehouseConnection === undefined) ===
-            (request.organizationWarehouseCredentialsUuid === undefined)
-        ) {
+        if (request.organizationWarehouseCredentialsUuid != null)
             throw new ParameterError(
-                'Provide either warehouse credentials or an organization warehouse credential.',
+                'Organization warehouse credentials are no longer supported.',
             );
-        }
-        return request.organizationWarehouseCredentialsUuid !== undefined
-            ? {
-                  kind: 'organization',
-                  organizationWarehouseCredentialsUuid:
-                      request.organizationWarehouseCredentialsUuid,
-              }
-            : { kind: 'project', credentials: request.warehouseConnection! };
+        if (!request.warehouseConnection)
+            throw new ParameterError('Provide warehouse credentials.');
+        return { kind: 'project', credentials: request.warehouseConnection };
     }
 
     private static credentialSourceFromRequest(
         request: ApiCreateWarehouseConnectionRequest,
-    ): 'project' | 'organization' | null {
-        if (request.organizationWarehouseCredentialsUuid !== undefined) {
-            return 'organization';
-        }
+    ): 'project' | null {
         if (request.warehouseConnection !== undefined) {
             return 'project';
         }
@@ -400,16 +391,16 @@ export class WarehouseConnectionSwitchService extends BaseService {
         summary: ProjectSummary,
         source: WarehouseConnectionCredentialSource,
         credentials: CreateWarehouseCredentials | null,
+        mixedTypesEnabled: boolean,
     ): void {
+        if (credentials !== null && mixedTypesEnabled) {
+            assertExtraConnectionAuthentication(credentials, true);
+        }
         this.credentialPolicy.assertCanWriteWarehouseConnection(
             account,
             summary,
             {
                 warehouseConnection: credentials ?? undefined,
-                organizationWarehouseCredentialsUuid:
-                    source.kind === 'organization'
-                        ? source.organizationWarehouseCredentialsUuid
-                        : undefined,
             },
         );
     }
@@ -420,16 +411,19 @@ export class WarehouseConnectionSwitchService extends BaseService {
         projectUuid: string,
         credentials: CreateWarehouseCredentials,
         operation: 'switch_preview' | 'switch',
-        credentialSource: 'project' | 'organization',
-    ): Promise<void> {
+        credentialSource: 'project',
+    ): Promise<CreateWarehouseCredentials> {
         let result: WarehouseConnectionTestResults;
+        let resolvedCredentials: CreateWarehouseCredentials;
         try {
-            result =
-                await this.credentialPolicy.testWarehouseConnectionCredentials(
+            const tested =
+                await this.credentialPolicy.testWarehouseConnectionCredentialsForSave(
                     account,
                     organizationUuid,
                     credentials,
                 );
+            result = tested.result;
+            resolvedCredentials = tested.credentials;
         } catch (error) {
             if (error !== null && typeof error === 'object') {
                 this.trackedTestErrors.add(error);
@@ -482,6 +476,7 @@ export class WarehouseConnectionSwitchService extends BaseService {
                     : 'Warehouse connection test failed.',
             );
         }
+        return resolvedCredentials;
     }
 
     private static planHash({
@@ -515,13 +510,11 @@ export class WarehouseConnectionSwitchService extends BaseService {
             connection: {
                 name: connectionName,
                 warehouseType: credentials.type,
-                source:
-                    source.kind === 'organization'
-                        ? {
-                              organizationWarehouseCredentialsUuid:
-                                  source.organizationWarehouseCredentialsUuid,
-                          }
-                        : { credentials: withoutSecrets(source.credentials) },
+                source: {
+                    credentials: stripSensitiveWarehouseCredentials(
+                        source.credentials,
+                    ),
+                },
                 database: databaseOf(credentials),
                 listAllDatabases: request.connection.listAllDatabases ?? false,
                 additionalDatabases:
@@ -545,11 +538,28 @@ export class WarehouseConnectionSwitchService extends BaseService {
         const source = WarehouseConnectionSwitchService.toSource(
             request.connection,
         );
+        const { enabled: mixedTypesEnabled } =
+            await this.featureFlagService.get({
+                user: {
+                    userUuid: account.user.userUuid,
+                    organizationUuid: summary.organizationUuid,
+                },
+                featureFlagId: FeatureFlags.MixedWarehouseConnections,
+            });
+        if (
+            !mixedTypesEnabled &&
+            source.credentials.type === WarehouseTypes.SNOWFLAKE &&
+            source.credentials.authenticationType ===
+                SnowflakeAuthenticationType.EXTERNAL_BROWSER
+        ) {
+            assertExtraConnectionAuthentication(source.credentials, false);
+        }
         this.assertCanWrite(
             account,
             summary,
             source,
-            source.kind === 'project' ? source.credentials : null,
+            source.credentials,
+            mixedTypesEnabled,
         );
         const originalName = WarehouseConnectionSwitchService.parseName(
             request.original.name,
@@ -562,41 +572,71 @@ export class WarehouseConnectionSwitchService extends BaseService {
         }
         const project = await this.switchModel.getProject(projectUuid);
         await this.assertCanSwitch(account, project);
-        const credentials =
-            source.kind === 'project'
-                ? source.credentials
-                : await this.connectionModel.loadOrganizationCredentials(
-                      project.organizationUuid,
-                      source.organizationWarehouseCredentialsUuid,
-                  );
-        this.assertCanWrite(account, summary, source, credentials);
-        if (credentials.type !== project.originalWarehouseType) {
+        const { credentials } = source;
+        this.assertCanWrite(
+            account,
+            summary,
+            source,
+            credentials,
+            mixedTypesEnabled,
+        );
+        if (
+            !canUseExtraConnectionWarehouseType({
+                originalWarehouseType: project.originalWarehouseType,
+                extraWarehouseType: credentials.type,
+                mixedTypesEnabled,
+            })
+        ) {
             throw new ParameterError(
                 EXTRA_CONNECTION_WAREHOUSE_TYPE_MISMATCH_MESSAGE,
             );
         }
-        await this.assertConnectionWorks(
-            account,
-            project.organizationUuid,
-            projectUuid,
+        const original =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        assertExtraConnectionSettings(
             credentials,
-            operation,
-            source.kind,
+            request.connection,
+            mixedTypesEnabled,
         );
-        const [staysOnOriginal, usersWithPersonalCredentials, original] =
+        const effectiveCredentials: CreateWarehouseCredentials = {
+            ...credentials,
+            requireUserCredentials:
+                credentials.type === original.type
+                    ? original.requireUserCredentials
+                    : (credentials.requireUserCredentials ?? false),
+        };
+        const needsTest = shouldTestExtraCredentials(
+            effectiveCredentials,
+            project.originalWarehouseType,
+            mixedTypesEnabled,
+        );
+        const resolvedCredentials = needsTest
+            ? await this.assertConnectionWorks(
+                  account,
+                  project.organizationUuid,
+                  projectUuid,
+                  effectiveCredentials,
+                  operation,
+                  source.kind,
+              )
+            : effectiveCredentials;
+        const persistedSource: WarehouseConnectionCredentialSource = {
+            kind: 'project',
+            credentials: resolvedCredentials,
+        };
+        const [staysOnOriginal, usersWithPersonalCredentials] =
             await Promise.all([
                 this.switchModel.getContentCounts(project),
                 this.switchModel.countUsersWithPersonalCredentials(projectUuid),
-                this.projectModel.getWarehouseCredentialsForProject(
-                    projectUuid,
-                ),
             ]);
         return {
             organizationUuid: project.organizationUuid,
             originalName,
             connectionName,
-            source,
-            credentials,
+            source: persistedSource,
+            credentials: effectiveCredentials,
             extraListAllDatabases: request.connection.listAllDatabases ?? false,
             extraAdditionalDatabaseCount:
                 request.connection.additionalDatabases?.length ?? 0,
@@ -607,20 +647,20 @@ export class WarehouseConnectionSwitchService extends BaseService {
                     request,
                     originalName,
                     connectionName,
-                    source,
-                    credentials,
+                    source: persistedSource,
+                    credentials: effectiveCredentials,
                 }),
                 original: {
                     name: originalName,
-                    warehouseType: credentials.type,
+                    warehouseType: original.type,
                     listAllDatabases: request.original.listAllDatabases,
                     additionalDatabases: request.original.additionalDatabases,
                 },
                 connection: {
                     name: connectionName,
                     warehouseType: credentials.type,
-                    database: databaseOf(credentials),
-                    usesOrganizationCredentials: source.kind === 'organization',
+                    database: databaseOf(effectiveCredentials),
+                    usesOrganizationCredentials: false,
                 },
                 staysOnOriginal,
                 personalCredentials: {

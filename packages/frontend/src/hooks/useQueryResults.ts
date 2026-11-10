@@ -5,7 +5,6 @@ import {
     isBigqueryTokenErrorMessage,
     isPreviewWarehouseSignInExpiredMessage,
     LightdashCustomSqlProvenanceChartUuidHeader,
-    MAX_SAFE_INTEGER,
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -28,8 +27,9 @@ import {
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { lightdashApi } from '../api';
+import { type LightdashApi } from '../api';
 import { pollForResults } from '../features/queryRunner/executeQuery';
+import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
 
@@ -37,7 +37,7 @@ export type QueryResultsProps = {
     projectUuid: string;
     tableId: string;
     query?: MetricQuery;
-    csvLimit?: number | null; //giving null returns all results (no limit)
+    csvLimit?: number | null; // null = all results, capped by the org CSV cells limit
     chartUuid?: string;
     chartVersionUuid?: string;
     dateZoomGranularity?: DateGranularity | string;
@@ -98,6 +98,7 @@ export const getAsyncQueryError = (message: string | null): ApiError => {
 };
 
 const executeAsyncMetricQuery = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     data: ExecuteAsyncMetricQueryRequestParams,
     options: {
@@ -121,6 +122,7 @@ const executeAsyncMetricQuery = async (
 };
 
 const executeAsyncSavedChartQuery = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     data: ExecuteAsyncSavedChartRequestParams,
     options: { signal?: AbortSignal },
@@ -135,6 +137,7 @@ const executeAsyncSavedChartQuery = async (
 };
 
 export const scheduleDownloadQuery = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     queryUuid: string,
     options: DownloadOptions = {},
@@ -159,12 +162,14 @@ export const scheduleDownloadQuery = async (
     });
 };
 
-const executeAsyncQuery = (
+export const executeAsyncQuery = (
+    lightdashApi: LightdashApi,
     data?: QueryResultsProps | null,
     signal?: AbortSignal,
 ) => {
     if (data?.chartUuid && data?.chartVersionUuid) {
         return executeAsyncSavedChartQuery(
+            lightdashApi,
             data.projectUuid,
             {
                 context: QueryExecutionContext.CHART_HISTORY,
@@ -179,9 +184,12 @@ const executeAsyncQuery = (
         );
     } else if (data?.chartUuid) {
         return executeAsyncSavedChartQuery(
+            lightdashApi,
             data.projectUuid,
             {
-                context: QueryExecutionContext.CHART,
+                // Screenshot renders pass context=scheduledDelivery so the
+                // query is attributed to the delivery, as dashboards do.
+                context: data.context ?? QueryExecutionContext.CHART,
                 chartUuid: data.chartUuid,
                 limit: data.csvLimit,
                 invalidateCache: data.invalidateCache,
@@ -191,23 +199,14 @@ const executeAsyncQuery = (
             { signal },
         );
     } else if (data?.query) {
-        // For metric queries, we need to handle the limit properly:
-        // - undefined: use the original query limit
-        // - null: unlimited results
-        // - number: use the specific limit
-        let queryLimit = data.query.limit;
-        if (data.csvLimit !== undefined) {
-            // For unlimited exports (null), use Number.MAX_SAFE_INTEGER
-            queryLimit = data.csvLimit ?? MAX_SAFE_INTEGER;
-        }
-
         return executeAsyncMetricQuery(
+            lightdashApi,
             data.projectUuid,
             {
                 context: data.context ?? QueryExecutionContext.EXPLORE,
+                limit: data.csvLimit,
                 query: {
                     ...data.query,
-                    limit: queryLimit,
                     filters: convertDateFilters(data.query.filters),
                     timezone: data.query.timezone ?? undefined,
                     exploreName: data.tableId,
@@ -232,13 +231,18 @@ const executeAsyncQuery = (
 };
 
 export const executeQueryAndWaitForResults = async (
+    lightdashApi: LightdashApi,
     data?: QueryResultsProps | null,
 ) => {
     if (!data) throw new Error('Missing data');
 
-    const query = await executeAsyncQuery(data, undefined);
+    const query = await executeAsyncQuery(lightdashApi, data, undefined);
 
-    const results = await pollForResults(data.projectUuid, query.queryUuid);
+    const results = await pollForResults(
+        lightdashApi,
+        data.projectUuid,
+        query.queryUuid,
+    );
 
     if (
         results.status === QueryHistoryStatus.ERROR ||
@@ -263,6 +267,7 @@ export const useGetReadyQueryResults = (
     data: QueryResultsProps | null,
     missingRequiredParameters: string[] | null,
 ) => {
+    const lightdashApi = useLightdashApi();
     const setErrorResponse = useQueryError();
 
     const isEnabled = useMemo(() => {
@@ -281,6 +286,7 @@ export const useGetReadyQueryResults = (
         refetchOnMount: false,
         queryFn: ({ signal }) => {
             return executeAsyncQuery(
+                lightdashApi,
                 data
                     ? {
                           ...data,
@@ -306,10 +312,12 @@ export const useGetReadyQueryResults = (
  * Get single results page
  */
 const getResultsPage = async (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     queryUuid: string,
     page: number = 1,
     pageSize: number | null = null,
+    resultsUrl: string | null = null,
 ): Promise<ApiGetAsyncQueryResults> => {
     const searchParams = new URLSearchParams();
     if (page) {
@@ -319,6 +327,12 @@ const getResultsPage = async (
         searchParams.set('pageSize', pageSize.toString());
     }
 
+    if (resultsUrl !== null) {
+        return lightdashApi<ApiGetAsyncQueryResults>({
+            url: `${resultsUrl}&${searchParams}`,
+            method: 'GET',
+        });
+    }
     const urlQueryParams = searchParams.toString();
     return lightdashApi<ApiGetAsyncQueryResults>({
         url: `/projects/${projectUuid}/query/${queryUuid}${
@@ -361,7 +375,9 @@ export const useInfiniteQueryResults = (
     projectUuid?: string,
     queryUuid?: string,
     chartName?: string,
+    resultsUrl: string | null = null,
 ): InfiniteQueryResults => {
+    const lightdashApi = useLightdashApi();
     const setErrorResponse = useQueryError({
         forceToastOnForbidden: true,
         forbiddenToastTitle: chartName
@@ -385,10 +401,12 @@ export const useInfiniteQueryResults = (
     >([]);
     const [fetchAll, setFetchAll] = useState(false);
 
+    const prevResultsUrlRef = useRef(resultsUrl);
     const prevQueryUuidRef = useRef<string | undefined>(null);
     const prevProjectUuidRef = useRef<string | undefined>(null);
     // Detect input changes during render to avoid exposing stale data
     const dependenciesChanged =
+        resultsUrl !== prevResultsUrlRef.current ||
         projectUuid !== prevProjectUuidRef.current ||
         queryUuid !== prevQueryUuidRef.current;
 
@@ -445,14 +463,20 @@ export const useInfiniteQueryResults = (
         ApiError
     >({
         enabled: !!fetchArgs.projectUuid && !!fetchArgs.queryUuid,
-        queryKey: ['query-page', fetchArgs],
+        queryKey: [
+            'query-page',
+            fetchArgs,
+            ...(resultsUrl === null ? [] : [resultsUrl]),
+        ],
         queryFn: async () => {
             const startTime = performance.now();
             const results = await getResultsPage(
+                lightdashApi,
                 fetchArgs.projectUuid!,
                 fetchArgs.queryUuid!,
                 fetchArgs.page,
                 fetchArgs.pageSize,
+                resultsUrl,
             );
 
             const { status } = results;
@@ -485,6 +509,7 @@ export const useInfiniteQueryResults = (
                         queryClient.invalidateQueries([
                             'query-page',
                             fetchArgs,
+                            ...(resultsUrl === null ? [] : [resultsUrl]),
                         ]),
                     );
                     // Double the backoff until it reaches the cap
@@ -546,7 +571,11 @@ export const useInfiniteQueryResults = (
         const hasProjectUuidChanged =
             projectUuid !== prevProjectUuidRef.current;
 
-        if (hasQueryUuidChanged || hasProjectUuidChanged) {
+        if (
+            hasQueryUuidChanged ||
+            hasProjectUuidChanged ||
+            resultsUrl !== prevResultsUrlRef.current
+        ) {
             // Reset fetched pages before updating the fetch args
             setFetchedPages([]);
             backoffRef.current = getInitialBackoffMs();
@@ -560,10 +589,11 @@ export const useInfiniteQueryResults = (
             });
 
             // Update refs
+            prevResultsUrlRef.current = resultsUrl;
             prevQueryUuidRef.current = queryUuid;
             prevProjectUuidRef.current = projectUuid;
         }
-    }, [projectUuid, queryUuid]);
+    }, [projectUuid, queryUuid, resultsUrl]);
 
     useEffect(() => {
         if (fetchAll) {
@@ -640,6 +670,7 @@ export const useInfiniteQueryResults = (
 };
 
 export const useCancelQuery = (projectUuid?: string, queryUuid?: string) => {
+    const lightdashApi = useLightdashApi();
     return useMutation({
         mutationKey: ['cancel-query', projectUuid, queryUuid],
         mutationFn: () => {

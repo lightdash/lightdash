@@ -1,5 +1,11 @@
 import { type ApiError } from '@lightdash/common';
-import { QueryClient, type DefaultOptions } from '@tanstack/react-query';
+import {
+    MutationCache,
+    QueryCache,
+    QueryClient,
+    type DefaultOptions,
+    type QueryKey,
+} from '@tanstack/react-query';
 
 const MAX_QUERY_RETRIES = 5;
 
@@ -16,8 +22,24 @@ export const shouldRetryQuery = (
 export const getQueryRetryDelay = (attemptIndex: number): number =>
     Math.min(1000 * 2 ** attemptIndex, 8000);
 
-export const createQueryClient = (options?: DefaultOptions) => {
+// Fires once per failed query or mutation, after retries are exhausted
+export type QueryClientErrorHandler = (
+    error: unknown,
+    key: QueryKey | null,
+) => void;
+
+export const createQueryClient = (
+    options?: DefaultOptions,
+    onError?: QueryClientErrorHandler,
+) => {
     const queryClient = new QueryClient({
+        queryCache: new QueryCache({
+            onError: (error, query) => onError?.(error, query.queryKey),
+        }),
+        mutationCache: new MutationCache({
+            onError: (error, _variables, _context, mutation) =>
+                onError?.(error, mutation.options.mutationKey ?? null),
+        }),
         defaultOptions: {
             queries: {
                 retry: shouldRetryQuery,

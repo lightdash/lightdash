@@ -1,7 +1,6 @@
 import {
     ActionIcon,
     Badge,
-    Box,
     Button,
     Checkbox,
     Code,
@@ -17,7 +16,6 @@ import {
     Switch,
     Text,
     TextInput,
-    Title,
 } from '@mantine/core';
 import {
     IconCheck,
@@ -36,6 +34,7 @@ import {
     useSelectJiraSite,
 } from '../../../../../../components/common/JiraIntegration/hooks/useJiraIntegration';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 import { useProjects } from '../../../../../../hooks/useProjects';
 import useApp from '../../../../../../providers/App/useApp';
 import jiraSvg from '../../../../../../svgs/jira.svg';
@@ -168,48 +167,46 @@ export const JiraReviewSettings = () => {
 
     return (
         <>
-            <Divider mx="calc(var(--mantine-spacing-md) * -1)" />
-            <Group justify="space-between" wrap="nowrap" align="flex-start">
-                <Box maw={620}>
-                    <Group gap="xs" mb={4}>
-                        <JiraLogo compact={hasJira} />
-                        <Title order={6}>Jira issues</Title>
-                        {hasJira && (
-                            <Badge
-                                size="sm"
-                                color={needsSite ? 'yellow' : 'green'}
-                            >
-                                {needsSite ? 'Select site' : 'Connected'}
-                            </Badge>
+            <Divider />
+            <SettingRow
+                title="Jira issues"
+                titlePrefix={<JiraLogo compact={hasJira} />}
+                titleAddon={
+                    hasJira && (
+                        <Badge size="sm" color={needsSite ? 'yellow' : 'green'}>
+                            {needsSite ? 'Select site' : 'Connected'}
+                        </Badge>
+                    )
+                }
+                description="Send review findings to Jira automatically. Existing open findings can be exported below; status is not synced."
+                control={
+                    <>
+                        {installationQuery.isInitialLoading && (
+                            <Loader size="sm" />
                         )}
-                    </Group>
-                    <Text c="dimmed" fz="xs">
-                        Send review findings to Jira automatically. Existing
-                        open findings can be exported below; status is not
-                        synced.
+                        {connected && routing && (
+                            <Switch
+                                size="md"
+                                aria-label="Create Jira issues for AI review findings"
+                                checked={routing.enabled}
+                                disabled={!canEdit || isUpdating || !canEnable}
+                                onChange={(event) =>
+                                    saveRouting({
+                                        enabled: event.currentTarget.checked,
+                                    })
+                                }
+                            />
+                        )}
+                    </>
+                }
+            >
+                {connected && (
+                    <Text c="dimmed" fz="xs" mt="xxs">
+                        Connected to {installation.siteName} (
+                        {installation.siteUrl}).
                     </Text>
-                    {connected && (
-                        <Text c="dimmed" fz="xs" mt={4}>
-                            Connected to {installation.siteName} (
-                            {installation.siteUrl}).
-                        </Text>
-                    )}
-                </Box>
-                {installationQuery.isInitialLoading && <Loader size="sm" />}
-                {connected && routing && (
-                    <Switch
-                        size="md"
-                        aria-label="Create Jira issues for AI review findings"
-                        checked={routing.enabled}
-                        disabled={!canEdit || isUpdating || !canEnable}
-                        onChange={(event) =>
-                            saveRouting({
-                                enabled: event.currentTarget.checked,
-                            })
-                        }
-                    />
                 )}
-            </Group>
+            </SettingRow>
 
             {!hasJira && !installationQuery.isInitialLoading && (
                 <Paper variant="dotted" p="md" radius="md">

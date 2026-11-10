@@ -1,0 +1,394 @@
+import assertUnreachable from '../utils/assertUnreachable';
+import {
+    AGENT_IDENTITY_SETTINGS_PATH,
+    getProjectAgentIdentitySettingsPath,
+    type AgentIdentityClaim,
+    type AiActorKind,
+} from './agentIdentity';
+import { type AgentPermissionBlocker } from './agentPermissionExplanation';
+import {
+    getAgentCapabilityName,
+    type AgentCapability,
+} from './agentPermissions';
+import { type AnyType } from './any';
+import {
+    type CreateWarehouseCredentials,
+    type WarehouseTypes,
+} from './projects';
+
+export const AI_AGENT_TAG = 'agent';
+export const AI_AGENT_APPLICATION_NAME = 'lightdash-ai';
+export const AI_AGENT_SESSION_SETTING = 'lightdash.agent';
+
+export enum AiAgentMarkerLevel {
+    VERIFIED_SESSION = 'verified_session',
+    REQUEST_BOUND = 'request_bound',
+    IDENTIFY_ONLY = 'identify_only',
+    NONE = 'none',
+}
+
+export type AiAgentMarker = {
+    level: AiAgentMarkerLevel;
+    signals: { name: string; where: string }[];
+    note: string | null;
+    enforce: string | null;
+};
+
+export type AiAssurance =
+    | { kind: 'agent_session_active' }
+    | { kind: 'agent_marker'; level: AiAgentMarkerLevel }
+    | { kind: 'result_cache_off' };
+
+export type AiWarehouseCapabilities = {
+    marker: AiAgentMarker;
+    warehouseType: WarehouseTypes;
+};
+
+type AiExecutionAudit = {
+    actorKind: AiActorKind;
+    personUuid: string;
+    principalRef: string;
+    queryTags: Record<string, string>;
+};
+
+export type AiExecutionPlan = {
+    agentIdentity?: AgentIdentityClaim | null;
+    sourceIdentities?: {
+        queryUuid: string;
+        agentIdentity: AgentIdentityClaim | null;
+    }[];
+} & (
+    | {
+          identity: 'ai_service_account';
+          sourceProjectUuid: string;
+          inheritedFromProjectUuid: string | null;
+          identityUuid: string;
+          credentialUuid: string;
+          credentials: CreateWarehouseCredentials;
+          assurances: AiAssurance[];
+          audit: AiExecutionAudit & { userUuid: string | null };
+      }
+    | {
+          identity: 'connected_person';
+          identityUuid: string;
+          credentials: CreateWarehouseCredentials;
+          assurances: AiAssurance[];
+          audit: AiExecutionAudit;
+      }
+    | {
+          identity: 'marked_person';
+          assurances: [{ kind: 'agent_marker'; level: AiAgentMarkerLevel }];
+          audit: AiExecutionAudit & { userUuid: string | null };
+      }
+);
+
+export type AiMarkerTestResult = {
+    ok: boolean;
+    level: AiAgentMarkerLevel;
+    observed: Record<string, string | null>;
+    message: string;
+    checkedAt: Date;
+};
+
+export type ApiAiMarkerTestResponse = {
+    status: 'ok';
+    results: AiMarkerTestResult;
+};
+
+export const AI_PRINCIPAL_QUERY_TAG = 'ai_principal';
+
+export enum AgentIdentityConnectEntryPoint {
+    CHAT_CARD = 'chat_card',
+    MY_WAREHOUSE_CONNECTIONS = 'my_warehouse_connections',
+    MY_AGENT_CONNECTIONS = 'my_agent_connections',
+    MCP_CONNECT_LINK = 'mcp_connect_link',
+    CLI = 'cli',
+    MCP_CONSENT = 'mcp_consent',
+    OAUTH_CONSENT = 'oauth_consent',
+    SLACK_LINK = 'slack_link',
+    UNKNOWN = 'unknown',
+}
+
+export enum AgentIdentityConnectFailureReason {
+    ACCESS_DENIED = 'access_denied',
+    OAUTH_ERROR = 'oauth_error',
+    STATE_MISMATCH = 'state_mismatch',
+    TOKEN_EXCHANGE_FAILED = 'token_exchange_failed',
+    NO_REFRESH_TOKEN = 'no_refresh_token',
+    NOT_AGENT_SESSION = 'not_agent_session',
+    SESSION_CHECK_FAILED = 'session_check_failed',
+    LICENSE_REQUIRED = 'license_required',
+    ORGANIZATION_REQUIRED = 'organization_required',
+    NOT_CONFIGURED = 'not_configured',
+    CREDENTIAL_SAVE_FAILED = 'credential_save_failed',
+    SIGN_IN_FAILED = 'sign_in_failed',
+}
+
+export enum AiAccessRefusalReason {
+    MCP_PROJECT_NOT_ALLOWED = 'mcp_project_not_allowed',
+    AGENT_ACCESS_DISABLED = 'agent_access_disabled',
+    AGENT_CAPABILITY_DENIED = 'agent_capability_denied',
+    AGENT_PROJECT_DENIED = 'agent_project_denied',
+    AGENT_RAW_SQL_UNCONFIRMED = 'agent_raw_sql_unconfirmed',
+    AGENT_OPERATION_UNMAPPED = 'agent_operation_unmapped',
+    AGENT_ACTOR_UNVERIFIED = 'agent_actor_unverified',
+    AGENT_SETTING_DENIED = 'agent_setting_denied',
+    AGENT_USER_NOT_ALLOWED = 'agent_user_not_allowed',
+    AGENT_GRANT_DENIED = 'agent_grant_denied',
+    AGENT_GRANT_REVOKED = 'agent_grant_revoked',
+    AGENT_CHANNEL_DENIED = 'agent_channel_denied',
+    AGENT_HUMAN_PERMISSION_DENIED = 'agent_human_permission_denied',
+
+    RESULT_NOT_AGENT_PRODUCED = 'result_not_agent_produced',
+    PRINCIPAL_FAILED = 'principal_failed',
+    AI_SERVICE_ACCOUNT_MISSING = 'ai_service_account_missing',
+    AI_SERVICE_ACCOUNT_INVALID = 'ai_service_account_invalid',
+    NEEDS_SIGN_IN = 'needs_sign_in',
+    SIGN_IN_EXPIRED = 'sign_in_expired',
+    WAREHOUSE_NOT_SUPPORTED = 'warehouse_not_supported',
+    SERVICE_ACCOUNT = 'service_account',
+    EMBED_NOT_SUPPORTED = 'embed_not_supported',
+}
+
+export enum AiAccessRefusalAction {
+    SIGN_IN = 'sign_in',
+    ASK_ADMIN = 'ask_admin',
+}
+
+export const AI_ACCESS_REFUSED_CODE = 'ai_access_refused';
+
+export interface AiAccessRefusal {
+    requiredCapabilities?: AgentCapability[];
+    blockers?: AgentPermissionBlocker[];
+    blockersComplete?: boolean;
+    explanationUrl?: string;
+    code: 'ai_access_refused';
+    reason: AiAccessRefusalReason;
+    message: string;
+    action: AiAccessRefusalAction | null;
+    settingsUrl: string | null;
+    connectUrl: string | null;
+    capability?: AgentCapability | null;
+    policyLayer?:
+        | 'org_ceiling'
+        | 'project_scope'
+        | 'organization_setting'
+        | 'warehouse_identity'
+        | 'unmapped';
+    operation?: string;
+    policyVersion?: number;
+    projectUuid?: string | null;
+}
+
+export const getAiAccessRefusalMessage = (
+    reason: AiAccessRefusalReason,
+    { projectName }: { projectName: string | null },
+): string => {
+    switch (reason) {
+        case AiAccessRefusalReason.MCP_PROJECT_NOT_ALLOWED:
+            return 'MCP access to this project is disabled for your organization';
+        case AiAccessRefusalReason.AGENT_ACCESS_DISABLED:
+            return 'Agents are disabled. Ask an organization admin to enable agent access.';
+        case AiAccessRefusalReason.AGENT_CAPABILITY_DENIED:
+            return 'Agents cannot do this here. Ask an admin to review agent permissions.';
+        case AiAccessRefusalReason.AGENT_PROJECT_DENIED:
+            return 'Agents cannot access this project. Ask an organization admin to allow it.';
+        case AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED:
+            return 'Raw SQL needs a warehouse restriction confirmation. Ask a project admin to confirm the current agent connection.';
+        case AiAccessRefusalReason.AGENT_OPERATION_UNMAPPED:
+            return 'This operation has no agent permission mapping. Contact an admin for support.';
+        case AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED:
+            return 'Connect your Slack account so agents can run as you.';
+        case AiAccessRefusalReason.AGENT_SETTING_DENIED:
+            return 'Agent content writes are disabled. Ask an organization admin to enable them.';
+        case AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED:
+            return 'Your account is not allowed to use agents. Ask an organization admin to update agent access.';
+        case AiAccessRefusalReason.AGENT_GRANT_DENIED:
+            return 'This connection does not allow the operation. Reconnect with the required permissions.';
+        case AiAccessRefusalReason.AGENT_GRANT_REVOKED:
+            return 'This connection was revoked. Reconnect before using the agent.';
+        case AiAccessRefusalReason.AGENT_CHANNEL_DENIED:
+            return 'This channel is not allowed to use the agent. Ask an admin to update its channel settings.';
+        case AiAccessRefusalReason.AGENT_HUMAN_PERMISSION_DENIED:
+            return 'Your account cannot perform this operation. Ask an admin to update your project permissions.';
+
+        case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING:
+            return `Agents can't run on ${projectName ?? 'this project'} yet. It needs a shared agent account. A project admin can add one in Agent identity.`;
+        case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID:
+            return `Agents can't run on ${projectName ?? 'this project'} right now. Its shared agent account failed to sign in. A project admin can check it in Agent identity.`;
+        case AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED:
+            return "Agents can't use these results because your current agent sign-in didn't produce them. Run the query again through your agent.";
+        case AiAccessRefusalReason.PRINCIPAL_FAILED:
+            return 'The last check of your agent identity failed. Ask an admin to review it.';
+        case AiAccessRefusalReason.SIGN_IN_EXPIRED:
+            return 'Your agent sign-in expired. Connect your agent again.';
+        case AiAccessRefusalReason.NEEDS_SIGN_IN:
+            return 'Connect your agent to the warehouse once so it can run as you.';
+        case AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED:
+            return 'Agent identity is not available for this warehouse yet.';
+        case AiAccessRefusalReason.EMBED_NOT_SUPPORTED:
+            return "Agents run as a signed-in person on this connection. Embedded viewers can't use them.";
+        case AiAccessRefusalReason.SERVICE_ACCOUNT:
+            return "Agents run as a person on this connection. Service accounts can't use them.";
+        default:
+            return assertUnreachable(
+                reason,
+                'Unknown AI access refusal reason',
+            );
+    }
+};
+
+export const getAgentCapabilityRefusalMessage = (
+    reason: AiAccessRefusalReason,
+    policyLayer: AiAccessRefusal['policyLayer'] | null,
+    capability: AgentCapability | null,
+): string => {
+    if (capability !== null) {
+        const name = getAgentCapabilityName(capability);
+        if (reason === AiAccessRefusalReason.AGENT_CAPABILITY_DENIED) {
+            return policyLayer === 'org_ceiling' ||
+                policyLayer === 'organization_setting'
+                ? `Your organization's agent permissions do not allow ${name}. Ask an admin to change Permissions on the Agents page.`
+                : `Agents cannot use ${name} here. Ask an admin to review agent permissions.`;
+        }
+        if (reason === AiAccessRefusalReason.AGENT_HUMAN_PERMISSION_DENIED) {
+            return `Your roles do not allow ${name}. Ask an admin to review your permissions.`;
+        }
+    }
+    return getAiAccessRefusalMessage(reason, { projectName: null });
+};
+
+export const getAiAccessRefusalAction = (
+    reason: AiAccessRefusalReason,
+): AiAccessRefusalAction | null => {
+    switch (reason) {
+        case AiAccessRefusalReason.AGENT_ACCESS_DISABLED:
+        case AiAccessRefusalReason.AGENT_CAPABILITY_DENIED:
+        case AiAccessRefusalReason.AGENT_PROJECT_DENIED:
+        case AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED:
+        case AiAccessRefusalReason.AGENT_OPERATION_UNMAPPED:
+        case AiAccessRefusalReason.AGENT_SETTING_DENIED:
+        case AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED:
+        case AiAccessRefusalReason.AGENT_GRANT_DENIED:
+        case AiAccessRefusalReason.AGENT_GRANT_REVOKED:
+        case AiAccessRefusalReason.AGENT_CHANNEL_DENIED:
+        case AiAccessRefusalReason.AGENT_HUMAN_PERMISSION_DENIED:
+            return AiAccessRefusalAction.ASK_ADMIN;
+        case AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED:
+        case AiAccessRefusalReason.SIGN_IN_EXPIRED:
+        case AiAccessRefusalReason.NEEDS_SIGN_IN:
+            return AiAccessRefusalAction.SIGN_IN;
+        case AiAccessRefusalReason.PRINCIPAL_FAILED:
+        case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING:
+        case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID:
+            return AiAccessRefusalAction.ASK_ADMIN;
+        case AiAccessRefusalReason.MCP_PROJECT_NOT_ALLOWED:
+        case AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED:
+        case AiAccessRefusalReason.EMBED_NOT_SUPPORTED:
+        case AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED:
+        case AiAccessRefusalReason.SERVICE_ACCOUNT:
+            return null;
+        default:
+            return assertUnreachable(
+                reason,
+                'Unknown AI access refusal reason',
+            );
+    }
+};
+
+export const getAiAccessRefusalSettingsUrl = (
+    reason: AiAccessRefusalReason,
+    projectUuid: string | null,
+): string | null => {
+    switch (reason) {
+        case AiAccessRefusalReason.AGENT_ACCESS_DISABLED:
+        case AiAccessRefusalReason.AGENT_CAPABILITY_DENIED:
+        case AiAccessRefusalReason.AGENT_PROJECT_DENIED:
+        case AiAccessRefusalReason.AGENT_SETTING_DENIED:
+        case AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED:
+        case AiAccessRefusalReason.AGENT_GRANT_DENIED:
+        case AiAccessRefusalReason.AGENT_GRANT_REVOKED:
+        case AiAccessRefusalReason.AGENT_CHANNEL_DENIED:
+        case AiAccessRefusalReason.AGENT_HUMAN_PERMISSION_DENIED:
+            return AGENT_IDENTITY_SETTINGS_PATH;
+        case AiAccessRefusalReason.AGENT_RAW_SQL_UNCONFIRMED:
+            return projectUuid === null
+                ? AGENT_IDENTITY_SETTINGS_PATH
+                : getProjectAgentIdentitySettingsPath(projectUuid);
+        case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_MISSING:
+        case AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID:
+            return projectUuid === null
+                ? null
+                : getProjectAgentIdentitySettingsPath(projectUuid);
+        case AiAccessRefusalReason.AGENT_ACTOR_UNVERIFIED:
+        case AiAccessRefusalReason.AGENT_OPERATION_UNMAPPED:
+        case AiAccessRefusalReason.MCP_PROJECT_NOT_ALLOWED:
+        case AiAccessRefusalReason.RESULT_NOT_AGENT_PRODUCED:
+        case AiAccessRefusalReason.PRINCIPAL_FAILED:
+        case AiAccessRefusalReason.NEEDS_SIGN_IN:
+        case AiAccessRefusalReason.SIGN_IN_EXPIRED:
+        case AiAccessRefusalReason.WAREHOUSE_NOT_SUPPORTED:
+        case AiAccessRefusalReason.SERVICE_ACCOUNT:
+        case AiAccessRefusalReason.EMBED_NOT_SUPPORTED:
+            return null;
+        default:
+            return assertUnreachable(
+                reason,
+                'Unknown AI access refusal reason',
+            );
+    }
+};
+
+export const isAiAccessRefusal = (value: unknown): value is AiAccessRefusal =>
+    typeof value === 'object' &&
+    value !== null &&
+    (value as { code?: AnyType }).code === AI_ACCESS_REFUSED_CODE &&
+    typeof (value as { message?: AnyType }).message === 'string';
+
+export type OrganizationAgentIdentitySettings = {
+    requireVerifiedAgentSessions: boolean;
+};
+
+export type ApiOrganizationAgentIdentitySettingsResponse = {
+    status: 'ok';
+    results: OrganizationAgentIdentitySettings;
+};
+
+export type AiAccessForUser = {
+    requirementSource: 'organization' | null;
+    identity: AiExecutionPlan['identity'] | null;
+    source: 'marked_person' | 'agent_sign_in' | 'ai_service_account' | null;
+    marker: AiAgentMarker | null;
+    projectUuid: string;
+    warehouseConnectionUuid: string | null;
+    enabled: boolean;
+    principalKind: 'person' | 'service_account' | null;
+    refusal: AiAccessRefusal | null;
+    expiresAt: Date | null;
+    principalName: string | null;
+};
+
+export type ApiAiWarehouseCapabilitiesResponse = {
+    status: 'ok';
+    results: AiWarehouseCapabilities;
+};
+
+export type ApiAiAccessForUserResponse = {
+    status: 'ok';
+    results: AiAccessForUser;
+};
+
+export const getAiExecutionCredentialUuid = (
+    plan: AiExecutionPlan | null,
+): string | null => {
+    if (plan === null) return null;
+    switch (plan.identity) {
+        case 'connected_person':
+        case 'ai_service_account':
+            return plan.identityUuid;
+        case 'marked_person':
+            return null;
+        default:
+            return assertUnreachable(plan, 'Unknown AI execution identity');
+    }
+};

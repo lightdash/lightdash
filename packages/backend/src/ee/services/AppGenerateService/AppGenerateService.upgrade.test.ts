@@ -1,4 +1,5 @@
 import { ForbiddenError, ParameterError, ProjectType } from '@lightdash/common';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -77,6 +78,7 @@ function buildService(
         getVersionsWithDependencies: vi.fn().mockResolvedValue([]),
         createVersion: vi.fn().mockResolvedValue({ version: 5 }),
         updateSandboxUuid: vi.fn().mockResolvedValue(undefined),
+        clearSandboxUuidIfCurrent: vi.fn().mockResolvedValue(undefined),
     };
 
     const schedulerClient = {
@@ -108,6 +110,7 @@ function buildService(
     };
 
     const service = new AppGenerateService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: lightdashConfig as never,
         analytics: analytics as never,
@@ -116,6 +119,7 @@ function buildService(
         userModel: {} as never,
         appModel: appModel as never,
         featureFlagModel: featureFlagModel as never,
+        organizationSettingsModel: {} as never,
         organizationDesignModel: {} as never,
         pinnedListModel: {} as never,
         projectModel: {
@@ -142,6 +146,7 @@ function buildService(
         orgAiCopilotConfigResolver: {} as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        appThumbnailClient: buildAppThumbnailClientMock(),
         chartRegistryClient: {} as never,
         contentVerificationModel: {
             getByContent: async () => null,
@@ -149,6 +154,7 @@ function buildService(
             unverify: async () => undefined,
         } as never,
     });
+    vi.spyOn(service, 'isChartStudioAvailable').mockReturnValue(true);
 
     const canManage = opts.canManage ?? true;
     vi.spyOn(
@@ -489,7 +495,10 @@ describe('prepareUpgradeColdStart', () => {
         expect(manager.destroy).toHaveBeenCalledWith({
             sandboxUuid: 'sandbox-registry-uuid',
         });
-        expect(appModel.updateSandboxUuid).toHaveBeenCalledWith(APP_UUID, null);
+        expect(appModel.clearSandboxUuidIfCurrent).toHaveBeenCalledWith(
+            APP_UUID,
+            'sandbox-registry-uuid',
+        );
     });
 
     it('still destroys and clears when the old sandbox cannot be resumed', async () => {
@@ -501,7 +510,10 @@ describe('prepareUpgradeColdStart', () => {
         expect(manager.destroy).toHaveBeenCalledWith({
             sandboxUuid: 'sandbox-registry-uuid',
         });
-        expect(appModel.updateSandboxUuid).toHaveBeenCalledWith(APP_UUID, null);
+        expect(appModel.clearSandboxUuidIfCurrent).toHaveBeenCalledWith(
+            APP_UUID,
+            'sandbox-registry-uuid',
+        );
     });
 
     it('is a no-op when the app has no sandbox', async () => {
@@ -511,6 +523,6 @@ describe('prepareUpgradeColdStart', () => {
 
         expect(tar).toBeNull();
         expect(manager.destroy).not.toHaveBeenCalled();
-        expect(appModel.updateSandboxUuid).not.toHaveBeenCalled();
+        expect(appModel.clearSandboxUuidIfCurrent).not.toHaveBeenCalled();
     });
 });

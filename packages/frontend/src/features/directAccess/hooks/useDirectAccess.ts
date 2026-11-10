@@ -16,6 +16,7 @@ import {
 import useToaster from '../../../hooks/toaster/useToaster';
 import { invalidateContent } from '../../../hooks/useContent';
 import useApp from '../../../providers/App/useApp';
+import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
 import {
     getDirectAccessAssignments,
     getDirectAccessGroups,
@@ -43,33 +44,40 @@ export const useDirectAccessAssignments = (
     projectUuid: string,
     ref: DirectAccessResourceRef,
     queryOptions?: UseQueryOptions<DirectAccessAssignment[], ApiError>,
-) =>
-    useQuery<DirectAccessAssignment[], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<DirectAccessAssignment[], ApiError>({
         queryKey: directAccessQueryKey(projectUuid, ref),
-        queryFn: () => getDirectAccessAssignments(projectUuid, ref),
+        queryFn: () =>
+            getDirectAccessAssignments(lightdashApi, projectUuid, ref),
         retry: false,
         ...queryOptions,
     });
+};
 
 export const useDirectAccessGroups = (
     projectUuid: string,
     ref: DirectAccessResourceRef,
-) =>
-    useQuery<DirectAccessGroupPrincipal[], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<DirectAccessGroupPrincipal[], ApiError>({
         queryKey: [...directAccessQueryKey(projectUuid, ref), 'groups'],
-        queryFn: () => getDirectAccessGroups(projectUuid, ref),
+        queryFn: () => getDirectAccessGroups(lightdashApi, projectUuid, ref),
         retry: false,
     });
+};
 
 export const useDirectAccessUsers = (
     projectUuid: string,
     ref: DirectAccessResourceRef,
-) =>
-    useQuery<DirectAccessUserPrincipal[], ApiError>({
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<DirectAccessUserPrincipal[], ApiError>({
         queryKey: [...directAccessQueryKey(projectUuid, ref), 'users'],
-        queryFn: () => getDirectAccessUsers(projectUuid, ref),
+        queryFn: () => getDirectAccessUsers(lightdashApi, projectUuid, ref),
         retry: false,
     });
+};
 
 const useInvalidateAfterDirectAccessMutation = (
     projectUuid: string,
@@ -138,11 +146,13 @@ export const useUpsertDirectAccessAssignment = (
     projectUuid: string,
     ref: DirectAccessResourceRef,
 ) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const invalidate = useInvalidateAfterDirectAccessMutation(projectUuid, ref);
     return useMutation<unknown, ApiError, UpsertDirectAccessArgs>({
         mutationFn: ({ principalType, principalUuid, role }) =>
             upsertDirectAccessAssignment(
+                lightdashApi,
                 projectUuid,
                 ref,
                 principalType,
@@ -171,11 +181,13 @@ export const useRevokeDirectAccessAssignment = (
     projectUuid: string,
     ref: DirectAccessResourceRef,
 ) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const invalidate = useInvalidateAfterDirectAccessMutation(projectUuid, ref);
     return useMutation<unknown, ApiError, RevokeDirectAccessArgs>({
         mutationFn: ({ principalType, principalUuid }) =>
             revokeDirectAccessAssignment(
+                lightdashApi,
                 projectUuid,
                 ref,
                 principalType,
@@ -198,10 +210,11 @@ export const useResetDirectAccess = (
     projectUuid: string,
     ref: DirectAccessResourceRef,
 ) => {
+    const lightdashApi = useLightdashApi();
     const { showToastSuccess, showToastApiError } = useToaster();
     const invalidate = useInvalidateAfterDirectAccessMutation(projectUuid, ref);
     return useMutation<unknown, ApiError, void>({
-        mutationFn: () => resetDirectAccess(projectUuid, ref),
+        mutationFn: () => resetDirectAccess(lightdashApi, projectUuid, ref),
         onSuccess: async () => {
             await invalidate();
             showToastSuccess({ title: 'All access removed' });

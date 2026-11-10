@@ -1,4 +1,4 @@
-import { rem } from '@mantine/core';
+import { Box } from '@mantine/core';
 import {
     useCallback,
     useEffect,
@@ -10,6 +10,7 @@ import { useSearchParams } from 'react-router';
 import { CHAT_MESSAGE_PARAM, findChatAnchor } from '../../hooks/useChatBackUrl';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
+import { getPendingApprovalIds } from './ToolCalls/utils/sqlApprovalPending';
 
 const SCROLL_TO_BOTTOM_THRESHOLD = {
     streaming: 200,
@@ -17,6 +18,7 @@ const SCROLL_TO_BOTTOM_THRESHOLD = {
 };
 // Short panels, like small embed iframes, use a smaller threshold.
 const MAX_THRESHOLD_VIEWPORT_RATIO = 0.2;
+const STICK_TO_BOTTOM_PX = 8;
 
 type ScrollToBottomOptions = {
     behavior?: 'auto' | 'smooth';
@@ -48,10 +50,12 @@ function useAutoScroll(scrollAreaRef: React.RefObject<HTMLDivElement | null>) {
                 if (!nearBottom) return;
             }
 
-            const node = messagesEndRef.current;
-            if (!node) return;
+            const viewport = scrollAreaRef.current;
+            if (!viewport) return;
+            // Scroll only the chat viewport, never its ancestors: the agent can be
+            // embedded in a host page whose own scroll must not move
             let frame = requestAnimationFrame(() => {
-                node.scrollIntoView({ behavior });
+                viewport.scrollTo({ top: viewport.scrollHeight, behavior });
             });
             return () => cancelAnimationFrame(frame);
         },
@@ -96,10 +100,15 @@ const ThreadScrollToBottom = ({
                     return;
                 }
                 const anchorRect = anchor.getBoundingClientRect();
-                // Centre the element; one taller than the panel aligns to the top.
+                // Centre in the area above the sticky composer; taller ones align to the top.
+                const visibleHeight =
+                    viewport.clientHeight -
+                    (parseFloat(
+                        getComputedStyle(viewport).scrollPaddingBottom,
+                    ) || 0);
                 const centreOffset = Math.max(
                     0,
-                    (viewport.clientHeight - anchorRect.height) / 2,
+                    (visibleHeight - anchorRect.height) / 2,
                 );
                 viewport.scrollTop +=
                     anchorRect.top -
@@ -117,6 +126,37 @@ const ThreadScrollToBottom = ({
         scrollAreaRef,
         scrollToBottom,
     ]);
+
+    // Late layout (suggestion chips, expanding step groups) must not push the
+    // last answer under the sticky composer while the reader is at the bottom.
+    useEffect(() => {
+        const viewport = scrollAreaRef.current;
+        const content = viewport?.firstElementChild;
+        if (!viewport || !content) return undefined;
+        let pinned = returnMessageId === null;
+        let lastTop = viewport.scrollTop;
+        const onScroll = () => {
+            const distance =
+                viewport.scrollHeight -
+                viewport.scrollTop -
+                viewport.clientHeight;
+            if (distance < STICK_TO_BOTTOM_PX) pinned = true;
+            else if (viewport.scrollTop < lastTop) pinned = false;
+            lastTop = viewport.scrollTop;
+        };
+        const observer = new ResizeObserver(() => {
+            if (!pinned) return;
+            viewport.scrollTop = viewport.scrollHeight;
+        });
+        viewport.addEventListener('scroll', onScroll, { passive: true });
+        // The viewport itself too: a shorter panel must keep the last answer visible.
+        observer.observe(viewport);
+        for (const child of content.children) observer.observe(child);
+        return () => {
+            viewport.removeEventListener('scroll', onScroll);
+            observer.disconnect();
+        };
+    }, [scrollAreaRef, threadUuid, returnMessageId]);
 
     useEffect(() => {
         if (!searchParams.has(CHAT_MESSAGE_PARAM)) return;
@@ -181,6 +221,23 @@ const ThreadScrollToBottom = ({
         };
     }, [isStreaming, scrollToBottom]);
 
+    // The turn is paused on the user, so reveal the approval buttons even if
+    // they scrolled up. The card expands over ~260ms after the call lands.
+    const pendingApprovalKey = streamingState
+        ? getPendingApprovalIds(streamingState).join(',')
+        : '';
+    useEffect(() => {
+        if (!pendingApprovalKey) return;
+        const cancelFrame = scrollToBottom({ behavior: 'auto' });
+        const timeout = window.setTimeout(() => {
+            scrollToBottom({ behavior: 'smooth' });
+        }, 300);
+        return () => {
+            cancelFrame?.();
+            window.clearTimeout(timeout);
+        };
+    }, [pendingApprovalKey, scrollToBottom]);
+
     // Scroll to bottom when the last message gets a chart visualization
     const lastMessage = thread.data?.messages?.at(-1);
     const lastMessageViz =
@@ -198,10 +255,10 @@ const ThreadScrollToBottom = ({
     }, [lastMessageViz, scrollToBottom]);
 
     return (
-        <div
+        <Box
             ref={messagesEndRef}
             data-testid="thread-scroll-to-bottom"
-            style={{ marginTop: rem(-30) }}
+            mt={-30}
         />
     );
 };

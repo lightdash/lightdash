@@ -1,4 +1,7 @@
-import { type PersistentDownloadFileAccessMode } from '@lightdash/common';
+import {
+    type PersistentDownloadFileAccessMode,
+    type PersistentDownloadFileStorage,
+} from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const PersistentDownloadFileTableName = 'persistent_download_files';
@@ -11,6 +14,7 @@ export type DbPersistentDownloadFile = {
     project_uuid: string | null;
     created_by_user_uuid: string | null;
     access_mode: PersistentDownloadFileAccessMode;
+    storage: PersistentDownloadFileStorage;
     created_at: Date;
     expires_at: Date;
 };

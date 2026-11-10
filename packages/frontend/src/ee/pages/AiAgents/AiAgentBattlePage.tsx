@@ -1,3 +1,4 @@
+import type { AiAgentBattleProfile } from '@lightdash/common';
 import { Box, Center, Divider, Flex, Loader, Stack } from '@mantine/core';
 import { useCallback, useMemo, type FC } from 'react';
 import { useOutletContext, useParams } from 'react-router';
@@ -14,6 +15,16 @@ import {
     useCreateAgentThreadMessageMutation,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
 import { type AgentContext } from './AgentPage';
+
+const battleLabels: Record<AiAgentBattleProfile | 'A' | 'B', string> = {
+    fast: 'JEV on',
+    luna: 'Baseline',
+    baseline: 'Baseline',
+    classic: 'Classic',
+    composer: 'Composer',
+    A: 'A',
+    B: 'B',
+};
 
 const getThreadModelConfig = (
     thread: ReturnType<typeof useAiAgentThread>['data'],
@@ -136,11 +147,7 @@ const AiAgentBattlePage: FC = () => {
                 <Flex flex={1} mih={0} wrap="nowrap" align="stretch">
                     <Box flex={1} miw={0} h="100%">
                         <BattleThreadPane
-                            label={
-                                threadA.battleProfile === 'fast'
-                                    ? 'JEV on'
-                                    : 'A'
-                            }
+                            label={battleLabels[threadA.battleProfile ?? 'A']}
                             projectUuid={projectUuid}
                             agentUuid={agentUuid}
                             agentName={agent.name}
@@ -152,11 +159,7 @@ const AiAgentBattlePage: FC = () => {
                     <Divider orientation="vertical" />
                     <Box flex={1} miw={0} h="100%">
                         <BattleThreadPane
-                            label={
-                                threadB.battleProfile === 'baseline'
-                                    ? 'Baseline'
-                                    : 'B'
-                            }
+                            label={battleLabels[threadB.battleProfile ?? 'B']}
                             projectUuid={projectUuid}
                             agentUuid={agentUuid}
                             agentName={agent.name}
@@ -179,7 +182,6 @@ const AiAgentBattlePage: FC = () => {
                     agentUuid={agentUuid}
                     messageCount={threadA.messages.length}
                     showSuggestions={false}
-                    showFastMode={false}
                 />
             </Box>
         </Stack>

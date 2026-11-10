@@ -23,10 +23,11 @@ export const useArtifactResultRows = (results: InfiniteQueryResults) => {
         }
     }, [results]);
 
+    // An empty result has no columns either, so only a non-empty one waits on them
     const isLoading =
         results.isInitialLoading ||
         results.isFetchingFirstPage ||
-        columns.length === 0;
+        (columns.length === 0 && results.totalResults !== 0);
 
     return { columns, rows, isLoading };
 };

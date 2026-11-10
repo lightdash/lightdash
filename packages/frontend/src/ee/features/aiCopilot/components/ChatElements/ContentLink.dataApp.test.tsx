@@ -32,6 +32,7 @@ const message: AiAgentMessageAssistant = {
     tokenUsage: null,
     responseTiming: null,
     jevDecision: null,
+    loadout: null,
 };
 
 const renderDataAppChip = () =>

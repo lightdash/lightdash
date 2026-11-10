@@ -1,29 +1,68 @@
+import { Ability } from '@casl/ability';
 import {
     Account,
+    AgentActorSurface,
+    AgentCapability,
+    AiAccessRefusalReason,
+    AiAccessRefusedError,
+    AppVizBuildContext,
     CatalogType,
+    ChartType,
+    COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
     ContentType,
+    CustomDimensionType,
+    DATA_APP_VIZ_TEMPLATE,
     DimensionType,
     Explore,
+    ExploreType,
     FieldType,
     FilterOperator,
     ForbiddenError,
     JobStatusType,
+    mcpFindCustomChartTypesOutputSchema,
+    MergeJoinType,
     NotFoundError,
+    ParameterError,
+    PossibleAbilities,
+    PromotionAction,
     QueryExecutionContext,
     QueryHistoryStatus,
     QuerySourceType,
+    QuerySurface,
     RequestMethod,
     SessionUser,
     SourceQuery,
+    TableSelectionType,
     UnitOfTime,
     WarehouseTypes,
     type DataAppSearchResult,
     type DataAppVizSchema,
     type ExtractedDataReference,
     type PersistedDataAppDataReferences,
+    type SavedMergeDefinition,
+    type TablesConfiguration,
 } from '@lightdash/common';
+import { EventEmitter } from 'events';
+import knex from 'knex';
+import { getTracker, MockClient } from 'knex-mock-client';
+import { fromSession } from '../../../auth/account';
+import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { singleRouteProjectModelMethods } from '../../../models/ProjectModel/ProjectModel.mock';
+import {
+    expectAdmissionSql,
+    setupPermissionSql,
+} from '../../../services/AgentPermissionService/agentPermissionSqlFixture';
+import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../../../services/AiAccessService/agentActionTestUtils.mock';
+import { CoderService } from '../../../services/CoderService/CoderService';
+import { validatePagination } from '../../../services/ProjectService/resultsPagination';
+import { PromoteService } from '../../../services/PromoteService/PromoteService';
+import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
+import { getDescribeWarehouseTable } from '../ai/tools/describeWarehouseTable';
+import { getRunContentQuery } from '../ai/tools/runContentQuery';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import type { DataAppReadSource } from '../AppGenerateService/AppGenerateService';
 import {
@@ -48,11 +87,7 @@ const user = {
     },
 } as unknown as SessionUser;
 
-const account = {
-    isRegisteredUser: () => true,
-    isServiceAccount: () => false,
-    user: { id: userUuid },
-} as unknown as Account;
+const account = fromSession({ ...defaultSessionUser, ...user });
 
 const makeExplore = ({
     name,
@@ -89,6 +124,10 @@ const makeExplore = ({
     }) as unknown as Explore;
 
 const makeService = ({
+    agentPermissionService = {
+        assertOperationWithRequest: vi.fn().mockResolvedValue(undefined),
+        loadRequest: vi.fn().mockResolvedValue({ enforcementMode: 'off' }),
+    },
     explores = {},
     userAttributes = {},
     searchCatalog = vi.fn(),
@@ -98,8 +137,12 @@ const makeService = ({
     spaceModel = {
         hasSpaceWithPathAndUuids: vi.fn().mockResolvedValue(true),
     },
+    spacePermissionService = {
+        getAccessibleSpaceUuids: vi.fn().mockResolvedValue([]),
+    },
     dashboardService = {},
     savedChartService = {},
+    savedSqlService = {},
     asyncQueryService = {},
     coderService = {},
     aiAgentContentValidation = {},
@@ -107,6 +150,10 @@ const makeService = ({
     jobModel = { get: vi.fn() },
     aiAgentDocumentModel = {},
     aiDeepResearchRunModel = {},
+    aiAgentModel = {
+        findToolResultsByToolCallIds: vi.fn().mockResolvedValue([]),
+    },
+    documentService = {},
     featureFlagService = {
         get: vi.fn().mockResolvedValue({ enabled: false }),
     },
@@ -120,7 +167,12 @@ const makeService = ({
     appModel = {},
     savedChartModel = {},
     dashboardModel = {},
+    maxQueryLimit = 500,
 }: {
+    agentPermissionService?: Pick<
+        import('../../../services/AgentPermissionService/AgentPermissionService').AgentPermissionService,
+        'assertOperationWithRequest' | 'loadRequest'
+    >;
     explores?: Record<string, Explore>;
     userAttributes?: Record<string, string[]>;
     searchCatalog?: import('vitest').Mock;
@@ -128,15 +180,21 @@ const makeService = ({
     searchFieldUniqueValues?: import('vitest').Mock;
     projectSpaces?: Array<{ uuid: string; path: string }>;
     spaceModel?: Record<string, unknown>;
+    spacePermissionService?: Record<string, unknown>;
     dashboardService?: Record<string, unknown>;
     savedChartService?: Record<string, unknown>;
+    savedSqlService?: Record<string, unknown> | SavedSqlService;
     asyncQueryService?: Record<string, unknown>;
     coderService?: Record<string, unknown>;
-    aiAgentContentValidation?: Record<string, unknown>;
+    aiAgentContentValidation?:
+        | Record<string, unknown>
+        | AiAgentContentValidation;
     scheduleCompileProject?: import('vitest').Mock;
     jobModel?: Record<string, unknown>;
     aiAgentDocumentModel?: Record<string, unknown>;
     aiDeepResearchRunModel?: Record<string, unknown>;
+    aiAgentModel?: Record<string, unknown>;
+    documentService?: Record<string, unknown>;
     featureFlagService?: Record<string, unknown>;
     projectModel?: Record<string, unknown>;
     projectService?: Record<string, unknown>;
@@ -148,8 +206,11 @@ const makeService = ({
     appModel?: Record<string, unknown>;
     savedChartModel?: Record<string, unknown>;
     dashboardModel?: Record<string, unknown>;
+    maxQueryLimit?: number;
 } = {}) =>
     new AiAgentToolsService({
+        agentPermissionService,
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         builtInSkills: {
             getAiAgentSkills: vi.fn(),
             getAiAgentSkill: vi.fn(),
@@ -161,7 +222,7 @@ const makeService = ({
         },
         lightdashConfig: {
             siteUrl: 'https://lightdash.example',
-            ai: { copilot: { maxQueryLimit: 500 } },
+            ai: { copilot: { maxQueryLimit } },
         },
         projectModel: {
             findExploresFromCache: vi.fn(
@@ -180,6 +241,9 @@ const makeService = ({
             ),
             getAllByOrganizationUuid: vi.fn().mockResolvedValue([]),
             get: vi.fn(),
+            getTablesConfiguration: vi.fn().mockResolvedValue({
+                tableSelection: { type: TableSelectionType.ALL, value: null },
+            }),
             ...projectModel,
         },
         projectService: {
@@ -203,18 +267,22 @@ const makeService = ({
         searchModel: {},
         searchService,
         spaceService: {},
+        spacePermissionService,
         spaceModel,
         dashboardService,
         savedChartService,
+        savedSqlService,
         coderService,
         contentService,
         aiAgentContentValidation,
         projectContextModel: {},
         aiAgentDocumentModel,
         aiDeepResearchRunModel,
+        aiAgentModel,
+        documentService,
         featureFlagService,
-        previewDeploySetupService: {},
         shareService: {},
+        userService: {},
         asyncQueryService,
         querySourceService,
         appGenerateService,
@@ -239,15 +307,143 @@ function makeRuntimeContext(
         organizationUuid,
         projectUuid,
         source: 'ai_agent',
+        querySurface:
+            overrides.source === 'mcp' ? QuerySurface.MCP : QuerySurface.SLACK,
         catalogSearchContext: CatalogSearchContext.AI_AGENT,
         defaultQueryExecutionContext: QueryExecutionContext.AI,
         tags: null,
         spaceAccess: null,
+        readOnlySpaceUuids: [],
+        threadBinding: null,
         ...overrides,
     };
 }
 
 describe('AiAgentToolsService', () => {
+    it('preserves the AI and MCP contexts when listing warehouse tables', async () => {
+        const getWarehouseTables = vi.fn().mockResolvedValue({});
+        const service = makeService({ projectService: { getWarehouseTables } });
+        await service
+            .createRuntime(makeRuntimeContext())
+            .listWarehouseTables(QueryExecutionContext.AI);
+        expect(getWarehouseTables).toHaveBeenLastCalledWith(
+            user,
+            projectUuid,
+            QueryExecutionContext.AI,
+            QuerySurface.SLACK,
+        );
+        await service
+            .createRuntime(
+                makeRuntimeContext({
+                    source: 'mcp',
+                    defaultQueryExecutionContext:
+                        QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                }),
+            )
+            .listWarehouseTables(QueryExecutionContext.AI);
+        expect(getWarehouseTables).toHaveBeenLastCalledWith(
+            user,
+            projectUuid,
+            QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            QuerySurface.MCP,
+        );
+    });
+
+    it.each([QuerySurface.SLACK, QuerySurface.API])(
+        'forwards %s for SQL, metric and field queries',
+        async (querySurface) => {
+            const executeAsyncSqlQuery = vi
+                .fn()
+                .mockResolvedValue({ queryUuid: 'sql' });
+            const executeMetricQueryAndGetResults = vi
+                .fn()
+                .mockResolvedValue({ queryUuid: 'metric', rows: [] });
+            const searchFieldUniqueValues = vi
+                .fn()
+                .mockResolvedValue({ results: ['paid'] });
+            const executionStats = {
+                jobId: 'job-1',
+                bytesProcessed: 0,
+                bytesBilled: 0,
+                executionTimeMs: 120,
+                cacheHit: true,
+            };
+            const getQueryExecutionStats = vi
+                .fn()
+                .mockResolvedValue(executionStats);
+            const service = makeService({
+                explores: { orders: makeExplore({ name: 'orders' }) },
+                searchFieldUniqueValues,
+                asyncQueryService: {
+                    executeAsyncSqlQuery,
+                    executeMetricQueryAndGetResults,
+                    getAsyncQueryResults: vi.fn().mockResolvedValue({
+                        status: QueryHistoryStatus.READY,
+                        rows: [],
+                        columns: {},
+                    }),
+                    getQueryExecutionStats,
+                },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ querySurface }),
+            );
+            const sqlResult = await runtime.runSqlJob({
+                sql: 'select 1',
+                limit: 10,
+            });
+            expect(sqlResult.executionStats).toEqual(executionStats);
+            expect(getQueryExecutionStats).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({ queryUuid: 'sql' }),
+            );
+            await runtime.runAsyncQuery({
+                exploreName: 'orders',
+                dimensions: [],
+                metrics: [],
+                filters: {},
+                sorts: [],
+                limit: 10,
+                tableCalculations: [],
+                additionalMetrics: [],
+                customMetrics: null,
+            });
+            await runtime.searchFieldValues({
+                table: 'orders',
+                fieldId: 'orders_status',
+                query: 'paid',
+            });
+            expect(executeAsyncSqlQuery).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    context: QueryExecutionContext.AI,
+                    querySurface,
+                }),
+            );
+            expect(
+                executeMetricQueryAndGetResults,
+            ).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    context: QueryExecutionContext.AI,
+                    querySurface,
+                }),
+                expect.anything(),
+            );
+            expect(searchFieldUniqueValues).toHaveBeenCalledExactlyOnceWith(
+                account,
+                projectUuid,
+                'orders',
+                'orders_status',
+                'paid',
+                100,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                QueryExecutionContext.AI,
+                querySurface,
+            );
+        },
+    );
+
     const makeProjectSpace = (uuid: string, path: string, name: string) => ({
         uuid,
         path,
@@ -289,6 +485,7 @@ describe('AiAgentToolsService', () => {
         };
         const findDataAppVisualizationBySlug = vi.fn().mockResolvedValue({
             app_id: 'viz-uuid',
+            name: 'Funnel',
             viz_schema: {
                 fields: [
                     {
@@ -307,9 +504,6 @@ describe('AiAgentToolsService', () => {
             viz_schema: latestRenderableSchema,
         });
         const service = makeService({
-            featureFlagService: {
-                get: vi.fn().mockResolvedValue({ enabled: true }),
-            },
             appModel: {
                 findDataAppVisualizationBySlug,
                 getLatestRenderableDataAppVizVersion,
@@ -328,6 +522,7 @@ describe('AiAgentToolsService', () => {
             resolveCustomChartType(makeRuntimeContext(), 'funnel-viz'),
         ).resolves.toEqual({
             dataAppVizUuid: 'viz-uuid',
+            name: 'Funnel',
             dataAppVizVersion: 2,
             schema: latestRenderableSchema,
         });
@@ -649,6 +844,71 @@ describe('AiAgentToolsService', () => {
         ]);
     });
 
+    it('accepts a custom SQL dimension defined in the same query', async () => {
+        const executeMetricQueryAndGetResults = vi.fn().mockResolvedValue({
+            queryUuid: 'result',
+            rows: [],
+            fields: {},
+            cacheMetadata: { cacheHit: false },
+        });
+        const service = makeService({
+            explores: {
+                orders: makeExplore({
+                    name: 'orders',
+                    metrics: {
+                        count: {
+                            fieldType: FieldType.METRIC,
+                            name: 'count',
+                            table: 'orders',
+                        },
+                    },
+                }),
+            },
+            asyncQueryService: { executeMetricQueryAndGetResults },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ source: 'ai_agent' }),
+        );
+        const metricQuery = {
+            exploreName: 'orders',
+            dimensions: ['container_type'],
+            metrics: ['orders_count'],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+            customMetrics: null,
+            customDimensions: [
+                {
+                    id: 'container_type',
+                    name: 'container_type',
+                    table: 'orders',
+                    type: CustomDimensionType.SQL as const,
+                    sql: "${orders.custom_fields} ->> 'containertype'",
+                    dimensionType: DimensionType.STRING,
+                },
+            ],
+        };
+
+        await runtime.runAsyncQuery(metricQuery);
+
+        expect(executeMetricQueryAndGetResults).toHaveBeenCalledWith(
+            expect.objectContaining({
+                metricQuery: expect.objectContaining({
+                    customDimensions: metricQuery.customDimensions,
+                }),
+            }),
+            expect.anything(),
+        );
+        await expect(
+            runtime.runAsyncQuery({
+                ...metricQuery,
+                dimensions: ['orders_missing'],
+            }),
+        ).rejects.toThrow('Field not found: orders_missing');
+    });
+
     it('blocks unbounded dimension-only scans before warehouse execution', async () => {
         const executeMetricQueryAndGetResults = vi.fn();
         const service = makeService({
@@ -688,8 +948,43 @@ describe('AiAgentToolsService', () => {
     });
 
     describe('describeWarehouseTable scope', () => {
+        it('keeps a credential refusal in the describe tool output', async () => {
+            const refusal = new AiAccessRefusedError(
+                AiAccessRefusalReason.AI_SERVICE_ACCOUNT_INVALID,
+            );
+            const describeWarehouseTable = vi
+                .fn()
+                .mockRejectedValueOnce(refusal);
+            const service = makeService({
+                projectService: { describeWarehouseTable },
+            });
+            const runtime = service.createRuntime(makeRuntimeContext());
+            const describeTool = getDescribeWarehouseTable({
+                describeWarehouseTable: runtime.describeWarehouseTable,
+            });
+
+            await expect(
+                describeTool.execute!(
+                    {
+                        table: 'orders',
+                        schema: 'jaffle',
+                        database: 'analytics',
+                    },
+                    { toolCallId: 'describe-table', messages: [], context: {} },
+                ),
+            ).resolves.toEqual({
+                result: refusal.message,
+                structuredContent: {
+                    error: refusal.message,
+                    refusal: refusal.refusal,
+                },
+                metadata: { status: 'error' },
+            });
+            expect(describeWarehouseTable).toHaveBeenCalledOnce();
+        });
+
         it('blocks metadata from an excluded default database', async () => {
-            const getWarehouseFields = vi.fn();
+            const describeWarehouseTable = vi.fn();
             const service = makeService({
                 projectModel: {
                     ...singleRouteProjectModelMethods,
@@ -701,7 +996,7 @@ describe('AiAgentToolsService', () => {
                             schema: 'jaffle',
                         }),
                 },
-                projectService: { getWarehouseFields },
+                projectService: { describeWarehouseTable },
             });
             const runtime = service.createRuntime(
                 makeRuntimeContext({
@@ -720,15 +1015,18 @@ describe('AiAgentToolsService', () => {
             ).rejects.toThrow(
                 'reads from catalog `postgres3`, which is explicitly excluded',
             );
-            expect(getWarehouseFields).not.toHaveBeenCalled();
+            expect(describeWarehouseTable).not.toHaveBeenCalled();
         });
 
         it('describes a table in an explicitly allowed database', async () => {
-            const getWarehouseFields = vi.fn().mockResolvedValue({
-                customer_id: DimensionType.STRING,
+            const describeWarehouseTable = vi.fn().mockResolvedValue({
+                fields: { customer_id: DimensionType.STRING },
+                nativeTypes: {},
+                partitioning: null,
+                warehouseType: WarehouseTypes.POSTGRES,
             });
             const service = makeService({
-                projectService: { getWarehouseFields },
+                projectService: { describeWarehouseTable },
             });
             const runtime = service.createRuntime(
                 makeRuntimeContext({
@@ -746,17 +1044,28 @@ describe('AiAgentToolsService', () => {
                     database: 'analytics',
                 }),
             ).resolves.toEqual({
-                columns: [{ name: 'customer_id', type: DimensionType.STRING }],
+                columns: [
+                    {
+                        name: 'customer_id',
+                        type: DimensionType.STRING,
+                        nativeType: null,
+                    },
+                ],
                 resolvedSchema: 'jaffle',
                 resolvedDatabase: 'analytics',
+                partitioning: null,
+                warehouseType: WarehouseTypes.POSTGRES,
             });
-            expect(getWarehouseFields).toHaveBeenCalledWith(
+            expect(describeWarehouseTable).toHaveBeenCalledWith(
                 user,
                 projectUuid,
                 QueryExecutionContext.AI,
-                'orders',
-                'jaffle',
-                'analytics',
+                {
+                    tableName: 'orders',
+                    schemaName: 'jaffle',
+                    databaseName: 'analytics',
+                },
+                QuerySurface.SLACK,
             );
         });
 
@@ -766,8 +1075,11 @@ describe('AiAgentToolsService', () => {
         ])(
             'treats a $label optional database as the default database',
             async ({ database }) => {
-                const getWarehouseFields = vi.fn().mockResolvedValue({
-                    customer_id: DimensionType.STRING,
+                const describeWarehouseTable = vi.fn().mockResolvedValue({
+                    fields: { customer_id: DimensionType.STRING },
+                    nativeTypes: {},
+                    partitioning: null,
+                    warehouseType: WarehouseTypes.POSTGRES,
                 });
                 const service = makeService({
                     projectModel: {
@@ -780,7 +1092,7 @@ describe('AiAgentToolsService', () => {
                                 schema: 'jaffle',
                             }),
                     },
-                    projectService: { getWarehouseFields },
+                    projectService: { describeWarehouseTable },
                 });
                 const runtime = service.createRuntime(makeRuntimeContext());
 
@@ -790,20 +1102,26 @@ describe('AiAgentToolsService', () => {
                     database,
                 });
 
-                expect(getWarehouseFields).toHaveBeenCalledWith(
+                expect(describeWarehouseTable).toHaveBeenCalledWith(
                     user,
                     projectUuid,
                     QueryExecutionContext.AI,
-                    'orders',
-                    'jaffle',
-                    'postgres3',
+                    {
+                        tableName: 'orders',
+                        schemaName: 'jaffle',
+                        databaseName: 'postgres3',
+                    },
+                    QuerySurface.SLACK,
                 );
             },
         );
 
         it('uses the Databricks catalog and schema defaults', async () => {
-            const getWarehouseFields = vi.fn().mockResolvedValue({
-                customer_id: DimensionType.STRING,
+            const describeWarehouseTable = vi.fn().mockResolvedValue({
+                fields: { customer_id: DimensionType.STRING },
+                nativeTypes: {},
+                partitioning: null,
+                warehouseType: WarehouseTypes.POSTGRES,
             });
             const service = makeService({
                 projectModel: {
@@ -816,19 +1134,22 @@ describe('AiAgentToolsService', () => {
                             database: 'analytics',
                         }),
                 },
-                projectService: { getWarehouseFields },
+                projectService: { describeWarehouseTable },
             });
             const runtime = service.createRuntime(makeRuntimeContext());
 
             await runtime.describeWarehouseTable({ table: 'orders' });
 
-            expect(getWarehouseFields).toHaveBeenCalledWith(
+            expect(describeWarehouseTable).toHaveBeenCalledWith(
                 user,
                 projectUuid,
                 QueryExecutionContext.AI,
-                'orders',
-                'analytics',
-                'main',
+                {
+                    tableName: 'orders',
+                    schemaName: 'analytics',
+                    databaseName: 'main',
+                },
+                QuerySurface.SLACK,
             );
         });
     });
@@ -982,6 +1303,7 @@ describe('AiAgentToolsService', () => {
                     findReportSummariesByThreadScoped: vi
                         .fn()
                         .mockResolvedValue([run]),
+                    findByThreadScoped: vi.fn().mockResolvedValue([]),
                 },
             });
             const runtime = service.createRuntime(
@@ -1037,6 +1359,146 @@ describe('AiAgentToolsService', () => {
             });
         });
 
+        const publishedRun = {
+            ...run,
+            ai_deep_research_run_uuid: 'published-run',
+            prompt_uuid: 'prompt-uuid',
+            result_markdown: null,
+        };
+        const publishedDocument = {
+            documentUuid: '3f1d9a52-1d1c-4b7e-9a51-0d8c2f6e7a10',
+            name: 'Revenue fell in spring',
+            slug: 'revenue-fell-in-spring',
+            updatedAt: new Date('2026-07-29T10:06:00.000Z'),
+            version: {
+                content: {
+                    markdown: '# Spring dip\n\nOrders fell.',
+                    charts: {},
+                },
+            },
+        };
+        const registeredAccount = {
+            ...account,
+            user: { id: userUuid, type: 'registered' },
+        } as unknown as Account;
+        const publishedServices = (
+            documentService: Record<string, unknown>,
+        ) => ({
+            aiAgentDocumentModel: {
+                findAllForAgent: vi.fn().mockResolvedValue([]),
+                getContentForAgent: vi.fn().mockResolvedValue(undefined),
+            },
+            aiDeepResearchRunModel: {
+                findReportSummariesByThreadScoped: vi
+                    .fn()
+                    .mockResolvedValue([]),
+                findReportByUuidThreadScoped: vi
+                    .fn()
+                    .mockResolvedValue(undefined),
+                findByThreadScoped: vi.fn().mockResolvedValue([publishedRun]),
+            },
+            aiAgentModel: {
+                findToolResultsByToolCallIds: vi.fn().mockResolvedValue([
+                    {
+                        promptUuid: 'prompt-uuid',
+                        toolCallId: 'deep-research-published-run-document',
+                        toolName: 'createContent',
+                        metadata: {
+                            status: 'success',
+                            uuid: publishedDocument.documentUuid,
+                            name: publishedDocument.name,
+                            slug: publishedDocument.slug,
+                        },
+                    },
+                ]),
+            },
+            documentService,
+        });
+
+        it('lists a report published as a Document as a thread document', async () => {
+            const service = makeService(
+                publishedServices({
+                    get: vi.fn().mockResolvedValue(publishedDocument),
+                }),
+            );
+            const runtime = service.createRuntime(
+                makeRuntimeContext({
+                    account: registeredAccount,
+                    agentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                }),
+            );
+
+            await expect(runtime.listKnowledgeDocuments()).resolves.toEqual([
+                expect.objectContaining({
+                    uuid: 'published-run',
+                    name: 'Revenue fell in spring',
+                    mimeType: 'text/markdown',
+                    summary: expect.objectContaining({
+                        description: expect.stringContaining(
+                            'slug "revenue-fell-in-spring"',
+                        ),
+                    }),
+                }),
+            ]);
+        });
+
+        it('reads a published report through the Document', async () => {
+            const get = vi.fn().mockResolvedValue(publishedDocument);
+            const service = makeService(publishedServices({ get }));
+            const runtime = service.createRuntime(
+                makeRuntimeContext({
+                    account: registeredAccount,
+                    agentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                }),
+            );
+
+            await expect(
+                runtime.getKnowledgeDocumentContent({
+                    documentUuid: 'published-run',
+                }),
+            ).resolves.toEqual({
+                uuid: 'published-run',
+                name: 'Revenue fell in spring',
+                mimeType: 'text/markdown',
+                content: '# Spring dip\n\nOrders fell.',
+            });
+            expect(get).toHaveBeenCalledWith(
+                registeredAccount,
+                projectUuid,
+                publishedDocument.documentUuid,
+            );
+        });
+
+        it('skips a published report the user can no longer read', async () => {
+            const service = makeService(
+                publishedServices({
+                    get: vi
+                        .fn()
+                        .mockRejectedValue(
+                            new NotFoundError('Document not found'),
+                        ),
+                }),
+            );
+            const runtime = service.createRuntime(
+                makeRuntimeContext({
+                    account: registeredAccount,
+                    agentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                }),
+            );
+
+            await expect(runtime.listKnowledgeDocuments()).resolves.toEqual([]);
+            await expect(
+                runtime.getKnowledgeDocumentContent({
+                    documentUuid: 'published-run',
+                }),
+            ).rejects.toThrow(
+                'Knowledge document published-run is not accessible to this agent.',
+            );
+        });
+
         it('rejects runs without an accessible report', async () => {
             const service = makeService({
                 aiAgentDocumentModel: {
@@ -1046,6 +1508,7 @@ describe('AiAgentToolsService', () => {
                     findReportByUuidThreadScoped: vi
                         .fn()
                         .mockResolvedValue(undefined),
+                    findByThreadScoped: vi.fn().mockResolvedValue([]),
                 },
             });
             const runtime = service.createRuntime(
@@ -1129,6 +1592,40 @@ describe('AiAgentToolsService', () => {
                 query: 'yes',
             }),
         ).resolves.toEqual(['true']);
+        expect(searchFieldUniqueValues).not.toHaveBeenCalled();
+    });
+
+    it('searches a live source through the async query path', async () => {
+        const searchFieldUniqueValues = vi.fn();
+        const searchFieldValuesAndWait = vi
+            .fn()
+            .mockResolvedValue({ results: ['$pageview'] });
+        const service = makeService({
+            explores: {
+                posthog_events: {
+                    ...makeExplore({ name: 'posthog_events' }),
+                    type: ExploreType.API_SOURCE,
+                },
+            },
+            searchFieldUniqueValues,
+            asyncQueryService: { searchFieldValuesAndWait },
+        });
+        const runtime = service.createRuntime(makeRuntimeContext());
+
+        await expect(
+            runtime.searchFieldValues({
+                table: 'posthog_events',
+                fieldId: 'posthog_events_event',
+                query: 'page',
+            }),
+        ).resolves.toEqual(['$pageview']);
+        expect(searchFieldValuesAndWait).toHaveBeenCalledWith(
+            expect.objectContaining({
+                table: 'posthog_events',
+                search: 'page',
+                context: QueryExecutionContext.AI,
+            }),
+        );
         expect(searchFieldUniqueValues).not.toHaveBeenCalled();
     });
 
@@ -1344,6 +1841,183 @@ describe('AiAgentToolsService', () => {
         expect(Object.keys(explore.tables.orders.metrics)).toEqual([
             'visible_metric',
         ]);
+    });
+
+    describe('project Tables configuration', () => {
+        const makeSelectionService = (
+            tableSelection: TablesConfiguration['tableSelection'],
+            userAttributes: Record<string, string[]> = {},
+        ) =>
+            makeService({
+                userAttributes,
+                explores: {
+                    orders: makeExplore({
+                        name: 'orders',
+                        tags: ['approved', 'ai'],
+                    }),
+                    customers: makeExplore({
+                        name: 'customers',
+                        tags: ['internal', 'ai'],
+                    }),
+                    secure: makeExplore({
+                        name: 'secure',
+                        tags: ['approved', 'ai'],
+                        requiredAttributes: { access_level: '2' },
+                    }),
+                    payments: makeExplore({
+                        name: 'payments',
+                        tags: ['approved'],
+                    }),
+                    virtual_view: {
+                        ...makeExplore({ name: 'virtual_view' }),
+                        type: ExploreType.VIRTUAL,
+                    },
+                    orders__daily: {
+                        ...makeExplore({
+                            name: 'orders__daily',
+                            tags: ['approved', 'ai'],
+                        }),
+                        type: ExploreType.PRE_AGGREGATE,
+                        preAggregateSource: {
+                            sourceExploreName: 'orders',
+                            preAggregateName: 'daily',
+                        },
+                    },
+                    customers__daily: {
+                        ...makeExplore({
+                            name: 'customers__daily',
+                            tags: ['internal', 'ai'],
+                        }),
+                        type: ExploreType.PRE_AGGREGATE,
+                        preAggregateSource: {
+                            sourceExploreName: 'customers',
+                            preAggregateName: 'daily',
+                        },
+                    },
+                },
+                projectModel: {
+                    getTablesConfiguration: vi
+                        .fn()
+                        .mockResolvedValue({ tableSelection }),
+                },
+            });
+
+        const listNames = async (
+            service: AiAgentToolsService,
+            availableTags: string[] | null = null,
+        ) =>
+            (
+                await service.getAvailableExplores({
+                    user,
+                    projectUuid,
+                    availableTags,
+                })
+            )
+                .map((explore) => explore.name)
+                .sort();
+
+        it('keeps every explore for the entire project', async () => {
+            const service = makeSelectionService(
+                { type: TableSelectionType.ALL, value: null },
+                { access_level: ['2'] },
+            );
+
+            await expect(listNames(service)).resolves.toEqual([
+                'customers',
+                'customers__daily',
+                'orders',
+                'orders__daily',
+                'payments',
+                'secure',
+                'virtual_view',
+            ]);
+        });
+
+        it('excludes explores outside a models-in-list selection from listing and lookup', async () => {
+            const service = makeSelectionService({
+                type: TableSelectionType.WITH_NAMES,
+                value: ['orders'],
+            });
+
+            await expect(listNames(service)).resolves.toEqual([
+                'orders',
+                'orders__daily',
+                'virtual_view',
+            ]);
+            await expect(
+                service.getExplore({
+                    user,
+                    projectUuid,
+                    availableTags: null,
+                    exploreName: 'orders',
+                }),
+            ).resolves.toMatchObject({ name: 'orders' });
+            await expect(
+                service.getExplore({
+                    user,
+                    projectUuid,
+                    availableTags: null,
+                    exploreName: 'customers',
+                }),
+            ).rejects.toThrow(NotFoundError);
+        });
+
+        it('names the unavailable explore and tells the caller not to retry', async () => {
+            const service = makeSelectionService({
+                type: TableSelectionType.WITH_NAMES,
+                value: ['orders'],
+            });
+
+            await expect(
+                service.getExplore({
+                    user,
+                    projectUuid,
+                    availableTags: null,
+                    exploreName: 'customers',
+                }),
+            ).rejects.toThrow(
+                /Explore "customers" is not available\..*Do not retry this explore/,
+            );
+        });
+
+        it('excludes explores without a selected tag', async () => {
+            const service = makeSelectionService({
+                type: TableSelectionType.WITH_TAGS,
+                value: ['approved'],
+            });
+
+            await expect(listNames(service)).resolves.toEqual([
+                'orders',
+                'orders__daily',
+                'payments',
+                'virtual_view',
+            ]);
+            await expect(
+                service.getExplore({
+                    user,
+                    projectUuid,
+                    availableTags: null,
+                    exploreName: 'customers',
+                }),
+            ).rejects.toThrow(NotFoundError);
+        });
+
+        it('combines the selection with agent tags and user attributes', async () => {
+            const selection = {
+                type: TableSelectionType.WITH_TAGS,
+                value: ['approved'],
+            };
+
+            await expect(
+                listNames(makeSelectionService(selection), ['ai']),
+            ).resolves.toEqual(['orders', 'orders__daily']);
+            await expect(
+                listNames(
+                    makeSelectionService(selection, { access_level: ['2'] }),
+                    ['ai'],
+                ),
+            ).resolves.toEqual(['orders', 'orders__daily', 'secure']);
+        });
     });
 
     it('adds verified field usage for AI runtime searches but not MCP searches', async () => {
@@ -1853,6 +2527,7 @@ describe('AiAgentToolsService', () => {
                 chartUuid: 'allowed-chart-uuid',
                 limit: 100,
                 context: QueryExecutionContext.AI,
+                querySurface: QuerySurface.SLACK,
             },
             undefined,
             onQueryPrepared,
@@ -1926,7 +2601,7 @@ describe('AiAgentToolsService', () => {
         const service = makeService({
             spaceModel: denySpaceAccessModel(),
             coderService: { upsertDashboard },
-            aiAgentContentValidation: { validateContent: vi.fn() },
+            aiAgentContentValidation: { validateNewContent: vi.fn() },
         });
         const runtime = service.createRuntime(
             makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
@@ -2049,6 +2724,997 @@ describe('AiAgentToolsService', () => {
                 ],
             }),
         ).resolves.toBeDefined();
+    });
+
+    describe('agent merge authoring', () => {
+        const merge: SavedMergeDefinition = {
+            queries: {
+                returns: {
+                    explore: 'returns',
+                    dimensions: ['returns_status'],
+                    metrics: ['returns_count'],
+                },
+            },
+            join: MergeJoinType.FULL,
+            keys: { orders_status: ['returns.returns_status'] },
+            limit: 500,
+        };
+        const mergedChart = {
+            ...makeChartContent({}),
+            metricQuery: {
+                ...makeChartContent({}).metricQuery,
+                dimensions: ['orders_status'],
+                filters: {
+                    dimensions: {
+                        id: 'stored-group',
+                        and: [
+                            {
+                                id: 'stored-rule',
+                                target: { fieldId: 'orders_status' },
+                                operator: FilterOperator.EQUALS,
+                                values: ['completed'],
+                            },
+                        ],
+                    },
+                },
+            },
+            merge,
+        };
+        const makeChartService = (stored: Record<string, unknown>) => {
+            const upsertChart = vi.fn().mockResolvedValue({
+                charts: [{ data: { uuid: 'chart-uuid', slug: stored.slug } }],
+            });
+            const service = makeService({
+                savedChartService: {
+                    get: vi.fn().mockResolvedValue({ uuid: 'chart-uuid' }),
+                },
+                coderService: {
+                    getChartsForRead: vi
+                        .fn()
+                        .mockResolvedValue({ charts: [stored] }),
+                    getCurrentContentVersionBySlug: vi
+                        .fn()
+                        .mockResolvedValue({ versionUuid: 'version' }),
+                    upsertChart,
+                },
+                aiAgentContentValidation: {
+                    validatePatch: vi.fn(),
+                    validateContent: vi.fn(),
+                    validateNewContent: vi.fn(),
+                },
+            });
+            return { service, upsertChart };
+        };
+        const editChart = (
+            stored: Record<string, unknown>,
+            patch: unknown[],
+            source: 'ai_agent' | 'mcp' = 'ai_agent',
+        ) => {
+            const { service, upsertChart } = makeChartService(stored);
+            const runtime =
+                source === 'mcp'
+                    ? service.createRuntime(
+                          makeRuntimeContext({ source: 'mcp' }),
+                      )
+                    : service.createRuntime(makeRuntimeContext());
+            return {
+                upsertChart,
+                edit: runtime.editContent({
+                    slug: 'null-config-chart',
+                    type: 'chart',
+                    patch,
+                }),
+            };
+        };
+        const refusal = 'Merge queries are not supported by the agent.';
+
+        it('refuses a chart created with a merge', async () => {
+            const { service, upsertChart } = makeChartService(
+                makeChartContent({}),
+            );
+            await expect(
+                service.createRuntime(makeRuntimeContext()).createContent({
+                    type: 'chart',
+                    content: {
+                        ...mergedChart,
+                        chartConfig: { type: ChartType.TABLE },
+                        dashboardSlug: undefined,
+                        updatedAt: new Date(),
+                    },
+                }),
+            ).rejects.toThrow(refusal);
+            expect(upsertChart).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            [
+                'adds a merge',
+                makeChartContent({}),
+                [{ op: 'add', path: '/merge', value: merge }],
+            ],
+            [
+                'changes the merge',
+                mergedChart,
+                [{ op: 'replace', path: '/merge/join', value: 'inner' }],
+            ],
+            [
+                'removes the merge',
+                mergedChart,
+                [{ op: 'remove', path: '/merge' }],
+            ],
+            [
+                'changes the metrics feeding the merge',
+                mergedChart,
+                [
+                    {
+                        op: 'replace',
+                        path: '/metricQuery/metrics',
+                        value: ['orders_total_revenue'],
+                    },
+                ],
+            ],
+            [
+                'changes the filters feeding the merge',
+                mergedChart,
+                [
+                    {
+                        op: 'replace',
+                        path: '/metricQuery/filters/dimensions/and/0/values',
+                        value: ['returned'],
+                    },
+                ],
+            ],
+            [
+                'changes the explore through tableName',
+                mergedChart,
+                [{ op: 'replace', path: '/tableName', value: 'customers' }],
+            ],
+            [
+                'changes the parameters feeding the merge',
+                mergedChart,
+                [{ op: 'add', path: '/parameters', value: { region: 'EMEA' } }],
+            ],
+            [
+                'moves it to another space while changing tableName',
+                mergedChart,
+                [
+                    { op: 'replace', path: '/spaceSlug', value: 'reports' },
+                    { op: 'replace', path: '/tableName', value: 'customers' },
+                ],
+            ],
+            [
+                'changes a field outside the presentation allowlist',
+                mergedChart,
+                [{ op: 'add', path: '/futureSetting', value: true }],
+            ],
+        ])('refuses an edit that %s', async (_label, stored, patch) => {
+            const { edit, upsertChart } = editChart(stored, patch);
+            await expect(edit).rejects.toThrow(refusal);
+            expect(upsertChart).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            [
+                'renames it and changes its visualization',
+                [
+                    { op: 'replace', path: '/name', value: 'Renamed' },
+                    {
+                        op: 'replace',
+                        path: '/chartConfig',
+                        value: { type: 'big_number' },
+                    },
+                ],
+            ],
+            [
+                'drops filter ids',
+                [
+                    {
+                        op: 'remove',
+                        path: '/metricQuery/filters/dimensions/and/0/id',
+                    },
+                ],
+            ],
+            [
+                'adds merge fields the parser defaults',
+                [{ op: 'add', path: '/merge/sort', value: [] }],
+            ],
+            [
+                'changes decimal places through a format override',
+                [
+                    {
+                        op: 'add',
+                        path: '/metricQuery/metricOverrides',
+                        value: {
+                            orders_count: {
+                                formatOptions: { type: 'default', round: 2 },
+                            },
+                        },
+                    },
+                ],
+            ],
+            [
+                'moves it to another space and re-slugs it',
+                [
+                    { op: 'replace', path: '/spaceSlug', value: 'reports' },
+                    { op: 'replace', path: '/slug', value: 'merged-orders' },
+                ],
+            ],
+            [
+                'changes its table and pivot config',
+                [
+                    {
+                        op: 'replace',
+                        path: '/tableConfig',
+                        value: { columnOrder: ['orders_count'] },
+                    },
+                    {
+                        op: 'add',
+                        path: '/pivotConfig',
+                        value: { columns: [] },
+                    },
+                ],
+            ],
+        ])('allows a merged chart edit that %s', async (_label, patch) => {
+            const { edit, upsertChart } = editChart(mergedChart, patch);
+            await edit;
+            expect(upsertChart).toHaveBeenCalledOnce();
+        });
+
+        it('leaves MCP chart merges to the content-as-code contract', async () => {
+            const { edit, upsertChart } = editChart(
+                mergedChart,
+                [
+                    { op: 'replace', path: '/merge/join', value: 'inner' },
+                    {
+                        op: 'replace',
+                        path: '/metricQuery/metrics',
+                        value: ['orders_total_revenue'],
+                    },
+                ],
+                'mcp',
+            );
+            await edit;
+            expect(upsertChart.mock.calls[0][3]).toMatchObject({
+                merge: { join: 'inner' },
+            });
+        });
+    });
+
+    describe('SQL charts', () => {
+        const makeSqlChartContent = (
+            overrides: Record<string, unknown> = {},
+        ) => ({
+            name: 'Orders by status',
+            description: null,
+            slug: 'orders-by-status',
+            spaceSlug: 'allowed-space',
+            sql: 'select status, count(*) as orders from orders group by 1',
+            limit: 500,
+            chartKind: 'vertical_bar',
+            version: 1,
+            config: {
+                metadata: { version: 1 },
+                type: 'vertical_bar',
+                fieldConfig: {
+                    x: { reference: 'status', type: 'category' },
+                    y: [{ reference: 'orders', aggregation: 'sum' }],
+                    groupBy: [],
+                },
+                display: {},
+            },
+            ...overrides,
+        });
+
+        const userWithoutCustomSql = {
+            ...user,
+            ability: {
+                ...user.ability,
+                relevantRuleFor: vi.fn(
+                    (_action: string, caslSubject: unknown) =>
+                        (caslSubject as { __caslSubjectType__?: string })
+                            .__caslSubjectType__ === 'CustomSql'
+                            ? null
+                            : { inverted: false },
+                ),
+            },
+        } as unknown as SessionUser;
+
+        const sqlChartUuid = 'sql-chart-uuid';
+        const sqlChartSpaceUuid = 'allowed-space-uuid';
+
+        // Real SavedSqlService so chart-level CASL rules are evaluated.
+        const makeSavedSqlService = () => {
+            const sqlChartRow = {
+                savedSqlUuid: sqlChartUuid,
+                slug: 'orders-by-status',
+                project: { projectUuid },
+                space: { uuid: sqlChartSpaceUuid },
+            };
+            return new SavedSqlService({
+                savedSqlModel: {
+                    getBySlug: vi.fn().mockResolvedValue(sqlChartRow),
+                    getByUuid: vi.fn().mockResolvedValue(sqlChartRow),
+                },
+                spacePermissionService: {
+                    resolveAccessBatch: vi.fn(
+                        async (_userUuid: string, targets: unknown[]) =>
+                            targets.map((target) => ({
+                                target,
+                                context: {
+                                    organizationUuid,
+                                    projectUuid,
+                                    inheritsFromOrgOrProject: true,
+                                    access: [],
+                                },
+                            })),
+                    ),
+                },
+            } as unknown as ConstructorParameters<typeof SavedSqlService>[0]);
+        };
+
+        const userDeniedSqlChartView = {
+            ...user,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'SavedChart', action: 'view' },
+                { subject: 'CustomSql', action: 'manage' },
+                {
+                    subject: 'SavedChart',
+                    action: 'view',
+                    inverted: true,
+                    conditions: { 'metadata.savedSqlUuid': sqlChartUuid },
+                },
+            ]),
+        } as unknown as SessionUser;
+
+        const makeSqlChartService = ({
+            upsertSqlChart = vi.fn().mockResolvedValue({
+                charts: [
+                    {
+                        data: {
+                            uuid: 'sql-chart-uuid',
+                            slug: 'orders-by-status-1',
+                        },
+                    },
+                ],
+                spaces: [],
+                dashboards: [],
+            }),
+            spaceModel,
+            agentPermissionService,
+        }: {
+            upsertSqlChart?: import('vitest').Mock;
+            spaceModel?: Record<string, unknown>;
+            agentPermissionService?: Pick<
+                import('../../../services/AgentPermissionService/AgentPermissionService').AgentPermissionService,
+                'assertOperationWithRequest' | 'loadRequest'
+            >;
+        } = {}) => {
+            const getSqlChartsForRead = vi.fn(
+                async (_user: SessionUser, _project: string, [slug]) => ({
+                    sqlCharts: [makeSqlChartContent({ slug })],
+                }),
+            );
+            const getCurrentContentVersionBySlug = vi
+                .fn()
+                .mockResolvedValueOnce({ versionUuid: 'version-before' })
+                .mockResolvedValue({ versionUuid: 'version-after' });
+            const service = makeService({
+                spaceModel,
+                agentPermissionService,
+                savedSqlService: makeSavedSqlService(),
+                coderService: {
+                    upsertSqlChart,
+                    getSqlChartsForRead,
+                    getCurrentContentVersionBySlug,
+                },
+                aiAgentContentValidation:
+                    new AiAgentContentValidation() as unknown as Record<
+                        string,
+                        unknown
+                    >,
+            });
+            return { service, upsertSqlChart, getSqlChartsForRead };
+        };
+
+        describe.each([
+            { source: 'ai_agent', authenticationType: 'session' },
+            { source: 'mcp', authenticationType: 'session' },
+            { source: 'mcp', authenticationType: 'oauth' },
+            { source: 'mcp', authenticationType: 'pat' },
+        ] as const)(
+            '$source $authenticationType SQL chart effects',
+            ({ source, authenticationType }) => {
+                it.each(['create', 'sql', 'name', 'config'] as const)(
+                    'refuses %s before approval or saving without Raw SQL',
+                    async (change) => {
+                        const refusal = new AiAccessRefusedError(
+                            AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                            {
+                                capability: AgentCapability.RawSql,
+                                policyLayer: 'org_ceiling',
+                            },
+                        );
+                        const assertOperationWithRequest = vi.fn(
+                            async ({
+                                operation,
+                            }: {
+                                operation: { kind: string };
+                            }) => {
+                                if (operation.kind === 'tool_effect')
+                                    throw refusal;
+                            },
+                        );
+                        const { service, upsertSqlChart } = makeSqlChartService(
+                            {
+                                agentPermissionService: {
+                                    loadRequest: vi.fn().mockResolvedValue({
+                                        enforcementMode: 'managed',
+                                    }),
+                                    assertOperationWithRequest,
+                                },
+                            },
+                        );
+                        const effectAccount = {
+                            ...account,
+                            authentication: {
+                                type: authenticationType,
+                                source: 'test-credential',
+                                token: 'test-token',
+                                clientId: 'test-client',
+                                scopes: [],
+                            },
+                        } as Account;
+                        const context = makeRuntimeContext({
+                            account: effectAccount,
+                        });
+                        const runtime =
+                            source === 'mcp'
+                                ? service.createRuntime({ ...context, source })
+                                : service.createRuntime(context);
+                        const approveSql = vi.fn().mockResolvedValue(undefined);
+                        const patchValues = {
+                            sql: 'select 1',
+                            name: 'New title',
+                            config: makeSqlChartContent().config,
+                        };
+                        const result =
+                            change === 'create'
+                                ? runtime.createContent({
+                                      type: 'sql_chart',
+                                      content: makeSqlChartContent() as never,
+                                      approveSql,
+                                  })
+                                : runtime.editContent({
+                                      type: 'sql_chart',
+                                      slug: 'orders-by-status',
+                                      patch: [
+                                          {
+                                              op: 'replace',
+                                              path: `/${change}`,
+                                              value: patchValues[change],
+                                          },
+                                      ],
+                                      approveSql,
+                                  });
+                        if (source === 'mcp' && authenticationType === 'pat') {
+                            await expect(result).resolves.toBeDefined();
+                            expect(upsertSqlChart).toHaveBeenCalledOnce();
+                            expect(
+                                assertOperationWithRequest,
+                            ).not.toHaveBeenCalled();
+                            return;
+                        }
+                        await expect(result).rejects.toBe(refusal);
+                        expect(assertOperationWithRequest).toHaveBeenCalledWith(
+                            expect.objectContaining({
+                                operation: expect.objectContaining({
+                                    kind: 'tool_effect',
+                                    key:
+                                        change === 'create'
+                                            ? 'createContent.sql_chart'
+                                            : 'editContent.sql_chart',
+                                    account: effectAccount,
+                                    organizationUuid,
+                                    projectUuid,
+                                    surface:
+                                        source === 'mcp'
+                                            ? AgentActorSurface.MCP
+                                            : AgentActorSurface.IN_APP_AGENT,
+                                }),
+                            }),
+                        );
+                        expect(approveSql).not.toHaveBeenCalled();
+                        expect(upsertSqlChart).not.toHaveBeenCalled();
+                    },
+                );
+
+                it.each([true, false])(
+                    'saves SQL content when the effect is allowed (managed=%s)',
+                    async (managed) => {
+                        const assertOperationWithRequest = vi
+                            .fn()
+                            .mockResolvedValue(undefined);
+                        const { service, upsertSqlChart } = makeSqlChartService(
+                            {
+                                agentPermissionService: {
+                                    loadRequest: vi.fn().mockResolvedValue({
+                                        enforcementMode: managed
+                                            ? 'managed'
+                                            : 'off',
+                                    }),
+                                    assertOperationWithRequest,
+                                },
+                            },
+                        );
+                        const effectAccount = {
+                            ...account,
+                            authentication: {
+                                type: authenticationType,
+                                source: 'test-credential',
+                                token: 'test-token',
+                                clientId: 'test-client',
+                                scopes: [],
+                            },
+                        } as Account;
+                        const context = makeRuntimeContext({
+                            account: effectAccount,
+                        });
+                        const runtime =
+                            source === 'mcp'
+                                ? service.createRuntime({ ...context, source })
+                                : service.createRuntime(context);
+                        const approveSql = vi.fn().mockResolvedValue(undefined);
+                        await runtime.createContent({
+                            type: 'sql_chart',
+                            content: makeSqlChartContent() as never,
+                            approveSql,
+                        });
+                        await runtime.editContent({
+                            type: 'sql_chart',
+                            slug: 'orders-by-status',
+                            patch: [
+                                {
+                                    op: 'replace',
+                                    path: '/name',
+                                    value: 'New title',
+                                },
+                            ],
+                            approveSql,
+                        });
+                        expect(upsertSqlChart).toHaveBeenCalledTimes(2);
+                        if (managed && authenticationType !== 'pat') {
+                            expect(
+                                assertOperationWithRequest,
+                            ).toHaveBeenCalledWith(
+                                expect.objectContaining({
+                                    operation: expect.objectContaining({
+                                        kind: 'tool_effect',
+                                        key: 'createContent.sql_chart',
+                                    }),
+                                }),
+                            );
+                            expect(
+                                assertOperationWithRequest,
+                            ).toHaveBeenCalledWith(
+                                expect.objectContaining({
+                                    operation: expect.objectContaining({
+                                        kind: 'tool_effect',
+                                        key: 'editContent.sql_chart',
+                                    }),
+                                }),
+                            );
+                        } else {
+                            expect(
+                                assertOperationWithRequest,
+                            ).not.toHaveBeenCalled();
+                        }
+                    },
+                );
+            },
+        );
+
+        it('saves an approved SQL chart with a unique slug on the primary connection', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn().mockResolvedValue(undefined);
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            const created = await runtime.createContent({
+                type: 'sql_chart',
+                content: makeSqlChartContent() as never,
+                approveSql,
+            });
+
+            expect(approveSql).toHaveBeenCalledOnce();
+            expect(upsertSqlChart).toHaveBeenCalledWith(
+                user,
+                projectUuid,
+                'orders-by-status',
+                expect.not.objectContaining({ connection: expect.anything() }),
+                { mode: 'create', authorization: 'space_access' },
+            );
+            expect(created).toMatchObject({
+                type: 'sql_chart',
+                uuid: 'sql-chart-uuid',
+                content: { slug: 'orders-by-status-1' },
+                href: `/projects/${projectUuid}/sql-runner/orders-by-status-1#chart-link`,
+            });
+        });
+
+        it('writes nothing when the SQL is not approved', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.createContent({
+                    type: 'sql_chart',
+                    content: makeSqlChartContent() as never,
+                    approveSql: vi
+                        .fn()
+                        .mockRejectedValue(new Error('rejected')),
+                }),
+            ).rejects.toThrow('rejected');
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('does not create a SQL chart outside the scoped agent spaces', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService({
+                spaceModel: denySpaceAccessModel(),
+            });
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+            );
+
+            await expect(
+                runtime.createContent({
+                    type: 'sql_chart',
+                    content: makeSqlChartContent() as never,
+                    approveSql,
+                }),
+            ).rejects.toThrow(NotFoundError);
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('names the SQL chart save permission without asking for approval', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ user: userWithoutCustomSql }),
+            );
+
+            await expect(
+                runtime.createContent({
+                    type: 'sql_chart',
+                    content: makeSqlChartContent() as never,
+                    approveSql,
+                }),
+            ).rejects.toThrow(/SQL chart save permission/);
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('rejects a malformed SQL chart body before asking for approval', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            const { sql, ...withoutSql } = makeSqlChartContent();
+            await expect(
+                runtime.createContent({
+                    type: 'sql_chart',
+                    content: { ...withoutSql, tableName: 'orders' } as never,
+                    approveSql,
+                }),
+            ).rejects.toThrow(
+                'New SQL chart is invalid:\n- / is missing required property "sql"\n- / has unexpected property "tableName"',
+            );
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('rejects a SQL chart body that picks a connection', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.createContent({
+                    type: 'sql_chart',
+                    content: makeSqlChartContent({
+                        connection: 'secondary',
+                        tableName: 'orders',
+                    }) as never,
+                    approveSql,
+                }),
+            ).rejects.toThrow(
+                'New SQL chart is invalid:\n- /connection is not allowed: SQL charts always run on the primary connection\n- / has unexpected property "tableName"',
+            );
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('reads a SQL chart by slug', async () => {
+            const { service, getSqlChartsForRead } = makeSqlChartService();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.readContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                }),
+            ).resolves.toMatchObject({
+                type: 'sql_chart',
+                content: { sql: makeSqlChartContent().sql },
+                href: `/projects/${projectUuid}/sql-runner/orders-by-status#chart-link`,
+            });
+            expect(getSqlChartsForRead).toHaveBeenCalledWith(
+                user,
+                projectUuid,
+                ['orders-by-status'],
+            );
+        });
+
+        it('does not read a SQL chart the user may not view, even with space access', async () => {
+            const { service } = makeSqlChartService();
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ user: userDeniedSqlChartView }),
+            );
+
+            await expect(
+                runtime.readContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        it('saves an edit that leaves the SQL untouched without asking for approval', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            const edited = await runtime.editContent({
+                slug: 'orders-by-status',
+                type: 'sql_chart',
+                patch: [{ op: 'replace', path: '/limit', value: 100 }],
+                approveSql,
+            });
+
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).toHaveBeenCalledWith(
+                user,
+                projectUuid,
+                'orders-by-status',
+                expect.objectContaining({ limit: 100 }),
+                { authorization: 'space_access' },
+            );
+            expect(edited).toMatchObject({
+                type: 'sql_chart',
+                uuid: 'sql-chart-uuid',
+                href: `/projects/${projectUuid}/sql-runner/orders-by-status#chart-link`,
+                versionUuids: {
+                    before: 'version-before',
+                    after: 'version-after',
+                },
+            });
+        });
+
+        it('asks for approval of the new SQL before saving an edit that changes it', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn().mockResolvedValue(undefined);
+            const runtime = service.createRuntime(makeRuntimeContext());
+            const sql = 'select status from orders';
+
+            await runtime.editContent({
+                slug: 'orders-by-status',
+                type: 'sql_chart',
+                patch: [{ op: 'replace', path: '/sql', value: sql }],
+                approveSql,
+            });
+
+            expect(approveSql).toHaveBeenCalledWith({
+                sql,
+                chartName: 'Orders by status',
+                sqlChanged: true,
+            });
+            expect(approveSql.mock.invocationCallOrder[0]).toBeLessThan(
+                upsertSqlChart.mock.invocationCallOrder[0],
+            );
+            expect(upsertSqlChart).toHaveBeenCalledWith(
+                user,
+                projectUuid,
+                'orders-by-status',
+                expect.objectContaining({ sql }),
+                { authorization: 'space_access' },
+            );
+        });
+
+        it('settles an edit that rewrites the SQL unchanged without new SQL to approve', async () => {
+            const { service } = makeSqlChartService();
+            const approveSql = vi.fn().mockResolvedValue(undefined);
+            const runtime = service.createRuntime(makeRuntimeContext());
+            const { sql } = makeSqlChartContent();
+
+            await runtime.editContent({
+                slug: 'orders-by-status',
+                type: 'sql_chart',
+                patch: [{ op: 'replace', path: '/sql', value: sql }],
+                approveSql,
+            });
+
+            expect(approveSql).toHaveBeenCalledWith({
+                sql,
+                chartName: 'Orders by status',
+                sqlChanged: false,
+            });
+        });
+
+        it('writes nothing when the new SQL is not approved', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.editContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '/sql',
+                            value: 'select 1',
+                        },
+                    ],
+                    approveSql: vi
+                        .fn()
+                        .mockRejectedValue(new Error('rejected')),
+                }),
+            ).rejects.toThrow('rejected');
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('does not move a SQL chart into a space outside the scoped agent spaces', async () => {
+            const hasSpaceWithPathAndUuids = vi
+                .fn()
+                .mockResolvedValueOnce(true)
+                .mockResolvedValue(false);
+            const { service, upsertSqlChart } = makeSqlChartService({
+                spaceModel: { hasSpaceWithPathAndUuids },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+            );
+
+            await expect(
+                runtime.editContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '/spaceSlug',
+                            value: 'blocked-space',
+                        },
+                    ],
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(NotFoundError);
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('does not edit a SQL chart in a read-only space', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService({
+                spaceModel: {
+                    hasSpaceWithPathAndUuids: vi.fn().mockResolvedValue(true),
+                },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({
+                    spaceAccess: ['write-space-uuid', 'source-space-uuid'],
+                    readOnlySpaceUuids: ['source-space-uuid'],
+                }),
+            );
+
+            await expect(
+                withAgentActionScope(user, AgentActorSurface.MCP, true, () =>
+                    runtime.editContent({
+                        slug: 'orders-by-status',
+                        type: 'sql_chart',
+                        patch: [
+                            { op: 'replace', path: '/name', value: 'Orders' },
+                        ],
+                        approveSql: vi.fn(),
+                    }),
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+            expect(service['agentActionLogModel'].insert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    policy_layer: 'agent_scope',
+                    reason_code: 'content_in_read_only_space',
+                }),
+            );
+        });
+
+        it('refuses an edit without the SQL chart save permission', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ user: userWithoutCustomSql }),
+            );
+
+            await expect(
+                runtime.editContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                    patch: [{ op: 'replace', path: '/sql', value: 'select 1' }],
+                    approveSql,
+                }),
+            ).rejects.toThrow(/SQL chart save permission/);
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('rejects a patch that changes the SQL other than to a literal value', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const approveSql = vi.fn();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.editContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                    patch: [
+                        { op: 'replace', path: '/sql', value: 'select 2' },
+                        { op: 'copy', from: '/description', path: '/sql' },
+                    ],
+                    approveSql,
+                }),
+            ).rejects.toThrow(
+                'Patch contains disallowed paths:\n- patch[1].path: "copy" cannot change "/sql"; use "replace" with the full SQL string',
+            );
+            expect(approveSql).not.toHaveBeenCalled();
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('rejects patches to read-only SQL chart fields', async () => {
+            const { service, upsertSqlChart } = makeSqlChartService();
+            const runtime = service.createRuntime(makeRuntimeContext());
+
+            await expect(
+                runtime.editContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '/connection',
+                            value: 'Finance',
+                        },
+                    ],
+                    approveSql: vi.fn(),
+                }),
+            ).rejects.toThrow(
+                'patch[0].path: Patch path "/connection" is not allowed',
+            );
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('does not read a SQL chart outside the scoped agent spaces', async () => {
+            const { service } = makeSqlChartService({
+                spaceModel: denySpaceAccessModel(),
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+            );
+
+            await expect(
+                runtime.readContent({
+                    slug: 'orders-by-status',
+                    type: 'sql_chart',
+                }),
+            ).rejects.toThrow(NotFoundError);
+        });
     });
 
     describe('syncDbtProject', () => {
@@ -2261,11 +3927,30 @@ describe('AiAgentToolsService runComposerQueries', () => {
     const readyResults = {
         status: QueryHistoryStatus.READY,
         rows: [{ orders_total: { value: { raw: 42, formatted: '42' } } }],
+        totalResults: 1,
         columns: {
             orders_total: {
                 reference: 'orders_total',
                 type: DimensionType.NUMBER,
             },
+        },
+    };
+
+    const readyStatuses = {
+        statuses: submissions.map(({ queryUuid }) => ({
+            queryUuid,
+            status: QueryHistoryStatus.READY,
+            error: null,
+            totalRowCount: 1,
+            warehouseExecutionTimeMs: null,
+            columns: readyResults.columns,
+        })),
+    };
+
+    const ordersColumns = {
+        orders_status: {
+            reference: 'orders_status',
+            type: DimensionType.STRING,
         },
     };
 
@@ -2275,15 +3960,28 @@ describe('AiAgentToolsService runComposerQueries', () => {
             .mockResolvedValue({ queries: submissions });
         const getAsyncQueryResults = vi.fn().mockResolvedValue(readyResults);
         const service = makeService({
-            querySourceService: { executeSourceQueries },
+            querySourceService: {
+                executeSourceQueries,
+                getSourceQueryStatuses: vi
+                    .fn()
+                    .mockResolvedValue(readyStatuses),
+            },
             asyncQueryService: { getAsyncQueryResults },
         });
 
         const result = await service
-            .createRuntime(makeRuntimeContext())
+            .createRuntime(
+                makeRuntimeContext({
+                    agentUuid: 'agent-uuid',
+                    threadUuid: 'thread-uuid',
+                    promptUuid: 'prompt-uuid',
+                }),
+            )
             .runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                otherUnreadNodeIds: [],
+                sampleNodeIds: [],
             });
 
         expect(executeSourceQueries).toHaveBeenCalledWith({
@@ -2291,13 +3989,20 @@ describe('AiAgentToolsService runComposerQueries', () => {
             projectUuid,
             queries: composerQueries,
             context: QueryExecutionContext.AI,
+            querySurface: QuerySurface.SLACK,
             parameters: {},
             userAttributeOverrides: {},
             invalidateCache: false,
+            aiAttribution: {
+                aiAgentUuid: 'agent-uuid',
+                threadUuid: 'thread-uuid',
+                promptUuid: 'prompt-uuid',
+            },
         });
         expect(getAsyncQueryResults).toHaveBeenCalledWith(
             expect.objectContaining({ queryUuid: 'query-2', page: 1 }),
         );
+        if (result.status !== 'success') throw new Error('expected success');
         expect(result.submissions).toEqual(submissions);
         expect(result.terminal).toEqual({
             queryUuid: 'query-2',
@@ -2307,13 +4012,196 @@ describe('AiAgentToolsService runComposerQueries', () => {
         });
     });
 
+    it("reads every node's status once the terminal is ready", async () => {
+        const getSourceQueryStatuses = vi.fn().mockResolvedValue({
+            statuses: [
+                {
+                    queryUuid: 'query-1',
+                    status: QueryHistoryStatus.READY,
+                    error: null,
+                    totalRowCount: 500,
+                    warehouseExecutionTimeMs: 12,
+                    columns: ordersColumns,
+                },
+                {
+                    queryUuid: 'query-2',
+                    status: QueryHistoryStatus.READY,
+                    error: null,
+                    totalRowCount: 1,
+                    warehouseExecutionTimeMs: 3,
+                    columns: readyResults.columns,
+                },
+            ],
+        });
+        const service = makeService({
+            querySourceService: {
+                executeSourceQueries: vi
+                    .fn()
+                    .mockResolvedValue({ queries: submissions }),
+                getSourceQueryStatuses,
+            },
+            asyncQueryService: {
+                getAsyncQueryResults: vi.fn().mockResolvedValue(readyResults),
+            },
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
+                queries: composerQueries,
+                terminalNodeId: 'joined',
+                otherUnreadNodeIds: [],
+                sampleNodeIds: [],
+            });
+
+        expect(result.status).toBe('success');
+        expect(result.nodeStatuses).toEqual([
+            {
+                nodeId: 'orders',
+                state: QueryHistoryStatus.READY,
+                error: null,
+                rowCount: 500,
+                columns: ordersColumns,
+                sample: null,
+            },
+            {
+                nodeId: 'joined',
+                state: QueryHistoryStatus.READY,
+                error: null,
+                rowCount: 1,
+                columns: readyResults.columns,
+                sample: null,
+            },
+        ]);
+    });
+
+    it('does not report a node successful when its status read says otherwise', async () => {
+        const onNodeStatus = vi.fn();
+        const service = makeService({
+            querySourceService: {
+                executeSourceQueries: vi
+                    .fn()
+                    .mockResolvedValue({ queries: submissions }),
+                getSourceQueryStatuses: vi.fn().mockResolvedValue({
+                    statuses: [
+                        {
+                            queryUuid: 'query-1',
+                            status: QueryHistoryStatus.EXECUTING,
+                            error: null,
+                            totalRowCount: null,
+                            warehouseExecutionTimeMs: null,
+                            columns: null,
+                        },
+                        {
+                            queryUuid: 'query-2',
+                            status: QueryHistoryStatus.READY,
+                            error: null,
+                            totalRowCount: 1,
+                            warehouseExecutionTimeMs: 3,
+                            columns: readyResults.columns,
+                        },
+                    ],
+                }),
+            },
+            asyncQueryService: {
+                getAsyncQueryResults: vi.fn().mockResolvedValue(readyResults),
+            },
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
+                queries: composerQueries,
+                terminalNodeId: 'joined',
+                otherUnreadNodeIds: [],
+                sampleNodeIds: [],
+                onNodeStatus,
+            });
+
+        expect(result.nodeStatuses[0]).toEqual({
+            nodeId: 'orders',
+            state: QueryHistoryStatus.EXECUTING,
+            error: null,
+            rowCount: null,
+            columns: null,
+            sample: null,
+        });
+        expect(onNodeStatus).not.toHaveBeenCalledWith(
+            expect.objectContaining({ nodeId: 'orders', status: 'success' }),
+        );
+    });
+
+    it('returns running with every submission and node status when the terminal outlives the deadline', async () => {
+        const executeSourceQueries = vi
+            .fn()
+            .mockResolvedValue({ queries: submissions });
+        const getAsyncQueryResults = vi
+            .fn()
+            .mockResolvedValue({ status: QueryHistoryStatus.EXECUTING });
+        const service = makeService({
+            querySourceService: {
+                executeSourceQueries,
+                getSourceQueryStatuses: vi.fn().mockResolvedValue({
+                    statuses: [
+                        readyStatuses.statuses[0],
+                        {
+                            ...readyStatuses.statuses[1],
+                            status: QueryHistoryStatus.EXECUTING,
+                            totalRowCount: null,
+                            columns: null,
+                        },
+                    ],
+                }),
+            },
+            asyncQueryService: { getAsyncQueryResults },
+        });
+
+        await expect(
+            service
+                .createRuntime(makeRuntimeContext())
+                .runComposerQueriesUntilDeadline({
+                    queries: composerQueries,
+                    terminalNodeId: 'joined',
+                    otherUnreadNodeIds: [],
+                    sampleNodeIds: [],
+                    deadlineMs: Date.now() - 1,
+                }),
+        ).resolves.toEqual({
+            status: 'running',
+            submissions,
+            nodeStatuses: [
+                {
+                    nodeId: 'orders',
+                    state: QueryHistoryStatus.READY,
+                    error: null,
+                    rowCount: 1,
+                    columns: readyResults.columns,
+                    sample: null,
+                },
+                {
+                    nodeId: 'joined',
+                    state: QueryHistoryStatus.EXECUTING,
+                    error: null,
+                    rowCount: null,
+                    columns: null,
+                    sample: null,
+                },
+            ],
+        });
+    });
+
     it('carries the runtime user attribute overrides into the pipeline', async () => {
         const executeSourceQueries = vi
             .fn()
             .mockResolvedValue({ queries: submissions });
         const getAsyncQueryResults = vi.fn().mockResolvedValue(readyResults);
         const service = makeService({
-            querySourceService: { executeSourceQueries },
+            querySourceService: {
+                executeSourceQueries,
+                getSourceQueryStatuses: vi
+                    .fn()
+                    .mockResolvedValue(readyStatuses),
+            },
             asyncQueryService: { getAsyncQueryResults },
         });
 
@@ -2326,6 +4214,8 @@ describe('AiAgentToolsService runComposerQueries', () => {
             .runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                otherUnreadNodeIds: [],
+                sampleNodeIds: [],
             });
 
         expect(executeSourceQueries).toHaveBeenCalledWith(
@@ -2347,20 +4237,23 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 .mockResolvedValue(readyResults);
             // While the terminal is still running, the upstream node has
             // already finished.
-            const getSourceQueryStatuses = vi.fn().mockResolvedValue({
-                statuses: [
-                    {
-                        queryUuid: 'query-1',
-                        status: QueryHistoryStatus.READY,
-                        error: null,
-                    },
-                    {
-                        queryUuid: 'query-2',
-                        status: QueryHistoryStatus.EXECUTING,
-                        error: null,
-                    },
-                ],
-            });
+            const getSourceQueryStatuses = vi
+                .fn()
+                .mockResolvedValueOnce({
+                    statuses: [
+                        {
+                            queryUuid: 'query-1',
+                            status: QueryHistoryStatus.READY,
+                            error: null,
+                        },
+                        {
+                            queryUuid: 'query-2',
+                            status: QueryHistoryStatus.EXECUTING,
+                            error: null,
+                        },
+                    ],
+                })
+                .mockResolvedValue(readyStatuses);
             const service = makeService({
                 querySourceService: {
                     executeSourceQueries,
@@ -2375,6 +4268,8 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 .runComposerQueries({
                     queries: composerQueries,
                     terminalNodeId: 'joined',
+                    otherUnreadNodeIds: [],
+                    sampleNodeIds: [],
                     onNodeStatus,
                 });
             await vi.advanceTimersByTimeAsync(2_000);
@@ -2431,6 +4326,8 @@ describe('AiAgentToolsService runComposerQueries', () => {
             service.createRuntime(makeRuntimeContext()).runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                otherUnreadNodeIds: [],
+                sampleNodeIds: [],
                 onNodeStatus,
             }),
         ).rejects.toThrow('column "missing" does not exist');
@@ -2451,7 +4348,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
         ]);
     });
 
-    it('marks unfinished nodes failed when fetching results throws', async () => {
+    it('returns a failure outcome marking unfinished nodes failed when fetching results throws', async () => {
         const executeSourceQueries = vi
             .fn()
             .mockResolvedValue({ queries: submissions });
@@ -2468,9 +4365,14 @@ describe('AiAgentToolsService runComposerQueries', () => {
             service.createRuntime(makeRuntimeContext()).runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'joined',
+                otherUnreadNodeIds: [],
+                sampleNodeIds: [],
                 onNodeStatus,
             }),
-        ).rejects.toThrow('column "missing" does not exist');
+        ).resolves.toMatchObject({
+            status: 'failure',
+            error: 'column "missing" does not exist',
+        });
 
         expect(
             onNodeStatus.mock.calls
@@ -2492,7 +4394,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
         ]);
     });
 
-    it('emits error statuses for failing nodes before throwing', async () => {
+    it('emits error statuses for failing nodes', async () => {
         const executeSourceQueries = vi
             .fn()
             .mockResolvedValue({ queries: submissions });
@@ -2523,13 +4425,13 @@ describe('AiAgentToolsService runComposerQueries', () => {
         });
 
         const onNodeStatus = vi.fn();
-        await expect(
-            service.createRuntime(makeRuntimeContext()).runComposerQueries({
-                queries: composerQueries,
-                terminalNodeId: 'joined',
-                onNodeStatus,
-            }),
-        ).rejects.toThrow(/"orders" \(relation does not exist\)/);
+        await service.createRuntime(makeRuntimeContext()).runComposerQueries({
+            queries: composerQueries,
+            terminalNodeId: 'joined',
+            otherUnreadNodeIds: [],
+            sampleNodeIds: [],
+            onNodeStatus,
+        });
 
         expect(onNodeStatus.mock.calls.map(([update]) => update)).toEqual([
             {
@@ -2571,46 +4473,493 @@ describe('AiAgentToolsService runComposerQueries', () => {
             service.createRuntime(makeRuntimeContext()).runComposerQueries({
                 queries: composerQueries,
                 terminalNodeId: 'unknown_node',
+                otherUnreadNodeIds: [],
+                sampleNodeIds: [],
             }),
         ).rejects.toThrow('unknown_node');
     });
 
-    it('names the failing node when the terminal query errors', async () => {
-        const executeSourceQueries = vi
-            .fn()
-            .mockResolvedValue({ queries: submissions });
-        const getAsyncQueryResults = vi.fn().mockResolvedValue({
-            status: QueryHistoryStatus.ERROR,
-            error: 'referenced query failed',
-        });
+    it("returns a failure outcome with every node's status when a node fails", async () => {
         const getSourceQueryStatuses = vi.fn().mockResolvedValue({
             statuses: [
                 {
                     queryUuid: 'query-1',
-                    status: QueryHistoryStatus.ERROR,
-                    error: 'relation does not exist',
+                    status: QueryHistoryStatus.READY,
+                    error: null,
+                    totalRowCount: 12,
+                    warehouseExecutionTimeMs: 5,
+                    columns: ordersColumns,
                 },
                 {
                     queryUuid: 'query-2',
                     status: QueryHistoryStatus.ERROR,
-                    error: 'referenced query failed',
+                    error: 'column "missing" does not exist',
+                    totalRowCount: null,
+                    warehouseExecutionTimeMs: null,
+                    columns: null,
                 },
             ],
         });
         const service = makeService({
             querySourceService: {
-                executeSourceQueries,
+                executeSourceQueries: vi
+                    .fn()
+                    .mockResolvedValue({ queries: submissions }),
                 getSourceQueryStatuses,
+            },
+            asyncQueryService: {
+                getAsyncQueryResults: vi.fn().mockResolvedValue({
+                    status: QueryHistoryStatus.ERROR,
+                    error: 'column "missing" does not exist',
+                }),
+            },
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
+                queries: composerQueries,
+                terminalNodeId: 'joined',
+                otherUnreadNodeIds: [],
+                sampleNodeIds: [],
+            });
+
+        expect(result).toEqual({
+            status: 'failure',
+            error: 'Composer query failed.',
+            nodeStatuses: [
+                {
+                    nodeId: 'orders',
+                    state: QueryHistoryStatus.READY,
+                    error: null,
+                    rowCount: 12,
+                    columns: ordersColumns,
+                    sample: null,
+                },
+                {
+                    nodeId: 'joined',
+                    state: QueryHistoryStatus.ERROR,
+                    error: 'column "missing" does not exist',
+                    rowCount: null,
+                    columns: null,
+                    sample: null,
+                },
+            ],
+        });
+    });
+
+    it('returns a failure outcome with node statuses when the terminal query is cancelled', async () => {
+        const service = makeService({
+            querySourceService: {
+                executeSourceQueries: vi
+                    .fn()
+                    .mockResolvedValue({ queries: submissions }),
+                getSourceQueryStatuses: vi.fn().mockResolvedValue({
+                    statuses: [
+                        readyStatuses.statuses[0],
+                        {
+                            ...readyStatuses.statuses[1],
+                            status: QueryHistoryStatus.CANCELLED,
+                            totalRowCount: null,
+                            columns: null,
+                        },
+                    ],
+                }),
+            },
+            asyncQueryService: {
+                getAsyncQueryResults: vi.fn().mockResolvedValue({
+                    status: QueryHistoryStatus.CANCELLED,
+                }),
+            },
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
+                queries: composerQueries,
+                terminalNodeId: 'joined',
+                otherUnreadNodeIds: [],
+                sampleNodeIds: [],
+            });
+
+        expect(result).toMatchObject({
+            status: 'failure',
+            error: 'Composer query was cancelled.',
+            nodeStatuses: [
+                { nodeId: 'orders', state: QueryHistoryStatus.READY },
+                { nodeId: 'joined', state: QueryHistoryStatus.CANCELLED },
+            ],
+        });
+    });
+
+    it('returns a failure outcome with node statuses when the terminal query times out', async () => {
+        vi.useFakeTimers();
+        try {
+            const service = makeService({
+                querySourceService: {
+                    executeSourceQueries: vi
+                        .fn()
+                        .mockResolvedValue({ queries: submissions }),
+                    getSourceQueryStatuses: vi.fn().mockResolvedValue({
+                        statuses: [
+                            readyStatuses.statuses[0],
+                            {
+                                ...readyStatuses.statuses[1],
+                                status: QueryHistoryStatus.EXECUTING,
+                                totalRowCount: null,
+                                columns: null,
+                            },
+                        ],
+                    }),
+                },
+                asyncQueryService: {
+                    getAsyncQueryResults: vi.fn().mockResolvedValue({
+                        status: QueryHistoryStatus.EXECUTING,
+                    }),
+                },
+            });
+
+            const promise = service
+                .createRuntime(makeRuntimeContext())
+                .runComposerQueries({
+                    queries: composerQueries,
+                    terminalNodeId: 'joined',
+                    otherUnreadNodeIds: [],
+                    sampleNodeIds: [],
+                });
+            await vi.advanceTimersByTimeAsync(6 * 60 * 1000);
+
+            await expect(promise).resolves.toMatchObject({
+                status: 'failure',
+                error: 'Composer query timed out after 5 minutes.',
+                nodeStatuses: [
+                    { nodeId: 'orders', state: QueryHistoryStatus.READY },
+                    { nodeId: 'joined', state: QueryHistoryStatus.EXECUTING },
+                ],
+            });
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('reads a preview page and takes the row count from the stored total when the node limit exceeds the results page cap', async () => {
+        const totalRows = 3000;
+        const getAsyncQueryResults = vi.fn(
+            async ({ page, pageSize }: { page: number; pageSize: number }) => {
+                validatePagination({
+                    page,
+                    pageSize,
+                    queryMaxLimit: 2500,
+                    totalRowCount: totalRows,
+                });
+                return {
+                    ...readyResults,
+                    rows: Array.from({ length: pageSize }, (_, i) => ({
+                        orders_total: { value: { raw: i } },
+                    })),
+                    totalResults: totalRows,
+                };
+            },
+        );
+        const service = makeService({
+            maxQueryLimit: 5000,
+            querySourceService: {
+                executeSourceQueries: vi
+                    .fn()
+                    .mockResolvedValue({ queries: submissions }),
+                getSourceQueryStatuses: vi
+                    .fn()
+                    .mockResolvedValue(readyStatuses),
             },
             asyncQueryService: { getAsyncQueryResults },
         });
 
-        await expect(
-            service.createRuntime(makeRuntimeContext()).runComposerQueries({
-                queries: composerQueries,
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
+                queries: composerQueries.map((query) =>
+                    query.nodeId === 'joined'
+                        ? { ...query, limit: totalRows }
+                        : query,
+                ),
                 terminalNodeId: 'joined',
-            }),
-        ).rejects.toThrow(/"orders" \(relation does not exist\)/);
+                otherUnreadNodeIds: [],
+                sampleNodeIds: [],
+            });
+
+        if (result.status !== 'success') throw new Error('expected success');
+        expect(result.terminal.rowCount).toBe(totalRows);
+        expect(result.terminal.rows).toHaveLength(
+            COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
+        );
+    });
+
+    describe('node samples', () => {
+        const ordersPage = async (pageSize: number) => ({
+            status: QueryHistoryStatus.READY,
+            rows: Array.from({ length: 8 }, (_, index) => ({
+                orders_status: {
+                    value: {
+                        raw: `status-${index}`,
+                        formatted: `status-${index}`,
+                    },
+                },
+            })).slice(0, pageSize),
+            totalResults: 8,
+            columns: ordersColumns,
+        });
+        const runSampled = (
+            readOrders: typeof ordersPage,
+            sampleNodeIds: string[],
+            otherUnreadNodeIds: string[] = [],
+        ) =>
+            makeService({
+                querySourceService: {
+                    executeSourceQueries: vi
+                        .fn()
+                        .mockResolvedValue({ queries: submissions }),
+                    getSourceQueryStatuses: vi
+                        .fn()
+                        .mockResolvedValue(readyStatuses),
+                },
+                asyncQueryService: {
+                    getAsyncQueryResults: vi
+                        .fn()
+                        .mockImplementation(
+                            ({
+                                queryUuid,
+                                pageSize,
+                            }: {
+                                queryUuid: string;
+                                pageSize: number;
+                            }) =>
+                                queryUuid === 'query-1'
+                                    ? readOrders(pageSize)
+                                    : Promise.resolve(readyResults),
+                        ),
+                },
+            })
+                .createRuntime(makeRuntimeContext())
+                .runComposerQueries({
+                    queries: composerQueries,
+                    terminalNodeId: 'joined',
+                    otherUnreadNodeIds,
+                    sampleNodeIds,
+                });
+        const samplesOf = (result: {
+            nodeStatuses: { nodeId: string; sample: unknown }[];
+        }) =>
+            Object.fromEntries(
+                result.nodeStatuses.map(({ nodeId, sample }) => [
+                    nodeId,
+                    sample,
+                ]),
+            );
+
+        it('reads at most five rows for each node asked to be sampled', async () => {
+            const result = await runSampled(ordersPage, ['orders']);
+
+            expect(result.status).toBe('success');
+            expect(samplesOf(result)).toEqual({
+                orders: [0, 1, 2, 3, 4].map((index) => ({
+                    orders_status: `status-${index}`,
+                })),
+                joined: null,
+            });
+        });
+
+        it('reads up to the preview row limit for another unread node', async () => {
+            const result = await runSampled(ordersPage, ['orders'], ['orders']);
+
+            expect(samplesOf(result)).toEqual({
+                orders: Array.from({ length: 8 }, (_, index) => ({
+                    orders_status: `status-${index}`,
+                })),
+                joined: null,
+            });
+        });
+
+        it('keeps the rows of another unread node from the wait, without reading them again', async () => {
+            let ordersReads = 0;
+            const result = await runSampled(
+                (pageSize) => {
+                    ordersReads += 1;
+                    return ordersReads === 1
+                        ? ordersPage(pageSize)
+                        : Promise.reject(new Error('Access denied'));
+                },
+                ['orders'],
+                ['orders'],
+            );
+
+            expect(result.status).toBe('success');
+            expect(samplesOf(result).orders).toHaveLength(8);
+        });
+
+        it('returns running while another unread node runs past the deadline', async () => {
+            const getAsyncQueryResults = vi
+                .fn()
+                .mockImplementation(({ queryUuid }: { queryUuid: string }) =>
+                    Promise.resolve(
+                        queryUuid === 'query-1'
+                            ? { status: QueryHistoryStatus.EXECUTING }
+                            : readyResults,
+                    ),
+                );
+            const result = await makeService({
+                querySourceService: {
+                    executeSourceQueries: vi
+                        .fn()
+                        .mockResolvedValue({ queries: submissions }),
+                    getSourceQueryStatuses: vi
+                        .fn()
+                        .mockResolvedValue(readyStatuses),
+                },
+                asyncQueryService: { getAsyncQueryResults },
+            })
+                .createRuntime(makeRuntimeContext())
+                .runComposerQueriesUntilDeadline({
+                    queries: composerQueries,
+                    terminalNodeId: 'joined',
+                    otherUnreadNodeIds: ['orders'],
+                    sampleNodeIds: [],
+                    deadlineMs: Date.now() + 100,
+                });
+
+            expect(result.status).toBe('running');
+        });
+
+        it('reads no sample for a node not asked to be sampled', async () => {
+            const result = await runSampled(ordersPage, []);
+
+            expect(samplesOf(result)).toEqual({ orders: null, joined: null });
+        });
+
+        it('samples the ready nodes of a run still running at the deadline', async () => {
+            const result = await makeService({
+                querySourceService: {
+                    executeSourceQueries: vi
+                        .fn()
+                        .mockResolvedValue({ queries: submissions }),
+                    getSourceQueryStatuses: vi.fn().mockResolvedValue({
+                        statuses: [
+                            readyStatuses.statuses[0],
+                            {
+                                ...readyStatuses.statuses[1],
+                                status: QueryHistoryStatus.EXECUTING,
+                                totalRowCount: null,
+                                columns: null,
+                            },
+                        ],
+                    }),
+                },
+                asyncQueryService: {
+                    getAsyncQueryResults: vi
+                        .fn()
+                        .mockImplementation(
+                            ({
+                                queryUuid,
+                                pageSize,
+                            }: {
+                                queryUuid: string;
+                                pageSize: number;
+                            }) =>
+                                queryUuid === 'query-1'
+                                    ? ordersPage(pageSize)
+                                    : Promise.resolve({
+                                          status: QueryHistoryStatus.EXECUTING,
+                                      }),
+                        ),
+                },
+            })
+                .createRuntime(makeRuntimeContext())
+                .runComposerQueriesUntilDeadline({
+                    queries: composerQueries,
+                    terminalNodeId: 'joined',
+                    otherUnreadNodeIds: [],
+                    sampleNodeIds: ['orders', 'joined'],
+                    deadlineMs: Date.now() - 1,
+                });
+
+            expect(result.status).toBe('running');
+            expect(samplesOf(result)).toEqual({
+                orders: [0, 1, 2, 3, 4].map((index) => ({
+                    orders_status: `status-${index}`,
+                })),
+                joined: null,
+            });
+        });
+
+        it('gives a null sample and still succeeds when a sample read fails', async () => {
+            const result = await runSampled(
+                () => Promise.reject(new Error('Access denied')),
+                ['orders'],
+            );
+
+            expect(result.status).toBe('success');
+            expect(samplesOf(result)).toEqual({ orders: null, joined: null });
+        });
+    });
+});
+
+describe('AiAgentToolsService runComposerQueries python failures', () => {
+    it('hands the model the python traceback, bounded to its head and tail', async () => {
+        const traceback = `run() raised:\nTraceback (most recent call last):\n${'  File "main.py", line 3, in run\n'.repeat(
+            500,
+        )}KeyError: 'amount'`;
+        const service = makeService({
+            querySourceService: {
+                executeSourceQueries: vi.fn().mockResolvedValue({
+                    queries: [
+                        {
+                            nodeId: 'forecast',
+                            sourceType: QuerySourceType.PYTHON,
+                            queryUuid: 'query-1',
+                        },
+                    ],
+                }),
+                getSourceQueryStatuses: vi.fn().mockResolvedValue({
+                    statuses: [
+                        {
+                            queryUuid: 'query-1',
+                            status: QueryHistoryStatus.ERROR,
+                            error: traceback,
+                        },
+                    ],
+                }),
+            },
+            asyncQueryService: {
+                getAsyncQueryResults: vi.fn().mockResolvedValue({
+                    status: QueryHistoryStatus.ERROR,
+                    error: traceback,
+                }),
+            },
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueries({
+                queries: [
+                    {
+                        sourceType: QuerySourceType.PYTHON,
+                        nodeId: 'forecast',
+                        code: 'def run(inputs, params):\n    return inputs["o"]',
+                        references: {
+                            o: '11111111-1111-4111-8111-111111111111',
+                        },
+                    },
+                ],
+                terminalNodeId: 'forecast',
+                otherUnreadNodeIds: [],
+                sampleNodeIds: [],
+            });
+
+        if (result.status !== 'failure') throw new Error('expected failure');
+        const [{ nodeId, error }] = result.nodeStatuses;
+        expect(nodeId).toBe('forecast');
+        expect(error).toContain('run() raised:');
+        expect(error).toContain("KeyError: 'amount'");
+        expect(error!.length).toBeLessThan(4096 + 200);
     });
 });
 
@@ -3189,18 +5538,47 @@ const makeDesignModelWithThemes = (themes: DesignModelTheme[]) => ({
     listByOrganization: vi.fn().mockResolvedValue(themes),
 });
 
+const amplitudeConnection = {
+    externalConnectionUuid: 'conn-amplitude',
+    name: 'Amplitude',
+    slug: 'amplitude-1',
+};
+
+const makeConnectionLookups = (
+    existingLinks: { externalConnectionUuid: string; alias: string }[] = [],
+) => ({
+    lookupExternalConnectionSlugs: vi.fn(async (_user, _project, slugs) =>
+        (slugs as string[]).map((slug) =>
+            slug === amplitudeConnection.slug
+                ? { slug, status: 'found', connection: amplitudeConnection }
+                : { slug, status: 'not_found' },
+        ),
+    ),
+    listLinkableExternalConnections: vi
+        .fn()
+        .mockResolvedValue([amplitudeConnection]),
+    listAppExternalConnectionLinks: vi.fn().mockResolvedValue(existingLinks),
+});
+
 describe('AiAgentToolsService generateDataApp', () => {
     const makeAppGenerateService = ({
         enabled = true,
         canCreate = true,
-    }: { enabled?: boolean; canCreate?: boolean } = {}) => ({
+        chartStudioAvailable = true,
+    }: {
+        enabled?: boolean;
+        canCreate?: boolean;
+        chartStudioAvailable?: boolean;
+    } = {}) => ({
         dataAppsEnabledFor: vi.fn().mockResolvedValue(enabled),
+        isChartStudioAvailable: vi.fn().mockReturnValue(chartStudioAvailable),
         canCreateDataApp: vi.fn().mockResolvedValue(canCreate),
         generateApp: vi.fn().mockResolvedValue({
             appUuid: 'app-uuid',
             slug: 'revenue-overview',
             version: 1,
         }),
+        ...makeConnectionLookups(),
     });
 
     const dashboardService = {
@@ -3239,6 +5617,7 @@ describe('AiAgentToolsService generateDataApp', () => {
             dashboardSlug: null,
             chartSlugs: null,
             themeSlug: null,
+            externalConnectionSlugs: null,
             toolCallId: 'tool-call-1',
             ...args,
         });
@@ -3262,6 +5641,31 @@ describe('AiAgentToolsService generateDataApp', () => {
                 ).toBe(expected);
             },
         );
+
+        it.each([
+            [true, true, true],
+            [false, true, false],
+            [true, false, false],
+        ])(
+            'chart type authoring follows Chart Studio=%s canCreate=%s, not the data apps flag → %s',
+            async (chartStudioAvailable, canCreate, expected) => {
+                const appGenerateService = makeAppGenerateService({
+                    enabled: false,
+                    canCreate,
+                    chartStudioAvailable,
+                });
+                const service = makeService({ appGenerateService });
+                expect(
+                    await service.canAuthorCustomChartTypes({
+                        user,
+                        projectUuid,
+                    }),
+                ).toBe(expected);
+                expect(
+                    appGenerateService.dataAppsEnabledFor,
+                ).not.toHaveBeenCalled();
+            },
+        );
     });
 
     it('starts a personal ai_agent build linked to the tool call', async () => {
@@ -3276,6 +5680,7 @@ describe('AiAgentToolsService generateDataApp', () => {
             appUuid: 'app-uuid',
             slug: 'revenue-overview',
             version: 1,
+            warnings: [],
         });
         const [calledUser, calledProject, prompt, , , , , template] =
             appGenerateService.generateApp.mock.calls[0];
@@ -3381,6 +5786,7 @@ describe('AiAgentToolsService generateDataApp', () => {
                 dashboardSlug: null,
                 chartSlugs: null,
                 themeSlug: null,
+                externalConnectionSlugs: null,
                 toolCallId: null,
             });
 
@@ -3388,10 +5794,80 @@ describe('AiAgentToolsService generateDataApp', () => {
             appUuid: 'app-uuid',
             slug: 'revenue-overview',
             version: 1,
+            warnings: [],
         });
         expect(generateAppOptions(appGenerateService)).toEqual({
             name: 'Revenue Overview',
             creationExperience: 'mcp',
+        });
+    });
+
+    describe('externalConnectionSlugs', () => {
+        const runMcpGenerate = (
+            service: AiAgentToolsService,
+            prompt: string,
+            externalConnectionSlugs: string[] | null,
+        ) =>
+            service
+                .createRuntime(makeRuntimeContext({ source: 'mcp' }))
+                .generateDataApp({
+                    name: 'Product Usage',
+                    prompt,
+                    template: null,
+                    dashboardSlug: null,
+                    chartSlugs: null,
+                    themeSlug: null,
+                    externalConnectionSlugs,
+                    toolCallId: null,
+                });
+
+        it('links the connections before the build', async () => {
+            const appGenerateService = makeAppGenerateService();
+            const service = makeService({ appGenerateService });
+
+            const result = await runMcpGenerate(
+                service,
+                'Show Amplitude events',
+                ['amplitude-1'],
+            );
+
+            expect(
+                generateAppOptions(appGenerateService).externalConnections,
+            ).toEqual([
+                {
+                    externalConnectionUuid: 'conn-amplitude',
+                    alias: 'amplitude',
+                },
+            ]);
+            expect(result.warnings).toEqual([]);
+        });
+
+        it('warns when the brief names a connection it does not link', async () => {
+            const service = makeService({
+                appGenerateService: makeAppGenerateService(),
+            });
+
+            const result = await runMcpGenerate(
+                service,
+                'Use the amplitude-1 connection',
+                null,
+            );
+
+            expect(result.warnings).toEqual([
+                expect.stringContaining(
+                    'externalConnectionSlugs: ["amplitude-1"]',
+                ),
+            ]);
+        });
+
+        it('rejects an unknown slug and starts no build', async () => {
+            const appGenerateService = makeAppGenerateService();
+            const service = makeService({ appGenerateService });
+
+            await expect(
+                runMcpGenerate(service, 'Show events', ['mixpanel']),
+            ).rejects.toThrow(/"mixpanel" was not found/);
+            expect(appGenerateService.generateApp).not.toHaveBeenCalled();
         });
     });
 
@@ -3543,11 +6019,135 @@ describe('AiAgentToolsService generateDataApp', () => {
     });
 });
 
+describe('AiAgentToolsService createCustomChartType', () => {
+    const makeAppGenerateService = (
+        generateApp = vi.fn().mockResolvedValue({
+            appUuid: 'app-uuid',
+            slug: 'sankey-flow',
+            version: 1,
+        }),
+    ) => ({ generateApp });
+
+    const runCreate = (
+        service: AiAgentToolsService,
+        themeSlug: string | null = null,
+        vizContext: AppVizBuildContext | null = null,
+    ) =>
+        service
+            .createRuntime(makeRuntimeContext({ source: 'mcp' }))
+            .createCustomChartType({
+                name: 'Sankey Flow',
+                prompt: 'Draw a sankey',
+                themeSlug,
+                vizContext,
+            });
+
+    it('starts a chart type build the way Chart Studio does', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({ appGenerateService });
+
+        const result = await runCreate(service);
+
+        expect(result).toEqual({
+            appUuid: 'app-uuid',
+            slug: 'sankey-flow',
+            version: 1,
+        });
+        expect(appGenerateService.generateApp).toHaveBeenCalledWith(
+            user,
+            projectUuid,
+            'Draw a sankey',
+            [],
+            undefined,
+            undefined,
+            undefined,
+            DATA_APP_VIZ_TEMPLATE,
+            undefined,
+            undefined,
+            undefined,
+            { name: 'Sankey Flow', creationExperience: 'mcp' },
+        );
+    });
+
+    it('resolves the theme slug to the theme uuid', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({
+            appGenerateService,
+            organizationDesignModel: makeDesignModelWithThemes([
+                { designUuid: 'brand-uuid', slug: 'brand', name: 'Brand' },
+            ]),
+        });
+
+        await runCreate(service, 'brand');
+
+        expect(generateAppOptions(appGenerateService)).toEqual({
+            name: 'Sankey Flow',
+            creationExperience: 'mcp',
+            designUuidInput: 'brand-uuid',
+        });
+    });
+
+    it('forwards the sample rows to the build', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({ appGenerateService });
+        const vizContext = { sampleRows: [{ orders_status: 'shipped' }] };
+
+        await runCreate(service, null, vizContext);
+
+        expect(generateAppOptions(appGenerateService)).toEqual({
+            name: 'Sankey Flow',
+            creationExperience: 'mcp',
+            vizContext,
+        });
+    });
+
+    it('names the valid slugs for an unknown theme and starts no build', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({
+            appGenerateService,
+            organizationDesignModel: makeDesignModelWithThemes([
+                { designUuid: 'brand-uuid', slug: 'brand', name: 'Brand' },
+            ]),
+        });
+
+        await expect(runCreate(service, 'neon')).rejects.toThrow(
+            'Theme "neon" was not found. Valid theme slugs: brand',
+        );
+        expect(appGenerateService.generateApp).not.toHaveBeenCalled();
+    });
+
+    it('records a forbidden build as an app create refusal', async () => {
+        const error = new ForbiddenError('secret details');
+        const service = makeService({
+            appGenerateService: makeAppGenerateService(
+                vi.fn().mockRejectedValue(error),
+            ),
+        });
+
+        await expect(
+            withAgentActionScope(user, AgentActorSurface.MCP, true, () =>
+                runCreate(service),
+            ),
+        ).rejects.toBe(error);
+        expect(service['agentActionLogModel'].insert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                object_type: 'app',
+                action: 'create',
+                outcome: 'denied',
+                policy_layer: 'casl',
+                reason_code: 'content_write_forbidden',
+            }),
+        );
+    });
+});
+
 describe('AiAgentToolsService iterateDataApp', () => {
     const makeAppGenerateService = () => ({
+        assertCanIterateApp: vi.fn().mockResolvedValue(undefined),
         iterateApp: vi
             .fn()
             .mockResolvedValue({ appUuid: 'app-uuid', version: 2 }),
+        ...makeConnectionLookups(),
     });
 
     const makeAppModel = ({
@@ -3582,9 +6182,38 @@ describe('AiAgentToolsService iterateDataApp', () => {
             dashboardSlug: null,
             chartSlugs: null,
             themeSlug: null,
+            externalConnectionSlugs: null,
             toolCallId: 'tool-call-1',
             ...args,
         });
+
+    it('keeps existing connection links and adds only new ones', async () => {
+        const appGenerateService = {
+            ...makeAppGenerateService(),
+            ...makeConnectionLookups([
+                { externalConnectionUuid: 'conn-other', alias: 'amplitude' },
+            ]),
+        };
+        const service = makeService({
+            appGenerateService,
+            appModel: makeAppModel(),
+        });
+
+        const result = await runIterate(
+            service,
+            makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+            {
+                prompt: 'Add Amplitude events',
+                externalConnectionSlugs: ['amplitude-1'],
+            },
+        );
+
+        const opts = appGenerateService.iterateApp.mock.calls[0][8];
+        expect(opts.externalConnections).toEqual([
+            { externalConnectionUuid: 'conn-amplitude', alias: 'amplitude_2' },
+        ]);
+        expect(result.warnings).toEqual([]);
+    });
 
     it('starts an ai_agent build on the resolved app linked to the tool call', async () => {
         const appGenerateService = makeAppGenerateService();
@@ -3596,7 +6225,11 @@ describe('AiAgentToolsService iterateDataApp', () => {
             makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
         );
 
-        expect(result).toEqual({ appUuid: 'app-uuid', version: 2 });
+        expect(result).toEqual({
+            appUuid: 'app-uuid',
+            version: 2,
+            warnings: [],
+        });
         expect(appModel.findAppBySlug).toHaveBeenCalledWith(
             projectUuid,
             'revenue-app',
@@ -3786,6 +6419,28 @@ describe('AiAgentToolsService iterateDataApp', () => {
             expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
         });
 
+        it('says to omit the slug when the organization has no themes', async () => {
+            const appGenerateService = makeAppGenerateService();
+            const service = makeService({
+                appGenerateService,
+                organizationDesignModel: makeDesignModelWithThemes([]),
+                appModel: makeAppModel(),
+            });
+
+            await expect(
+                runIterate(
+                    service,
+                    makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+                    { themeSlug: 'brand' },
+                ),
+            ).rejects.toThrow(
+                new NotFoundError(
+                    'Theme "brand" was not found: the organization has no themes. Omit themeSlug.',
+                ),
+            );
+            expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
+        });
+
         it('keeps the app theme when the slug is absent', async () => {
             const appGenerateService = makeAppGenerateService();
             const organizationDesignModel = makeDesignModel();
@@ -3804,6 +6459,519 @@ describe('AiAgentToolsService iterateDataApp', () => {
             expect(opts).not.toHaveProperty('designUuidInput');
             expect(opts).not.toHaveProperty('themeChangePrompt');
         });
+    });
+});
+
+describe('AiAgentToolsService iterateDataApp over MCP', () => {
+    it('refuses a chart type slug and starts no build', async () => {
+        const iterateApp = vi.fn();
+        const service = makeService({
+            appGenerateService: {
+                assertCanIterateApp: vi.fn().mockResolvedValue(undefined),
+                iterateApp,
+                ...makeConnectionLookups(),
+            },
+            appModel: {
+                findAppBySlug: vi.fn().mockResolvedValue({
+                    app_id: 'viz-uuid',
+                    slug: 'sankey-flow',
+                    space_uuid: null,
+                    template: DATA_APP_VIZ_TEMPLATE,
+                }),
+            },
+        });
+
+        await expect(
+            service
+                .createRuntime(makeRuntimeContext({ source: 'mcp' }))
+                .iterateDataApp({
+                    appSlug: 'sankey-flow',
+                    prompt: 'Colour the links',
+                    dashboardSlug: null,
+                    chartSlugs: null,
+                    themeSlug: null,
+                    externalConnectionSlugs: null,
+                    toolCallId: null,
+                }),
+        ).rejects.toThrow(
+            '"sankey-flow" is a custom chart type. Use iterate_custom_chart_type to change it',
+        );
+        expect(iterateApp).not.toHaveBeenCalled();
+    });
+
+    it('hides an out-of-scope chart type as a missing data app', async () => {
+        const iterateApp = vi.fn();
+        const service = makeService({
+            appGenerateService: {
+                assertCanIterateApp: vi.fn().mockResolvedValue(undefined),
+                iterateApp,
+                ...makeConnectionLookups(),
+            },
+            appModel: {
+                findAppBySlug: vi.fn().mockResolvedValue({
+                    app_id: 'viz-uuid',
+                    slug: 'sankey-flow',
+                    space_uuid: 'finance-space-uuid',
+                    template: DATA_APP_VIZ_TEMPLATE,
+                }),
+            },
+        });
+
+        await expect(
+            service
+                .createRuntime(
+                    makeRuntimeContext({
+                        source: 'mcp',
+                        spaceAccess: ['sales-space-uuid'],
+                    }),
+                )
+                .iterateDataApp({
+                    appSlug: 'sankey-flow',
+                    prompt: 'Colour the links',
+                    dashboardSlug: null,
+                    chartSlugs: null,
+                    themeSlug: null,
+                    externalConnectionSlugs: null,
+                    toolCallId: null,
+                }),
+        ).rejects.toThrow(
+            new NotFoundError('Data app "sankey-flow" was not found'),
+        );
+        expect(iterateApp).not.toHaveBeenCalled();
+    });
+
+    it('lets the in-app agent iterate a chart type slug', async () => {
+        const iterateApp = vi
+            .fn()
+            .mockResolvedValue({ appUuid: 'viz-uuid', version: 2 });
+        const service = makeService({
+            appGenerateService: {
+                assertCanIterateApp: vi.fn().mockResolvedValue(undefined),
+                iterateApp,
+                ...makeConnectionLookups(),
+            },
+            appModel: {
+                findAppBySlug: vi.fn().mockResolvedValue({
+                    app_id: 'viz-uuid',
+                    slug: 'sankey-flow',
+                    space_uuid: null,
+                    template: DATA_APP_VIZ_TEMPLATE,
+                }),
+            },
+        });
+
+        await service
+            .createRuntime(makeRuntimeContext({ promptUuid: 'prompt-uuid' }))
+            .iterateDataApp({
+                appSlug: 'sankey-flow',
+                prompt: 'Colour the links',
+                dashboardSlug: null,
+                chartSlugs: null,
+                themeSlug: null,
+                externalConnectionSlugs: null,
+                toolCallId: 'tool-call-1',
+            });
+
+        expect(iterateApp).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('AiAgentToolsService iterateDataApp without manage rights', () => {
+    const refusal = () =>
+        new ForbiddenError('Insufficient permissions to modify data apps');
+
+    it.each([
+        ['a chart type slug over MCP', 'mcp', DATA_APP_VIZ_TEMPLATE, null],
+        ['a data app with an unknown theme over MCP', 'mcp', null, 'neon'],
+        [
+            'a data app with an unknown theme in the agent',
+            'ai_agent',
+            null,
+            'neon',
+        ],
+    ] as const)(
+        'refuses %s with the permission error and starts no build',
+        async (_label, source, template, themeSlug) => {
+            const assertCanIterateApp = vi.fn().mockRejectedValue(refusal());
+            const iterateApp = vi.fn();
+            const organizationDesignModel = makeDesignModelWithThemes([
+                { designUuid: 'brand-uuid', slug: 'brand', name: 'Brand' },
+            ]);
+            const service = makeService({
+                appGenerateService: { assertCanIterateApp, iterateApp },
+                organizationDesignModel,
+                appModel: {
+                    findAppBySlug: vi.fn().mockResolvedValue({
+                        app_id: 'app-uuid',
+                        slug: 'sankey-flow',
+                        space_uuid: null,
+                        template,
+                    }),
+                },
+            });
+
+            const runtime =
+                source === 'mcp'
+                    ? service.createRuntime(
+                          makeRuntimeContext({ source: 'mcp' }),
+                      )
+                    : service.createRuntime(
+                          makeRuntimeContext({ promptUuid: 'prompt-uuid' }),
+                      );
+
+            await expect(
+                runtime.iterateDataApp({
+                    appSlug: 'sankey-flow',
+                    prompt: 'Colour the links',
+                    dashboardSlug: null,
+                    chartSlugs: null,
+                    themeSlug,
+                    externalConnectionSlugs: null,
+                    toolCallId: source === 'mcp' ? null : 'tool-call-1',
+                }),
+            ).rejects.toThrow(refusal());
+            expect(assertCanIterateApp).toHaveBeenCalledWith(
+                user,
+                projectUuid,
+                'app-uuid',
+            );
+            expect(
+                organizationDesignModel.findByIdOrSlug,
+            ).not.toHaveBeenCalled();
+            expect(iterateApp).not.toHaveBeenCalled();
+        },
+    );
+});
+
+describe('AiAgentToolsService iterateCustomChartType', () => {
+    const vizSchema: DataAppVizSchema = {
+        fields: [
+            {
+                name: 'source',
+                label: 'Source',
+                type: 'dimension',
+                required: true,
+            },
+        ],
+        configOptions: [],
+        colorPalette: null,
+    } as DataAppVizSchema;
+
+    const makeAppGenerateService = (
+        iterateApp = vi.fn().mockResolvedValue({
+            appUuid: 'viz-uuid',
+            slug: 'sankey-flow',
+            version: 3,
+        }),
+        assertCanIterateApp = vi.fn().mockResolvedValue(undefined),
+    ) => ({ assertCanIterateApp, iterateApp, ...makeConnectionLookups() });
+
+    const makeAppModel = ({
+        template = DATA_APP_VIZ_TEMPLATE,
+        schema = vizSchema,
+        spaceUuid = null,
+    }: {
+        template?: string | null;
+        schema?: DataAppVizSchema | null;
+        spaceUuid?: string | null;
+    } = {}) => ({
+        findAppBySlug: vi.fn().mockResolvedValue({
+            app_id: 'viz-uuid',
+            slug: 'sankey-flow',
+            name: 'Sankey Flow',
+            space_uuid: spaceUuid,
+            template,
+        }),
+        getLatestReadyVersion: vi
+            .fn()
+            .mockResolvedValue(
+                schema === null ? null : { version: 2, viz_schema: schema },
+            ),
+    });
+
+    const runIterateChartType = (
+        service: AiAgentToolsService,
+        vizContext: AppVizBuildContext | null = null,
+        spaceAccess: string[] | null = null,
+        themeSlug: string | null = null,
+    ) =>
+        service
+            .createRuntime(makeRuntimeContext({ source: 'mcp', spaceAccess }))
+            .iterateCustomChartType({
+                slug: 'sankey-flow',
+                prompt: 'Colour the links by source',
+                themeSlug,
+                vizContext,
+            });
+
+    it('iterates with the latest ready version schema as the contract', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const appModel = makeAppModel();
+        const service = makeService({ appGenerateService, appModel });
+
+        const result = await runIterateChartType(service);
+
+        expect(result).toEqual({
+            appUuid: 'viz-uuid',
+            slug: 'sankey-flow',
+            version: 3,
+            name: 'Sankey Flow',
+        });
+        expect(appModel.getLatestReadyVersion).toHaveBeenCalledWith('viz-uuid');
+        expect(appGenerateService.iterateApp).toHaveBeenCalledWith(
+            user,
+            projectUuid,
+            'viz-uuid',
+            'Colour the links by source',
+            [],
+            undefined,
+            undefined,
+            undefined,
+            { creationExperience: 'mcp', vizContext: { schema: vizSchema } },
+        );
+    });
+
+    it('merges sample rows into the contract', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({
+            appGenerateService,
+            appModel: makeAppModel(),
+        });
+        const sampleRows = [{ orders_status: 'shipped' }];
+
+        await runIterateChartType(service, { sampleRows });
+
+        expect(iterateAppOptions(appGenerateService)).toEqual({
+            creationExperience: 'mcp',
+            vizContext: { schema: vizSchema, sampleRows },
+        });
+    });
+
+    it('sends no contract when no version is ready yet', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({
+            appGenerateService,
+            appModel: makeAppModel({ schema: null }),
+        });
+
+        await runIterateChartType(service);
+
+        expect(iterateAppOptions(appGenerateService)).toEqual({
+            creationExperience: 'mcp',
+        });
+    });
+
+    describe('themeSlug', () => {
+        const brandThemes = () =>
+            makeDesignModelWithThemes([
+                { designUuid: 'brand-uuid', slug: 'brand', name: 'Brand' },
+            ]);
+
+        it('switches the theme alongside the requested change', async () => {
+            const appGenerateService = makeAppGenerateService();
+            const service = makeService({
+                appGenerateService,
+                appModel: makeAppModel(),
+                organizationDesignModel: brandThemes(),
+            });
+
+            await runIterateChartType(service, null, null, 'brand');
+
+            expect(iterateAppOptions(appGenerateService)).toEqual({
+                creationExperience: 'mcp',
+                vizContext: { schema: vizSchema },
+                designUuidInput: 'brand-uuid',
+                themeChangePrompt: 'append',
+            });
+        });
+
+        it('keeps the current theme when no slug is given', async () => {
+            const appGenerateService = makeAppGenerateService();
+            const service = makeService({
+                appGenerateService,
+                appModel: makeAppModel(),
+                organizationDesignModel: brandThemes(),
+            });
+
+            await runIterateChartType(service);
+
+            const opts = iterateAppOptions(appGenerateService);
+            expect(opts).not.toHaveProperty('designUuidInput');
+            expect(opts).not.toHaveProperty('themeChangePrompt');
+        });
+
+        it('names the valid slugs for an unknown theme and starts no build', async () => {
+            const appGenerateService = makeAppGenerateService();
+            const service = makeService({
+                appGenerateService,
+                appModel: makeAppModel(),
+                organizationDesignModel: brandThemes(),
+            });
+
+            await expect(
+                runIterateChartType(service, null, null, 'neon'),
+            ).rejects.toThrow(
+                'Theme "neon" was not found. Valid theme slugs: brand',
+            );
+            expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
+        });
+    });
+
+    it('refuses a data app slug, naming iterate_data_app, and starts no build', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({
+            appGenerateService,
+            appModel: makeAppModel({ template: null }),
+        });
+
+        await expect(runIterateChartType(service)).rejects.toThrow(
+            '"sankey-flow" is a data app, not a custom chart type. Use iterate_data_app to change it',
+        );
+        expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
+    });
+
+    describe('caller without manage rights', () => {
+        const refusal = () =>
+            new ForbiddenError('Insufficient permissions to modify data apps');
+
+        it.each([
+            ['a chart type', DATA_APP_VIZ_TEMPLATE, null],
+            ['a data app', null, null],
+            [
+                'a chart type with an unknown theme',
+                DATA_APP_VIZ_TEMPLATE,
+                'neon',
+            ],
+            ['a data app with an unknown theme', null, 'neon'],
+        ])(
+            'refuses %s with the permission error and starts no build',
+            async (_label, template, themeSlug) => {
+                const appGenerateService = makeAppGenerateService(
+                    undefined,
+                    vi.fn().mockRejectedValue(refusal()),
+                );
+                const organizationDesignModel = makeDesignModelWithThemes([
+                    { designUuid: 'brand-uuid', slug: 'brand', name: 'Brand' },
+                ]);
+                const service = makeService({
+                    appGenerateService,
+                    appModel: makeAppModel({ template }),
+                    organizationDesignModel,
+                });
+
+                await expect(
+                    runIterateChartType(service, null, null, themeSlug),
+                ).rejects.toThrow(refusal());
+                expect(
+                    appGenerateService.assertCanIterateApp,
+                ).toHaveBeenCalledWith(user, projectUuid, 'viz-uuid');
+                expect(
+                    organizationDesignModel.findByIdOrSlug,
+                ).not.toHaveBeenCalled();
+                expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
+            },
+        );
+    });
+
+    it('reads an unknown slug as not found and starts no build', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({
+            appGenerateService,
+            appModel: { findAppBySlug: vi.fn().mockResolvedValue(undefined) },
+        });
+
+        await expect(runIterateChartType(service)).rejects.toThrow(
+            'Chart type "sankey-flow" was not found',
+        );
+        expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['a personal chart type', DATA_APP_VIZ_TEMPLATE, null],
+        ['a data app outside scope', null, 'finance-space-uuid'],
+    ])(
+        'hides %s from a space-scoped agent as a missing chart type',
+        async (_label, template, spaceUuid) => {
+            const appGenerateService = makeAppGenerateService();
+            const service = makeService({
+                appGenerateService,
+                appModel: makeAppModel({ template, spaceUuid }),
+            });
+
+            await expect(
+                withAgentActionScope(user, AgentActorSurface.MCP, true, () =>
+                    runIterateChartType(service, null, ['sales-space-uuid']),
+                ),
+            ).rejects.toThrow(
+                new NotFoundError('Chart type "sankey-flow" was not found'),
+            );
+            expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
+            expect(
+                service['agentActionLogModel'].insert,
+            ).toHaveBeenCalledExactlyOnceWith(
+                expect.objectContaining({
+                    object_type: 'app',
+                    action: 'update',
+                    outcome: 'denied',
+                    policy_layer: 'agent_scope',
+                    reason_code: 'content_outside_agent_scope',
+                }),
+            );
+        },
+    );
+
+    it('does not iterate a chart type in a read-only space', async () => {
+        const appGenerateService = makeAppGenerateService();
+        const service = makeService({
+            appGenerateService,
+            appModel: makeAppModel({
+                template: null,
+                spaceUuid: 'source-space-uuid',
+            }),
+        });
+
+        await expect(
+            service
+                .createRuntime(
+                    makeRuntimeContext({
+                        source: 'mcp',
+                        spaceAccess: ['write-space-uuid', 'source-space-uuid'],
+                        readOnlySpaceUuids: ['source-space-uuid'],
+                    }),
+                )
+                .iterateCustomChartType({
+                    slug: 'sankey-flow',
+                    prompt: 'Colour the links by source',
+                    themeSlug: null,
+                    vizContext: null,
+                }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(appGenerateService.iterateApp).not.toHaveBeenCalled();
+    });
+
+    it('records a forbidden build as an app update refusal', async () => {
+        const error = new ForbiddenError('secret details');
+        const service = makeService({
+            appGenerateService: makeAppGenerateService(
+                vi.fn().mockRejectedValue(error),
+            ),
+            appModel: makeAppModel(),
+        });
+
+        await expect(
+            withAgentActionScope(user, AgentActorSurface.MCP, true, () =>
+                runIterateChartType(service),
+            ),
+        ).rejects.toBe(error);
+        expect(service['agentActionLogModel'].insert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                object_type: 'app',
+                action: 'update',
+                outcome: 'denied',
+                policy_layer: 'casl',
+                reason_code: 'content_write_forbidden',
+            }),
+        );
     });
 });
 
@@ -3860,5 +7028,2196 @@ describe('AiAgentToolsService listDataAppThemes', () => {
             .listDataAppThemes();
 
         expect(themes.map((theme) => theme.slug)).toEqual(['brand', 'dark']);
+    });
+});
+
+describe.each(agentActionTestCases)(
+    'agent tool action logging: %s',
+    (_, surface, enabled, count) => {
+        test('compile enqueue is recorded even when compile subsequently fails', async () => {
+            const service = makeService({
+                jobModel: {
+                    get: vi.fn().mockResolvedValue({
+                        jobStatus: JobStatusType.ERROR,
+                        jobUuid: 'job-1',
+                        steps: [],
+                    }),
+                },
+            });
+            await withAgentActionScope(user, surface, enabled, () =>
+                service
+                    .createRuntime(makeRuntimeContext())
+                    .syncDbtProject({ reason: null }),
+            );
+            expect(service['agentActionLogModel'].insert).toHaveBeenCalledTimes(
+                count,
+            );
+            if (count)
+                expect(
+                    service['agentActionLogModel'].insert,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        object_type: 'project_compile',
+                        object_uuid: 'job-1',
+                        action: 'enqueue',
+                    }),
+                );
+        });
+        test('user name records no supplied name', async () => {
+            const service = makeService();
+            Object.assign(service['userService'], {
+                updateUser: vi.fn().mockResolvedValue(undefined),
+            });
+            await withAgentActionScope(user, surface, enabled, () =>
+                service.createRuntime(makeRuntimeContext()).updateUserName({
+                    firstName: 'secret-name',
+                    lastName: 'private-name',
+                }),
+            );
+            const insert = vi.mocked(service['agentActionLogModel'].insert);
+            expect(insert).toHaveBeenCalledTimes(count);
+            if (count)
+                expect(insert).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        object_type: 'user',
+                        object_uuid: userUuid,
+                        action: 'update',
+                    }),
+                );
+            expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                'secret-name',
+            );
+        });
+        test('user name is refused for a service account', async () => {
+            const service = makeService();
+            const updateUser = vi.fn().mockResolvedValue(undefined);
+            Object.assign(service['userService'], { updateUser });
+            await expect(
+                withAgentActionScope(user, surface, enabled, () =>
+                    service
+                        .createRuntime(
+                            makeRuntimeContext({
+                                user: {
+                                    ...user,
+                                    serviceAccount: { uuid: 'service-account' },
+                                },
+                            }),
+                        )
+                        .updateUserName({
+                            firstName: 'Sam',
+                            lastName: 'Viewer',
+                        }),
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(updateUser).not.toHaveBeenCalled();
+        });
+        test.each(['chart', 'dashboard'] as const)(
+            'scheduled %s records before augmentation failure',
+            async (resourceType) => {
+                const resource = { uuid: 'resource', spaceUuid: 'space' };
+                const service = makeService({
+                    savedChartModel: {
+                        get: vi.fn().mockResolvedValue(resource),
+                    },
+                    dashboardModel: {
+                        getByIdOrSlug: vi.fn().mockResolvedValue(resource),
+                    },
+                    savedChartService: {
+                        createScheduler: vi
+                            .fn()
+                            .mockResolvedValue({ schedulerUuid: 'scheduler' }),
+                    },
+                    dashboardService: {
+                        createScheduler: vi
+                            .fn()
+                            .mockResolvedValue({ schedulerUuid: 'scheduler' }),
+                    },
+                });
+                const runtime = service.createRuntime(makeRuntimeContext());
+                await withAgentActionScope(user, surface, enabled, () =>
+                    runtime.createScheduledDelivery({
+                        resourceType,
+                        resourceUuidOrSlug: 'resource',
+                        scheduler: {} as never,
+                        aiAugmentationPrompt: 'secret prompt',
+                    }),
+                );
+                const insert = vi.mocked(service['agentActionLogModel'].insert);
+                expect(insert).toHaveBeenCalledTimes(count);
+                if (count)
+                    expect(insert).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            object_type: 'scheduler',
+                            object_uuid: 'scheduler',
+                            action: 'create',
+                        }),
+                    );
+                expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                    'secret prompt',
+                );
+            },
+        );
+        test('CASL denial at tool boundary is redacted', async () => {
+            const error = new ForbiddenError('secret details');
+            const service = makeService({
+                scheduleCompileProject: vi.fn().mockRejectedValue(error),
+            });
+            await expect(
+                withAgentActionScope(user, surface, enabled, () =>
+                    service
+                        .createRuntime(makeRuntimeContext())
+                        .syncDbtProject({ reason: null }),
+                ),
+            ).rejects.toBe(error);
+            const insert = vi.mocked(service['agentActionLogModel'].insert);
+            expect(insert).toHaveBeenCalledTimes(count);
+            if (count)
+                expect(insert).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        outcome: 'denied',
+                        policy_layer: 'casl',
+                        object_uuid: null,
+                        reason_code: 'content_write_forbidden',
+                    }),
+                );
+            expect(JSON.stringify(insert.mock.calls)).not.toContain('secret');
+        });
+        test('space scope denial records the deciding layer', async () => {
+            const service = makeService({
+                spaceModel: {
+                    hasSpaceWithPathAndUuids: vi.fn().mockResolvedValue(false),
+                },
+            });
+            await expect(
+                withAgentActionScope(user, surface, enabled, () =>
+                    service['assertContentSpaceInScope'](
+                        makeRuntimeContext({ spaceAccess: ['space'] }),
+                        'secret-path',
+                        'not found',
+                        'update',
+                    ),
+                ),
+            ).rejects.toThrow(NotFoundError);
+            expect(service['agentActionLogModel'].insert).toHaveBeenCalledTimes(
+                count,
+            );
+            if (count)
+                expect(
+                    service['agentActionLogModel'].insert,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        outcome: 'denied',
+                        policy_layer: 'agent_scope',
+                        object_uuid: null,
+                    }),
+                );
+        });
+    },
+);
+
+test('generic tool failures are not policy refusals', async () => {
+    const service = makeService({
+        scheduleCompileProject: vi
+            .fn()
+            .mockRejectedValue(new Error('database unavailable')),
+    });
+    await expect(
+        withAgentActionScope(user, agentActionTestCases[0][1], true, () =>
+            service
+                .createRuntime(makeRuntimeContext())
+                .syncDbtProject({ reason: null }),
+        ),
+    ).rejects.toThrow('database unavailable');
+    expect(service['agentActionLogModel'].insert).not.toHaveBeenCalled();
+});
+
+test.each(agentActionTestCases)(
+    'content write CASL refusal: %s',
+    async (_, surface, enabled, count) => {
+        const error = new ForbiddenError('private permission details');
+        const service = makeService({
+            aiAgentContentValidation: { validateNewContent: vi.fn() },
+            coderService: { upsertDashboard: vi.fn().mockRejectedValue(error) },
+        });
+        await expect(
+            withAgentActionScope(user, surface, enabled, () =>
+                service.createRuntime(makeRuntimeContext()).createContent({
+                    type: 'dashboard',
+                    content: {
+                        slug: 'caller-slug',
+                        spaceSlug: 'space',
+                    } as never,
+                }),
+            ),
+        ).rejects.toBe(error);
+        const insert = vi.mocked(service['agentActionLogModel'].insert);
+        expect(insert).toHaveBeenCalledTimes(count);
+        if (count)
+            expect(insert).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    action: 'create',
+                    outcome: 'denied',
+                    policy_layer: 'casl',
+                    object_uuid: null,
+                }),
+            );
+        expect(JSON.stringify(insert.mock.calls)).not.toContain('caller-slug');
+        expect(JSON.stringify(insert.mock.calls)).not.toContain(
+            'private permission details',
+        );
+    },
+);
+
+test.each(['read', 'update'] as const)(
+    'chart scope refusal preserves %s operation through the reader',
+    async (action) => {
+        const service = makeService({
+            coderService: {
+                getChartsForRead: vi.fn().mockResolvedValue({
+                    charts: [{ slug: 'chart', spaceSlug: 'outside' }],
+                }),
+            },
+            aiAgentContentValidation: { validatePatch: vi.fn() },
+            spaceModel: {
+                hasSpaceWithPathAndUuids: vi.fn().mockResolvedValue(false),
+            },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ spaceAccess: ['allowed'] }),
+        );
+        await expect(
+            withAgentActionScope(user, agentActionTestCases[1][1], true, () =>
+                action === 'read'
+                    ? runtime.readContent({ type: 'chart', slug: 'chart' })
+                    : runtime.editContent({
+                          type: 'chart',
+                          slug: 'chart',
+                          patch: [],
+                      }),
+            ),
+        ).rejects.toThrow(NotFoundError);
+        expect(
+            service['agentActionLogModel'].insert,
+        ).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                action,
+                outcome: 'denied',
+                policy_layer: 'agent_scope',
+            }),
+        );
+    },
+);
+
+describe.each(agentActionTestCases)(
+    'content tool service wiring: %s',
+    (_, surface, enabled, count) => {
+        test.each(['chart', 'dashboard'] as const)(
+            'creates and edits %s through production services',
+            async (type) => {
+                const content = {
+                    name: 'Original',
+                    slug: 'content',
+                    spaceSlug: 'space',
+                    description: null,
+                    chartConfig: { type: ChartType.TABLE },
+                    metricQuery: {
+                        exploreName: 'orders',
+                        filters: {},
+                        dimensions: [],
+                        metrics: [],
+                        sorts: [],
+                        tableCalculations: [],
+                        limit: 100,
+                    },
+                    tiles: [],
+                    tabs: [],
+                    filters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                };
+                const stored = {
+                    ...content,
+                    uuid: 'content-uuid',
+                    projectUuid,
+                    organizationUuid,
+                    spaceUuid: 'space-uuid',
+                    versionUuid: 'version-created',
+                    dashboardUuid: null,
+                };
+                const insert = vi.fn().mockResolvedValue(undefined);
+                const transaction = Object.assign(new EventEmitter(), {
+                    executionPromise: Promise.resolve(),
+                });
+                const create = vi.fn(async (...args: unknown[]) => {
+                    const callback = args.at(-1) as (
+                        trx: unknown,
+                        version: string,
+                        uuid: string,
+                    ) => Promise<void>;
+                    await callback(transaction, 'version-created', stored.uuid);
+                    return stored;
+                });
+                const version = vi.fn(async (...args: unknown[]) => {
+                    const callback = args.at(-1) as (
+                        trx: unknown,
+                        version: string,
+                        uuid: string,
+                    ) => Promise<void>;
+                    await callback(transaction, 'version-edited', stored.uuid);
+                    return { ...stored, versionUuid: 'version-edited' };
+                });
+                const model = {
+                    create,
+                    createVersion: version,
+                    addVersion: version,
+                    get: vi.fn().mockResolvedValue(stored),
+                    getByIdOrSlug: vi.fn().mockResolvedValue(stored),
+                    find: vi.fn().mockResolvedValue([stored]),
+                    updateInTransaction: vi.fn(),
+                    update: vi.fn(),
+                    renameSlug: vi.fn(),
+                    transaction: vi.fn(
+                        async (run: (trx: unknown) => Promise<void>) =>
+                            run(transaction),
+                    ),
+                };
+                const changes = {
+                    charts: [],
+                    dashboards: [],
+                    spaces: [],
+                    [type === 'chart' ? 'charts' : 'dashboards']: [
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: {
+                                ...stored,
+                                oldUuid: stored.uuid,
+                                spacePath: 'space',
+                            },
+                        },
+                    ],
+                };
+                const promoteService = new PromoteService({
+                    savedChartModel: model,
+                    dashboardModel: model,
+                    agentActionLogModel: { insert },
+                } as unknown as ConstructorParameters<
+                    typeof PromoteService
+                >[0]);
+                Object.assign(promoteService, {
+                    getPromoteCharts: vi.fn().mockResolvedValue({
+                        promotedChart: { chart: stored },
+                        upstreamChart: { chart: stored },
+                    }),
+                    getChartChanges: vi.fn().mockResolvedValue(changes),
+                    getPromotedDashboard: vi.fn().mockResolvedValue({
+                        promotedDashboard: { dashboard: stored },
+                        upstreamDashboard: { dashboard: stored },
+                    }),
+                    getPromotionDashboardChanges: vi
+                        .fn()
+                        .mockResolvedValue([changes, []]),
+                    getOrCreateDashboard: vi.fn(
+                        async (_user: unknown, value: unknown) => value,
+                    ),
+                });
+                const coderService = new CoderService({
+                    savedChartModel: model,
+                    dashboardModel: model,
+                    promoteService,
+                    agentActionLogModel: { insert },
+                } as unknown as ConstructorParameters<typeof CoderService>[0]);
+                Object.assign(coderService, {
+                    resolveSyncEnabled: vi.fn().mockResolvedValue(false),
+                    projectModel: {
+                        get: vi.fn().mockResolvedValue({
+                            projectUuid,
+                            organizationUuid,
+                        }),
+                    },
+                    prepareDirectAccessReplace: vi
+                        .fn()
+                        .mockResolvedValue(undefined),
+                    findAccessibleSpace: vi
+                        .fn()
+                        .mockResolvedValue({ uuid: 'space-uuid' }),
+                    getOrCreateSpace: vi.fn().mockResolvedValue({
+                        space: { uuid: 'space-uuid' },
+                        created: false,
+                    }),
+                    assertContentAccessForMissingSpace: vi.fn(),
+                    assertSpaceContentAccess: vi.fn(),
+                    assertDashboardUpdateAccess: vi.fn(),
+                    assertTileChartsViewAccess: vi.fn(),
+                    spacePermissionService: {
+                        resolveAccessBatch: vi
+                            .fn()
+                            .mockResolvedValue(new Map()),
+                    },
+                    syncVerification: vi.fn(),
+                    syncDashboardOwner: vi.fn().mockResolvedValue([]),
+                    stampAppliedChartSnapshot: vi.fn(),
+                    stampAppliedDashboardSnapshot: vi.fn(),
+                    applyDirectAccessPolicy: vi.fn(),
+                    getChartsForRead: vi
+                        .fn()
+                        .mockResolvedValue({ charts: [content] }),
+                    getDashboardsForRead: vi
+                        .fn()
+                        .mockResolvedValue({ dashboards: [content] }),
+                    getCurrentContentVersionBySlug: vi
+                        .fn()
+                        .mockResolvedValue({ versionUuid: 'version' }),
+                });
+                const service = makeService({
+                    coderService: coderService as unknown as Record<
+                        string,
+                        unknown
+                    >,
+                    savedChartService: {
+                        get: vi.fn().mockResolvedValue(stored),
+                    },
+                    dashboardService: {
+                        getByIdOrSlug: vi.fn().mockResolvedValue(stored),
+                    },
+                    aiAgentContentValidation: {
+                        validateNewContent: vi.fn(),
+                        validateContent: vi.fn(),
+                        validatePatch: vi.fn(),
+                    },
+                });
+                const runtime = service.createRuntime(makeRuntimeContext());
+                await withAgentActionScope(user, surface, enabled, () =>
+                    runtime.createContent({ type, content } as never),
+                );
+                await withAgentActionScope(user, surface, enabled, () =>
+                    runtime.editContent({
+                        type,
+                        slug: content.slug,
+                        patch: [
+                            { op: 'replace', path: '/name', value: 'Edited' },
+                        ],
+                    }),
+                );
+                expect(create).toHaveBeenCalledOnce();
+                expect(version).toHaveBeenCalledOnce();
+                const createdClaim =
+                    create.mock.calls[0][type === 'chart' ? 3 : 4];
+                const editedClaim = version.mock.calls[0][5];
+                if (count) {
+                    expect(createdClaim).toMatchObject({
+                        subject: { uuid: userUuid },
+                        act: { surface },
+                    });
+                    expect(editedClaim).toEqual(createdClaim);
+                } else {
+                    expect(createdClaim).toBeNull();
+                    expect(editedClaim).toBeNull();
+                }
+                expect(insert).toHaveBeenCalledTimes(count * 2);
+                if (count) {
+                    expect(insert).toHaveBeenNthCalledWith(
+                        1,
+                        expect.objectContaining({
+                            agent_identity: createdClaim,
+                            object_type: type,
+                            object_uuid: stored.uuid,
+                            version_uuid: 'version-created',
+                            action: 'create',
+                        }),
+                        transaction,
+                    );
+                    expect(insert).toHaveBeenNthCalledWith(
+                        2,
+                        expect.objectContaining({
+                            agent_identity: editedClaim,
+                            object_type: type,
+                            object_uuid: stored.uuid,
+                            version_uuid: 'version-edited',
+                            action: 'update',
+                        }),
+                        transaction,
+                    );
+                }
+            },
+        );
+    },
+);
+
+test.each([
+    'runSqlJob',
+    'runAsyncQuery',
+    'editContent',
+    'createContent',
+] as const)(
+    'checks current agent policy before the runtime %s effect',
+    async (method) => {
+        const refusal = new AiAccessRefusedError(
+            AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+        );
+        const assertOperationWithRequest = vi.fn().mockRejectedValue(refusal);
+        const service = makeService({
+            agentPermissionService: {
+                assertOperationWithRequest,
+                loadRequest: vi.fn().mockResolvedValue({
+                    enforcementMode: 'managed',
+                }),
+            },
+        });
+        const context = makeRuntimeContext();
+        const runtime = service.createRuntime(context);
+        await expect(
+            (runtime[method] as (args: unknown) => Promise<unknown>)({}),
+        ).rejects.toBe(refusal);
+        expect(assertOperationWithRequest).toHaveBeenCalledWith(
+            expect.objectContaining({
+                operation: expect.objectContaining({
+                    kind: 'agent_tool',
+                    key: {
+                        runSqlJob: 'runSql',
+                        runAsyncQuery: 'runQuery',
+                        editContent: 'editContent',
+                        createContent: 'createContent',
+                    }[method],
+                    projectUuid,
+                    surface: AgentActorSurface.IN_APP_AGENT,
+                }),
+            }),
+        );
+    },
+);
+
+test.each(['off', 'legacy', 'query-only managed'])(
+    'content query catches synchronous validation errors in %s mode',
+    async (mode) => {
+        const assertOperationWithRequest = vi
+            .fn()
+            .mockImplementation(async ({ operation: { key } }) => {
+                if (key !== 'runQuery') {
+                    throw new AiAccessRefusedError(
+                        AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+                    );
+                }
+            });
+        const executeAsyncQuery = vi.fn();
+        const runtime = makeService({
+            agentPermissionService: {
+                assertOperationWithRequest,
+                loadRequest: vi.fn().mockResolvedValue({
+                    enforcementMode:
+                        mode === 'query-only managed' ? 'managed' : 'off',
+                }),
+            },
+            aiAgentContentValidation: new AiAgentContentValidation(),
+            asyncQueryService: { executeAsyncQuery },
+        }).createRuntime(makeRuntimeContext());
+        const tool = getRunContentQuery({
+            ...runtime,
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            maxLimit: 100,
+            maxContextRows: 10,
+            enableDataAccess: true,
+            sqlQuerying: null,
+        });
+        const result = await tool.execute!(
+            {
+                source: {
+                    type: 'metricQuery',
+                    tableName: 'orders',
+                    metricQuery: { dimensions: 'invalid' },
+                },
+            } as unknown as Parameters<NonNullable<typeof tool.execute>>[0],
+            { toolCallId: 'validation', messages: [], context: {} },
+        );
+        expect(result).toMatchObject({
+            metadata: { status: 'error' },
+            result: expect.stringContaining(
+                '/metricQuery/dimensions must be array',
+            ),
+        });
+        expect(assertOperationWithRequest).not.toHaveBeenCalled();
+        expect(executeAsyncQuery).not.toHaveBeenCalled();
+    },
+);
+
+test('gates effectful runtime operations before their implementations run', async () => {
+    const refusal = new AiAccessRefusedError(
+        AiAccessRefusalReason.AGENT_CAPABILITY_DENIED,
+    );
+    const assertOperationWithRequest = vi.fn().mockRejectedValue(refusal);
+    const service = makeService({
+        agentPermissionService: {
+            assertOperationWithRequest,
+            loadRequest: vi.fn().mockResolvedValue({
+                enforcementMode: 'managed',
+            }),
+        },
+    });
+    const runtime = service.createRuntime(makeRuntimeContext());
+    await Promise.all(
+        Object.entries(runtime)
+            .filter(
+                ([name]) =>
+                    !['recordSqlChartRefusal', 'validateContent'].includes(
+                        name,
+                    ),
+            )
+            .map(([, execute]) =>
+                expect(
+                    (execute as (args: unknown) => Promise<unknown>)({}),
+                ).rejects.toBe(refusal),
+            ),
+    );
+    expect(assertOperationWithRequest).toHaveBeenCalledTimes(
+        Object.keys(runtime).length - 2,
+    );
+    for (const key of [
+        'createScheduledDelivery',
+        'syncDbtProject',
+        'generateDataApp',
+        'updateUserName',
+    ]) {
+        expect(assertOperationWithRequest).toHaveBeenCalledWith(
+            expect.objectContaining({
+                operation: expect.objectContaining({
+                    key,
+                    kind: 'agent_tool',
+                    projectUuid,
+                }),
+            }),
+        );
+    }
+});
+
+const admissionDatabase = knex({ client: MockClient, dialect: 'pg' });
+const admissionTracker = getTracker();
+beforeEach(() => admissionTracker.reset());
+afterAll(async () => admissionDatabase.destroy());
+
+test('SQL admission uses a fresh handle on each invocation of one mapped runtime', async () => {
+    const sql = setupPermissionSql(
+        admissionDatabase,
+        admissionTracker,
+        account,
+    );
+    const getWarehouseTables = vi.fn().mockResolvedValue({});
+    const runtime = makeService({
+        agentPermissionService: sql.service,
+        projectService: { getWarehouseTables },
+    }).createRuntime(makeRuntimeContext());
+    await runtime.listWarehouseTables(QueryExecutionContext.AI);
+    expect(getWarehouseTables).toHaveBeenCalledOnce();
+    expectAdmissionSql(admissionTracker, {
+        policy: 1,
+        groups: 0,
+        people: 0,
+        membership: 1,
+    });
+    sql.state.policy.allowedGroupUuids = [];
+    await expect(
+        runtime.listWarehouseTables(QueryExecutionContext.AI),
+    ).rejects.toMatchObject({
+        refusal: { reason: AiAccessRefusalReason.AGENT_USER_NOT_ALLOWED },
+    });
+    expect(getWarehouseTables).toHaveBeenCalledOnce();
+    expectAdmissionSql(admissionTracker, {
+        policy: 2,
+        groups: 0,
+        people: 0,
+        membership: 1,
+    });
+});
+
+describe('AiAgentToolsService searchCustomChartTypes', () => {
+    const storedSchema = {
+        fields: [
+            {
+                name: 'stage',
+                label: 'Stage',
+                type: 'dimension',
+                required: true,
+                multiple: true,
+            },
+        ],
+        configOptions: [
+            {
+                name: 'sort',
+                label: 'Sort',
+                type: 'select',
+                choices: [{ value: 'desc', label: 'Descending' }],
+                default: 'desc',
+            },
+        ],
+        colorPalette: { group: 'Colors' },
+        hierarchy: { field: 'stage' },
+    };
+    const row = {
+        app_id: 'viz-uuid',
+        slug: 'funnel-viz',
+        name: 'Funnel',
+        description: '',
+        project_uuid: projectUuid,
+        viz_schema: storedSchema,
+        latest_ready_version: 4,
+    };
+
+    const search = (
+        args: { query: string } | { slug: string },
+        {
+            canUseChartTypes = true,
+            appModel = {},
+        }: { canUseChartTypes?: boolean; appModel?: Record<string, unknown> },
+    ) => {
+        const service = makeService({
+            appGenerateService: {
+                canUseChartTypes: vi.fn().mockResolvedValue(canUseChartTypes),
+            },
+            appModel,
+        });
+        return (
+            service as unknown as {
+                searchCustomChartTypes: (
+                    context: AiAgentToolsRuntimeContext,
+                    a: typeof args,
+                ) => Promise<unknown>;
+            }
+        ).searchCustomChartTypes(makeRuntimeContext({ source: 'mcp' }), args);
+    };
+
+    it('refuses a caller who fails the gallery gate', async () => {
+        const listDataAppVisualizations = vi.fn();
+        await expect(
+            search(
+                { query: 'funnel' },
+                {
+                    canUseChartTypes: false,
+                    appModel: { listDataAppVisualizations },
+                },
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        expect(listDataAppVisualizations).not.toHaveBeenCalled();
+    });
+
+    it('returns query matches with version, link and plain schema, without uuids', async () => {
+        const listDataAppVisualizations = vi
+            .fn()
+            .mockResolvedValue({ data: [row] });
+
+        const result = await search(
+            { query: 'funnel' },
+            { appModel: { listDataAppVisualizations } },
+        );
+
+        expect(listDataAppVisualizations).toHaveBeenCalledWith(
+            projectUuid,
+            {
+                page: 1,
+                pageSize: AiAgentToolsService.CUSTOM_CHART_TYPES_SEARCH_LIMIT,
+            },
+            'funnel',
+        );
+        expect(result).toEqual([
+            {
+                slug: 'funnel-viz',
+                name: 'Funnel',
+                description: null,
+                version: 4,
+                chartStudioUrl: `https://lightdash.example/projects/${projectUuid}/chart-studio/funnel-viz`,
+                vizSchema: {
+                    fields: [
+                        {
+                            name: 'stage',
+                            label: 'Stage',
+                            type: 'dimension',
+                            required: true,
+                            multiple: true,
+                            description: null,
+                        },
+                    ],
+                    configOptions: [
+                        {
+                            name: 'sort',
+                            label: 'Sort',
+                            type: 'select',
+                            group: null,
+                            default: 'desc',
+                            choices: [{ value: 'desc', label: 'Descending' }],
+                            min: null,
+                            max: null,
+                        },
+                    ],
+                    colorPalette: { group: 'Colors' },
+                    hierarchy: { field: 'stage' },
+                    inputGuidance: null,
+                },
+            },
+        ]);
+        expect(JSON.stringify(result)).not.toContain('viz-uuid');
+    });
+
+    it('fetches one chart type by slug', async () => {
+        const findDataAppVisualizationBySlug = vi
+            .fn()
+            .mockResolvedValueOnce(row)
+            .mockResolvedValueOnce(undefined);
+        const appModel = { findDataAppVisualizationBySlug };
+
+        await expect(
+            search({ slug: 'funnel-viz' }, { appModel }),
+        ).resolves.toMatchObject([{ slug: 'funnel-viz', version: 4 }]);
+        await expect(
+            search({ slug: 'missing' }, { appModel }),
+        ).resolves.toEqual([]);
+        expect(findDataAppVisualizationBySlug).toHaveBeenLastCalledWith(
+            projectUuid,
+            'missing',
+        );
+    });
+
+    const searchWithLoggerSpy = async (rows: unknown[]) => {
+        const service = makeService({
+            appGenerateService: {
+                canUseChartTypes: vi.fn().mockResolvedValue(true),
+            },
+            appModel: {
+                listDataAppVisualizations: vi
+                    .fn()
+                    .mockResolvedValue({ data: rows }),
+            },
+        });
+        const warn = vi.spyOn(
+            (service as unknown as { logger: { warn: () => void } }).logger,
+            'warn',
+        );
+        const results = await (
+            service as unknown as {
+                searchCustomChartTypes: (
+                    context: AiAgentToolsRuntimeContext,
+                    a: { query: string },
+                ) => Promise<unknown[]>;
+            }
+        ).searchCustomChartTypes(makeRuntimeContext({ source: 'mcp' }), {
+            query: 'chart',
+        });
+        return { results, warn };
+    };
+
+    it.each([
+        {
+            name: 'number',
+            option: {
+                name: 'radius',
+                label: 'Radius',
+                type: 'number',
+                default: 4,
+                min: 1,
+                max: null,
+            },
+            expected: { default: 4, choices: null, min: 1, max: null },
+        },
+        {
+            name: 'gradient',
+            option: {
+                name: 'scale',
+                label: 'Scale',
+                type: 'gradient',
+                showBounds: false,
+                default: {
+                    colors: ['#000000', '#ffffff'],
+                    min: 'auto',
+                    max: 10,
+                },
+            },
+            expected: {
+                default: {
+                    colors: ['#000000', '#ffffff'],
+                    min: 'auto',
+                    max: 10,
+                },
+                choices: null,
+                min: null,
+                max: null,
+            },
+        },
+    ])(
+        'maps a $name option to the output schema',
+        async ({ option, expected }) => {
+            const { results } = await searchWithLoggerSpy([
+                {
+                    ...row,
+                    viz_schema: { ...storedSchema, configOptions: [option] },
+                },
+            ]);
+
+            const parsed = mcpFindCustomChartTypesOutputSchema.parse({
+                results,
+            });
+            expect(parsed.results[0].vizSchema.configOptions).toEqual([
+                {
+                    name: option.name,
+                    label: option.label,
+                    type: option.type,
+                    group: null,
+                    ...expected,
+                },
+            ]);
+        },
+    );
+
+    it('drops a row whose stored schema fails validation and logs a warning', async () => {
+        const { results, warn } = await searchWithLoggerSpy([
+            { ...row, slug: 'broken-viz', viz_schema: { fields: 'nope' } },
+            row,
+        ]);
+
+        expect(results).toMatchObject([{ slug: 'funnel-viz' }]);
+        expect(warn).toHaveBeenCalledWith(
+            expect.stringContaining('"broken-viz"'),
+        );
+    });
+
+    describe('listCustomChartTypesPage', () => {
+        const list = (
+            page: number,
+            {
+                canUseChartTypes = true,
+                appModel = {},
+            }: {
+                canUseChartTypes?: boolean;
+                appModel?: Record<string, unknown>;
+            },
+        ) => {
+            const service = makeService({
+                appGenerateService: {
+                    canUseChartTypes: vi
+                        .fn()
+                        .mockResolvedValue(canUseChartTypes),
+                },
+                appModel,
+            });
+            return (
+                service as unknown as {
+                    listCustomChartTypesPage: (
+                        context: AiAgentToolsRuntimeContext,
+                        a: { page: number },
+                    ) => Promise<unknown>;
+                }
+            ).listCustomChartTypesPage(makeRuntimeContext({ source: 'mcp' }), {
+                page,
+            });
+        };
+
+        it('refuses a caller who fails the gallery gate before any query', async () => {
+            const listDataAppVisualizations = vi.fn();
+            await expect(
+                list(1, {
+                    canUseChartTypes: false,
+                    appModel: { listDataAppVisualizations },
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(listDataAppVisualizations).not.toHaveBeenCalled();
+        });
+
+        it('passes the page through without a search and maps items like find', async () => {
+            const listDataAppVisualizations = vi.fn().mockResolvedValue({
+                data: [row],
+                pagination: {
+                    page: 2,
+                    pageSize: 10,
+                    totalResults: 11,
+                    totalPageCount: 2,
+                },
+            });
+            const findDataAppVisualizationBySlug = vi
+                .fn()
+                .mockResolvedValue(row);
+
+            const result = await list(2, {
+                appModel: { listDataAppVisualizations },
+            });
+            const [found] = (await search(
+                { slug: 'funnel-viz' },
+                { appModel: { findDataAppVisualizationBySlug } },
+            )) as unknown[];
+
+            expect(listDataAppVisualizations).toHaveBeenCalledWith(
+                projectUuid,
+                {
+                    page: 2,
+                    pageSize:
+                        AiAgentToolsService.CUSTOM_CHART_TYPES_LIST_PAGE_SIZE,
+                },
+            );
+            expect(result).toEqual({
+                output: {
+                    pagination: {
+                        page: 2,
+                        pageSize: 10,
+                        totalResults: 11,
+                        totalPageCount: 2,
+                    },
+                    results: [found],
+                },
+                skippedOnPage: 0,
+            });
+            expect(JSON.stringify(result)).not.toContain('viz-uuid');
+        });
+
+        it('counts rows dropped for an invalid schema and keeps the totals', async () => {
+            const pagination = {
+                page: 1,
+                pageSize: 10,
+                totalResults: 2,
+                totalPageCount: 1,
+            };
+            const listDataAppVisualizations = vi.fn().mockResolvedValue({
+                data: [{ ...row, slug: 'broken-viz', viz_schema: {} }, row],
+                pagination,
+            });
+
+            const result = await list(1, {
+                appModel: { listDataAppVisualizations },
+            });
+
+            expect(result).toMatchObject({
+                output: { pagination, results: [{ slug: 'funnel-viz' }] },
+                skippedOnPage: 1,
+            });
+        });
+    });
+});
+
+describe('AiAgentToolsService runSqlChartQuery', () => {
+    const sqlChart = {
+        savedSqlUuid: 'sql-chart-uuid',
+        slug: 'orders-by-status',
+        name: 'Orders by status',
+        sql: 'select status, count(*) as orders from jaffle.orders group by 1',
+        limit: 10,
+        space: { uuid: 'allowed-space-uuid' },
+    };
+    const makeSqlChartService = (
+        dashboardTiles: unknown[] = [],
+        savedSqlChart = sqlChart,
+    ) => {
+        const executeAsyncSqlChartQuery = vi
+            .fn()
+            .mockResolvedValue({ queryUuid: 'chart-query' });
+        const executeAsyncDashboardSqlChartQuery = vi
+            .fn()
+            .mockResolvedValue({ queryUuid: 'dashboard-query' });
+        const service = makeService({
+            savedSqlService: {
+                getSqlChart: vi.fn().mockResolvedValue(savedSqlChart),
+            },
+            dashboardService: {
+                getByIdOrSlug: vi.fn().mockResolvedValue({
+                    uuid: 'dashboard-uuid',
+                    spaceUuid: 'dashboard-space-uuid',
+                    filters: { dimensions: [], metrics: [] },
+                    tiles: dashboardTiles,
+                }),
+            },
+            asyncQueryService: {
+                executeAsyncSqlChartQuery,
+                executeAsyncDashboardSqlChartQuery,
+                getAsyncQueryResults: vi.fn().mockResolvedValue({
+                    status: QueryHistoryStatus.READY,
+                    rows: [{ status: 'completed', orders: 97 }],
+                    columns: { status: {}, orders: {} },
+                }),
+                getQueryExecutionStats: vi.fn().mockResolvedValue(null),
+            },
+        });
+        return {
+            service,
+            executeAsyncSqlChartQuery,
+            executeAsyncDashboardSqlChartQuery,
+        };
+    };
+
+    it('runs a saved SQL chart at its saved limit and returns its rows', async () => {
+        const { service, executeAsyncSqlChartQuery } = makeSqlChartService();
+
+        await expect(
+            service.createRuntime(makeRuntimeContext()).runSqlChartQuery({
+                chartSlug: 'orders-by-status',
+                dashboardSlug: null,
+            }),
+        ).resolves.toEqual({
+            queryUuid: 'chart-query',
+            rows: [{ status: 'completed', orders: 97 }],
+            columns: ['status', 'orders'],
+            rowCount: 1,
+            executionStats: null,
+            sqlChart: {
+                uuid: 'sql-chart-uuid',
+                slug: 'orders-by-status',
+                name: 'Orders by status',
+                sql: sqlChart.sql,
+            },
+            limit: 10,
+        });
+        expect(executeAsyncSqlChartQuery).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                savedSqlUuid: 'sql-chart-uuid',
+                limit: 10,
+                context: QueryExecutionContext.AI,
+            }),
+        );
+    });
+
+    it('clamps a SQL chart saved limit above the AI max', async () => {
+        const { service, executeAsyncSqlChartQuery } = makeSqlChartService([], {
+            ...sqlChart,
+            limit: 10000,
+        });
+
+        await expect(
+            service.createRuntime(makeRuntimeContext()).runSqlChartQuery({
+                chartSlug: 'orders-by-status',
+                dashboardSlug: null,
+            }),
+        ).resolves.toMatchObject({ limit: 500 });
+        expect(executeAsyncSqlChartQuery).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({ limit: 500 }),
+        );
+    });
+
+    it('runs a SQL chart tile at its saved limit with its dashboard filters', async () => {
+        const { service, executeAsyncDashboardSqlChartQuery } =
+            makeSqlChartService([
+                {
+                    uuid: 'tile-uuid',
+                    type: 'sql_chart',
+                    properties: { savedSqlUuid: 'sql-chart-uuid' },
+                },
+            ]);
+
+        await service.createRuntime(makeRuntimeContext()).runSqlChartQuery({
+            chartSlug: 'orders-by-status',
+            dashboardSlug: 'jaffle-dashboard',
+        });
+
+        expect(
+            executeAsyncDashboardSqlChartQuery,
+        ).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({
+                savedSqlUuid: 'sql-chart-uuid',
+                dashboardUuid: 'dashboard-uuid',
+                tileUuid: 'tile-uuid',
+                dashboardFilters: { dimensions: [], metrics: [] },
+                limit: 10,
+            }),
+        );
+    });
+
+    it('refuses a dashboard that does not hold the SQL chart', async () => {
+        const { service, executeAsyncDashboardSqlChartQuery } =
+            makeSqlChartService();
+
+        await expect(
+            service.createRuntime(makeRuntimeContext()).runSqlChartQuery({
+                chartSlug: 'orders-by-status',
+                dashboardSlug: 'jaffle-dashboard',
+            }),
+        ).rejects.toThrow('not found on dashboard jaffle-dashboard');
+        expect(executeAsyncDashboardSqlChartQuery).not.toHaveBeenCalled();
+    });
+
+    it('hides a SQL chart outside the agent spaces', async () => {
+        const { service, executeAsyncSqlChartQuery } = makeSqlChartService();
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ spaceAccess: ['other-space-uuid'] }),
+        );
+
+        await expect(runtime.getSqlChart('orders-by-status')).rejects.toThrow(
+            'SQL chart "orders-by-status" was not found',
+        );
+        await expect(
+            runtime.runSqlChartQuery({
+                chartSlug: 'orders-by-status',
+                dashboardSlug: null,
+            }),
+        ).rejects.toThrow('was not found');
+        expect(executeAsyncSqlChartQuery).not.toHaveBeenCalled();
+    });
+
+    it('lets a dashboard in the agent spaces grant its SQL chart tiles', async () => {
+        const { service, executeAsyncDashboardSqlChartQuery } =
+            makeSqlChartService([
+                {
+                    uuid: 'tile-uuid',
+                    type: 'sql_chart',
+                    properties: { savedSqlUuid: 'sql-chart-uuid' },
+                },
+            ]);
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ spaceAccess: ['dashboard-space-uuid'] }),
+        );
+
+        await runtime.runSqlChartQuery({
+            chartSlug: 'orders-by-status',
+            dashboardSlug: 'jaffle-dashboard',
+        });
+
+        expect(executeAsyncDashboardSqlChartQuery).toHaveBeenCalledOnce();
+    });
+
+    it('refuses saved SQL that reads outside the agent SQL scope', async () => {
+        const { service, executeAsyncSqlChartQuery } = makeSqlChartService();
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ sqlScope: { schemas: ['marketing'] } }),
+        );
+
+        await expect(
+            runtime.runSqlChartQuery({
+                chartSlug: 'orders-by-status',
+                dashboardSlug: null,
+            }),
+        ).rejects.toThrow('jaffle');
+        expect(executeAsyncSqlChartQuery).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiAgentToolsService in a thread bound to a dashboard', () => {
+    const boundDashboard = {
+        uuid: 'bound-dashboard-uuid',
+        slug: 'bound-dashboard',
+        spaceUuid: 'space-uuid',
+    };
+    const otherDashboard = {
+        uuid: 'other-dashboard-uuid',
+        slug: 'other-dashboard',
+        spaceUuid: 'space-uuid',
+    };
+    const boundContext = () =>
+        makeRuntimeContext({
+            threadBinding: {
+                type: 'dashboard',
+                dashboardUuid: boundDashboard.uuid,
+            },
+        });
+    const dashboardModel = () => ({
+        getByIdOrSlug: vi.fn(async (uuidOrSlug: string) =>
+            [boundDashboard, otherDashboard].find(
+                (d) => d.uuid === uuidOrSlug || d.slug === uuidOrSlug,
+            ),
+        ),
+    });
+    const contentValidation = () => ({
+        validateNewContent: vi.fn(),
+        validatePatch: vi.fn(),
+        validateContent: vi.fn(),
+    });
+    const makeDashboard = (slug: string) => ({
+        slug,
+        name: 'Dashboard',
+        description: '',
+        spaceSlug: 'space',
+        version: 1,
+        verified: false,
+        verification: null,
+        tiles: [],
+        tabs: [],
+        filters: { dimensions: [], metrics: [], tableCalculations: [] },
+    });
+    const makeChart = (dashboardSlug: string | undefined) => ({
+        name: 'Orders',
+        description: '',
+        tableName: 'orders',
+        slug: 'orders-chart',
+        metricQuery: {
+            exploreName: 'orders',
+            dimensions: [],
+            metrics: ['orders_count'],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+        },
+        chartConfig: { type: 'table', config: {} },
+        tableConfig: { columnOrder: [] },
+        spaceSlug: 'space',
+        dashboardSlug,
+        version: 1,
+    });
+    const sqlChart = {
+        name: 'SQL chart',
+        description: null,
+        slug: 'sql-chart',
+        spaceSlug: 'space',
+        sql: 'select 1',
+        limit: 500,
+        chartKind: 'table',
+        version: 1,
+        config: {},
+    };
+
+    describe('createContent', () => {
+        it('rejects a new dashboard', async () => {
+            const upsertDashboard = vi.fn();
+            const service = makeService({
+                dashboardModel: dashboardModel(),
+                coderService: { upsertDashboard },
+                aiAgentContentValidation: contentValidation(),
+            });
+
+            await expect(
+                service.createRuntime(boundContext()).createContent({
+                    type: 'dashboard',
+                    content: makeDashboard('new-dashboard'),
+                } as never),
+            ).rejects.toThrow(
+                'This conversation is bound to the dashboard "bound-dashboard". New dashboards cannot be created here.',
+            );
+            expect(upsertDashboard).not.toHaveBeenCalled();
+        });
+
+        it.each([undefined, otherDashboard.slug])(
+            'rejects a new chart saved in %s',
+            async (dashboardSlug) => {
+                const upsertChart = vi.fn();
+                const service = makeService({
+                    dashboardModel: dashboardModel(),
+                    coderService: { upsertChart },
+                    aiAgentContentValidation: contentValidation(),
+                });
+
+                await expect(
+                    service.createRuntime(boundContext()).createContent({
+                        type: 'chart',
+                        content: makeChart(dashboardSlug),
+                    } as never),
+                ).rejects.toThrow(ParameterError);
+                expect(upsertChart).not.toHaveBeenCalled();
+            },
+        );
+
+        it('creates a chart saved in the bound dashboard', async () => {
+            const upsertChart = vi.fn().mockResolvedValue({
+                charts: [
+                    { data: { uuid: 'chart-uuid', slug: 'orders-chart' } },
+                ],
+            });
+            const service = makeService({
+                dashboardModel: dashboardModel(),
+                savedChartService: {
+                    get: vi.fn().mockResolvedValue({ uuid: 'chart-uuid' }),
+                },
+                coderService: {
+                    upsertChart,
+                    getChartsForRead: vi.fn().mockResolvedValue({
+                        charts: [makeChart(boundDashboard.slug)],
+                    }),
+                },
+                aiAgentContentValidation: contentValidation(),
+            });
+
+            await service.createRuntime(boundContext()).createContent({
+                type: 'chart',
+                content: makeChart(boundDashboard.slug),
+            } as never);
+
+            expect(upsertChart).toHaveBeenCalled();
+        });
+
+        it('rejects a new SQL chart', async () => {
+            const upsertSqlChart = vi.fn();
+            const service = makeService({
+                dashboardModel: dashboardModel(),
+                coderService: { upsertSqlChart },
+                aiAgentContentValidation: contentValidation(),
+            });
+
+            await expect(
+                service.createRuntime(boundContext()).createContent({
+                    type: 'sql_chart',
+                    content: sqlChart,
+                    approveSql: vi.fn(),
+                } as never),
+            ).rejects.toThrow(ParameterError);
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('rejects a new document', async () => {
+            const service = makeService({ dashboardModel: dashboardModel() });
+
+            await expect(
+                service.createRuntime(boundContext()).createContent({
+                    type: 'document',
+                    content: { name: 'Notes', markdown: '' },
+                } as never),
+            ).rejects.toThrow(ParameterError);
+        });
+
+        it('fails closed when the bound dashboard no longer exists', async () => {
+            const upsertChart = vi.fn();
+            const service = makeService({
+                dashboardModel: {
+                    getByIdOrSlug: vi
+                        .fn()
+                        .mockRejectedValue(new NotFoundError('not found')),
+                },
+                coderService: { upsertChart },
+                aiAgentContentValidation: contentValidation(),
+            });
+
+            await expect(
+                service.createRuntime(boundContext()).createContent({
+                    type: 'chart',
+                    content: makeChart(boundDashboard.slug),
+                } as never),
+            ).rejects.toThrow(
+                'This conversation is bound to a dashboard that no longer exists',
+            );
+            expect(upsertChart).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('editContent', () => {
+        const dashboardEditService = (upsertDashboard: import('vitest').Mock) =>
+            makeService({
+                dashboardModel: dashboardModel(),
+                dashboardService: {
+                    getByIdOrSlug: vi.fn(async (_user, slug: string) => ({
+                        uuid: `${slug}-uuid`,
+                    })),
+                },
+                coderService: {
+                    getDashboardsForRead: vi.fn(
+                        async (_user, _project, slugs: string[]) => ({
+                            dashboards: slugs.map(makeDashboard),
+                        }),
+                    ),
+                    getCurrentContentVersionBySlug: vi
+                        .fn()
+                        .mockResolvedValue({ versionUuid: 'version' }),
+                    upsertDashboard,
+                },
+                aiAgentContentValidation: contentValidation(),
+            });
+        const renamePatch = [{ op: 'replace', path: '/name', value: 'New' }];
+
+        it('rejects another dashboard', async () => {
+            const upsertDashboard = vi.fn();
+            const service = dashboardEditService(upsertDashboard);
+
+            await expect(
+                service.createRuntime(boundContext()).editContent({
+                    slug: otherDashboard.slug,
+                    type: 'dashboard',
+                    patch: renamePatch,
+                } as never),
+            ).rejects.toThrow('Only that dashboard can be edited.');
+            expect(upsertDashboard).not.toHaveBeenCalled();
+        });
+
+        it('edits the bound dashboard', async () => {
+            const upsertDashboard = vi.fn().mockResolvedValue({
+                dashboards: [{ data: { uuid: boundDashboard.uuid } }],
+            });
+            const service = dashboardEditService(upsertDashboard);
+
+            await service.createRuntime(boundContext()).editContent({
+                slug: boundDashboard.slug,
+                type: 'dashboard',
+                patch: renamePatch,
+            } as never);
+
+            expect(upsertDashboard).toHaveBeenCalled();
+        });
+
+        const chartEditService = (
+            storedDashboardSlug: string | undefined,
+            upsertChart: import('vitest').Mock,
+        ) =>
+            makeService({
+                dashboardModel: dashboardModel(),
+                savedChartService: {
+                    get: vi.fn().mockResolvedValue({ uuid: 'chart-uuid' }),
+                },
+                coderService: {
+                    getChartsForRead: vi.fn().mockResolvedValue({
+                        charts: [makeChart(storedDashboardSlug)],
+                    }),
+                    getCurrentContentVersionBySlug: vi
+                        .fn()
+                        .mockResolvedValue({ versionUuid: 'version' }),
+                    upsertChart,
+                },
+                aiAgentContentValidation: contentValidation(),
+            });
+
+        it.each([undefined, otherDashboard.slug])(
+            'rejects a chart saved in %s',
+            async (storedDashboardSlug) => {
+                const upsertChart = vi.fn();
+                const service = chartEditService(
+                    storedDashboardSlug,
+                    upsertChart,
+                );
+
+                await expect(
+                    service.createRuntime(boundContext()).editContent({
+                        slug: 'orders-chart',
+                        type: 'chart',
+                        patch: renamePatch,
+                    } as never),
+                ).rejects.toThrow(
+                    'Only charts saved in that dashboard can be edited',
+                );
+                expect(upsertChart).not.toHaveBeenCalled();
+            },
+        );
+
+        it('rejects moving a chart out of the bound dashboard', async () => {
+            const upsertChart = vi.fn();
+            const service = chartEditService(boundDashboard.slug, upsertChart);
+
+            await expect(
+                service.createRuntime(boundContext()).editContent({
+                    slug: 'orders-chart',
+                    type: 'chart',
+                    patch: [{ op: 'remove', path: '/dashboardSlug' }],
+                } as never),
+            ).rejects.toThrow(ParameterError);
+            expect(upsertChart).not.toHaveBeenCalled();
+        });
+
+        it('edits a chart saved in the bound dashboard', async () => {
+            const upsertChart = vi.fn().mockResolvedValue({
+                charts: [{ data: { uuid: 'chart-uuid' } }],
+            });
+            const service = chartEditService(boundDashboard.slug, upsertChart);
+
+            await service.createRuntime(boundContext()).editContent({
+                slug: 'orders-chart',
+                type: 'chart',
+                patch: renamePatch,
+            } as never);
+
+            expect(upsertChart).toHaveBeenCalled();
+        });
+
+        it('rejects SQL charts', async () => {
+            const upsertSqlChart = vi.fn();
+            const service = makeService({
+                dashboardModel: dashboardModel(),
+                coderService: { upsertSqlChart },
+                aiAgentContentValidation: contentValidation(),
+            });
+
+            await expect(
+                service.createRuntime(boundContext()).editContent({
+                    slug: sqlChart.slug,
+                    type: 'sql_chart',
+                    patch: renamePatch,
+                    approveSql: vi.fn(),
+                } as never),
+            ).rejects.toThrow(ParameterError);
+            expect(upsertSqlChart).not.toHaveBeenCalled();
+        });
+
+        it('rejects documents', async () => {
+            const service = makeService({ dashboardModel: dashboardModel() });
+
+            await expect(
+                service.createRuntime(boundContext()).editContent({
+                    slug: 'notes',
+                    type: 'document',
+                    documentEdit: {},
+                } as never),
+            ).rejects.toThrow(ParameterError);
+        });
+    });
+
+    describe('createScheduledDelivery', () => {
+        const deliveryService = () => {
+            const createChartScheduler = vi
+                .fn()
+                .mockResolvedValue({ schedulerUuid: 'scheduler' });
+            const createDashboardScheduler = vi
+                .fn()
+                .mockResolvedValue({ schedulerUuid: 'scheduler' });
+            const service = makeService({
+                dashboardModel: dashboardModel(),
+                savedChartModel: {
+                    get: vi.fn(async (slug: string) => ({
+                        uuid: `${slug}-uuid`,
+                        spaceUuid: 'space-uuid',
+                        dashboardUuid:
+                            slug === 'dashboard-chart'
+                                ? boundDashboard.uuid
+                                : null,
+                    })),
+                },
+                savedChartService: { createScheduler: createChartScheduler },
+                dashboardService: {
+                    createScheduler: createDashboardScheduler,
+                },
+            });
+            return { service, createChartScheduler, createDashboardScheduler };
+        };
+        const deliver = (
+            service: AiAgentToolsService,
+            resourceType: 'chart' | 'dashboard',
+            resourceUuidOrSlug: string,
+        ) =>
+            service.createRuntime(boundContext()).createScheduledDelivery({
+                resourceType,
+                resourceUuidOrSlug,
+                scheduler: {} as never,
+                aiAugmentationPrompt: null,
+            });
+
+        it('allows the bound dashboard and the charts saved in it', async () => {
+            const { service, createChartScheduler, createDashboardScheduler } =
+                deliveryService();
+
+            await deliver(service, 'dashboard', boundDashboard.slug);
+            await deliver(service, 'chart', 'dashboard-chart');
+
+            expect(createDashboardScheduler).toHaveBeenCalled();
+            expect(createChartScheduler).toHaveBeenCalled();
+        });
+
+        it('rejects other dashboards and space charts', async () => {
+            const { service, createChartScheduler, createDashboardScheduler } =
+                deliveryService();
+
+            await expect(
+                deliver(service, 'dashboard', otherDashboard.slug),
+            ).rejects.toThrow(ParameterError);
+            await expect(
+                deliver(service, 'chart', 'space-chart'),
+            ).rejects.toThrow(ParameterError);
+
+            expect(createDashboardScheduler).not.toHaveBeenCalled();
+            expect(createChartScheduler).not.toHaveBeenCalled();
+        });
+    });
+
+    it('rejects generating a data app', async () => {
+        const generateApp = vi.fn();
+        const service = makeService({
+            dashboardModel: dashboardModel(),
+            appGenerateService: { generateApp },
+        });
+
+        await expect(
+            service.createRuntime(boundContext()).generateDataApp({
+                name: 'App',
+                prompt: 'Build an app',
+                template: null,
+                dashboardSlug: null,
+                chartSlugs: null,
+                themeSlug: null,
+                toolCallId: null,
+            } as never),
+        ).rejects.toThrow(ParameterError);
+        expect(generateApp).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiAgentToolsService in a thread bound to a chart', () => {
+    const boundChart = {
+        uuid: 'bound-chart-uuid',
+        slug: 'bound-chart',
+        projectUuid,
+    };
+    const boundContext = () =>
+        makeRuntimeContext({
+            threadBinding: { type: 'chart', chartUuid: boundChart.uuid },
+        });
+    const savedChartModel = () => ({
+        getSummary: vi.fn().mockResolvedValue(boundChart),
+        get: vi.fn(async (slug: string) => ({
+            uuid: slug === boundChart.slug ? boundChart.uuid : `${slug}-uuid`,
+            spaceUuid: 'space-uuid',
+            dashboardUuid: null,
+        })),
+    });
+    const contentValidation = () => ({
+        validateNewContent: vi.fn(),
+        validatePatch: vi.fn(),
+        validateContent: vi.fn(),
+    });
+    const makeChart = (slug: string) => ({
+        name: 'Orders',
+        description: '',
+        tableName: 'orders',
+        slug,
+        metricQuery: {
+            exploreName: 'orders',
+            dimensions: [],
+            metrics: ['orders_count'],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+        },
+        chartConfig: { type: 'table', config: {} },
+        tableConfig: { columnOrder: [] },
+        spaceSlug: 'space',
+        version: 1,
+    });
+    const renamePatch = [{ op: 'replace', path: '/name', value: 'New' }];
+
+    it.each(['chart', 'dashboard', 'sql_chart'] as const)(
+        'rejects creating a %s',
+        async (type) => {
+            const upsert = vi.fn();
+            const service = makeService({
+                savedChartModel: savedChartModel(),
+                coderService: {
+                    upsertChart: upsert,
+                    upsertDashboard: upsert,
+                    upsertSqlChart: upsert,
+                },
+                aiAgentContentValidation: contentValidation(),
+            });
+
+            await expect(
+                service.createRuntime(boundContext()).createContent({
+                    type,
+                    content: makeChart('new-content'),
+                    approveSql: vi.fn(),
+                } as never),
+            ).rejects.toThrow(
+                'This conversation is bound to the chart "bound-chart". New content cannot be created here.',
+            );
+            expect(upsert).not.toHaveBeenCalled();
+        },
+    );
+
+    describe('editContent', () => {
+        const chartEditService = (upsertChart: import('vitest').Mock) =>
+            makeService({
+                savedChartModel: savedChartModel(),
+                savedChartService: {
+                    get: vi.fn().mockResolvedValue({ uuid: boundChart.uuid }),
+                },
+                coderService: {
+                    getChartsForRead: vi.fn(
+                        async (_user, _project, slugs: string[]) => ({
+                            charts: slugs.map(makeChart),
+                        }),
+                    ),
+                    getCurrentContentVersionBySlug: vi
+                        .fn()
+                        .mockResolvedValue({ versionUuid: 'version' }),
+                    upsertChart,
+                },
+                aiAgentContentValidation: contentValidation(),
+            });
+
+        it('edits the bound chart', async () => {
+            const upsertChart = vi.fn().mockResolvedValue({
+                charts: [{ data: { uuid: boundChart.uuid } }],
+            });
+            const service = chartEditService(upsertChart);
+
+            await service.createRuntime(boundContext()).editContent({
+                slug: boundChart.slug,
+                type: 'chart',
+                patch: renamePatch,
+            } as never);
+
+            expect(upsertChart).toHaveBeenCalled();
+        });
+
+        it.each([
+            ['chart', 'other-chart'],
+            ['dashboard', 'some-dashboard'],
+            ['sql_chart', 'some-sql-chart'],
+        ] as const)('rejects editing a %s %s', async (type, slug) => {
+            const upsertChart = vi.fn();
+            const service = chartEditService(upsertChart);
+
+            await expect(
+                service.createRuntime(boundContext()).editContent({
+                    slug,
+                    type,
+                    patch: renamePatch,
+                    approveSql: vi.fn(),
+                } as never),
+            ).rejects.toThrow('Only that chart can be edited.');
+            expect(upsertChart).not.toHaveBeenCalled();
+        });
+
+        it('rejects documents', async () => {
+            const service = makeService({ savedChartModel: savedChartModel() });
+
+            await expect(
+                service.createRuntime(boundContext()).editContent({
+                    slug: 'notes',
+                    type: 'document',
+                    documentEdit: {},
+                } as never),
+            ).rejects.toThrow(ParameterError);
+        });
+    });
+
+    describe('createScheduledDelivery', () => {
+        const deliveryService = () => {
+            const createChartScheduler = vi
+                .fn()
+                .mockResolvedValue({ schedulerUuid: 'scheduler' });
+            const createDashboardScheduler = vi
+                .fn()
+                .mockResolvedValue({ schedulerUuid: 'scheduler' });
+            const service = makeService({
+                savedChartModel: savedChartModel(),
+                dashboardModel: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue({
+                        uuid: 'dashboard-uuid',
+                        spaceUuid: 'space-uuid',
+                    }),
+                },
+                savedChartService: { createScheduler: createChartScheduler },
+                dashboardService: {
+                    createScheduler: createDashboardScheduler,
+                },
+            });
+            return { service, createChartScheduler, createDashboardScheduler };
+        };
+        const deliver = (
+            service: AiAgentToolsService,
+            resourceType: 'chart' | 'dashboard',
+            resourceUuidOrSlug: string,
+        ) =>
+            service.createRuntime(boundContext()).createScheduledDelivery({
+                resourceType,
+                resourceUuidOrSlug,
+                scheduler: {} as never,
+                aiAugmentationPrompt: null,
+            });
+
+        it('allows the bound chart', async () => {
+            const { service, createChartScheduler } = deliveryService();
+
+            await deliver(service, 'chart', boundChart.slug);
+
+            expect(createChartScheduler).toHaveBeenCalled();
+        });
+
+        it('rejects other charts and any dashboard', async () => {
+            const { service, createChartScheduler, createDashboardScheduler } =
+                deliveryService();
+
+            await expect(
+                deliver(service, 'chart', 'other-chart'),
+            ).rejects.toThrow(
+                'Scheduled deliveries can only be created for that chart.',
+            );
+            await expect(
+                deliver(service, 'dashboard', 'some-dashboard'),
+            ).rejects.toThrow(ParameterError);
+
+            expect(createChartScheduler).not.toHaveBeenCalled();
+            expect(createDashboardScheduler).not.toHaveBeenCalled();
+        });
+    });
+
+    it('fails closed when the bound chart no longer exists', async () => {
+        const upsertChart = vi.fn();
+        const service = makeService({
+            savedChartModel: {
+                getSummary: vi
+                    .fn()
+                    .mockRejectedValue(new NotFoundError('not found')),
+            },
+            coderService: { upsertChart },
+            aiAgentContentValidation: contentValidation(),
+        });
+
+        await expect(
+            service.createRuntime(boundContext()).createContent({
+                type: 'chart',
+                content: makeChart('new-chart'),
+            } as never),
+        ).rejects.toThrow(
+            'This conversation is bound to a chart that no longer exists',
+        );
+        expect(upsertChart).not.toHaveBeenCalled();
+    });
+
+    it('rejects generating a data app', async () => {
+        const generateApp = vi.fn();
+        const service = makeService({
+            savedChartModel: savedChartModel(),
+            appGenerateService: { generateApp },
+        });
+
+        await expect(
+            service.createRuntime(boundContext()).generateDataApp({
+                name: 'App',
+                prompt: 'Build an app',
+                template: null,
+                dashboardSlug: null,
+                chartSlugs: null,
+                themeSlug: null,
+                toolCallId: null,
+            } as never),
+        ).rejects.toThrow(ParameterError);
+        expect(generateApp).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiAgentToolsService canAuthorContent', () => {
+    // An Interactive Viewer: saves content only where a space grant allows it.
+    const spaceEditorRules = [
+        {
+            action: 'view',
+            subject: 'Project',
+            conditions: { organizationUuid, projectUuid },
+        },
+        {
+            action: 'manage',
+            subject: 'Dashboard',
+            conditions: {
+                projectUuid,
+                access: { $elemMatch: { userUuid, role: 'editor' } },
+            },
+        },
+        {
+            action: 'manage',
+            subject: 'SavedChart',
+            conditions: {
+                projectUuid,
+                access: { $elemMatch: { userUuid, role: 'editor' } },
+            },
+        },
+    ] as const;
+
+    const makeUser = (
+        rules: ConstructorParameters<typeof Ability<PossibleAbilities>>[0],
+    ): SessionUser =>
+        ({
+            ...defaultSessionUser,
+            userUuid,
+            organizationUuid,
+            ability: new Ability<PossibleAbilities>(rules),
+        }) as SessionUser;
+
+    const serviceWithEditableSpaces = (editableSpaceUuids: string[]) =>
+        makeService({
+            spaceModel: {
+                find: vi
+                    .fn()
+                    .mockResolvedValue([
+                        { uuid: 'space-a' },
+                        { uuid: 'space-b' },
+                    ]),
+            },
+            spacePermissionService: {
+                getAccessibleSpaceUuids: vi
+                    .fn()
+                    .mockResolvedValue(editableSpaceUuids),
+            },
+        });
+
+    it('follows space access in a project, not the project role', async () => {
+        const editorUser = makeUser([...spaceEditorRules]);
+        expect(
+            await serviceWithEditableSpaces(['space-b']).canAuthorContent({
+                user: editorUser,
+                projectUuid,
+                spaceUuids: null,
+            }),
+        ).toBe(true);
+        expect(
+            await serviceWithEditableSpaces([]).canAuthorContent({
+                user: editorUser,
+                projectUuid,
+                spaceUuids: null,
+            }),
+        ).toBe(false);
+    });
+
+    it('asks which spaces the user can save charts into', async () => {
+        const getAccessibleSpaceUuids = vi.fn().mockResolvedValue([]);
+        const editorUser = makeUser([...spaceEditorRules]);
+        await makeService({
+            spaceModel: { find: vi.fn().mockResolvedValue([{ uuid: 'a' }]) },
+            spacePermissionService: { getAccessibleSpaceUuids },
+        }).canAuthorContent({
+            user: editorUser,
+            projectUuid,
+            spaceUuids: null,
+        });
+        expect(getAccessibleSpaceUuids).toHaveBeenCalledWith(
+            'create',
+            editorUser,
+            ['a'],
+            { subjectType: 'SavedChart' },
+        );
+    });
+
+    it('without a project, the role alone decides', async () => {
+        const find = vi.fn();
+        const service = makeService({ spaceModel: { find } });
+        expect(
+            await service.canAuthorContent({
+                user: makeUser([...spaceEditorRules]),
+                projectUuid: undefined,
+                spaceUuids: null,
+            }),
+        ).toBe(true);
+        expect(
+            await service.canAuthorContent({
+                user: makeUser([]),
+                projectUuid: undefined,
+                spaceUuids: null,
+            }),
+        ).toBe(false);
+        expect(find).not.toHaveBeenCalled();
+    });
+
+    it('answers no for a role that can never save content without listing spaces', async () => {
+        const find = vi.fn();
+        const service = makeService({ spaceModel: { find } });
+        expect(
+            await service.canAuthorContent({
+                user: makeUser([]),
+                projectUuid,
+                spaceUuids: null,
+            }),
+        ).toBe(false);
+        expect(find).not.toHaveBeenCalled();
+    });
+
+    it('counts saving into a space the user may create', async () => {
+        const editorUser = makeUser([
+            ...spaceEditorRules,
+            {
+                action: 'create',
+                subject: 'Space',
+                conditions: { organizationUuid, projectUuid },
+            },
+        ]);
+        expect(
+            await serviceWithEditableSpaces([]).canAuthorContent({
+                user: editorUser,
+                projectUuid,
+                spaceUuids: null,
+            }),
+        ).toBe(true);
+    });
+
+    it('with write spaces, counts only those spaces', async () => {
+        const find = vi.fn();
+        const getAccessibleSpaceUuids = vi.fn().mockResolvedValue([]);
+        const editorUser = makeUser([
+            ...spaceEditorRules,
+            {
+                action: 'create',
+                subject: 'Space',
+                conditions: { organizationUuid, projectUuid },
+            },
+        ]);
+        expect(
+            await makeService({
+                spaceModel: { find },
+                spacePermissionService: { getAccessibleSpaceUuids },
+            }).canAuthorContent({
+                user: editorUser,
+                projectUuid,
+                spaceUuids: ['write-space'],
+            }),
+        ).toBe(false);
+        expect(getAccessibleSpaceUuids).toHaveBeenCalledWith(
+            'create',
+            editorUser,
+            ['write-space'],
+            { subjectType: 'SavedChart' },
+        );
+        expect(find).not.toHaveBeenCalled();
+    });
+
+    describe('canAuthorDocuments', () => {
+        const documentEditorRules = [
+            {
+                action: 'manage',
+                subject: 'Document',
+                conditions: {
+                    projectUuid,
+                    access: { $elemMatch: { userUuid, role: 'editor' } },
+                },
+            },
+        ] as const;
+
+        it('follows Document permissions, not chart permissions', async () => {
+            const service = serviceWithEditableSpaces(['space-b']);
+            expect(
+                await service.canAuthorDocuments({
+                    user: makeUser([...documentEditorRules]),
+                    projectUuid,
+                    spaceUuids: null,
+                }),
+            ).toBe(true);
+            expect(
+                await service.canAuthorDocuments({
+                    user: makeUser([...spaceEditorRules]),
+                    projectUuid,
+                    spaceUuids: null,
+                }),
+            ).toBe(false);
+            expect(
+                await service.canAuthorContent({
+                    user: makeUser([...documentEditorRules]),
+                    projectUuid,
+                    spaceUuids: null,
+                }),
+            ).toBe(false);
+        });
+
+        it('asks which spaces the user can save Documents into', async () => {
+            const getAccessibleSpaceUuids = vi.fn().mockResolvedValue([]);
+            const documentUser = makeUser([...documentEditorRules]);
+            expect(
+                await makeService({
+                    spaceModel: {
+                        find: vi.fn().mockResolvedValue([{ uuid: 'a' }]),
+                    },
+                    spacePermissionService: { getAccessibleSpaceUuids },
+                }).canAuthorDocuments({
+                    user: documentUser,
+                    projectUuid,
+                    spaceUuids: null,
+                }),
+            ).toBe(false);
+            expect(getAccessibleSpaceUuids).toHaveBeenCalledWith(
+                'create',
+                documentUser,
+                ['a'],
+                { subjectType: 'Document' },
+            );
+        });
+
+        it('with write spaces, counts only those spaces', async () => {
+            const getAccessibleSpaceUuids = vi
+                .fn()
+                .mockResolvedValue(['write-space']);
+            const documentUser = makeUser([...documentEditorRules]);
+            expect(
+                await makeService({
+                    spaceModel: { find: vi.fn() },
+                    spacePermissionService: { getAccessibleSpaceUuids },
+                }).canAuthorDocuments({
+                    user: documentUser,
+                    projectUuid,
+                    spaceUuids: ['write-space'],
+                }),
+            ).toBe(true);
+            expect(getAccessibleSpaceUuids).toHaveBeenCalledWith(
+                'create',
+                documentUser,
+                ['write-space'],
+                { subjectType: 'Document' },
+            );
+        });
     });
 });

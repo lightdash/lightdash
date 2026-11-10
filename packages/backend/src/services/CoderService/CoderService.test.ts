@@ -7,10 +7,26 @@ import {
     DashboardFilterRule,
     DashboardTileTarget,
     DashboardTileTypes,
+    DirectAccessPrincipalType,
+    DirectAccessResourceType,
     PromotionAction,
+    SpaceMemberRole,
+    type DashboardParameterControl,
 } from '@lightdash/common';
+import { defaultSessionUser } from '../../auth/account/account.mock';
+import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../AiAccessService/agentActionTestUtils.mock';
 import { CoderService } from './CoderService';
-import { withTileWarnings } from './dashboardReferences';
+import {
+    getConfigWithParameterControlTileSlugs,
+    getConfigWithParameterControlTileUuids,
+    getStableDimensionFilterIds,
+    withTileWarnings,
+} from './dashboardReferences';
+import { getParameterControlsWithIds } from './parameterControlSlugs';
+import { getDashboardWithSectionIds } from './sectionSlugs';
 
 describe('CoderService', () => {
     describe('getMissingIds', () => {
@@ -289,6 +305,9 @@ describe('CoderService', () => {
             updatedAt: new Date('2026-08-27T00:00:00Z'),
         };
         const service = new CoderService({
+            agentActionLogModel: {
+                insert: vi.fn().mockResolvedValue(undefined),
+            },
             directAccessService: {} as AnyType,
             savedChartModel: {
                 get: vi.fn().mockResolvedValue(publishedChart),
@@ -380,6 +399,7 @@ describe('CoderService', () => {
 
         it('renders a dashboard draft move as the target space slug', async () => {
             const result = await service.getDashboardAsCodeWithOverlay(
+                defaultSessionUser,
                 publishedDashboard.uuid,
                 { spaceUuid: 'draft-space' },
             );
@@ -552,6 +572,7 @@ describe('CoderService', () => {
                 filters: {
                     dimensions: [
                         {
+                            target: { fieldId: 'f', tableName: 't' },
                             tileTargets: {
                                 'chart-slug-1': {
                                     someTargetProperty: 'value1',
@@ -587,6 +608,8 @@ describe('CoderService', () => {
             const result = CoderService.getFiltersWithTileUuids(
                 dashboardAsCode as AnyType,
                 tilesWithUuids as AnyType,
+                [],
+                true,
             );
 
             expect(result.dimensions[0].tileTargets).toEqual({
@@ -604,6 +627,7 @@ describe('CoderService', () => {
                 filters: {
                     dimensions: [
                         {
+                            target: { fieldId: 'f', tableName: 't' },
                             tileTargets: {
                                 'chart-slug-1': {
                                     someTargetProperty: 'value1',
@@ -639,6 +663,8 @@ describe('CoderService', () => {
             const result = CoderService.getFiltersWithTileUuids(
                 dashboardAsCode as AnyType,
                 tilesWithUuids as AnyType,
+                [],
+                true,
             );
 
             // We show an error for chart-slug-2
@@ -654,12 +680,182 @@ describe('CoderService', () => {
         });
     });
 
+    describe('metric and table calculation filter tile targets', () => {
+        const rule = {
+            id: 'metric-filter-id',
+            target: { fieldId: 'orders_total', tableName: 'orders' },
+            tileTargets: { 'uuid-1': { fieldId: 'orders_total' } },
+        };
+
+        it('round trips as raw tile uuids', () => {
+            const asCode = CoderService.getFiltersWithTileSlugs({
+                filters: {
+                    dimensions: [],
+                    metrics: [rule],
+                    tableCalculations: [rule],
+                },
+                tiles: [],
+            } as AnyType);
+            expect(asCode.metrics[0]).toEqual(rule);
+            expect(asCode.tableCalculations[0]).toEqual(rule);
+            const result = CoderService.getFiltersWithTileUuids(
+                { filters: asCode } as AnyType,
+                [],
+                [],
+                true,
+            );
+            expect(result.metrics[0]).toEqual(rule);
+            expect(result.tableCalculations[0]).toEqual(rule);
+        });
+    });
+
+    describe('filters without optional keys', () => {
+        const metric = {
+            id: 'metric-id',
+            label: undefined,
+            target: { fieldId: 'orders_total', tableName: 'orders' },
+            operator: 'greaterThan',
+            values: [1],
+        };
+
+        it('downloads a metric filter without tile targets unchanged', () => {
+            const result = CoderService.getFiltersWithTileSlugs({
+                filters: {
+                    dimensions: [],
+                    metrics: [metric],
+                    tableCalculations: [],
+                },
+                tiles: [],
+            } as AnyType);
+            expect(JSON.stringify(result.metrics[0])).toBe(
+                JSON.stringify(metric),
+            );
+        });
+
+        it('uploads without adding tile targets, mints a missing metric id for an order and drops table calculation slugs', () => {
+            const { id: _id, ...withoutId } = metric;
+            const result = CoderService.getFiltersWithTileUuids(
+                {
+                    filters: {
+                        metrics: [withoutId],
+                        tableCalculations: [{ ...metric, slug: 'calc' }],
+                    },
+                    config: { controlOrder: [] },
+                } as AnyType,
+                [],
+                [],
+                true,
+            );
+            expect(result.metrics[0]).not.toHaveProperty('tileTargets');
+            expect(result.metrics[0].id).toMatch(/^[0-9a-f-]{36}$/);
+            expect(result.tableCalculations[0]).toStrictEqual(metric);
+        });
+
+        it('keeps a metric filter without an id and drops slugs with the flag off', () => {
+            const { id: _id, ...withoutId } = metric;
+            const filters = {
+                metrics: [{ ...withoutId, slug: 'total' }],
+                tableCalculations: [{ ...metric, slug: 'calc' }],
+            };
+            const result = CoderService.getFiltersWithTileUuids(
+                { filters, config: { controlOrder: [] } } as AnyType,
+                [],
+                [],
+                false,
+            );
+            expect(result.metrics).toStrictEqual([withoutId]);
+            expect(result.tableCalculations).toStrictEqual([metric]);
+        });
+    });
+
+    describe('stable dimension filter ids on upload', () => {
+        const status = { fieldId: 'orders_status', tableName: 'orders' };
+        const amount = { fieldId: 'orders_amount', tableName: 'orders' };
+        const savedFilters = [
+            { id: 'status-id', target: status },
+            { id: 'amount-id', target: amount },
+        ] as DashboardFilterRule[];
+        const upload = (targets: (typeof status)[]) =>
+            CoderService.getFiltersWithTileUuids(
+                {
+                    filters: {
+                        dimensions: targets.map((target) => ({
+                            target,
+                            tileTargets: {},
+                        })),
+                    },
+                } as AnyType,
+                [],
+                savedFilters,
+                true,
+            ).dimensions.map(({ id }) => id);
+
+        it('keeps every id for an unchanged file', () => {
+            expect(upload([status, amount])).toEqual([
+                'status-id',
+                'amount-id',
+            ]);
+        });
+
+        it('keeps ids when filters are reordered or one is removed', () => {
+            expect(upload([amount, status])).toEqual([
+                'amount-id',
+                'status-id',
+            ]);
+            expect(upload([amount])).toEqual(['amount-id']);
+        });
+
+        it('mints an id for a new filter and keeps the others', () => {
+            const ids = upload([
+                status,
+                { fieldId: 'orders_date', tableName: 'orders' },
+            ]);
+            expect(ids[0]).toBe('status-id');
+            expect(ids[1]).not.toMatch(/status-id|amount-id/);
+        });
+
+        it('mints fresh ids for two filters on one field', () => {
+            const ids = upload([status, status, amount]);
+            expect(ids[2]).toBe('amount-id');
+            expect(ids[0]).not.toBe('status-id');
+            expect(ids[1]).not.toBe('status-id');
+            expect(ids[0]).not.toBe(ids[1]);
+        });
+
+        it('mints fresh ids when the saved dashboard has two filters on one field', () => {
+            const ids = getStableDimensionFilterIds(
+                [{ target: status }],
+                [
+                    { id: 'status-1', target: status },
+                    { id: 'status-2', target: status },
+                ],
+            );
+            expect(ids[0]).not.toMatch(/status-1|status-2/);
+        });
+
+        it('matches on table as well as field', () => {
+            const ids = upload([{ ...status, tableName: 'customers' }]);
+            expect(ids[0]).not.toBe('status-id');
+        });
+
+        it('carries no ids onto a dashboard without saved filters', () => {
+            const ids = getStableDimensionFilterIds(
+                [{ target: status }, { target: amount }],
+                [],
+            );
+            expect(ids).toHaveLength(2);
+            expect(ids).not.toContain('status-id');
+            expect(ids).not.toContain('amount-id');
+        });
+    });
+
     describe('data app tile filter target round-trip', () => {
         it('should preserve a single data app tile filter target through download then upload', () => {
             const mockDashboard = {
                 filters: {
                     dimensions: [
                         {
+                            target: { fieldId: 'f', tableName: 't' },
                             tileTargets: {
                                 'original-uuid': { fieldId: 'field-1' },
                             },
@@ -694,6 +890,8 @@ describe('CoderService', () => {
             const restoredFilters = CoderService.getFiltersWithTileUuids(
                 { filters: asCodeFilters } as AnyType,
                 tilesWithNewUuids as AnyType,
+                [],
+                true,
             );
 
             expect(restoredFilters.dimensions[0].tileTargets).toEqual({
@@ -706,6 +904,7 @@ describe('CoderService', () => {
                 filters: {
                     dimensions: [
                         {
+                            target: { fieldId: 'f', tableName: 't' },
                             tileTargets: {
                                 'tile-1-uuid': { fieldId: 'field-1' },
                                 'tile-2-uuid': { fieldId: 'field-2' },
@@ -756,6 +955,8 @@ describe('CoderService', () => {
             const restoredFilters = CoderService.getFiltersWithTileUuids(
                 { filters: asCodeFilters } as AnyType,
                 tilesWithNewUuids as AnyType,
+                [],
+                true,
             );
 
             // The target aimed at tile 2 resolves to tile 2's new uuid,
@@ -965,6 +1166,173 @@ describe('CoderService', () => {
         });
     });
 
+    describe('parameter control tile targets', () => {
+        const control = (
+            id: string,
+            tileTargets?: Record<string, boolean>,
+        ): DashboardParameterControl => ({
+            id,
+            label: `Week starts on, ${id}`,
+            value: 'monday',
+            valueType: { type: 'string', multiple: false },
+            parameters: {
+                week_start: tileTargets
+                    ? { except: Object.keys(tileTargets) }
+                    : 'all',
+            },
+        });
+        const tilesWithUuids = [
+            {
+                uuid: 'uuid-1',
+                type: DashboardTileTypes.SAVED_CHART,
+                properties: { chartSlug: 'slug-1' },
+            },
+            {
+                uuid: 'uuid-2',
+                type: DashboardTileTypes.SAVED_CHART,
+                properties: { chartSlug: 'slug-2' },
+            },
+        ];
+
+        it('exports tile uuids as tile slugs, dropping tiles that no longer exist', () => {
+            const result = getConfigWithParameterControlTileSlugs(
+                { tiles: tilesWithUuids } as AnyType,
+                {
+                    isDateZoomDisabled: false,
+                    parameterControls: [
+                        control('sales', {
+                            'uuid-1': false,
+                            'orphaned-uuid': false,
+                        }),
+                        control('ops'),
+                    ],
+                },
+            );
+
+            expect(result?.parameterControls).toEqual([
+                control('sales', { 'slug-1': false }),
+                control('ops'),
+            ]);
+        });
+
+        it('retains references to non-chart tiles in the portable config', () => {
+            const markdown = {
+                uuid: 'markdown-1',
+                type: DashboardTileTypes.MARKDOWN,
+                properties: { title: 'Text' },
+            };
+            const result = getConfigWithParameterControlTileSlugs(
+                { tiles: [markdown] } as AnyType,
+                {
+                    isDateZoomDisabled: false,
+                    parameterControls: [
+                        control('sales', { 'markdown-1': false }),
+                    ],
+                },
+            );
+            expect(result?.parameterControls).toEqual([
+                control('sales', { 'tile-markdown-1': false }),
+            ]);
+        });
+
+        it('leaves a config without parameter controls unchanged', () => {
+            const config = { isDateZoomDisabled: false };
+            expect(
+                getConfigWithParameterControlTileSlugs(
+                    { tiles: [] } as AnyType,
+                    config,
+                ),
+            ).toBe(config);
+        });
+
+        it('resolves tile slugs back to tile uuids, aliases of one tile included', () => {
+            const result = getConfigWithParameterControlTileUuids(
+                {
+                    isDateZoomDisabled: false,
+                    parameterControls: [
+                        control('sales', {
+                            'slug-1': false,
+                            'tile-two': false,
+                        }),
+                    ],
+                },
+                [
+                    tilesWithUuids[0],
+                    { ...tilesWithUuids[1], tileSlug: 'tile-two' },
+                ] as AnyType,
+            );
+
+            expect(result.parameterControls).toEqual([
+                control('sales', { 'uuid-1': false, 'uuid-2': false }),
+            ]);
+        });
+
+        it('rejects a tile target whose slug does not match a tile, naming the control', () => {
+            expect(() =>
+                getConfigWithParameterControlTileUuids(
+                    {
+                        isDateZoomDisabled: false,
+                        parameterControls: [
+                            control('sales', { 'missing-slug': false }),
+                        ],
+                    },
+                    tilesWithUuids as AnyType,
+                ),
+            ).toThrow(
+                'Tile with slug missing-slug not found for parameter control "Week starts on, sales"',
+            );
+        });
+
+        it('rejects an ambiguous tile slug', () => {
+            expect(() =>
+                getConfigWithParameterControlTileUuids(
+                    {
+                        isDateZoomDisabled: false,
+                        parameterControls: [
+                            control('sales', { 'slug-1': false }),
+                        ],
+                    },
+                    [
+                        tilesWithUuids[0],
+                        { ...tilesWithUuids[0], uuid: 'another' },
+                    ] as AnyType,
+                ),
+            ).toThrow('Tile slug slug-1 is ambiguous');
+        });
+
+        it('mints a missing control id and keeps a given one', () => {
+            const result = getConfigWithParameterControlTileUuids(
+                {
+                    isDateZoomDisabled: false,
+                    parameterControls: [
+                        { ...control('sales'), id: '' },
+                        control('ops'),
+                    ],
+                },
+                tilesWithUuids as AnyType,
+            );
+            expect(result.parameterControls?.[0].id).toMatch(/^[0-9a-f-]{36}$/);
+            expect(result.parameterControls?.[1].id).toBe('ops');
+        });
+
+        it('rejects two controls with the same id', () => {
+            expect(() =>
+                getConfigWithParameterControlTileUuids(
+                    {
+                        isDateZoomDisabled: false,
+                        parameterControls: [
+                            control('sales'),
+                            { ...control('ops'), id: 'sales' },
+                        ],
+                    },
+                    tilesWithUuids as AnyType,
+                ),
+            ).toThrow(
+                'Parameter control id sales is used by more than one control',
+            );
+        });
+    });
+
     describe('date zoom config round-trip', () => {
         it('should preserve tileTargets through download then upload', () => {
             // Download: a saved dashboard keyed by the original tile UUID
@@ -1125,6 +1493,9 @@ describe('CoderService', () => {
     describe('convertTileWithSlugsToUuids', () => {
         it('should allow chart tiles with null chartSlug', async () => {
             const service = new CoderService({
+                agentActionLogModel: {
+                    insert: vi.fn().mockResolvedValue(undefined),
+                },
                 directAccessService: {} as AnyType,
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {
@@ -1216,6 +1587,9 @@ describe('CoderService', () => {
 
         it('warns when a chart tile slug does not resolve in the project', async () => {
             const service = new CoderService({
+                agentActionLogModel: {
+                    insert: vi.fn().mockResolvedValue(undefined),
+                },
                 directAccessService: {} as AnyType,
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {
@@ -1286,6 +1660,9 @@ describe('CoderService', () => {
 
         it('resolves portable tab slugs and still accepts legacy tab UUIDs', async () => {
             const service = new CoderService({
+                agentActionLogModel: {
+                    insert: vi.fn().mockResolvedValue(undefined),
+                },
                 directAccessService: {} as AnyType,
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {
@@ -1351,6 +1728,9 @@ describe('CoderService', () => {
         const buildServiceWithApps = (apps: AppRow[]) => {
             appModelMock = buildAppModelMock(apps);
             return new CoderService({
+                agentActionLogModel: {
+                    insert: vi.fn().mockResolvedValue(undefined),
+                },
                 directAccessService: {} as AnyType,
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {
@@ -1476,6 +1856,9 @@ describe('CoderService', () => {
 
         it('resolves a chart tile and a data app tile together (main return path)', async () => {
             const service = new CoderService({
+                agentActionLogModel: {
+                    insert: vi.fn().mockResolvedValue(undefined),
+                },
                 directAccessService: {} as AnyType,
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {
@@ -1551,6 +1934,9 @@ describe('CoderService', () => {
 
         it('resolves a historical chart slug to the existing chart UUID', async () => {
             const service = new CoderService({
+                agentActionLogModel: {
+                    insert: vi.fn().mockResolvedValue(undefined),
+                },
                 directAccessService: {} as AnyType,
                 analytics: {} as AnyType,
                 contentAsCodeSnapshotModel: {
@@ -1679,6 +2065,212 @@ describe('CoderService', () => {
             ).toThrow('Space space-uuid not found');
         });
 
+        it('leaves the control order out of the file with the flag off', () => {
+            const exported = (
+                CoderService as unknown as {
+                    transformDashboard: (...args: AnyType[]) => AnyType;
+                }
+            ).transformDashboard(
+                {
+                    description: null,
+                    filters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    name: 'Dashboard',
+                    slug: 'dashboard',
+                    spaceUuid: 'space-uuid',
+                    tabs: [],
+                    tiles: [],
+                    uuid: 'dashboard-uuid',
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlOrder: [{ kind: 'section', id: 'section-1' }],
+                    },
+                },
+                [{ name: 'Space', path: 'space', uuid: 'space-uuid' }],
+                new Map(),
+                false,
+            );
+            expect(exported.config).toEqual({ isDateZoomDisabled: false });
+        });
+
+        it('reads a stored empty control order as no order', () => {
+            const exported = (
+                CoderService as unknown as {
+                    transformDashboard: (...args: AnyType[]) => AnyType;
+                }
+            ).transformDashboard(
+                {
+                    description: null,
+                    filters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    name: 'Dashboard',
+                    slug: 'dashboard',
+                    spaceUuid: 'space-uuid',
+                    tabs: [],
+                    tiles: [],
+                    uuid: 'dashboard-uuid',
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlSections: [{ id: 'section-1', name: 'S' }],
+                        controlOrder: [],
+                    },
+                },
+                [{ name: 'Space', path: 'space', uuid: 'space-uuid' }],
+                new Map(),
+                true,
+            );
+            expect(exported.config).not.toHaveProperty('controlOrder');
+        });
+
+        it('round-trips controls when generated tile slugs collide with chart slugs', () => {
+            const tiles = ['sales', 'sales', 'sales-1'].map(
+                (chartSlug, index) => ({
+                    uuid: `tile-${index}`,
+                    type: DashboardTileTypes.SAVED_CHART,
+                    x: 0,
+                    y: index,
+                    h: 2,
+                    w: 4,
+                    tabUuid: null,
+                    properties: {
+                        chartSlug,
+                        chartName: chartSlug,
+                        title: chartSlug,
+                    },
+                }),
+            );
+            const dashboard = {
+                description: null,
+                filters: {
+                    dimensions: [
+                        {
+                            id: 'filter',
+                            sectionId: 'section-id',
+                            tileTargets: {
+                                'tile-0': { fieldId: 'f', tableName: 't' },
+                            },
+                        },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                name: 'Dashboard',
+                slug: 'dashboard',
+                spaceUuid: 'space-uuid',
+                tabs: [],
+                tiles,
+                uuid: 'dashboard-uuid',
+                config: {
+                    isDateZoomDisabled: false,
+                    controlSections: [
+                        { id: 'section-id', name: 'Currency comparison' },
+                    ],
+                    dateZoomConfig: {
+                        controls: [],
+                        tileTargets: {
+                            'tile-2': {
+                                controlUuid: 'c',
+                                fieldId: 'f',
+                                tableName: 't',
+                            },
+                        },
+                    },
+                    parameterControls: [
+                        {
+                            id: 'region',
+                            sectionId: 'section-id',
+                            label: 'Region',
+                            value: 'EU',
+                            valueType: { type: 'string', multiple: false },
+                            parameters: {
+                                region: { only: ['tile-0', 'tile-2'] },
+                            },
+                        },
+                    ],
+                },
+            };
+            const exported = (
+                CoderService as unknown as {
+                    transformDashboard: (...args: AnyType[]) => AnyType;
+                }
+            ).transformDashboard(
+                dashboard,
+                [{ name: 'Space', path: 'space', uuid: 'space-uuid' }],
+                new Map(),
+                true,
+            );
+            expect(exported.config.controlSections).toEqual([
+                { slug: 'currency-comparison', name: 'Currency comparison' },
+            ]);
+            expect(exported.filters.dimensions[0].sectionSlug).toBe(
+                'currency-comparison',
+            );
+            expect(exported.config.parameterControls[0].sectionSlug).toBe(
+                'currency-comparison',
+            );
+            const restoredSections = getDashboardWithSectionIds(
+                exported,
+                dashboard.config as unknown as DashboardDAO['config'],
+                true,
+            );
+            const importedTiles = exported.tiles.map(
+                (tile: AnyType, index: number) => ({
+                    ...tile,
+                    uuid: `imported-${index}`,
+                }),
+            );
+            expect(
+                new Set(importedTiles.map((tile: AnyType) => tile.tileSlug))
+                    .size,
+            ).toBe(3);
+            expect(exported.config.parameterControls[0]).toMatchObject({
+                slug: 'region',
+            });
+            expect(exported.config.parameterControls[0].id).toBeUndefined();
+            const imported = getConfigWithParameterControlTileUuids(
+                {
+                    ...restoredSections.config!,
+                    controlOrder: undefined,
+                    parameterControls: getParameterControlsWithIds(
+                        restoredSections.config!.parameterControls!,
+                        dashboard.config
+                            .parameterControls as DashboardParameterControl[],
+                    ),
+                },
+                importedTiles,
+            );
+            expect(imported.parameterControls?.[0].id).toBe('region');
+            expect(imported.parameterControls?.[0].parameters.region).toEqual({
+                only: ['imported-0', 'imported-2'],
+            });
+            expect(
+                Object.keys(exported.filters.dimensions[0].tileTargets),
+            ).toEqual([importedTiles[0].tileSlug]);
+            expect(
+                Object.keys(exported.config.dateZoomConfig.tileTargets),
+            ).toEqual([importedTiles[2].tileSlug]);
+            const legacy = (
+                CoderService as unknown as {
+                    transformDashboard: (...args: AnyType[]) => AnyType;
+                }
+            ).transformDashboard(
+                { ...dashboard, config: { isDateZoomDisabled: false } },
+                [{ name: 'Space', path: 'space', uuid: 'space-uuid' }],
+                new Map(),
+            );
+            expect(legacy.tiles.map((tile: AnyType) => tile.tileSlug)).toEqual([
+                'sales-1',
+                'sales-2',
+                'sales-1',
+            ]);
+        });
+
         it('exports tabs and tile references as portable slugs', () => {
             const result = (
                 CoderService as unknown as {
@@ -1769,6 +2361,170 @@ describe('CoderService', () => {
             expect(result.tabUuidsBySlug.get('overview')).toBe(
                 'target-project-tab-uuid',
             );
+        });
+    });
+
+    describe('dashboard read tile chart queries', () => {
+        const chartTile = (
+            tileSlug: string,
+            chartSlug: string | null,
+        ): AnyType => ({
+            type: DashboardTileTypes.SAVED_CHART,
+            uuid: undefined,
+            tileSlug,
+            x: 0,
+            y: 0,
+            h: 2,
+            w: 4,
+            tabSlug: null,
+            properties: { chartSlug, chartName: tileSlug, title: tileSlug },
+        });
+
+        it('reports the explore of every chart tile so filters can be targeted across explores', () => {
+            const result = CoderService.withTileChartQueries(
+                {
+                    tiles: [
+                        chartTile('orders-by-month', 'orders-by-month'),
+                        chartTile('customers-by-month', 'customers-by-month'),
+                        {
+                            type: DashboardTileTypes.MARKDOWN,
+                            uuid: undefined,
+                            tileSlug: undefined,
+                            x: 0,
+                            y: 2,
+                            h: 1,
+                            w: 4,
+                            properties: { title: 'Note', content: '' },
+                        },
+                    ],
+                } as AnyType,
+                {
+                    'orders-by-month': {
+                        exploreName: 'orders',
+                        fieldIds: ['orders_order_date_month', 'orders_count'],
+                    },
+                    'customers-by-month': {
+                        exploreName: 'customers',
+                        fieldIds: ['customers_created_month'],
+                    },
+                },
+            );
+
+            expect(result.tiles).toMatchObject([
+                {
+                    tileSlug: 'orders-by-month',
+                    properties: {
+                        chartQuery: {
+                            exploreName: 'orders',
+                            fieldIds: [
+                                'orders_order_date_month',
+                                'orders_count',
+                            ],
+                        },
+                    },
+                },
+                {
+                    tileSlug: 'customers-by-month',
+                    properties: {
+                        chartQuery: {
+                            exploreName: 'customers',
+                            fieldIds: ['customers_created_month'],
+                        },
+                    },
+                },
+                { type: DashboardTileTypes.MARKDOWN },
+            ]);
+            expect(result.tiles[2].properties).not.toHaveProperty('chartQuery');
+        });
+
+        it('keeps reading a dashboard whose tile chart is missing', () => {
+            const result = CoderService.withTileChartQueries(
+                {
+                    tiles: [
+                        chartTile('deleted-chart', 'deleted-chart'),
+                        chartTile('empty-tile', null),
+                    ],
+                } as AnyType,
+                {},
+            );
+
+            expect(result.tiles).toMatchObject([
+                {
+                    properties: {
+                        chartSlug: 'deleted-chart',
+                        chartQuery: null,
+                    },
+                },
+                { properties: { chartSlug: null, chartQuery: null } },
+            ]);
+        });
+
+        it('ignores the read-only chart query when tiles are written back', async () => {
+            const service = new CoderService({
+                agentActionLogModel: {
+                    insert: vi.fn().mockResolvedValue(undefined),
+                },
+                directAccessService: {} as AnyType,
+                analytics: {} as AnyType,
+                contentAsCodeSnapshotModel: {} as AnyType,
+                contentAsCodeProjectSettingsModel: {} as AnyType,
+                contentVerificationModel: {} as AnyType,
+                dashboardModel: {} as AnyType,
+                lightdashConfig: {} as AnyType,
+                projectModel: {} as AnyType,
+                promoteService: {} as AnyType,
+                savedChartModel: {
+                    find: vi.fn(async () => [
+                        { uuid: 'orders-chart-uuid', slug: 'orders-by-month' },
+                    ]),
+                    getSlugAliasMappingsForUuids: vi.fn(async () => []),
+                } as AnyType,
+                savedSqlModel: {
+                    find: vi.fn(async () => []),
+                } as AnyType,
+                appModel: {
+                    findAppsBySlugs: vi.fn(async () => []),
+                } as AnyType,
+                schedulerModel: {} as AnyType,
+                schedulerService: {} as AnyType,
+                savedChartService: {} as AnyType,
+                dashboardService: {} as AnyType,
+                schedulerClient: {} as AnyType,
+                spaceModel: {} as AnyType,
+                spacePermissionService: {} as AnyType,
+                groupsModel: {} as AnyType,
+                organizationMemberProfileModel: {} as AnyType,
+                userModel: {} as AnyType,
+                warehouseConnectionModel: {} as never,
+            });
+
+            const { tiles } = await service.convertTileWithSlugsToUuids(
+                'project-uuid',
+                [
+                    {
+                        ...chartTile('orders-by-month', 'orders-by-month'),
+                        properties: {
+                            chartSlug: 'orders-by-month',
+                            chartName: 'Orders by month',
+                            chartQuery: {
+                                exploreName: 'payments',
+                                fieldIds: ['payments_amount'],
+                            },
+                        },
+                    },
+                ],
+            );
+
+            expect(tiles).toMatchObject([
+                {
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: {
+                        chartSlug: 'orders-by-month',
+                        savedChartUuid: 'orders-chart-uuid',
+                    },
+                },
+            ]);
+            expect(tiles[0].properties).not.toHaveProperty('chartQuery');
         });
     });
 
@@ -2451,6 +3207,7 @@ describe('content-as-code access split', () => {
     } as AnyType;
 
     const service = new CoderService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         directAccessService: {} as AnyType,
         projectModel: {
             get: vi.fn().mockResolvedValue({
@@ -2461,6 +3218,9 @@ describe('content-as-code access split', () => {
                 projectUuid: 'project-uuid',
                 organizationUuid: 'org-uuid',
             }),
+        },
+        savedChartModel: {
+            getLatestVersionQueriesBySlugs: vi.fn(async () => ({})),
         },
     } as AnyType);
 
@@ -2480,5 +3240,227 @@ describe('content-as-code access split', () => {
         await expect(
             service.getDashboardsForRead(viewer, 'project-uuid', []),
         ).resolves.toMatchObject({ dashboards: [] });
+    });
+});
+
+describe.each(agentActionTestCases)(
+    'direct access replacement ledger: %s',
+    (_, surface, enabled, count) => {
+        test.each(['remove', 'replace', 'unchanged'] as const)(
+            '%s',
+            async (operation) => {
+                const original = [
+                    {
+                        principal: {
+                            type: DirectAccessPrincipalType.USER,
+                            uuid: 'private-old-recipient',
+                        },
+                        role: SpaceMemberRole.VIEWER,
+                    },
+                ];
+                let persistedPolicy = original;
+                const policies = {
+                    unchanged: null,
+                    remove: [],
+                    replace: [
+                        {
+                            principal: {
+                                type: DirectAccessPrincipalType.USER,
+                                uuid: 'private-old-recipient',
+                            },
+                            role: SpaceMemberRole.EDITOR,
+                        },
+                        {
+                            principal: {
+                                type: DirectAccessPrincipalType.GROUP,
+                                uuid: 'private-new-group',
+                            },
+                            role: SpaceMemberRole.VIEWER,
+                        },
+                    ],
+                };
+                const assignments = policies[operation];
+                const replacePolicy = vi.fn(
+                    async (
+                        _account,
+                        _projectUuid,
+                        _resourceType,
+                        _resourceUuid,
+                        replacement,
+                    ) => {
+                        persistedPolicy = replacement;
+                    },
+                );
+                const insert = vi.fn().mockResolvedValue(undefined);
+                const service = new CoderService({
+                    agentActionLogModel: { insert },
+                    directAccessService: { replacePolicy },
+                } as AnyType);
+                await withAgentActionScope(
+                    defaultSessionUser,
+                    surface,
+                    enabled,
+                    () =>
+                        service.applyDirectAccessPolicy(
+                            defaultSessionUser,
+                            'project',
+                            DirectAccessResourceType.CHART,
+                            'chart',
+                            assignments,
+                        ),
+                );
+                expect(persistedPolicy).toEqual(assignments ?? original);
+                expect(replacePolicy).toHaveBeenCalledTimes(
+                    assignments === null ? 0 : 1,
+                );
+                expect(insert).toHaveBeenCalledTimes(
+                    assignments === null ? 0 : count,
+                );
+                if (assignments !== null && count)
+                    expect(insert).toHaveBeenCalledWith(
+                        expect.objectContaining({
+                            object_type: 'direct_access_policy',
+                            object_uuid: 'chart',
+                            action: 'replace',
+                            outcome: 'allowed',
+                        }),
+                    );
+                expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                    'private-',
+                );
+            },
+        );
+    },
+);
+
+describe('CoderService.upsertChart new chart defaults', () => {
+    const updatedAt = new Date('2026-09-01T12:00:00.000Z');
+    const existingChart = {
+        uuid: 'chart-uuid',
+        slug: 'orders',
+        name: 'Orders',
+        description: null,
+        updatedAt,
+        spaceUuid: 'space-uuid',
+        chartConfig: {
+            type: ChartType.CARTESIAN,
+            config: { layout: {}, eChartsConfig: {} },
+        },
+    };
+    const chartAsCode = {
+        name: 'Orders',
+        description: null,
+        slug: 'orders',
+        spaceSlug: 'space',
+        updatedAt,
+        chartConfig: {
+            type: ChartType.CARTESIAN,
+            config: {
+                layout: { xField: 'orders_created_week' },
+                eChartsConfig: {},
+            },
+        },
+        metricQuery: { exploreName: 'orders', filters: {} },
+        tableName: 'orders',
+    };
+
+    const upload = async (existing: typeof existingChart | undefined) => {
+        const create = vi.fn(async () => ({ uuid: 'new-chart-uuid' }));
+        const upsertCharts = vi.fn(
+            async (_user: AnyType, changes: AnyType) => changes,
+        );
+        const service = Object.assign(Object.create(CoderService.prototype), {
+            resolveSyncEnabled: vi.fn(async () => false),
+            projectModel: {
+                get: vi.fn(async () => ({
+                    projectUuid: 'project-uuid',
+                    organizationUuid: 'organization-uuid',
+                })),
+            },
+            savedChartModel: {
+                find: vi.fn(async () => (existing ? [existing] : [])),
+                create,
+            },
+            promoteService: {
+                getPromoteCharts: vi.fn(async () => ({
+                    promotedChart: {
+                        chart: existing,
+                        space: { uuid: 'space-uuid', slug: 'space' },
+                        spaces: [],
+                    },
+                    upstreamChart: {
+                        chart: existing && {
+                            uuid: existing.uuid,
+                            name: existing.name,
+                            updatedAt: existing.updatedAt,
+                        },
+                        projectUuid: 'project-uuid',
+                    },
+                })),
+                getChartChanges: vi.fn(async (promotedChart: AnyType) => ({
+                    spaces: [],
+                    dashboards: [],
+                    charts: [
+                        {
+                            action: PromotionAction.UPDATE,
+                            data: promotedChart.chart,
+                        },
+                    ],
+                })),
+                upsertCharts,
+            },
+            createAuditedAbility: vi.fn(() => ({
+                can: () => true,
+                cannot: () => false,
+            })),
+            prepareDirectAccessReplace: vi.fn(async () => []),
+            findAccessibleSpace: vi.fn(async () => ({ uuid: 'space-uuid' })),
+            getOrCreateSpace: vi.fn(async () => ({
+                space: { uuid: 'space-uuid' },
+                created: false,
+            })),
+            assertSpaceContentAccess: vi.fn(async () => undefined),
+            assertContentAccessForMissingSpace: vi.fn(async () => undefined),
+            spacePermissionService: {
+                resolveAccessBatch: vi.fn(async () => ({})),
+            },
+            syncVerification: vi.fn(async () => undefined),
+            stampAppliedChartSnapshot: vi.fn(async () => undefined),
+            applyDirectAccessPolicy: vi.fn(async () => undefined),
+        }) as CoderService;
+
+        await service.upsertChart(
+            { userUuid: 'user-uuid' } as AnyType,
+            'project-uuid',
+            'orders',
+            chartAsCode as AnyType,
+        );
+        return { create, upsertCharts };
+    };
+
+    it('turns the incomplete period on for a chart created from code without it', async () => {
+        const { create } = await upload(undefined);
+        expect(create).toHaveBeenCalledTimes(1);
+        expect(
+            (create.mock.calls[0] as unknown as [string, string, AnyType])[2]
+                .chartConfig,
+        ).toEqual({
+            type: ChartType.CARTESIAN,
+            config: {
+                layout: {
+                    xField: 'orders_created_week',
+                    showIncompletePeriod: true,
+                },
+                eChartsConfig: {},
+            },
+        });
+    });
+
+    it('leaves an existing chart uploaded without it unchanged', async () => {
+        const { create, upsertCharts } = await upload(existingChart);
+        expect(create).not.toHaveBeenCalled();
+        expect(
+            upsertCharts.mock.calls[0][1].charts[0].data.chartConfig,
+        ).toEqual(chartAsCode.chartConfig);
     });
 });

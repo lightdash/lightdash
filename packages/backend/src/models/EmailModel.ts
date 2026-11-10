@@ -196,6 +196,7 @@ export class EmailModel {
                 WHERE emails.user_id = users.user_id
                   AND users.user_uuid = ?
                   AND emails.email = ?
+                  AND emails.is_verified IS NOT TRUE
                 RETURNING emails.email`,
             [userUuid, email],
         );

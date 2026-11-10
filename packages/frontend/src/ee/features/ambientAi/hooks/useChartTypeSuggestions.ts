@@ -7,7 +7,8 @@ import {
     type SuggestedChartTypeFields,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
-import { lightdashApi } from '../../../../api';
+import { type LightdashApi } from '../../../../api';
+import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 /** Anything slower than this is dropped in favour of the non-AI behaviour. */
 const CHART_TYPE_SUGGESTION_TIMEOUT_MS = 6000;
@@ -31,6 +32,7 @@ const withTimeout = async <T>(
 /** Which fields of a table fit a chart type's declared inputs. Rejects on
  *  error, on timeout and when `signal` aborts. */
 export const suggestChartTypeFields = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     payload: SuggestChartTypeFieldsRequest,
     signal?: AbortSignal,
@@ -47,6 +49,7 @@ export const suggestChartTypeFields = (
     );
 
 const suggestChartTypeExplore = (
+    lightdashApi: LightdashApi,
     projectUuid: string,
     payload: SuggestChartTypeExploreRequest,
 ) =>
@@ -70,13 +73,18 @@ export const useSuggestedChartTypeExplore = (
     projectUuid: string | undefined,
     request: SuggestChartTypeExploreRequest | null,
 ): SuggestedChartTypeExplore | null => {
+    const lightdashApi = useLightdashApi();
     const { data } = useQuery<SuggestedChartTypeExploreResult, ApiError>({
         queryKey: ['chart-type-suggest-explore', projectUuid, request],
         // Closing the picker mid-request keeps it running, so the answer is
         // cached for the next open.
         queryFn: () =>
             request
-                ? suggestChartTypeExplore(projectUuid ?? '', request)
+                ? suggestChartTypeExplore(
+                      lightdashApi,
+                      projectUuid ?? '',
+                      request,
+                  )
                 : Promise.resolve({ suggestion: null }),
         enabled: Boolean(projectUuid) && request !== null,
         retry: false,

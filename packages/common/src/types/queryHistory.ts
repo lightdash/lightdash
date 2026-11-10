@@ -1,12 +1,15 @@
 import type { PivotConfiguration, ResultColumns } from '..';
 import type { PivotValuesColumn } from '../visualizations/types';
-import type { QueryExecutionContext } from './analytics';
+import { type AgentConnectionExecution } from './agentConnectionGrants';
+import { type AgentIdentityClaim } from './agentIdentity';
+import type { QueryExecutionContext, QuerySurface } from './analytics';
 import type { ExecuteAsyncQueryRequestParams } from './api/paginatedQuery';
 import type { AuthType } from './auth';
 import type { ItemsMap } from './field';
 import type { MetricQuery } from './metricQuery';
 import type { ParametersValuesMap } from './parameters';
 import type { WarehouseTypes } from './projects';
+import type { WarehouseExecutionStats } from './warehouse';
 
 export interface IWarehouseQueryMetadata {
     type: WarehouseTypes;
@@ -38,6 +41,24 @@ export type PreAggregateFallbackReason =
     | 'duckdb_execution_error'
     | 'external_execution_error';
 
+/** A direct semantic field reference captured at query execution time. */
+export type SemanticFieldReference = {
+    fieldId: string;
+    fieldName: string;
+    tableName: string;
+    fieldLabel: string;
+    fieldKind: 'metric' | 'dimension';
+    fieldOrigin: 'model' | 'custom';
+    definitionHash: string;
+    role: 'selected' | 'filter' | 'group' | 'sort';
+};
+
+/** Direct runtime references only, not the dependencies inside field SQL. */
+export type SemanticQueryUsage = {
+    status: 'captured' | 'partial' | 'unavailable';
+    references: SemanticFieldReference[];
+};
+
 /** Server-owned attribution persisted with a query for background workers. */
 export type QueryUsageMetadata = {
     startedAtMs: number;
@@ -49,9 +70,49 @@ export type QueryUsageMetadata = {
     appVersion?: number | null;
     dashboardTileId: string | null;
     schedulerId: string | null;
+    semanticUsage?: SemanticQueryUsage;
+    querySurface?: QuerySurface;
 };
 
+export type QueryResultCredentialOwner =
+    | { kind: 'shared_connection'; identityFingerprint?: string | null }
+    | { kind: 'no_warehouse_data' }
+    | { kind: 'derived' }
+    | {
+          kind: 'person';
+          userUuid: string;
+          userWarehouseCredentialsUuid: string;
+          identityFingerprint?: string | null;
+      }
+    | {
+          kind: 'ai_service_account';
+          credentialUuid: string;
+          generation: string;
+          sourceProjectUuid: string;
+      }
+    | {
+          kind: 'agent_sign_in';
+          userUuid: string;
+          generation: string;
+      };
+
+export type QueryResultProducer = {
+    version: 1;
+    authMethod?: AuthType | null;
+    warehouseConnectionUuid: string | null;
+    credentialOwner: QueryResultCredentialOwner;
+    agentIdentity: AgentIdentityClaim | null;
+    entitlementFingerprint?: string | null;
+};
+
+export type QueryResultReader = { authMethod: AuthType | null } & (
+    | { kind: 'person' }
+    | { kind: 'agent'; claim: AgentIdentityClaim }
+);
+
 export type QueryHistory = {
+    agentIdentity: AgentIdentityClaim | null;
+    warehouseConnectionUuid?: string | null;
     queryUuid: string;
     createdAt: Date;
     createdBy: string | null;
@@ -62,14 +123,39 @@ export type QueryHistory = {
     projectUuid: string | null;
     warehouseQueryId: string | null;
     warehouseQueryMetadata: WarehouseQueryMetadata | null;
+    warehouseExecutionStats: WarehouseExecutionStats | null;
     context: QueryExecutionContext;
     defaultPageSize: number | null;
     compiledSql: string;
     metricQuery: MetricQuery;
     fields: ItemsMap;
     requestParameters: ExecuteAsyncQueryRequestParams & {
+        agentConnectionExecution?: AgentConnectionExecution | null;
         /** Internal metadata, never trusted from request bodies or used in cache keys. */
         queryUsage?: QueryUsageMetadata;
+        aiSignInCredentialUuid?: string;
+        resultProducer?: QueryResultProducer;
+        resultResearchRunUuid?: string;
+        resultArtifact?: {
+            agentUuid: string;
+            artifactUuid: string;
+            versionUuid: string;
+        };
+        /** Binds a run of a message's `query` pipeline, as resultArtifact does for artifacts. */
+        resultMessageQuery?: {
+            agentUuid: string;
+            promptUuid: string;
+            nodeId: string;
+        };
+        resultEntitlementFingerprint?: string | null;
+        resultEffectiveParameters?: ParametersValuesMap;
+        resultSource?: {
+            savedSqlUuid: string;
+            dashboardUuid: string | null;
+            tileUuid: string | null;
+        };
+        cacheSourceQueryUuid?: string;
+        externalSourceReferences?: string[];
     };
     /** Resolved parameter values in effect for this execution (request values
      *  merged with defaults). Null on rows written before the column existed. */

@@ -21,10 +21,7 @@
 
 .cardDraft {
     border-style: dashed;
-    background: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-dark-7)
-    );
+    background: var(--mantine-color-ldGray-0);
 }
 
 .cardHeader {
@@ -112,18 +109,12 @@
     cursor: pointer;
     font-size: 12px;
     font-weight: 600;
-    color: light-dark(
-        var(--mantine-color-ldDark-6),
-        var(--mantine-color-ldGray-6)
-    );
+    color: var(--mantine-color-ldGray-8);
     transition: color 150ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 .readMore:hover {
-    color: light-dark(
-        var(--mantine-color-ldDark-9),
-        var(--mantine-color-ldGray-1)
-    );
+    color: var(--mantine-color-ldGray-9);
 }
 
 .readMore:active {
@@ -147,10 +138,7 @@
     cursor: pointer;
     font-size: 12.5px;
     font-weight: 500;
-    color: light-dark(
-        var(--mantine-color-ldGray-6),
-        var(--mantine-color-ldGray-6)
-    );
+    color: var(--mantine-color-ldGray-6);
     transition: color 150ms cubic-bezier(0.23, 1, 0.32, 1);
 }
 
@@ -162,10 +150,7 @@
 }
 
 .earlierToggle:hover {
-    color: light-dark(
-        var(--mantine-color-ldGray-9),
-        var(--mantine-color-ldGray-1)
-    );
+    color: var(--mantine-color-ldGray-9);
 }
 
 .earlierList {
@@ -191,10 +176,7 @@
 }
 
 .earlierRow:hover {
-    background: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-dark-5)
-    );
+    background: var(--mantine-color-default-hover);
 }
 
 .earlierRow:active {
@@ -204,10 +186,7 @@
 .earlierRowTitle {
     font-size: 13px;
     font-weight: 500;
-    color: light-dark(
-        var(--mantine-color-ldGray-8),
-        var(--mantine-color-dark-0)
-    );
+    color: var(--mantine-color-ldGray-8);
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -236,10 +215,7 @@
     padding: 2px;
     opacity: 0;
     transition: opacity 150ms cubic-bezier(0.23, 1, 0.32, 1);
-    background: light-dark(
-        var(--mantine-color-white),
-        var(--mantine-color-dark-7)
-    );
+    background: var(--mantine-color-body);
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-sm);
     box-shadow: 0 1px 3px light-dark(rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.32));
@@ -248,14 +224,6 @@
 .card:hover .itemActions,
 .card:focus-within .itemActions {
     opacity: 1;
-}
-
-.emptyHint {
-    font-size: 12.5px;
-    color: var(--mantine-color-dimmed);
-    border: 1px dashed var(--mantine-color-ldGray-3);
-    border-radius: var(--mantine-radius-md);
-    padding: 12px 14px;
 }
 
 /* Linear-style document: a big borderless title + free-form body. Only the
@@ -277,10 +245,7 @@
 
 .docTitle::placeholder {
     font-weight: 600;
-    color: light-dark(
-        var(--mantine-color-ldGray-4),
-        var(--mantine-color-dark-2)
-    );
+    color: var(--mantine-color-ldGray-4);
 }
 
 .docBody {
@@ -318,8 +283,39 @@
     }
 }
 
-.newAnnouncementButton {
-    align-self: flex-start;
+.emptyFeed {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 24px 16px;
+    text-align: center;
+    border: 1px dashed var(--mantine-color-ldGray-3);
+    border-radius: var(--mantine-radius-md);
+}
+
+.emptyFeedIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    margin-bottom: 6px;
+    border-radius: 50%;
+    color: var(--mantine-color-ldGray-6);
+    background: var(--mantine-color-ldGray-1);
+}
+
+.emptyFeedTitle {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--mantine-color-text);
+}
+
+.emptyFeedText {
+    max-width: 360px;
+    font-size: 12.5px;
+    color: var(--mantine-color-dimmed);
 }
 
 .feedError {

@@ -3,6 +3,7 @@ import {
     AlreadyExistsError,
     DbtProjectType,
     EMPTY_WAREHOUSE_LOCATION,
+    FeatureFlags,
     ForbiddenError,
     ParameterError,
     PossibleAbilities,
@@ -12,7 +13,9 @@ import {
 } from '@lightdash/common';
 import { fromSession } from '../auth/account/account';
 import { buildAccount, defaultSessionUser } from '../auth/account/account.mock';
+import { GITHUB_APP_NOT_INSTALLED_MESSAGE } from '../projectAdapters/githubAuthorization';
 import { ProjectDbtSourcesService } from './ProjectDbtSourcesService';
+import { warehouseConnectionCredentials } from './WarehouseConnectionService/warehouseConnectionFixtures.mock';
 
 const projectUuid = '11111111-1111-4111-8111-111111111111';
 const otherProjectUuid = '99999999-9999-4999-8999-999999999999';
@@ -68,6 +71,7 @@ const projectModel = {
         projectUuid: uuid,
         dbtConnection: primaryDbtConnection,
     })),
+    getWarehouseConnectionForBinding: vi.fn(),
     getDbtSourceIdentity: vi.fn(async () => ({
         dbtSourceUuid: primarySourceUuid,
         dbtSourceName: 'dbt_project',
@@ -77,10 +81,27 @@ const projectModel = {
 
 const projectDbtSourcesModel = {
     getSources: vi.fn(async () => []),
+    getSourcesWithBindings: vi.fn(),
     getSource: vi.fn(),
     createSource: vi.fn(),
     updateSource: vi.fn(),
     deleteSource: vi.fn(),
+};
+
+const githubAppInstallationsModel = {
+    findInstallationId: vi.fn(
+        async (): Promise<string | undefined> => undefined,
+    ),
+};
+
+const mixedWarehouseConnections = { enabled: false };
+const featureFlagService = {
+    get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+        id: featureFlagId,
+        enabled:
+            featureFlagId === FeatureFlags.MixedWarehouseConnections &&
+            mixedWarehouseConnections.enabled,
+    })),
 };
 
 const getService = () =>
@@ -89,11 +110,14 @@ const getService = () =>
         analytics: { track: vi.fn() } as never,
         projectModel: projectModel as never,
         projectDbtSourcesModel: projectDbtSourcesModel as never,
+        githubAppInstallationsModel: githubAppInstallationsModel as never,
+        featureFlagService,
     });
 
 describe('ProjectDbtSourcesService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mixedWarehouseConnections.enabled = false;
         projectModel.getSummary.mockResolvedValue({
             organizationUuid: 'org-uuid',
             projectUuid,
@@ -108,6 +132,14 @@ describe('ProjectDbtSourcesService', () => {
             dbtSourceName: 'dbt_project',
         });
         projectDbtSourcesModel.getSources.mockResolvedValue([]);
+        projectDbtSourcesModel.getSourcesWithBindings.mockResolvedValue([]);
+        projectModel.getWarehouseConnectionForBinding.mockResolvedValue(
+            warehouseConnectionCredentials[WarehouseTypes.BIGQUERY],
+        );
+        // By default the org has no GitHub App installation.
+        githubAppInstallationsModel.findInstallationId.mockResolvedValue(
+            undefined,
+        );
     });
 
     describe('getProjectDbtSources', () => {
@@ -266,6 +298,80 @@ describe('ProjectDbtSourcesService', () => {
             expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
         });
 
+        it('refuses a manifest source when mixed warehouse connections are off', async () => {
+            const service = getService();
+
+            await expect(
+                service.createProjectDbtSource(adminAccount, projectUuid, {
+                    name: 'trino_models',
+                    dbtConnection: {
+                        type: DbtProjectType.MANIFEST,
+                        manifest: '{}',
+                        hideRefreshButton: false,
+                    } as never,
+                }),
+            ).rejects.toThrow(
+                'Additional dbt sources currently support GitHub connections only',
+            );
+            expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
+        });
+
+        it('creates a manifest source when mixed warehouse connections are on', async () => {
+            mixedWarehouseConnections.enabled = true;
+            projectDbtSourcesModel.getSources.mockResolvedValue([]);
+            projectDbtSourcesModel.createSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                name: 'trino_models',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: {
+                    type: DbtProjectType.MANIFEST,
+                    manifest: '{}',
+                    hideRefreshButton: false,
+                },
+            } as never);
+            const service = getService();
+
+            const created = await service.createProjectDbtSource(
+                adminAccount,
+                projectUuid,
+                {
+                    name: 'trino_models',
+                    dbtConnection: {
+                        type: DbtProjectType.MANIFEST,
+                        manifest: '{}',
+                        hideRefreshButton: false,
+                    } as never,
+                },
+            );
+
+            expect(created.name).toBe('trino_models');
+            expect(featureFlagService.get).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    featureFlagId: FeatureFlags.MixedWarehouseConnections,
+                }),
+            );
+        });
+
+        it('still refuses other non-GitHub sources when mixed warehouse connections are on', async () => {
+            mixedWarehouseConnections.enabled = true;
+            const service = getService();
+
+            await expect(
+                service.createProjectDbtSource(adminAccount, projectUuid, {
+                    name: 'gitlab_models',
+                    dbtConnection: {
+                        type: DbtProjectType.GITLAB,
+                        repository: 'acme/models',
+                        branch: 'main',
+                        project_sub_path: '/',
+                    } as never,
+                }),
+            ).rejects.toThrow(
+                'Additional dbt sources currently support GitHub connections only',
+            );
+        });
+
         it('creates a GitHub source at precedence = max(existing) + 1', async () => {
             projectDbtSourcesModel.getSources.mockResolvedValue([
                 { precedence: 1 } as never,
@@ -295,6 +401,117 @@ describe('ProjectDbtSourcesService', () => {
             );
             expect(created.precedence).toBe(4);
             expect(created.name).toBe('Analytics_2');
+        });
+
+        it('fills the org installation id into an OAuth source created with an empty one', async () => {
+            githubAppInstallationsModel.findInstallationId.mockResolvedValue(
+                '999',
+            );
+            projectDbtSourcesModel.createSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                name: 'Analytics_2',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: githubConnection,
+            } as never);
+            const service = getService();
+
+            await service.createProjectDbtSource(adminAccount, projectUuid, {
+                name: 'Analytics_2',
+                dbtConnection: {
+                    ...githubConnection,
+                    installation_id: '',
+                } as never,
+            });
+
+            expect(
+                githubAppInstallationsModel.findInstallationId,
+            ).toHaveBeenCalledWith('org-uuid');
+            expect(projectDbtSourcesModel.createSource).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({
+                    dbtConnection: expect.objectContaining({
+                        installation_id: '999',
+                    }),
+                }),
+            );
+        });
+
+        it('rejects an OAuth source when the org has no GitHub App installation', async () => {
+            const service = getService();
+
+            await expect(
+                service.createProjectDbtSource(adminAccount, projectUuid, {
+                    name: 'Analytics_2',
+                    dbtConnection: {
+                        ...githubConnection,
+                        installation_id: '',
+                    } as never,
+                }),
+            ).rejects.toThrow(GITHUB_APP_NOT_INSTALLED_MESSAGE);
+
+            expect(projectDbtSourcesModel.createSource).not.toHaveBeenCalled();
+        });
+
+        it("replaces a submitted installation id with the org's current one", async () => {
+            githubAppInstallationsModel.findInstallationId.mockResolvedValue(
+                '999',
+            );
+            projectDbtSourcesModel.createSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                name: 'Analytics_2',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: githubConnection,
+            } as never);
+            const service = getService();
+
+            // githubConnection carries installation_id '123'.
+            await service.createProjectDbtSource(adminAccount, projectUuid, {
+                name: 'Analytics_2',
+                dbtConnection: githubConnection as never,
+            });
+
+            expect(projectDbtSourcesModel.createSource).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({
+                    dbtConnection: expect.objectContaining({
+                        installation_id: '999',
+                    }),
+                }),
+            );
+        });
+
+        it('saves a personal access token source unchanged without looking up an installation', async () => {
+            const patConnection = {
+                type: DbtProjectType.GITHUB,
+                authorization_method: 'personal_access_token',
+                personal_access_token: `ghp_${'a'.repeat(36)}`,
+                repository: 'acme/jaffle',
+                branch: 'main',
+                project_sub_path: '/dbt',
+            };
+            projectDbtSourcesModel.createSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                name: 'Analytics_2',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: patConnection,
+            } as never);
+            const service = getService();
+
+            await service.createProjectDbtSource(adminAccount, projectUuid, {
+                name: 'Analytics_2',
+                dbtConnection: patConnection as never,
+            });
+
+            expect(
+                githubAppInstallationsModel.findInstallationId,
+            ).not.toHaveBeenCalled();
+            expect(projectDbtSourcesModel.createSource).toHaveBeenCalledWith(
+                projectUuid,
+                expect.objectContaining({ dbtConnection: patConnection }),
+            );
         });
 
         it("saves the source's own warehouse location", async () => {
@@ -381,6 +598,9 @@ describe('ProjectDbtSourcesService', () => {
         });
 
         it('rejects a database on a warehouse whose tables have none', async () => {
+            projectModel.getWarehouseConnectionForBinding.mockResolvedValue(
+                warehouseConnectionCredentials[WarehouseTypes.CLICKHOUSE],
+            );
             projectModel.get.mockResolvedValue({
                 projectUuid,
                 dbtConnection: primaryDbtConnection,
@@ -601,6 +821,48 @@ describe('ProjectDbtSourcesService', () => {
             );
         });
 
+        it('validates a source location against its bound Trino connection', async () => {
+            projectDbtSourcesModel.getSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                projectUuid,
+                dbtConnection: githubConnection,
+            } as never);
+            projectDbtSourcesModel.getSourcesWithBindings.mockResolvedValue([
+                {
+                    projectDbtSourceUuid: sourceUuid,
+                    warehouseConnectionUuid: 'trino-extra',
+                },
+            ]);
+            projectDbtSourcesModel.updateSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                name: 'source',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: githubConnection,
+            } as never);
+            projectModel.getWarehouseConnectionForBinding.mockResolvedValue(
+                warehouseConnectionCredentials[WarehouseTypes.TRINO],
+            );
+            await getService().updateProjectDbtSource(
+                adminAccount,
+                projectUuid,
+                sourceUuid,
+                {
+                    warehouseLocation: {
+                        database: 'catalog',
+                        schema: 'public',
+                    },
+                },
+            );
+            expect(
+                projectModel.getWarehouseConnectionForBinding,
+            ).toHaveBeenCalledWith(projectUuid, {
+                kind: 'connection',
+                warehouseConnectionUuid: 'trino-extra',
+            });
+            expect(projectDbtSourcesModel.updateSource).toHaveBeenCalled();
+        });
+
         it('rejects an invalid GitHub token before updating the source', async () => {
             projectDbtSourcesModel.getSource.mockResolvedValue({
                 projectDbtSourceUuid: sourceUuid,
@@ -627,6 +889,89 @@ describe('ProjectDbtSourcesService', () => {
             );
 
             expect(projectDbtSourcesModel.updateSource).not.toHaveBeenCalled();
+        });
+
+        const storedPatSource = {
+            projectDbtSourceUuid: sourceUuid,
+            projectUuid,
+            dbtConnection: {
+                type: DbtProjectType.GITHUB,
+                authorization_method: 'personal_access_token',
+                personal_access_token: 'ghp_saved',
+                repository: 'acme/jaffle',
+                branch: 'main',
+                project_sub_path: '/dbt',
+            },
+        };
+
+        it('rejects switching a source to OAuth when the org has no GitHub App installation', async () => {
+            projectDbtSourcesModel.getSource.mockResolvedValue(
+                storedPatSource as never,
+            );
+            const service = getService();
+
+            await expect(
+                service.updateProjectDbtSource(
+                    adminAccount,
+                    projectUuid,
+                    sourceUuid,
+                    {
+                        dbtConnection: {
+                            ...githubConnection,
+                            installation_id: '',
+                        } as never,
+                    },
+                ),
+            ).rejects.toThrow(GITHUB_APP_NOT_INSTALLED_MESSAGE);
+
+            expect(projectDbtSourcesModel.updateSource).not.toHaveBeenCalled();
+        });
+
+        it('fills the org installation id when a source is switched to OAuth', async () => {
+            githubAppInstallationsModel.findInstallationId.mockResolvedValue(
+                '999',
+            );
+            projectDbtSourcesModel.getSource.mockResolvedValue(
+                storedPatSource as never,
+            );
+            projectDbtSourcesModel.updateSource.mockResolvedValue({
+                projectDbtSourceUuid: sourceUuid,
+                name: 'jaffle-2',
+                isPrimary: false,
+                precedence: 1,
+                dbtConnection: githubConnection,
+            } as never);
+            const service = getService();
+
+            await service.updateProjectDbtSource(
+                adminAccount,
+                projectUuid,
+                sourceUuid,
+                {
+                    dbtConnection: {
+                        ...githubConnection,
+                        installation_id: '',
+                    } as never,
+                },
+            );
+
+            expect(projectDbtSourcesModel.updateSource).toHaveBeenCalledWith(
+                sourceUuid,
+                expect.objectContaining({
+                    dbtConnection: expect.objectContaining({
+                        installation_id: '999',
+                    }),
+                }),
+            );
+            // The stored PAT is not carried into the OAuth connection.
+            expect(projectDbtSourcesModel.updateSource).toHaveBeenCalledWith(
+                sourceUuid,
+                expect.objectContaining({
+                    dbtConnection: expect.not.objectContaining({
+                        personal_access_token: expect.anything(),
+                    }),
+                }),
+            );
         });
 
         it('rejects a source uuid that belongs to a different project', async () => {

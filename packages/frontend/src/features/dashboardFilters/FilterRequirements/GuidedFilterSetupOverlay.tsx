@@ -5,6 +5,11 @@ import { useMemo, type FC } from 'react';
 import MantineModal from '../../../components/common/MantineModal';
 import { useUiStrings } from '../../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import {
+    selectDashboardFilters,
+    useDashboardSelector,
+    useRequiredFiltersNote,
+} from '../../dashboard/store';
 import { useIsLockedDashboardFilterRule } from '../useIsLockedDashboardFilterRule';
 import GuidedFilterSetup, {
     GuidedFilterSetupProgress,
@@ -33,10 +38,8 @@ const GuidedFilterSetupOverlay: FC<Props> = ({
     const isLoadingDashboardFilters = useDashboardContext(
         (c) => c.isLoadingDashboardFilters,
     );
-    const requiredFiltersNote = useDashboardContext(
-        (c) => c.requiredFiltersNote,
-    );
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const requiredFiltersNote = useRequiredFiltersNote();
+    const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const isLocked = useIsLockedDashboardFilterRule();
 
     const rules = useMemo(

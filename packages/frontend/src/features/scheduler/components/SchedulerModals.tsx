@@ -9,6 +9,12 @@ import {
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import { readAppUrlState } from '../../apps/hooks/useAppUrlStateSync';
 import {
+    selectDashboardEffectiveParameterValues,
+    selectDashboardParameterDefinitions,
+    selectDashboardWideParameterValues,
+    useDashboardSelector,
+} from '../../dashboard/store';
+import {
     useAppSchedulerCreateMutation,
     useAppSchedulers,
 } from '../hooks/useAppSchedulers';
@@ -47,11 +53,15 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
     const createMutation = useDashboardSchedulerCreateMutation();
 
     // Extract parameter data from dashboard context
-    const currentParameterValues = useDashboardContext(
-        (c) => c.parameterValues,
+    const currentParameterValues = useDashboardSelector(
+        selectDashboardEffectiveParameterValues,
     );
-    const availableParameters = useDashboardContext(
-        (c) => c.parameterDefinitions,
+    // With saved controls a delivery carries only the picks: its values beat every control holding the key
+    const outsideParameterValues = useDashboardSelector(
+        selectDashboardWideParameterValues,
+    );
+    const availableParameters = useDashboardSelector(
+        selectDashboardParameterDefinitions,
     );
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
@@ -68,6 +78,16 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
             createMutation={createMutation}
             isChart={false}
             currentParameterValues={currentParameterValues}
+            initialFormValues={
+                outsideParameterValues === currentParameterValues
+                    ? undefined
+                    : {
+                          parameters:
+                              Object.keys(outsideParameterValues).length > 0
+                                  ? outsideParameterValues
+                                  : undefined,
+                      }
+            }
             availableParameters={availableParameters}
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}
             hiddenFilterableFieldIds={hiddenFilterableFieldIds}

@@ -1,10 +1,12 @@
 import {
     assertUnreachable,
+    AthenaAuthenticationType,
     DuckdbConnectionType,
     WarehouseTypes,
     type CreateWarehouseCredentials,
     type UserWarehouseCredentialsWithSecrets,
 } from '@lightdash/common';
+import { copyWarehouseCredentialVersions } from '../../utils/warehouseCredentialVersion';
 
 // Extra security measure, we remove the "secrets" from the project/org credentials
 // and let the user override that token/password later on
@@ -64,8 +66,32 @@ export function clearSecretsFromCredentials(
             };
         }
         case WarehouseTypes.ATHENA: {
+            // The user's own access keys replace the project's. A web
+            // identity project's role trusts Lightdash, not the user's keys,
+            // so the user's keys run as access keys without that role.
+            const {
+                accessKeyId,
+                secretAccessKey,
+                sessionToken,
+                webIdentityAudience,
+                ...rest
+            } = credentials;
+            if (
+                credentials.authenticationType ===
+                AthenaAuthenticationType.WEB_IDENTITY
+            ) {
+                const { assumeRoleArn, assumeRoleExternalId, ...connection } =
+                    rest;
+                return {
+                    ...connection,
+                    authenticationType: AthenaAuthenticationType.ACCESS_KEY,
+                    accessKeyId: '',
+                    secretAccessKey: '',
+                };
+            }
             return {
-                ...credentials,
+                ...rest,
+                authenticationType: AthenaAuthenticationType.ACCESS_KEY,
                 accessKeyId: '',
                 secretAccessKey: '',
             };
@@ -136,6 +162,31 @@ export function mergePersonalWarehouseCredentials(
     let credentials = projectCredentials;
     credentials = clearSecretsFromCredentials(credentials);
 
+    // Personal Athena credentials only contribute the user's keys, so a
+    // stored credential can't change how or where the project connects.
+    if (
+        credentials.type === WarehouseTypes.ATHENA &&
+        userWarehouseCredentials.credentials.type === WarehouseTypes.ATHENA
+    ) {
+        const { accessKeyId, secretAccessKey, sessionToken } =
+            userWarehouseCredentials.credentials as {
+                accessKeyId?: string;
+                secretAccessKey?: string;
+                sessionToken?: string;
+            };
+        return copyWarehouseCredentialVersions(
+            {
+                ...credentials,
+                accessKeyId: accessKeyId ?? '',
+                secretAccessKey: secretAccessKey ?? '',
+                ...(sessionToken ? { sessionToken } : {}),
+                requireUserCredentials: credentials.requireUserCredentials,
+            },
+            projectCredentials,
+            userWarehouseCredentials.credentials,
+        );
+    }
+
     // User has credentials - use them
     credentials = {
         ...credentials,
@@ -145,5 +196,9 @@ export function mergePersonalWarehouseCredentials(
             ('requireUserCredentials' in userWarehouseCredentials.credentials &&
                 userWarehouseCredentials.credentials.requireUserCredentials),
     } as CreateWarehouseCredentials; // force type as typescript doesn't know the types match
-    return credentials;
+    return copyWarehouseCredentialVersions(
+        credentials,
+        projectCredentials,
+        userWarehouseCredentials.credentials,
+    );
 }

@@ -11,12 +11,25 @@ import {
     type OAuthClientSummary,
 } from '@lightdash/common';
 import OAuth2Server from '@node-oauth/oauth2-server';
+import { assertOAuthCredentialOperationAllowed } from '../../auth/oauthScopes/credentials';
+import {
+    oauthApiResource,
+    requestedOAuthResource,
+} from '../../auth/oauthScopes/oauthResources';
+import { OAuthBearerRefusalError } from '../../auth/oauthScopes/security';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OAuth2Model } from '../../models/OAuth2Model';
+import { isAllowedStrictRedirectUri } from '../../models/oauthStrictRedirectUri';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
+import type { MobileSignInService } from '../MobileSignInService/MobileSignInService';
+import { isClientIdMetadataDocumentUrl } from './clientIdMetadataDocument';
+import { InvalidClientMetadataError } from './InvalidClientMetadataError';
+import { InvalidRedirectUriError } from './InvalidRedirectUriError';
 import type { ManagedSignInService } from './managedSignIn/ManagedSignInService';
 import { createMicrosoftTokenExchangeGrantType } from './managedSignIn/microsoftTokenExchangeGrantType';
+import { createResourceBoundAuthorizationCodeGrant } from './ResourceBoundAuthorizationCodeGrant';
+import { createScopeCheckedRefreshTokenGrant } from './ScopeCheckedRefreshTokenGrant';
 
 export enum OAuthScope {
     READ = 'read',
@@ -36,7 +49,13 @@ type OAuthServiceArguments = {
     lightdashConfig: LightdashConfig;
     onGrantRevoked?: OAuthGrantRevokedHandler;
     getManagedSignInService?: () => ManagedSignInService;
+    getMobileSignInService?: () => MobileSignInService;
 };
+
+const isDatabaseErrorWithCode = (
+    error: unknown,
+): error is Error & { code: string } =>
+    error instanceof Error && 'code' in error && typeof error.code === 'string';
 
 export class OAuthService extends BaseService {
     protected oauthServer!: OAuth2Server;
@@ -51,12 +70,15 @@ export class OAuthService extends BaseService {
 
     private getManagedSignInService: (() => ManagedSignInService) | undefined;
 
+    private getMobileSignInService: (() => MobileSignInService) | undefined;
+
     constructor({
         userModel,
         oauthModel,
         lightdashConfig,
         onGrantRevoked,
         getManagedSignInService,
+        getMobileSignInService,
     }: OAuthServiceArguments) {
         super();
         this.userModel = userModel;
@@ -64,21 +86,48 @@ export class OAuthService extends BaseService {
         this.lightdashConfig = lightdashConfig;
         this.onGrantRevoked = onGrantRevoked;
         this.getManagedSignInService = getManagedSignInService;
+        this.getMobileSignInService = getMobileSignInService;
         this.initializeOAuthServer();
     }
 
     private initializeOAuthServer(): void {
-        const { getManagedSignInService } = this;
+        const { getManagedSignInService, getMobileSignInService } = this;
         this.oauthServer = new OAuth2Server({
             model: this.oauthModel,
-            extendedGrantTypes: getManagedSignInService
-                ? {
-                      [TOKEN_EXCHANGE_GRANT_TYPE]:
-                          createMicrosoftTokenExchangeGrantType(
-                              getManagedSignInService,
-                          ),
-                  }
-                : undefined,
+            extendedGrantTypes: {
+                authorization_code: createResourceBoundAuthorizationCodeGrant(
+                    (user) =>
+                        this.oauthModel.isSecurityStrictForOAuthUser(
+                            user as UserWithOrganizationUuid,
+                        ),
+                    this.getSiteUrl(),
+                ) as unknown as typeof OAuth2Server.AbstractGrantType,
+                refresh_token: createScopeCheckedRefreshTokenGrant(
+                    (user) =>
+                        this.oauthModel.getScopeMode(
+                            user as UserWithOrganizationUuid,
+                        ),
+                    (user) =>
+                        this.oauthModel.isSecurityStrictForOAuthUser(
+                            user as UserWithOrganizationUuid,
+                        ),
+                    this.getSiteUrl(),
+                ) as unknown as typeof OAuth2Server.AbstractGrantType,
+                ...(getManagedSignInService
+                    ? {
+                          [TOKEN_EXCHANGE_GRANT_TYPE]:
+                              createMicrosoftTokenExchangeGrantType(
+                                  getManagedSignInService,
+                                  (user) =>
+                                      this.oauthModel.isSecurityStrictForOAuthUser(
+                                          user as UserWithOrganizationUuid,
+                                      ),
+                                  this.getSiteUrl(),
+                                  getMobileSignInService,
+                              ),
+                      }
+                    : {}),
+            },
             allowBearerTokensInQueryString: true,
             allowEmptyState: true, // Make state parameter optional for MCP compatibility
             accessTokenLifetime:
@@ -102,22 +151,102 @@ export class OAuthService extends BaseService {
         response: OAuth2Server.Response,
         user: UserWithOrganizationUuid,
     ): Promise<OAuth2Server.AuthorizationCode> {
-        return this.oauthServer.authorize(request, response, {
+        const resource = await this.getAuthorizationResource(request, user);
+        const model: OAuth2Server.AuthorizationCodeModel = Object.create(
+            this.oauthModel,
+        ) as OAuth2Server.AuthorizationCodeModel;
+        if (
+            OAuthService.isPublicDocumentClientRequest(request) ||
+            (await this.isSecurityStrictForOAuthUser(user))
+        )
+            model.validateRedirectUri = (redirectUri, client) =>
+                this.oauthModel.validateRedirectUriStrict(redirectUri, client);
+        model.saveAuthorizationCode = (code, client, savedUser) =>
+            this.oauthModel.saveAuthorizationCode(
+                { ...code, resource },
+                client,
+                savedUser as UserWithOrganizationUuid,
+            );
+        const options = {
+            model,
             authenticateHandler: {
                 handle: () => user,
             },
-        });
+        };
+        return this.oauthServer.authorize(request, response, options);
+    }
+
+    // CIMD clients are public, so PKCE and exact redirect matching apply in every mode
+    private static isPublicDocumentClientRequest(
+        request: OAuth2Server.Request,
+    ): boolean {
+        const clientId = request.body?.client_id ?? request.query?.client_id;
+        return (
+            typeof clientId === 'string' &&
+            isClientIdMetadataDocumentUrl(clientId)
+        );
+    }
+
+    public async getAuthorizationResource(
+        request: OAuth2Server.Request,
+        user: UserWithOrganizationUuid,
+    ): Promise<string | null> {
+        const strict = await this.isSecurityStrictForOAuthUser(user);
+        const requirePkce =
+            strict || OAuthService.isPublicDocumentClientRequest(request);
+        if (
+            requirePkce &&
+            !(request.body.code_challenge || request.query?.code_challenge)
+        ) {
+            throw new OAuth2Server.InvalidRequestError(
+                'Missing parameter: `code_challenge`',
+            );
+        }
+        const method =
+            request.body?.code_challenge_method ||
+            request.query?.code_challenge_method;
+        if (requirePkce && method && method !== 'S256')
+            throw new OAuth2Server.InvalidRequestError(
+                'Invalid parameter: `code_challenge_method`',
+            );
+        return strict
+            ? (requestedOAuthResource(this.getSiteUrl(), {
+                  body: request.body ?? {},
+                  query: request.query ?? null,
+              }) ?? oauthApiResource(this.getSiteUrl()))
+            : null;
+    }
+
+    public isSecurityStrict(
+        user: Parameters<OAuth2Model['isSecurityStrict']>[0],
+    ): Promise<boolean> {
+        return this.oauthModel.isSecurityStrict(user);
+    }
+
+    public isSecurityStrictForOAuthUser(
+        user: UserWithOrganizationUuid,
+    ): Promise<boolean> {
+        return this.oauthModel.isSecurityStrictForOAuthUser(user);
     }
 
     public async validateRedirectUri(
         clientId: string,
         redirectUri: string,
+        user: UserWithOrganizationUuid | null = null,
     ): Promise<boolean> {
         const client = await this.oauthModel.getClient(clientId);
-        return (
-            client !== false &&
-            this.oauthModel.validateRedirectUri(redirectUri, client)
-        );
+        if (client === false) return false;
+        const strict =
+            isClientIdMetadataDocumentUrl(clientId) ||
+            (user === null
+                ? await this.isSecurityStrict(null)
+                : await this.isSecurityStrictForOAuthUser(user));
+        if (strict)
+            return this.oauthModel.validateRedirectUriStrict(
+                redirectUri,
+                client,
+            );
+        return this.oauthModel.validateRedirectUri(redirectUri, client);
     }
 
     public async token(
@@ -127,18 +256,57 @@ export class OAuthService extends BaseService {
         return this.oauthServer.token(request, response);
     }
 
+    public async isAccessTokenBoundToGrant(
+        accessToken: string,
+    ): Promise<boolean> {
+        return this.oauthModel.isAccessTokenBoundToGrant(accessToken);
+    }
+
     public async authenticate(
         request: OAuth2Server.Request,
         response: OAuth2Server.Response,
     ): Promise<OAuth2Server.Token> {
+        if (request.query?.access_token !== undefined) {
+            const queryToken = request.query.access_token;
+            const headerToken =
+                /^Bearer\s+(\S+)$/i.exec(
+                    request.get('authorization') ?? '',
+                )?.[1] ?? null;
+            const candidates = new Set(
+                [queryToken, headerToken].filter(
+                    (token): token is string => typeof token === 'string',
+                ),
+            );
+            const refusals = await Promise.all(
+                [...candidates].map(async (candidate) => {
+                    const token =
+                        await this.oauthModel.getAccessToken(candidate);
+                    return token
+                        ? this.isSecurityStrictForOAuthUser(
+                              token.user as UserWithOrganizationUuid,
+                          )
+                        : false;
+                }),
+            );
+            if (refusals.some(Boolean)) throw new OAuthBearerRefusalError();
+        }
         return this.oauthServer.authenticate(request, response);
     }
 
     public async revokeToken(token: string): Promise<boolean> {
         const refreshToken = await this.oauthModel.getRefreshToken(token);
         if (refreshToken) {
-            const deleted = await this.oauthModel.deleteRefreshToken(token);
-            const { userId } = refreshToken.user as UserWithOrganizationUuid;
+            const user = refreshToken.user as UserWithOrganizationUuid;
+            const deleted =
+                refreshToken.familyUuid != null &&
+                refreshToken.agentConnectionGrantUuid == null &&
+                refreshToken.securityStrict === true
+                    ? await this.oauthModel.revokeUnboundRefreshFamily(
+                          refreshToken.familyUuid,
+                          user.userId,
+                      )
+                    : await this.oauthModel.deleteRefreshToken(token);
+            const { userId } = user;
             if (deleted && this.onGrantRevoked !== undefined) {
                 await this.onGrantRevoked({
                     userId,
@@ -166,18 +334,35 @@ export class OAuthService extends BaseService {
         grantTypes?: string[];
         scopes?: string[];
     }) {
+        const strict = await this.isSecurityStrict(null);
         for (const uri of redirectUris) {
-            if (!isSafeRedirectScheme(uri)) {
-                throw new ParameterError(`Invalid redirect URI ${uri}`);
+            if (
+                !(strict
+                    ? isAllowedStrictRedirectUri(uri)
+                    : isSafeRedirectScheme(uri))
+            ) {
+                throw new InvalidRedirectUriError(uri);
             }
         }
 
-        return this.oauthModel.createClient({
-            clientName,
-            redirectUris,
-            grantTypes,
-            scopes,
-        });
+        try {
+            return await this.oauthModel.createClient({
+                clientName,
+                redirectUris,
+                grantTypes,
+                scopes,
+            });
+        } catch (error) {
+            if (
+                isDatabaseErrorWithCode(error) &&
+                ['22001', '22P05', '22021', '22P02', '23502'].includes(
+                    error.code,
+                )
+            ) {
+                throw new InvalidClientMetadataError();
+            }
+            throw error;
+        }
     }
 
     public async listClients(account: Account): Promise<OAuthClientSummary[]> {
@@ -210,6 +395,7 @@ export class OAuthService extends BaseService {
             redirectUris: string[];
         },
     ) {
+        assertOAuthCredentialOperationAllowed(account, 'createOAuthClient');
         const auditedAbility = this.createAuditedAbility(account);
         if (
             !account.organization.organizationUuid ||
@@ -226,8 +412,16 @@ export class OAuthService extends BaseService {
             );
         }
         // Validate redirect URIs
+        const strict = await this.isSecurityStrict({
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
         for (const uri of redirectUris) {
-            if (!isSafeRedirectScheme(uri)) {
+            if (
+                !(strict
+                    ? isAllowedStrictRedirectUri(uri)
+                    : isSafeRedirectScheme(uri))
+            ) {
                 throw new ParameterError(`Invalid redirect URI ${uri}`);
             }
         }
@@ -251,6 +445,7 @@ export class OAuthService extends BaseService {
             redirectUris: string[];
         },
     ): Promise<OAuthClientSummary> {
+        assertOAuthCredentialOperationAllowed(account, 'updateOAuthClient');
         const auditedAbility = this.createAuditedAbility(account);
         if (
             !account.organization.organizationUuid ||
@@ -267,8 +462,16 @@ export class OAuthService extends BaseService {
             );
         }
         // Validate redirect URIs
+        const strict = await this.isSecurityStrict({
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
         for (const uri of redirectUris) {
-            if (!isSafeRedirectScheme(uri)) {
+            if (
+                !(strict
+                    ? isAllowedStrictRedirectUri(uri)
+                    : isSafeRedirectScheme(uri))
+            ) {
                 throw new ParameterError(`Invalid redirect URI ${uri}`);
             }
         }
@@ -288,6 +491,7 @@ export class OAuthService extends BaseService {
         account: Account,
         clientId: string,
     ): Promise<void> {
+        assertOAuthCredentialOperationAllowed(account, 'deleteOAuthClient');
         const auditedAbility = this.createAuditedAbility(account);
         if (
             !account.organization.organizationUuid ||

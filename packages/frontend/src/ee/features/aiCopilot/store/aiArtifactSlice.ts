@@ -38,6 +38,15 @@ export interface DocumentPreviewData {
     agentUuid: string;
 }
 
+/** A cited node and what it reads, opened from a citation in a message. */
+export interface QueryPipelinePreviewData {
+    nodeId: string;
+    messageUuid: string;
+    threadUuid: string;
+    projectUuid: string;
+    agentUuid: string;
+}
+
 export type DataAppPreviewVersion = Pick<
     DataAppPreviewData,
     'version' | 'latestReadyVersionAtOpen'
@@ -47,7 +56,8 @@ export type AiPreview =
     | ({ type: 'artifact' } & ArtifactData)
     | ({ type: 'savedChart' } & SavedChartPreviewData)
     | ({ type: 'dataApp' } & DataAppPreviewData)
-    | ({ type: 'document' } & DocumentPreviewData);
+    | ({ type: 'document' } & DocumentPreviewData)
+    | ({ type: 'queryPipeline' } & QueryPipelinePreviewData);
 
 export interface AiArtifactState {
     preview: AiPreview | null;

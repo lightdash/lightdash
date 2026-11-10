@@ -4,10 +4,11 @@ import {
     type Document,
 } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { lightdashApi } from '../../api';
 import { invalidateContent } from '../../hooks/useContent';
+import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
 export const useCreateDocument = (projectUuid: string) => {
+    const lightdashApi = useLightdashApi();
     const queryClient = useQueryClient();
     return useMutation<Document, ApiError, CreateDocumentRequest>({
         mutationFn: (body) =>

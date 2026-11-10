@@ -1,5 +1,7 @@
 import {
+    AgentCapability,
     ChartType,
+    ForbiddenError,
     LightdashAppPreviewTokenHeader,
     LightdashCustomSqlProvenanceChartUuidHeader,
     LightdashRequestMethodHeader,
@@ -11,7 +13,15 @@ import {
     type ApiExecuteAsyncMergeQueryRequest,
 } from '@lightdash/common';
 import express from 'express';
+import { setupGrantAuthentication } from '../authentication/agentConnectionGrants.mock';
+import { allowApiKeyAuthentication } from '../authentication/middlewares';
 import { QueryController } from './QueryController';
+
+const passThroughResults = <T>(
+    _account: unknown,
+    _projectUuid: string,
+    results: T,
+) => results;
 
 describe('QueryController', () => {
     it.each([
@@ -20,6 +30,7 @@ describe('QueryController', () => {
             undefined,
             QueryExecutionContext.GSHEETS_ADDON,
         ],
+        [RequestMethod.DESKTOP, undefined, QueryExecutionContext.DESKTOP],
         [undefined, undefined, QueryExecutionContext.API],
         ['future-client', undefined, QueryExecutionContext.API],
         [RequestMethod.CLI, undefined, QueryExecutionContext.CLI],
@@ -35,7 +46,10 @@ describe('QueryController', () => {
                 .fn()
                 .mockResolvedValue({ queryUuid: 'query-uuid' });
             const controller = new QueryController({
-                getAsyncQueryService: () => ({ executeAsyncMetricQuery }),
+                getAsyncQueryService: () => ({
+                    executeAsyncMetricQuery,
+                    redactFieldsSqlForResponse: passThroughResults,
+                }),
             } as unknown as ConstructorParameters<typeof QueryController>[0]);
             const req = {
                 account: {},
@@ -153,7 +167,10 @@ describe('QueryController', () => {
             queryUuid: 'query-uuid',
         });
         const controller = new QueryController({
-            getAsyncQueryService: () => ({ executeAsyncMetricQuery }),
+            getAsyncQueryService: () => ({
+                executeAsyncMetricQuery,
+                redactFieldsSqlForResponse: passThroughResults,
+            }),
         } as unknown as ConstructorParameters<typeof QueryController>[0]);
         controller.setStatus = vi.fn();
         const req = {
@@ -189,7 +206,10 @@ describe('QueryController', () => {
             queryUuid: 'query-uuid',
         });
         const controller = new QueryController({
-            getAsyncQueryService: () => ({ executeAsyncMetricQuery }),
+            getAsyncQueryService: () => ({
+                executeAsyncMetricQuery,
+                redactFieldsSqlForResponse: passThroughResults,
+            }),
         } as unknown as ConstructorParameters<typeof QueryController>[0]);
         controller.setStatus = vi.fn();
         const req = {
@@ -226,7 +246,10 @@ describe('QueryController', () => {
             queryUuid: 'query-uuid',
         });
         const controller = new QueryController({
-            getAsyncQueryService: () => ({ executeAsyncSavedChartQuery }),
+            getAsyncQueryService: () => ({
+                executeAsyncSavedChartQuery,
+                redactFieldsSqlForResponse: passThroughResults,
+            }),
         } as unknown as ConstructorParameters<typeof QueryController>[0]);
         controller.setStatus = vi.fn();
         const req = {
@@ -262,3 +285,25 @@ describe('QueryController', () => {
         );
     });
 });
+
+it.each([
+    'downloadResults',
+    'scheduleDownloadResults',
+    'getResultsStream',
+    'executeAsyncUnderlyingDataQuery',
+    'executeAsyncCalculateTotal',
+])(
+    'refuses a connection before the %s handler even with every capability',
+    async (operation) => {
+        const auth = setupGrantAuthentication();
+        auth.grant.approvedCapabilities = Object.values(AgentCapability);
+        auth.req.route.stack[0].handle = Object.defineProperty(
+            () => {},
+            'name',
+            { value: `QueryController_${operation}` },
+        );
+        const response = await auth.run(allowApiKeyAuthentication);
+        expect(response.error).toBeInstanceOf(ForbiddenError);
+        expect(auth.downstream).not.toHaveBeenCalled();
+    },
+);

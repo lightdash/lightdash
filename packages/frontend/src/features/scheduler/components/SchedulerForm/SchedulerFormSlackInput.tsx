@@ -5,6 +5,7 @@ import { useGetSlack } from '../../../../hooks/slack/useSlack';
 import SlackSvg from '../../../../svgs/slack.svg?react';
 import { SlackStates } from '../types';
 import { SchedulerFormSlackError } from './SchedulerFormSlackError';
+import classes from './SchedulerWebhookPill.module.css';
 
 type Props = {
     value: string[];
@@ -24,10 +25,13 @@ export const SchedulerFormSlackInput: FC<Props> = ({
     const slackState = useMemo(() => {
         if (isInitialLoading) return SlackStates.LOADING;
         if (!organizationHasSlack) return SlackStates.NO_SLACK;
-        if (!slackInstallation.hasRequiredScopes)
+        if (!slackInstallation.features.scheduledDeliveries.available)
             return SlackStates.MISSING_SCOPES;
         return SlackStates.SUCCESS;
     }, [isInitialLoading, organizationHasSlack, slackInstallation]);
+
+    const missingScopes =
+        slackInstallation?.features.scheduledDeliveries.missingScopes ?? [];
 
     const isDisabled = slackState !== SlackStates.SUCCESS;
 
@@ -36,11 +40,9 @@ export const SchedulerFormSlackInput: FC<Props> = ({
             {!hideIcon && (
                 <Box pt="xxs">
                     <SlackSvg
-                        style={{
-                            margin: '5px 2px',
-                            width: '20px',
-                            height: '20px',
-                        }}
+                        className={classes.destinationIcon}
+                        width={20}
+                        height={20}
                     />
                 </Box>
             )}
@@ -64,7 +66,10 @@ export const SchedulerFormSlackInput: FC<Props> = ({
                     </Box>
                 </HoverCard.Target>
                 <HoverCard.Dropdown>
-                    <SchedulerFormSlackError slackState={slackState} />
+                    <SchedulerFormSlackError
+                        slackState={slackState}
+                        missingScopes={missingScopes}
+                    />
                 </HoverCard.Dropdown>
             </HoverCard>
         </Group>

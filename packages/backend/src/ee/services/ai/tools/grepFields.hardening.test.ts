@@ -399,6 +399,8 @@ describe('grepFields output envelope', () => {
         expect(output.metadata).toEqual({ status: 'error' });
         expect(output.result).toContain('Error grepping fields');
         expect(output.result).toContain('logger down');
-        expect(output.structuredContent).toEqual({ error: output.result });
+        expect(output.structuredContent).toEqual({
+            error: output.result,
+        });
     });
 });

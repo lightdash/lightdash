@@ -1,10 +1,10 @@
 import {
-    FeatureFlags,
+    ContentReviewContentType,
     type Document,
     type UuidOrSlug,
 } from '@lightdash/common';
-import { ActionIcon, Button, Tooltip } from '@mantine/core';
-import { IconPencil } from '@tabler/icons-react';
+import { ActionIcon, Button, Group, Tooltip } from '@mantine/core';
+import { IconCircleCheckFilled, IconPencil } from '@tabler/icons-react';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import {
     Link,
@@ -17,6 +17,10 @@ import {
 import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import MantineIcon from '../components/common/MantineIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
+import {
+    PendingReviewBadge,
+    useContentReviewEligibility,
+} from '../ee/features/contentReview';
 import DocumentActions from '../features/documents/DocumentActions';
 import DocumentAiAgentContextBridge from '../features/documents/DocumentAiAgentContextBridge';
 import {
@@ -25,11 +29,11 @@ import {
 } from '../features/documents/documentNavigation';
 import DocumentPageLayout from '../features/documents/DocumentPageLayout';
 import DocumentRenderer from '../features/documents/DocumentRenderer';
+import SaveDocumentToSpaceButton from '../features/documents/SaveDocumentToSpaceButton';
 import { useCanEditDocument } from '../features/documents/useCanEditDocument';
 import { useDocument } from '../features/documents/useDocument';
 import { useProjectUrlIdentifier } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 
 const DocumentEditor = lazy(
     () => import('../features/documents/DocumentEditor'),
@@ -43,6 +47,12 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
         startEditing ? document : null,
     );
     const canEdit = useCanEditDocument(document);
+    const contentReview = useContentReviewEligibility({
+        projectUuid: document.projectUuid,
+        contentType: ContentReviewContentType.DOCUMENT,
+        contentUuid: document.documentUuid,
+        spaceUuid: document.spaceUuid,
+    });
     // Reading and editing are separate layouts; carry the scroll offset across
     const scrollTop = useRef(0);
     const [openAt, setOpenAt] = useState(0);
@@ -86,27 +96,50 @@ const DocumentWorkspace = ({ document }: { document: Document }) => {
                 initialScrollTop={openAt}
                 onScrollTopChange={trackScroll}
                 actions={
-                    <ActionIcon.Group
-                        role="group"
-                        aria-label="Document controls"
-                    >
-                        {canEdit && (
-                            <Tooltip label="Edit document">
-                                <ActionIcon
-                                    variant="default"
-                                    size="lg"
-                                    aria-label="Edit document"
-                                    onClick={() => {
-                                        setOpenAt(scrollTop.current);
-                                        setEditingDocument(document);
-                                    }}
-                                >
-                                    <MantineIcon icon={IconPencil} />
-                                </ActionIcon>
+                    <Group gap="xs" wrap="nowrap">
+                        {document.verification && (
+                            <Tooltip
+                                label={`Verified by ${document.verification.verifiedBy.firstName} ${document.verification.verifiedBy.lastName}`}
+                            >
+                                <MantineIcon
+                                    icon={IconCircleCheckFilled}
+                                    size={16}
+                                    color="green.6"
+                                    aria-label="Verified"
+                                />
                             </Tooltip>
                         )}
-                        <DocumentActions document={document} />
-                    </ActionIcon.Group>
+                        {contentReview.pendingRequest && (
+                            <PendingReviewBadge
+                                request={contentReview.pendingRequest}
+                            />
+                        )}
+                        <SaveDocumentToSpaceButton document={document} />
+                        <ActionIcon.Group
+                            role="group"
+                            aria-label="Document controls"
+                        >
+                            {canEdit && (
+                                <Tooltip label="Edit document">
+                                    <ActionIcon
+                                        variant="default"
+                                        size="lg"
+                                        aria-label="Edit document"
+                                        onClick={() => {
+                                            setOpenAt(scrollTop.current);
+                                            setEditingDocument(document);
+                                        }}
+                                    >
+                                        <MantineIcon icon={IconPencil} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                            <DocumentActions
+                                document={document}
+                                canRequestReview={contentReview.canRequest}
+                            />
+                        </ActionIcon.Group>
+                    </Group>
                 }
             />
         </DocumentPageLayout>
@@ -162,11 +195,10 @@ const DocumentPage = () => {
     const { documentUuidOrSlug } = useParams<{
         documentUuidOrSlug: UuidOrSlug;
     }>();
-    const flag = useServerFeatureFlag(FeatureFlags.Documents);
-    if (!projectUuid || flag.isInitialLoading) {
+    if (!projectUuid) {
         return <EmptyStateLoader my="xl" title="Loading document" />;
     }
-    if (flag.isError || !flag.data?.enabled || !documentUuidOrSlug) {
+    if (!documentUuidOrSlug) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
     return (

@@ -3,13 +3,20 @@ import {
     ConflictError,
     ContentType,
     ForbiddenError,
+    MergeJoinType,
     NotFoundError,
+    ParameterError,
     QueryExecutionContext,
+    QuerySurface,
     type Document,
     type RegisteredAccount,
     type SessionUser,
 } from '@lightdash/common';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
+import {
+    agentActionTestCases,
+    withAgentActionScope,
+} from '../../../services/AiAccessService/agentActionTestUtils.mock';
 import {
     AiAgentToolsService,
     type AiAgentToolsRuntimeContext,
@@ -40,6 +47,7 @@ const chart = {
 const markdown = '## Findings';
 const document: Document = {
     pinnedListUuid: null,
+    verification: null,
     createdBy: null,
     owner: null,
     documentUuid: 'document',
@@ -84,13 +92,17 @@ const withChart = {
 const account = {
     user: { type: 'registered', id: 'user', userUuid: 'user' },
 } as unknown as RegisteredAccount;
-const setup = (spaceAccess: string[] | null = null) => {
+const setup = (
+    spaceAccess: string[] | null = null,
+    readOnlySpaceUuids: string[] = [],
+) => {
     const documentService = {
         get: vi.fn().mockResolvedValue(document),
         getBySlug: vi.fn().mockResolvedValue(document),
         create: vi.fn().mockResolvedValue(document),
         updateContent: vi.fn().mockResolvedValue(document),
         updateMetadata: vi.fn().mockResolvedValue(document),
+        moveToSpace: vi.fn().mockResolvedValue(undefined),
     };
     const spaceModel = {
         find: vi.fn().mockResolvedValue([{ uuid: spaceUuid, path: 'reports' }]),
@@ -123,11 +135,21 @@ const setup = (spaceAccess: string[] | null = null) => {
             .mockResolvedValue({ projectUuid, slug: projectSlug }),
     };
     const service = new AiAgentToolsService({
+        agentPermissionService: {
+            loadRequest: vi.fn().mockResolvedValue({
+                enforcementMode: 'off',
+            }),
+            assertOperationWithRequest: vi.fn(),
+        },
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         projectModel,
         documentService,
         spaceModel,
         contentService,
         projectService: { getSpaces: vi.fn().mockResolvedValue([space]) },
+        spacePermissionService: {
+            getAccessibleSpaceUuids: vi.fn().mockResolvedValue([]),
+        },
         searchService: {
             findContent: vi.fn().mockResolvedValue({ content: [] }),
         },
@@ -138,11 +160,14 @@ const setup = (spaceAccess: string[] | null = null) => {
         projectUuid,
         organizationUuid: document.organizationUuid,
         source: 'mcp',
+        querySurface: QuerySurface.MCP,
         catalogSearchContext: CatalogSearchContext.MCP,
         defaultQueryExecutionContext:
             QueryExecutionContext.MCP_RUN_METRIC_QUERY,
         tags: null,
         spaceAccess,
+        readOnlySpaceUuids,
+        threadBinding: null,
     };
     return {
         service,
@@ -195,7 +220,7 @@ describe('MCP Document runtime', () => {
             };
             if (operation === 'read') {
                 await expect(
-                    runtime.readDocumentContent({ slug }, null),
+                    runtime.readDocumentContent(slug, null),
                 ).resolves.toMatchObject(expected);
             } else if (operation === 'list') {
                 await expect(
@@ -225,7 +250,7 @@ describe('MCP Document runtime', () => {
             const href = `/projects/${projectUuid}/documents/${document.slug}`;
             if (operation === 'read') {
                 await expect(
-                    runtime.readDocumentContent({ slug: document.slug }, null),
+                    runtime.readDocumentContent(document.slug, null),
                 ).resolves.toMatchObject({ href });
             } else if (operation === 'list') {
                 await expect(
@@ -329,7 +354,7 @@ describe('MCP Document runtime', () => {
         });
         const read = await runtime.readContent({
             type: 'document',
-            documentUuid: document.documentUuid,
+            slug: document.slug,
             chartId: null,
         });
         expect(read).toMatchObject({
@@ -422,6 +447,36 @@ describe('MCP Document runtime', () => {
         expect(documentService.create).not.toHaveBeenCalled();
         expect(documentService.updateMetadata).not.toHaveBeenCalled();
     });
+    test('AI Agent Documents in a read-only Space are readable but not writable', async () => {
+        const { service, context, documentService } = setup(
+            ['write-space', spaceUuid],
+            [spaceUuid],
+        );
+        const runtime = service.createRuntime({
+            ...context,
+            source: 'ai_agent',
+            enableDocuments: true,
+        });
+        await expect(
+            runtime.readContent({
+                type: 'document',
+                slug: document.slug,
+                chartId: null,
+            }),
+        ).resolves.toMatchObject({ content: readContent });
+        await expect(
+            runtime.createContent({ type: 'document', content }),
+        ).rejects.toThrow(ForbiddenError);
+        await expect(
+            runtime.editContent({
+                type: 'document',
+                slug: document.slug,
+                documentEdit: { type: 'metadata', name: 'New title' },
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(documentService.create).not.toHaveBeenCalled();
+        expect(documentService.updateMetadata).not.toHaveBeenCalled();
+    });
     test('MCP Space listing includes lightweight Document references', async () => {
         const { runtime, contentService, documentService } = setup([spaceUuid]);
         const result = await runtime.listContent({
@@ -510,24 +565,69 @@ describe('MCP Document runtime', () => {
         expect(result.content[0]).not.toHaveProperty('versionUuid');
     });
 
-    test.each(['native', 'verified'] as const)(
-        '%s search does not discover Documents',
-        async (mode) => {
-            const { runtime, service, context, contentService } = setup();
-            const target =
-                mode === 'native'
-                    ? service.createRuntime({ ...context, source: 'ai_agent' })
-                    : runtime;
-            await expect(
-                target.findContent({
+    test('native search without Documents enabled does not discover Documents', async () => {
+        const { service, context, contentService } = setup();
+        await expect(
+            service
+                .createRuntime({ ...context, source: 'ai_agent' })
+                .findContent({
                     searchQuery: { label: 'weekly' },
                     spaceSlug: null,
-                    verifiedOnly: mode === 'verified',
+                    verifiedOnly: false,
                 }),
-            ).resolves.toEqual({ content: [] });
-            expect(contentService.find).not.toHaveBeenCalled();
-        },
-    );
+        ).resolves.toEqual({ content: [] });
+        expect(contentService.find).not.toHaveBeenCalled();
+    });
+
+    test('verified search returns only verified Documents', async () => {
+        const { runtime, contentService } = setup();
+        const space = { uuid: spaceUuid, path: 'reports', name: 'Reports' };
+        contentService.find.mockResolvedValue({
+            data: [
+                {
+                    contentType: ContentType.DOCUMENT,
+                    uuid: 'verified-uuid',
+                    slug: 'verified-report',
+                    name: 'Verified report',
+                    description: null,
+                    space,
+                    verification: {
+                        verifiedBy: {
+                            userUuid: 'admin-uuid',
+                            firstName: 'Ada',
+                            lastName: 'Admin',
+                        },
+                        verifiedAt: new Date('2026-10-01'),
+                    },
+                },
+                {
+                    contentType: ContentType.DOCUMENT,
+                    uuid: 'draft-uuid',
+                    slug: 'draft-report',
+                    name: 'Draft report',
+                    description: null,
+                    space,
+                    verification: null,
+                },
+            ],
+            pagination: {
+                page: 1,
+                pageSize: 25,
+                totalResults: 2,
+                totalPageCount: 1,
+            },
+        });
+        const { content: found } = await runtime.findContent({
+            searchQuery: { label: 'report' },
+            spaceSlug: null,
+            verifiedOnly: true,
+        });
+        expect(
+            found
+                .filter((item) => item.contentType === ContentType.DOCUMENT)
+                .map((item) => item.uuid),
+        ).toEqual(['verified-uuid']);
+    });
 
     test('search denies an explicitly requested Space outside MCP scope', async () => {
         const { runtime, contentService } = setup(['different-space']);
@@ -544,7 +644,7 @@ describe('MCP Document runtime', () => {
     test('reads authorized content with its stable version and dedicated URL', async () => {
         const { runtime, documentService } = setup();
         await expect(
-            runtime.readDocumentContent({ slug: document.slug }, null),
+            runtime.readDocumentContent(document.slug, null),
         ).resolves.toEqual({
             type: 'document',
             uuid: document.documentUuid,
@@ -560,47 +660,6 @@ describe('MCP Document runtime', () => {
         expect(documentService.get).not.toHaveBeenCalled();
     });
 
-    test('reads the UUID from a canonical Document URL within the current project', async () => {
-        const { runtime, documentService } = setup();
-        const documentUuid = '7b923cd0-371b-4d99-94ef-515267bfae57';
-        const saved = { ...document, documentUuid };
-        documentService.get.mockResolvedValue(saved);
-        documentService.getBySlug.mockResolvedValue(saved);
-        const bySlug = await runtime.readDocumentContent(
-            { slug: document.slug },
-            null,
-        );
-        documentService.getBySlug.mockClear();
-        await expect(
-            runtime.readDocumentContent({ documentUuid }, null),
-        ).resolves.toEqual(bySlug);
-        expect(documentService.get).toHaveBeenCalledWith(
-            account,
-            projectUuid,
-            documentUuid,
-        );
-        expect(documentService.getBySlug).not.toHaveBeenCalled();
-    });
-
-    test('UUID reads preserve project authorization and effective Space scope', async () => {
-        const { runtime, documentService } = setup(['different-space']);
-        const documentUuid = '7b923cd0-371b-4d99-94ef-515267bfae57';
-        await expect(
-            runtime.readDocumentContent({ documentUuid }, null),
-        ).rejects.toThrow(NotFoundError);
-        const error = new NotFoundError('Document not found');
-        documentService.get.mockRejectedValue(error);
-        await expect(
-            runtime.readDocumentContent({ documentUuid }, null),
-        ).rejects.toBe(error);
-        expect(documentService.get).toHaveBeenCalledWith(
-            account,
-            projectUuid,
-            documentUuid,
-        );
-        expect(documentService.getBySlug).not.toHaveBeenCalled();
-    });
-
     test('a UUID-looking slug stays an exact slug and cannot select another Document', async () => {
         const { runtime, documentService } = setup();
         const identifier = '7b923cd0-371b-4d99-94ef-515267bfae57';
@@ -613,10 +672,7 @@ describe('MCP Document runtime', () => {
             documentUuid: identifier,
             slug: 'different-document',
         });
-        const bySlug = await runtime.readDocumentContent(
-            { slug: identifier },
-            null,
-        );
+        const bySlug = await runtime.readDocumentContent(identifier, null);
         expect(bySlug.uuid).toBe(document.documentUuid);
         expect(bySlug.content.slug).toBe(identifier);
         expect(documentService.getBySlug).toHaveBeenCalledWith(
@@ -625,12 +681,6 @@ describe('MCP Document runtime', () => {
             identifier,
         );
         expect(documentService.get).not.toHaveBeenCalled();
-        const byUuid = await runtime.readDocumentContent(
-            { documentUuid: identifier },
-            null,
-        );
-        expect(byUuid.uuid).toBe(identifier);
-        expect(byUuid.content.slug).toBe('different-document');
     });
 
     test('creates directly through DocumentService with a resolved Space UUID', async () => {
@@ -653,6 +703,7 @@ describe('MCP Document runtime', () => {
                 content: { markdown, charts: {} },
             },
             { source: 'mcp' },
+            { uniqueSlug: true },
         );
     });
 
@@ -662,7 +713,7 @@ describe('MCP Document runtime', () => {
             const { runtime, documentService } = setup(['different-space']);
             const request =
                 operation === 'read'
-                    ? runtime.readDocumentContent({ slug: document.slug }, null)
+                    ? runtime.readDocumentContent(document.slug, null)
                     : runtime.editDocumentContent(
                           document.slug,
                           operation === 'metadata'
@@ -784,6 +835,311 @@ describe('MCP Document runtime', () => {
         expect(saved.charts.c1.chart.name).toBe('Renamed');
     });
 
+    describe('AI Agent merge authoring', () => {
+        const mergeChart = {
+            source: 'merge' as const,
+            chart: {
+                ...chart.chart,
+                metricQuery: {
+                    ...chart.chart.metricQuery,
+                    dimensions: ['orders_status'],
+                },
+                merge: {
+                    primarySourceId: 'a',
+                    sources: [
+                        { id: 'a', kind: 'chart' as const },
+                        {
+                            id: 'b',
+                            kind: 'query' as const,
+                            metricQuery: {
+                                ...chart.chart.metricQuery,
+                                dimensions: ['orders_status'],
+                            },
+                        },
+                    ],
+                    joinKey: [
+                        {
+                            name: 'status',
+                            fieldIdBySourceId: {
+                                a: 'orders_status',
+                                b: 'orders_status',
+                            },
+                        },
+                    ],
+                    joinType: MergeJoinType.FULL,
+                    tableCalculations: [],
+                },
+            },
+        };
+        const withMergeChart = {
+            ...withChart,
+            version: {
+                ...withChart.version,
+                content: {
+                    markdown: withChart.version.content.markdown,
+                    charts: { c1: mergeChart },
+                },
+            },
+        };
+        const agentSetup = (stored: Document = document) => {
+            const result = setup();
+            result.documentService.getBySlug.mockResolvedValue(stored);
+            return {
+                ...result,
+                runtime: result.service.createRuntime({
+                    ...result.context,
+                    source: 'ai_agent',
+                    enableDocuments: true,
+                }),
+            };
+        };
+        const refusal = 'Merge queries are not supported by the agent.';
+
+        test('refuses a Document created with a merged chart', async () => {
+            const { runtime, documentService } = agentSetup();
+            await expect(
+                runtime.createContent({
+                    type: 'document',
+                    content: {
+                        ...content,
+                        markdown: '<document-chart id="merged">',
+                        charts: { merged: mergeChart },
+                    },
+                }),
+            ).rejects.toThrow(refusal);
+            expect(documentService.create).not.toHaveBeenCalled();
+        });
+
+        test('refuses a content edit that adds a merged chart', async () => {
+            const { runtime, documentService } = agentSetup(withChart);
+            await expect(
+                runtime.editContent({
+                    type: 'document',
+                    slug: document.slug,
+                    documentEdit: {
+                        type: 'content',
+                        baseVersionUuid: versionUuid,
+                        markdown: '<document-chart id="merged">',
+                        charts: { merged: mergeChart },
+                    },
+                }),
+            ).rejects.toThrow(refusal);
+            expect(documentService.updateContent).not.toHaveBeenCalled();
+        });
+
+        test('refuses a chart edit that changes a stored merge', async () => {
+            const { runtime, documentService } = agentSetup(withMergeChart);
+            await expect(
+                runtime.editContent({
+                    type: 'document',
+                    slug: document.slug,
+                    documentEdit: {
+                        type: 'chart',
+                        baseVersionUuid: versionUuid,
+                        chartId: 'c1',
+                        patch: [
+                            {
+                                op: 'replace',
+                                path: '/chart/merge/joinType',
+                                value: 'inner',
+                            },
+                        ],
+                    },
+                }),
+            ).rejects.toThrow(refusal);
+            expect(documentService.updateContent).not.toHaveBeenCalled();
+        });
+
+        test.each([
+            [
+                'renames a merged chart',
+                {
+                    type: 'chart' as const,
+                    baseVersionUuid: versionUuid,
+                    chartId: 'c1',
+                    patch: [
+                        {
+                            op: 'replace',
+                            path: '/chart/name',
+                            value: 'Renamed',
+                        },
+                    ],
+                },
+            ],
+            [
+                'edits the narrative around a merged chart',
+                {
+                    type: 'content' as const,
+                    baseVersionUuid: versionUuid,
+                    markdown: '# New narrative\n\n<document-chart id="c1">',
+                    charts: {},
+                },
+            ],
+        ])('allows an edit that %s', async (_label, documentEdit) => {
+            const { runtime, documentService } = agentSetup(withMergeChart);
+            await runtime.editContent({
+                type: 'document',
+                slug: document.slug,
+                documentEdit,
+            });
+            const saved =
+                documentService.updateContent.mock.calls[0][3].content;
+            expect(saved.charts.c1.chart.merge).toEqual(mergeChart.chart.merge);
+        });
+
+        const editMergedChart = (
+            documentEdit: Parameters<
+                ReturnType<typeof agentSetup>['runtime']['editContent']
+            >[0] & { type: 'document' },
+        ) => {
+            const { runtime, documentService } = agentSetup(withMergeChart);
+            return {
+                documentService,
+                edit: runtime.editContent(documentEdit),
+            };
+        };
+        const metricsPatch = [
+            {
+                op: 'replace',
+                path: '/chart/metricQuery/metrics',
+                value: ['orders_total_revenue'],
+            },
+        ];
+
+        test.each([
+            [
+                'patches the query feeding the merge',
+                {
+                    type: 'chart' as const,
+                    baseVersionUuid: versionUuid,
+                    chartId: 'c1',
+                    patch: metricsPatch,
+                },
+            ],
+            [
+                'replaces the merged chart with a different query',
+                {
+                    type: 'content' as const,
+                    baseVersionUuid: versionUuid,
+                    markdown: withChart.version.content.markdown,
+                    charts: {
+                        c1: {
+                            ...mergeChart,
+                            chart: {
+                                ...mergeChart.chart,
+                                metricQuery: {
+                                    ...mergeChart.chart.metricQuery,
+                                    metrics: ['orders_total_revenue'],
+                                },
+                            },
+                        },
+                    },
+                },
+            ],
+            [
+                'changes the parameters feeding the merge',
+                {
+                    type: 'chart' as const,
+                    baseVersionUuid: versionUuid,
+                    chartId: 'c1',
+                    patch: [
+                        {
+                            op: 'add',
+                            path: '/chart/parameters',
+                            value: { region: 'EMEA' },
+                        },
+                    ],
+                },
+            ],
+        ])('refuses an edit that %s', async (_label, documentEdit) => {
+            const { edit, documentService } = editMergedChart({
+                type: 'document',
+                slug: document.slug,
+                documentEdit,
+            });
+            await expect(edit).rejects.toThrow(refusal);
+            expect(documentService.updateContent).not.toHaveBeenCalled();
+        });
+
+        test('allows a decimal places format override on a merged chart', async () => {
+            const { edit, documentService } = editMergedChart({
+                type: 'document',
+                slug: document.slug,
+                documentEdit: {
+                    type: 'chart',
+                    baseVersionUuid: versionUuid,
+                    chartId: 'c1',
+                    patch: [
+                        {
+                            op: 'add',
+                            path: '/chart/metricQuery/metricOverrides',
+                            value: {
+                                orders_count: {
+                                    formatOptions: {
+                                        type: 'default',
+                                        round: 2,
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                },
+            });
+            await edit;
+            expect(documentService.updateContent).toHaveBeenCalledOnce();
+        });
+
+        test('allows merge fields the parser defaults', async () => {
+            const { edit, documentService } = editMergedChart({
+                type: 'document',
+                slug: document.slug,
+                documentEdit: {
+                    type: 'chart',
+                    baseVersionUuid: versionUuid,
+                    chartId: 'c1',
+                    patch: [
+                        {
+                            op: 'add',
+                            path: '/chart/merge/repeatValuesSourceIds',
+                            value: [],
+                        },
+                    ],
+                },
+            });
+            await edit;
+            expect(documentService.updateContent).toHaveBeenCalledOnce();
+        });
+
+        test('MCP can still change the query feeding a merge', async () => {
+            const { runtime, documentService } = setup();
+            documentService.getBySlug.mockResolvedValue(withMergeChart);
+            await runtime.editDocumentContent(document.slug, {
+                type: 'chart',
+                baseVersionUuid: versionUuid,
+                chartId: 'c1',
+                patch: metricsPatch,
+            });
+            const saved =
+                documentService.updateContent.mock.calls[0][3].content;
+            expect(saved.charts.c1.chart.metricQuery.metrics).toEqual([
+                'orders_total_revenue',
+            ]);
+        });
+
+        test('MCP can still author merged charts', async () => {
+            const { runtime, documentService } = setup();
+            await runtime.createContent({
+                type: 'document',
+                content: {
+                    ...content,
+                    markdown: '<document-chart id="merged">',
+                    charts: { merged: mergeChart },
+                },
+            });
+            expect(documentService.create).toHaveBeenCalledOnce();
+        });
+    });
+
     test('chart edits reject an unknown chart id', async () => {
         const { runtime, documentService } = setup();
         documentService.getBySlug.mockResolvedValue(withChart);
@@ -801,24 +1157,18 @@ describe('MCP Document runtime', () => {
     test('reads charts as short tags, or one chart in full', async () => {
         const { runtime, documentService } = setup();
         documentService.getBySlug.mockResolvedValue(withChart);
-        const summary = await runtime.readDocumentContent(
-            { slug: document.slug },
-            null,
-        );
+        const summary = await runtime.readDocumentContent(document.slug, null);
         expect(summary.content).toMatchObject({
             markdown: `${markdown}\n\n<document-chart id="c1" title="Orders" type="table" explore="orders">`,
             chart: null,
         });
-        const single = await runtime.readDocumentContent(
-            { slug: document.slug },
-            'c1',
-        );
+        const single = await runtime.readDocumentContent(document.slug, 'c1');
         expect(single.content).toMatchObject({
             markdown: null,
             chart: { id: 'c1', ...chart },
         });
         await expect(
-            runtime.readDocumentContent({ slug: document.slug }, 'c9'),
+            runtime.readDocumentContent(document.slug, 'c9'),
         ).rejects.toThrow('Chart ids: c1');
     });
 
@@ -859,6 +1209,119 @@ describe('MCP Document runtime', () => {
         expect(documentService.updateContent).not.toHaveBeenCalled();
     });
 
+    describe('personal Documents', () => {
+        const personal: Document = { ...document, spaceUuid: null };
+
+        test('are created without a Space, even under a Space scope', async () => {
+            const { runtime, documentService } = setup([spaceUuid]);
+            documentService.create.mockResolvedValue(personal);
+
+            await expect(
+                runtime.createDocumentContent({ ...content, spaceSlug: null }),
+            ).resolves.toMatchObject({
+                uuid: personal.documentUuid,
+                content: { spaceSlug: null },
+            });
+            expect(documentService.create).toHaveBeenCalledWith(
+                account,
+                projectUuid,
+                expect.objectContaining({ spaceUuid: undefined }),
+                { source: 'mcp' },
+                { uniqueSlug: true },
+            );
+        });
+
+        test('are readable only by the user who created them', async () => {
+            const { runtime, documentService } = setup();
+            documentService.getBySlug.mockResolvedValueOnce(personal);
+            await expect(
+                runtime.readDocumentContent(personal.slug, null),
+            ).resolves.toMatchObject({ content: { spaceSlug: null } });
+
+            documentService.getBySlug.mockResolvedValueOnce({
+                ...personal,
+                createdByUserUuid: 'someone-else',
+            });
+            await expect(
+                runtime.readDocumentContent(personal.slug, null),
+            ).rejects.toThrow(NotFoundError);
+        });
+
+        test('are edited without the Space scope', async () => {
+            const { runtime, documentService } = setup(['different-space']);
+            documentService.getBySlug.mockResolvedValue(personal);
+            documentService.updateContent.mockResolvedValue(personal);
+
+            await runtime.editDocumentContent(personal.slug, {
+                type: 'content',
+                baseVersionUuid: versionUuid,
+                markdown: '# Revised',
+                charts: {},
+            });
+
+            expect(documentService.updateContent).toHaveBeenCalledWith(
+                account,
+                projectUuid,
+                personal.documentUuid,
+                expect.any(Object),
+                { allowedSpaceUuids: undefined, change: { source: 'mcp' } },
+            );
+        });
+
+        test('are saved into a Space named by the user', async () => {
+            const { runtime, documentService } = setup([spaceUuid]);
+            documentService.getBySlug.mockResolvedValue(personal);
+
+            await expect(
+                runtime.editDocumentContent(personal.slug, {
+                    type: 'metadata',
+                    spaceSlug: 'Reports',
+                }),
+            ).resolves.toMatchObject({ content: { spaceSlug: 'reports' } });
+            expect(documentService.moveToSpace).toHaveBeenCalledWith(
+                account,
+                {
+                    projectUuid,
+                    itemUuid: personal.documentUuid,
+                    targetSpaceUuid: spaceUuid,
+                },
+                { change: { source: 'mcp' } },
+            );
+            expect(documentService.updateMetadata).not.toHaveBeenCalled();
+        });
+
+        test('are renamed within the Space they were just saved to', async () => {
+            const { runtime, documentService } = setup([spaceUuid]);
+            documentService.getBySlug.mockResolvedValue(personal);
+
+            await runtime.editDocumentContent(personal.slug, {
+                type: 'metadata',
+                spaceSlug: 'reports',
+                name: 'Renamed',
+            });
+
+            expect(documentService.updateMetadata).toHaveBeenCalledWith(
+                account,
+                projectUuid,
+                personal.documentUuid,
+                { name: 'Renamed' },
+                { allowedSpaceUuids: [spaceUuid], change: { source: 'mcp' } },
+            );
+        });
+
+        test('only personal Documents can be saved to a Space', async () => {
+            const { runtime, documentService } = setup();
+
+            await expect(
+                runtime.editDocumentContent(document.slug, {
+                    type: 'metadata',
+                    spaceSlug: 'reports',
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(documentService.moveToSpace).not.toHaveBeenCalled();
+        });
+    });
+
     test('stale version conflicts are forwarded without retrying the write', async () => {
         const { runtime, documentService } = setup();
         const error = new ConflictError('Document has changed');
@@ -879,7 +1342,7 @@ describe('MCP Document runtime', () => {
         const error = new ForbiddenError('Documents are not enabled');
         documentService.getBySlug.mockRejectedValue(error);
         await expect(
-            runtime.readDocumentContent({ slug: document.slug }, null),
+            runtime.readDocumentContent(document.slug, null),
         ).rejects.toBe(error);
     });
 
@@ -894,3 +1357,156 @@ describe('MCP Document runtime', () => {
         expect(runtime).not.toHaveProperty('editDocumentContent');
     });
 });
+
+describe.each(agentActionTestCases)(
+    'document scope ledger: %s',
+    (_, surface, enabled, count) => {
+        test.each([
+            'content',
+            'metadata',
+            'personal',
+            'destination',
+            'destination-name',
+            'read',
+        ] as const)('%s records one deciding refusal', async (operation) => {
+            const { runtime, service, context, documentService, spaceModel } =
+                setup(['allowed']);
+            if (operation === 'personal')
+                documentService.getBySlug.mockResolvedValue({
+                    ...document,
+                    spaceUuid: null,
+                    createdByUserUuid: 'other',
+                });
+            if (operation === 'destination' || operation === 'destination-name')
+                documentService.getBySlug.mockResolvedValue({
+                    ...document,
+                    spaceUuid: null,
+                });
+            if (operation === 'destination-name')
+                spaceModel.find.mockResolvedValue([]);
+            const run = () =>
+                operation === 'read'
+                    ? runtime.readDocumentContent(document.slug, null)
+                    : runtime.editContent({
+                          type: 'document',
+                          slug: document.slug,
+                          documentEdit:
+                              operation === 'content'
+                                  ? {
+                                        type: 'content',
+                                        baseVersionUuid: versionUuid,
+                                        markdown: '',
+                                        charts: {},
+                                    }
+                                  : {
+                                        type: 'metadata',
+                                        name: 'private name',
+                                        ...([
+                                            'destination',
+                                            'destination-name',
+                                        ].includes(operation)
+                                            ? { spaceSlug: 'reports' }
+                                            : {}),
+                                    },
+                      });
+            await expect(
+                withAgentActionScope(
+                    {
+                        ...context.user,
+                        organizationUuid: context.organizationUuid,
+                    },
+                    surface,
+                    enabled,
+                    run,
+                ),
+            ).rejects.toThrow(NotFoundError);
+            const insert = vi.mocked(service['agentActionLogModel'].insert);
+            expect(insert).toHaveBeenCalledTimes(count);
+            if (count)
+                expect(insert).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        object_type: 'document',
+                        object_uuid: document.documentUuid,
+                        action: operation === 'read' ? 'read' : 'update',
+                        outcome: 'denied',
+                        policy_layer: 'agent_scope',
+                        reason_code: {
+                            personal: 'personal_document_outside_agent_scope',
+                            destination:
+                                'document_destination_outside_agent_scope',
+                            'destination-name':
+                                'document_destination_outside_agent_scope',
+                            read: 'document_outside_agent_scope',
+                            content: 'document_outside_agent_scope',
+                            metadata: 'document_outside_agent_scope',
+                        }[operation],
+                    }),
+                );
+            expect(documentService.updateContent).not.toHaveBeenCalled();
+            expect(documentService.updateMetadata).not.toHaveBeenCalled();
+            expect(documentService.moveToSpace).not.toHaveBeenCalled();
+            expect(JSON.stringify(insert.mock.calls)).not.toContain(
+                'private name',
+            );
+        });
+        test('missing destination remains a lookup failure', async () => {
+            const { runtime, service, context, documentService, spaceModel } =
+                setup(['allowed']);
+            documentService.getBySlug.mockResolvedValue({
+                ...document,
+                spaceUuid: null,
+            });
+            spaceModel.find.mockResolvedValue([]);
+            await expect(
+                withAgentActionScope(
+                    {
+                        ...context.user,
+                        organizationUuid: context.organizationUuid,
+                    },
+                    surface,
+                    enabled,
+                    () =>
+                        runtime.editContent({
+                            type: 'document',
+                            slug: document.slug,
+                            documentEdit: {
+                                type: 'metadata',
+                                spaceSlug: 'missing',
+                            },
+                        }),
+                ),
+            ).rejects.toThrow(NotFoundError);
+            expect(
+                service['agentActionLogModel'].insert,
+            ).not.toHaveBeenCalled();
+            expect(documentService.moveToSpace).not.toHaveBeenCalled();
+        });
+        test('missing document remains a lookup failure', async () => {
+            const { runtime, service, context, documentService } = setup([
+                'allowed',
+            ]);
+            documentService.getBySlug.mockRejectedValue(
+                new NotFoundError('Document not found'),
+            );
+            await expect(
+                withAgentActionScope(
+                    {
+                        ...context.user,
+                        organizationUuid: context.organizationUuid,
+                    },
+                    surface,
+                    enabled,
+                    () =>
+                        runtime.editContent({
+                            type: 'document',
+                            slug: 'missing',
+                            documentEdit: { type: 'metadata', name: 'new' },
+                        }),
+                ),
+            ).rejects.toThrow(NotFoundError);
+            expect(
+                service['agentActionLogModel'].insert,
+            ).not.toHaveBeenCalled();
+        });
+    },
+);

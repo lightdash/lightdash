@@ -34,6 +34,7 @@ import {
     isAdditionalMetric,
     isDimension,
     isMetric,
+    isoDateTimeStringSchema,
     isPeriodComparisonCustomMetric,
     isTableCalculation,
     MetricType,
@@ -54,6 +55,7 @@ import {
     ToolSortField,
     TransformedCustomMetric,
     UnitOfTime,
+    unitOfTimeSupportsToDate,
     WeekDay,
     WindowFunctionType,
     withLeadingEquals,
@@ -162,7 +164,7 @@ export function validateCustomMetricsDefinition(
                 availableDimensions.length > shown.length
                     ? ` (and ${
                           availableDimensions.length - shown.length
-                      } more — use findFields to search them)`
+                      } more — use grepFields to search them)`
                     : '';
             errors.push(
                 `Error: base dimension "${expectedFieldId}" does not exist in the explore "${metric.table}". ` +
@@ -280,12 +282,23 @@ const currentDateSettingsSchema = z
     .object({
         completed: z.literal(false),
         unitOfTime: relativeDateUnitSchema,
+        toDate: z.literal(true).optional(),
+        excludeToday: z.literal(true).optional(),
     })
-    .strict();
+    .strict()
+    .refine(
+        (settings) =>
+            settings.excludeToday === undefined || settings.toDate === true,
+    )
+    .refine(
+        (settings) =>
+            settings.toDate === undefined ||
+            unitOfTimeSupportsToDate(settings.unitOfTime),
+    );
 
 const dateOrDateTimeSchema = z.union([
     z.string().date(),
-    z.string().datetime(),
+    isoDateTimeStringSchema,
 ]);
 
 const hasDateSettings = (settings: unknown): boolean =>
@@ -434,7 +447,7 @@ const getFilterRuleProblem = (
                 (!hasCurrentDateValue(filterRule.values) ||
                     !hasCurrentDateSettings(filterRule.settings))
             ) {
-                return `"${filterRule.operator}" is a valid date operator, but values must be [1] and settings must include completed=false and unitOfTime. Received values=${valuesDescription(filterRule.values)} settings=${settingsDescription(filterRule.settings)}.`;
+                return `"${filterRule.operator}" is a valid date operator, but values must be [1] and settings must include completed=false and unitOfTime, with optional toDate=true only with weeks, months, quarters, or years, and excludeToday=true only with toDate. Received values=${valuesDescription(filterRule.values)} settings=${settingsDescription(filterRule.settings)}.`;
             }
 
             if (

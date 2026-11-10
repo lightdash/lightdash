@@ -7,10 +7,7 @@
     font-weight: 600;
     line-height: 1.2;
     text-decoration: none;
-    color: light-dark(
-        var(--mantine-color-ldGray-7),
-        var(--mantine-color-dark-2)
-    );
+    color: var(--mantine-color-ldGray-7);
 }
 
 .linkButton:hover {

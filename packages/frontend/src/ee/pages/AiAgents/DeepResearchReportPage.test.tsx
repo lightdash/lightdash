@@ -72,6 +72,10 @@ const renderPage = () =>
                     path="/projects/:projectUuid/ai-agents/:agentUuid/threads/:threadUuid"
                     element={<AgentThread />}
                 />
+                <Route
+                    path="/projects/:projectUuid/documents/:documentUuidOrSlug"
+                    element={<div>Document page</div>}
+                />
             </Routes>
         </MemoryRouter>,
     );
@@ -91,6 +95,25 @@ describe('DeepResearchReportPage', () => {
         expect(
             matchRoutes(CommercialWebAppRoutes, reportPath)?.at(-1)?.route.path,
         ).toBe('deep-research/:runUuid');
+    });
+
+    it('redirects a report published as a Document to the Document', async () => {
+        useDeepResearchReport.mockReturnValue({
+            data: {
+                ...deepResearchRunFixture,
+                document: {
+                    documentUuid: '3f1d9a52-1d1c-4b7e-9a51-0d8c2f6e7a10',
+                    name: 'Enterprise retention in Q2',
+                    slug: 'enterprise-retention-in-q2',
+                },
+            },
+            error: null,
+            isError: false,
+            isLoading: false,
+        });
+        renderPage();
+
+        expect(await screen.findByText('Document page')).toBeInTheDocument();
     });
 
     it('loads a report from its persistent URL and returns to its thread', async () => {

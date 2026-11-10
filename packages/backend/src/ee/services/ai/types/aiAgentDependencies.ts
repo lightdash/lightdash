@@ -4,28 +4,30 @@ import {
     AiAgentDocumentContent,
     AiAgentDocumentSummary,
     AiAgentJudgeProjectContextEntry,
+    AiAgentPromptLoadout,
     AiArtifact,
-    AiComposerChartArtifactConfig,
     AiMetricQueryWithFilters,
     AiPromptSteer,
     AiWebAppPrompt,
-    AiWritebackRunResult,
     AllChartsSearchResult,
     AnyType,
     ApiExecuteAsyncMetricQueryResults,
     CacheMetadata,
     CatalogField,
     ChartAsCode,
+    ComposerNodeColumn,
     CreateSchedulerAndTargetsWithoutIds,
     CustomChartType,
     CustomChartTypeLibrary,
     DashboardAsCode,
+    DashboardChartSummary,
     DashboardSearchResult,
     DataAppBuildTemplate,
     DataAppSearchResult,
     DataAppVizSchema,
     DbtProjectType,
     Explore,
+    ExternalConnectionAuthType,
     FieldImpactReport,
     Filters,
     ItemsMap,
@@ -33,43 +35,52 @@ import {
     McpDocumentAsCode,
     McpDocumentEdit,
     McpDocumentRead,
-    MergeQuery,
-    MetricQuery,
     ParameterDefinitions,
     ParametersValuesMap,
-    PreviewDeploySetupResult,
     ProjectType,
+    QueryExecutionContext,
+    QueryHistoryStatus,
     ReadContentType,
     ResultColumns,
     SavedChart,
     SchedulerAndTargets,
+    SemanticLayerDraftModelInput,
     SlackPrompt,
     SourceQuery,
     SourceQuerySubmission,
+    SqlChartAsCode,
+    TablePartitioning,
+    ThreadComposerQueryNode,
     ToolFindContentArgs,
     ToolFindFieldsArgs,
     ToolListContentArgs,
     UpdateSlackResponse,
     UpdateWebAppResponse,
+    WarehouseExecutionStats,
     WarehouseTablesCatalog,
     WarehouseTypes,
+    type SqlApprovalToolName,
 } from '@lightdash/common';
 import {
     AiAgentFindContentCoverageEvent,
     AiAgentResponseStreamed,
+    AiAgentSqlApprovalDecidedEvent,
     AiAgentStepCompletedEvent,
     AiAgentToolCallCompletedEvent,
     AiAgentToolCallEvent,
     AiAgentToolCallFailedEvent,
 } from '../../../../analytics/LightdashAnalytics';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
-import type {
-    DbAiPromptComposerVizDecision,
-    DbAiPromptTurnDecision,
-} from '../../../database/entities/ai';
+import type { DbAiPromptTurnDecision } from '../../../database/entities/ai';
 import type { DataAppRead } from '../../AiAgentToolsService/dataAppRead';
 import type { DataAppBuildStatusSource } from '../../AppGenerateService/AppGenerateService';
+import type { SemanticLayerDraftProposal } from '../../SemanticStudioService/SemanticStudioService';
 import { AiAgentSkill } from '../skills/types';
+import type {
+    ApproveSqlFn,
+    SqlApprovalDecisionOnCall,
+    SqlAutoApprovalSource,
+} from '../tools/sqlApprovals';
 
 type Pagination = KnexPaginateArgs & {
     totalPageCount: number;
@@ -133,6 +144,7 @@ export type FindCustomChartTypesFn = (
 // not resolve to a schema-bearing custom chart type in this project.
 export type ResolveCustomChartTypeFn = (slug: string) => Promise<{
     dataAppVizUuid: string;
+    name: string;
     dataAppVizVersion: number;
     schema: DataAppVizSchema;
 } | null>;
@@ -241,6 +253,7 @@ export type FindContentSpaceResult = {
     childSpaceCount: number;
     appCount: number;
     directAccess: boolean;
+    canEdit: boolean;
     space: FindContentSpaceMetadata;
     verification: null;
 };
@@ -305,6 +318,7 @@ export type ListContentFn = (args: {
               childSpaceCount: number;
               appCount: number;
               directAccess: boolean;
+              canEdit: boolean;
           }
     >;
     pagination:
@@ -323,7 +337,7 @@ export type GetDashboardChartsFn = (args: {
     pageSize: number;
 }) => Promise<{
     dashboardName: string;
-    charts: DashboardSearchResult['charts'];
+    charts: DashboardChartSummary[];
     pagination: {
         page: number;
         pageSize: number;
@@ -343,8 +357,7 @@ export type DocumentContentResult = {
 export type ReadContentFn = (
     args:
         | { slug: string; type: ReadContentType }
-        | { type: 'document'; slug: string; chartId: string | null }
-        | { type: 'document'; documentUuid: string; chartId: string | null },
+        | { type: 'document'; slug: string; chartId: string | null },
 ) => Promise<
     | DocumentContentResult
     | {
@@ -355,6 +368,11 @@ export type ReadContentFn = (
     | {
           type: 'chart';
           content: ChartAsCode;
+          href: string;
+      }
+    | {
+          type: 'sql_chart';
+          content: SqlChartAsCode;
           href: string;
       }
     | {
@@ -374,6 +392,13 @@ export type EditContentFn = (
               slug: string;
               type: 'dashboard' | 'chart';
               patch: unknown;
+          }
+        | {
+              slug: string;
+              type: 'sql_chart';
+              patch: unknown;
+              // Runs only when the patch changes the SQL, before saving.
+              approveSql: ApproveSqlFn;
           }
         | { slug: string; type: 'document'; documentEdit: McpDocumentEdit },
 ) => Promise<
@@ -398,6 +423,16 @@ export type EditContentFn = (
               after: string | null;
           };
       }
+    | {
+          type: 'sql_chart';
+          content: SqlChartAsCode;
+          uuid: string;
+          href: string;
+          versionUuids: {
+              before: string | null;
+              after: string | null;
+          };
+      }
 >;
 
 type CreateContentArgs =
@@ -408,10 +443,24 @@ type CreateContentArgs =
     | {
           type: 'chart';
           content: ChartAsCode;
+      }
+    | {
+          type: 'sql_chart';
+          content: SqlChartAsCode;
       };
 
+type CreateSqlChartArgs = {
+    type: 'sql_chart';
+    content: SqlChartAsCode;
+    // Runs after validation and permission checks, before anything is saved.
+    approveSql: ApproveSqlFn;
+};
+
 export type CreateContentFn = (
-    args: CreateContentArgs | { type: 'document'; content: McpDocumentAsCode },
+    args:
+        | Exclude<CreateContentArgs, { type: 'sql_chart' }>
+        | CreateSqlChartArgs
+        | { type: 'document'; content: McpDocumentAsCode },
 ) => Promise<
     | DocumentContentResult
     | {
@@ -423,6 +472,12 @@ export type CreateContentFn = (
     | {
           type: 'chart';
           content: ChartAsCode;
+          uuid: string;
+          href: string;
+      }
+    | {
+          type: 'sql_chart';
+          content: SqlChartAsCode;
           uuid: string;
           href: string;
       }
@@ -473,23 +528,14 @@ export type RunAsyncQueryFn = (
     rows: Record<string, AnyType>[];
     cacheMetadata: CacheMetadata;
     fields: ItemsMap;
-}>;
-
-export type RunAsyncMergeQueryFn = (
-    mergeQuery: MergeQuery,
-    parameters?: ParametersValuesMap,
-) => Promise<{
-    queryUuid: string;
-    rows: Record<string, AnyType>[];
-    cacheMetadata: CacheMetadata;
-    fields: ItemsMap;
-    metricQuery: MetricQuery;
+    executionStats: WarehouseExecutionStats | null;
 }>;
 
 export type RunSavedChartQueryFn = (args: {
     chartUuid: string;
     dashboardSlug: string | null;
-    limit: number | null;
+    /** The chart's saved limit; clamped to the AI max. */
+    limit: number;
     onQueryPrepared?: (
         execution: Pick<
             ApiExecuteAsyncMetricQueryResults,
@@ -505,9 +551,26 @@ export type RunSavedChartQueryFn = (args: {
     rows: Record<string, AnyType>[];
     cacheMetadata: CacheMetadata;
     fields: ItemsMap;
+    executionStats: WarehouseExecutionStats | null;
 }>;
 
 export type GetSavedChartFn = (chartUuidOrSlug: string) => Promise<SavedChart>;
+
+export type SqlChartSummary = {
+    uuid: string;
+    slug: string;
+    name: string;
+    sql: string;
+};
+
+/** A saved SQL chart the agent may view; checks view and agent space access, like readContent. */
+export type GetSqlChartFn = (slug: string) => Promise<SqlChartSummary>;
+
+/** Runs a saved SQL chart at its saved limit (clamped to the AI max), on its own or as a dashboard tile with the dashboard's filters. */
+export type RunSqlChartQueryFn = (args: {
+    chartSlug: string;
+    dashboardSlug: string | null;
+}) => Promise<SqlQueryRows & { sqlChart: SqlChartSummary; limit: number }>;
 
 export type SendFileFn = (args: PostSlackFile) => Promise<string | undefined>;
 
@@ -590,6 +653,11 @@ export type StoreReasoningFn = (
     }>,
 ) => Promise<void>;
 
+export type StoreLoadoutFn = (
+    promptUuid: string,
+    loadout: AiAgentPromptLoadout,
+) => Promise<void>;
+
 export type IsPromptInterruptedFn = (promptUuid: string) => Promise<boolean>;
 
 export type ConsumePromptSteersFn = (args: {
@@ -604,7 +672,8 @@ export type TrackEventFn = (
         | AiAgentToolCallEvent
         | AiAgentToolCallCompletedEvent
         | AiAgentToolCallFailedEvent
-        | AiAgentFindContentCoverageEvent,
+        | AiAgentFindContentCoverageEvent
+        | AiAgentSqlApprovalDecidedEvent,
 ) => void;
 
 export type SearchFieldValuesFn = (args: {
@@ -626,10 +695,23 @@ export type CreateOrUpdateArtifactFn = (data: {
     vizConfig: Record<string, unknown>;
 }) => Promise<AiArtifact>;
 
-/** Every stored composer pipeline of the thread's chart artifact versions, oldest first. */
-export type ListThreadComposerPipelinesFn = (
+export type ListThreadComposerQueryNodesFn = (
     threadUuid: string,
-) => Promise<AiComposerChartArtifactConfig[]>;
+) => Promise<ThreadComposerQueryNode[]>;
+
+/** Null when the node was registered without node columns. */
+export type GetThreadComposerNodeColumnsFn = (args: {
+    threadUuid: string;
+    nodeId: string;
+}) => Promise<ComposerNodeColumn[] | null>;
+
+/** Throws on a different definition under a registered node id. */
+export type RegisterThreadComposerQueryNodesFn = (args: {
+    threadUuid: string;
+    nodes: ThreadComposerQueryNode[];
+    /** Columns by node id; a node without an entry keeps the columns it has. */
+    nodeColumns: Record<string, ComposerNodeColumn[]>;
+}) => Promise<void>;
 
 type RecordedPromptDecisionField =
     | 'operation'
@@ -643,9 +725,7 @@ type RecordedPromptDecisionField =
 
 /** Records a fast decision for the current prompt; failures are logged, never thrown. */
 export type RecordPromptDecisionFn = (
-    decision:
-        | Pick<DbAiPromptTurnDecision, RecordedPromptDecisionField>
-        | Pick<DbAiPromptComposerVizDecision, RecordedPromptDecisionField>,
+    decision: Pick<DbAiPromptTurnDecision, RecordedPromptDecisionField>,
 ) => Promise<void>;
 
 export type CheckUserPermissionFn = (args: {
@@ -654,12 +734,18 @@ export type CheckUserPermissionFn = (args: {
     permission: string;
 }) => Promise<boolean>;
 
-export type RunSqlJobFn = (args: { sql: string; limit: number }) => Promise<{
+export type SqlQueryRows = {
     queryUuid: string;
     rows: Record<string, AnyType>[];
     columns: string[];
     rowCount: number;
-}>;
+    executionStats: WarehouseExecutionStats | null;
+};
+
+export type RunSqlJobFn = (args: {
+    sql: string;
+    limit: number;
+}) => Promise<SqlQueryRows>;
 
 /**
  * Per-node lifecycle event emitted while a composer pipeline executes, so the
@@ -674,38 +760,89 @@ export type ComposerNodeStatusUpdate = {
     errorMessage: string | null;
 };
 
+/** How one node did in a run, read from its query history row. */
+export type ComposerNodeStatus = {
+    nodeId: string;
+    state: QueryHistoryStatus;
+    error: string | null;
+    /** Null until the node's query is ready. */
+    rowCount: number | null;
+    /** Result columns; null until the node's query is ready. */
+    columns: ResultColumns | null;
+    /** First rows of a node asked to be sampled; null otherwise or when the read fails. */
+    sample: Record<string, AnyType>[] | null;
+};
+
+/** Every submitted node's status, read once after the terminal node settles. */
+export type ComposerRunOutcome =
+    | {
+          status: 'success';
+          submissions: SourceQuerySubmission[];
+          terminal: {
+              queryUuid: string;
+              columns: ResultColumns;
+              /** First COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows; rowCount is the full count. */
+              rows: Record<string, AnyType>[];
+              rowCount: number;
+          };
+          nodeStatuses: ComposerNodeStatus[];
+      }
+    | {
+          status: 'failure';
+          error: string;
+          nodeStatuses: ComposerNodeStatus[];
+      };
+
 /**
  * Submits a composer query (multi-source pipeline) and waits for the terminal
- * node's results. Submissions carry the pinned nodeId → queryUuid mapping for
+ * node and the other unread nodes to settle. Submissions carry the pinned nodeId → queryUuid mapping for
  * every node; the terminal snapshot is the first page of the terminal node's
  * results, capped at that node's limit. `onNodeStatus` receives per-node
  * lifecycle transitions (running on submission, then success/error) while the
- * pipeline executes.
+ * pipeline executes. Throws only when submission fails before any query id exists.
  */
 export type RunComposerQueriesFn = (args: {
     queries: SourceQuery[];
     terminalNodeId: string;
+    /** Nodes the run also waits for; when sampled, their node sample holds up to COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows read by that wait. */
+    otherUnreadNodeIds: string[];
+    /** Nodes whose node sample is read through the terminal rows' reader once the terminal settles. */
+    sampleNodeIds: string[];
     onNodeStatus?: (update: ComposerNodeStatusUpdate) => void;
-}) => Promise<{
-    submissions: SourceQuerySubmission[];
-    terminal: {
-        queryUuid: string;
-        columns: ResultColumns;
-        rows: Record<string, AnyType>[];
-        rowCount: number;
-    };
-}>;
+}) => Promise<ComposerRunOutcome>;
 
-export type ListWarehouseTablesFn = () => Promise<WarehouseTablesCatalog>;
+/** Terminal or another unread node still running at the deadline; statuses are read once then. */
+export type ComposerRunningOutcome = {
+    status: 'running';
+    submissions: SourceQuerySubmission[];
+    nodeStatuses: ComposerNodeStatus[];
+};
+
+/** RunComposerQueriesFn that returns running once deadlineMs passes instead of failing. */
+export type RunComposerQueriesUntilDeadlineFn = (args: {
+    queries: SourceQuery[];
+    terminalNodeId: string;
+    /** Nodes the run also waits for; when sampled, their node sample holds up to COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows read by that wait. */
+    otherUnreadNodeIds: string[];
+    /** Ready nodes to read a node sample of, also when the terminal is still running. */
+    sampleNodeIds: string[];
+    deadlineMs: number;
+}) => Promise<ComposerRunOutcome | ComposerRunningOutcome>;
+
+export type ListWarehouseTablesFn = (
+    context?: QueryExecutionContext,
+) => Promise<WarehouseTablesCatalog>;
 
 export type DescribeWarehouseTableFn = (args: {
     table: string;
     schema?: string;
     database?: string;
 }) => Promise<{
-    columns: Array<{ name: string; type: string }>;
+    columns: Array<{ name: string; type: string; nativeType: string | null }>;
     resolvedSchema: string | null;
     resolvedDatabase: string | null;
+    partitioning: TablePartitioning | null;
+    warehouseType: WarehouseTypes;
 }>;
 
 export type ListKnowledgeDocumentsFn = () => Promise<AiAgentDocumentSummary[]>;
@@ -734,15 +871,22 @@ export type WaitForSqlApprovalFn = (
     timeoutMs?: number,
 ) => Promise<'approved' | 'rejected' | 'timeout'>;
 
-export type RecordSqlApprovalFn = (
-    toolCallId: string,
-    decision: 'approved' | 'rejected',
-    decidedByUserUuid: string | null,
-) => Promise<boolean>;
+/** Records an automatic approval; human decisions are recorded by the service. */
+export type RecordSqlApprovalFn = (args: {
+    toolCallId: string;
+    toolName: SqlApprovalToolName;
+    decidedByUserUuid: string | null;
+    source: SqlAutoApprovalSource;
+}) => Promise<boolean>;
 
 export type IsThreadSqlAutoApprovedFn = (
     threadUuid: string,
 ) => Promise<boolean>;
+
+/** The SQL approval decisions recorded for a prompt's tool calls. */
+export type ListSqlApprovalDecisionsFn = (
+    promptUuid: string,
+) => Promise<SqlApprovalDecisionOnCall[]>;
 
 export type LoadAgentSkillFn = (
     name: string,
@@ -769,9 +913,33 @@ export type GenerateDataAppFn = (args: {
     dashboardSlug: string | null;
     chartSlugs: string[] | null;
     themeSlug: string | null;
+    /** Connections to link before the build. */
+    externalConnectionSlugs: string[] | null;
     /** Agent tool call the build outcome is patched onto; null over MCP. */
     toolCallId: string | null;
-}) => Promise<{ appUuid: string; slug: string; version: number }>;
+}) => Promise<DataAppBuildStarted>;
+
+export type DataAppBuildStarted = {
+    appUuid: string;
+    slug: string;
+    version: number;
+    /** Non-blocking issues, e.g. a connection the brief names that the app does not link. */
+    warnings: string[];
+};
+
+export type DataAppConnectionSummary = {
+    slug: string;
+    name: string;
+    authType: ExternalConnectionAuthType;
+    origin: string;
+    instructions: string | null;
+    linkedAliases: string[];
+};
+
+// Connections the caller may link; with appSlug, also that app's aliases.
+export type ListDataAppConnectionsFn = (args: {
+    appSlug: string | null;
+}) => Promise<DataAppConnectionSummary[]>;
 
 export type DataAppThemeSummary = {
     slug: string;
@@ -791,9 +959,11 @@ export type IterateDataAppFn = (args: {
     dashboardSlug: string | null;
     chartSlugs: string[] | null;
     themeSlug: string | null;
+    /** Connections to link before the build. */
+    externalConnectionSlugs: string[] | null;
     /** Agent tool call the build outcome is patched onto; null over MCP. */
     toolCallId: string | null;
-}) => Promise<{ appUuid: string; slug: string; version: number }>;
+}) => Promise<DataAppBuildStarted>;
 
 // Reports on a build an external agent started; MCP-only, since the AI agent
 // gets its outcome patched onto the tool result instead of polling.
@@ -808,22 +978,17 @@ export type EditProjectContextFn = (
     entry: AiAgentJudgeProjectContextEntry,
 ) => Promise<{ prUrl: string; prAction: 'opened' | 'updated' }>;
 
-/**
- * Make a code change to a writable repository and open/update a pull request,
- * via the general coding agent. The counterpart to {@link EditDbtProjectFn} for
- * non-dbt repos: no compile/preview step (verification lives in the PR's CI), so
- * it returns the base writeback result without the preview fields.
- */
-export type EditRepoFn = (args: {
-    repoTarget: string;
-    prompt: string | null;
-    prUrl: string | null;
-    /** Open a new PR instead of continuing the repo's existing one in-thread. */
-    startNewPullRequest: boolean | null;
-    progressId?: string;
-}) => Promise<AiWritebackRunResult>;
+/** Checks a change on top of the person's draft and adds what passes to it. */
+export type ProposeSemanticLayerChangeFn = (
+    models: SemanticLayerDraftModelInput[],
+) => Promise<SemanticLayerDraftProposal>;
 
-export type SetupPreviewDeployFn = () => Promise<PreviewDeploySetupResult>;
+/** The YAML of one model as the person's draft leaves it, and every model's name so a wrong name can be corrected. */
+export type ReadSemanticModelFn = (name: string) => Promise<{
+    content: string | null;
+    inDraft: boolean;
+    modelNames: string[];
+}>;
 
 /**
  * Run one read-only shell command (ls/cat/find/grep/head/wc) against a repo
@@ -851,7 +1016,7 @@ export type DiscoverReposFn = () => Promise<
 
 /**
  * List the pull requests (workstreams) the current chat thread has opened with
- * {@link EditRepoFn}, so the agent can route a follow-up to the right one or
+ * {@link EditDbtProjectFn}, so the agent can route a follow-up to the right one or
  * decide to open a new one. Optionally scoped to a single `owner/repo`.
  */
 export type ListWorkstreamsFn = (args: {
@@ -868,7 +1033,7 @@ export type ListWorkstreamsFn = (args: {
 
 /**
  * Close (without merging) a pull request the chat thread opened with
- * {@link EditRepoFn}. Thin wrapper over the same write-back close path the chat
+ * {@link EditDbtProjectFn}. Thin wrapper over the same write-back close path the chat
  * PR card's "Close PR" button uses; the underlying service enforces
  * `manage:SourceCode` and that the URL targets this project's own repo.
  */
@@ -896,19 +1061,16 @@ export type GetProjectInfoFn = () => Promise<{
     dbtConnectionType: DbtProjectType;
     dbtVersion: string;
     warehouseType: WarehouseTypes | null;
+    connections: {
+        name: string;
+        warehouseConnectionUuid: string | null;
+        warehouseType: WarehouseTypes;
+        isOriginal: boolean;
+    }[];
     git: {
         repository: string;
         branch: string;
         projectSubPath: string;
         hostDomain: string | null;
-    } | null;
-    /**
-     * Whether the git-backed repo deploys Lightdash preview projects via GitHub
-     * Actions. Null when it can't be determined (not a git project, GitHub App
-     * not installed, or the host has no preview-deploy support).
-     */
-    previewDeployCi: {
-        hasPreviewDeployWorkflow: boolean;
-        workflowPath: string | null;
     } | null;
 }>;

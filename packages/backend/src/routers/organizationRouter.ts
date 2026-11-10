@@ -5,6 +5,7 @@ import {
     OnboardingStatus,
 } from '@lightdash/common';
 import express, { type Router } from 'express';
+import { requireOAuthScopeOperation } from '../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -17,6 +18,7 @@ organizationRouter.get(
     '/access',
     allowApiKeyAuthentication,
     isAuthenticated,
+    requireOAuthScopeOperation('organizationRouter.getOrganizationAccess'),
     async (req, res, next) => {
         try {
             const results = await req.services
@@ -36,6 +38,7 @@ organizationRouter.get(
 organizationRouter.post(
     '/projects/precompiled',
     allowApiKeyAuthentication,
+    requireOAuthScopeOperation('organizationRouter POST /projects/precompiled'),
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) =>
@@ -59,6 +62,7 @@ organizationRouter.get(
     '/jobs/create-project/active',
     allowApiKeyAuthentication,
     isAuthenticated,
+    requireOAuthScopeOperation('organizationRouter.getActiveCreateProjectJob'),
     async (req, res, next) => {
         try {
             const results = await req.services
@@ -97,6 +101,7 @@ organizationRouter.get(
     '/onboardingStatus',
     allowApiKeyAuthentication,
     isAuthenticated,
+    requireOAuthScopeOperation('organizationRouter.getOnboarding'),
     async (req, res, next) => {
         try {
             const onboarding = await req.services
@@ -119,6 +124,7 @@ organizationRouter.post(
     '/onboardingStatus/shownSuccess',
     allowApiKeyAuthentication,
     isAuthenticated,
+    requireOAuthScopeOperation('organizationRouter.setOnboardingSuccessDate'),
     async (req, res, next) => {
         try {
             await req.services

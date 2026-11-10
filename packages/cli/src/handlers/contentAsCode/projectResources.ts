@@ -1,9 +1,8 @@
 import {
     ContentAsCodeType,
-    parseDocumentAsCode,
+    parseDocumentAsCodeFile,
     parseHomepageAsCode,
     parseVersionedContentAsCodeDocument,
-    type AgentAsCode,
     type AlertAsCode,
     type DocumentAsCode,
     type ExternalConnectionAsCode,
@@ -12,6 +11,7 @@ import {
     type ScheduledDeliveryAsCode,
     type VirtualViewAsCode,
 } from '@lightdash/common';
+import { type AgentAsCodeFile } from '../aiAgentKnowledgeDocuments';
 import type { CodeResourceDefinition } from './resource';
 
 export const HOMEPAGE_CODE_RESOURCE: CodeResourceDefinition<HomepageAsCode> = {
@@ -60,7 +60,7 @@ export const VIRTUAL_VIEW_CODE_RESOURCE: CodeResourceDefinition<VirtualViewAsCod
         sort: (left, right) => left.slug.localeCompare(right.slug),
     };
 
-export const AI_AGENT_CODE_RESOURCE: CodeResourceDefinition<AgentAsCode> = {
+export const AI_AGENT_CODE_RESOURCE: CodeResourceDefinition<AgentAsCodeFile> = {
     kind: ContentAsCodeType.AI_AGENT,
     displayLabel: 'AI agent',
     identityLabel: 'slug',
@@ -77,7 +77,7 @@ export const AI_AGENT_CODE_RESOURCE: CodeResourceDefinition<AgentAsCode> = {
     identity: ({ slug }) => slug,
     displayName: ({ name }) => name,
     parse: (input, source) =>
-        parseVersionedContentAsCodeDocument<AgentAsCode>({
+        parseVersionedContentAsCodeDocument<AgentAsCodeFile>({
             input,
             source,
             resourceLabel: 'AI agent',
@@ -190,7 +190,7 @@ export const DOCUMENT_CODE_RESOURCE: CodeResourceDefinition<DocumentAsCode> = {
     dependencies: [ContentAsCodeType.SPACE],
     identity: ({ slug }) => slug,
     displayName: ({ name }) => name,
-    parse: (input) => parseDocumentAsCode(input),
+    parse: (input) => parseDocumentAsCodeFile(input),
     sort: (left, right) => left.slug.localeCompare(right.slug),
     leadingKeys: [
         'name',
@@ -200,5 +200,6 @@ export const DOCUMENT_CODE_RESOURCE: CodeResourceDefinition<DocumentAsCode> = {
         'schemaVersion',
         'markdown',
         'charts',
+        'unsupportedCharts',
     ],
 };

@@ -1,4 +1,5 @@
 import { type AppGeneratePipelineJobPayload } from '@lightdash/common';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 import { CODING_AGENT_COMPACTION_NARRATION } from './codingAgentSession';
 
@@ -100,6 +101,7 @@ function buildService(
     };
 
     const raw = new AppGenerateService({
+        agentActionLogModel: { insert: vi.fn().mockResolvedValue(undefined) },
         aiCreditService: { assertAiCreditsAvailable: async () => undefined },
         lightdashConfig: {
             appRuntime: {
@@ -116,6 +118,7 @@ function buildService(
         featureFlagModel: {
             get: vi.fn().mockResolvedValue({ enabled: true }),
         } as never,
+        organizationSettingsModel: {} as never,
         organizationDesignModel: {
             findInOrganization: vi.fn().mockResolvedValue(null),
         } as never,
@@ -137,6 +140,7 @@ function buildService(
         orgAiCopilotConfigResolver: {} as never,
         sandboxManager: null,
         appRuntimeS3: null,
+        appThumbnailClient: buildAppThumbnailClientMock(),
         chartRegistryClient: {} as never,
         contentVerificationModel: {} as never,
     });
@@ -221,6 +225,7 @@ const COMPACT_FAILED = JSON.stringify({
     compact_error: 'Not enough messages to compact.',
 });
 
+// `/compact` reports the session's cumulative cost but no turns or API time.
 const COMPACT_SUCCESS = [
     JSON.stringify({
         type: 'system',
@@ -231,8 +236,8 @@ const COMPACT_SUCCESS = [
     JSON.stringify({
         type: 'result',
         subtype: 'success',
-        num_turns: 1,
-        duration_api_ms: 40_000,
+        num_turns: 0,
+        duration_api_ms: 0,
         total_cost_usd: 1.5,
         usage: {
             input_tokens: 10,
@@ -273,8 +278,8 @@ describe('AppGenerateService compact stage', () => {
     });
 
     it('charges the summary only what it added to the session totals', async () => {
-        // The CLI reports cost and API time since the session began, so the
-        // summary's own share is what grew past the thread's last snapshot.
+        // The CLI reports cost since the session began, so the summary's own
+        // share is what grew past the thread's last snapshot.
         const { runStages, track, appModel } = buildService(
             COMPACT_SUCCESS,
             [],
@@ -303,7 +308,7 @@ describe('AppGenerateService compact stage', () => {
             expect.objectContaining({
                 sessionId: SESSION_ID,
                 costUsd: 1.5,
-                durationApiMs: 40_000,
+                durationApiMs: 25_000,
             }),
         );
     });

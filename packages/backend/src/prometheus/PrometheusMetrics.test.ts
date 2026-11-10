@@ -1,7 +1,11 @@
+import { ApiConnectorType } from '@lightdash/common';
 import express from 'express';
+import knex from 'knex';
+import { MockClient } from 'knex-mock-client';
 import http from 'node:http';
 import prometheus from 'prom-client';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
+import { attachTransactionObservability } from '../database/transactionObservability';
 import Logger from '../logging/logger';
 import PrometheusMetrics, { getHttpUriLabel } from './PrometheusMetrics';
 
@@ -413,6 +417,118 @@ describe('MotherDuck instance cache metrics', () => {
                     value: 0.003,
                 }),
             ]),
+        });
+    });
+});
+
+describe('database transaction metrics', () => {
+    beforeEach(() => {
+        prometheus.register.clear();
+    });
+
+    afterEach(() => {
+        prometheus.register.clear();
+    });
+
+    it('counts rollbacks by caller and observes duration by outcome', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        attachTransactionObservability(
+            database,
+            { logRollbacks: true, slowTransactionThresholdMs: null },
+            { getCaller: () => 'scheduler:compileProject', log: () => {} },
+        );
+        const metrics = new PrometheusMetrics({
+            ...lightdashConfigMock.prometheus,
+            enabled: true,
+        });
+        metrics.monitorDatabase(database);
+
+        await database.transaction(async () => 'ok');
+        await expect(
+            database.transaction(async () => {
+                throw new Error('boom');
+            }),
+        ).rejects.toThrow('boom');
+
+        const rollbacks = prometheus.register.getSingleMetric(
+            'pg_transaction_rollbacks_total',
+        );
+        const duration = prometheus.register.getSingleMetric(
+            'pg_transaction_duration',
+        );
+        expect((await rollbacks!.get()).values).toEqual([
+            { labels: { caller: 'scheduler:compileProject' }, value: 1 },
+        ]);
+        expect((await duration!.get()).values).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    metricName: 'pg_transaction_duration_count',
+                    labels: { outcome: 'commit' },
+                    value: 1,
+                }),
+                expect.objectContaining({
+                    metricName: 'pg_transaction_duration_count',
+                    labels: { outcome: 'rollback' },
+                    value: 1,
+                }),
+            ]),
+        );
+        await database.destroy();
+    });
+});
+
+describe('live API source metrics', () => {
+    beforeEach(() => {
+        prometheus.register.clear();
+        vi.spyOn(http.Server.prototype, 'listen').mockImplementation(
+            function mockListen(this: http.Server) {
+                return this;
+            },
+        );
+    });
+
+    afterEach(() => {
+        prometheus.register.clear();
+        vi.restoreAllMocks();
+    });
+
+    it('counts requests by connector and outcome from a zero baseline', async () => {
+        const metrics = new PrometheusMetrics({
+            ...lightdashConfigMock.prometheus,
+            enabled: true,
+        });
+        metrics.start();
+        const requests = prometheus.register.getSingleMetric(
+            'lightdash_api_source_requests_total',
+        );
+        const inflight = prometheus.register.getSingleMetric(
+            'lightdash_api_source_inflight_requests',
+        );
+
+        expect((await requests!.get()).values).toContainEqual({
+            labels: { connector: 'posthog', outcome: 'rate_limited' },
+            value: 0,
+        });
+
+        metrics.trackApiSourceInflight(ApiConnectorType.POSTHOG, 1);
+        expect((await inflight!.get()).values).toContainEqual({
+            labels: { connector: 'posthog' },
+            value: 1,
+        });
+        metrics.observeApiSourceRequest(
+            ApiConnectorType.POSTHOG,
+            'rate_limited',
+            1200,
+        );
+        metrics.trackApiSourceInflight(ApiConnectorType.POSTHOG, -1);
+
+        expect((await requests!.get()).values).toContainEqual({
+            labels: { connector: 'posthog', outcome: 'rate_limited' },
+            value: 1,
+        });
+        expect((await inflight!.get()).values).toContainEqual({
+            labels: { connector: 'posthog' },
+            value: 0,
         });
     });
 });

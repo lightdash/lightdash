@@ -1,6 +1,107 @@
+import { monthlyQueryComparisonCharts } from './monthlyQueryComparisonCharts';
 import type { UsageChartSpec } from './usageDashboardTypes';
 
 export const usageChartSpecs: UsageChartSpec[] = [
+    ...monthlyQueryComparisonCharts,
+    {
+        key: 'most-used-fields',
+        name: 'Most-used metrics and dimensions',
+        description:
+            'Distinct query attempts per field, including selected, filtered, grouped and sorted references. Names are those captured at execution; a renamed label can appear separately. Field totals overlap.',
+        explore: 'semantic_usage',
+        dimensions: [
+            'semantic_usage_field_label',
+            'semantic_usage_table_name',
+            'semantic_usage_field_kind',
+            'semantic_usage_field_origin',
+            'semantic_usage_field_id',
+            'semantic_usage_project_id',
+        ],
+        metrics: [
+            'semantic_usage_total_queries',
+            'semantic_usage_unique_users',
+            'semantic_usage_unique_charts',
+            'semantic_usage_unique_dashboards',
+            'semantic_usage_unique_apps',
+        ],
+        filters: [
+            {
+                field: 'semantic_usage_field_kind',
+                values: ['metric', 'dimension'],
+            },
+        ],
+        limit: 40,
+        sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
+    },
+    {
+        key: 'people-using-fields',
+        name: 'Who uses each metric and dimension?',
+        description:
+            'Recorded users and fields, with distinct query attempts. A missing user name does not imply anonymous activity. One query can use several fields.',
+        explore: 'semantic_usage',
+        dimensions: [
+            'semantic_usage_user_name',
+            'semantic_usage_user_id',
+            'semantic_usage_field_label',
+            'semantic_usage_table_name',
+            'semantic_usage_field_kind',
+            'semantic_usage_field_origin',
+            'semantic_usage_field_id',
+            'semantic_usage_project_id',
+        ],
+        metrics: ['semantic_usage_total_queries'],
+        filters: [
+            {
+                field: 'semantic_usage_field_kind',
+                values: ['metric', 'dimension'],
+            },
+        ],
+        limit: 50,
+        sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
+    },
+    {
+        key: 'content-using-fields',
+        name: 'Where are metrics and dimensions used?',
+        description:
+            'Charts, dashboards and apps associated with recorded field use. Direct exploration and other queries can have no saved-content attribution. Query counts overlap across fields.',
+        explore: 'semantic_usage',
+        dimensions: [
+            'semantic_usage_field_label',
+            'semantic_usage_table_name',
+            'semantic_usage_field_origin',
+            'semantic_usage_field_id',
+            'semantic_usage_project_id',
+            'semantic_usage_chart_name',
+            'semantic_usage_chart_id',
+            'semantic_usage_dashboard_name',
+            'semantic_usage_dashboard_id',
+            'semantic_usage_app_name',
+            'semantic_usage_app_id',
+            'semantic_usage_context',
+        ],
+        metrics: ['semantic_usage_total_queries'],
+        filters: [
+            {
+                field: 'semantic_usage_field_kind',
+                values: ['metric', 'dimension'],
+            },
+        ],
+        limit: 50,
+        sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
+    },
+    {
+        key: 'field-capture-coverage',
+        name: 'Queries with field details',
+        description:
+            'Distinct query attempts by available field detail, including old history and SQL queries. Partial capture can identify some fields; missing details are not evidence of no field use.',
+        explore: 'semantic_usage',
+        dimensions: ['semantic_usage_lineage_status'],
+        metrics: ['semantic_usage_total_queries'],
+        limit: 10,
+        sorts: [{ fieldId: 'semantic_usage_total_queries', descending: true }],
+        visualization: 'bar',
+        flipAxes: true,
+    },
     {
         key: 'daily-trend',
         name: 'Daily app loads and viewers',
@@ -62,8 +163,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'Recorded app loads and viewers by app and project, including unknown or removed apps. Loads include reloads and are not distinct visits.',
         explore: 'data_app_events',
         dimensions: [
-            'lightdash_apps_name',
-            'lightdash_apps_project_name',
+            'data_app_events_app_name',
+            'data_app_events_project_name',
             'data_app_events_app_id',
             'data_app_events_project_id',
         ],
@@ -91,7 +192,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         description:
             'Recorded app activity over the available history, including unknown or removed apps.',
         explore: 'data_app_events',
-        dimensions: ['lightdash_users_name', 'data_app_events_user_id'],
+        dimensions: ['data_app_events_user_name', 'data_app_events_user_id'],
         metrics: ['data_app_events_total_views', 'data_app_events_unique_apps'],
         limit: 20,
         sorts: [
@@ -137,10 +238,10 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'Recorded app loads and viewers by app and project, including unknown or removed apps. Loads include reloads and are not distinct visits.',
         explore: 'data_app_events',
         dimensions: [
-            'lightdash_users_name',
-            'lightdash_apps_project_name',
+            'data_app_events_user_name',
+            'data_app_events_project_name',
             'data_app_events_user_id',
-            'lightdash_apps_name',
+            'data_app_events_app_name',
             'data_app_events_app_id',
             'data_app_events_project_id',
         ],
@@ -189,8 +290,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'All retained captured history. Recent capture is not a full historical census.',
         explore: 'agent_requests',
         dimensions: [
-            'lightdash_agents_name',
-            'lightdash_users_name',
+            'agent_requests_agent_name',
+            'agent_requests_user_name',
             'agent_requests_user_id',
             'agent_requests_requested_at_week',
             'agent_requests_agent_id',
@@ -210,7 +311,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         description:
             'Negative feedback rate excludes unrated requests. Read it with feedback coverage and request count; small samples are not reliable rankings.',
         explore: 'agent_requests',
-        dimensions: ['lightdash_agents_name', 'agent_requests_agent_id'],
+        dimensions: ['agent_requests_agent_name', 'agent_requests_agent_id'],
         metrics: [
             'agent_requests_total_requests',
             'agent_requests_feedback_coverage',
@@ -271,7 +372,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'All retained captured history. Recent capture is not a full historical census.',
         explore: 'ai_usage',
         dimensions: [
-            'lightdash_users_name',
+            'ai_usage_user_name',
             'ai_usage_model',
             'ai_usage_feature',
             'ai_usage_user_id',
@@ -292,7 +393,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'AI usage for app generation, by builder, week and AI model. Tokens do not measure monetary spend, and usage cannot yet be attributed to individual apps or builds.',
         explore: 'ai_usage',
         dimensions: [
-            'lightdash_users_name',
+            'ai_usage_user_name',
             'ai_usage_event_ts_week',
             'ai_usage_model',
             'ai_usage_feature',
@@ -324,8 +425,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'Recorded app loads and viewers by app and project, including unknown or removed apps. Loads include reloads and are not distinct visits.',
         explore: 'data_app_events',
         dimensions: [
-            'lightdash_apps_name',
-            'lightdash_apps_project_name',
+            'data_app_events_app_name',
+            'data_app_events_project_name',
             'data_app_events_app_id',
             'data_app_events_event_name',
             'data_app_events_project_id',
@@ -346,8 +447,8 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'Recorded app loads and viewers by app and project, including unknown or removed apps. Loads include reloads and are not distinct visits.',
         explore: 'data_app_events',
         dimensions: [
-            'lightdash_apps_name',
-            'lightdash_apps_project_name',
+            'data_app_events_app_name',
+            'data_app_events_project_name',
             'data_app_events_app_id',
             'data_app_events_project_id',
         ],
@@ -363,7 +464,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             },
         ],
         visualization: 'bar',
-        xField: 'lightdash_apps_name',
+        xField: 'data_app_events_app_name',
         yFields: [
             'data_app_events_total_views',
             'data_app_events_unique_viewers',
@@ -375,7 +476,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         name: 'Content creation by month',
         description:
             'Creation dates of items in the latest inventory, including soft-deleted items; not complete historical inventory.',
-        explore: 'content_health',
+        explore: 'content_inventory',
         dimensions: ['content_health_created_at_month'],
         metrics: ['content_health_total_content'],
         limit: 500,
@@ -394,7 +495,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         name: 'Content ownership · current snapshot',
         description:
             'Owner status reflects current application membership, not verified employment status.',
-        explore: 'content_health',
+        explore: 'content_inventory',
         dimensions: ['content_health_owner_status'],
         metrics: ['content_health_total_content'],
         limit: 30,
@@ -459,7 +560,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'People who created or iterated on apps, grouped by week. Uploads are excluded.',
         explore: 'data_app_events',
         dimensions: [
-            'lightdash_users_name',
+            'data_app_events_user_name',
             'data_app_events_user_id',
             'data_app_events_event_ts_week',
         ],
@@ -488,14 +589,14 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'Result downloads only. Content links can be missing; null is unattributed, not proof there was no content.',
         explore: 'export_events',
         dimensions: [
-            'lightdash_users_name',
-            'lightdash_charts_name',
-            'lightdash_dashboards_name',
+            'export_events_user_name',
+            'export_events_chart_name',
+            'export_events_dashboard_name',
             'export_events_format',
             'export_events_event_name',
             'export_events_user_id',
-            'query_events_chart_id',
-            'query_events_dashboard_id',
+            'export_events_chart_id',
+            'export_events_dashboard_id',
         ],
         metrics: [
             'export_events_total_events',
@@ -517,7 +618,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'Recorded Sheets queries only; first observed activity is not acquisition or first-ever usage.',
         explore: 'query_events',
         dimensions: [
-            'lightdash_users_name',
+            'query_events_user_name',
             'query_events_user_id',
             'query_events_event_ts_week',
         ],
@@ -576,7 +677,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'Error rate uses known outcomes only; historical unknown outcomes remain unknown. Latency is in milliseconds.',
         explore: 'tool_activity',
         dimensions: [
-            'lightdash_users_name',
+            'tool_activity_user_name',
             'tool_activity_user_id',
             'tool_activity_actor_type',
             'tool_activity_client_name',
@@ -650,7 +751,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'All retained captured history. Recent capture is not a full historical census.',
         explore: 'user_activity',
         dimensions: [
-            'lightdash_users_name',
+            'user_activity_user_name',
             'user_activity_user_id',
             'user_activity_activity_date_week',
         ],
@@ -674,7 +775,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
             'Recent recorded activity by person and project. The table shows up to 5,000 results.',
         explore: 'user_activity',
         dimensions: [
-            'lightdash_users_name',
+            'user_activity_user_name',
             'user_activity_user_id',
             'user_activity_project_id',
             'user_activity_activity_date_day',
@@ -695,7 +796,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         description:
             'All retained captured history. Recent capture is not a full historical census.',
         explore: 'user_activity',
-        dimensions: ['lightdash_users_name', 'user_activity_user_id'],
+        dimensions: ['user_activity_user_name', 'user_activity_user_id'],
         metrics: [
             'user_activity_total_queries',
             'user_activity_total_ai_calls',
@@ -718,7 +819,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         explore: 'query_events',
         dimensions: [
             'query_events_status',
-            'lightdash_dashboards_name',
+            'query_events_dashboard_name',
             'query_events_explore_name',
             'query_events_dashboard_id',
         ],
@@ -819,7 +920,10 @@ export const usageChartSpecs: UsageChartSpec[] = [
         description:
             'All retained captured history. Recent capture is not a full historical census.',
         explore: 'query_events',
-        dimensions: ['lightdash_dashboards_name', 'query_events_dashboard_id'],
+        dimensions: [
+            'query_events_dashboard_name',
+            'query_events_dashboard_id',
+        ],
         metrics: [
             'query_events_total_queries',
             'query_events_unique_users',
@@ -875,7 +979,7 @@ export const usageChartSpecs: UsageChartSpec[] = [
         explore: 'content_reach',
         dimensions: [
             'content_reach_content_name',
-            'lightdash_users_name',
+            'content_reach_user_name',
             'content_reach_user_id',
             'content_reach_content_id',
             'content_reach_project_id',

@@ -1,0 +1,58 @@
+/* Pins the diff to the app's colour scheme rather than the system's. */
+.diffViewport,
+.diffHost {
+    color-scheme: light;
+
+    @mixin dark {
+        color-scheme: dark;
+    }
+}
+
+.diffViewport {
+    max-height: 480px;
+    overflow: auto;
+    --diffs-font-size: 12px;
+    --diffs-line-height: 18px;
+}
+
+.diffViewport[data-compact] {
+    max-height: 260px;
+    --diffs-font-size: 11px;
+    --diffs-line-height: 16px;
+}
+
+.plainFile {
+    margin: 0;
+    padding: var(--mantine-spacing-xs) 0;
+    width: fit-content;
+    min-width: 100%;
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--diffs-font-size);
+    line-height: var(--diffs-line-height);
+}
+
+.plainLine {
+    display: flex;
+    white-space: pre;
+}
+
+.diffViewport:not([data-compact]) .plainLine {
+    white-space: pre-wrap;
+}
+
+.lineNumber {
+    flex: none;
+    width: 4ch;
+    margin-right: 1.5ch;
+    text-align: right;
+    color: var(--mantine-color-ldGray-5);
+    user-select: none;
+}
+
+.yamlKey {
+    color: var(--mantine-color-indigo-light-color);
+}
+
+.diffViewport[data-compact] .plainFile {
+    padding: 6px 0;
+}

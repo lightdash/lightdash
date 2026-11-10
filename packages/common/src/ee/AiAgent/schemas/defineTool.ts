@@ -31,6 +31,10 @@ export type McpToolAnnotations = {
     openWorldHint: boolean;
 };
 
+// What the MCP server advertises: the hints plus the tool's title, which the
+// Claude directory reads from annotations.title.
+export type McpToolViewAnnotations = McpToolAnnotations & { title: string };
+
 export type AgentModelOutput =
     | { type: 'text'; value: string }
     | { type: 'error-text'; value: string };
@@ -125,7 +129,7 @@ type McpToolViewBase<
     title: string;
     description: string;
     inputSchema: McpCompatibleInputSchema<TInput>;
-    annotations: McpToolAnnotations;
+    annotations: McpToolViewAnnotations;
     meta: Record<string, unknown> | undefined;
     result: McpToolResultBuilders;
 };

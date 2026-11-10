@@ -1,9 +1,12 @@
 import { parseArgs } from 'node:util';
+import { usageProcessingStartDate } from '../analytics/eventStream/usageProcessingWindow';
 import {
     UsageUserActivityBuilder,
     validateUserActivityRange,
 } from '../analytics/eventStream/UsageUserActivityBuilder';
+import { lightdashConfig } from '../config/lightdashConfig';
 import { parseUsageEventsS3Config } from '../config/parseConfig';
+import { getEnterpriseAppArguments } from '../ee';
 
 async function main() {
     const { values } = parseArgs({
@@ -16,7 +19,7 @@ async function main() {
     });
     if (values.help) {
         console.log(
-            'build-usage-user-activity --org-id UUID --from YYYY-MM-DD --to YYYY-MM-DD\nDerives user activity for all usage streams across 1–31 closed UTC days. Uses usage-events S3 configuration.',
+            'build-usage-user-activity --org-id UUID --from YYYY-MM-DD --to YYYY-MM-DD\nDerives user activity for all usage streams across the previous seven closed UTC days. Uses usage-events S3 configuration.',
         );
         return;
     }
@@ -28,6 +31,14 @@ async function main() {
     validateUserActivityRange(values['org-id'], values.from, values.to);
     const storage = parseUsageEventsS3Config();
     if (!storage) throw new Error('Usage-events S3 storage is not configured');
+    if (values.from < usageProcessingStartDate(new Date())) {
+        throw new Error(
+            'Usage processing is limited to the previous seven closed UTC days',
+        );
+    }
+    const { serviceProviders } = await getEnterpriseAppArguments();
+    if (!serviceProviders?.analyticsProjectService)
+        throw new Error('Managed analytics is not enabled');
     console.log(
         await new UsageUserActivityBuilder(storage).run(
             values['org-id'],

@@ -28,8 +28,8 @@ export const SaveChartButton: FC<Props> = ({
     canSave,
 }) => {
     const authoringEnabled = useContentAuthoringEnabled();
-    const isAmbientAiEnabled = useAmbientAiEnabled();
-    const { embedToken, writeActions } = useEmbed();
+    const isAmbientAiEnabled = useAmbientAiEnabled(projectUuid);
+    const { embedToken, embedWriteContext } = useEmbed();
     const [isSaveChartModalOpen, setIsSaveChartModalOpen] = useState(false);
     const [isPendingOpen, setIsPendingOpen] = useState(false);
 
@@ -98,8 +98,14 @@ export const SaveChartButton: FC<Props> = ({
                     onClose={() => setIsSaveChartModalOpen(false)}
                     onConfirm={() => setIsSaveChartModalOpen(false)}
                     chartMetadata={generatedMetadata ?? undefined}
-                    forcedSpaceUuid={
-                        embedToken ? writeActions?.spaceUuid : undefined
+                    // The automatic suggestion is question style
+                    chartMetadataStyle={
+                        generatedMetadata ? 'question' : undefined
+                    }
+                    restrictedSpaces={
+                        embedToken
+                            ? embedWriteContext?.writableSpaces
+                            : undefined
                     }
                 />
             )}

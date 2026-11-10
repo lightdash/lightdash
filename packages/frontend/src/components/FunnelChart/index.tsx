@@ -16,11 +16,15 @@ import useEchartsFunnelConfig, {
     type FunnelSeriesDataPoint,
 } from '../../hooks/echarts/useEchartsFunnelConfig';
 import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
+import { useLegendScrollPosition } from '../../hooks/echarts/useLegendScrollPosition';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
-import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
+import {
+    useVisualizationInputs,
+    useVisualizationServices,
+} from '../LightdashVisualization/useVisualizationContext';
 import FunnelChartContextMenu, {
     type FunnelChartContextMenuProps,
 } from './FunnelChartContextMenu';
@@ -53,8 +57,8 @@ const FunnelChart: FC<FunnelChartProps> = memo(
         enableContextMenu = true,
         ...props
     }) => {
-        const { chartRef, isLoading, resultsData, minimal } =
-            useVisualizationContext();
+        const { chartRef } = useVisualizationServices();
+        const { isLoading, resultsData, minimal } = useVisualizationInputs();
         const { selectedLegends, onLegendChange } =
             useLegendDoubleClickSelection();
 
@@ -62,6 +66,8 @@ const FunnelChart: FC<FunnelChartProps> = memo(
             selectedLegends,
             props.isInDashboard,
         );
+        const { optionWithScrollPosition, onLegendScroll } =
+            useLegendScrollPosition(chartRef, funnelChartOptions);
         const { shouldShowMenu, canViewUnderlyingData } =
             useContextMenuPermissions({
                 minimal,
@@ -101,7 +107,7 @@ const FunnelChart: FC<FunnelChartProps> = memo(
                 chartRef.current?.getEchartsInstance().resize();
             window.addEventListener('resize', listener);
             return () => window.removeEventListener('resize', listener);
-        });
+        }, [chartRef]);
 
         const handleOpenContextMenu = useCallback(
             (e: ECElementEvent) => {
@@ -137,8 +143,14 @@ const FunnelChart: FC<FunnelChartProps> = memo(
                       }
                     : {}),
                 legendselectchanged: onLegendChange,
+                legendscroll: onLegendScroll,
             }),
-            [enableContextMenu, handleOpenContextMenu, onLegendChange],
+            [
+                enableContextMenu,
+                handleOpenContextMenu,
+                onLegendChange,
+                onLegendScroll,
+            ],
         );
 
         if (isLoading) return <LoadingChart />;
@@ -149,6 +161,7 @@ const FunnelChart: FC<FunnelChartProps> = memo(
                 <EChartsReact
                     ref={chartRef}
                     className={props.className}
+                    // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                     style={
                         props.$shouldExpand
                             ? {
@@ -163,7 +176,7 @@ const FunnelChart: FC<FunnelChartProps> = memo(
                               }
                     }
                     opts={EchartOptions}
-                    option={funnelChartOptions}
+                    option={optionWithScrollPosition ?? funnelChartOptions}
                     notMerge
                     {...props}
                     onEvents={onEvents}

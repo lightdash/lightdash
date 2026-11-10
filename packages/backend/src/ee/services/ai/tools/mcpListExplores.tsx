@@ -1,6 +1,8 @@
 import {
+    ApiSourceExplore,
     Explore,
     listExploresToolDefinition,
+    LIVE_SOURCE_INTEGRATION_PROFILES,
     mcpToolListExploresOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -15,6 +17,59 @@ type Dependencies = {
 
 const toolDefinition = listExploresToolDefinition.for('mcp');
 
+/**
+ * A live data source explore reads its integration's API at query time, so
+ * external agents need its rules to build a query the API accepts.
+ */
+const renderLiveDataSource = (apiSource: ApiSourceExplore) => (
+    <liveDataSource
+        integration={
+            LIVE_SOURCE_INTEGRATION_PROFILES[apiSource.integration].agentLabel
+        }
+        maxDimensions={apiSource.maxDimensions ?? undefined}
+        maxMetrics={apiSource.maxMetrics ?? undefined}
+        orFilters={apiSource.filterGroups.or}
+        nestedFilters={apiSource.filterGroups.nested}
+    >
+        <rule>
+            Each query calls the integration live and returns aggregated rows:
+            metrics broken down by dimensions. Funnels, retention, user paths,
+            table calculations, custom metrics, pivots, date zoom and underlying
+            data are not available.
+        </rule>
+        {apiSource.dateRange && (
+            <dateRange
+                fieldId={apiSource.dateRange.fieldId}
+                defaultDays={apiSource.dateRange.defaultDays}
+            >
+                {`Filter on this field for the period asked about. Without a filter, the query reads the last ${apiSource.dateRange.defaultDays} days.`}
+            </dateRange>
+        )}
+        <filterableFields>
+            {Object.entries(apiSource.fields)
+                .filter(([, rule]) => rule.filterOperators.length > 0)
+                .map(([fieldId, rule]) => (
+                    <field
+                        fieldId={fieldId}
+                        operators={rule.filterOperators.join(',')}
+                    />
+                ))}
+        </filterableFields>
+        {apiSource.incompatible.length > 0 && (
+            <incompatibleFields>
+                {apiSource.incompatible.map((incompatibility) => (
+                    <incompatible
+                        fields={incompatibility.fields.join(',')}
+                        with={incompatibility.with.join(',')}
+                    >
+                        {incompatibility.reason}
+                    </incompatible>
+                ))}
+            </incompatibleFields>
+        )}
+    </liveDataSource>
+);
+
 const renderExplore = (explore: Explore) => {
     const requiredFilters = getExploreRequiredFilters(explore);
 
@@ -23,7 +78,9 @@ const renderExplore = (explore: Explore) => {
             name={explore.name}
             label={explore.label}
             baseTable={explore.baseTable}
+            type={explore.apiSource ? 'liveDataSource' : undefined}
         >
+            {explore.apiSource && renderLiveDataSource(explore.apiSource)}
             {explore.tags && explore.tags.length > 0 && (
                 <tags>
                     {explore.tags.map((tag) => (

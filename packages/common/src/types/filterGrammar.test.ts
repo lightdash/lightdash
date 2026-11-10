@@ -507,6 +507,160 @@ describe('Parse metric filters', () => {
         ]);
     });
 
+    describe('in the current period to date', () => {
+        const currentFilter = (
+            operator: FilterOperator,
+            settings: Record<string, unknown>,
+        ) => [
+            {
+                id: undefined,
+                operator,
+                settings,
+                target: { fieldRef: 'order_date' },
+                values: [1],
+            },
+        ];
+
+        it.each([
+            ['inTheCurrent month to date', 'months'],
+            ['inTheCurrent months to date', 'months'],
+            ['inTheCurrent week to date', 'weeks'],
+            ['inTheCurrent weeks to date', 'weeks'],
+            ['inTheCurrent quarter to date', 'quarters'],
+            ['inTheCurrent quarters to date', 'quarters'],
+            ['inTheCurrent year to date', 'years'],
+            ['inTheCurrent years to date', 'years'],
+        ])('Should parse "%s" as to date', (expression, unitOfTime) => {
+            expect(
+                removeIds(parseFilters([{ order_date: expression }])),
+            ).toStrictEqual(
+                currentFilter(FilterOperator.IN_THE_CURRENT, {
+                    unitOfTime,
+                    toDate: true,
+                }),
+            );
+        });
+
+        it.each([
+            ['inTheCurrent month to date excluding today', 'months'],
+            ['inTheCurrent weeks to date excluding today', 'weeks'],
+            ['inTheCurrent quarter to date excluding today', 'quarters'],
+            ['inTheCurrent years to date excluding today', 'years'],
+        ])(
+            'Should parse "%s" as to date excluding today',
+            (expression, unitOfTime) => {
+                expect(
+                    removeIds(parseFilters([{ order_date: expression }])),
+                ).toStrictEqual(
+                    currentFilter(FilterOperator.IN_THE_CURRENT, {
+                        unitOfTime,
+                        toDate: true,
+                        excludeToday: true,
+                    }),
+                );
+            },
+        );
+
+        it('Should parse notInTheCurrent with to date', () => {
+            expect(
+                removeIds(
+                    parseFilters([
+                        { order_date: 'notInTheCurrent month to date' },
+                    ]),
+                ),
+            ).toStrictEqual(
+                currentFilter(FilterOperator.NOT_IN_THE_CURRENT, {
+                    unitOfTime: 'months',
+                    toDate: true,
+                }),
+            );
+        });
+
+        it('Should parse notInTheCurrent with to date excluding today', () => {
+            expect(
+                removeIds(
+                    parseFilters([
+                        {
+                            order_date:
+                                'notInTheCurrent year to date excluding today',
+                        },
+                    ]),
+                ),
+            ).toStrictEqual(
+                currentFilter(FilterOperator.NOT_IN_THE_CURRENT, {
+                    unitOfTime: 'years',
+                    toDate: true,
+                    excludeToday: true,
+                }),
+            );
+        });
+
+        it.each([
+            '  inTheCurrent   month   to   date  ',
+            'inTheCurrent month  to date   excluding   today',
+            ' notInTheCurrent  month to date excluding today ',
+        ])('Should accept flexible whitespace in "%s"', (expression) => {
+            const [rule] = parseFilters([{ order_date: expression }]);
+            expect(rule.settings).toStrictEqual({
+                unitOfTime: 'months',
+                toDate: true,
+                ...(expression.includes('excluding') && { excludeToday: true }),
+            });
+        });
+
+        it('Should not write excludeToday when it is not in the expression', () => {
+            const [rule] = parseFilters([
+                { order_date: 'inTheCurrent month to date' },
+            ]);
+            expect(rule.settings).not.toHaveProperty('excludeToday');
+        });
+
+        it('Should not write toDate on whole-period expressions', () => {
+            const [rule] = parseFilters([{ order_date: 'inTheCurrent month' }]);
+            expect(rule.settings).toStrictEqual({ unitOfTime: 'months' });
+        });
+
+        it.each([
+            'inTheCurrent day to date',
+            'inTheCurrent days to date',
+            'inTheCurrent hour to date',
+            'inTheCurrent minutes to date excluding today',
+            'notInTheCurrent day to date',
+        ])('Should reject "%s"', (expression) => {
+            expect(() => parseFilters([{ order_date: expression }])).toThrow();
+        });
+
+        it.each([
+            'inTheCurrent month to',
+            'inTheCurrent month date',
+            'inTheCurrent month excluding today',
+            'inTheCurrent month todate',
+            'inTheCurrent month to date excluding',
+            'inTheCurrent month To Date',
+        ])('Should reject malformed suffix "%s"', (expression) => {
+            expect(() => parseFilters([{ order_date: expression }])).toThrow();
+        });
+
+        it('Should parse to date in model required filters', () => {
+            const [rule] = parseModelRequiredFilters({
+                requiredFilters: [
+                    {
+                        order_date:
+                            'inTheCurrent month to date excluding today',
+                    },
+                ],
+                defaultFilters: undefined,
+            });
+            expect(rule.operator).toBe(FilterOperator.IN_THE_CURRENT);
+            expect(rule.settings).toStrictEqual({
+                unitOfTime: 'months',
+                toDate: true,
+                excludeToday: true,
+            });
+            expect(rule.required).toBe(true);
+        });
+    });
+
     it('Should parse between operator with two values', () => {
         const filters = [{ length_of_session: 'between 1 and 3600' }];
         expect(removeIds(parseFilters(filters))).toStrictEqual([

@@ -2,6 +2,7 @@ import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import FiltersForm from '.';
 import { renderWithProviders } from '../../../testing/testUtils';
+import classes from './Filters.module.css';
 import FiltersProvider from './FiltersProvider';
 
 describe('FiltersForm', () => {
@@ -17,8 +18,6 @@ describe('FiltersForm', () => {
         );
         const addFilterSection = addFilterButton.parentElement?.parentElement;
 
-        expect(addFilterSection?.style.backgroundColor).toBe(
-            'var(--mantine-color-body)',
-        );
+        expect(addFilterSection).toHaveClass(classes.raised);
     });
 });

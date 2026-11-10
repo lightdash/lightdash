@@ -15,7 +15,7 @@ import {
     vi,
     type Mock,
 } from 'vitest';
-import { lightdashApi } from '../../../../api';
+import { sharedLightdashApi } from '../../../../api';
 import { renderWithProviders } from '../../../../testing/testUtils';
 import {
     SqlEditorView,
@@ -29,15 +29,13 @@ import {
 } from '../hooks/activeConnectionContext';
 import { MultiConnectionSqlEditor } from './MultiConnectionSqlEditor';
 
-vi.mock('../../../../api', () => ({
-    lightdashApi: vi.fn(),
-}));
+vi.mock('../../../../api');
 
 vi.mock('../../components/SqlEditor', () => ({
     SqlEditorView: vi.fn(() => null),
 }));
 
-const mockApi = lightdashApi as unknown as Mock;
+const mockApi = sharedLightdashApi as unknown as Mock;
 const mockEditor = SqlEditorView as unknown as Mock;
 const projectUuid = 'project-uuid';
 const connectionUuid = 'athena-uuid';

@@ -6,9 +6,14 @@ import {
     explorerActions,
     selectAdditionalMetrics,
     selectCustomDimensions,
+    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../../../features/explorer/store';
+import {
+    NOT_ON_LIVE_SOURCES,
+    useIsRefusedOnLiveSource,
+} from '../../../../../features/externalConnections/liveSources/apiSourceExplore';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
@@ -39,6 +44,10 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
     // Get all custom metrics and dimensions for write-back
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const allCustomDimensions = useExplorerSelector(selectCustomDimensions);
+    const isCustomDimensionRefused = useIsRefusedOnLiveSource(
+        useExplorerSelector(selectTableName),
+        'customDimensions',
+    );
 
     // Write-back requires a base dimension column to attach the metric to in YAML
     const allAdditionalMetrics = useMemo(
@@ -152,14 +161,26 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
             <Group gap="xs">
                 {showAddButton && (
                     <Tooltip
-                        label="Add a custom dimension with SQL"
+                        label={
+                            isCustomDimensionRefused
+                                ? NOT_ON_LIVE_SOURCES
+                                : 'Add a custom dimension with SQL'
+                        }
                         position="left"
                     >
                         <Button
                             variant="subtle"
                             size="compact-xs"
                             leftSection={<MantineIcon icon={IconPlus} />}
-                            onClick={handleAddCustomDimension}
+                            // data-disabled keeps the tooltip working
+                            data-disabled={
+                                isCustomDimensionRefused || undefined
+                            }
+                            onClick={
+                                isCustomDimensionRefused
+                                    ? undefined
+                                    : handleAddCustomDimension
+                            }
                             data-testid="VirtualSectionHeader/AddCustomDimensionButton"
                             // Anchor for scope walkthroughs (data-tour-via)
                             data-tour-anchor="add-custom-dimension"

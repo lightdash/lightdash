@@ -61,6 +61,9 @@ describe('aiAgentThreadStreamSlice', () => {
             startStreaming({
                 threadUuid: 'thread-1',
                 messageUuid: 'message-1',
+                projectUuid: 'project-1',
+                agentUuid: 'agent-1',
+                autoApproveSql: false,
             }),
         );
         expect(streaming['thread-1']?.connection).toEqual({
@@ -98,6 +101,9 @@ describe('aiAgentThreadStreamSlice', () => {
             startStreaming({
                 threadUuid: 'thread-1',
                 messageUuid: 'message-1',
+                projectUuid: 'project-1',
+                agentUuid: 'agent-1',
+                autoApproveSql: false,
             }),
         );
 
@@ -118,6 +124,9 @@ describe('aiAgentThreadStreamSlice', () => {
             startStreaming({
                 threadUuid: 'thread-1',
                 messageUuid: 'message-1',
+                projectUuid: 'project-1',
+                agentUuid: 'agent-1',
+                autoApproveSql: false,
             }),
         );
         expect(startedState['thread-1']?.stepProgressMessages).toEqual([]);
@@ -161,6 +170,9 @@ describe('aiAgentThreadStreamSlice', () => {
                 startStreaming({
                     threadUuid: 'thread-1',
                     messageUuid: 'message-1',
+                    projectUuid: 'project-1',
+                    agentUuid: 'agent-1',
+                    autoApproveSql: false,
                 }),
             ),
             appendStepProgress({
@@ -196,6 +208,9 @@ describe('aiAgentThreadStreamSlice', () => {
             startStreaming({
                 threadUuid: 'thread-1',
                 messageUuid: 'message-1',
+                projectUuid: 'project-1',
+                agentUuid: 'agent-1',
+                autoApproveSql: false,
             }),
         );
         for (const event of [
@@ -229,6 +244,9 @@ describe('aiAgentThreadStreamSlice', () => {
             startStreaming({
                 threadUuid: 'thread-1',
                 messageUuid: 'message-1',
+                projectUuid: 'project-1',
+                agentUuid: 'agent-1',
+                autoApproveSql: false,
             }),
         );
         for (const message of [
@@ -276,6 +294,9 @@ describe('aiAgentThreadStreamSlice', () => {
             startStreaming({
                 threadUuid: 'thread-1',
                 messageUuid: 'message-1',
+                projectUuid: 'project-1',
+                agentUuid: 'agent-1',
+                autoApproveSql: false,
             }),
         );
         for (const event of [
@@ -323,6 +344,9 @@ describe('aiAgentThreadStreamSlice', () => {
                 startStreaming({
                     threadUuid: 'thread-1',
                     messageUuid: 'message-1',
+                    projectUuid: 'project-1',
+                    agentUuid: 'agent-1',
+                    autoApproveSql: false,
                 }),
             ),
             appendStepProgress({
@@ -354,6 +378,9 @@ describe('aiAgentThreadStreamSlice', () => {
             startStreaming({
                 threadUuid: 'thread-1',
                 messageUuid: 'message-1',
+                projectUuid: 'project-1',
+                agentUuid: 'agent-1',
+                autoApproveSql: false,
             }),
         );
 

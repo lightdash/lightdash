@@ -2,7 +2,7 @@ import '@testing-library/jest-dom/vitest';
 import { notifyManager } from '@tanstack/react-query';
 import nock from 'nock';
 import nodeFetch from 'node-fetch';
-import { afterEach, beforeAll, beforeEach, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest';
 import mockDocumentFonts from './__mocks__/implementations/documentFonts.mock';
 import mockElementsFromPoint from './__mocks__/implementations/elementsFromPoint.mock';
 import mockMatchMedia from './__mocks__/implementations/matchMedia.mock';
@@ -16,6 +16,9 @@ import ReactMarkdownPreview from './__mocks__/modules/ReactMarkdwnPreview.mock';
 vi.stubGlobal('fetch', nodeFetch);
 
 vi.mock('@uiw/react-markdown-preview', () => ({
+    default: ReactMarkdownPreview,
+}));
+vi.mock('@uiw/react-markdown-preview/nohighlight', () => ({
     default: ReactMarkdownPreview,
 }));
 
@@ -37,6 +40,14 @@ nock.disableNetConnect();
 notifyManager.setNotifyFunction((callback) => {
     if (typeof window === 'undefined') return;
     callback();
+});
+
+// Libraries (e.g. Mantine focus trap) schedule 0ms timers on
+// mount/unmount that touch `document`; flush them before jsdom teardown.
+afterAll(async () => {
+    await new Promise((resolve) => {
+        setTimeout(resolve, 0);
+    });
 });
 
 beforeEach(() => {

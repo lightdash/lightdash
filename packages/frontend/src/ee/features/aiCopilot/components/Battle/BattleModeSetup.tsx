@@ -5,10 +5,10 @@ import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
 
-export type BattleType = 'models' | 'speed';
+export type BattleType = 'models' | 'speed' | 'queryPath';
 
 const isBattleType = (value: string): value is BattleType =>
-    value === 'models' || value === 'speed';
+    value === 'models' || value === 'speed' || value === 'queryPath';
 
 interface Props {
     enabled: boolean;
@@ -16,6 +16,7 @@ interface Props {
     battleType: BattleType;
     onBattleTypeChange: (type: BattleType) => void;
     speedBattleAvailable: boolean;
+    queryPathBattleAvailable: boolean;
     models: AiModelOption[];
     modelAKey: string | null;
     modelBKey: string | null;
@@ -29,6 +30,7 @@ export const BattleModeSetup: FC<Props> = ({
     battleType,
     onBattleTypeChange,
     speedBattleAvailable,
+    queryPathBattleAvailable,
     models,
     modelAKey,
     modelBKey,
@@ -54,7 +56,7 @@ export const BattleModeSetup: FC<Props> = ({
             />
             {enabled && (
                 <Group gap="xs" wrap="nowrap">
-                    {speedBattleAvailable && (
+                    {(speedBattleAvailable || queryPathBattleAvailable) && (
                         <SegmentedControl
                             size="xs"
                             value={battleType}
@@ -63,7 +65,22 @@ export const BattleModeSetup: FC<Props> = ({
                                     onBattleTypeChange(value);
                             }}
                             data={[
-                                { value: 'speed', label: 'Speed features' },
+                                ...(speedBattleAvailable
+                                    ? [
+                                          {
+                                              value: 'speed',
+                                              label: 'Speed features',
+                                          },
+                                      ]
+                                    : []),
+                                ...(queryPathBattleAvailable
+                                    ? [
+                                          {
+                                              value: 'queryPath',
+                                              label: 'Classic vs Composer',
+                                          },
+                                      ]
+                                    : []),
                                 { value: 'models', label: 'Models' },
                             ]}
                         />
@@ -96,9 +113,12 @@ export const BattleModeSetup: FC<Props> = ({
         </Group>
         {enabled && (
             <Text size="xs" c="dimmed" mt={6}>
-                {battleType === 'speed'
-                    ? 'Same prompt and model. A uses the complete JEV fast path; B is the baseline. Replies continue both threads side by side.'
-                    : 'Your prompt is sent to both models in separate threads. Replies continue both sides with timing and token usage.'}
+                {battleType === 'speed' &&
+                    'Same prompt and model. A uses the complete JEV fast path; B is the baseline. Replies continue both threads side by side.'}
+                {battleType === 'queryPath' &&
+                    'Same prompt and model. A answers with the classic query tools; B answers with composer queries. Replies continue both threads side by side.'}
+                {battleType === 'models' &&
+                    'Your prompt is sent to both models in separate threads. Replies continue both sides with timing and token usage.'}
             </Text>
         )}
     </Paper>

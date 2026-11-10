@@ -1,3 +1,4 @@
+import assertUnreachable from '../utils/assertUnreachable';
 import { type QueryExecutionContext } from './analytics';
 import { type UUID } from './api/uuid';
 import {
@@ -17,6 +18,7 @@ import {
 import { type ParametersValuesMap } from './parameters';
 import { type PivotConfiguration } from './pivot';
 import { type QueryHistoryStatus } from './queryHistory';
+import { type ResultColumns } from './results';
 
 /**
  * Discriminator for every query source a project can execute queries against.
@@ -41,7 +43,36 @@ export enum QuerySourceType {
     DUCKDB = 'duckdb',
     /** Durable external tables queried with DuckDB; enterprise only. */
     EXTERNAL = 'external',
+    /**
+     * Python `run(inputs, params)` over previous results, executed in a
+     * sandbox. References expose other queries' results as pandas DataFrames.
+     */
+    PYTHON = 'python',
+    /** A query sent live to an external API, such as HogQL to PostHog. */
+    API = 'api',
 }
+
+/** The external APIs an api query source can call live. */
+export enum ApiConnectorType {
+    POSTHOG = 'posthog',
+    SEARCH_CONSOLE = 'search_console',
+    GA4 = 'ga4',
+    META_ADS = 'meta_ads',
+    GOOGLE_ADS = 'google_ads',
+    YOUTUBE_ANALYTICS = 'youtube_analytics',
+    LINKEDIN_ADS = 'linkedin_ads',
+}
+
+/**
+ * What an api query asks its connector to run. Only `query` exists: a query
+ * in the connector's own language, such as HogQL for PostHog. APIs without a
+ * query language will add another kind rather than change this one.
+ */
+export type ApiSourcePayload = {
+    kind: 'query';
+    /** A query in the connector's language, e.g. HogQL for PostHog. */
+    query: string;
+};
 
 /**
  * A name identifying one query within a multi-query submission. Other queries
@@ -113,6 +144,8 @@ export type SemanticLayerSourceQuery = {
     dimensionOverrides?: DimensionOverrides;
     /** IANA timezone for time dimension bucketing, e.g. "America/New_York". */
     timezone?: string;
+    /** Parameter values for this query, layered over the submission's parameters. */
+    parameters?: ParametersValuesMap;
     /**
      * Pivots this node's result the way a pivoted chart does. Honoured by
      * semanticLayer, sql and duckdb nodes; external nodes refuse it.
@@ -179,6 +212,38 @@ export type DuckdbSourceQuery = {
 };
 
 /**
+ * A python query as a source query: code defining
+ * `run(inputs: dict[str, pandas.DataFrame], params: dict) -> pandas.DataFrame`.
+ * References expose other queries' results as DataFrames in `inputs`, keyed
+ * like DuckDB references expose tables. Referenced queries still running are
+ * waited on; the query fails if any referenced query fails.
+ */
+export type PythonSourceQuery = {
+    sourceType: QuerySourceType.PYTHON;
+    /** Names this query so other queries in the same submission can reference its results. */
+    nodeId?: QueryNodeId;
+    /** Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it. */
+    title?: string;
+    /** One-line note on what this query does, shown under the title. */
+    description?: string;
+    code: string;
+    /** Maximum rows kept from the returned DataFrame. */
+    limit?: number;
+    /**
+     * Which query results the code reads, in the same two forms as duckdb
+     * references. Shorthand array: node ids of queries in the same
+     * submission, each exposed as inputs[nodeId]. Map form for aliasing or
+     * existing results: {inputName: nodeIdOrQueryUuid}. At least one is
+     * required.
+     */
+    references:
+        | QueryNodeId[]
+        | Record<QuerySourceTableName, QueryResultReference>;
+    /** Python queries refuse a pivot; pivot in a referencing duckdb query. */
+    pivotConfiguration?: PivotConfiguration;
+};
+
+/**
  * External table SQL name or UUID.
  * @pattern ^[a-zA-Z0-9_][a-zA-Z0-9_-]{0,63}$
  */
@@ -206,6 +271,27 @@ export type ExternalSourceQuery = {
 };
 
 /**
+ * A query sent live to an external API at question time. Nothing is ingested:
+ * the connector runs the payload and its rows become this node's result.
+ */
+export type ApiSourceQuery = {
+    sourceType: QuerySourceType.API;
+    /** Names this query so other queries in the same submission can reference its results. */
+    nodeId?: QueryNodeId;
+    /** Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it. */
+    title?: string;
+    /** One-line note on what this query does, shown under the title. */
+    description?: string;
+    /** The project connection that runs the payload, such as a PostHog connection. */
+    connectionUuid: string;
+    payload: ApiSourcePayload;
+    /** Max rows to keep. Defaults to the standard query row limit. */
+    limit?: number;
+    /** Api queries refuse a pivot; pivot in a referencing duckdb query. */
+    pivotConfiguration?: PivotConfiguration;
+};
+
+/**
  * The tagged union every submit endpoint takes: one shape per source,
  * discriminated by sourceType. New sources add a member here — this union is
  * the extension point, not new WarehouseTypes values.
@@ -214,7 +300,9 @@ export type SourceQuery =
     | SemanticLayerSourceQuery
     | SqlSourceQuery
     | DuckdbSourceQuery
-    | ExternalSourceQuery;
+    | ExternalSourceQuery
+    | PythonSourceQuery
+    | ApiSourceQuery;
 
 /** A column in a source schema, aligned with ResultColumns' {reference, type}. */
 export type QuerySourceSchemaColumn = {
@@ -283,6 +371,12 @@ export type SourceQueryStatus = {
     queryUuid: UUID;
     status: QueryHistoryStatus;
     error: string | null;
+    /** Rows the query returned; null while unknown, e.g. before it finishes. */
+    totalRowCount: number | null;
+    /** Warehouse run time; null while unknown or not recorded. */
+    warehouseExecutionTimeMs: number | null;
+    /** Result columns; null until the query is ready. */
+    columns: ResultColumns | null;
 };
 
 export type ApiGetSourceQueryStatusResults = {
@@ -296,6 +390,17 @@ export type ApiListQuerySourcesResults = {
 export type ApiScanQuerySourceSchemaResults = QuerySourceSchema;
 
 export const DEFAULT_SOURCE_QUERY_LIMIT = 500;
+/** Nodes one submission may hold. */
+export const MAX_SOURCE_QUERIES_PER_SUBMISSION = 25;
+
+export const getSourceQueryLimit = (query: { limit?: number }): number =>
+    query.limit ?? DEFAULT_SOURCE_QUERY_LIMIT;
+
+/** A node that returned at least its limit of rows reached it, so more rows may exist. */
+export const hasReachedSourceQueryLimit = (
+    query: { limit?: number },
+    rowCount: number,
+): boolean => rowCount >= getSourceQueryLimit(query);
 
 /** The metric query a semanticLayer node runs; unset fields take the empty-query defaults. */
 export const metricQueryOfSemanticNode = (
@@ -314,3 +419,30 @@ export const metricQueryOfSemanticNode = (
     dimensionOverrides: query.dimensionOverrides,
     timezone: query.timezone,
 });
+
+/**
+ * The results a node reads, as {tableOrInputName: nodeIdOrQueryUuid}. The
+ * array shorthand names each result by its own node id. Empty for nodes that
+ * read no other results.
+ */
+export const getSourceQueryResultReferences = (
+    query: SourceQuery,
+): Record<QuerySourceTableName, QueryResultReference> => {
+    switch (query.sourceType) {
+        case QuerySourceType.DUCKDB:
+        case QuerySourceType.PYTHON:
+            if (query.references === undefined) return {};
+            return Array.isArray(query.references)
+                ? Object.fromEntries(
+                      query.references.map((nodeId) => [nodeId, nodeId]),
+                  )
+                : query.references;
+        case QuerySourceType.SEMANTIC_LAYER:
+        case QuerySourceType.SQL:
+        case QuerySourceType.EXTERNAL:
+        case QuerySourceType.API:
+            return {};
+        default:
+            return assertUnreachable(query, 'Unknown source type');
+    }
+};

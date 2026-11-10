@@ -40,9 +40,11 @@ import { formatItemValue } from './utils/formatting';
 import { getItemId, getItemLabelWithoutTableName } from './utils/item';
 import { getOrganizationNameSchema } from './utils/organization';
 import { timeFrameConfigs } from './utils/timeFrames';
+import { validateUserName } from './utils/userName';
 import type { PivotValuesColumn } from './visualizations/types';
 
 dayjs.extend(utc);
+export * from './authorization/agentCapabilityScopes';
 export { getPermissionsFromAbilityRules } from './authorization/abilityPermissions';
 export * from './authorization/buildAccountHelpers';
 export { collapseAbilityRules } from './authorization/collapseAbilityRules';
@@ -75,12 +77,16 @@ export * from './compiler/filtersCompiler';
 export * from './compiler/joinInflation';
 export * from './compiler/lightdashModelConverter';
 export * from './compiler/parameters';
+export * from './compiler/queryParameterReferences';
 export * from './compiler/referenceLookup';
 export * from './compiler/translator';
 export * from './compiler/writebackColumn';
+export * from './parameters/dashboardParameterControls';
 export * from './parameters/dashboardTileParameters';
 export * from './parameters/parameterDefaults';
+export * from './parameters/parameterOptions';
 export * from './parameters/reservedParameters';
+export * from './constants/mobileApp';
 export * from './constants/screenshot';
 export * from './constants/sessionStorageKeys';
 export * from './constants/spaces';
@@ -99,7 +105,7 @@ export * from './pivot/pivotColumnName';
 export * from './pivot/pivotConfig';
 export * from './pivot/pivotQueryResults';
 export * from './pivot/utils';
-export { default as chartAsCodeSchema } from './schemas/json/chart-as-code-1.0.json';
+export * from './schemas/chartAsCodeSchema';
 export * from './types/document';
 export * from './utils/document';
 export * from './utils/documentMarkdown';
@@ -112,6 +118,14 @@ export * from './templating/liquidSql';
 export * from './templating/template';
 export * from './types/account';
 export * from './types/adminNotifications';
+export * from './types/agentIdentity';
+export * from './types/agentConnectionGrants';
+export * from './types/agentConnectionApprovals';
+export * from './types/agentPermissions';
+export * from './types/agentPermissionExplanation';
+export * from './types/agentPermissionRefusalDetails';
+export * from './types/agentCapabilityPolicy';
+export * from './types/aiPrincipal';
 export * from './types/analytics';
 export * from './types/any';
 export * from './types/api';
@@ -126,6 +140,8 @@ export * from './types/api/sort';
 export * from './types/api/spotlight';
 export * from './types/api/success';
 export * from './types/api/uuid';
+export * from './types/apiSourceExplore';
+export * from './types/liveSourceErrors';
 export * from './types/auth';
 export * from './types/bigQuerySSO';
 export * from './types/catalog';
@@ -175,6 +191,8 @@ export * from './types/managedSignIn';
 export * from './types/mergeQuery';
 export * from './types/metricQuery';
 export * from './types/metricsExplorer';
+export * from './types/mobileAppLink';
+export * from './types/mobileSignIn';
 export * from './types/notifications';
 export * from './types/oauth';
 export * from './types/openIdIdentity';
@@ -194,7 +212,6 @@ export * from './types/persistentDownloadFile';
 export * from './types/pinning';
 export * from './types/pivot';
 export * from './types/preAggregate';
-export * from './types/projectCiStatus';
 export * from './types/projectCompileLogs';
 export * from './types/projectGroupAccess';
 export * from './types/projectMemberProfile';
@@ -208,6 +225,8 @@ export {
     DEFAULT_PROJECT_DBT_SOURCE_NAME,
     DbtProjectType,
     DbtVersionOptionLatest,
+    usesAwsWebIdentity,
+    usesBigqueryWorkloadIdentity,
     DefaultSupportedDbtVersion,
     DuckdbConnectionType,
     DucklakeCatalogType,
@@ -221,6 +240,7 @@ export {
     PROJECT_DBT_SOURCE_NAME_MAX_LENGTH,
     PROJECT_DBT_SOURCE_NAME_PATTERN,
     validateProjectDbtSourceName,
+    isAiAdminScopedProjectType,
     isGitProjectType,
     isSafeDbtEnvironmentVariableKey,
     isWarehouseSupportedByDbtVersion,
@@ -242,6 +262,7 @@ export {
     stripDucklakeNestedSensitive,
     SupportedDbtVersions,
     supportsOptionalUserCredentials,
+    USER_CREATABLE_PROJECT_TYPES,
     allowsOptionalUserCredentials,
     WAREHOUSE_TYPES_WITH_OPTIONAL_USER_CREDENTIALS,
     WarehouseTypes,
@@ -355,6 +376,7 @@ export * from './types/roadmap';
 export * from './types/roles';
 export * from './types/savedCharts';
 export * from './types/scheduler';
+export * from './types/semanticStudio';
 export * from './types/schedulerLog';
 export * from './types/schedulerTaskList';
 export * from './types/scopes';
@@ -367,17 +389,21 @@ export * from './types/space';
 export * from './types/spotlightTableConfig';
 export * from './types/sqlRunner';
 export * from './types/SshKeyPair';
+export * from './types/awsWebIdentity';
+export * from './types/bigqueryWorkloadIdentity';
 export * from './types/sshTunnel';
 export * from './types/table';
 export * from './types/tags';
 export * from './types/timeFrames';
 export * from './types/timezone';
 export * from './types/user';
+export { validateUserName } from './utils/userName';
 export * from './types/userAvatars';
 export * from './types/userAttributes';
 export * from './types/userOnboarding';
 export * from './types/learnProgress';
 export * from './types/userWarehouseCredentials';
+export * from './types/personalWarehouseCredentials';
 export * from './types/validation';
 export * from './types/warehouse';
 export * from './types/warehouseConnectionBindings';
@@ -389,10 +415,15 @@ export * from './types/yamlSchema';
 export * from './utils/accessors';
 export * from './utils/additionalMetrics';
 export * from './utils/api';
+export * from './utils/apiSourceQuery';
+export * from './utils/liveSourceIntegrations';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/bigNumber';
+export * from './utils/awsWebIdentity';
+export * from './utils/bigqueryWorkloadIdentity';
 export * from './utils/bigqueryKeyfile';
 export * from './utils/charts';
+export * from './utils/cellUrls';
 export * from './utils/chartValidation';
 export * from './utils/colors';
 export * from './utils/conditionalFormatExpressions';
@@ -402,8 +433,10 @@ export * from './utils/convertCustomDimensionsToYaml';
 export * from './utils/convertCustomMetricsToYaml';
 export * from './utils/customDimensions';
 export * from './utils/dashboard';
+export * from './utils/dashboardControls';
 export * from './utils/dbt';
 export * from './utils/dependencyGraph';
+export * from './utils/egressIps';
 export * from './utils/email';
 export * from './utils/exportTabs';
 export * from './utils/fields';
@@ -416,11 +449,13 @@ export * from './utils/i18n/dashboardAsCode';
 export * from './utils/i18n/merge';
 export * from './utils/i18n/types';
 export * from './utils/i18n/uiStrings';
+export * from './utils/isoDateTime';
 export * from './utils/item';
 export * from './utils/mergeQueryItems';
 export * from './utils/mergeTotals';
 export * from './utils/queryHistoryList';
 export * from './utils/resultColumns';
+export * from './utils/resultsCacheClearSchedule';
 export * from './utils/learnSandbox';
 export * from './utils/learnYamlKeyTypos';
 export * from './utils/loadLightdashProjectConfig';
@@ -429,7 +464,7 @@ export * from './utils/metricsExplorer';
 export * from './utils/normalizeCellRawForFilter';
 export * from './utils/oauth';
 export * from './utils/organization';
-export * from './utils/previewDeployWorkflow';
+export * from './utils/portableSlugs';
 export * from './utils/projectMemberRole';
 export * from './utils/promises';
 export * from './utils/sanitizeHtml';
@@ -437,11 +472,13 @@ export * from './utils/scheduler';
 export * from './utils/searchParams';
 export * from './utils/slack';
 export * from './utils/sleep';
+export * from './utils/stableJson';
 export * from './utils/slugs';
 export * from './utils/sqlDialect';
 export * from './utils/subtotals';
 export * from './utils/dateZoom';
 export * from './utils/tableCalculationFunctions';
+export * from './utils/tableSelection';
 export * from './utils/time';
 export * from './utils/timeFrames';
 export * from './utils/resolveQueryTimezone';
@@ -449,6 +486,7 @@ export * from './utils/externalSourceExplore';
 export * from './utils/virtualView';
 export * from './utils/warehouse';
 export * from './utils/warehouseLocation';
+export * from './utils/queryCostEstimate';
 export * from './utils/warehouseResourceLimits';
 export * from './utils/zodJsonSchema';
 export * from './visualizations/BigNumberDataModel';
@@ -480,8 +518,6 @@ export const validateEmail = (email: string): boolean => {
         /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(String(email).toLowerCase());
 };
-
-export const validateUserName = (name: string): boolean => !/[<>]/u.test(name);
 
 export const getUserNameSchema = () =>
     z.string().trim().min(1, { message: 'Required' }).refine(validateUserName, {
@@ -705,6 +741,8 @@ export const hasSpecialCharacters = (text: string) => /[^a-zA-Z ]/g.test(text);
 
 export const CompleteUserSchema = z.object({
     organizationName: getOrganizationNameSchema().optional(),
+    firstName: getUserNameSchema().optional(),
+    lastName: getUserNameSchema().optional(),
     jobTitle: z.string().min(0),
     // Only collected from the person creating the organization; invited
     // members skip it (their onboarding omits this field from the schema).
@@ -1261,6 +1299,7 @@ export const SPACE_TREE_2: TreeCreateSpace[] = [
 export * from './compiler/compileLightdashModels';
 
 export * from './lightdash/LightdashModelEditor';
+export * from './lightdash/applyModelFragment';
 export * from './lightdash/convertCustomMetricToLightdash';
 export * from './types/analyticsProject';
 export * from './types/recentContent';
@@ -1270,3 +1309,13 @@ export * from './utils/dashboardTilePositions';
 export * from './utils/savedMerge';
 
 export * from './types/sharedSignIn';
+export * from './utils/agentIdentitySetup';
+export * from './types/credentials';
+
+export * from './types/releaseHighlights';
+
+export { getDeferredExploreName } from './dbt/qualifiedName';
+
+export * from './utils/exploreName';
+
+export * from './dbt/validateDbtText';

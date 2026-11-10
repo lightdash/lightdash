@@ -1,11 +1,47 @@
+/* The icon sits in a 28px chip tinted from the alert's own ink colour, so it
+   follows every colour and both schemes without extra configuration. The
+   pale light tone leaves the chip unfilled so it does not outweigh the wash. */
+.icon {
+    width: rem(28px);
+    height: rem(28px);
+    margin-top: 0;
+    margin-inline-end: var(--mantine-spacing-sm);
+    justify-content: center;
+    border-radius: var(--mantine-radius-md);
+    background-color: color-mix(in srgb, var(--alert-color) 6%, transparent);
+    border: 1px solid color-mix(in srgb, var(--alert-color) 8%, transparent);
+}
+
+.root[data-variant='light'] .icon {
+    background-color: transparent;
+}
+
+.body {
+    min-height: rem(28px);
+    justify-content: center;
+    /* The title row is 28px to meet the chip, which already leaves 4px
+       below the title text, so no extra gap is needed. */
+    gap: 0;
+}
+
 .title {
+    min-height: rem(28px);
     font-size: var(--mantine-font-size-sm);
     font-weight: 600;
-    /* Aligns the title with the icon's optical center. */
-    line-height: var(--mantine-line-height-md);
 }
 
 .message {
     font-size: var(--mantine-font-size-sm);
     line-height: var(--mantine-line-height-sm);
+}
+
+/* Only the title and icon carry the semantic colour. The body is dimmed on
+   the pale wash and full ink on the firmer tint. */
+.root[data-variant='light'] .message {
+    color: var(--mantine-color-dimmed);
+}
+
+.root[data-variant='filled'] .message,
+.root[data-variant='outline'] .message {
+    color: var(--mantine-color-text);
 }

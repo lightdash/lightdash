@@ -211,7 +211,7 @@ export class Compaction {
             case 'repository':
                 return `repository ${item.fullName} (mounted at /${item.fullName}; explore it with exploreRepo)`;
             case 'external_source':
-                return `external source ${item.displayName} (${item.tables.length} queryable table${item.tables.length === 1 ? '' : 's'}: ${item.tables.map((table) => `${table.tableName} [${table.tableUuid}]`).join(', ')}; query any subset with an external node in runComposerQueries)`;
+                return `external source ${item.displayName} (${item.tables.length} queryable table${item.tables.length === 1 ? '' : 's'}: ${item.tables.map((table) => `${table.tableName} [${table.tableUuid}]`).join(', ')}; query any subset with an external node in the query tool)`;
             case 'pull_request': {
                 const number = item.prNumber ? ` #${item.prNumber}` : '';
                 return `pull request${number} (${item.status ?? 'open'})${
@@ -230,6 +230,8 @@ export class Compaction {
                     evidence ? `; evidence: ${evidence}` : ''
                 }`;
             }
+            case 'semantic_model':
+                return `semantic model ${item.modelName}${item.fieldName ? `, field ${item.fieldName}` : ''}`;
             case 'preview_environment':
                 return `preview environment${
                     item.projectName ? ` (${item.projectName})` : ''
@@ -240,6 +242,8 @@ export class Compaction {
                 return `Document ${item.displayName ?? item.documentUuid} (${item.documentUuid}; read it with readContent)`;
             case 'data_app_element':
                 return `element reference ${elementReferenceToWireString(item)} in data app ${item.displayName ?? item.appUuid} (${item.appUuid}, version ${item.version}; copy it verbatim into the iterateDataApp brief)`;
+            case 'composer_node':
+                return `pipeline node "${item.title}" (nodeId: ${item.nodeId}) of chart artifact ${item.artifactUuid}, version ${item.versionUuid}`;
             case 'data_app_restore':
                 return `data app ${item.displayName ?? item.appUuid} (${item.appUuid}) restored version ${item.restoredFromVersion} as version ${item.version}`;
             case 'skill':

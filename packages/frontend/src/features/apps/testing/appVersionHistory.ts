@@ -18,5 +18,6 @@ export const appVersion = (
             lastName: 'Jones',
         },
         resources: null,
+        hasThumbnail: false,
         ...overrides,
     }) as ApiAppVersionSummary;

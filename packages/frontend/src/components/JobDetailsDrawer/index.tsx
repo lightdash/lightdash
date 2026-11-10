@@ -13,6 +13,7 @@ import {
     Text,
     Title,
     Drawer,
+    Button,
     type DefaultMantineColor,
 } from '@mantine/core';
 import { useInterval } from '@mantine/hooks';
@@ -20,6 +21,7 @@ import {
     IconAlertTriangle,
     IconAlertTriangleFilled,
     IconCircleCheckFilled,
+    IconDownload,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
@@ -33,7 +35,8 @@ import {
 import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import { CopyActionIcon } from '../common/CopyActionIcon';
 import MantineIcon from '../common/MantineIcon';
-import { NAVBAR_HEIGHT } from '../common/Page/constants';
+import { formatFailedJobLog } from './failedJobLog';
+import classes from './JobDetailsDrawer.module.css';
 import ProjectCompileLog from './ProjectCompileLog';
 
 dayjs.extend(duration);
@@ -147,11 +150,7 @@ const JobDetailsDrawer: FC = () => {
             position="right"
             opened={isJobsDrawerOpen}
             onClose={() => setIsJobsDrawerOpen(false)}
-            styles={{
-                inner: {
-                    paddingTop: NAVBAR_HEIGHT,
-                },
-            }}
+            classNames={{ inner: classes.drawerInner }}
             title={
                 <Group wrap="nowrap" align="center" gap="xs">
                     <DrawerIcon job={activeJob} />
@@ -176,6 +175,33 @@ const JobDetailsDrawer: FC = () => {
             }
         >
             <Stack p="sm">
+                {activeJob.jobStatus === JobStatusType.ERROR && (
+                    <Stack gap="xs">
+                        <Button
+                            variant="default"
+                            size="xs"
+                            leftSection={<MantineIcon icon={IconDownload} />}
+                            onClick={() => {
+                                const url = URL.createObjectURL(
+                                    new Blob([formatFailedJobLog(activeJob)], {
+                                        type: 'text/plain;charset=utf-8',
+                                    }),
+                                );
+                                const link = document.createElement('a');
+                                link.href = url;
+                                link.download = `compilation-${activeJob.jobUuid}.txt`;
+                                link.click();
+                                setTimeout(() => URL.revokeObjectURL(url), 0);
+                            }}
+                        >
+                            Download captured logs
+                        </Button>
+                        <Text size="xs" c="dimmed">
+                            Includes saved errors and captured dbt messages.
+                            Some command output may be unavailable.
+                        </Text>
+                    </Stack>
+                )}
                 {activeJob.steps?.map((step) => (
                     <Alert
                         key={step.jobUuid}
@@ -191,16 +217,7 @@ const JobDetailsDrawer: FC = () => {
                             {step.stepError && (
                                 <Stack
                                     mt="xs"
-                                    pt="xs"
-                                    style={{
-                                        border: '1px solid var(--mantine-color-red-2)',
-                                        borderRadius:
-                                            'var(--mantine-radius-sm)',
-                                        padding: 'var(--mantine-spacing-xs)',
-                                        width: '100%',
-                                        flexShrink: 0,
-                                    }}
-                                    pos="relative"
+                                    className={classes.stepError}
                                     gap="xs"
                                 >
                                     <CopyActionIcon
@@ -222,22 +239,12 @@ const JobDetailsDrawer: FC = () => {
                                     />
                                     <Stack
                                         gap="xs"
-                                        style={{
-                                            maxHeight: '200px',
-                                            overflow: 'auto',
-                                            whiteSpace: 'pre-wrap',
-                                            minWidth: '100%',
-                                            flexGrow: 1,
-                                        }}
+                                        className={classes.stepErrorLogs}
                                     >
                                         <Text
                                             size="xs"
                                             c="red"
-                                            style={{
-                                                width: '100%',
-                                                wordBreak: 'normal',
-                                                overflowWrap: 'break-word',
-                                            }}
+                                            className={classes.stepErrorMessage}
                                         >
                                             {step.stepError}
                                         </Text>
@@ -251,12 +258,9 @@ const JobDetailsDrawer: FC = () => {
                                                     key={log.info.ts}
                                                     size="xs"
                                                     pt="xs"
-                                                    style={{
-                                                        borderTop:
-                                                            '1px solid var(--mantine-color-red-2)',
-                                                        overflowWrap:
-                                                            'break-word',
-                                                    }}
+                                                    className={
+                                                        classes.stepErrorLog
+                                                    }
                                                 >
                                                     {log.info.msg}
                                                 </Text>
