@@ -60,13 +60,13 @@ _group_ (that is `requiredGroupId`).
   (`chooseInsertionPoint` in `insertionPoints.ts`, over `measureBar`'s rects).
   What the drop line shows is where the control lands; there is never more
   than one line and there are no dead zones.
-  - The candidate points are before each item and after a row's last item.
-    "Add filter" is the first slot. The gaps between lines, and up to 40px
-    below the last line, start a new line.
-  - Over a capsule's head, the drop goes before it. Over its trailing actions,
-    after it. Over its members, between them. In a folded or empty capsule,
-    anywhere past the head joins it.
-  - A dragged section sees only outside points and line gaps.
+    - The candidate points are before each item and after a row's last item.
+      "Add filter" is the first slot. The gaps between lines, and up to 40px
+      below the last line, start a new line.
+    - Over a capsule's head, the drop goes before it. Over its trailing actions,
+      after it. Over its members, between them. In a folded or empty capsule,
+      anywhere past the head joins it.
+    - A dragged section sees only outside points and line gaps.
 - The keyboard drag keeps dnd-kit's targets (`underPointerFor`), mapped by
   `placementOf`.
 - Alt+arrows (`BarMoveContext`, `moveControlBy`): Left and Right move one place
