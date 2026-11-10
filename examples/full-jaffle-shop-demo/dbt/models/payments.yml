@@ -47,6 +47,12 @@ models:
             label: Is large card payment
             description: Credit card payments of 20 or more
             sql: ${payment_method} = 'credit_card' AND ${amount} >= 20
+          # References the joined orders table, so it needs orders in the explore
+          is_full_order_payment:
+            type: boolean
+            label: Is full order payment
+            description: The payment covers the whole order amount
+            sql: ${amount} >= ${orders.amount}
     columns:
       - name: payment_id
         description: This is a unique identifier for a payment
