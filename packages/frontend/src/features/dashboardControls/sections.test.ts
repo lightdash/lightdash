@@ -550,6 +550,10 @@ describe('bar order', () => {
             'p1 /S S>p2 S>f1 f2 f3 /f4',
         );
         expect(placeSectionChanges(bar, bar)).toBe(bar);
+        // Several leaving one section keep their order
+        expect(
+            shapeOf(placeSectionChanges(bar, parse('f1 p1 /S f2 p2 f3 /f4'))),
+        ).toBe('f1 p1 /S f2 p2 f3 /f4');
     });
 
     it('treats an empty order as none, and puts never saved parameter controls before the first section', () => {

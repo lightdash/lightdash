@@ -34,7 +34,9 @@ import {
     dashboardParametersActions,
     selectControlOrder,
     selectControlSections,
+    selectHasControlOrderChanged,
     selectHaveControlSectionsChanged,
+    selectOrderedControls,
 } from '../dashboard/store';
 import type * as AddControlModule from './AddControl';
 import type * as FilterEditorModule from './FilterEditor';
@@ -1315,6 +1317,25 @@ describe('SectionedFilters', () => {
             expect(
                 selectControlOrder(store.getState())?.map(({ id }) => id),
             ).toEqual(['loose', 'a', 'one', 'b', 'two', 'c']);
+        });
+
+        it('writes the order when a section is removed keeping its members: where the section was', async () => {
+            const { store } = renderSectioned(
+                [rule('loose', undefined), rule('one', 'a'), rule('two', 'a')],
+                'tab-1',
+            );
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Dates menu' }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Remove section, keep controls',
+                }),
+            );
+            expect(selectHasControlOrderChanged(store.getState())).toBe(true);
+            expect(
+                selectOrderedControls(store.getState()).map(({ id }) => id),
+            ).toEqual(['loose', 'one', 'two', 'b', 'c']);
         });
 
         it('writes nothing for a drop on its own capsule, or on the first button while unsectioned', () => {

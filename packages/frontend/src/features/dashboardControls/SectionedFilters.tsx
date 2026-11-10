@@ -1050,6 +1050,7 @@ export const SectionedFilters: FC<Props> = ({
                           onRemove: () => {
                               // The menu leaves with its capsule
                               focusAfter.current = [ADD_FILTER_SELECTOR];
+                              const before = store.getState();
                               dispatch(
                                   dashboardEditActions.removeControlSection(
                                       section.id,
@@ -1060,6 +1061,7 @@ export const SectionedFilters: FC<Props> = ({
                                   removeSectionFromRules(filters, section.id),
                               );
                               setHaveFiltersChanged(true);
+                              orderSectionChanges(before);
                           },
                       }
             }

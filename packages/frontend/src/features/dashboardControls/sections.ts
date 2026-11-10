@@ -526,13 +526,21 @@ export const moveControlBy = <T extends BarControl>(
 export const placeSectionChanges = <T extends BarControl>(
     before: T[],
     after: BarControl[],
-): T[] =>
-    after.reduce((list, control) => {
+): T[] => {
+    const changed = after.filter((control) => {
         const was = before.find(({ id }) => id === control.id);
-        return was === undefined || was.sectionId === control.sectionId
-            ? list
-            : placeControl(list, control.id, { sectionId: control.sectionId });
-    }, before);
+        return was !== undefined && was.sectionId !== control.sectionId;
+    });
+    // Leavers each go right after the section: placed last first, they keep their order
+    return [
+        ...changed.filter(({ sectionId }) => sectionId !== null),
+        ...changed.filter(({ sectionId }) => sectionId === null).reverse(),
+    ].reduce(
+        (list, control) =>
+            placeControl(list, control.id, { sectionId: control.sectionId }),
+        before,
+    );
+};
 
 /** The order as stored: every control, `newLine` only when true */
 export const toControlRefs = (list: BarControl[]): DashboardControlRef[] =>

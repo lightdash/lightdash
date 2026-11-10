@@ -370,8 +370,21 @@ const Dashboard: FC = () => {
         (updatedDashboard: IDashboard) => {
             setDashboardTiles(updatedDashboard.tiles);
             setDashboardTabs(updatedDashboard.tabs);
+            // The order as saved (reconciled), not the editor's draft of it
+            dashboardDispatch(
+                dashboardEditActions.setHasControlOrderChanged(false),
+            );
+            dashboardDispatch(
+                dashboardEditActions.syncControlOrder(
+                    isDashboardControlOrder(
+                        updatedDashboard.config?.controlOrder,
+                    )
+                        ? updatedDashboard.config.controlOrder
+                        : undefined,
+                ),
+            );
         },
-        [setDashboardTiles, setDashboardTabs],
+        [setDashboardTiles, setDashboardTabs, dashboardDispatch],
     );
 
     const {
