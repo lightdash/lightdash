@@ -105,6 +105,7 @@ import Roadmap from '../ee/pages/Roadmap';
 import { AgentIdentitySettingsPage } from '../features/aiAccess/AgentIdentitySettingsPage';
 import { getAgentSettingsAccess } from '../features/aiAccess/agentSettingsAccess';
 import { DataAppAiAnalysisSettingsPage } from '../features/apps/analysis/settings/DataAppAiAnalysisSettingsPage';
+import { AI_ANALYSIS_SETTINGS_PATH } from '../features/apps/analysis/useDataAppAnalysisAvailability';
 import { DataAppGeneralSettingsPage } from '../features/apps/settings/DataAppGeneralSettingsPage';
 import { getDataAppsSettingsLanding } from '../features/apps/settings/dataAppsSettingsLanding';
 import { DataAppActivitySettingsPage } from '../features/dataAppActivity/components/DataAppActivitySettingsPage';
@@ -539,17 +540,23 @@ const Settings: FC = () => {
 
         // The AI-analysis page hosts the consent toggle that data-app and
         // dashboard analysis share, so it opens wherever AI is available.
-        {
-            const canManageOrganization =
-                user?.ability.can('manage', 'Organization') ?? false;
-            const canManageAiAnalysis =
-                canManageOrganization && isAiCopilotEnabledOrTrial;
-            if (canManageAiAnalysis) {
-                allowedRoutes.push({
-                    path: '/dataApps/aiAnalysis',
+        if (
+            isAiCopilotEnabledOrTrial &&
+            user?.ability.can('manage', 'Organization')
+        ) {
+            allowedRoutes.push(
+                {
+                    path: '/ai/analysis',
                     element: <DataAppAiAnalysisSettingsPage />,
-                });
-            }
+                },
+                // Old location, still linked from docs.
+                {
+                    path: '/dataApps/aiAnalysis',
+                    element: (
+                        <Navigate to={AI_ANALYSIS_SETTINGS_PATH} replace />
+                    ),
+                },
+            );
         }
 
         if (dataAppsFlag?.enabled) {

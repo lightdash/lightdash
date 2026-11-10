@@ -131,10 +131,7 @@ describe('LauncherAnalysisPanel unavailable states', () => {
         const link = await screen.findByRole('link', {
             name: 'Turn it on in settings',
         });
-        expect(link).toHaveAttribute(
-            'href',
-            '/generalSettings/dataApps/aiAnalysis',
-        );
+        expect(link).toHaveAttribute('href', '/generalSettings/ai/analysis');
         expect(screen.queryByText('Analyse this view')).toBeNull();
     });
 

@@ -27,6 +27,7 @@ const DEFAULT_SETTINGS = {
 };
 
 const {
+    aiSettings,
     health,
     mutationState,
     refetchSettings,
@@ -46,6 +47,12 @@ const {
     };
 
     return {
+        aiSettings: {
+            current: { isCopilotEnabled: true, isTrial: false } as {
+                isCopilotEnabled: boolean;
+                isTrial: boolean;
+            },
+        },
         health: { capturesEnabledOnInstance: true },
         mutationState: { isLoading: false },
         refetchSettings: vi.fn(),
@@ -64,6 +71,13 @@ vi.mock('../../../hooks/organization/useOrganizationSettings', () => ({
         isLoading: mutationState.isLoading,
     }),
 }));
+
+vi.mock(
+    '../../../ee/features/aiCopilot/hooks/useAiOrganizationSettings',
+    () => ({
+        useAiOrganizationSettings: () => ({ data: aiSettings.current }),
+    }),
+);
 
 vi.mock('../../../hooks/health/useHealth', () => ({
     default: () => ({
@@ -232,5 +246,35 @@ describe('DataAppGeneralSettingsPage', () => {
         await user.click(screen.getByRole('button', { name: 'Try again' }));
 
         expect(refetchSettings).toHaveBeenCalledOnce();
+    });
+});
+
+describe('AI analysis link', () => {
+    beforeEach(() => {
+        settingsQuery.current = {
+            data: DEFAULT_SETTINGS,
+            isInitialLoading: false,
+            isError: false,
+            error: undefined,
+        };
+    });
+
+    it.each([
+        ['AI enabled', { isCopilotEnabled: true, isTrial: false }],
+        ['AI trial', { isCopilotEnabled: false, isTrial: true }],
+    ])('links to the AI analysis settings with %s', (_, current) => {
+        aiSettings.current = current;
+        renderPage();
+        expect(
+            screen.getByRole('link', { name: 'Ask AI · AI analysis' }),
+        ).toHaveAttribute('href', '/generalSettings/ai/analysis');
+    });
+
+    it('hides the link without AI, where the page does not exist', () => {
+        aiSettings.current = { isCopilotEnabled: false, isTrial: false };
+        renderPage();
+        expect(
+            screen.queryByRole('link', { name: 'Ask AI · AI analysis' }),
+        ).not.toBeInTheDocument();
     });
 });
