@@ -409,7 +409,6 @@ describe('ParameterPills', () => {
                 definitions: parameterDefinitions,
                 tileParameterReferences: references,
                 parameterOrder: [],
-                parameterSections: {},
                 userParameterNames: Object.keys(parameterDefinitions),
             });
             setup({ controls: filled, references, parameterDefinitions });

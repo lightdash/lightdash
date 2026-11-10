@@ -282,7 +282,10 @@ describe('tile selectors', () => {
         it('keeps staged sections over a seed', () => {
             const edited = reducer(
                 initialDashboardEditState,
-                actions.addControlSection(sections[0]),
+                actions.addControlSection({
+                    section: sections[0],
+                    barOrder: [],
+                }),
             );
             expect(edited.haveControlSectionsChanged).toBe(true);
             const state = reducer(
@@ -300,33 +303,64 @@ describe('tile selectors', () => {
             ).toBe(sections);
         });
 
-        it('appends a section after the others, marking the change', () => {
-            const seeded = reducer(
-                initialDashboardEditState,
-                actions.syncControlSections(sections),
-            );
-            const state = reducer(
-                seeded,
-                actions.addControlSection({ id: 'c', name: 'New' }),
-            );
-            expect(state.controlSections.map((s) => s.id)).toEqual([
-                'a',
-                'b',
-                'c',
-            ]);
-            expect(state.controlSections.at(-1)?.inline).toBe(true);
-            expect(state.haveControlSectionsChanged).toBe(true);
-            // A stored order places it; `inline` would only mislabel it
-            const ordered = reducer(
+        describe('adding a section', () => {
+            const { FILTER, SECTION } = DashboardControlRefKind;
+            const added = { id: 'c', name: 'New' };
+            const barOrder = [
+                { kind: FILTER, id: 'f' },
+                { kind: SECTION, id: 'a', newLine: true },
+                { kind: SECTION, id: 'b', newLine: true },
+            ];
+            const seeded = () =>
                 reducer(
-                    seeded,
-                    actions.syncControlOrder([
-                        { kind: DashboardControlRefKind.SECTION, id: 'a' },
-                    ]),
-                ),
-                actions.addControlSection({ id: 'c', name: 'New' }),
-            );
-            expect(ordered.controlSections.at(-1)).not.toHaveProperty('inline');
+                    initialDashboardEditState,
+                    actions.syncControlSections(sections),
+                );
+
+            it('stores no order for the first section', () => {
+                const state = reducer(
+                    initialDashboardEditState,
+                    actions.addControlSection({ section: added, barOrder: [] }),
+                );
+                expect(state.controlSections).toEqual([added]);
+                expect(state.haveControlSectionsChanged).toBe(true);
+                expect(state.controlOrder).toBeUndefined();
+                expect(state.hasControlOrderChanged).toBe(false);
+            });
+
+            it('stores the bar order with it on the line of the section before, without a stored order', () => {
+                const state = reducer(
+                    seeded(),
+                    actions.addControlSection({ section: added, barOrder }),
+                );
+                expect(state.controlSections.map((s) => s.id)).toEqual([
+                    'a',
+                    'b',
+                    'c',
+                ]);
+                expect(state.controlSections.at(-1)).toEqual(added);
+                expect(state.haveControlSectionsChanged).toBe(true);
+                expect(state.controlOrder).toEqual([
+                    ...barOrder,
+                    { kind: SECTION, id: 'c' },
+                ]);
+                expect(state.hasControlOrderChanged).toBe(true);
+            });
+
+            it('keeps a stored order, which places it at the end', () => {
+                const stored = [{ kind: SECTION, id: 'a' }];
+                const withOrder = reducer(
+                    seeded(),
+                    actions.syncControlOrder(stored),
+                );
+                const state = reducer(
+                    withOrder,
+                    actions.addControlSection({ section: added, barOrder }),
+                );
+                expect(state.controlSections.at(-1)).toEqual(added);
+                expect(state.controlOrder).toBe(stored);
+                expect(state.hasControlOrderChanged).toBe(false);
+            });
         });
 
         it('renames and removes a section, marking the change', () => {

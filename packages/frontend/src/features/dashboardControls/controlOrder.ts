@@ -1,60 +1,9 @@
 import {
     DashboardControlRefKind,
     type DashboardControlRef,
-    type DashboardControlSection,
     type DashboardParameterControl,
 } from '@lightdash/common';
 import { sortBy } from 'es-toolkit/compat';
-
-/**
- * The bar's section lines, in order: a section starts a line unless it is
- * `inline`, then it shares the line of the section before it. The first
- * section always starts one
- */
-export const groupSectionsIntoLines = <T extends DashboardControlSection>(
-    sections: T[],
-): T[][] =>
-    sections.reduce<T[][]>((lines, section) => {
-        const last = lines.at(-1);
-        if (section.inline && last !== undefined) last.push(section);
-        else lines.push([section]);
-        return lines;
-    }, []);
-
-/** Writes `inline` only where it is true, and never on a line's first section */
-const withLineKeys = (
-    section: DashboardControlSection,
-    inline: boolean,
-): DashboardControlSection => {
-    const { inline: previous, ...rest } = section;
-    return inline ? { ...rest, inline: true } : rest;
-};
-
-const normaliseLines = (
-    sections: DashboardControlSection[],
-): DashboardControlSection[] =>
-    sections.map((section, index) =>
-        withLineKeys(section, index > 0 && section.inline === true),
-    );
-
-/** Takes a section out; the section after it keeps its line's start */
-export const removeSectionKeepingLines = (
-    sections: DashboardControlSection[],
-    id: string,
-): DashboardControlSection[] => {
-    const index = sections.findIndex((section) => section.id === id);
-    if (index === -1) return sections;
-    const removed = sections[index];
-    return normaliseLines(
-        sections.flatMap((section, i) => {
-            if (i === index) return [];
-            // It started a line: the next one, sharing it, starts it now
-            if (i === index + 1 && !removed.inline)
-                return [withLineKeys(section, false)];
-            return [section];
-        }),
-    );
-};
 
 /** A control on the bar, as `reconcileDashboardControlOrder` lists it */
 export type BarControl = {

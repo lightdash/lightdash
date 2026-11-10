@@ -6,7 +6,7 @@ import {
 import dashboardAsCodeSchema from './json/dashboard-as-code-1.0.json';
 
 describe('generateDashboardAsCodeSchema', () => {
-    test('section uploads accept legacy IDs and portable slugs with complete object schemas', () => {
+    test('section uploads accept portable and name-derived slugs with complete object schemas', () => {
         const ajv = new Ajv({ strict: false, validateFormats: false });
         const validate = ajv.compile(dashboardAsCodeSchema);
         const dashboard = {
@@ -18,7 +18,7 @@ describe('generateDashboardAsCodeSchema', () => {
             tabs: [],
         };
         for (const section of [
-            { id: 'legacy-id', name: 'Section' },
+            { name: 'Section' },
             { slug: 'section', name: 'Section' },
         ]) {
             expect(
@@ -42,15 +42,6 @@ describe('generateDashboardAsCodeSchema', () => {
                 }),
             ).toBe(true);
         }
-        expect(
-            validate({
-                ...dashboard,
-                config: {
-                    isDateZoomDisabled: false,
-                    parameterSectionSlugs: { currency: 42 },
-                },
-            }),
-        ).toBe(false);
         expect(
             validate({
                 ...dashboard,

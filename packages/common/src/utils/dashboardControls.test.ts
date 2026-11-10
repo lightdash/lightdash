@@ -414,23 +414,23 @@ describe('reconcileDashboardControlOrder lines', () => {
         reconcileDashboardControlOrder(input)
             .filter(({ newLine }) => newLine)
             .map(({ kind, id }) => `${kind}:${id}`);
-    const inlineSections = sources({
+    const threeSections = sources({
         filters: { dimensions: [rule('d1', { sectionId: 's1' })], metrics: [] },
-        sections: [
-            section('s1'),
-            { ...section('s2'), inline: true },
-            section('s3'),
-        ],
+        sections: [section('s1'), section('s2'), section('s3')],
     });
 
-    it('starts the first section and each non-inline one on a line when there is no list', () => {
-        expect(lines(inlineSections)).toEqual(['section:s1', 'section:s3']);
+    it('starts every section on a line when there is no list', () => {
+        expect(lines(threeSections)).toEqual([
+            'section:s1',
+            'section:s2',
+            'section:s3',
+        ]);
     });
 
     it('takes line starts from the list and puts unmentioned controls inline', () => {
         expect(
             lines({
-                ...inlineSections,
+                ...threeSections,
                 controlOrder: [
                     ref(SECTION, 's1'),
                     { ...ref(SECTION, 's2'), newLine: true },
@@ -442,7 +442,7 @@ describe('reconcileDashboardControlOrder lines', () => {
     it('ignores line starts inside a section', () => {
         expect(
             lines({
-                ...inlineSections,
+                ...threeSections,
                 controlOrder: [
                     ref(SECTION, 's1'),
                     { ...ref(FILTER, 'd1'), newLine: true },
@@ -454,7 +454,7 @@ describe('reconcileDashboardControlOrder lines', () => {
     it("passes a dropped ref's line start to the next bar control", () => {
         expect(
             lines({
-                ...inlineSections,
+                ...threeSections,
                 controlOrder: [
                     ref(SECTION, 's1'),
                     { ...ref(SECTION, 'gone'), newLine: true },
@@ -468,7 +468,7 @@ describe('reconcileDashboardControlOrder lines', () => {
     it("passes a section member's line start to the next bar control", () => {
         expect(
             lines({
-                ...inlineSections,
+                ...threeSections,
                 controlOrder: [
                     ref(SECTION, 's1'),
                     { ...ref(FILTER, 'd1'), newLine: true },
@@ -481,10 +481,11 @@ describe('reconcileDashboardControlOrder lines', () => {
 
     it('uses the default lines when every stored ref dangles or the list is empty', () => {
         expect(
-            lines({ ...inlineSections, controlOrder: [ref(SECTION, 'gone')] }),
-        ).toEqual(['section:s1', 'section:s3']);
-        expect(lines({ ...inlineSections, controlOrder: [] })).toEqual([
+            lines({ ...threeSections, controlOrder: [ref(SECTION, 'gone')] }),
+        ).toEqual(['section:s1', 'section:s2', 'section:s3']);
+        expect(lines({ ...threeSections, controlOrder: [] })).toEqual([
             'section:s1',
+            'section:s2',
             'section:s3',
         ]);
     });

@@ -14,7 +14,7 @@ import {
     type DateGranularity,
     type DateZoomConfig,
 } from '@lightdash/common';
-import { isEqual } from 'es-toolkit/compat';
+import { isEqual, pick } from 'es-toolkit/compat';
 import {
     applyParameterPicks,
     type ParameterPicks,
@@ -97,11 +97,11 @@ export const buildDashboardConfig = ({
         requiredFiltersNote: requiredFiltersNote || undefined,
         // Staged edits win; otherwise carry the persisted registry forward.
         customMetrics: stagedCustomMetrics ?? existingConfig?.customMetrics,
-        controlSections: haveControlSectionsChanged
+        // Picks the read keys, so keys no longer read (`inline`) drop on save
+        controlSections: (haveControlSectionsChanged
             ? controlSections
-            : existingConfig?.controlSections,
-        // No editor yet: carried forward as loaded
-        parameterSections: existingConfig?.parameterSections,
+            : existingConfig?.controlSections
+        )?.map((section) => pick(section, ['id', 'name', 'slug', 'collapsed'])),
         parameterControls:
             parameterControlsToSave ?? existingConfig?.parameterControls,
         // Else carried forward as loaded; a malformed stored order is omitted so the save validates

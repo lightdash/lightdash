@@ -147,23 +147,32 @@ describe('buildDashboardConfig', () => {
         expect(result.dateZoomConfig).toEqual(existingConfig.dateZoomConfig);
     });
 
-    it('carries control sections and parameter sections through a save', () => {
-        const existingConfig: DashboardConfig = {
+    it('carries control sections through a save and drops keys no longer read', () => {
+        const section = { id: 's1', name: 'Dates', collapsed: true };
+        // Stored by earlier versions; nothing reads them now
+        const storedSection = { ...section, inline: true };
+        const existingConfig = {
             isDateZoomDisabled: false,
-            controlSections: [{ id: 's1', name: 'Dates', collapsed: true }],
+            controlSections: [storedSection],
             parameterSections: { region: 's1' },
-        };
+        } as DashboardConfig;
         const result = buildDashboardConfig({
             ...baseArgs,
             existingConfig,
             isDateZoomDisabled: true,
         });
 
-        expect(result.controlSections).toEqual(existingConfig.controlSections);
-        expect(result.parameterSections).toEqual(
-            existingConfig.parameterSections,
-        );
+        expect(result.controlSections).toEqual([section]);
+        expect(result).not.toHaveProperty('parameterSections');
         expect(result.isDateZoomDisabled).toBe(true);
+        expect(
+            buildDashboardConfig({
+                ...baseArgs,
+                existingConfig,
+                controlSections: [storedSection],
+                haveControlSectionsChanged: true,
+            }).controlSections,
+        ).toEqual([section]);
     });
 
     it('replaces changed values instead of carrying the old ones', () => {
@@ -195,7 +204,6 @@ describe('buildDashboardConfig', () => {
             requiredFiltersNote: true,
             customMetrics: true,
             controlSections: true,
-            parameterSections: true,
             parameterControls: true,
             controlOrder: true,
         };
@@ -306,7 +314,7 @@ describe('buildDashboardConfig', () => {
             haveControlSectionsChanged: true,
         });
 
-        expect(result.controlSections).toBe(controlSections);
+        expect(result.controlSections).toEqual(controlSections);
     });
 });
 
@@ -570,7 +578,7 @@ describe('getControlsToSave', () => {
         values: [],
         ...(sectionId !== undefined && { sectionId }),
     });
-    const controlSections = [{ id: 's', name: 'Section', inline: true }];
+    const controlSections = [{ id: 's', name: 'Section' }];
     // Never saved: filled from the tiles, ids made on this load
     const parameterInputs = {
         parameterControls: twoKeyList('EU', null),

@@ -94,23 +94,6 @@ describe('getSectionChangeRows', () => {
         ]);
     });
 
-    it('shows a section moved onto the line before', () => {
-        expect(rows(side([a, b]), side([a, { ...b, inline: true }]))).toEqual([
-            {
-                key: 'section:b',
-                current: '"Time", position 2',
-                selected:
-                    '"Time", position 2, on the line of the section before',
-            },
-        ]);
-    });
-
-    it('reads an inline first section as starting its line', () => {
-        expect(rows(side([a, b]), side([{ ...a, inline: true }, b]))).toEqual(
-            [],
-        );
-    });
-
     const members = (count: number, sectionId: string) =>
         Array.from({ length: count }, (_, i) => rule(`m${i}`, sectionId));
 
