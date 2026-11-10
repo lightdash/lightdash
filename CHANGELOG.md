@@ -1,3 +1,14 @@
+## [3.203.1](https://github.com/lightdash/lightdash/compare/3.203.0...3.203.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **dashboards-as-code:** say how to fix bad section references ([#32345](https://github.com/lightdash/lightdash/issues/32345)) ([6999451](https://github.com/lightdash/lightdash/commit/6999451943c836a04f88db49dcff2d5787445d66))
+* **semantic-studio:** cap the rows a draft's key checks read ([#32335](https://github.com/lightdash/lightdash/issues/32335)) ([1807fef](https://github.com/lightdash/lightdash/commit/1807fef7da9e28d4d2b02d0939f4af0734abed26))
+* **semantic-studio:** check a drafted model against the warehouse catalog first ([#32344](https://github.com/lightdash/lightdash/issues/32344)) ([ca58bc2](https://github.com/lightdash/lightdash/commit/ca58bc29e7040c2e4af4716f433e5816a89db7d7))
+* **semantic-studio:** run Studio threads on a stronger model when nobody picked one ([#32347](https://github.com/lightdash/lightdash/issues/32347)) ([7dc7993](https://github.com/lightdash/lightdash/commit/7dc7993a0d7b43b68c043197536e1f7640987322))
+* **semantic-studio:** show a proposal's problems under the model they are about ([#32336](https://github.com/lightdash/lightdash/issues/32336)) ([9999251](https://github.com/lightdash/lightdash/commit/99992516cfc86c584259655adb93ea25651348af))
+
 # [3.203.0](https://github.com/lightdash/lightdash/compare/3.202.0...3.203.0) (2026-11-10)
 
 
