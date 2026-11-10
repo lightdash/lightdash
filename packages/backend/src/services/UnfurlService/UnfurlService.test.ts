@@ -66,15 +66,6 @@ vi.mock('playwright', () => {
     };
 });
 
-const obscureMocks = vi.hoisted(() => ({
-    obscureThumbnailImage: vi.fn(),
-}));
-
-vi.mock('./obscureThumbnail', async (importOriginal) => ({
-    ...(await importOriginal<typeof import('./obscureThumbnail')>()),
-    obscureThumbnailImage: obscureMocks.obscureThumbnailImage,
-}));
-
 vi.mock('../../utils/ssrfProtection', () => ({
     validatePublicHttpUrl: ssrfMocks.validatePublicHttpUrl,
 }));
@@ -718,133 +709,25 @@ describe('UnfurlService', () => {
                 await exportAndGetRenderedUrl({ ...EXPORT_ARGS, version: 3 }),
             ).toBe(`${MINIMAL_APP_URL}?version=3`);
         });
-    });
 
-    describe('captureDataAppVersion', () => {
-        const CAPTURE_ARGS = {
-            projectUuid: '11111111-1111-4111-8111-111111111111',
-            appUuid: '22222222-2222-4222-8222-222222222222',
-            appName: 'Revenue app',
-            authUserUuid: '33333333-3333-4333-8333-333333333333',
-            organizationUuid: '44444444-4444-4444-8444-444444444444',
-            version: 3,
-        };
-        const neverSignalsReady = async (selector: string) => {
-            if (selector === SCREENSHOT_SELECTORS.READY_INDICATOR) {
-                throw new Error('Ready indicator never appeared');
-            }
-        };
-
-        beforeEach(() => {
-            obscureMocks.obscureThumbnailImage.mockImplementation(
-                async (png: Buffer) =>
-                    Buffer.concat([Buffer.from('blurred:'), png]),
+        it('returns an image for an app that never signals it rendered', async () => {
+            const { service, page } = setupScreenshot();
+            page.waitForSelector.mockImplementation(
+                async (selector: string) => {
+                    if (selector === SCREENSHOT_SELECTORS.READY_INDICATOR) {
+                        throw new Error('Ready indicator never appeared');
+                    }
+                },
             );
-        });
-
-        it('returns a blurred image of the requested version', async () => {
-            const { service, page } = setupScreenshot();
-
-            const image = await service.captureDataAppVersion(CAPTURE_ARGS);
-
-            expect(obscureMocks.obscureThumbnailImage).toHaveBeenCalledWith(
-                Buffer.from('png-bytes'),
-            );
-            expect(image).toEqual(Buffer.from('blurred:png-bytes'));
-            expect(page.goto.mock.calls[0][0]).toBe(
-                `http://headless-browser:8080/minimal/projects/${CAPTURE_ARGS.projectUuid}/apps/${CAPTURE_ARGS.appUuid}?version=3`,
-            );
-        });
-
-        it('fails when the version never signals that it rendered', async () => {
-            const { service, page } = setupScreenshot();
-            page.waitForSelector.mockImplementation(neverSignalsReady);
-
-            await expect(
-                service.captureDataAppVersion(CAPTURE_ARGS),
-            ).rejects.toThrow();
-        });
-
-        it('obscures the text of every frame before the screenshot', async () => {
-            const { service, page } = setupScreenshot();
-
-            await service.captureDataAppVersion(CAPTURE_ARGS);
-
-            const screenshotAt = page.screenshot.mock.invocationCallOrder[0];
-            page.appFrames.forEach((frame) => {
-                expect(frame.addStyleTag).toHaveBeenCalledWith({
-                    content: expect.stringContaining(
-                        '-webkit-text-fill-color: transparent',
-                    ),
-                });
-                expect(
-                    frame.addStyleTag.mock.invocationCallOrder[0],
-                ).toBeLessThan(screenshotAt);
-                expect(frame.evaluate.mock.invocationCallOrder[0]).toBeLessThan(
-                    screenshotAt,
-                );
-            });
-        });
-
-        it('fails when a frame does not confirm its text is hidden', async () => {
-            const { service, page } = setupScreenshot();
-            page.appFrames[1].evaluate.mockResolvedValue('rgb(0, 0, 0)');
-
-            await expect(
-                service.captureDataAppVersion(CAPTURE_ARGS),
-            ).rejects.toThrow();
-            expect(obscureMocks.obscureThumbnailImage).not.toHaveBeenCalled();
-        });
-
-        it('fails when the stylesheet cannot be added to a frame', async () => {
-            const { service, page } = setupScreenshot();
-            page.appFrames[0].addStyleTag.mockRejectedValue(
-                new Error('Frame was detached'),
-            );
-
-            await expect(
-                service.captureDataAppVersion(CAPTURE_ARGS),
-            ).rejects.toThrow();
-            expect(obscureMocks.obscureThumbnailImage).not.toHaveBeenCalled();
-        });
-
-        it('leaves exportDataApp returning an image for an app that never signals', async () => {
-            const { service, page } = setupScreenshot();
-            page.waitForSelector.mockImplementation(neverSignalsReady);
             mockFileStorageClient.isEnabled.mockReturnValue(true);
             mockFileStorageClient.uploadImage.mockResolvedValue(
                 'https://s3.example.com/raw-signed-url',
             );
             mockSlackUnfurlImageModel.create.mockResolvedValue(undefined);
 
-            const { version, ...exportArgs } = CAPTURE_ARGS;
-            const result = await service.exportDataApp({
-                ...exportArgs,
-                context: ScreenshotContext.SLACK,
-            });
+            const result = await service.exportDataApp(EXPORT_ARGS);
 
             expect(result.imageBuffer).toEqual(Buffer.from('png-bytes'));
-        });
-
-        it('leaves exportDataApp images unobscured', async () => {
-            const { service, page } = setupScreenshot();
-            mockFileStorageClient.isEnabled.mockReturnValue(true);
-            mockFileStorageClient.uploadImage.mockResolvedValue(
-                'https://s3.example.com/raw-signed-url',
-            );
-            mockSlackUnfurlImageModel.create.mockResolvedValue(undefined);
-
-            const { version, ...exportArgs } = CAPTURE_ARGS;
-            const result = await service.exportDataApp({
-                ...exportArgs,
-                context: ScreenshotContext.SLACK,
-            });
-
-            expect(result.imageBuffer).toEqual(Buffer.from('png-bytes'));
-            page.appFrames.forEach((frame) => {
-                expect(frame.addStyleTag).not.toHaveBeenCalled();
-            });
-            expect(obscureMocks.obscureThumbnailImage).not.toHaveBeenCalled();
         });
     });
 

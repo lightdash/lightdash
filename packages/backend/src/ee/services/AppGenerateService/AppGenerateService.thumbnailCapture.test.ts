@@ -1,11 +1,5 @@
-import {
-    type AppCaptureThumbnailJobPayload,
-    type AppGeneratePipelineJobPayload,
-} from '@lightdash/common';
-import {
-    buildAppThumbnailClientMock,
-    featureFlagModelWith,
-} from '../../clients/AppThumbnailClient.mock';
+import { type AppGeneratePipelineJobPayload } from '@lightdash/common';
+import { buildAppThumbnailClientMock } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -32,26 +26,19 @@ const makePayload = (): AppGeneratePipelineJobPayload => ({
     isIteration: true,
 });
 
-function buildService({
-    headlessBrowserConfigured = true,
-    cancelledBeforeReady = false,
-    queueIsDown = false,
-    automaticThumbnailsFlagOn = true,
-}: {
-    automaticThumbnailsFlagOn?: boolean;
-    headlessBrowserConfigured?: boolean;
-    cancelledBeforeReady?: boolean;
-    queueIsDown?: boolean;
-} = {}) {
+function buildService() {
     const statuses: string[] = [];
-    const queuedCaptures: AppCaptureThumbnailJobPayload[] = [];
-    const appCaptureThumbnail = async (
-        payload: AppCaptureThumbnailJobPayload,
-    ) => {
-        if (queueIsDown) throw new Error('Queue unavailable');
-        queuedCaptures.push(payload);
-        return { jobId: 'job-1' };
-    };
+    // Every job the pipeline enqueues, by scheduler method name.
+    const enqueuedJobs: string[] = [];
+    const schedulerClient = new Proxy(
+        {},
+        {
+            get: (_target, method) => async () => {
+                enqueuedJobs.push(String(method));
+                return { jobId: 'job-1' };
+            },
+        },
+    );
     const track = vi.fn();
     const appModel = {
         getApp: vi.fn().mockResolvedValue({
@@ -80,7 +67,6 @@ function buildService({
         updateVersionStatusIfInProgress: vi
             .fn()
             .mockImplementation(async (_app: string, _v: number, status) => {
-                if (status === 'ready' && cancelledBeforeReady) return false;
                 statuses.push(status);
                 return true;
             }),
@@ -130,7 +116,7 @@ function buildService({
         projectParametersModel: {} as never,
         spaceModel: {} as never,
         savedChartModel: {} as never,
-        schedulerClient: { appCaptureThumbnail } as never,
+        schedulerClient: schedulerClient as never,
         savedChartService: {} as never,
         spacePermissionService: {} as never,
         coderService: {} as never,
@@ -143,12 +129,7 @@ function buildService({
         orgAiCopilotConfigResolver: {} as never,
         sandboxManager: null,
         appRuntimeS3: null,
-        appThumbnailClient: buildAppThumbnailClientMock({
-            headlessBrowserConfigured,
-            featureFlagModel: featureFlagModelWith(
-                () => automaticThumbnailsFlagOn,
-            ),
-        }),
+        appThumbnailClient: buildAppThumbnailClientMock(),
         chartRegistryClient: {} as never,
         contentVerificationModel: {} as never,
     });
@@ -222,65 +203,17 @@ function buildService({
             0,
         );
 
-    return { runStages, statuses, queuedCaptures };
+    return { runStages, statuses, enqueuedJobs };
 }
 
-describe('AppGenerateService thumbnail capture after a build', () => {
-    it('queues a capture of the version once its build is ready', async () => {
-        const { runStages, statuses, queuedCaptures } = buildService();
-
-        await runStages();
-
-        expect(statuses.at(-1)).toBe('ready');
-        expect(queuedCaptures).toEqual([
-            {
-                appUuid: APP_UUID,
-                version: VERSION,
-                projectUuid: 'proj-uuid-1',
-                organizationUuid: 'org-uuid-1',
-                userUuid: 'user-uuid-1',
-            },
-        ]);
-    });
-
-    it('queues nothing when no headless browser is configured', async () => {
-        const { runStages, statuses, queuedCaptures } = buildService({
-            headlessBrowserConfigured: false,
-        });
-
-        await runStages();
-
-        expect(statuses.at(-1)).toBe('ready');
-        expect(queuedCaptures).toEqual([]);
-    });
-
-    it('queues nothing when the automatic thumbnails flag is off for the organization', async () => {
-        const { runStages, statuses, queuedCaptures } = buildService({
-            automaticThumbnailsFlagOn: false,
-        });
-
-        await runStages();
-
-        expect(statuses.at(-1)).toBe('ready');
-        expect(queuedCaptures).toEqual([]);
-    });
-
-    it('queues nothing for a build that was cancelled before it became ready', async () => {
-        const { runStages, queuedCaptures } = buildService({
-            cancelledBeforeReady: true,
-        });
-
-        await runStages();
-
-        expect(queuedCaptures).toEqual([]);
-    });
-
-    it('leaves the build ready when the capture cannot be queued', async () => {
-        const { runStages, statuses } = buildService({ queueIsDown: true });
+describe('AppGenerateService thumbnails after a build', () => {
+    it('queues no thumbnail capture once the build is ready', async () => {
+        const { runStages, statuses, enqueuedJobs } = buildService();
 
         await runStages();
 
         expect(statuses.at(-1)).toBe('ready');
         expect(statuses).not.toContain('error');
+        expect(enqueuedJobs).toEqual([]);
     });
 });

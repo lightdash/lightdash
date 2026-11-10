@@ -117,6 +117,10 @@ export type AppBuildFromSourceJobPayload = TraceTaskBase & {
 };
 
 // `userUuid` is the version's creator, whom the capture renders as.
+/**
+ * @deprecated Automatic thumbnails are removed; the worker only drains jobs an
+ * older release enqueued. Remove with the task next release.
+ */
 export type AppCaptureThumbnailJobPayload = TraceTaskBase & {
     appUuid: string;
     version: number;
