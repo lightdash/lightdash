@@ -133,7 +133,7 @@ const getFilterFieldKey = ({
 }: Pick<DashboardFilterRule, 'target'>): string =>
     JSON.stringify([target.tableName, target.fieldId]);
 
-/** Keeps a saved control's id when its key occurs exactly once among the saved and once among the uploaded controls; otherwise mints one. */
+/** Keeps a saved control's id when its key occurs exactly once among the saved and once among the uploaded controls, and no earlier control took that id; otherwise mints one. */
 export const getStableIds = <U, S extends { id: string }>(
     uploaded: U[],
     saved: S[],
@@ -141,13 +141,16 @@ export const getStableIds = <U, S extends { id: string }>(
 ): string[] => {
     const uploadedCounts = countBy(uploaded, keyOf);
     const savedCounts = countBy(saved, keyOf);
+    const usedIds = new Set<string>();
     return uploaded.map((control) => {
         const key = keyOf(control);
         const match =
             uploadedCounts[key] === 1 && savedCounts[key] === 1
                 ? saved.find((candidate) => keyOf(candidate) === key)
                 : undefined;
-        return match?.id ?? uuidv4();
+        const id = match && !usedIds.has(match.id) ? match.id : uuidv4();
+        usedIds.add(id);
+        return id;
     });
 };
 

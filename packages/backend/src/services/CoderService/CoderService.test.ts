@@ -812,6 +812,30 @@ describe('CoderService', () => {
             expect(new Set(roundTrip.metrics.map(({ id }) => id)).size).toBe(2);
         });
 
+        it('gives saved filters on different fields sharing an id their own ids', () => {
+            const otherTarget = {
+                fieldId: 'orders_count',
+                tableName: 'orders',
+            };
+            const saved = [
+                { id: 'metric-id', target, operator: 'equals', values: [1] },
+                {
+                    id: 'metric-id',
+                    target: otherTarget,
+                    operator: 'equals',
+                    values: [1],
+                },
+            ] as AnyType;
+            const uploaded = CoderService.getFiltersWithTileUuids(
+                { filters: { metrics: saved } } as AnyType,
+                [],
+                { metrics: saved },
+            );
+            const ids = uploaded.metrics.map(({ id }) => id);
+            expect(ids[0]).toBe('metric-id');
+            expect(new Set(ids).size).toBe(2);
+        });
+
         it('leaves lists absent when the saved dashboard predates them', () => {
             const result = CoderService.getFiltersWithTileSlugs({
                 filters: { dimensions: [] },
