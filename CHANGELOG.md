@@ -1,3 +1,10 @@
+# [3.201.0](https://github.com/lightdash/lightdash/compare/3.200.0...3.201.0) (2026-11-10)
+
+
+### Features
+
+* **dashboards:** condensed dashboard tab bar on short screens ([#32328](https://github.com/lightdash/lightdash/issues/32328)) ([200d976](https://github.com/lightdash/lightdash/commit/200d9762d7247ea185fad860a201e308ed12c3bc))
+
 # [3.200.0](https://github.com/lightdash/lightdash/compare/3.199.0...3.200.0) (2026-11-10)
 
 

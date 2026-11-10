@@ -5926,7 +5926,6 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 sectionSlug: { dataType: 'string' },
-                sectionId: { dataType: 'string' },
                 hidden: { dataType: 'boolean' },
                 granularity: {
                     dataType: 'union',
@@ -5985,10 +5984,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                inline: { dataType: 'boolean' },
                 collapsed: { dataType: 'boolean' },
                 name: { dataType: 'string', required: true },
-                id: { dataType: 'string' },
                 slug: { dataType: 'string' },
             },
             validators: {},
@@ -6067,7 +6064,6 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 sectionSlug: { dataType: 'string' },
-                sectionId: { dataType: 'string' },
                 valueType: {
                     ref: 'Required_Pick_LightdashProjectParameter.type-or-multiple__',
                     required: true,
@@ -6088,7 +6084,6 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                id: { dataType: 'string' },
                 slug: { dataType: 'string' },
             },
             validators: {},
@@ -6131,16 +6126,6 @@ const models: TsoaRoute.Models = {
                         dataType: 'refAlias',
                         ref: 'DashboardParameterControlAsCode',
                     },
-                },
-                parameterSectionSlugs: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {},
-                    additionalProperties: { dataType: 'string' },
-                },
-                parameterSections: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {},
-                    additionalProperties: { dataType: 'string' },
                 },
                 controlSections: {
                     dataType: 'array',
@@ -9497,7 +9482,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                inline: { dataType: 'boolean' },
                 collapsed: { dataType: 'boolean' },
                 name: { dataType: 'string', required: true },
                 id: { dataType: 'string', required: true },
@@ -9573,11 +9557,6 @@ const models: TsoaRoute.Models = {
                         dataType: 'refAlias',
                         ref: 'DashboardParameterControl',
                     },
-                },
-                parameterSections: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {},
-                    additionalProperties: { dataType: 'string' },
                 },
                 controlSections: {
                     dataType: 'array',
