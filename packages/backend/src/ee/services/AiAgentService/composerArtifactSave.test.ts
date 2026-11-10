@@ -318,7 +318,7 @@ describe('AiAgentService.saveComposerArtifactToDashboard', () => {
 
         await expect(
             deps.service.saveComposerArtifactToDashboard(makeUser(true), args),
-        ).rejects.toThrow('Composer charts are not enabled');
+        ).rejects.toThrow('Creating composer charts is not enabled');
         expect(deps.querySourceService.submitQueries).not.toHaveBeenCalled();
         expect(
             deps.savedChartService.createComposerChart,

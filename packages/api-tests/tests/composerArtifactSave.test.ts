@@ -346,7 +346,7 @@ describe('Save a composer artifact to a dashboard', () => {
             [
                 'the composer charts feature flag off',
                 CHARTS_FLAG,
-                /Composer charts are not enabled/,
+                /Creating composer charts is not enabled/,
             ],
         ])('%s', async (_name, flagId, message) => {
             await admin.post(`/api/v2/feature-flag/${flagId}`, {

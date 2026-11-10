@@ -11499,7 +11499,7 @@ export class AiAgentService extends BaseService {
             featureFlagId: FeatureFlags.ComposerSqlRunnerCharts,
         });
         if (!chartsEnabled) {
-            throw new ForbiddenError('Composer charts are not enabled');
+            throw new ForbiddenError('Creating composer charts is not enabled');
         }
         const config = artifact.chartConfig;
         if (

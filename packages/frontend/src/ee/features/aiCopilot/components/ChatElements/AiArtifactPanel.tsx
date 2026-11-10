@@ -155,10 +155,6 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
         const composerChartsFlag = useServerFeatureFlag(
             FeatureFlags.ComposerSqlRunnerCharts,
         );
-        const canCreateChart = useCreateInAnySpaceAccess(
-            artifact.projectUuid,
-            'SavedChart',
-        );
         const composerNodeChat = useComposerNodeChatContext({
             threadUuid: artifact.threadUuid,
             artifactUuid: artifact.artifactUuid,
@@ -170,6 +166,16 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
         )
             ? artifactChartConfig
             : undefined;
+        const composerChartsEnabled =
+            !!composerConfig &&
+            composeFlag.data?.enabled === true &&
+            composerChartsFlag.data?.enabled === true;
+        // Space summaries are only needed once the save action can show.
+        const canCreateChart = useCreateInAnySpaceAccess(
+            artifact.projectUuid,
+            'SavedChart',
+            { enabled: composerChartsEnabled },
+        );
         const { isMergeArtifact, semanticChartConfig, customChartType } =
             getAiArtifactChartSource(artifactData?.chartConfig);
 
@@ -409,9 +415,8 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
                     config={composerConfig}
                     canSaveToDashboard={
                         canEditThread &&
+                        composerChartsEnabled &&
                         canCreateChart &&
-                        composeFlag.data?.enabled === true &&
-                        composerChartsFlag.data?.enabled === true &&
                         composerConfig.schemaVersion === 2
                     }
                     savedDashboardUuid={

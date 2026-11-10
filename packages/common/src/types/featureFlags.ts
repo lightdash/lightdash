@@ -183,11 +183,8 @@ export enum FeatureFlags {
     ComposeSqlRunner = 'compose-sql-runner',
 
     /**
-     * Allow creating composer charts: saving an AI composer artifact to a
-     * dashboard and uploading a composer chart file through content as code.
-     * Needs `compose-sql-runner` as well. Gates writers only: existing
-     * composer charts keep running, downloading and deleting with it off.
-     * Off by default; enable per org.
+     * Gates creating composer charts: save to dashboard and chart code upload.
+     * Off by default, per org; needs `compose-sql-runner`. Readers are ungated.
      */
     ComposerSqlRunnerCharts = 'composer-sql-runner-charts',
 

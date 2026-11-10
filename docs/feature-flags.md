@@ -197,6 +197,18 @@ stops new charts without stranding existing ones. Running one still needs
 `compose-sql-runner`. The frontend reads the flag through
 `useServerFeatureFlag`; a change applies on the next flag refetch, no restart.
 
+Both gates pass the caller's user and organization, so a personal (user)
+override resolves first and can enable it for one user while their organization
+is off. Preview environments have it on by default: it is not excluded in
+`previewFeatureFlags.ts`. Self-hosters list it in
+`LIGHTDASH_ENABLE_FEATURE_FLAGS` or `LIGHTDASH_DISABLE_FEATURE_FLAGS`; those
+lists are parsed at startup, so changing them needs a restart.
+
+It stops authoring, not copying or referencing. With the flag off, preview
+project copy still clones existing composer charts, and a dashboard can still
+reference an existing composer chart through dashboard update or dashboard code
+upload.
+
 ## Pre-aggregates
 
 Pre-aggregates are not behind a feature flag. They are on for every
