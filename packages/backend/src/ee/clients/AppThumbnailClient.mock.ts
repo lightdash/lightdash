@@ -49,79 +49,44 @@ const NOTHING_STORED: OrganizationSettings = {
     queryLimit: null,
     csvCellsLimit: null,
     corsAllowedDomains: null,
-    dataAppAutomaticThumbnailsEnabled: null,
     dataAppCapturesEnabled: null,
     dataAppCustomDependenciesEnabled: false,
 };
 
-/**
- * Organization settings where each org's stored automatic capture choice, and
- * optionally its captures switch, are read on every call.
- */
+/** Organization settings where each org's captures switch is read on every call. */
 export const organizationSettingsModelWith = (
-    storedChoice: (organizationUuid: string) => boolean | null,
-    storedCapturesChoice: (organizationUuid: string) => boolean | null = () =>
-        null,
+    storedCapturesChoice: (organizationUuid: string) => boolean | null,
 ): AppThumbnailClientArgs['organizationSettingsModel'] => ({
     get: async (organizationUuid) => ({
         ...NOTHING_STORED,
-        dataAppAutomaticThumbnailsEnabled: storedChoice(organizationUuid),
         dataAppCapturesEnabled: storedCapturesChoice(organizationUuid),
-    }),
-});
-
-/** Feature flags where each org's automatic thumbnail flag is read on every call. */
-export const featureFlagModelWith = (
-    enabled: (organizationUuid: string) => boolean,
-): AppThumbnailClientArgs['featureFlagModel'] => ({
-    get: async ({ user, featureFlagId }) => ({
-        id: featureFlagId,
-        enabled: user?.organizationUuid
-            ? enabled(user.organizationUuid)
-            : false,
     }),
 });
 
 type AppThumbnailClientMockArgs = {
     appModel: AppThumbnailClientArgs['appModel'];
-    headlessBrowserConfigured: boolean;
     /** `LIGHTDASH_APP_CAPTURES_ENABLED`, the ceiling for the org switch. */
     capturesEnabledOnInstance: boolean;
-    captureDataAppVersion: AppThumbnailClientArgs['unfurlService']['captureDataAppVersion'];
     storage: AppThumbnailStorage;
     organizationSettingsModel: AppThumbnailClientArgs['organizationSettingsModel'];
-    featureFlagModel: AppThumbnailClientArgs['featureFlagModel'];
 };
 
-/** A thumbnail client on fakes: no headless browser and an empty bucket by default. */
+/** A thumbnail client on fakes, with an empty bucket by default. */
 export const buildAppThumbnailClientMock = ({
     appModel = {} as AppThumbnailClientArgs['appModel'],
-    headlessBrowserConfigured = false,
     capturesEnabledOnInstance = true,
-    captureDataAppVersion = async () => {
-        throw new Error('No headless browser in this test');
-    },
     storage = createInMemoryAppThumbnailStorage().storage,
     organizationSettingsModel = organizationSettingsModelWith(() => null),
-    featureFlagModel = featureFlagModelWith(() => true),
 }: Partial<AppThumbnailClientMockArgs> = {}): AppThumbnailClient =>
     new AppThumbnailClient({
         lightdashConfig: {
             ...lightdashConfigMock,
-            headlessBrowser: {
-                ...lightdashConfigMock.headlessBrowser,
-                host: headlessBrowserConfigured
-                    ? 'headless-browser'
-                    : undefined,
-            },
             appRuntime: {
                 ...lightdashConfigMock.appRuntime,
                 capturesEnabled: capturesEnabledOnInstance,
             },
         },
         appModel,
-        unfurlService: { captureDataAppVersion },
         storage,
         organizationSettingsModel,
-        featureFlagModel,
     });

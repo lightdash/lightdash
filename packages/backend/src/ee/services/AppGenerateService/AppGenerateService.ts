@@ -81,7 +81,6 @@ import {
     type ApiGetAppResponse,
     type ApiOrganizationDesign,
     type AppBuildFromSourceJobPayload,
-    type AppCaptureThumbnailJobPayload,
     type AppChartReference,
     type AppClarification,
     type AppDashboardReference,
@@ -2896,33 +2895,6 @@ export class AppGenerateService extends BaseService {
         });
     }
 
-    /** Best-effort: an enqueue failure must never affect the build. */
-    private async enqueueThumbnailCapture(args: {
-        organizationUuid: string;
-        projectUuid: string;
-        userUuid: string;
-        appUuid: string;
-        version: number;
-        isCustomChartType: boolean;
-    }): Promise<void> {
-        try {
-            const enabled =
-                await this.appThumbnailClient.shouldCaptureAutomatically(args);
-            if (!enabled) return;
-            await this.schedulerClient.appCaptureThumbnail({
-                organizationUuid: args.organizationUuid,
-                projectUuid: args.projectUuid,
-                userUuid: args.userUuid,
-                appUuid: args.appUuid,
-                version: args.version,
-            });
-        } catch (error) {
-            this.logger.warn(
-                `App ${args.appUuid}: could not enqueue thumbnail capture for version ${args.version}: ${getErrorMessage(error)}`,
-            );
-        }
-    }
-
     /** Best-effort: a thumbnail must never fail the flow that copies it. */
     private async copyVersionThumbnail(
         from: { appUuid: string; version: number },
@@ -2934,36 +2906,6 @@ export class AppGenerateService extends BaseService {
             this.logger.warn(
                 `App ${to.appUuid}: could not copy thumbnail of app ${from.appUuid} version ${from.version} to version ${to.version}: ${getErrorMessage(error)}`,
             );
-        }
-    }
-
-    /** Scheduler job body. Never throws: a failed capture is only logged. */
-    async captureVersionThumbnail({
-        appUuid,
-        version,
-    }: AppCaptureThumbnailJobPayload): Promise<void> {
-        const outcome = await this.appThumbnailClient.captureVersion({
-            appUuid,
-            version,
-        });
-        switch (outcome.status) {
-            case 'captured':
-                this.logger.info(
-                    `App ${appUuid}: captured thumbnail for version ${version}`,
-                );
-                return;
-            case 'skipped':
-                this.logger.info(
-                    `App ${appUuid}: skipped thumbnail capture for version ${version} (${outcome.reason})`,
-                );
-                return;
-            case 'failed':
-                this.logger.warn(
-                    `App ${appUuid}: thumbnail capture failed for version ${version}: ${getErrorMessage(outcome.error)}`,
-                );
-                return;
-            default:
-                assertUnreachable(outcome, 'Unknown thumbnail capture outcome');
         }
     }
 
@@ -6954,14 +6896,6 @@ export class AppGenerateService extends BaseService {
                 );
                 return;
             }
-            await this.enqueueThumbnailCapture({
-                organizationUuid: payload.organizationUuid,
-                projectUuid: payload.projectUuid,
-                userUuid: payload.userUuid,
-                appUuid,
-                version,
-                isCustomChartType: isDataAppViz,
-            });
         } catch (error) {
             this.logger.error(
                 `App ${appUuid}: failed to mark version as ready: ${getErrorMessage(error)}`,
@@ -9521,16 +9455,6 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        // Captured fresh upstream: the preview's thumbnail shows preview data.
-        await this.enqueueThumbnailCapture({
-            organizationUuid: upstreamOrganizationUuid,
-            projectUuid: upstreamProjectUuid,
-            userUuid: user.userUuid,
-            appUuid: targetAppUuid,
-            version: targetVersion,
-            isCustomChartType: isChartType,
-        });
-
         this.analytics.track({
             event: 'data_app.promoted',
             userId: user.userUuid,
@@ -10415,8 +10339,11 @@ export class AppGenerateService extends BaseService {
                               vizPreview: v.viz_preview ?? null,
                           }
                         : null,
+                // Only manual thumbnails are served; automatic ones are retired.
                 hasThumbnail:
-                    v.status === 'ready' && Boolean(v.thumbnail_captured_at),
+                    v.status === 'ready' &&
+                    Boolean(v.thumbnail_captured_at) &&
+                    v.thumbnail_is_manual === true,
                 createdAt: v.created_at,
                 statusUpdatedAt: v.status_updated_at,
                 // Custom-deps summary only; the lockfile hash is internal.
@@ -15104,7 +15031,6 @@ export class AppGenerateService extends BaseService {
 
         let sandbox: SandboxHandle | undefined;
         let sandboxUuid: string | undefined;
-        let becameReady = false;
         const heartbeat = setInterval(() => {
             void this.appModel
                 .touchVersionIfInProgress(appUuid, version)
@@ -15228,7 +15154,7 @@ export class AppGenerateService extends BaseService {
                 sourceTar,
             );
 
-            becameReady = await this.appModel.updateVersionStatusIfInProgress(
+            await this.appModel.updateVersionStatusIfInProgress(
                 appUuid,
                 version,
                 'ready',
@@ -15241,25 +15167,6 @@ export class AppGenerateService extends BaseService {
             clearInterval(heartbeat);
             if (sandbox !== undefined && sandboxUuid !== undefined) {
                 await this.suspendSandbox(sandboxUuid, sandbox, appUuid);
-            }
-        }
-
-        // Outside the build's try, so a thumbnail can never mark it failed.
-        if (becameReady) {
-            try {
-                const app = await this.appModel.getApp(appUuid, projectUuid);
-                await this.enqueueThumbnailCapture({
-                    organizationUuid,
-                    projectUuid,
-                    userUuid: payload.userUuid,
-                    appUuid,
-                    version,
-                    isCustomChartType: app.template === DATA_APP_VIZ_TEMPLATE,
-                });
-            } catch (error) {
-                this.logger.warn(
-                    `App ${appUuid}: could not enqueue thumbnail capture for version ${version}: ${getErrorMessage(error)}`,
-                );
             }
         }
     }

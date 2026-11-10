@@ -651,13 +651,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     appThumbnailClient: new AppThumbnailClient({
                         lightdashConfig: context.lightdashConfig,
                         appModel: models.getAppModel(),
-                        unfurlService: repository.getUnfurlService(),
                         storage: new AppRuntimeThumbnailStorage({
                             lightdashConfig: context.lightdashConfig,
                         }),
                         organizationSettingsModel:
                             models.getOrganizationSettingsModel(),
-                        featureFlagModel: models.getFeatureFlagModel(),
                     }),
                     chartRegistryClient: new ChartRegistryClient({
                         lightdashConfig: context.lightdashConfig,

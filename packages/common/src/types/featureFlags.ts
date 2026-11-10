@@ -91,12 +91,6 @@ export enum FeatureFlags {
     EnableDashboardAnalysis = 'enable-dashboard-analysis',
 
     /**
-     * Per-organization gate for automatic (obscured) data app thumbnail
-     * capture and its settings card. Disabled by default.
-     */
-    EnableDataAppAutomaticThumbnails = 'enable-data-app-automatic-thumbnails',
-
-    /**
      * Per-user / per-organization gate for the data app state store
      * (`useAppState` / `useSharedAppState` in the SDK and its endpoints).
      * Resolves user override, then organization, then instance default.

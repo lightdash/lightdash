@@ -24,7 +24,7 @@ const s3Error = (httpStatusCode: number, name: string) =>
         $metadata: { httpStatusCode },
     });
 
-const KEY = 'apps/a/thumbnails/1/automatic.png';
+const KEY = 'apps/a/thumbnails/1/manual.png';
 
 describe('AppRuntimeThumbnailStorage.delete', () => {
     beforeEach(() => {

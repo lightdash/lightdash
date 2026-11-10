@@ -1103,25 +1103,19 @@ export class AppModel {
     }
 
     /**
-     * Records that a version has a thumbnail. An automatic write never
-     * replaces a manual one; returns false when nothing was written.
+     * Records that a version has a manual thumbnail; returns false when the
+     * version does not exist.
      */
     async setVersionThumbnail(
         appId: string,
         version: number,
-        { isManual }: { isManual: boolean },
     ): Promise<boolean> {
         const updatedRows = await this.database(AppVersionsTableName)
             .where({ app_id: appId, version })
-            .modify((q) => {
-                if (!isManual) {
-                    void q.whereRaw('thumbnail_is_manual IS NOT TRUE');
-                }
-            })
             .update({
                 thumbnail_captured_at:
                     this.database.fn.now() as unknown as Date,
-                thumbnail_is_manual: isManual,
+                thumbnail_is_manual: true,
             });
         return updatedRows > 0;
     }

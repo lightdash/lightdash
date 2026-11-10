@@ -1,14 +1,4 @@
-import { FeatureFlags } from '@lightdash/common';
-import {
-    Button,
-    Code,
-    Divider,
-    Group,
-    Loader,
-    Stack,
-    Switch,
-    Text,
-} from '@mantine/core';
+import { Button, Code, Group, Loader, Stack, Switch } from '@mantine/core';
 import { type FC } from 'react';
 import Callout from '../../../components/common/Callout';
 import ErrorState from '../../../components/common/ErrorState';
@@ -23,7 +13,6 @@ import {
     useOrganizationSettings,
     useUpdateOrganizationSettings,
 } from '../../../hooks/organization/useOrganizationSettings';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 
 export const DataAppGeneralSettingsPage: FC = () => {
     const health = useHealth();
@@ -37,17 +26,10 @@ export const DataAppGeneralSettingsPage: FC = () => {
     const { mutate: updateSettings, isLoading: isUpdating } =
         useUpdateOrganizationSettings();
 
-    const automaticThumbnailsFlag = useServerFeatureFlag(
-        FeatureFlags.EnableDataAppAutomaticThumbnails,
-    );
-
-    const hasHeadlessBrowser = health.data?.hasHeadlessBrowser ?? false;
     // The instance env is the ceiling: when it is off the org switch is shown
     // off and cannot be turned on here.
     const capturesEnabledOnInstance =
         health.data?.dataApps.capturesEnabled !== false;
-    const automaticThumbnailsAvailable =
-        automaticThumbnailsFlag.data?.enabled === true;
     // Already resolved against the instance ceiling by the API.
     const capturesEnabled = settings?.dataAppCapturesEnabled !== false;
 
@@ -68,10 +50,7 @@ export const DataAppGeneralSettingsPage: FC = () => {
                         </Button>
                     </Stack>
                 </SettingsCard>
-            ) : isInitialLoading ||
-              !settings ||
-              health.isInitialLoading ||
-              automaticThumbnailsFlag.isInitialLoading ? (
+            ) : isInitialLoading || !settings || health.isInitialLoading ? (
                 <Group justify="center" mt="xl">
                     <Loader size="sm" />
                 </Group>
@@ -90,7 +69,7 @@ export const DataAppGeneralSettingsPage: FC = () => {
                     )}
                     <SettingsSection
                         label="Screenshots and thumbnails"
-                        description="Controls every way an image of your data can be captured in the builder, including automatic thumbnails and the image posted with a Slack build. While screenshots are off, existing thumbnails stay hidden."
+                        description="Controls every way an image of your data can be captured in the builder, including thumbnails and the image posted with a Slack build. While screenshots are off, existing thumbnails stay hidden."
                     >
                         <SettingsCard>
                             <Stack gap="md">
@@ -116,64 +95,6 @@ export const DataAppGeneralSettingsPage: FC = () => {
                                         />
                                     }
                                 />
-                                {automaticThumbnailsAvailable && (
-                                    <>
-                                        <Divider />
-                                        <SettingRow
-                                            title="Automatically capture thumbnails"
-                                            description="Each data app version gets a thumbnail when it becomes ready, rendered as the user who created it. Text is blurred so values are not readable. Turning this off keeps existing thumbnails, and thumbnails can still be captured by hand."
-                                            control={
-                                                <Switch
-                                                    size="md"
-                                                    aria-label="Automatically capture thumbnails for data app versions"
-                                                    checked={
-                                                        settings.dataAppAutomaticThumbnailsEnabled !==
-                                                        false
-                                                    }
-                                                    disabled={
-                                                        isUpdating ||
-                                                        !hasHeadlessBrowser ||
-                                                        !capturesEnabled
-                                                    }
-                                                    onChange={(event) =>
-                                                        updateSettings({
-                                                            dataAppAutomaticThumbnailsEnabled:
-                                                                event
-                                                                    .currentTarget
-                                                                    .checked,
-                                                        })
-                                                    }
-                                                />
-                                            }
-                                        >
-                                            {!capturesEnabled && (
-                                                <Text
-                                                    c="dimmed"
-                                                    fz="xs"
-                                                    mt="xxs"
-                                                >
-                                                    Off while screenshots and
-                                                    attachments are not allowed.
-                                                </Text>
-                                            )}
-                                            {!hasHeadlessBrowser &&
-                                                capturesEnabled && (
-                                                    <Callout
-                                                        variant="info"
-                                                        title="No headless browser is configured"
-                                                        mt="sm"
-                                                    >
-                                                        Thumbnails are captured
-                                                        in a headless browser,
-                                                        and this instance does
-                                                        not have one. Automatic
-                                                        capture is skipped until
-                                                        one is configured.
-                                                    </Callout>
-                                                )}
-                                        </SettingRow>
-                                    </>
-                                )}
                             </Stack>
                         </SettingsCard>
                     </SettingsSection>

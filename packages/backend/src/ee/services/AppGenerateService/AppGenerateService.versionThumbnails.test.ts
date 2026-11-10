@@ -11,7 +11,6 @@ import {
     NotFoundError,
     ProjectType,
     type AppBuildFromSourceJobPayload,
-    type AppCaptureThumbnailJobPayload,
     type AppVersionStatus,
     type SessionUser,
 } from '@lightdash/common';
@@ -19,7 +18,6 @@ import { Readable } from 'node:stream';
 import {
     buildAppThumbnailClientMock,
     createInMemoryAppThumbnailStorage,
-    organizationSettingsModelWith,
 } from '../../clients/AppThumbnailClient.mock';
 import { AppGenerateService } from './AppGenerateService';
 
@@ -100,13 +98,6 @@ const makeUser = (userUuid: string = USER_UUID): SessionUser => {
     } as SessionUser;
 };
 
-const renderOf = (
-    appUuid: string,
-    version: number,
-    projectUuid: string,
-    asUserUuid: string,
-) => `render of ${appUuid} v${version} in ${projectUuid} as ${asUserUuid}`;
-
 function buildScenario({
     versions,
     promotedBefore = false,
@@ -115,9 +106,6 @@ function buildScenario({
     promotedBefore?: boolean;
 }) {
     const state = {
-        automaticCaptureEnabled: true,
-        renderFails: false,
-        queueIsDown: false,
         buildFails: false,
         appDeletedDuringBuild: false,
     };
@@ -296,15 +284,11 @@ function buildScenario({
             versionsOf(appUuid).some(
                 (row) => row.thumbnail_captured_at !== null,
             ),
-        setVersionThumbnail: async (
-            appUuid: string,
-            version: number,
-            { isManual }: { isManual: boolean },
-        ) => {
+        setVersionThumbnail: async (appUuid: string, version: number) => {
             const row = findVersion(appUuid, version);
-            if (!row || (!isManual && row.thumbnail_is_manual)) return false;
+            if (!row) return false;
             row.thumbnail_captured_at = new Date();
-            row.thumbnail_is_manual = isManual;
+            row.thumbnail_is_manual = true;
             return true;
         },
         clearVersionThumbnail: async (appUuid: string, version: number) => {
@@ -324,7 +308,17 @@ function buildScenario({
     };
 
     const thumbnailStorage = createInMemoryAppThumbnailStorage();
-    const queuedCaptures: AppCaptureThumbnailJobPayload[] = [];
+    // Every job the service enqueues, by scheduler method name.
+    const enqueuedJobs: string[] = [];
+    const schedulerClient = new Proxy(
+        {},
+        {
+            get: (_target, method) => async () => {
+                enqueuedJobs.push(String(method));
+                return { jobId: 'job' };
+            },
+        },
+    );
     const projectSummary = (projectUuid: string) => ({
         projectUuid,
         organizationUuid: ORGANIZATION_UUID,
@@ -378,15 +372,7 @@ function buildScenario({
         projectParametersModel: {} as never,
         spaceModel: {} as never,
         savedChartModel: {} as never,
-        schedulerClient: {
-            appCaptureThumbnail: async (
-                payload: AppCaptureThumbnailJobPayload,
-            ) => {
-                if (state.queueIsDown) throw new Error('Queue unavailable');
-                queuedCaptures.push(payload);
-                return { jobId: 'job' };
-            },
-        } as never,
+        schedulerClient: schedulerClient as never,
         savedChartService: {} as never,
         spacePermissionService: {
             resolveAccess: async () => ({
@@ -419,31 +405,8 @@ function buildScenario({
         appThumbnailClient: buildAppThumbnailClientMock({
             appModel: appModel as never,
             storage: thumbnailStorage.storage,
-            headlessBrowserConfigured: true,
-            organizationSettingsModel: organizationSettingsModelWith(
-                () => state.automaticCaptureEnabled,
-            ),
-            captureDataAppVersion: async ({
-                appUuid,
-                version,
-                projectUuid,
-                authUserUuid,
-            }) => {
-                if (state.renderFails) throw new Error('Render timed out');
-                return Buffer.from(
-                    renderOf(appUuid, version, projectUuid, authUserUuid),
-                );
-            },
         }),
     });
-
-    /** Runs the capture jobs the scheduler worker would have picked up. */
-    const runQueuedCaptures = async () => {
-        while (queuedCaptures.length > 0) {
-            // eslint-disable-next-line no-await-in-loop
-            await service.captureVersionThumbnail(queuedCaptures.shift()!);
-        }
-    };
 
     /** What a viewer of the app sees: the latest ready version's thumbnail. */
     const thumbnailOf = async (
@@ -463,14 +426,19 @@ function buildScenario({
         }
     };
 
-    const captureAutomatically = (version: number) =>
-        service.captureVersionThumbnail({
-            organizationUuid: ORGANIZATION_UUID,
-            projectUuid: PREVIEW_PROJECT_UUID,
-            userUuid: AUTHOR_UUID,
-            appUuid: APP_UUID,
-            version,
-        });
+    /**
+     * A version captured by the removed automatic capture: the row and the
+     * `automatic.png` object an older release left behind.
+     */
+    const seedAutomaticThumbnail = (version: number) => {
+        const row = findVersion(APP_UUID, version)!;
+        row.thumbnail_captured_at = new Date();
+        row.thumbnail_is_manual = false;
+        thumbnailStorage.objects.set(
+            `apps/${APP_UUID}/thumbnails/${version}/automatic.png`,
+            Buffer.from(`automatic capture of v${version}`),
+        );
+    };
 
     const captureManually = (version: number) =>
         service.uploadThumbnail(
@@ -529,9 +497,9 @@ function buildScenario({
         service,
         state,
         apps,
-        runQueuedCaptures,
+        enqueuedJobs,
         thumbnailOf,
-        captureAutomatically,
+        seedAutomaticThumbnail,
         captureManually,
         loseStoredImage,
         buildUploadedVersion,
@@ -542,6 +510,8 @@ const twoReadyVersions: VersionSeed[] = [
     { version: 1, status: 'ready' },
     { version: 2, status: 'ready' },
 ];
+
+const MANUAL = MANUAL_IMAGE.toString();
 
 describe('AppGenerateService thumbnails for versions created without a build', () => {
     describe('restore', () => {
@@ -555,45 +525,40 @@ describe('AppGenerateService thumbnails for versions created without a build', (
                 1,
             );
 
-        it("gives the new version the source version's thumbnail", async () => {
+        it("gives the new version the source version's manual thumbnail", async () => {
             const s = buildScenario({ versions: twoReadyVersions });
-            await s.captureAutomatically(1);
+            await s.captureManually(1);
             expect(await s.thumbnailOf(APP_UUID)).toBeNull();
 
             const restored = await restoreFirstVersion(s);
 
             expect(restored.version).toBe(3);
-            expect(await s.thumbnailOf(APP_UUID)).toBe(
-                renderOf(APP_UUID, 1, PREVIEW_PROJECT_UUID, AUTHOR_UUID),
-            );
-        });
-
-        it('copies a manual thumbnail, even with automatic capture turned off', async () => {
-            const s = buildScenario({ versions: twoReadyVersions });
-            await s.captureManually(1);
-            s.state.automaticCaptureEnabled = false;
-
-            await restoreFirstVersion(s);
-
-            expect(await s.thumbnailOf(APP_UUID)).toBe(MANUAL_IMAGE.toString());
+            expect(await s.thumbnailOf(APP_UUID)).toBe(MANUAL);
         });
 
         it('leaves the new version without a thumbnail when the source has none', async () => {
             const s = buildScenario({ versions: twoReadyVersions });
-            await s.captureAutomatically(2);
+            await s.captureManually(2);
 
             const restored = await restoreFirstVersion(s);
 
             expect(restored.version).toBe(3);
+            expect(await s.thumbnailOf(APP_UUID)).toBeNull();
+        });
+
+        it('does not carry over an automatic thumbnail from an older release', async () => {
+            const s = buildScenario({ versions: twoReadyVersions });
+            s.seedAutomaticThumbnail(1);
+
+            await restoreFirstVersion(s);
+
             expect(await s.thumbnailOf(APP_UUID)).toBeNull();
         });
 
         it('still restores when the source image cannot be copied', async () => {
             const s = buildScenario({ versions: twoReadyVersions });
-            await s.captureAutomatically(1);
-            s.loseStoredImage(
-                renderOf(APP_UUID, 1, PREVIEW_PROJECT_UUID, AUTHOR_UUID),
-            );
+            await s.captureManually(1);
+            s.loseStoredImage(MANUAL);
 
             const restored = await restoreFirstVersion(s);
 
@@ -606,32 +571,18 @@ describe('AppGenerateService thumbnails for versions created without a build', (
         const duplicate = (s: ReturnType<typeof buildScenario>) =>
             s.service.duplicateApp(makeUser(), PREVIEW_PROJECT_UUID, APP_UUID);
 
-        it("gives the duplicate's first version the source version's thumbnail", async () => {
-            const s = buildScenario({ versions: twoReadyVersions });
-            await s.captureAutomatically(2);
-            s.state.automaticCaptureEnabled = false;
-
-            const copy = await duplicate(s);
-
-            expect(await s.thumbnailOf(copy.appUuid)).toBe(
-                renderOf(APP_UUID, 2, PREVIEW_PROJECT_UUID, AUTHOR_UUID),
-            );
-        });
-
-        it('copies a manual thumbnail', async () => {
+        it("gives the duplicate's first version the source version's manual thumbnail", async () => {
             const s = buildScenario({ versions: twoReadyVersions });
             await s.captureManually(2);
 
             const copy = await duplicate(s);
 
-            expect(await s.thumbnailOf(copy.appUuid)).toBe(
-                MANUAL_IMAGE.toString(),
-            );
+            expect(await s.thumbnailOf(copy.appUuid)).toBe(MANUAL);
         });
 
         it('leaves the duplicate without a thumbnail when the source version has none', async () => {
             const s = buildScenario({ versions: twoReadyVersions });
-            await s.captureAutomatically(1);
+            await s.captureManually(1);
 
             const copy = await duplicate(s);
 
@@ -639,12 +590,19 @@ describe('AppGenerateService thumbnails for versions created without a build', (
             expect(await s.thumbnailOf(copy.appUuid)).toBeNull();
         });
 
+        it('does not carry over an automatic thumbnail from an older release', async () => {
+            const s = buildScenario({ versions: twoReadyVersions });
+            s.seedAutomaticThumbnail(2);
+
+            const copy = await duplicate(s);
+
+            expect(await s.thumbnailOf(copy.appUuid)).toBeNull();
+        });
+
         it('still duplicates when the source image cannot be copied', async () => {
             const s = buildScenario({ versions: twoReadyVersions });
-            await s.captureAutomatically(2);
-            s.loseStoredImage(
-                renderOf(APP_UUID, 2, PREVIEW_PROJECT_UUID, AUTHOR_UUID),
-            );
+            await s.captureManually(2);
+            s.loseStoredImage(MANUAL);
 
             const copy = await duplicate(s);
 
@@ -657,7 +615,7 @@ describe('AppGenerateService thumbnails for versions created without a build', (
         const promote = (s: ReturnType<typeof buildScenario>) =>
             s.service.promoteApp(makeUser(), PREVIEW_PROJECT_UUID, APP_UUID);
 
-        it('captures the new upstream version in the upstream project, not the preview image', async () => {
+        it('queues no capture and leaves the upstream version without the preview image', async () => {
             const s = buildScenario({
                 versions: [
                     { version: 3, status: 'ready' },
@@ -669,79 +627,30 @@ describe('AppGenerateService thumbnails for versions created without a build', (
                 ],
                 promotedBefore: true,
             });
-            await s.captureAutomatically(3);
+            await s.captureManually(3);
 
             const promoted = await promote(s);
-            expect(
-                await s.thumbnailOf(UPSTREAM_APP_UUID, PRODUCTION_PROJECT_UUID),
-            ).toBeNull();
-            await s.runQueuedCaptures();
 
             expect(promoted).toMatchObject({
                 appUuid: UPSTREAM_APP_UUID,
                 version: 7,
                 action: 'update',
             });
+            expect(s.enqueuedJobs).toEqual([]);
             expect(
                 await s.thumbnailOf(UPSTREAM_APP_UUID, PRODUCTION_PROJECT_UUID),
-            ).toBe(
-                renderOf(
-                    UPSTREAM_APP_UUID,
-                    7,
-                    PRODUCTION_PROJECT_UUID,
-                    USER_UUID,
-                ),
-            );
-        });
-
-        it('captures the first version of a newly promoted app', async () => {
-            const s = buildScenario({
-                versions: [{ version: 3, status: 'ready' }],
-            });
-
-            const promoted = await promote(s);
-            await s.runQueuedCaptures();
-
-            expect(promoted.action).toBe('create');
-            expect(
-                await s.thumbnailOf(promoted.appUuid, PRODUCTION_PROJECT_UUID),
-            ).toBe(
-                renderOf(
-                    promoted.appUuid,
-                    1,
-                    PRODUCTION_PROJECT_UUID,
-                    USER_UUID,
-                ),
-            );
-        });
-
-        it('captures nothing while automatic capture is turned off', async () => {
-            const s = buildScenario({
-                versions: [{ version: 3, status: 'ready' }],
-            });
-            s.state.automaticCaptureEnabled = false;
-
-            const promoted = await promote(s);
-            await s.runQueuedCaptures();
-
-            expect(
-                await s.thumbnailOf(promoted.appUuid, PRODUCTION_PROJECT_UUID),
             ).toBeNull();
         });
 
-        it.each([
-            ['the capture fails', { renderFails: true }],
-            ['the capture cannot be queued', { queueIsDown: true }],
-        ])('still promotes when %s', async (_name, failure) => {
+        it('queues no capture for the first version of a newly promoted app', async () => {
             const s = buildScenario({
                 versions: [{ version: 3, status: 'ready' }],
             });
-            Object.assign(s.state, failure);
 
             const promoted = await promote(s);
-            await s.runQueuedCaptures();
 
             expect(promoted).toMatchObject({ version: 1, action: 'create' });
+            expect(s.enqueuedJobs).toEqual([]);
             expect(
                 await s.thumbnailOf(promoted.appUuid, PRODUCTION_PROJECT_UUID),
             ).toBeNull();
@@ -754,41 +663,25 @@ describe('AppGenerateService thumbnails for versions created without a build', (
             { version: 2, status: 'pending' },
         ];
 
-        it('captures the uploaded version once its build is ready', async () => {
+        it('queues no capture once the uploaded version is ready', async () => {
             const s = buildScenario({ versions: uploadedVersion });
 
             const status = await s.buildUploadedVersion(2);
-            await s.runQueuedCaptures();
 
             expect(status).toBe('ready');
-            expect(await s.thumbnailOf(APP_UUID)).toBe(
-                renderOf(APP_UUID, 2, PREVIEW_PROJECT_UUID, AUTHOR_UUID),
-            );
+            expect(s.enqueuedJobs).toEqual([]);
+            expect(await s.thumbnailOf(APP_UUID)).toBeNull();
         });
 
-        it('captures nothing for an upload whose build fails', async () => {
+        it('keeps showing the previous version when the upload fails to build', async () => {
             const s = buildScenario({ versions: uploadedVersion });
-            await s.captureAutomatically(1);
+            await s.captureManually(1);
             s.state.buildFails = true;
 
             const status = await s.buildUploadedVersion(2);
-            await s.runQueuedCaptures();
 
             expect(status).toBe('error');
-            expect(await s.thumbnailOf(APP_UUID)).toBe(
-                renderOf(APP_UUID, 1, PREVIEW_PROJECT_UUID, AUTHOR_UUID),
-            );
-        });
-
-        it('captures nothing while automatic capture is turned off', async () => {
-            const s = buildScenario({ versions: uploadedVersion });
-            s.state.automaticCaptureEnabled = false;
-
-            const status = await s.buildUploadedVersion(2);
-            await s.runQueuedCaptures();
-
-            expect(status).toBe('ready');
-            expect(await s.thumbnailOf(APP_UUID)).toBeNull();
+            expect(await s.thumbnailOf(APP_UUID)).toBe(MANUAL);
         });
 
         it('leaves the upload ready when the app is deleted while it builds', async () => {
@@ -796,23 +689,8 @@ describe('AppGenerateService thumbnails for versions created without a build', (
             s.state.appDeletedDuringBuild = true;
 
             const status = await s.buildUploadedVersion(2);
-            await s.runQueuedCaptures();
 
             expect(status).toBe('ready');
-        });
-
-        it.each([
-            ['the capture fails', { renderFails: true }],
-            ['the capture cannot be queued', { queueIsDown: true }],
-        ])('leaves the upload ready when %s', async (_name, failure) => {
-            const s = buildScenario({ versions: uploadedVersion });
-            Object.assign(s.state, failure);
-
-            const status = await s.buildUploadedVersion(2);
-            await s.runQueuedCaptures();
-
-            expect(status).toBe('ready');
-            expect(await s.thumbnailOf(APP_UUID)).toBeNull();
         });
     });
 });
