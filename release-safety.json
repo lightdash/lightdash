@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "3.203.0",
-  "previousVersion": "3.202.0",
-  "releaseDate": "2026-11-10T16:06:13.755Z",
+  "version": "3.204.0",
+  "previousVersion": "3.203.1",
+  "releaseDate": "2026-11-10T16:33:58.965Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -17,16 +17,11 @@
   "api": {
     "rest": {
       "checked": true,
-      "breaking": true,
-      "changes": [
-        "GET /api/v1/org/settings — removed the required property `results/dataAppAutomaticThumbnailsEnabled` from the response with the `200` status",
-        "PATCH /api/v1/org/settings — removed the required property `results/dataAppAutomaticThumbnailsEnabled` from the response with the `200` status"
-      ],
-      "breakingCount": 2,
-      "advisories": [
-        "PATCH /api/v1/org/settings — removed the request property `dataAppAutomaticThumbnailsEnabled`"
-      ],
-      "advisoryCount": 1
+      "breaking": false,
+      "changes": [],
+      "breakingCount": 0,
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,
@@ -47,22 +42,5 @@
     "requiredStops": []
   },
   "declaredBreaks": [],
-  "declaredAdvisories": [
-    {
-      "id": "org-settings-data-app-automatic-thumbnails-removed",
-      "reason": "GET and PATCH /api/v1/org/settings no longer return dataAppAutomaticThumbnailsEnabled, and PATCH ignores it if sent, because automatic data app thumbnails are removed. The field only controlled a capture gated by a feature flag that was off by default, and only the data apps settings page read or wrote it. During a rolling update an old settings tab reads the missing field as on and its toggle has no effect until refresh; nothing else on the page changes.",
-      "requiredStop": false,
-      "impact": {
-        "kind": "no-external-callers",
-        "firstPartyOnly": "The data apps General settings page in the Lightdash web app is the only client that reads or writes dataAppAutomaticThumbnailsEnabled; it showed the control only behind the enable-data-app-automatic-thumbnails flag. Every other field of these operations is unchanged.",
-        "covers": {
-          "rest": [
-            "GET /api/v1/org/settings",
-            "PATCH /api/v1/org/settings"
-          ],
-          "mcp": []
-        }
-      }
-    }
-  ]
+  "declaredAdvisories": []
 }

@@ -103,6 +103,7 @@ import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
+import { markAlreadyReported } from '../../../sentry/aiAgentErrors';
 import { type AgentPermissionService } from '../../../services/AgentPermissionService/AgentPermissionService';
 import {
     agentExecutionContext,
@@ -4736,9 +4737,11 @@ export class AiAgentToolsService extends BaseService {
             }
 
             if (queryResults.status === QueryHistoryStatus.ERROR) {
-                throw new WarehouseQueryError(
+                const error = new WarehouseQueryError(
                     `SQL query failed: ${queryResults.error ?? 'Unknown error'}`,
                 );
+                // AsyncQueryService reports the query's own error
+                throw markAlreadyReported(error);
             }
 
             if (queryResults.status === QueryHistoryStatus.CANCELLED) {
@@ -4980,6 +4983,7 @@ export class AiAgentToolsService extends BaseService {
                             context,
                             submissions,
                             timeoutMessage,
+                            { cause: null, reportedAtSource: false },
                         );
                     } else {
                         outcome = polled;
@@ -4990,6 +4994,10 @@ export class AiAgentToolsService extends BaseService {
                         context,
                         submissions,
                         getErrorMessage(error),
+                        {
+                            cause: error instanceof Error ? error : null,
+                            reportedAtSource: false,
+                        },
                     );
                 }
                 outcome.nodeStatuses.forEach(({ nodeId, state, error }) => {
@@ -5204,6 +5212,8 @@ export class AiAgentToolsService extends BaseService {
                     context,
                     submissions,
                     'Composer query failed.',
+                    // AsyncQueryService reports the query's own error
+                    { cause: null, reportedAtSource: true },
                 );
                 // Node statuses carry each node's error; the terminal's is the fallback.
                 return failed.nodeStatuses.some(({ error }) => error !== null)
@@ -5222,6 +5232,7 @@ export class AiAgentToolsService extends BaseService {
                     context,
                     submissions,
                     'Composer query was cancelled.',
+                    { cause: null, reportedAtSource: false },
                 );
             }
 
@@ -5245,10 +5256,16 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         submissions: SourceQuerySubmission[],
         error: string,
+        {
+            cause,
+            reportedAtSource,
+        }: { cause: Error | null; reportedAtSource: boolean },
     ): Promise<Extract<ComposerRunOutcome, { status: 'failure' }>> {
         return {
             status: 'failure',
             error,
+            cause,
+            reportedAtSource,
             nodeStatuses: await this.readComposerNodeStatuses(
                 context,
                 submissions,

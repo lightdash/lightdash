@@ -14,6 +14,7 @@ import {
     type ToolComposerQueriesSuccessMetadata,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import { markAlreadyReported } from '../../../../sentry/aiAgentErrors';
 import { type AiDecisionClient } from '../decisions/AiDecisionClient';
 import { getEmptyFilterHints } from '../decisions/queryChecks';
 import {
@@ -368,9 +369,13 @@ export const getRunComposerQueries = ({
                         submittedNodeIds,
                         maxQueryLimit,
                     });
-                    throw new WarehouseQueryError(
+                    const composerError = new WarehouseQueryError(
                         `${run.error}\nNodes in this pipeline, failed nodes first. A later call can read any node with rows by node id:\n${nodeListing}`,
                     );
+                    if (run.cause) composerError.cause = run.cause;
+                    throw run.reportedAtSource
+                        ? markAlreadyReported(composerError)
+                        : composerError;
                 }
                 const { terminal } = run;
                 const { nodeStatuses, terminalRowLimit } = shareComposerPreview(

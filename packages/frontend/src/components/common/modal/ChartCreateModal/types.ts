@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 export const saveToDashboardSchema = z.object({
     dashboardUuid: z.string().nullable(),
+    tabUuid: z.string().nullable(),
     newDashboardName: z
         .string()
         .min(1, 'Dashboard name is required')

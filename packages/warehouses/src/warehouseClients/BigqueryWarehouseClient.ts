@@ -491,6 +491,11 @@ const getTablePartitioningFromMetadata = (
     return null;
 };
 
+// Lets service identities query Drive-backed external tables (e.g. Google Sheets) shared with them.
+const BIGQUERY_SERVICE_IDENTITY_SCOPES = [
+    'https://www.googleapis.com/auth/drive.readonly',
+];
+
 export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryCredentials> {
     private static readonly MAX_LABELS = 64;
 
@@ -546,27 +551,36 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     private static getAuthenticationOptions(
         credentials: CreateBigqueryCredentials,
         options: BigqueryWarehouseClientOptions | undefined,
-    ): Pick<BigQueryOptions, 'credentials'> {
+    ): Pick<BigQueryOptions, 'credentials' | 'scopes'> {
         switch (credentials.authenticationType) {
             case BigqueryAuthenticationType.ADC:
                 // Support ADC via workforce identity federation / external_account configuration.
                 // In this case we should rely on ADC at runtime and not pass explicit credentials.
-                return {};
+                return { scopes: BIGQUERY_SERVICE_IDENTITY_SCOPES };
             case BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION:
                 if (!options?.bigqueryExternalAccount) {
                     throw new WarehouseConnectionError(
                         'BigQuery workload identity federation credentials are unavailable.',
                     );
                 }
-                return { credentials: options.bigqueryExternalAccount };
+                return {
+                    credentials: options.bigqueryExternalAccount,
+                    scopes: BIGQUERY_SERVICE_IDENTITY_SCOPES,
+                };
             case BigqueryAuthenticationType.PRIVATE_KEY:
             case BigqueryAuthenticationType.SSO:
-            case undefined:
-                return {
-                    credentials: getBigqueryKeyfileCredentials(
-                        credentials.keyfileContents,
-                    ),
-                };
+            case undefined: {
+                const keyfileCredentials = getBigqueryKeyfileCredentials(
+                    credentials.keyfileContents,
+                );
+                // User refresh tokens keep the scopes granted at consent.
+                return keyfileCredentials.type === 'authorized_user'
+                    ? { credentials: keyfileCredentials }
+                    : {
+                          credentials: keyfileCredentials,
+                          scopes: BIGQUERY_SERVICE_IDENTITY_SCOPES,
+                      };
+            }
             default:
                 return assertUnreachable(
                     credentials.authenticationType,
@@ -1119,6 +1133,15 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         }
         switch (error?.reason) {
             case 'accessDenied':
+                if (error.message?.includes('Drive credentials')) {
+                    return new WarehouseQueryError(
+                        `${error.message} ${
+                            this.usesUserRefreshToken()
+                                ? 'Tables backed by Google Drive files need a service account connection that the file is shared with.'
+                                : 'Share the Google Drive file with the account used by this connection.'
+                        }`,
+                    );
+                }
                 return new WarehouseQueryError(
                     error?.message || 'Bigquery warehouse error: access denied',
                 );

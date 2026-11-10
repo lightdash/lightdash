@@ -14,7 +14,10 @@ import {
 } from '../ee/features/aiCopilot/components/Launcher/launcherAnalysisAdapter';
 import { store as aiAgentStore } from '../ee/features/aiCopilot/store';
 import { openAnalysisPanel } from '../ee/features/aiCopilot/store/aiAgentLauncherSlice';
-import { useDataAppAnalysisAvailability } from '../features/apps/analysis/useDataAppAnalysisAvailability';
+import {
+    useDataAppAnalysisAvailability,
+    useIsAnalysisEntryVisible,
+} from '../features/apps/analysis/useDataAppAnalysisAvailability';
 import { useDataAppAnalysisController } from '../features/apps/analysis/useDataAppAnalysisController';
 import AppIframePreview, {
     type AppIframePreviewHandle,
@@ -116,9 +119,9 @@ export default function AppPreviewTest() {
     const { rolloverLogs } = inspector;
 
     // "Analyse this view": host-side AI analysis over the queries the app
-    // ran. When it's unavailable, the panel explains why.
+    // ran.
     const analysisAvailability = useDataAppAnalysisAvailability();
-    const showAnalysis = analysisAvailability.status !== 'loading';
+    const showAnalysis = useIsAnalysisEntryVisible(analysisAvailability);
     // Manual refresh: bumping the counter changes the iframe URL, forcing a
     // reload so the app's metric queries re-fire. `invalidateCache` latches on
     // with the first refresh so those re-fired queries bypass the warehouse

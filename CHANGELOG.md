@@ -1,3 +1,29 @@
+# [3.204.0](https://github.com/lightdash/lightdash/compare/3.203.1...3.204.0) (2026-11-10)
+
+
+### Bug Fixes
+
+* **ai:** only show the AI analysis tab where viewers can use it ([#32343](https://github.com/lightdash/lightdash/issues/32343)) ([fcf246a](https://github.com/lightdash/lightdash/commit/fcf246a4487312a318e5a64e31b3a17c139b4520))
+
+
+### Features
+
+* **ai:** metadata-only tool call event with attempt, model, version ([#32321](https://github.com/lightdash/lightdash/issues/32321)) ([4ee7f75](https://github.com/lightdash/lightdash/commit/4ee7f75dc979007b5d1f1d3dc7f014af4d242a1e))
+* **ai:** report agent tool and query errors to Sentry with their cause ([#32320](https://github.com/lightdash/lightdash/issues/32320)) ([0338652](https://github.com/lightdash/lightdash/commit/03386522d204a9506103d8c75e9eee9102384d9e))
+* **ai:** stamp agent turn ids on AI log lines ([#32319](https://github.com/lightdash/lightdash/issues/32319)) ([6190a31](https://github.com/lightdash/lightdash/commit/6190a313ee817d212a22f0aa2d818dad9f29cf35))
+* choose the tab when adding a chart to a dashboard ([#32350](https://github.com/lightdash/lightdash/issues/32350)) ([901d20f](https://github.com/lightdash/lightdash/commit/901d20ffaad2e602362f7472ef5bc71cee9b1747))
+
+## [3.203.1](https://github.com/lightdash/lightdash/compare/3.203.0...3.203.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **dashboards-as-code:** say how to fix bad section references ([#32345](https://github.com/lightdash/lightdash/issues/32345)) ([6999451](https://github.com/lightdash/lightdash/commit/6999451943c836a04f88db49dcff2d5787445d66))
+* **semantic-studio:** cap the rows a draft's key checks read ([#32335](https://github.com/lightdash/lightdash/issues/32335)) ([1807fef](https://github.com/lightdash/lightdash/commit/1807fef7da9e28d4d2b02d0939f4af0734abed26))
+* **semantic-studio:** check a drafted model against the warehouse catalog first ([#32344](https://github.com/lightdash/lightdash/issues/32344)) ([ca58bc2](https://github.com/lightdash/lightdash/commit/ca58bc29e7040c2e4af4716f433e5816a89db7d7))
+* **semantic-studio:** run Studio threads on a stronger model when nobody picked one ([#32347](https://github.com/lightdash/lightdash/issues/32347)) ([7dc7993](https://github.com/lightdash/lightdash/commit/7dc7993a0d7b43b68c043197536e1f7640987322))
+* **semantic-studio:** show a proposal's problems under the model they are about ([#32336](https://github.com/lightdash/lightdash/issues/32336)) ([9999251](https://github.com/lightdash/lightdash/commit/99992516cfc86c584259655adb93ea25651348af))
+
 # [3.203.0](https://github.com/lightdash/lightdash/compare/3.202.0...3.203.0) (2026-11-10)
 
 

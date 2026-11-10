@@ -74,7 +74,7 @@ describe('getIterateDataApp', () => {
         });
     });
 
-    it('reports an unknown app slug as an error naming it, without paging Sentry', async () => {
+    it('reports an unknown app slug as an error naming it, as a Sentry warning rather than a page', async () => {
         const iterateDataApp = vi
             .fn()
             .mockRejectedValue(
@@ -94,7 +94,10 @@ describe('getIterateDataApp', () => {
         expect(output.result).toContain('No new version was created');
         expect(output.result).toContain('Data app "no-such-app" was not found');
         expect(output.structuredContent).toEqual({ error: output.result });
-        expect(captureException).not.toHaveBeenCalled();
+        expect(captureException).toHaveBeenCalledExactlyOnceWith(
+            expect.any(NotFoundError),
+            expect.objectContaining({ level: 'warning' }),
+        );
     });
 
     it('pages Sentry for an unexpected failure', async () => {
