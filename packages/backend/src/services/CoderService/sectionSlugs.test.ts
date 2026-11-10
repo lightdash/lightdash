@@ -6,7 +6,6 @@ import {
 } from '@lightdash/common';
 import { validate, version } from 'uuid';
 import {
-    getDashboardWithoutSectionIds,
     getDashboardWithSectionIds,
     getDashboardWithSectionSlugs,
     type DashboardWithSectionIds,
@@ -342,7 +341,6 @@ describe('dashboard section slugs', () => {
             tabs: [],
         };
         expect(getDashboardWithSectionSlugs(plain)).toEqual(plain);
-        expect(getDashboardWithoutSectionIds(plain)).toEqual(plain);
         expect(getDashboardWithSectionIds(plain, undefined, true)).toEqual(
             plain,
         );
@@ -368,15 +366,18 @@ describe('dashboard section slugs', () => {
     });
 
     describe('with the flag off', () => {
-        it('downloads the stored shape without section ids or earlier keys', () => {
-            const file = getDashboardWithoutSectionIds(dashboard());
-            expect(file.config?.controlSections).toEqual([
-                { name: 'Currency comparison', collapsed: true },
-            ]);
-            expect(file.filters?.dimensions?.[0]).not.toHaveProperty(
-                'sectionSlug',
-            );
+        it('keeps section membership through a download and upload', () => {
+            const original = dashboard();
+            const file = getDashboardWithSectionSlugs(original);
             expect(removedKeys(file)).toEqual([]);
+            const restored = getDashboardWithSectionIds(
+                file,
+                savedConfig(original),
+                false,
+            );
+            expect(restored.filters?.dimensions?.[0].sectionId).toBe(
+                restored.config?.controlSections?.[0].id,
+            );
         });
 
         it('matches saved sections by stored slug and persists the slug through a rename', () => {

@@ -3650,26 +3650,18 @@ describe.each([true, false])(
                     );
                 }
 
-                if (enabled) {
-                    expect(exported.config.controlSections).toEqual([
-                        { slug: 'saved-section', name: 'Saved section' },
-                    ]);
-                    expect(exported.filters.dimensions[0].sectionSlug).toBe(
-                        'saved-section',
-                    );
-                    if (withControls)
-                        expect(
-                            exported.config.parameterControls[0].sectionSlug,
-                        ).toBe('saved-section');
-                } else {
-                    expect(exported.config.controlSections).toEqual([
-                        { name: 'Saved section' },
-                    ]);
-                    expect(
-                        exported.filters.dimensions[0].sectionSlug,
-                    ).toBeUndefined();
+                expect(exported.config.controlSections).toEqual([
+                    { slug: 'saved-section', name: 'Saved section' },
+                ]);
+                expect(exported.filters.dimensions[0].sectionSlug).toBe(
+                    'saved-section',
+                );
+                if (!enabled)
                     expect(exported.config.parameterControls).toBeUndefined();
-                }
+                else if (withControls)
+                    expect(
+                        exported.config.parameterControls[0].sectionSlug,
+                    ).toBe('saved-section');
                 expect(
                     exported.filters.dimensions[0].sectionId,
                 ).toBeUndefined();

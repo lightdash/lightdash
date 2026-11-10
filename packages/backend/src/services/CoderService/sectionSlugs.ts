@@ -129,7 +129,7 @@ const withSections = (
           }
         : dashboard;
 
-/** Flag on: references become the slugs derived from the section names */
+/** References become the slugs derived from the section names */
 export const getDashboardWithSectionSlugs = (
     dashboard: DashboardWithSectionIds,
 ): DashboardAsCode => {
@@ -151,15 +151,6 @@ export const getDashboardWithSectionSlugs = (
         }),
     );
 };
-
-/** Flag off: the stored shape, without the section ids a file never holds */
-export const getDashboardWithoutSectionIds = (
-    dashboard: DashboardWithSectionIds,
-): DashboardAsCode =>
-    withSections(
-        mapReferences(dashboard, () => ({})),
-        (section) => pick(section, ['slug', 'name', 'collapsed']),
-    );
 
 export const getDashboardWithSectionIds = (
     dashboard: DashboardAsCode,

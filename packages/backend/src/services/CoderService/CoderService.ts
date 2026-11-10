@@ -236,7 +236,6 @@ import {
     getScheduledDeliveryTargetsAsCode,
 } from './scheduledContent';
 import {
-    getDashboardWithoutSectionIds,
     getDashboardWithSectionIds,
     getDashboardWithSectionSlugs,
     withoutStoredOnlyKeys,
@@ -2227,9 +2226,7 @@ export class CoderService extends BaseService {
             verification: verificationMap.get(dashboard.uuid) ?? null,
         };
 
-        return controlsEnabled
-            ? getDashboardWithSectionSlugs(dashboardAsCode)
-            : getDashboardWithoutSectionIds(dashboardAsCode);
+        return getDashboardWithSectionSlugs(dashboardAsCode);
     }
 
     private static convertTabsWithSlugsToUuids(
