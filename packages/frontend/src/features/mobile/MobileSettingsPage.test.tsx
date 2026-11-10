@@ -160,6 +160,22 @@ describe('MobileSettingsPage with mobile-qr-sign-in on', () => {
         ).not.toBeInTheDocument();
     });
 
+    it('pauses link polling while the user already has the app', async () => {
+        mockLink({});
+        renderWithProviders(<MobileSettingsPage />);
+        expect(useMobileAppLink).toHaveBeenLastCalledWith({ isPaused: false });
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'I already have the app' }),
+        );
+        expect(useMobileAppLink).toHaveBeenLastCalledWith({ isPaused: true });
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Show code' }),
+        );
+        expect(useMobileAppLink).toHaveBeenLastCalledWith({ isPaused: false });
+    });
+
     it('announces a scan and opens the sign-in step', () => {
         mockLink({ isScanned: true });
         renderWithProviders(<MobileSettingsPage />);
