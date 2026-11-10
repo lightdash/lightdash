@@ -5,6 +5,7 @@ import type {
     Dashboard,
     DashboardChartTileProperties,
     DashboardConfig,
+    DashboardControlRefKind,
     DashboardControlSection,
     DashboardDataAppTileProperties,
     DashboardHeadingTileProperties,
@@ -148,6 +149,8 @@ export type DashboardControlSectionAsCode = {
 
 export type DashboardFilterRuleAsCode = DashboardFilterRule & {
     sectionSlug?: string;
+    /** Resolves `controlOrder` refs in this file; derived on download, never stored */
+    slug?: string;
 };
 
 export type DateZoomControlAsCode = {
@@ -173,6 +176,15 @@ export type DashboardParameterControlAsCode = {
     hidden?: boolean;
 };
 
+/** A control in `controlOrder`, by its slug in the same file */
+export type DashboardControlRefAsCode = {
+    kind: DashboardControlRefKind;
+    /** Slug of a filter, parameter control or section in this file */
+    slug: string;
+    /** Starts a new bar line; absent, it shares the line of the entry before it. On a section member it passes to the next loose entry in the list */
+    newLine?: boolean;
+};
+
 export type DashboardConfigAsCode = {
     isDateZoomDisabled: DashboardConfig['isDateZoomDisabled'];
     isAddFilterDisabled?: DashboardConfig['isAddFilterDisabled'];
@@ -192,6 +204,8 @@ export type DashboardConfigAsCode = {
     parameterSections?: DashboardConfig['parameterSections'];
     parameterSectionSlugs?: { [parameterName: string]: string };
     parameterControls?: DashboardParameterControlAsCode[];
+    /** The order of filters, parameter controls and sections on the bar. Absent: the default order. */
+    controlOrder?: DashboardControlRefAsCode[];
 };
 
 export type DashboardAsCode = {

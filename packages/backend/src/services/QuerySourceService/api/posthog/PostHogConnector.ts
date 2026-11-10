@@ -348,3 +348,8 @@ export class PostHogConnector implements ApiConnector {
         }));
     }
 }
+
+export const getPostHogOAuthEndpoints = (origin: string) => ({
+    authorizeUrl: new URL('/oauth/authorize/', origin).href,
+    tokenUrl: new URL('/oauth/token/', origin).href,
+});

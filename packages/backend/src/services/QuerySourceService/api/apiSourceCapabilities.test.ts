@@ -12,6 +12,7 @@ import {
     type LiveSourceRefusalCode,
     type MetricQuery,
 } from '@lightdash/common';
+import { type ApiConnectorCapabilities } from './ApiConnector';
 import { assertApiSourceQuery } from './apiSourceExplore';
 import {
     buildApiSourceExplores,
@@ -21,18 +22,86 @@ import {
 import { getInitialLiveSourceFieldEdits } from './liveSourceFields';
 
 const CONNECTION_UUID = '03386598-7a51-45b2-b1f9-5ef55bd09016';
+// One entry per integration, with the built-in fields every case uses, by
+// semantic-layer name. Every case below reads what each integration declares.
 const SOURCES = [
-    { connector: ApiConnectorType.GA4, propertyId: '123' },
     {
-        connector: ApiConnectorType.SEARCH_CONSOLE,
-        siteUrl: 'sc-domain:example.com',
+        apiSource: { connector: ApiConnectorType.GA4, propertyId: '123' },
+        fields: { dimension: 'country', other: 'city', metric: 'sessions' },
     },
-    { connector: ApiConnectorType.POSTHOG, projectId: '42' },
+    {
+        apiSource: {
+            connector: ApiConnectorType.SEARCH_CONSOLE,
+            siteUrl: 'sc-domain:example.com',
+        },
+        fields: { dimension: 'country', other: 'device', metric: 'clicks' },
+    },
+    {
+        apiSource: {
+            connector: ApiConnectorType.YOUTUBE_ANALYTICS,
+            channelId: 'UCaaaaaaaaaaaaaaaaaaaaaa',
+        },
+        fields: {
+            dimension: 'country',
+            other: 'video_id',
+            metric: 'views',
+        },
+    },
+    {
+        apiSource: {
+            connector: ApiConnectorType.LINKEDIN_ADS,
+            adAccountId: '507404993',
+        },
+        fields: {
+            dimension: 'campaign_id',
+            other: 'campaign_group_id',
+            metric: 'impressions',
+        },
+    },
+    {
+        apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '42' },
+        fields: {
+            dimension: 'event',
+            other: 'browser',
+            metric: 'event_count',
+        },
+    },
+    {
+        apiSource: { connector: ApiConnectorType.META_ADS, adAccountId: '123' },
+        fields: {
+            dimension: 'campaign_name',
+            other: 'adset_name',
+            metric: 'spend',
+        },
+    },
+    {
+        apiSource: {
+            connector: ApiConnectorType.GOOGLE_ADS,
+            customerId: '1234567890',
+            loginCustomerId: null,
+        },
+        fields: {
+            dimension: 'account_name',
+            other: 'account_currency',
+            metric: 'clicks',
+        },
+    },
 ] as const;
 
+const CONNECTORS: ApiConnectorType[] = SOURCES.map(
+    ({ apiSource }) => apiSource.connector,
+);
+
+const getSource = (connector: ApiConnectorType) => {
+    const source = SOURCES.find(
+        ({ apiSource }) => apiSource.connector === connector,
+    );
+    if (!source) throw new Error(`No source for ${connector}`);
+    return source;
+};
+
 const build = (connector: ApiConnectorType): Explore => {
-    const apiSource = SOURCES.find((source) => source.connector === connector);
-    if (!apiSource) throw new Error(`No source for ${connector}`);
+    const { apiSource } = getSource(connector);
     const [explore] = buildApiSourceExplores({
         connectionUuid: CONNECTION_UUID,
         sourceName: connector,
@@ -52,25 +121,6 @@ const withoutCapabilities = (explore: Explore): Explore => {
     if (!explore.apiSource) throw new Error('Not a live explore');
     const { capabilities, ...apiSource } = explore.apiSource;
     return { ...explore, apiSource };
-};
-
-// Built-in fields every case uses, by semantic-layer name
-const FIELDS = {
-    [ApiConnectorType.GA4]: {
-        dimension: 'country',
-        other: 'city',
-        metric: 'sessions',
-    },
-    [ApiConnectorType.SEARCH_CONSOLE]: {
-        dimension: 'country',
-        other: 'device',
-        metric: 'clicks',
-    },
-    [ApiConnectorType.POSTHOG]: {
-        dimension: 'event',
-        other: 'browser',
-        metric: 'event_count',
-    },
 };
 
 const toFieldId = (connector: ApiConnectorType, name: string) =>
@@ -104,24 +154,47 @@ type Case = {
     stale?: Partial<Record<ApiConnectorType, string[]>>;
 };
 
-const everywhere = (message: string) => ({
-    [ApiConnectorType.GA4]: [message],
-    [ApiConnectorType.SEARCH_CONSOLE]: [message],
-    [ApiConnectorType.POSTHOG]: [message],
-});
+type Refusals = Partial<Record<ApiConnectorType, string[]>>;
+
+const everywhere = (message: string): Refusals =>
+    Object.fromEntries(CONNECTORS.map((connector) => [connector, [message]]));
+
+/** Refused by the connectors whose declaration matches, in each one's words. */
+const wherever = (
+    matches: (capabilities: ApiConnectorCapabilities) => boolean,
+    message: (
+        connector: ApiConnectorType,
+        capabilities: ApiConnectorCapabilities,
+    ) => string,
+): Refusals =>
+    Object.fromEntries(
+        CONNECTORS.flatMap((connector) => {
+            const { capabilities } = getApiSourceBaseLayer(connector);
+            return matches(capabilities)
+                ? [[connector, [message(connector, capabilities)]]]
+                : [];
+        }),
+    );
+
+const isFlatAnd = ({ filters }: ApiConnectorCapabilities) => !filters.or;
+const needsDateRange = ({ dates }: ApiConnectorCapabilities) =>
+    dates.rangeRequired;
 
 // Report APIs refuse what PostHog compiles into HogQL; PostHog explores
 // cached before capabilities still refuse it until they are refreshed
 const reportApisOnly = (message: string) => ({
-    expected: {
-        [ApiConnectorType.GA4]: [message],
-        [ApiConnectorType.SEARCH_CONSOLE]: [message],
-    },
+    expected: Object.fromEntries(
+        CONNECTORS.filter(
+            (connector) => connector !== ApiConnectorType.POSTHOG,
+        ).map((connector) => [connector, [message]]),
+    ),
     stale: everywhere(message),
 });
 
-const id = (connector: ApiConnectorType, key: keyof typeof FIELDS.ga4) =>
-    toFieldId(connector, FIELDS[connector][key]);
+const id = (
+    connector: ApiConnectorType,
+    key: keyof (typeof SOURCES)[number]['fields'],
+) => toFieldId(connector, getSource(connector).fields[key]);
 const date = (connector: ApiConnectorType) => toFieldId(connector, 'date');
 
 // Every refusal the shared check replaced, with the message users saw
@@ -212,11 +285,11 @@ const CASES: Case[] = [
                 },
             },
         }),
-        expected: {
-            [ApiConnectorType.SEARCH_CONSOLE]: [
+        expected: wherever(
+            isFlatAnd,
+            () =>
                 'This live data source only combines filters with AND. Replace the OR group with separate queries.',
-            ],
-        },
+        ),
     },
     {
         name: 'a nested group',
@@ -240,11 +313,11 @@ const CASES: Case[] = [
                 },
             },
         }),
-        expected: {
-            [ApiConnectorType.SEARCH_CONSOLE]: [
+        expected: wherever(
+            ({ filters }) => !filters.nestedGroups,
+            () =>
                 "This live data source can't nest filter groups. Put every filter in one group.",
-            ],
-        },
+        ),
     },
     {
         name: 'several values in one filter',
@@ -288,11 +361,11 @@ const CASES: Case[] = [
                 },
             },
         }),
-        expected: {
-            [ApiConnectorType.SEARCH_CONSOLE]: [
-                `"${id(ApiConnectorType.SEARCH_CONSOLE, 'metric')}" can't be filtered on this live data source.`,
-            ],
-        },
+        expected: wherever(
+            ({ metricFilters }) => !metricFilters,
+            (connector) =>
+                `"${id(connector, 'metric')}" can't be filtered on this live data source.`,
+        ),
     },
     {
         name: 'a date inside an OR group',
@@ -312,11 +385,13 @@ const CASES: Case[] = [
             },
         }),
         expected: {
+            ...wherever(
+                isFlatAnd,
+                () =>
+                    'This live data source only combines filters with AND. Replace the OR group with separate queries.',
+            ),
             [ApiConnectorType.GA4]: [
                 'Filter the date with one filter combined with the others by AND, not inside an OR group.',
-            ],
-            [ApiConnectorType.SEARCH_CONSOLE]: [
-                'This live data source only combines filters with AND. Replace the OR group with separate queries.',
             ],
         },
     },
@@ -336,14 +411,11 @@ const CASES: Case[] = [
                 },
             },
         }),
-        expected: {
-            [ApiConnectorType.GA4]: [
+        expected: wherever(
+            needsDateRange,
+            () =>
                 'Filter the date once: combine the date filters into one range.',
-            ],
-            [ApiConnectorType.SEARCH_CONSOLE]: [
-                'Filter the date once: combine the date filters into one range.',
-            ],
-        },
+        ),
     },
     {
         name: 'a date in the past hours',
@@ -360,14 +432,11 @@ const CASES: Case[] = [
                 },
             },
         }),
-        expected: {
-            [ApiConnectorType.GA4]: [
+        expected: wherever(
+            needsDateRange,
+            () =>
                 'Live data sources report by day; filter in days or longer, not hours.',
-            ],
-            [ApiConnectorType.SEARCH_CONSOLE]: [
-                'Live data sources report by day; filter in days or longer, not hours.',
-            ],
-        },
+        ),
     },
     {
         name: 'a date operator the API lacks',
@@ -387,11 +456,12 @@ const CASES: Case[] = [
             },
         }),
         // GA4 reads it as everything before that range
-        expected: {
-            [ApiConnectorType.SEARCH_CONSOLE]: [
-                `"${date(ApiConnectorType.SEARCH_CONSOLE)}" can't be filtered with "notInThePast". Use one of: inThePast, inBetween, equals.`,
-            ],
-        },
+        expected: wherever(
+            ({ dates }) =>
+                !dates.operators.includes(FilterOperator.NOT_IN_THE_PAST),
+            (connector, { dates }) =>
+                `"${date(connector)}" can't be filtered with "notInThePast". Use one of: ${dates.operators.join(', ')}.`,
+        ),
     },
 ];
 
@@ -421,172 +491,166 @@ const getMessages = (
 };
 
 describe('live data source capabilities keep their refusals', () => {
-    describe.each(SOURCES.map(({ connector }) => connector))(
-        '%s',
-        (connector) => {
-            const explore = build(connector);
+    describe.each(CONNECTORS)('%s', (connector) => {
+        const explore = build(connector);
 
-            test.each(CASES)(
-                '$name',
-                ({ query, context, expected, stale, code }) => {
-                    const metricQuery = toQuery(connector, query(connector));
-                    const messages = getMessages(explore, metricQuery, context);
-                    expect(messages).toEqual(expected[connector] ?? []);
-                    if (code && explore.apiSource) {
-                        expect(
-                            getApiSourceQueryIssues(
-                                explore.apiSource,
-                                metricQuery,
-                                context,
-                            ).map((issue) => issue.code),
-                        ).toEqual(messages.map(() => code));
-                    }
-                    // Explores cached before capabilities refuse the same, or
-                    // more where a connector learned something since
+        test.each(CASES)(
+            '$name',
+            ({ query, context, expected, stale, code }) => {
+                const metricQuery = toQuery(connector, query(connector));
+                const messages = getMessages(explore, metricQuery, context);
+                expect(messages).toEqual(expected[connector] ?? []);
+                if (code && explore.apiSource) {
                     expect(
-                        getMessages(
-                            withoutCapabilities(explore),
+                        getApiSourceQueryIssues(
+                            explore.apiSource,
                             metricQuery,
                             context,
-                        ),
-                    ).toEqual(stale?.[connector] ?? messages);
-                    // Every entry point throws the same joined message
-                    if (messages.length > 0) {
-                        expect(() =>
-                            assertApiSourceQuery(explore, metricQuery, context),
-                        ).toThrow(ParameterError);
-                        expect(() =>
-                            assertApiSourceQuery(explore, metricQuery, context),
-                        ).toThrow(messages.join(' '));
-                        // Every refusal carries its codes for the API response
-                        try {
-                            assertApiSourceQuery(explore, metricQuery, context);
-                        } catch (error) {
-                            expect(error).toMatchObject({
-                                data: {
-                                    liveSourceErrorCode: expect.stringMatching(
-                                        /^live_source\.refused\./,
-                                    ),
-                                },
-                            });
-                        }
+                        ).map((issue) => issue.code),
+                    ).toEqual(messages.map(() => code));
+                }
+                // Explores cached before capabilities refuse the same, or
+                // more where a connector learned something since
+                expect(
+                    getMessages(
+                        withoutCapabilities(explore),
+                        metricQuery,
+                        context,
+                    ),
+                ).toEqual(stale?.[connector] ?? messages);
+                // Every entry point throws the same joined message
+                if (messages.length > 0) {
+                    expect(() =>
+                        assertApiSourceQuery(explore, metricQuery, context),
+                    ).toThrow(ParameterError);
+                    expect(() =>
+                        assertApiSourceQuery(explore, metricQuery, context),
+                    ).toThrow(messages.join(' '));
+                    // Every refusal carries its codes for the API response
+                    try {
+                        assertApiSourceQuery(explore, metricQuery, context);
+                    } catch (error) {
+                        expect(error).toMatchObject({
+                            data: {
+                                liveSourceErrorCode: expect.stringMatching(
+                                    /^live_source\.refused\./,
+                                ),
+                            },
+                        });
                     }
-                    if (messages.length > 0 && !context) {
-                        expect(() =>
-                            compileApiSourceMetricQuery({
-                                explore,
-                                metricQuery,
-                                timezone: 'UTC',
-                                now: new Date('2026-11-06T12:00:00Z'),
-                            }),
-                        ).toThrow(messages.join(' '));
-                    }
-                },
-            );
-        },
-    );
+                }
+                if (messages.length > 0 && !context) {
+                    expect(() =>
+                        compileApiSourceMetricQuery({
+                            explore,
+                            metricQuery,
+                            timezone: 'UTC',
+                            now: new Date('2026-11-06T12:00:00Z'),
+                        }),
+                    ).toThrow(messages.join(' '));
+                }
+            },
+        );
+    });
 });
 
 describe('connector capability declarations', () => {
-    describe.each(SOURCES.map(({ connector }) => connector))(
-        '%s',
-        (connector) => {
-            const { capabilities, definitions } =
-                getApiSourceBaseLayer(connector);
+    describe.each(CONNECTORS)('%s', (connector) => {
+        const { capabilities, definitions } = getApiSourceBaseLayer(connector);
 
-            test('every field filters with its type operators', () => {
-                definitions.forEach((definition) => {
-                    // Grains of the date dimension are filtered through the date
-                    definition.dimensions
-                        .filter(
-                            ({ name, timeInterval }) =>
-                                !timeInterval || timeInterval.base === name,
-                        )
-                        .forEach((dimension) => {
-                            expect([
-                                dimension.name,
-                                dimension.filterOperators,
-                            ]).toEqual([
-                                dimension.name,
-                                capabilities.filters.operators[
-                                    dimension.type
-                                ] ?? [],
-                            ]);
-                        });
-                    definition.metrics.forEach((metric) => {
-                        expect([metric.name, metric.filterOperators]).toEqual([
-                            metric.name,
-                            capabilities.metricFilters
-                                ? (capabilities.filters.operators.metric ?? [])
-                                : [],
-                        ]);
+        test('every field filters with operators its type allows', () => {
+            definitions.forEach((definition) => {
+                // Grains of the date dimension are filtered through the date
+                definition.dimensions
+                    .filter(
+                        ({ name, timeInterval }) =>
+                            !timeInterval || timeInterval.base === name,
+                    )
+                    .forEach((dimension) => {
+                        // A field can narrow its type, as when an API
+                        // only compares ids as whole values
+                        const allowed =
+                            capabilities.filters.operators[dimension.type] ??
+                            [];
+                        expect([
+                            dimension.name,
+                            dimension.filterOperators.filter(
+                                (operator) => !allowed.includes(operator),
+                            ),
+                        ]).toEqual([dimension.name, []]);
                     });
+                definition.metrics.forEach((metric) => {
+                    expect([metric.name, metric.filterOperators]).toEqual([
+                        metric.name,
+                        capabilities.metricFilters
+                            ? (capabilities.filters.operators.metric ?? [])
+                            : [],
+                    ]);
                 });
             });
+        });
 
-            test('the date range field uses the date operators', () => {
-                definitions.forEach(({ dateRange, dimensions }) => {
-                    const field = dimensions.find(
-                        ({ name }) => name === dateRange?.dimension,
-                    );
-                    expect(field?.filterOperators).toEqual(
-                        capabilities.dates.operators,
-                    );
+        test('the date range field uses the date operators', () => {
+            definitions.forEach(({ dateRange, dimensions }) => {
+                const field = dimensions.find(
+                    ({ name }) => name === dateRange?.dimension,
+                );
+                expect(field?.filterOperators).toEqual(
+                    capabilities.dates.operators,
+                );
+            });
+        });
+
+        test('every built-in metric has a reviewed additivity tag', () => {
+            definitions.forEach(({ metrics }) => {
+                metrics.forEach((metric) => {
+                    expect([metric.name, metric.aggregation]).toEqual([
+                        metric.name,
+                        expect.objectContaining({
+                            aggregation: expect.any(String),
+                        }),
+                    ]);
                 });
             });
+        });
 
-            test('every built-in metric has a reviewed additivity tag', () => {
-                definitions.forEach(({ metrics }) => {
-                    metrics.forEach((metric) => {
-                        expect([metric.name, metric.aggregation]).toEqual([
-                            metric.name,
-                            expect.objectContaining({
-                                aggregation: expect.any(String),
-                            }),
-                        ]);
-                    });
-                });
-            });
-
-            test('ratios are built from additive metrics of the same model', () => {
-                definitions.forEach(({ metrics }) => {
-                    const byName = new Map(
-                        metrics.map((metric) => [metric.name, metric]),
-                    );
-                    metrics.forEach(({ aggregation }) => {
-                        if (aggregation?.aggregation !== 'ratio') return;
-                        [
-                            aggregation.numerator,
-                            aggregation.denominator,
-                        ].forEach((name) => {
+        test('ratios are built from additive metrics of the same model', () => {
+            definitions.forEach(({ metrics }) => {
+                const byName = new Map(
+                    metrics.map((metric) => [metric.name, metric]),
+                );
+                metrics.forEach(({ aggregation }) => {
+                    if (aggregation?.aggregation !== 'ratio') return;
+                    [aggregation.numerator, aggregation.denominator].forEach(
+                        (name) => {
                             expect([
                                 name,
                                 byName.get(name)?.aggregation?.aggregation,
                             ]).toEqual([name, 'additive']);
-                        });
-                    });
+                        },
+                    );
                 });
             });
+        });
 
-            test('built explores carry the capabilities and metric tags', () => {
-                const { apiSource } = build(connector);
-                expect(apiSource?.capabilities).toEqual({
-                    ...capabilities,
-                    metrics: Object.fromEntries(
-                        definitions[0].metrics.map(({ name, aggregation }) => [
-                            name,
-                            aggregation,
-                        ]),
-                    ),
-                });
+        test('built explores carry the capabilities and metric tags', () => {
+            const { apiSource } = build(connector);
+            expect(apiSource?.capabilities).toEqual({
+                ...capabilities,
+                metrics: Object.fromEntries(
+                    definitions[0].metrics.map(({ name, aggregation }) => [
+                        name,
+                        aggregation,
+                    ]),
+                ),
             });
-        },
-    );
+        });
+    });
 
     test('the summable tags', () => {
         expect(
             Object.fromEntries(
-                SOURCES.map(({ connector }) => [
+                CONNECTORS.map((connector) => [
                     connector,
                     build(connector).apiSource?.capabilities?.metrics,
                 ]),

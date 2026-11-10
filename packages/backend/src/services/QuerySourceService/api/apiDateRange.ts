@@ -291,3 +291,36 @@ export const toAbsoluteDateRange = (
     startDate: toAbsoluteDate(range.start, today),
     endDate: toAbsoluteDate(range.end, today),
 });
+
+/**
+ * The calendar dates a query covers, and the filters left once its date is
+ * taken out, for APIs that take one absolute range.
+ */
+export const resolveAbsoluteDateRange = ({
+    dateRange,
+    filters,
+    today,
+}: {
+    dateRange: { fieldId: FieldId; defaultDays: number } | undefined;
+    filters: FilterGroup | undefined;
+    today: string;
+}): {
+    startDate: string;
+    endDate: string;
+    otherFilters: FilterGroup | undefined;
+} => {
+    const { dateRule, otherFilters } = dateRange
+        ? splitDateRangeFilter(filters, dateRange.fieldId)
+        : { dateRule: null, otherFilters: filters };
+    return {
+        ...toAbsoluteDateRange(
+            getApiDateRange({
+                rule: dateRule,
+                defaultDays: dateRange?.defaultDays ?? 30,
+                today,
+            }),
+            today,
+        ),
+        otherFilters,
+    };
+};

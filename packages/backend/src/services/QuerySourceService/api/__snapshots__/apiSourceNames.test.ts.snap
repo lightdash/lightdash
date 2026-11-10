@@ -1,5 +1,66 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
+exports[`live data source names > 'Google Ads' explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "google_ads_performance_account_currency",
+        "google_ads_performance_account_id",
+        "google_ads_performance_account_name",
+        "google_ads_performance_ad_group_id",
+        "google_ads_performance_ad_group_name",
+        "google_ads_performance_ad_group_status",
+        "google_ads_performance_ad_group_type",
+        "google_ads_performance_all_conversions",
+        "google_ads_performance_all_conversions_value",
+        "google_ads_performance_average_cpc",
+        "google_ads_performance_average_cpm",
+        "google_ads_performance_campaign_bidding_strategy_type",
+        "google_ads_performance_campaign_id",
+        "google_ads_performance_campaign_name",
+        "google_ads_performance_campaign_status",
+        "google_ads_performance_campaign_type",
+        "google_ads_performance_clicks",
+        "google_ads_performance_conversion_rate",
+        "google_ads_performance_conversions",
+        "google_ads_performance_conversions_value",
+        "google_ads_performance_cost",
+        "google_ads_performance_cost_per_conversion",
+        "google_ads_performance_ctr",
+        "google_ads_performance_date",
+        "google_ads_performance_date_month",
+        "google_ads_performance_date_quarter",
+        "google_ads_performance_date_week",
+        "google_ads_performance_date_year",
+        "google_ads_performance_day_of_week",
+        "google_ads_performance_device",
+        "google_ads_performance_engagements",
+        "google_ads_performance_impressions",
+        "google_ads_performance_interaction_rate",
+        "google_ads_performance_interactions",
+        "google_ads_performance_network",
+        "google_ads_performance_search_absolute_top_impression_share",
+        "google_ads_performance_search_budget_lost_impression_share",
+        "google_ads_performance_search_impression_share",
+        "google_ads_performance_search_rank_lost_impression_share",
+        "google_ads_performance_search_top_impression_share",
+        "google_ads_performance_value_per_conversion",
+        "google_ads_performance_view_through_conversions",
+      ],
+      "name": "google_ads_performance",
+    },
+  ],
+  "reservedExploreNames": [
+    "google_ads_ads",
+    "google_ads_keywords",
+    "google_ads_search_terms",
+    "google_ads_conversions",
+    "google_ads_locations",
+  ],
+}
+`;
+
 exports[`live data source names > 'Google Analytics' explore names and field ids never change 1`] = `
 {
   "explores": [
@@ -49,6 +110,101 @@ exports[`live data source names > 'Google Analytics' explore names and field ids
   ],
   "reservedExploreNames": [
     "google_analytics_ecommerce",
+  ],
+}
+`;
+
+exports[`live data source names > 'LinkedIn Ads' explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "linkedin_ads_performance_campaign_group_id",
+        "linkedin_ads_performance_campaign_group_name",
+        "linkedin_ads_performance_campaign_id",
+        "linkedin_ads_performance_campaign_name",
+        "linkedin_ads_performance_campaign_objective",
+        "linkedin_ads_performance_campaign_status",
+        "linkedin_ads_performance_campaign_type",
+        "linkedin_ads_performance_clicks",
+        "linkedin_ads_performance_comments",
+        "linkedin_ads_performance_conversion_value",
+        "linkedin_ads_performance_conversions",
+        "linkedin_ads_performance_cost",
+        "linkedin_ads_performance_date",
+        "linkedin_ads_performance_date_month",
+        "linkedin_ads_performance_date_year",
+        "linkedin_ads_performance_follows",
+        "linkedin_ads_performance_impressions",
+        "linkedin_ads_performance_landing_page_clicks",
+        "linkedin_ads_performance_lead_form_opens",
+        "linkedin_ads_performance_leads",
+        "linkedin_ads_performance_likes",
+        "linkedin_ads_performance_post_click_conversions",
+        "linkedin_ads_performance_post_view_conversions",
+        "linkedin_ads_performance_reach",
+        "linkedin_ads_performance_shares",
+        "linkedin_ads_performance_total_engagements",
+        "linkedin_ads_performance_video_completions",
+        "linkedin_ads_performance_video_views",
+      ],
+      "name": "linkedin_ads_performance",
+    },
+  ],
+  "reservedExploreNames": [
+    "linkedin_ads_creatives",
+    "linkedin_ads_demographics",
+    "linkedin_ads_conversions",
+    "linkedin_ads_organic_shares",
+  ],
+}
+`;
+
+exports[`live data source names > 'Meta Ads' explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "meta_ads_insights_ad_id",
+        "meta_ads_insights_ad_name",
+        "meta_ads_insights_adds_to_cart",
+        "meta_ads_insights_adset_id",
+        "meta_ads_insights_adset_name",
+        "meta_ads_insights_age",
+        "meta_ads_insights_campaign_id",
+        "meta_ads_insights_campaign_name",
+        "meta_ads_insights_checkouts_initiated",
+        "meta_ads_insights_clicks",
+        "meta_ads_insights_country",
+        "meta_ads_insights_cpc",
+        "meta_ads_insights_cpm",
+        "meta_ads_insights_ctr",
+        "meta_ads_insights_date",
+        "meta_ads_insights_date_month",
+        "meta_ads_insights_frequency",
+        "meta_ads_insights_gender",
+        "meta_ads_insights_impressions",
+        "meta_ads_insights_landing_page_views",
+        "meta_ads_insights_leads",
+        "meta_ads_insights_link_clicks",
+        "meta_ads_insights_objective",
+        "meta_ads_insights_platform_position",
+        "meta_ads_insights_publisher_platform",
+        "meta_ads_insights_purchase_roas",
+        "meta_ads_insights_purchase_value",
+        "meta_ads_insights_purchases",
+        "meta_ads_insights_reach",
+        "meta_ads_insights_region",
+        "meta_ads_insights_registrations_completed",
+        "meta_ads_insights_spend",
+      ],
+      "name": "meta_ads_insights",
+    },
+  ],
+  "reservedExploreNames": [
+    "meta_ads_demographics",
+    "meta_ads_placements",
+    "meta_ads_creatives",
   ],
 }
 `;
@@ -110,6 +266,42 @@ exports[`live data source names > 'Search Console' explore names and field ids n
   ],
   "reservedExploreNames": [
     "search_console_search_appearance",
+  ],
+}
+`;
+
+exports[`live data source names > 'YouTube Analytics' explore names and field ids never change 1`] = `
+{
+  "explores": [
+    {
+      "fieldIds": [
+        "youtube_analytics_activity_average_view_duration",
+        "youtube_analytics_activity_average_view_percentage",
+        "youtube_analytics_activity_comments",
+        "youtube_analytics_activity_country",
+        "youtube_analytics_activity_creator_content_type",
+        "youtube_analytics_activity_date",
+        "youtube_analytics_activity_date_month",
+        "youtube_analytics_activity_device_type",
+        "youtube_analytics_activity_dislikes",
+        "youtube_analytics_activity_engaged_views",
+        "youtube_analytics_activity_estimated_minutes_watched",
+        "youtube_analytics_activity_likes",
+        "youtube_analytics_activity_shares",
+        "youtube_analytics_activity_subscribers_gained",
+        "youtube_analytics_activity_subscribers_lost",
+        "youtube_analytics_activity_traffic_source_type",
+        "youtube_analytics_activity_video_id",
+        "youtube_analytics_activity_views",
+      ],
+      "name": "youtube_analytics_activity",
+    },
+  ],
+  "reservedExploreNames": [
+    "youtube_analytics_demographics",
+    "youtube_analytics_playlists",
+    "youtube_analytics_revenue",
+    "youtube_analytics_audience_retention",
   ],
 }
 `;

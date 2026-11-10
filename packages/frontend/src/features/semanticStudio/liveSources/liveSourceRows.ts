@@ -9,7 +9,7 @@ import {
     type ExternalConnectionApiUsage,
 } from '@lightdash/common';
 import { formatDuration } from '../../../utils/formatters';
-import { getApiSourceTarget } from '../../externalConnections/liveSources/googleConnection';
+import { getApiSourceTarget } from '../../externalConnections/liveSources/liveSourceCatalog';
 import { getLiveSource } from '../../externalConnections/liveSources/liveSourceCatalog';
 
 export type LiveSourceConnection = ExternalConnection & {

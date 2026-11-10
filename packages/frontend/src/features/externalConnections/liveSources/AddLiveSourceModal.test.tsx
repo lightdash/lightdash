@@ -20,13 +20,14 @@ vi.mock('../../../providers/App/useApp', () => ({
 
 const onPick = vi.fn();
 
-const renderModal = () =>
+const renderModal = ({ canUseLinkedInAds = true } = {}) =>
     renderWithProviders(
         <AddLiveSourceModal
             opened
             onClose={vi.fn()}
             projectUuid="project-1"
             canUseGoogle
+            canUseLinkedInAds={canUseLinkedInAds}
             onPick={onPick}
         />,
     );
@@ -50,6 +51,34 @@ describe('AddLiveSourceModal', () => {
     beforeEach(() => {
         track.mockClear();
         onPick.mockClear();
+    });
+
+    it('shows LinkedIn Ads as requestable without a LinkedIn client', async () => {
+        renderModal({ canUseLinkedInAds: false });
+
+        const requestButtons = screen.getAllByRole('button', {
+            name: 'Request',
+        });
+        expect(screen.getByText('LinkedIn Ads')).toBeInTheDocument();
+        await userEvent.click(requestButtons[0]);
+
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                name: EventName.LIVE_DATA_SOURCE_REQUESTED,
+                properties: expect.objectContaining({
+                    integration: 'linkedin_ads',
+                }),
+            }),
+        );
+        expect(onPick).not.toHaveBeenCalled();
+    });
+
+    it('connects LinkedIn Ads when the server has a LinkedIn client', async () => {
+        renderModal();
+
+        await userEvent.click(screen.getByText('LinkedIn Ads'));
+
+        expect(onPick).toHaveBeenCalledWith('linkedin_ads');
     });
 
     it('tracks a typed source by its trimmed name', async () => {

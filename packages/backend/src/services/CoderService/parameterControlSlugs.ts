@@ -6,6 +6,7 @@ import {
     type DashboardParameterControlAsCode,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
+import { getStableIds } from './dashboardReferences';
 
 const baseSlug = (
     control: Pick<DashboardParameterControlAsCode, 'label' | 'parameters'>,
@@ -22,7 +23,8 @@ const baseSlug = (
     );
 };
 
-const controlSlugs = (
+/** A file's slug, else derived from the label or first parameter key */
+export const controlSlugs = (
     controls: Pick<
         DashboardParameterControlAsCode,
         'label' | 'parameters' | 'slug'
@@ -32,7 +34,10 @@ const controlSlugs = (
 export const getParameterControlsWithSlugs = (
     controls: DashboardParameterControl[],
 ): DashboardParameterControlAsCode[] => {
-    const slugs = controlSlugs(controls);
+    // Derived on every download: a stored slug is ignored
+    const slugs = controlSlugs(
+        controls.map(({ label, parameters }) => ({ label, parameters })),
+    );
     return controls.map(({ id: _id, slug: _slug, ...control }, index) => ({
         slug: slugs[index],
         ...control,
@@ -75,33 +80,10 @@ export const getParameterControlsWithIds = (
             claimed.add(id);
         }
     });
-    const existingSlugs = controlSlugs(existing);
-    const matches = controls.map(({ slug, id }) => {
-        const match =
-            slug === undefined
-                ? undefined
-                : existing.find((_, index) => existingSlugs[index] === slug)
-                      ?.id;
-        if (id && match && id !== match)
-            throw new ParameterError(
-                `Parameter control slug "${slug}" conflicts with id "${id}"`,
-            );
-        if (match && !id) {
-            if (claimed.has(match))
-                throw new ParameterError(
-                    `Parameter control id "${match}" is duplicated`,
-                );
-            claimed.add(match);
-        }
-        return id ?? match;
-    });
-    return controls.map(({ slug, id: _id, ...control }, index) => {
-        const id = matches[index] ?? uuidv4();
-        const savedSlug = slug ?? existing.find((item) => item.id === id)?.slug;
-        return {
-            ...control,
-            id,
-            ...(savedSlug !== undefined && { slug: savedSlug }),
-        };
-    });
+    const stableIds = getStableIds(controls, existing, baseSlug);
+    // A file's slugs only resolve refs inside it
+    return controls.map(({ slug: _slug, id, ...control }, index) => ({
+        ...control,
+        id: id ?? (claimed.has(stableIds[index]) ? uuidv4() : stableIds[index]),
+    }));
 };

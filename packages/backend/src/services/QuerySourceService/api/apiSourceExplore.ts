@@ -2,6 +2,7 @@ import {
     ExploreCompiler,
     ExploreType,
     FieldType,
+    flattenFilterGroup,
     getApiSourceQueryIssues,
     getItemId,
     ParameterError,
@@ -14,7 +15,9 @@ import {
     type DimensionType,
     type Explore,
     type FieldId,
+    type FilterGroup,
     type FilterOperator,
+    type FilterRule,
     type LiveSourceErrorData,
     type Metric,
     type MetricQuery,
@@ -257,6 +260,24 @@ export const getApiSourceExplore = (explore: Explore): ApiSourceExplore => {
     }
     return apiSource;
 };
+
+/** The filters that apply: enabled, with something to compare against. */
+export const getActiveFilterRules = (
+    group: FilterGroup | undefined,
+): FilterRule[] =>
+    (group ? flattenFilterGroup(group) : []).filter(
+        (rule) => !rule.disabled && (rule.values ?? []).length > 0,
+    );
+
+/** A field the API can't report at the grain the query asked for. */
+export const toFieldCombinationIssue = (
+    fieldId: string | null,
+    message: string,
+): ApiSourceQueryIssue => ({
+    code: 'live_source.refused.field_combination',
+    fieldId,
+    message,
+});
 
 /**
  * One error for every fixable reason the API can't answer a query, its

@@ -9,8 +9,8 @@ import {
     getApiSourceReservedExploreNames,
     getLiveSourceNameBase,
     toScannedLiveSourceFields,
-    type ApiSourceScan,
 } from './apiSourceExplores';
+import { type ApiSourceScan } from './ApiSourceIntegration';
 import { type LiveSourceFieldEdits } from './liveSourceFields';
 
 /**
@@ -59,6 +59,22 @@ const SOURCES: {
         scan: {},
     },
     {
+        name: 'YouTube Analytics',
+        apiSource: {
+            connector: ApiConnectorType.YOUTUBE_ANALYTICS,
+            channelId: 'UCaaaaaaaaaaaaaaaaaaaaaa',
+        },
+        scan: {},
+    },
+    {
+        name: 'LinkedIn Ads',
+        apiSource: {
+            connector: ApiConnectorType.LINKEDIN_ADS,
+            adAccountId: '507404993',
+        },
+        scan: {},
+    },
+    {
         name: 'PostHog',
         apiSource: { connector: ApiConnectorType.POSTHOG, projectId: '42' },
         scan: {
@@ -67,6 +83,20 @@ const SOURCES: {
                 person: { results: [{ name: 'email' }] },
             },
         },
+    },
+    {
+        name: 'Meta Ads',
+        apiSource: { connector: ApiConnectorType.META_ADS, adAccountId: '123' },
+        scan: {},
+    },
+    {
+        name: 'Google Ads',
+        apiSource: {
+            connector: ApiConnectorType.GOOGLE_ADS,
+            customerId: '1234567890',
+            loginCustomerId: null,
+        },
+        scan: {},
     },
 ];
 

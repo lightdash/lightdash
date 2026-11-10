@@ -404,6 +404,13 @@
         },
         "DashboardConfigAsCode": {
             "properties": {
+                "controlOrder": {
+                    "description": "The order of filters, parameter controls and sections on the bar. Absent: the default order.",
+                    "items": {
+                        "$ref": "#/$defs/DashboardControlRefAsCode"
+                    },
+                    "type": "array"
+                },
                 "controlSections": {
                     "items": {
                         "$ref": "#/$defs/DashboardControlSectionAsCode"
@@ -498,6 +505,29 @@
             },
             "required": ["isDateZoomDisabled"],
             "type": "object"
+        },
+        "DashboardControlRefAsCode": {
+            "description": "A control in `controlOrder`, by its slug in the same file",
+            "properties": {
+                "kind": {
+                    "$ref": "#/$defs/DashboardControlRefKind"
+                },
+                "newLine": {
+                    "description": "Starts a new bar line; absent, it shares the line of the entry before it. On a section member it passes to the next loose entry in the list",
+                    "type": "boolean"
+                },
+                "slug": {
+                    "description": "Slug of a filter, parameter control or section in this file",
+                    "type": "string"
+                }
+            },
+            "required": ["slug", "kind"],
+            "type": "object"
+        },
+        "DashboardControlRefKind": {
+            "description": "Kinds of control a `DashboardControlRef` can point at. Open-ended: new kinds\nmay be added, so consumers must ignore a kind they don't know. Request\nvalidation rejects unknown values, so a new kind ships in a release before\nanything writes it.",
+            "enum": ["filter", "parameter", "dateZoom", "section"],
+            "type": "string"
         },
         "DashboardControlSectionAsCode": {
             "properties": {
@@ -655,6 +685,10 @@
                 {
                     "properties": {
                         "sectionSlug": {
+                            "type": "string"
+                        },
+                        "slug": {
+                            "description": "Resolves `controlOrder` refs in this file; derived on download, never stored",
                             "type": "string"
                         }
                     },
@@ -1514,6 +1548,10 @@
                 },
                 "singleValue": {
                     "type": "boolean"
+                },
+                "slug": {
+                    "description": "Resolves `controlOrder` refs in this file; derived on download, never stored",
+                    "type": "string"
                 },
                 "target": {
                     "$ref": "#/$defs/DashboardFieldTarget",

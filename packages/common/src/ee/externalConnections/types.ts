@@ -33,11 +33,47 @@ export type Ga4ApiSource = {
     propertyId: string;
 };
 
+export type MetaAdsApiSource = {
+    connector: ApiConnectorType.META_ADS;
+    /** The numeric ad account id, without the act_ prefix. */
+    adAccountId: string;
+};
+
+export type GoogleAdsApiSource = {
+    connector: ApiConnectorType.GOOGLE_ADS;
+    /** The 10-digit Google Ads customer id, without dashes. */
+    customerId: string;
+    /** The manager account the sign-in reaches the customer through, if any. */
+    loginCustomerId: string | null;
+};
+
+export type YoutubeAnalyticsApiSource = {
+    connector: ApiConnectorType.YOUTUBE_ANALYTICS;
+    /** The YouTube channel id, starting with UC. */
+    channelId: string;
+};
+
+export type LinkedInAdsApiSource = {
+    connector: ApiConnectorType.LINKEDIN_ADS;
+    /** The numeric LinkedIn ad account id, as shown in Campaign Manager. */
+    adAccountId: string;
+};
+
 /** Connector settings of a live source; the server fixes its access rules. */
 export type ExternalConnectionApiSource =
     | PostHogApiSource
     | SearchConsoleApiSource
-    | Ga4ApiSource;
+    | Ga4ApiSource
+    | MetaAdsApiSource
+    | GoogleAdsApiSource
+    | YoutubeAnalyticsApiSource
+    | LinkedInAdsApiSource;
+
+/** The settings of one integration's sources. */
+export type ApiSourceOf<C extends ApiConnectorType> = Extract<
+    ExternalConnectionApiSource,
+    { connector: C }
+>;
 
 /** A Google property the signed-in account can query, offered after sign-in. */
 export type GoogleLiveSourceChoice = {
@@ -58,6 +94,12 @@ export const POSTHOG_REGION_ORIGINS = {
     us: 'https://us.posthog.com',
     eu: 'https://eu.posthog.com',
 } as const;
+
+export const META_ADS_ORIGIN = 'https://graph.facebook.com';
+export const META_ADS_API_VERSION = 'v25.0';
+
+export const getMetaAdsInsightsPath = (adAccountId: string) =>
+    `/${META_ADS_API_VERSION}/act_${adAccountId}/insights`;
 
 /** HTTP methods an admin can opt a connection into. Single source of truth for
  *  the backend validation allowlist and the frontend method pickers. */

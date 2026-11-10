@@ -610,6 +610,7 @@ describe('CoderService', () => {
                 dashboardAsCode as AnyType,
                 tilesWithUuids as AnyType,
                 [],
+                true,
             );
 
             expect(result.dimensions[0].tileTargets).toEqual({
@@ -664,6 +665,7 @@ describe('CoderService', () => {
                 dashboardAsCode as AnyType,
                 tilesWithUuids as AnyType,
                 [],
+                true,
             );
 
             // We show an error for chart-slug-2
@@ -676,6 +678,94 @@ describe('CoderService', () => {
                     someTargetProperty: 'value1',
                 },
             });
+        });
+    });
+
+    describe('metric and table calculation filter tile targets', () => {
+        const rule = {
+            id: 'metric-filter-id',
+            target: { fieldId: 'orders_total', tableName: 'orders' },
+            tileTargets: { 'uuid-1': { fieldId: 'orders_total' } },
+        };
+
+        it('round trips as raw tile uuids', () => {
+            const asCode = CoderService.getFiltersWithTileSlugs({
+                filters: {
+                    dimensions: [],
+                    metrics: [rule],
+                    tableCalculations: [rule],
+                },
+                tiles: [],
+            } as AnyType);
+            expect(asCode.metrics[0]).toEqual(rule);
+            expect(asCode.tableCalculations[0]).toEqual(rule);
+            const result = CoderService.getFiltersWithTileUuids(
+                { filters: asCode } as AnyType,
+                [],
+                [],
+                true,
+            );
+            expect(result.metrics[0]).toEqual(rule);
+            expect(result.tableCalculations[0]).toEqual(rule);
+        });
+    });
+
+    describe('filters without optional keys', () => {
+        const metric = {
+            id: 'metric-id',
+            label: undefined,
+            target: { fieldId: 'orders_total', tableName: 'orders' },
+            operator: 'greaterThan',
+            values: [1],
+        };
+
+        it('downloads a metric filter without tile targets unchanged', () => {
+            const result = CoderService.getFiltersWithTileSlugs({
+                filters: {
+                    dimensions: [],
+                    metrics: [metric],
+                    tableCalculations: [],
+                },
+                tiles: [],
+            } as AnyType);
+            expect(JSON.stringify(result.metrics[0])).toBe(
+                JSON.stringify(metric),
+            );
+        });
+
+        it('uploads without adding tile targets, mints a missing metric id for an order and drops table calculation slugs', () => {
+            const { id: _id, ...withoutId } = metric;
+            const result = CoderService.getFiltersWithTileUuids(
+                {
+                    filters: {
+                        metrics: [withoutId],
+                        tableCalculations: [{ ...metric, slug: 'calc' }],
+                    },
+                    config: { controlOrder: [] },
+                } as AnyType,
+                [],
+                [],
+                true,
+            );
+            expect(result.metrics[0]).not.toHaveProperty('tileTargets');
+            expect(result.metrics[0].id).toMatch(/^[0-9a-f-]{36}$/);
+            expect(result.tableCalculations[0]).toStrictEqual(metric);
+        });
+
+        it('keeps a metric filter without an id and drops slugs with the flag off', () => {
+            const { id: _id, ...withoutId } = metric;
+            const filters = {
+                metrics: [{ ...withoutId, slug: 'total' }],
+                tableCalculations: [{ ...metric, slug: 'calc' }],
+            };
+            const result = CoderService.getFiltersWithTileUuids(
+                { filters, config: { controlOrder: [] } } as AnyType,
+                [],
+                [],
+                false,
+            );
+            expect(result.metrics).toStrictEqual([withoutId]);
+            expect(result.tableCalculations).toStrictEqual([metric]);
         });
     });
 
@@ -698,6 +788,7 @@ describe('CoderService', () => {
                 } as AnyType,
                 [],
                 savedFilters,
+                true,
             ).dimensions.map(({ id }) => id);
 
         it('keeps every id for an unchanged file', () => {
@@ -801,6 +892,7 @@ describe('CoderService', () => {
                 { filters: asCodeFilters } as AnyType,
                 tilesWithNewUuids as AnyType,
                 [],
+                true,
             );
 
             expect(restoredFilters.dimensions[0].tileTargets).toEqual({
@@ -865,6 +957,7 @@ describe('CoderService', () => {
                 { filters: asCodeFilters } as AnyType,
                 tilesWithNewUuids as AnyType,
                 [],
+                true,
             );
 
             // The target aimed at tile 2 resolves to tile 2's new uuid,
@@ -1979,7 +2072,7 @@ describe('CoderService', () => {
             ).toThrow('Space space-uuid not found');
         });
 
-        it('leaves the control order out of the file', () => {
+        it('leaves the control order out of the file with the flag off', () => {
             const exported = (
                 CoderService as unknown as {
                     transformDashboard: (...args: AnyType[]) => AnyType;
@@ -2005,7 +2098,7 @@ describe('CoderService', () => {
                 },
                 [{ name: 'Space', path: 'space', uuid: 'space-uuid' }],
                 new Map(),
-                true,
+                false,
             );
             expect(exported.config).toEqual({ isDateZoomDisabled: false });
         });
@@ -2099,6 +2192,7 @@ describe('CoderService', () => {
             const restoredSections = getDashboardWithSectionIds(
                 exported,
                 dashboard.config as unknown as DashboardDAO['config'],
+                true,
             );
             const importedTiles = exported.tiles.map(
                 (tile: AnyType, index: number) => ({
@@ -2117,6 +2211,7 @@ describe('CoderService', () => {
             const imported = getConfigWithParameterControlTileUuids(
                 {
                     ...restoredSections.config!,
+                    controlOrder: undefined,
                     parameterControls: getParameterControlsWithIds(
                         restoredSections.config!.parameterControls!,
                         dashboard.config

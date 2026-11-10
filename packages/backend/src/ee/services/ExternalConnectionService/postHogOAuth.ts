@@ -1,14 +1,10 @@
 import { z } from 'zod';
+import { getPostHogOAuthEndpoints } from '../../../services/QuerySourceService/api/posthog/PostHogConnector';
 
 export const POSTHOG_OAUTH_SCOPES = ['query:read'];
 
 const CALLBACK_PATH = '/api/v1/ee/posthog/oauth/callback';
 const CLIENT_METADATA_PATH = '/api/v1/ee/posthog/oauth/client-metadata.json';
-
-export const getPostHogOAuthEndpoints = (origin: string) => ({
-    authorizeUrl: new URL('/oauth/authorize/', origin).href,
-    tokenUrl: new URL('/oauth/token/', origin).href,
-});
 
 export const getPostHogOAuthRedirectUri = (siteUrl: string) =>
     new URL(CALLBACK_PATH, siteUrl).href;

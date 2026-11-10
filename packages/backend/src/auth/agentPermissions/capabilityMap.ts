@@ -768,6 +768,7 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'AppStateController.deleteSharedState': [AgentCapability.Delete],
     'AppStateController.deleteUserState': [AgentCapability.ContentWrite],
+    'AppStateController.getAdminOverview': [AgentCapability.ReadDiscover],
     'AppStateController.getAppState': [AgentCapability.ReadDiscover],
     'AppStateController.getSharedHistory': [AgentCapability.ReadDiscover],
     'AppStateController.setSharedState': [AgentCapability.ContentWrite],

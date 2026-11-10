@@ -29,6 +29,10 @@ import {
 } from '../../database/entities/apps';
 import { SpaceTableName } from '../../database/entities/spaces';
 import {
+    getApiSourceIntegration,
+    parseStoredApiSource,
+} from '../../services/QuerySourceService/api/apiSourceIntegrations';
+import {
     parseLiveSourceFieldState,
     type LiveSourceFieldEdits,
     type LiveSourceFieldState,
@@ -58,28 +62,10 @@ type ExternalConnectionModelArguments = {
     encryptionUtil: EncryptionUtil;
 };
 
-const apiSourceSchema = z.discriminatedUnion('connector', [
-    z.object({
-        connector: z.literal(ApiConnectorType.POSTHOG),
-        projectId: z.string(),
-    }),
-    z.object({
-        connector: z.literal(ApiConnectorType.SEARCH_CONSOLE),
-        siteUrl: z.string(),
-    }),
-    z.object({
-        connector: z.literal(ApiConnectorType.GA4),
-        propertyId: z.string(),
-    }),
-]);
-
 // A stored shape no connector understands reads as no api source, so the
 // connection fails with a clear error instead of reaching a connector.
-const parseApiSource = (value: unknown): ExternalConnectionApiSource | null => {
-    if (value === null) return null;
-    const parsed = apiSourceSchema.safeParse(value);
-    return parsed.success ? parsed.data : null;
-};
+const parseApiSource = (value: unknown): ExternalConnectionApiSource | null =>
+    value === null ? null : parseStoredApiSource(value);
 
 const apiSourceSchemaScanSchema = z.discriminatedUnion('status', [
     z.object({ status: z.literal('pending'), requestedAt: z.coerce.date() }),
@@ -140,7 +126,11 @@ const readSourceName = (value: unknown): string | null => {
 
 /** Connector settings only: drops any server-owned key a caller sent. */
 const toApiSourceSettingsJson = (apiSource: ExternalConnectionApiSource) =>
-    JSON.stringify(apiSourceSchema.parse(apiSource));
+    JSON.stringify(
+        getApiSourceIntegration(apiSource.connector).settingsSchema.parse(
+            apiSource,
+        ),
+    );
 
 /** A deleted live source, kept so a new one for the same target can reuse its name. */
 export type DeletedLiveSource = {

@@ -21,8 +21,12 @@ import {
     type MetricQuery,
 } from '../types/metricQuery';
 import { ApiConnectorType } from '../types/querySources';
-import assertUnreachable from './assertUnreachable';
+import {
+    PROJECT_TIMEZONE_SETTING,
+    USER_TIMEZONE_SETTING,
+} from '../types/timezone';
 import { getItemId } from './item';
+import { LIVE_SOURCE_INTEGRATION_PROFILES } from './liveSourceIntegrations';
 
 /** Why a metric query can't run on a live data source explore, with what to change. */
 export type ApiSourceQueryIssue = {
@@ -46,12 +50,6 @@ const getFieldRule = (
         ? apiSource.fields[fieldId]
         : undefined;
 
-const INTEGRATION_LABELS: Record<ApiConnectorType, string> = {
-    [ApiConnectorType.GA4]: 'Google Analytics',
-    [ApiConnectorType.SEARCH_CONSOLE]: 'Search Console',
-    [ApiConnectorType.POSTHOG]: 'PostHog',
-};
-
 const ALL_REFUSED: ApiSourceCapabilities['pushdown'] = {
     tableCalculations: 'refused',
     customDimensions: 'refused',
@@ -69,17 +67,9 @@ const getLegacyCapabilities = (
     apiSource: ApiSourceExplore,
 ): ApiSourceCapabilities => {
     const { integration, dateRange, filterGroups } = apiSource;
-    const isReportApi = (): boolean => {
-        switch (integration) {
-            case ApiConnectorType.GA4:
-            case ApiConnectorType.SEARCH_CONSOLE:
-                return true;
-            case ApiConnectorType.POSTHOG:
-                return false;
-            default:
-                return assertUnreachable(integration, 'Unknown api connector');
-        }
-    };
+    // Every integration added since declares capabilities, so PostHog is the
+    // only one here that isn't a report API
+    const isReportApi = integration !== ApiConnectorType.POSTHOG;
     const dateRule = dateRange
         ? getFieldRule(apiSource, dateRange.fieldId)
         : undefined;
@@ -93,10 +83,10 @@ const getLegacyCapabilities = (
         },
         metricFilters: true,
         dates: {
-            rangeRequired: isReportApi(),
+            rangeRequired: isReportApi,
             operators: dateRule?.filterOperators ?? [],
             grains: [],
-            timezone: isReportApi() ? 'fixed' : 'configurable',
+            timezone: isReportApi ? 'fixed' : 'configurable',
         },
         pushdown: ALL_REFUSED,
         metrics: {},
@@ -184,7 +174,13 @@ const getUnsupportedFeatureIssues = (
                 "Pivoted results aren't available from live data sources yet. Remove the pivot to run this query.",
         },
         {
-            isUsed: !!metricQuery.timezone && dates.timezone === 'fixed',
+            // The keywords saved charts store by default ask for no zone in
+            // particular, so only a named zone is an override
+            isUsed:
+                !!metricQuery.timezone &&
+                metricQuery.timezone !== PROJECT_TIMEZONE_SETTING &&
+                metricQuery.timezone !== USER_TIMEZONE_SETTING &&
+                dates.timezone === 'fixed',
             code: 'live_source.refused.timezone' as const,
             message:
                 'This live data source reports dates in its own time zone. Remove the time zone override to run this query.',
@@ -365,7 +361,7 @@ const getFilterIssues = (
                     {
                         code: 'live_source.refused.multiple_values',
                         fieldId,
-                        message: `${INTEGRATION_LABELS[apiSource.integration]} matches one value per filter; filter "${fieldId}" by one value at a time.`,
+                        message: `${LIVE_SOURCE_INTEGRATION_PROFILES[apiSource.integration].label} matches one value per filter; filter "${fieldId}" by one value at a time.`,
                     },
                 ];
             }

@@ -251,7 +251,7 @@ export type DateZoomControl = {
 };
 
 export type DashboardControlSection = {
-    /** Portable identity supplied by content as code. */
+    /** Ignored: content as code derives slugs on every download. */
     slug?: string;
     /** uuid, stable across dashboard versions */
     id: string;
@@ -274,7 +274,7 @@ export type DashboardParameterTarget<TileRef extends string = string> =
 
 export type DashboardParameterControl = {
     id: string;
-    /** Portable identity supplied by content as code. */
+    /** Ignored: content as code derives slugs on every download. */
     slug?: string;
     label: string | null;
     value: ParameterValue | null;
@@ -325,8 +325,8 @@ export type DashboardConfig = {
     parameterSections?: { [parameterName: string]: string };
     /** Absent: filled from the parameters tiles use. Present (even empty): exactly these. */
     parameterControls?: DashboardParameterControl[];
-    /** How controls of every kind interleave on the bar. A hint: readers reconcile
-     *  it with the controls' arrays and sections. Absent: the default order. */
+    /** The order of controls of every kind on the bar. A hint: readers drop refs
+     *  that match no control and append unlisted ones. Absent: the default order. */
     controlOrder?: DashboardControlRef[];
 };
 

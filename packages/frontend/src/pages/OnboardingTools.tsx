@@ -49,13 +49,15 @@ import { useCreateExternalConnection } from '../features/externalConnections/hoo
 import { useExternalConnections } from '../features/externalConnections/hooks/useExternalConnections';
 import { useLiveSourceFields } from '../features/externalConnections/hooks/useLiveSourceFields';
 import {
-    getApiSourceTarget,
     getGoogleSignInUrl,
     getGoogleSource,
     type GoogleConnector,
 } from '../features/externalConnections/liveSources/googleConnection';
 import { GoogleSourcePickerModal } from '../features/externalConnections/liveSources/GoogleSourcePickerModal';
-import { getLiveSource } from '../features/externalConnections/liveSources/liveSourceCatalog';
+import {
+    getApiSourceTarget,
+    getLiveSource,
+} from '../features/externalConnections/liveSources/liveSourceCatalog';
 import { LiveSourceIcon } from '../features/externalConnections/liveSources/LiveSourceIcon';
 import {
     getPostHogSignInUrl,

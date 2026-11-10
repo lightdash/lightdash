@@ -1,3 +1,75 @@
+# [3.190.0](https://github.com/lightdash/lightdash/compare/3.189.0...3.190.0) (2026-11-09)
+
+
+### Bug Fixes
+
+* **live-sources:** keep saved charts running on fixed-timezone sources ([#32264](https://github.com/lightdash/lightdash/issues/32264)) ([e8c3cc0](https://github.com/lightdash/lightdash/commit/e8c3cc08773cafcef81007706088cf8f6a7249ed))
+
+
+### Features
+
+* **live-sources:** add Google Ads live data source ([#32253](https://github.com/lightdash/lightdash/issues/32253)) ([6f3ace7](https://github.com/lightdash/lightdash/commit/6f3ace79fad1397a188a8f708293f87279147ca6))
+* **live-sources:** add LinkedIn Ads live data source ([#32267](https://github.com/lightdash/lightdash/issues/32267)) ([7c73f39](https://github.com/lightdash/lightdash/commit/7c73f3918b3b1699427fdf5e586bf5569d432f1f))
+* **live-sources:** add Meta Ads live data source ([#32255](https://github.com/lightdash/lightdash/issues/32255)) ([d61ca3c](https://github.com/lightdash/lightdash/commit/d61ca3c292150d61cc7fc5049da652c7afcf0b2b))
+* **live-sources:** add YouTube Analytics live data source ([#32266](https://github.com/lightdash/lightdash/issues/32266)) ([d34d909](https://github.com/lightdash/lightdash/commit/d34d90956f2791352f2f41b0d04c01a5391a114a))
+
+# [3.189.0](https://github.com/lightdash/lightdash/compare/3.188.0...3.189.0) (2026-11-09)
+
+
+### Features
+
+* **data-apps:** app state admin panel in the app's manage view ([#32236](https://github.com/lightdash/lightdash/issues/32236)) ([1849ab8](https://github.com/lightdash/lightdash/commit/1849ab873a7b2a85b1ea6322ba565ea968cd2454))
+
+# [3.188.0](https://github.com/lightdash/lightdash/compare/3.187.2...3.188.0) (2026-11-09)
+
+
+### Features
+
+* **data-apps:** show app-state reads and writes in the network inspector ([#32232](https://github.com/lightdash/lightdash/issues/32232)) ([9e9cc46](https://github.com/lightdash/lightdash/commit/9e9cc460cc04d7f1107718d43b275d7e836aeb73))
+
+## [3.187.2](https://github.com/lightdash/lightdash/compare/3.187.1...3.187.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* **ai-agents:** run PAT node citations under the caller's account ([#32259](https://github.com/lightdash/lightdash/issues/32259)) ([410aa3c](https://github.com/lightdash/lightdash/commit/410aa3c26cb042aa09cf199797d8233c4f5738f2))
+
+## [3.187.1](https://github.com/lightdash/lightdash/compare/3.187.0...3.187.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **cli:** let a named source own a package that several sources provide in a preview ([#32249](https://github.com/lightdash/lightdash/issues/32249)) ([026c39d](https://github.com/lightdash/lightdash/commit/026c39df9812b3cea1b36652b29639eb79a6fbc5))
+
+# [3.187.0](https://github.com/lightdash/lightdash/compare/3.186.0...3.187.0) (2026-11-09)
+
+
+### Features
+
+* Mobile settings page behind a feature flag (SPK-2949) ([#32239](https://github.com/lightdash/lightdash/issues/32239)) ([4ea848d](https://github.com/lightdash/lightdash/commit/4ea848d8bad68660d642ee83e59026e0cc536202))
+
+# [3.186.0](https://github.com/lightdash/lightdash/compare/3.185.2...3.186.0) (2026-11-09)
+
+
+### Features
+
+* **ai-agents:** read and edit the dashboard control order ([#32230](https://github.com/lightdash/lightdash/issues/32230)) ([8f36082](https://github.com/lightdash/lightdash/commit/8f360828fceebab4e467387baead9f9dcbc718ee))
+* **dashboards-as-code:** order dashboard controls in dashboard files ([#32229](https://github.com/lightdash/lightdash/issues/32229)) ([9691c67](https://github.com/lightdash/lightdash/commit/9691c67edc9676aff0a98cd7b09214a4f3f299c3))
+
+## [3.185.2](https://github.com/lightdash/lightdash/compare/3.185.1...3.185.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* keep tile sizes when editing a dashboard with tabs in a narrow window ([#32248](https://github.com/lightdash/lightdash/issues/32248)) ([c9bc5f0](https://github.com/lightdash/lightdash/commit/c9bc5f0cfeeceaab21e33271ae62c6a18d890c6d))
+
+## [3.185.1](https://github.com/lightdash/lightdash/compare/3.185.0...3.185.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **dev:** make dev-fast-start recover from stale PG base, missing EE table and wrong dbt venv python ([#32254](https://github.com/lightdash/lightdash/issues/32254)) ([8e6b444](https://github.com/lightdash/lightdash/commit/8e6b444a2bd983d779521f47912aa66ea20667cd))
+
 # [3.185.0](https://github.com/lightdash/lightdash/compare/3.184.0...3.185.0) (2026-11-09)
 
 

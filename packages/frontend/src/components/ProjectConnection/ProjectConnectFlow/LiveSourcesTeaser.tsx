@@ -1,4 +1,4 @@
-import { ApiConnectorType, FeatureFlags } from '@lightdash/common';
+import { FeatureFlags } from '@lightdash/common';
 import {
     Box,
     Group,
@@ -10,6 +10,7 @@ import {
 } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { isGoogleConnector } from '../../../features/externalConnections/liveSources/googleConnection';
 import {
     isAvailableLiveSource,
     LIVE_SOURCE_CATALOG,
@@ -20,11 +21,6 @@ import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import { NextUpCard } from '../../common/OnboardingVisuals';
 import classes from './DataSourceChooser.module.css';
-
-const GOOGLE_CONNECTORS = new Set<ApiConnectorType>([
-    ApiConnectorType.GA4,
-    ApiConnectorType.SEARCH_CONSOLE,
-]);
 
 // Only what the tools step will actually offer: Google needs its OAuth client
 const useTeasedLiveSources = () => {
@@ -38,8 +34,9 @@ const useTeasedLiveSources = () => {
         hasGoogle,
         sources: LIVE_SOURCE_CATALOG.filter(isAvailableLiveSource)
             .filter(
-                ({ connector }) =>
-                    hasGoogle || !GOOGLE_CONNECTORS.has(connector),
+                ({ connector, inOnboarding }) =>
+                    inOnboarding &&
+                    (hasGoogle || !isGoogleConnector(connector)),
             )
             .slice(0, 4),
     };

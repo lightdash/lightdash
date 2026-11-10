@@ -1,6 +1,7 @@
 import { ApiConnectorType } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    getApiSourceTarget,
     getLiveSource,
     isAvailableLiveSource,
     LIVE_SOURCE_CATALOG,
@@ -25,5 +26,34 @@ describe('LIVE_SOURCE_CATALOG', () => {
         expect(getLiveSource(ApiConnectorType.GA4).label).toBe(
             'Google Analytics 4',
         );
+    });
+});
+
+describe('getApiSourceTarget', () => {
+    it('names what each source reads', () => {
+        expect(
+            getApiSourceTarget({
+                connector: ApiConnectorType.POSTHOG,
+                projectId: '4321',
+            }),
+        ).toBe('Project 4321');
+        expect(
+            getApiSourceTarget({
+                connector: ApiConnectorType.SEARCH_CONSOLE,
+                siteUrl: 'sc-domain:example.com',
+            }),
+        ).toBe('sc-domain:example.com');
+        expect(
+            getApiSourceTarget({
+                connector: ApiConnectorType.GA4,
+                propertyId: '123456',
+            }),
+        ).toBe('Property 123456');
+        expect(
+            getApiSourceTarget({
+                connector: ApiConnectorType.META_ADS,
+                adAccountId: '123',
+            }),
+        ).toBe('Ad account 123');
     });
 });

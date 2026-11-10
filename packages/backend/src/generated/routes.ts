@@ -241,6 +241,8 @@ import { GoogleLiveSourceOAuthController } from './../ee/controllers/googleLiveS
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { HomepageRecommendedActionSkipsController } from './../ee/controllers/HomepageRecommendedActionSkipsController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { LinkedInAdsOAuthController } from './../ee/controllers/linkedInAdsOAuthController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ManagedAgentController } from './../ee/controllers/managedAgentController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { MobilePushNotificationController } from './../ee/controllers/mobilePushNotificationController';
@@ -6087,11 +6089,36 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardControlRefKind: {
+        dataType: 'refEnum',
+        enums: ['filter', 'parameter', 'dateZoom', 'section'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardControlRefAsCode: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                newLine: { dataType: 'boolean' },
+                slug: { dataType: 'string', required: true },
+                kind: { ref: 'DashboardControlRefKind', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardConfigAsCode: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                controlOrder: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'DashboardControlRefAsCode',
+                    },
+                },
                 parameterControls: {
                     dataType: 'array',
                     array: {
@@ -6704,6 +6731,13 @@ const models: TsoaRoute.Models = {
                 dataType: 'nestedObjectLiteral',
                 nestedProperties: {
                     target: { ref: 'DashboardFieldTarget', required: true },
+                    slug: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     label: {
                         dataType: 'union',
                         subSchemas: [
@@ -6868,7 +6902,10 @@ const models: TsoaRoute.Models = {
                 { ref: 'DashboardFilterRule' },
                 {
                     dataType: 'nestedObjectLiteral',
-                    nestedProperties: { sectionSlug: { dataType: 'string' } },
+                    nestedProperties: {
+                        slug: { dataType: 'string' },
+                        sectionSlug: { dataType: 'string' },
+                    },
                 },
             ],
             validators: {},
@@ -9500,11 +9537,6 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    DashboardControlRefKind: {
-        dataType: 'refEnum',
-        enums: ['filter', 'parameter', 'dateZoom', 'section'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardControlRef: {
@@ -15044,7 +15076,15 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiConnectorType: {
         dataType: 'refEnum',
-        enums: ['posthog', 'search_console', 'ga4'],
+        enums: [
+            'posthog',
+            'search_console',
+            'ga4',
+            'meta_ads',
+            'google_ads',
+            'youtube_analytics',
+            'linkedin_ads',
+        ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     GoogleLiveSourceChoice: {
@@ -15153,6 +15193,91 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiConnectorType.META_ADS': {
+        dataType: 'refEnum',
+        enums: ['meta_ads'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MetaAdsApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                adAccountId: { dataType: 'string', required: true },
+                connector: { ref: 'ApiConnectorType.META_ADS', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiConnectorType.GOOGLE_ADS': {
+        dataType: 'refEnum',
+        enums: ['google_ads'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    GoogleAdsApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                loginCustomerId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                customerId: { dataType: 'string', required: true },
+                connector: {
+                    ref: 'ApiConnectorType.GOOGLE_ADS',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiConnectorType.YOUTUBE_ANALYTICS': {
+        dataType: 'refEnum',
+        enums: ['youtube_analytics'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    YoutubeAnalyticsApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                channelId: { dataType: 'string', required: true },
+                connector: {
+                    ref: 'ApiConnectorType.YOUTUBE_ANALYTICS',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiConnectorType.LINKEDIN_ADS': {
+        dataType: 'refEnum',
+        enums: ['linkedin_ads'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    LinkedInAdsApiSource: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                adAccountId: { dataType: 'string', required: true },
+                connector: {
+                    ref: 'ApiConnectorType.LINKEDIN_ADS',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ExternalConnectionApiSource: {
         dataType: 'refAlias',
         type: {
@@ -15161,6 +15286,10 @@ const models: TsoaRoute.Models = {
                 { ref: 'PostHogApiSource' },
                 { ref: 'SearchConsoleApiSource' },
                 { ref: 'Ga4ApiSource' },
+                { ref: 'MetaAdsApiSource' },
+                { ref: 'GoogleAdsApiSource' },
+                { ref: 'YoutubeAnalyticsApiSource' },
+                { ref: 'LinkedInAdsApiSource' },
             ],
             validators: {},
         },
@@ -22040,6 +22169,66 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 results: { ref: 'AppStateSnapshot', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AppStateAdminSharedKey: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                updatedBy: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AppStateAuthor' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                updatedAt: { dataType: 'string', required: true },
+                valueBytes: { dataType: 'double', required: true },
+                version: { dataType: 'double', required: true },
+                key: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AppStateAdminOverview: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                user: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        userCount: { dataType: 'double', required: true },
+                        keyCount: { dataType: 'double', required: true },
+                    },
+                    required: true,
+                },
+                shared: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'AppStateAdminSharedKey',
+                    },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAppStateAdminOverviewResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'AppStateAdminOverview', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
             },
             validators: {},
@@ -90238,6 +90427,138 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsLinkedInAdsOAuthController_startLinkedInAdsOAuth: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        name: { in: 'query', name: 'name', required: true, dataType: 'string' },
+        adAccountId: {
+            in: 'query',
+            name: 'adAccountId',
+            required: true,
+            dataType: 'string',
+        },
+        connectionUuid: {
+            in: 'query',
+            name: 'connectionUuid',
+            dataType: 'string',
+        },
+        returnTo: { in: 'query', name: 'returnTo', dataType: 'string' },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/live-sources/linkedin/oauth/start',
+        ...fetchMiddlewares<RequestHandler>(LinkedInAdsOAuthController),
+        ...fetchMiddlewares<RequestHandler>(
+            LinkedInAdsOAuthController.prototype.startLinkedInAdsOAuth,
+        ),
+
+        async function LinkedInAdsOAuthController_startLinkedInAdsOAuth(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsLinkedInAdsOAuthController_startLinkedInAdsOAuth,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<LinkedInAdsOAuthController>(
+                        LinkedInAdsOAuthController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'startLinkedInAdsOAuth',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 302,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsLinkedInAdsOAuthController_linkedInAdsOAuthCallback: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        code: { in: 'query', name: 'code', dataType: 'string' },
+        state: { in: 'query', name: 'state', dataType: 'string' },
+        error: { in: 'query', name: 'error', dataType: 'string' },
+    };
+    app.get(
+        '/api/v1/ee/linkedin/oauth/callback',
+        ...fetchMiddlewares<RequestHandler>(LinkedInAdsOAuthController),
+        ...fetchMiddlewares<RequestHandler>(
+            LinkedInAdsOAuthController.prototype.linkedInAdsOAuthCallback,
+        ),
+
+        async function LinkedInAdsOAuthController_linkedInAdsOAuthCallback(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsLinkedInAdsOAuthController_linkedInAdsOAuthCallback,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<LinkedInAdsOAuthController>(
+                        LinkedInAdsOAuthController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'linkedInAdsOAuthCallback',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 302,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsGoogleLiveSourceOAuthController_startGoogleLiveSourceOAuth: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -95250,6 +95571,66 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getAppState',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAppStateController_getAdminOverview: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        appUuid: { in: 'path', name: 'appUuid', required: true, ref: 'UUID' },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/apps/:appUuid/state/admin',
+        ...fetchMiddlewares<RequestHandler>(AppStateController),
+        ...fetchMiddlewares<RequestHandler>(
+            AppStateController.prototype.getAdminOverview,
+        ),
+
+        async function AppStateController_getAdminOverview(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAppStateController_getAdminOverview,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AppStateController>(AppStateController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getAdminOverview',
                     controller,
                     response,
                     next,

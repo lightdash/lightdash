@@ -127,6 +127,10 @@ import type {
     ManagedAgentRuntimeInfo,
 } from '../ee';
 import type { ApiAiThreadFileResponse } from '../ee/AiAgent/threadFileTypes';
+import type {
+    ApiAppStateAdminOverviewResponse,
+    ApiAppStateHistoryResponse,
+} from '../ee/apps/appState';
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { ApiScimRequestLogListResponse } from '../ee/scim/requestLogs';
 import type { ApiQueryCostEstimateResponse } from '../utils/queryCostEstimate';
@@ -852,6 +856,7 @@ export type HealthState = {
     hasJira: boolean;
     hasLinear: boolean;
     hasPostHogOAuth: boolean;
+    hasLinkedInAdsOAuth: boolean;
     hasGoogleLiveSources: boolean;
     hasHeadlessBrowser: boolean;
     hasManagedAnalytics?: boolean;
@@ -1472,6 +1477,8 @@ export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
     | ApiQueryCostEstimateResponse['results']
+    | ApiAppStateAdminOverviewResponse['results']
+    | ApiAppStateHistoryResponse['results']
     | ReleaseHighlightsResult
     | AgentConnectionApprovalReviewResponse['results']
     | AgentConnectionApprovalDecisionResponse['results']

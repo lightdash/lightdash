@@ -7,6 +7,7 @@ import {
     type DashboardControlSectionAsCode,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
+import { getStableIds } from './dashboardReferences';
 
 type SectionReference = { sectionId?: string; sectionSlug?: string };
 type DashboardWithSectionIds = Omit<DashboardAsCode, 'config'> & {
@@ -15,15 +16,16 @@ type DashboardWithSectionIds = Omit<DashboardAsCode, 'config'> & {
     };
 };
 
-const sectionSlugs = (sections: DashboardControlSectionAsCode[]) =>
-    getPortableSlugs(
-        sections,
-        (section) =>
-            section.name
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-+|-+$/g, '') || 'section',
-    );
+const sectionBase = ({ name }: Pick<DashboardControlSection, 'name'>) =>
+    name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'section';
+
+/** A file's slug, else derived from the name */
+export const sectionSlugs = (
+    sections: Pick<DashboardControlSectionAsCode, 'name' | 'slug'>[],
+) => getPortableSlugs(sections, sectionBase);
 
 const mapReferences = (
     dashboard: DashboardAsCode,
@@ -80,7 +82,8 @@ export const getDashboardWithSectionSlugs = (
 ): DashboardAsCode => {
     const sections = dashboard.config?.controlSections;
     if (!sections) return dashboard;
-    const slugs = sectionSlugs(sections);
+    // Derived on every download: a stored slug is ignored
+    const slugs = sectionSlugs(sections.map(({ name }) => ({ name })));
     const slugById = new Map(
         sections.map((section, index) => [section.id, slugs[index]]),
     );
@@ -121,9 +124,14 @@ export const getDashboardWithSectionSlugs = (
 export const getDashboardWithSectionIds = (
     dashboard: DashboardAsCode,
     existing: DashboardConfig | undefined,
+    controlsEnabled: boolean,
 ): DashboardWithSectionIds => {
     const sections = dashboard.config?.controlSections ?? [];
     const existingSections = existing?.controlSections ?? [];
+    const stableIds = controlsEnabled
+        ? getStableIds(sections, existingSections, sectionBase)
+        : [];
+    // Flag off keeps the legacy match on stored slugs and persists the slug
     const existingSlugs = sectionSlugs(existingSections);
     const existingBySlug = new Map(
         existingSections.map((section, index) => [
@@ -131,9 +139,10 @@ export const getDashboardWithSectionIds = (
             section.id,
         ]),
     );
+    const legacyIds = new Set(sections.flatMap(({ id }) => id ?? []));
     const ids = new Set<string>();
     const idBySlug = new Map<string, string>();
-    const resolved = sections.map(({ id, slug, ...section }) => {
+    const resolved = sections.map(({ id, slug, ...section }, index) => {
         if (slug !== undefined) {
             if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))
                 throw new ParameterError(
@@ -145,7 +154,9 @@ export const getDashboardWithSectionIds = (
                 );
         }
         const matchedId =
-            slug === undefined ? undefined : existingBySlug.get(slug);
+            controlsEnabled || slug === undefined
+                ? undefined
+                : existingBySlug.get(slug);
         if (id !== undefined && matchedId !== undefined && id !== matchedId)
             throw new ParameterError(
                 `Dashboard section slug "${slug}" conflicts with id "${id}"`,
@@ -154,13 +165,17 @@ export const getDashboardWithSectionIds = (
             throw new ParameterError(
                 'A dashboard section needs a slug or legacy id',
             );
-        const resolvedId = matchedId ?? id ?? uuidv4();
+        const resolvedId = controlsEnabled
+            ? (id ??
+              (legacyIds.has(stableIds[index]) ? uuidv4() : stableIds[index]))
+            : (matchedId ?? id ?? uuidv4());
         if (ids.has(resolvedId))
             throw new ParameterError(
                 `Dashboard section id "${resolvedId}" is duplicated`,
             );
         ids.add(resolvedId);
         if (slug !== undefined) idBySlug.set(slug, resolvedId);
+        if (controlsEnabled) return { ...section, id: resolvedId };
         const savedSlug =
             slug ??
             existingSections.find((item) => item.id === resolvedId)?.slug;

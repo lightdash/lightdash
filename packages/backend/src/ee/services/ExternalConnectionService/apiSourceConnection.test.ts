@@ -8,12 +8,12 @@ import {
     getGa4MetadataPath,
     getGa4ReportPath,
 } from '../../../services/QuerySourceService/api/google/Ga4Connector';
+import { GOOGLE_TOKEN_URL } from '../../../services/QuerySourceService/api/google/googleSignIn';
 import { getSearchConsoleQueryPath } from '../../../services/QuerySourceService/api/google/SearchConsoleConnector';
 import {
     validateApiSourceConnection,
     withApiSourceAccessRules,
 } from './apiSourceConnection';
-import { GOOGLE_TOKEN_URL } from './googleOAuth';
 import { buildOutboundUrl, normalizeAndValidatePath } from './proxyValidation';
 
 const posthog: ExternalConnectionApiSource = {
@@ -209,5 +209,61 @@ describe('Google Analytics connections', () => {
         ],
     ])('refuses %#', (connection, message) => {
         expect(() => validateApiSourceConnection(connection)).toThrow(message);
+    });
+});
+
+describe('Google Ads connections', () => {
+    const apiSource = {
+        connector: ApiConnectorType.GOOGLE_ADS,
+        customerId: '1234567890',
+        loginCustomerId: '9876543210',
+    } as const;
+    const valid = {
+        apiSource,
+        type: 'oauth_authorization_code' as const,
+        origin: 'https://googleads.googleapis.com',
+        oauthTokenUrl: 'https://oauth2.googleapis.com/token',
+    };
+
+    it('reaches only the read-only search endpoint of its account', () => {
+        expect(withApiSourceAccessRules({ apiSource })).toMatchObject({
+            allowedPathPrefixes: ['/v26/customers/1234567890/googleAds:search'],
+            allowedMethods: ['POST'],
+            customHeaders: { 'login-customer-id': '9876543210' },
+        });
+    });
+
+    it('sends no manager header for an account reached directly', () => {
+        expect(
+            withApiSourceAccessRules({
+                apiSource: { ...apiSource, loginCustomerId: null },
+            }),
+        ).toMatchObject({ customHeaders: null });
+    });
+
+    it('accepts a signed-in source', () => {
+        expect(() => validateApiSourceConnection(valid)).not.toThrow();
+    });
+
+    it.each([
+        [
+            'a short customer id',
+            { apiSource: { ...apiSource, customerId: '123' } },
+        ],
+        [
+            'a dashed manager id',
+            {
+                apiSource: {
+                    ...apiSource,
+                    loginCustomerId: '987-654-3210',
+                },
+            },
+        ],
+        ['another origin', { origin: 'https://example.com' }],
+        ['another sign-in', { type: 'bearer_token' as const }],
+    ])('refuses %s', (_, override) => {
+        expect(() =>
+            validateApiSourceConnection({ ...valid, ...override }),
+        ).toThrow(ParameterError);
     });
 });

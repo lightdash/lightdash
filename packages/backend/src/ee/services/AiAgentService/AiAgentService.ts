@@ -10192,8 +10192,8 @@ export class AiAgentService extends BaseService {
         execute: () => Promise<T>,
         getQueryUuids: (result: T) => string[],
         bind: (account: RegisteredAccount, queryUuid: string) => Promise<void>,
+        account: RegisteredAccount = fromSession(user),
     ): Promise<T> {
-        const account = fromSession(user);
         const reader = await this.getArtifactOwnerResultReader(
             user,
             projectUuid,
@@ -11122,6 +11122,7 @@ export class AiAgentService extends BaseService {
             projectUuid: string;
             runtimeOptions: EmbedAiAgentRuntimeOptions | null;
         },
+        account: RegisteredAccount = fromSession(user),
     ): Promise<ApiAiAgentComposerArtifactVizQuery> {
         const pipeline = await this.getNodeCitationPipeline(user, {
             ...args,
@@ -11132,7 +11133,7 @@ export class AiAgentService extends BaseService {
             async (): Promise<ApiAiAgentComposerArtifactVizQuery> => {
                 const { queries } = await this.querySourceService.submitQueries(
                     {
-                        account: fromSession(user),
+                        account,
                         projectUuid,
                         queries: pipeline.nodes,
                         context: QueryExecutionContext.AI,
@@ -11179,9 +11180,9 @@ export class AiAgentService extends BaseService {
             },
             execute,
             (vizQuery) => Object.values(vizQuery.nodeQueryUuids),
-            (account, queryUuid) =>
+            (bindingAccount, queryUuid) =>
                 this.asyncQueryService.bindQueryToMessageQuery(
-                    account,
+                    bindingAccount,
                     projectUuid,
                     queryUuid,
                     {
@@ -11190,6 +11191,7 @@ export class AiAgentService extends BaseService {
                         nodeId: args.nodeId,
                     },
                 ),
+            account,
         );
     }
 
