@@ -1,3 +1,10 @@
+# [3.205.0](https://github.com/lightdash/lightdash/compare/3.204.1...3.205.0) (2026-11-10)
+
+
+### Features
+
+* **ai:** move AI analysis settings under Ask AI ([#32342](https://github.com/lightdash/lightdash/issues/32342)) ([32f4f15](https://github.com/lightdash/lightdash/commit/32f4f15f2408365b37c9c7cfe9c1d433a878cba2))
+
 ## [3.204.1](https://github.com/lightdash/lightdash/compare/3.204.0...3.204.1) (2026-11-10)
 
 
