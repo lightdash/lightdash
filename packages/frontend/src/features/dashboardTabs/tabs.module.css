@@ -1,5 +1,17 @@
 .tabsRoot {
     --tabs-stuck: 0;
+    --tab-padding-x: var(--mantine-spacing-sm);
+
+    /* Short windows give the vertical space to the tiles */
+    @media (max-height: 800px) {
+        --dashboard-tab-height: 36px;
+        --tab-padding-x: var(--mantine-spacing-xs);
+
+        /* Keeps room above and below in the shorter bar */
+        .newTabButton {
+            height: rem(24px);
+        }
+    }
 
     &:has(.stickyTabsAndFilters[data-is-stuck='true']) {
         --tabs-stuck: 1;
@@ -49,7 +61,7 @@
             /* Under the shipped cap the name truncates first. The floor fits
                the padding and the slot: the 20px menu or a count up to "10/10" */
             min-width: calc(
-                2 * var(--mantine-spacing-sm) + var(--mantine-spacing-xs) +
+                2 * var(--tab-padding-x) + var(--mantine-spacing-xs) +
                     max(20px, 5ch)
             );
 
@@ -116,7 +128,7 @@
     font-size: 13px;
     color: var(--mantine-color-ldGray-6);
 
-    padding: 0 var(--mantine-spacing-sm);
+    padding: 0 var(--tab-padding-x);
 
     span {
         overflow: hidden;
