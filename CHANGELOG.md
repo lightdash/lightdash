@@ -1,3 +1,11 @@
+## [3.194.1](https://github.com/lightdash/lightdash/compare/3.194.0...3.194.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **composer:** list all invalid python column names with fix hint ([#32286](https://github.com/lightdash/lightdash/issues/32286)) ([6c1b5cd](https://github.com/lightdash/lightdash/commit/6c1b5cda410aee6db91585f9f81370c53e3b414c))
+* **composer:** tell python nodes to return snake_case column names ([#32290](https://github.com/lightdash/lightdash/issues/32290)) ([de96686](https://github.com/lightdash/lightdash/commit/de96686476ee224afa15c4b707faa91f32f65e91))
+
 # [3.194.0](https://github.com/lightdash/lightdash/compare/3.193.0...3.194.0) (2026-11-10)
 
 
