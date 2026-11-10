@@ -26,6 +26,7 @@ import { useLocation } from 'react-router';
 import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
 import { getVisiblePreviewTokenError } from '../../features/apps/hooks/previewTokenQueryOptions';
 import { useAppPreviewToken } from '../../features/apps/hooks/useAppPreviewToken';
+import { useDataAppProjectContext } from '../../features/apps/hooks/useDataAppProjectContext';
 import { useGetApp } from '../../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../../features/apps/previewOrigin';
 import { DashboardTileComments } from '../../features/comments';
@@ -214,6 +215,7 @@ const DataAppTile: FC<Props> = (props) => {
 
     const previewOrigin = usePreviewOrigin();
     const { data: project } = useProject(projectUuid);
+    const dataAppProjectContext = useDataAppProjectContext(projectUuid);
     const isPreviewProject = project?.type === ProjectType.PREVIEW;
     // Skip the network calls when the backend already told us the app is
     // gone — `useGetApp` would 404 anyway, but bypassing the request avoids
@@ -244,8 +246,7 @@ const DataAppTile: FC<Props> = (props) => {
         user.data?.ability?.can(
             'manage',
             subject('DataApp', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid,
+                ...dataAppProjectContext,
                 access: userSpaceAccess ? [userSpaceAccess] : [],
                 createdByUserUuid: appCreatedByUserUuid,
             }),

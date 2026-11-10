@@ -125,6 +125,10 @@ vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
         isLoading: false,
     }),
 }));
+vi.mock('../../../hooks/useProject', async (importOriginal) => ({
+    ...(await importOriginal<typeof UseProjectModule>()),
+    useProject: () => ({ data: undefined }),
+}));
 vi.mock('../../../hooks/useProjectUuid', () => ({
     useProjectUuid: () => 'project-1',
 }));
@@ -205,6 +209,7 @@ vi.mock('../common/ColorPaletteSection', () => ({
 import { useChartStudioAvailable } from '../../../features/chartTypes/hooks/useChartStudioAvailable';
 import { useDataAppVisualization } from '../../../features/chartTypes/hooks/useDataAppVisualization';
 import { useDataAppVizRenderMetadata } from '../../../features/chartTypes/hooks/useDataAppVizRender';
+import type * as UseProjectModule from '../../../hooks/useProject';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 
 const makeDimension = (name: string, hidden: boolean): CompiledDimension => ({

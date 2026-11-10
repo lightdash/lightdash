@@ -8,6 +8,10 @@ import { useCallback, useMemo } from 'react';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
+import {
+    useDataAppProjectContext,
+    type DataAppProjectContext,
+} from './useDataAppProjectContext';
 
 type DataAppAccess = {
     spaceUuid: string | null;
@@ -16,20 +20,18 @@ type DataAppAccess = {
 
 const canManageDataApp = (
     ability: ReturnType<typeof useAbilityContext>,
-    organizationUuid: string | undefined,
-    projectUuid: string | undefined,
+    projectContext: DataAppProjectContext,
     spaces: Pick<SpaceSummary, 'uuid' | 'userAccess'>[],
     app: DataAppAccess,
 ): boolean => {
-    if (!projectUuid) return false;
+    if (!projectContext.projectUuid) return false;
     const userSpaceAccess = app.spaceUuid
         ? spaces.find((s) => s.uuid === app.spaceUuid)?.userAccess
         : undefined;
     return ability.can(
         'manage',
         subject('DataApp', {
-            organizationUuid,
-            projectUuid,
+            ...projectContext,
             access: userSpaceAccess ? [userSpaceAccess] : [],
             createdByUserUuid: app.createdByUserUuid,
         }),
@@ -48,27 +50,17 @@ export const useCanEditDataApp = (
     app: DataAppAccess,
 ): boolean => {
     const ability = useAbilityContext();
-    const { user } = useApp();
+    const projectContext = useDataAppProjectContext(projectUuid);
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
     const { spaceUuid, createdByUserUuid } = app;
 
     return useMemo(
         () =>
-            canManageDataApp(
-                ability,
-                user.data?.organizationUuid,
-                projectUuid,
-                spaces,
-                { spaceUuid, createdByUserUuid },
-            ),
-        [
-            ability,
-            user.data?.organizationUuid,
-            projectUuid,
-            spaces,
-            spaceUuid,
-            createdByUserUuid,
-        ],
+            canManageDataApp(ability, projectContext, spaces, {
+                spaceUuid,
+                createdByUserUuid,
+            }),
+        [ability, projectContext, spaces, spaceUuid, createdByUserUuid],
     );
 };
 
@@ -80,19 +72,13 @@ export const useCanEditDataAppChecker = (
     projectUuid: string | undefined,
 ): ((app: DataAppAccess) => boolean) => {
     const ability = useAbilityContext();
-    const { user } = useApp();
+    const projectContext = useDataAppProjectContext(projectUuid);
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
 
     return useCallback(
         (app: DataAppAccess) =>
-            canManageDataApp(
-                ability,
-                user.data?.organizationUuid,
-                projectUuid,
-                spaces,
-                app,
-            ),
-        [ability, user.data?.organizationUuid, projectUuid, spaces],
+            canManageDataApp(ability, projectContext, spaces, app),
+        [ability, projectContext, spaces],
     );
 };
 

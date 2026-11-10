@@ -26,6 +26,7 @@ import EmptyStateLoader from '../components/common/EmptyStateLoader';
 import InlineErrorState from '../components/common/InlineErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
+import { useDataAppProjectContext } from '../features/apps/hooks/useDataAppProjectContext';
 import ChartTypeCardSkeletons from '../features/chartTypes/components/ChartTypeCardSkeletons';
 import ChartTypeDeleteModal from '../features/chartTypes/components/ChartTypeDeleteModal';
 import ChartTypeDetailModal from '../features/chartTypes/components/ChartTypeDetailModal';
@@ -42,7 +43,6 @@ import { chartTypeBuilderPath } from '../features/chartTypes/utils/chartTypeBuil
 import { useOptionalProjectRoute } from '../hooks/useProjectRoute';
 import { useProjectUuid } from '../hooks/useProjectUuid';
 import { Can } from '../providers/Ability';
-import useApp from '../providers/App/useApp';
 import classes from './ChartTypeGallery.module.css';
 
 const GalleryTab = {
@@ -57,7 +57,7 @@ const ChartTypeGallery = () => {
     const projectRoute = useOptionalProjectRoute();
     const projectUrlIdentifier =
         projectRoute?.projectUrlIdentifier ?? projectUuid;
-    const { user } = useApp();
+    const dataAppProjectContext = useDataAppProjectContext(projectUuid);
     const [searchParams, setSearchParams] = useSearchParams();
     const chartTypesEnabled = useChartTypesEnabled();
     const chartStudioAvailable = useChartStudioAvailable();
@@ -189,13 +189,7 @@ const ChartTypeGallery = () => {
         (search !== '' || (totalCount ?? 0) >= SEARCH_MIN_COUNT);
 
     const newChartTypeButton = chartStudioAvailable && (
-        <Can
-            I="create"
-            this={subject('DataApp', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid,
-            })}
-        >
+        <Can I="create" this={subject('DataApp', { ...dataAppProjectContext })}>
             <Button
                 size="sm"
                 component={Link}

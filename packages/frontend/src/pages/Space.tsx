@@ -35,6 +35,7 @@ import CreateResourceToSpace from '../components/Explorer/SpaceBrowser/CreateRes
 import { SpaceBrowserMenu } from '../components/Explorer/SpaceBrowser/SpaceBrowserMenu';
 import { AddToSpaceResources } from '../components/Explorer/SpaceBrowser/types';
 import ForbiddenPanel from '../components/ForbiddenPanel';
+import { useDataAppProjectContext } from '../features/apps/hooks/useDataAppProjectContext';
 import DocumentCreateModal from '../features/documents/DocumentCreateModal';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
 import { useContentAction } from '../hooks/useContent';
@@ -52,6 +53,7 @@ import classes from './Space.module.css';
 
 const Space: FC = () => {
     const projectUuid = useProjectUuid()!;
+    const dataAppProjectContext = useDataAppProjectContext(projectUuid);
     const projectUrlIdentifier = useProjectUrlIdentifier();
     const { spaceUuid } = useParams<{
         spaceUuid: string;
@@ -153,12 +155,12 @@ const Space: FC = () => {
         dataAppsEnabled &&
         user.data?.ability?.can(
             'create',
-            subject('DataApp', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid,
-            }),
+            subject('DataApp', { ...dataAppProjectContext }),
         ) &&
-        user.data?.ability?.can('manage', subject('DataApp', { ...space }));
+        user.data?.ability?.can(
+            'manage',
+            subject('DataApp', { ...space, ...dataAppProjectContext }),
+        );
 
     const userCanManageProject = user.data?.ability?.can(
         'manage',

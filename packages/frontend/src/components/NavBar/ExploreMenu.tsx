@@ -13,6 +13,7 @@ import {
 } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
+import { useCanCreateDataApp } from '../../features/apps/hooks/useCanCreateDataApp';
 import DocumentCreateModal from '../../features/documents/DocumentCreateModal';
 import { useContentAuthoringEnabled } from '../../hooks/useContentAuthoringEnabled';
 import { useProject } from '../../hooks/useProject';
@@ -50,6 +51,7 @@ const ExploreMenu: FC<Props> = memo((props) => {
 
     const { user } = useApp();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const canCreateDataApp = useCanCreateDataApp(projectUuid);
 
     const [isOpen, setIsOpen] = useState(false);
     const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState(false);
@@ -179,26 +181,17 @@ const ExploreMenu: FC<Props> = memo((props) => {
                             />
                         )}
 
-                        {dataAppsFlag.data?.enabled && (
-                            <Can
-                                I="create"
-                                this={subject('DataApp', {
-                                    organizationUuid:
-                                        user.data?.organizationUuid,
-                                    projectUuid,
-                                })}
-                            >
-                                <LargeMenuItem
-                                    component={Link}
-                                    // Navigation anchor for scope walkthroughs (data-tour-via)
-                                    data-tour-nav="new-app"
-                                    data-tour-hint="Choose Data App"
-                                    title="Data App"
-                                    description="Build an interactive app powered by your data."
-                                    to={`/projects/${projectUuid}/apps/generate`}
-                                    icon={IconAppWindow}
-                                />
-                            </Can>
+                        {dataAppsFlag.data?.enabled && canCreateDataApp && (
+                            <LargeMenuItem
+                                component={Link}
+                                // Navigation anchor for scope walkthroughs (data-tour-via)
+                                data-tour-nav="new-app"
+                                data-tour-hint="Choose Data App"
+                                title="Data App"
+                                description="Build an interactive app powered by your data."
+                                to={`/projects/${projectUuid}/apps/generate`}
+                                icon={IconAppWindow}
+                            />
                         )}
 
                         <Can
