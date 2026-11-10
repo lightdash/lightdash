@@ -1,3 +1,10 @@
+## [3.197.3](https://github.com/lightdash/lightdash/compare/3.197.2...3.197.3) (2026-11-10)
+
+
+### Bug Fixes
+
+* **frontend:** say how to scan again on the mobile sign-in fallback page ([#32315](https://github.com/lightdash/lightdash/issues/32315)) ([9720164](https://github.com/lightdash/lightdash/commit/9720164c244c3c826718ed9c67d272f122b419c9))
+
 ## [3.197.2](https://github.com/lightdash/lightdash/compare/3.197.1...3.197.2) (2026-11-10)
 
 
