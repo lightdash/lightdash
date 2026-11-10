@@ -85,9 +85,11 @@ import {
     ListWarehouseTablesFn,
     ListWorkstreamsFn,
     LoadAgentSkillFn,
+    ProposeSemanticLayerChangeFn,
     ReadAttachmentsFn,
     ReadContentFn,
     ReadPinnedThreadFn,
+    ReadSemanticModelFn,
     RecordMcpToolCallFn,
     RecordPromptDecisionFn,
     RecordSqlApprovalFn,
@@ -295,6 +297,8 @@ export type AiAgentArgs = AnyAiModel & {
     // Only on inside review-remediation work threads: lets the agent open/update
     // the project_context.yml PR via the deterministic editProjectContext tool.
     enableEditProjectContext: boolean;
+    // A thread started in Semantic Studio: it drafts model changes and builds no content.
+    isSemanticStudioThread: boolean;
     // Which GitHub identity a writeback PR would be attributed to (advisory,
     // resolved at prompt-assembly time). null when not applicable/unresolved.
     writebackAttribution: AiWritebackAttribution | null;
@@ -459,6 +463,8 @@ export type AiAgentDependencies = {
     listDataAppConnections: ListDataAppConnectionsFn;
     editDbtProject: EditDbtProjectFn;
     editProjectContext: EditProjectContextFn;
+    proposeSemanticLayerChange: ProposeSemanticLayerChangeFn;
+    readSemanticModel: ReadSemanticModelFn;
     syncDbtProject: SyncDbtProjectFn;
     exploreRepo: ExploreRepoFn;
     discoverRepos: DiscoverReposFn;

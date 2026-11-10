@@ -45,6 +45,7 @@ import { getRequestingUserSection } from './systemV2RequestingUser';
 import { getRunSqlSection } from './systemV2RunSql';
 import { getSchedulingToolsSection } from './systemV2SchedulingTools';
 import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
+import { getSemanticStudioSystemPrompt } from './systemV2SemanticStudio';
 import { renderAvailableSkills } from './systemV2Skills';
 import { getSlackLinksOnlySection } from './systemV2SlackLinksOnly';
 import {
@@ -162,6 +163,15 @@ export const getDeferredToolInstructions = (
         .filter(Boolean)
         .join('\n\n');
 };
+
+const toSystemMessage = (content: string): SystemModelMessage => ({
+    role: 'system',
+    content,
+    providerOptions: {
+        anthropic: { cacheControl: { type: 'ephemeral' } },
+        bedrock: { cachePoint: { type: 'default' } },
+    },
+});
 
 export const getSystemPromptV2 = (
     args: CapabilitySectionArgs & {
@@ -326,6 +336,33 @@ export const getSystemPromptV2 = (
         ).toString();
     } else {
         availableExploresContent = `This agent has access to ${args.availableExplores.length} explores. Use grepFields to discover the relevant one for each request.`;
+    }
+
+    // Semantic Studio edits models and answers no questions, so it shares nothing below.
+    if (promptSections.has('semanticStudio')) {
+        return toSystemMessage(
+            getSemanticStudioSystemPrompt({
+                agentName,
+                date,
+                instructions,
+                // The shared wording for no explores tells the agent to answer from SQL or give up.
+                availableExplores:
+                    args.availableExplores.length === 0
+                        ? 'None yet: this project has no models.'
+                        : availableExploresContent,
+                projectContext:
+                    promptSections.has('projectContext') &&
+                    args.hasProjectContext
+                        ? projectContextContent
+                        : null,
+                warehouse: promptSections.has('runSql')
+                    ? {
+                          type: args.warehouseType ?? null,
+                          schema: args.warehouseSchema ?? null,
+                      }
+                    : null,
+            }),
+        );
     }
 
     const allowMarkdownTables = !slackChannelId && !slackLinksOnly;
@@ -545,12 +582,5 @@ export const getSystemPromptV2 = (
         .filter(Boolean)
         .join('\n\n');
 
-    return {
-        role: 'system',
-        content: finalContent,
-        providerOptions: {
-            anthropic: { cacheControl: { type: 'ephemeral' } },
-            bedrock: { cachePoint: { type: 'default' } },
-        },
-    };
+    return toSystemMessage(finalContent);
 };

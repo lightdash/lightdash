@@ -915,6 +915,8 @@ export type ApiAiAgentThreadCreateRequest = {
     binding?: AiThreadBinding;
     /** Initial context for the agent, up to 10,000 characters. Cannot be changed after creation. */
     threadContext?: string;
+    /** Starts a Semantic Studio thread, whose agent drafts model changes for the person to apply. Only the app may set it. */
+    createdFrom?: Extract<AiThreadCreatedFrom, 'semantic_studio'>;
 };
 
 export type ApiAiAgentThreadCreateResponse = ApiSuccess<AiAgentThreadSummary>;

@@ -144,6 +144,10 @@ import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
+import {
+    getProposeSemanticLayerChange,
+    getReadSemanticModel,
+} from '../tools/semanticStudioTools';
 import { type SqlApprovalDependencies } from '../tools/sqlApprovalGate';
 import {
     buildSqlApprovalDecidedEvent,
@@ -2131,6 +2135,15 @@ export const getAgentTools = (
         editProjectContext: () =>
             getEditProjectContext({
                 editProjectContext: dependencies.editProjectContext,
+            }),
+        proposeSemanticLayerChange: () =>
+            getProposeSemanticLayerChange({
+                proposeSemanticLayerChange:
+                    dependencies.proposeSemanticLayerChange,
+            }),
+        readSemanticModel: () =>
+            getReadSemanticModel({
+                readSemanticModel: dependencies.readSemanticModel,
             }),
         syncDbtProject: () =>
             getSyncDbtProject({

@@ -20,6 +20,7 @@ export const selectLoadoutBase = (input: LoadoutInput): LoadoutBase => {
         default:
             return assertUnreachable(research, 'Unknown research role');
     }
+    if (input.isSemanticStudioThread) return 'semantic_studio';
     if (input.enableComposerQueries) return 'composer';
     if (!input.enableDataAccess) return 'no_data_access';
     return 'classic';

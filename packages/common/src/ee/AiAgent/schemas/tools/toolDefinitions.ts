@@ -369,6 +369,14 @@ import {
     toolSearchSemanticLayerOutputSchema,
 } from './toolSearchSemanticLayerArgs';
 import {
+    TOOL_PROPOSE_SEMANTIC_LAYER_CHANGE_DESCRIPTION,
+    TOOL_READ_SEMANTIC_MODEL_DESCRIPTION,
+    toolProposeSemanticLayerChangeArgsSchema,
+    toolProposeSemanticLayerChangeOutputSchema,
+    toolReadSemanticModelArgsSchema,
+    toolReadSemanticModelOutputSchema,
+} from './toolSemanticStudioArgs';
+import {
     TOOL_SYNC_DBT_PROJECT_DESCRIPTION,
     toolSyncDbtProjectArgsSchema,
     toolSyncDbtProjectOutputSchema,
@@ -1284,6 +1292,34 @@ export const editProjectContextToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolEditProjectContextOutputSchema },
 });
 
+export const proposeSemanticLayerChangeToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'proposeSemanticLayerChange',
+    typeof toolProposeSemanticLayerChangeArgsSchema,
+    typeof toolProposeSemanticLayerChangeArgsSchema,
+    typeof toolProposeSemanticLayerChangeOutputSchema
+> = defineTool({
+    name: 'proposeSemanticLayerChange',
+    title: 'Propose semantic layer change',
+    description: TOOL_PROPOSE_SEMANTIC_LAYER_CHANGE_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolProposeSemanticLayerChangeArgsSchema,
+    agent: { outputSchema: toolProposeSemanticLayerChangeOutputSchema },
+});
+
+export const readSemanticModelToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'readSemanticModel',
+    typeof toolReadSemanticModelArgsSchema,
+    typeof toolReadSemanticModelArgsSchema,
+    typeof toolReadSemanticModelOutputSchema
+> = defineTool({
+    name: 'readSemanticModel',
+    title: 'Read semantic model',
+    description: TOOL_READ_SEMANTIC_MODEL_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolReadSemanticModelArgsSchema,
+    agent: { outputSchema: toolReadSemanticModelOutputSchema },
+});
+
 export const syncDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
     'syncDbtProject',
     typeof toolSyncDbtProjectArgsSchema,
@@ -1968,6 +2004,8 @@ type AgentToolDefinitionsByName = {
     listDataAppConnections: typeof listDataAppConnectionsToolDefinition;
     editDbtProject: typeof editDbtProjectToolDefinition;
     editProjectContext: typeof editProjectContextToolDefinition;
+    proposeSemanticLayerChange: typeof proposeSemanticLayerChangeToolDefinition;
+    readSemanticModel: typeof readSemanticModelToolDefinition;
     syncDbtProject: typeof syncDbtProjectToolDefinition;
     exploreRepo: typeof exploreRepoToolDefinition;
     discoverRepos: typeof discoverReposToolDefinition;
@@ -2028,6 +2066,8 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     listDataAppConnections: listDataAppConnectionsToolDefinition,
     editDbtProject: editDbtProjectToolDefinition,
     editProjectContext: editProjectContextToolDefinition,
+    proposeSemanticLayerChange: proposeSemanticLayerChangeToolDefinition,
+    readSemanticModel: readSemanticModelToolDefinition,
     syncDbtProject: syncDbtProjectToolDefinition,
     exploreRepo: exploreRepoToolDefinition,
     discoverRepos: discoverReposToolDefinition,
@@ -2095,6 +2135,8 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     listDataAppConnectionsToolDefinition,
     editDbtProjectToolDefinition,
     editProjectContextToolDefinition,
+    proposeSemanticLayerChangeToolDefinition,
+    readSemanticModelToolDefinition,
     syncDbtProjectToolDefinition,
     exploreRepoToolDefinition,
     discoverReposToolDefinition,

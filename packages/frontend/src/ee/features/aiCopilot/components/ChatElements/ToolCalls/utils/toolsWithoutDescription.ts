@@ -18,6 +18,8 @@ const TOOLS_WITHOUT_DESCRIPTION = [
     'listDataAppConnections',
     'editDbtProject',
     'editProjectContext',
+    'proposeSemanticLayerChange',
+    'readSemanticModel',
     'editRepo',
     'updateUserName',
     'syncDbtProject',

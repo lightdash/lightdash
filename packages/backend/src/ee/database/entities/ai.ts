@@ -593,6 +593,7 @@ export type AiPromptContextEntityType =
     | 'proposed_change'
     | 'review_finding'
     | 'preview_environment'
+    | 'semantic_model'
     | 'data_app_element'
     | 'composer_node'
     | 'data_app_restore'

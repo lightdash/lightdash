@@ -84,6 +84,22 @@ export const BASES: Record<LoadoutBase, BaseDefinition> = {
         skills: [],
         accepts: ADD_ON_NAMES,
     }),
+    // Reads the layer and warehouse, and proposes; a person applies. No charts or content.
+    semantic_studio: (input) => ({
+        tools: [
+            'grepFields',
+            'getMetadata',
+            'searchSemanticLayer',
+            'analyzeFieldImpact',
+            'readSemanticModel',
+            'proposeSemanticLayerChange',
+            ...onlyIf(input.enableDataAccess, ['searchFieldValues']),
+            ...onlyIf(input.canRunSql, ['runSql']),
+        ],
+        sections: ['semanticStudio'],
+        skills: [],
+        accepts: ['sqlCatalog', 'projectContext'],
+    }),
     deep_research_worker: (input) => ({
         tools: [
             'generateVisualization',

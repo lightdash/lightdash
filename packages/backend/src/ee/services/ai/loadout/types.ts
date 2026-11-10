@@ -60,6 +60,8 @@ export const AGENT_TOOL_NAMES = [
     'listDataAppConnections',
     'editDbtProject',
     'editProjectContext',
+    'proposeSemanticLayerChange',
+    'readSemanticModel',
     'syncDbtProject',
     'exploreRepo',
     'readAttachments',
@@ -107,7 +109,9 @@ export type PromptSection =
     | 'projectContext'
     | 'memories'
     | 'availableCustomChartTypes'
-    | 'requestingUser';
+    | 'requestingUser'
+    // Replaces the whole prompt: a Semantic Studio thread edits models and answers no questions.
+    | 'semanticStudio';
 
 /** Sections the intent gate may withhold until the agent loads their tools. */
 export const DEFERRED_PROMPT_SECTIONS = [
@@ -136,6 +140,7 @@ export type LoadoutInput = Pick<
     | 'enableAiWriteback'
     | 'enableRepoDiscovery'
     | 'enableEditProjectContext'
+    | 'isSemanticStudioThread'
     | 'enableReadAttachments'
     | 'customSkills'
     | 'projectContextEnabled'

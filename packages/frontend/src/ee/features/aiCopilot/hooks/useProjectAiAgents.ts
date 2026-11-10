@@ -1043,6 +1043,8 @@ const toOptimisticContextItem = (
                 status: null,
                 title: null,
             };
+        case 'semantic_model':
+            return item;
         case 'preview_environment':
             return {
                 type: 'preview_environment',

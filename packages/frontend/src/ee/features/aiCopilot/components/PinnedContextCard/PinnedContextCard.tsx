@@ -286,6 +286,14 @@ export const PinnedContextCard: FC<Props> = ({
         // System-only: written by the thread restore, rendered as a build card.
         case 'data_app_restore':
             return null;
+        case 'semantic_model':
+            return (
+                <ContentReferenceLink kind="semantic_model" showArrow={false}>
+                    {item.fieldName
+                        ? `${item.modelName}.${item.fieldName}`
+                        : item.modelName}
+                </ContentReferenceLink>
+            );
         case 'design':
             return (
                 <ContentReferenceLink kind="design" showArrow={false}>

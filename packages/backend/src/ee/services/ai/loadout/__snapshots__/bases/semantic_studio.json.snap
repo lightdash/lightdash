@@ -1,0 +1,18 @@
+{
+    "base": "semantic_studio",
+    "addOns": [],
+    "toolNames": [
+        "analyzeFieldImpact",
+        "getMetadata",
+        "grepFields",
+        "proposeSemanticLayerChange",
+        "readSemanticModel",
+        "runSql",
+        "searchFieldValues",
+        "searchSemanticLayer"
+    ],
+    "promptSections": [
+        "semanticStudio"
+    ],
+    "skills": []
+}

@@ -69,6 +69,8 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     listDataAppConnections: 'list_data_app_connections',
     editDbtProject: 'edit_dbt_project',
     editProjectContext: 'edit_project_context',
+    proposeSemanticLayerChange: 'propose_semantic_layer_change',
+    readSemanticModel: 'read_semantic_model',
     editRepo: 'edit_repo',
     syncDbtProject: 'sync_dbt_project',
     exploreRepo: 'explore_repo',

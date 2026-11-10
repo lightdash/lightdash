@@ -872,6 +872,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiWritebackService<AiWritebackService>(),
                     projectContextService:
                         repository.getProjectContextService<ProjectContextService>(),
+                    semanticStudioService:
+                        repository.getSemanticStudioService<SemanticStudioService>(),
                     writebackPreviewService:
                         repository.getWritebackPreviewService<WritebackPreviewService>(),
                     githubAppInstallationsModel:

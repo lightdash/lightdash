@@ -124,6 +124,7 @@ export const AI_THREAD_CREATED_FROM = [
     'scheduler',
     'data_app',
     'dashboard_analysis',
+    'semantic_studio',
 ] as const;
 export type AiThreadCreatedFrom = (typeof AI_THREAD_CREATED_FROM)[number];
 
@@ -139,6 +140,7 @@ export const AI_WEB_APP_THREAD_CREATED_FROM = [
     'scheduler',
     'data_app',
     'dashboard_analysis',
+    'semantic_studio',
 ] as const satisfies readonly AiThreadCreatedFrom[];
 export type AiWebAppThreadCreatedFrom =
     (typeof AI_WEB_APP_THREAD_CREATED_FROM)[number];
@@ -226,7 +228,8 @@ export type AiAgentLoadoutBase =
     | 'composer'
     | 'no_data_access'
     | 'deep_research_worker'
-    | 'deep_research_coordinator';
+    | 'deep_research_coordinator'
+    | 'semantic_studio';
 
 export type AiAgentPromptLoadout = {
     base: AiAgentLoadoutBase;
@@ -397,6 +400,12 @@ export type AiPromptContextItemInput =
           type: 'skill';
           name: string;
           arguments: string;
+      }
+    | {
+          // The model or field open in Semantic Studio when the message was sent.
+          type: 'semantic_model';
+          modelName: string;
+          fieldName: string | null;
       };
 
 export type AiPromptContextInput = AiPromptContextItemInput[];
@@ -553,6 +562,12 @@ export type AiPromptContextItem =
           documentSlug: string | null;
           pinnedVersionUuid: string | null;
           displayName: string | null;
+      }
+    | {
+          // The model or field open in Semantic Studio when the message was sent.
+          type: 'semantic_model';
+          modelName: string;
+          fieldName: string | null;
       }
     | {
           type: 'design';
