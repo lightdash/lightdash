@@ -1,3 +1,10 @@
+# [3.191.0](https://github.com/lightdash/lightdash/compare/3.190.0...3.191.0) (2026-11-10)
+
+
+### Features
+
+* **charts:** regenerate chart name and description with AI ([#32235](https://github.com/lightdash/lightdash/issues/32235)) ([0629da0](https://github.com/lightdash/lightdash/commit/0629da0079edf12c9e71df92a68b3d4ab6114312)), closes [#24578](https://github.com/lightdash/lightdash/issues/24578)
+
 # [3.190.0](https://github.com/lightdash/lightdash/compare/3.189.0...3.190.0) (2026-11-09)
 
 

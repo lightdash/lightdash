@@ -26242,11 +26242,26 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ChartMetadataStyle: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['compact'] },
+                { dataType: 'enum', enums: ['question'] },
+                { dataType: 'enum', enums: ['short'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     GenerateChartMetadataRequest: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                styleReferenceTitle: { dataType: 'string' },
+                style: { ref: 'ChartMetadataStyle' },
                 chartConfigJson: { dataType: 'string' },
                 fieldsContext: {
                     dataType: 'array',

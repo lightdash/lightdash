@@ -1,8 +1,8 @@
 {
   "schemaVersion": "2",
-  "version": "3.190.0",
-  "previousVersion": "3.189.0",
-  "releaseDate": "2026-11-09T18:57:36.135Z",
+  "version": "3.191.0",
+  "previousVersion": "3.190.0",
+  "releaseDate": "2026-11-10T08:20:16.246Z",
   "migrations": {
     "present": false,
     "count": 0,
@@ -20,21 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/projects/{projectUuid}/compile-logs — added the new `google_ads` enum value to the `results/data/items/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/apiSource/integration` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/compile-logs — added the new `linkedin_ads` enum value to the `results/data/items/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/apiSource/integration` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/compile-logs — added the new `meta_ads` enum value to the `results/data/items/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/apiSource/integration` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/compile-logs — added the new `youtube_analytics` enum value to the `results/data/items/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/apiSource/integration` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/compile-logs/job/{jobUuid} — added the new `google_ads` enum value to the `results/log/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/apiSource/integration` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/compile-logs/job/{jobUuid} — added the new `linkedin_ads` enum value to the `results/log/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/apiSource/integration` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/compile-logs/job/{jobUuid} — added the new `meta_ads` enum value to the `results/log/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/apiSource/integration` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/compile-logs/job/{jobUuid} — added the new `youtube_analytics` enum value to the `results/log/report/exploresWithErrors/items/allOf[#/components/schemas/Partial_Explore_]/apiSource/integration` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/explores/{exploreId} — added the new `google_ads` enum value to the `results/apiSource/integration` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/explores/{exploreId} — added the new `linkedin_ads` enum value to the `results/apiSource/integration` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/explores/{exploreId} — added the new `meta_ads` enum value to the `results/apiSource/integration` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/explores/{exploreId} — added the new `youtube_analytics` enum value to the `results/apiSource/integration` response property for the response status `200`"
-      ],
-      "advisoryCount": 12
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,

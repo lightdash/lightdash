@@ -27932,8 +27932,20 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "ChartMetadataStyle": {
+                "type": "string",
+                "enum": ["compact", "question", "short"]
+            },
             "GenerateChartMetadataRequest": {
                 "properties": {
+                    "styleReferenceTitle": {
+                        "type": "string",
+                        "description": "An existing title whose voice and format the new title should follow."
+                    },
+                    "style": {
+                        "$ref": "#/components/schemas/ChartMetadataStyle",
+                        "description": "Naming style to generate in. Defaults to `question`."
+                    },
                     "chartConfigJson": {
                         "type": "string"
                     },
@@ -76550,7 +76562,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.190.0",
+        "version": "3.191.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
