@@ -34,6 +34,7 @@ import {
     emitAiUsage,
     languageModelUsageToTokens,
 } from '../../../../analytics/aiUsage';
+import { runWithAiAgentLogContext } from '../../../../logging/aiAgentLogContext';
 import Logger from '../../../../logging/logger';
 import type { ConnectedAgentTool } from '../../../../services/AgentPermissionService/AgentPermissionService';
 import {
@@ -186,6 +187,7 @@ import {
     summarizeToolCall,
     summarizeToolResult,
 } from '../utils/toolSummaries';
+import { getAgentLogContext, withToolCallLogContext } from './agentLogContext';
 import { pruneSupersededContentReads } from './contentReadRetention';
 import { getMcpActiveTools } from './mcpToolGating';
 import { compactChartDiscovery, getPreviousQueryUuid } from './previousQuery';
@@ -2902,13 +2904,16 @@ const prepareAgentTurn = async ({
             ),
         );
     }
-    tools = reportEarlyToolProgress
-        ? withEarlyToolProgress(
-              intentToolGate.tools,
-              dependencies.updateProgress,
-              args.execution.mode === 'deep_research',
-          )
-        : intentToolGate.tools;
+    tools = withToolCallLogContext(
+        reportEarlyToolProgress
+            ? withEarlyToolProgress(
+                  intentToolGate.tools,
+                  dependencies.updateProgress,
+                  args.execution.mode === 'deep_research',
+              )
+            : intentToolGate.tools,
+        getAgentLogContext(args),
+    );
     const messages = getAgentMessages(
         args,
         loadout,
@@ -2971,12 +2976,12 @@ const prepareAgentTurn = async ({
 
 // Forked scope so every capture in the turn, including from tool execute, carries the model.
 const withAgentModelScope = <T>(
-    model: AiAgentArgs['model'],
+    args: AiAgentArgs,
     run: () => Promise<T>,
 ): Promise<T> =>
     Sentry.withScope((scope) => {
-        scope.setTag('ai.model', getAiAgentModelName(model));
-        return run();
+        scope.setTag('ai.model', getAiAgentModelName(args.model));
+        return runWithAiAgentLogContext(getAgentLogContext(args), run);
     });
 
 const runGenerateAgentResponse = async ({
@@ -3419,9 +3424,7 @@ const runGenerateAgentResponse = async ({
 export const generateAgentResponse = (
     params: Parameters<typeof runGenerateAgentResponse>[0],
 ): Promise<string> =>
-    withAgentModelScope(params.args.model, () =>
-        runGenerateAgentResponse(params),
-    );
+    withAgentModelScope(params.args, () => runGenerateAgentResponse(params));
 
 const runStreamAgentResponse = async ({
     args,
@@ -4085,6 +4088,4 @@ const runStreamAgentResponse = async ({
 export const streamAgentResponse = (
     params: Parameters<typeof runStreamAgentResponse>[0],
 ): Promise<AgentStreamTextResult> =>
-    withAgentModelScope(params.args.model, () =>
-        runStreamAgentResponse(params),
-    );
+    withAgentModelScope(params.args, () => runStreamAgentResponse(params));
