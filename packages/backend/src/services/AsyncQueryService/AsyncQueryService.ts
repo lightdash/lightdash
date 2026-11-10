@@ -269,6 +269,7 @@ import {
     validateMetricQueryFields,
 } from '../../queryCompiler';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { markAlreadyReported } from '../../sentry/aiAgentErrors';
 import { traceSpan, type TraceSpan } from '../../tracing/tracing';
 import { wrapSentryTransaction } from '../../utils';
 import { isAiServiceAccountPermissionError } from '../../utils/aiServiceAccountErrors';
@@ -423,6 +424,7 @@ import {
     querySurfaceFromConnectionSurface,
 } from '../WarehouseClientFactory/ConnectionContext';
 import { WarehouseClientFactory } from '../WarehouseClientFactory/WarehouseClientFactory';
+import { captureAiAgentQueryError } from './captureAiAgentQueryError';
 import { discoverColumns } from './columnDiscovery';
 import { type ComposeEngineClient } from './ComposeEngineClient';
 import {
@@ -5791,6 +5793,13 @@ export class AsyncQueryService extends ProjectService {
                 throw e;
             }
 
+            if (!(e instanceof AiAccessRefusedError)) {
+                captureAiAgentQueryError({
+                    error: e,
+                    queryTags,
+                    querySource: 'warehouse',
+                });
+            }
             await this.markAsyncQueryErrored({
                 inheritedFromProjectUuid:
                     inheritedFromProjectUuid ??
@@ -11229,11 +11238,14 @@ export class AsyncQueryService extends ProjectService {
                             e,
                         )}`,
                     );
-                    throw new ParameterError(
+                    const error = new ParameterError(
                         `${
                             label ?? `Referenced query "${tableName}"`
                         } did not complete: ${getErrorMessage(e)}`,
                     );
+                    error.cause = e;
+                    // The referenced query's own failure is the one to report
+                    throw markAlreadyReported(error);
                 }
             }),
         );
@@ -11979,6 +11991,11 @@ export class AsyncQueryService extends ProjectService {
                     this.logger.warn(
                         `Python query ${queryUuid} failed: ${message}`,
                     );
+                    captureAiAgentQueryError({
+                        error: e,
+                        queryTags,
+                        querySource: 'python',
+                    });
                     await this.queryHistoryModel.updateStatusToError(
                         queryUuid,
                         projectUuid,
@@ -14155,6 +14172,11 @@ export class AsyncQueryService extends ProjectService {
                 );
                 return;
             }
+            captureAiAgentQueryError({
+                error: e,
+                queryTags,
+                querySource: 'duckdb',
+            });
             await this.queryHistoryModel.update(
                 queryUuid,
                 projectUuid,
@@ -14675,7 +14697,9 @@ export class AsyncQueryService extends ProjectService {
         } catch (e) {
             // The DuckDB client throws raw errors (validation + engine)
             if (e instanceof LightdashError) throw e;
-            throw new WarehouseQueryError(getErrorMessage(e));
+            const error = new WarehouseQueryError(getErrorMessage(e));
+            error.cause = e;
+            throw error;
         }
         return Object.values(
             Object.fromEntries(columns.map((column) => [column.name, column])),

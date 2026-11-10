@@ -515,6 +515,33 @@ describe('dashboardParametersReducer', () => {
             expect(next.haveParameterControlsChanged).toBe(false);
         });
 
+        it('records the synced ids as saved, and keeps them through an edit', () => {
+            const synced = reducer(
+                stateWith(),
+                actions.syncParameterControls({
+                    controls: filledList({ region: 'a' }),
+                    isSaved: false,
+                }),
+            );
+            expect(synced.savedParameterControlIds).toEqual(['a']);
+            const edited = reducer(
+                synced,
+                actions.setParameterControls(
+                    filledList({ region: 'a', currency: 'b' }),
+                ),
+            );
+            expect(edited.savedParameterControlIds).toEqual(['a']);
+            // Saved and synced again with the same list: the new id counts as saved
+            const resynced = reducer(
+                reducer(edited, actions.setHaveParameterControlsChanged(false)),
+                actions.syncParameterControls({
+                    controls: filledList({ region: 'a', currency: 'b' }),
+                    isSaved: true,
+                }),
+            );
+            expect(resynced.savedParameterControlIds).toEqual(['a', 'b']);
+        });
+
         it('keeps the ids of filled controls when the list is refilled', () => {
             const filled = reducer(
                 stateWith(),

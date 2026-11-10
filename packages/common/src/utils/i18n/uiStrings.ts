@@ -453,6 +453,9 @@ export const DEFAULT_UI_STRINGS = {
     'controls.parameter.clearedUsesOwnValue':
         'If cleared, each tile uses its own value.',
     'controls.parameter.needsValue': 'needs a value',
+    'controls.parameter.needsValueTooltip':
+        'Required: set a value to run its tiles',
+    'controls.parameter.removeParameter': 'Remove parameter',
     'controls.parameter.isNotSet': 'is not set',
     'controls.parameter.notSetTooltip':
         "Tiles use their own value or the parameter's default",

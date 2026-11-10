@@ -83,6 +83,23 @@ describe('RESULTS_CACHE_ENABLED', () => {
     });
 });
 
+describe('MOBILE_ANDROID_CERT_FINGERPRINTS', () => {
+    const playAppSigning =
+        'EB:2C:4B:A2:0C:21:91:EB:9A:47:DF:1C:09:69:36:80:89:95:93:F5:6A:E5:AF:E8:9F:3D:4B:B0:C1:E2:8C:90';
+
+    it.each([
+        [undefined, [playAppSigning]],
+        ['', []],
+        ['AA:BB, CC:DD', ['AA:BB', 'CC:DD']],
+    ])('parses %j as %j', (value, expected) => {
+        if (value !== undefined)
+            process.env.MOBILE_ANDROID_CERT_FINGERPRINTS = value;
+        expect(
+            parseConfig().mobileAppAssociation.androidCertificateFingerprints,
+        ).toEqual(expected);
+    });
+});
+
 describe('agent result identity check configuration', () => {
     it.each([
         [undefined, true],

@@ -3991,7 +3991,7 @@ describe('CoderService dashboard control order as code', () => {
         );
         const saved = await upload(file, { enabled: false, saved: noSections });
         expect(JSON.stringify(saved)).toMatchInlineSnapshot(
-            `"{"uuid":"dashboard-uuid","slug":"dashboard","name":"Dashboard","description":null,"updatedAt":"2026-01-01T00:00:00.000Z","spaceUuid":"space-uuid","tabs":[],"tiles":[],"filters":{"metrics":[{"id":"metric-id","target":{"fieldId":"orders_total","tableName":"orders"},"operator":"greaterThan","values":[1]}],"tableCalculations":[],"dimensions":[{"id":"first-id","target":{"fieldId":"orders_status","tableName":"orders"},"operator":"equals","values":["first-id"],"tileTargets":{}},{"id":"second-id","target":{"fieldId":"orders_city","tableName":"orders"},"operator":"equals","values":["second-id"],"tileTargets":{}}]},"config":{"isDateZoomDisabled":false,"parameterControls":[{"id":"region-id","label":"Region","value":null,"valueType":{"type":"string","multiple":false},"parameters":{"region":"all"}}],"controlOrder":[{"kind":"parameter","id":"region-id"},{"kind":"filter","id":"metric-id"},{"kind":"section","id":"section-id"},{"kind":"filter","id":"second-id"},{"kind":"filter","id":"first-id"}]},"spaceSlug":"space","version":1,"contentType":"dashboard","verification":null,"projectUuid":"11111111-1111-4111-8111-111111111111","organizationUuid":"org-uuid"}"`,
+            `"{"uuid":"dashboard-uuid","slug":"dashboard","name":"Dashboard","description":null,"updatedAt":"2026-01-01T00:00:00.000Z","spaceUuid":"space-uuid","tabs":[],"tiles":[],"filters":{"metrics":[{"id":"metric-id","target":{"fieldId":"orders_total","tableName":"orders"},"operator":"greaterThan","values":[1]}],"tableCalculations":[],"dimensions":[{"target":{"fieldId":"orders_status","tableName":"orders"},"operator":"equals","values":["first-id"],"tileTargets":{},"id":"first-id"},{"target":{"fieldId":"orders_city","tableName":"orders"},"operator":"equals","values":["second-id"],"tileTargets":{},"id":"second-id"}]},"config":{"isDateZoomDisabled":false,"parameterControls":[{"id":"region-id","label":"Region","value":null,"valueType":{"type":"string","multiple":false},"parameters":{"region":"all"}}],"controlOrder":[{"kind":"parameter","id":"region-id"},{"kind":"filter","id":"metric-id"},{"kind":"section","id":"section-id"},{"kind":"filter","id":"second-id"},{"kind":"filter","id":"first-id"}]},"spaceSlug":"space","version":1,"contentType":"dashboard","verification":null,"projectUuid":"11111111-1111-4111-8111-111111111111","organizationUuid":"org-uuid"}"`,
         );
     });
 
@@ -4914,7 +4914,17 @@ describe('CoderService dashboard control order as code', () => {
                 enabled,
                 saved: { ...saved, filters } as unknown as DashboardDAO,
             });
-            expect(result.config?.controlOrder).toEqual(savedOrder);
+            // No saved metric filter to match, so the file's one is new
+            const metricId = result.filters.metrics[0].id;
+            expect(result.config?.controlOrder).toEqual(
+                enabled
+                    ? savedOrder.map((ref) =>
+                          ref.id === 'metric-id'
+                              ? { ...ref, id: metricId }
+                              : ref,
+                      )
+                    : savedOrder,
+            );
         },
     );
 
@@ -4943,19 +4953,92 @@ describe('CoderService dashboard control order as code', () => {
         ]);
     });
 
-    it('mints an id for a hand-written metric filter the order points at', async () => {
-        const file = download(savedDashboard(), true);
-        const [{ id: _id, ...metric }] = file.filters!.metrics!;
-        const result = await upload({
+    it('stores metric filters a file gives one id under their own ids, so the next download uploads', async () => {
+        const file = withOrder([
+            { kind: 'filter', slug: 'orders-total' },
+            { kind: 'filter', slug: 'orders-total-copy' },
+        ]);
+        const [metric] = file.filters!.metrics!;
+        const first = await upload({
             ...file,
-            filters: { ...file.filters, metrics: [metric as AnyType] },
+            filters: {
+                ...file.filters,
+                metrics: [
+                    { ...metric, id: 'metric-id', slug: 'orders-total' },
+                    { ...metric, id: 'metric-id', slug: 'orders-total-copy' },
+                ] as AnyType,
+            },
         });
-        const metricId = result.filters.metrics[0].id;
-        expect(metricId).toMatch(/^[0-9a-f-]{36}$/);
-        expect(result.config?.controlOrder).toContainEqual({
-            kind: 'filter',
-            id: metricId,
-        });
+        const ids = first.filters.metrics.map(({ id }) => id);
+        expect(new Set(ids).size).toBe(2);
+        expect(first.config?.controlOrder).toEqual(
+            expect.arrayContaining(ids.map((id) => ({ kind: 'filter', id }))),
+        );
+
+        const saved = { ...savedDashboard(), ...first } as DashboardDAO;
+        const second = await upload(download(saved, true), { saved });
+        const secondIds = second.filters.metrics.map(({ id }) => id);
+        expect(new Set(secondIds).size).toBe(2);
+        expect(second.config?.controlOrder).toEqual(
+            expect.arrayContaining(
+                secondIds.map((id) => ({ kind: 'filter', id })),
+            ),
+        );
+    });
+
+    it('round trips a dashboard saved with two metric filters sharing an id', async () => {
+        const base = savedDashboard();
+        const [metric] = base.filters.metrics;
+        const saved = {
+            ...base,
+            filters: {
+                ...base.filters,
+                metrics: [
+                    metric,
+                    {
+                        ...metric,
+                        target: {
+                            fieldId: 'orders_count',
+                            tableName: 'orders',
+                        },
+                    },
+                ],
+            },
+            config: {
+                ...base.config,
+                controlOrder: [
+                    ...savedOrder,
+                    { kind: 'filter', id: 'metric-id' },
+                ],
+            },
+        } as DashboardDAO;
+        const result = await upload(download(saved, true), { saved });
+        const ids = result.filters.metrics.map(({ id }) => id);
+        expect(new Set(ids).size).toBe(2);
+        const next = { ...saved, ...result } as DashboardDAO;
+        await upload(download(next, true), { saved: next });
+    });
+
+    it('round trips a dashboard saved with a metric filter sharing a dimension filter id', async () => {
+        const base = savedDashboard();
+        const saved = {
+            ...base,
+            filters: {
+                ...base.filters,
+                metrics: [{ ...base.filters.metrics[0], id: 'first-id' }],
+            },
+            config: {
+                ...base.config,
+                controlOrder: savedOrder.map((ref) =>
+                    ref.id === 'metric-id' ? { ...ref, id: 'first-id' } : ref,
+                ),
+            },
+        } as DashboardDAO;
+        const result = await upload(download(saved, true), { saved });
+        expect(result.filters.dimensions[0].id).toBe('first-id');
+        expect(result.filters.metrics[0].id).not.toBe('first-id');
+        const next = { ...saved, ...result } as DashboardDAO;
+        await upload(download(next, true), { saved: next });
     });
 
     it('ignores the order and filter slugs in the file with the flag off', async () => {
@@ -4988,9 +5071,9 @@ describe('CoderService dashboard control order as code', () => {
         expect(result.filters.dimensions[0]).not.toHaveProperty('slug');
     });
 
-    it('stores a hand-written metric filter without an id with the flag off', async () => {
+    it('keeps the saved metric filter id with the flag off', async () => {
         const file = withOrder([{ kind: 'filter', slug: 'orders-total' }]);
-        const [{ id: _id, ...metric }] = file.filters!.metrics!;
+        const [metric] = file.filters!.metrics!;
         const { slug: _slug, ...stored } = metric;
         const result = await upload(
             {
@@ -4999,7 +5082,9 @@ describe('CoderService dashboard control order as code', () => {
             },
             { enabled: false },
         );
-        expect(result.filters.metrics).toStrictEqual([stored]);
+        expect(result.filters.metrics).toStrictEqual([
+            { ...stored, id: 'metric-id' },
+        ]);
         expect(result.config?.controlOrder).toBe(savedOrder);
     });
 

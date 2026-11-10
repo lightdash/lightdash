@@ -48,6 +48,7 @@ import {
 } from '../../../../hooks/dashboard/useDashboard';
 import { useDashboards } from '../../../../hooks/dashboard/useDashboards';
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
+import { getTileLinkPath } from '../../../../hooks/dashboard/useTileLink';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useOptionalProjectRoute } from '../../../../hooks/useProjectRoute';
 import { useCreateMutation } from '../../../../hooks/useSavedQuery';
@@ -59,6 +60,7 @@ import {
 import useApp from '../../../../providers/App/useApp';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import Callout from '../../Callout';
+import { getDestinationDashboardTab } from '../../Dashboard/destinationDashboardTab';
 import MantineIcon from '../../MantineIcon';
 import classes from './ChartCreateModal.module.css';
 import SaveToDashboardForm from './SaveToDashboardForm';
@@ -149,8 +151,17 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     const navigate = useNavigate();
     const { showToastSuccess } = useToaster();
 
+    const [saveDestination, setSaveDestination] = useState<SaveDestination>(
+        SaveDestination.Space,
+    );
+    // Saving to a dashboard lands on the new tile instead of the chart.
+    const redirectToChartOnSuccess =
+        redirectOnSuccess && saveDestination !== SaveDestination.Dashboard;
     const { mutateAsync: createChart, isLoading: isSavingChart } =
-        useCreateMutation({ redirectOnSuccess, showViewChartAction });
+        useCreateMutation({
+            redirectOnSuccess: redirectToChartOnSuccess,
+            showViewChartAction,
+        });
 
     const {
         clearIsEditingDashboardChart,
@@ -160,9 +171,6 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         setDashboardChartInfo,
     } = useDashboardStorage();
 
-    const [saveDestination, setSaveDestination] = useState<SaveDestination>(
-        SaveDestination.Space,
-    );
     const [currentStep, setCurrentStep] = useState<ModalStep>(
         ModalStep.InitialInfo,
     );
@@ -262,6 +270,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                 ...chartMetadata,
                 newSpaceName: null,
                 dashboardUuid: dashboardInfoFromSavedData.dashboardUuid,
+                tabUuid: null,
                 spaceUuid: restrictedSpaces?.[0]?.uuid ?? null,
                 newDashboardName: null,
                 newDashboardDescription: null,
@@ -329,6 +338,19 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         uuidOrSlug: originatingDashboard?.dashboardUuid ?? undefined,
         projectUuid,
     });
+
+    const destinationTabUuid = useMemo(() => {
+        if (!selectedDashboard) return null;
+        return (
+            getDestinationDashboardTab({
+                tabs: selectedDashboard.tabs,
+                selectedTabUuid: form.values.tabUuid,
+                lastActiveTabUuid: getDashboardActiveTabUuid(
+                    selectedDashboard.uuid,
+                ),
+            })?.uuid ?? null
+        );
+    }, [selectedDashboard, form.values.tabUuid, getDashboardActiveTabUuid]);
 
     // Handle dashboard selection errors
     useEffect(() => {
@@ -524,11 +546,17 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                     colorPaletteUuid,
                     dashboardUuid: destinationDashboard.uuid,
                 });
-                const firstTab = destinationDashboard.tabs?.[0];
+                const destinationTab = getDestinationDashboardTab({
+                    tabs: destinationDashboard.tabs,
+                    selectedTabUuid: values.tabUuid,
+                    lastActiveTabUuid: getDashboardActiveTabUuid(
+                        destinationDashboard.uuid,
+                    ),
+                });
                 const newTile: DashboardChartTile = {
                     uuid: uuid4(),
                     type: DashboardTileTypes.SAVED_CHART,
-                    tabUuid: firstTab?.uuid,
+                    tabUuid: destinationTab?.uuid,
                     properties: {
                         belongsToDashboard: true,
                         savedChartUuid: savedQuery.uuid,
@@ -559,13 +587,25 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                     await updateDashboard(updateFields);
                 }
 
-                // Set dashboard context to the destination so the chart viewer
-                // shows the correct "viewing this chart from within {dashboard}"
-                // banner.
-                setDashboardChartInfo({
-                    name: destinationDashboard.name,
-                    dashboardUuid: destinationDashboard.uuid,
-                });
+                if (redirectOnSuccess && projectUrlIdentifier) {
+                    void navigate(
+                        getTileLinkPath({
+                            projectUrlIdentifier,
+                            dashboardSlug: destinationDashboard.slug,
+                            tileUuid: newTile.uuid,
+                            tileTabUuid: destinationTab?.uuid ?? null,
+                            search: '',
+                        }),
+                    );
+                } else {
+                    // Set dashboard context to the destination so the chart viewer
+                    // shows the correct "viewing this chart from within {dashboard}"
+                    // banner.
+                    setDashboardChartInfo({
+                        name: destinationDashboard.name,
+                        dashboardUuid: destinationDashboard.uuid,
+                    });
+                }
             }
 
             /**
@@ -625,6 +665,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             getUnsavedDashboardTiles,
             setUnsavedDashboardTiles,
             getDashboardActiveTabUuid,
+            redirectOnSuccess,
             isCreatingNewDashboard,
             isCreatingNewSpaceForDashboard,
             createDashboard,
@@ -829,6 +870,11 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                                 }
                                 spaces={spaces}
                                 dashboards={dashboards}
+                                tabs={selectedDashboard?.tabs ?? []}
+                                destinationTabUuid={destinationTabUuid}
+                                onSelectTab={(tabUuid) =>
+                                    form.setFieldValue('tabUuid', tabUuid)
+                                }
                                 isCreatingNewDashboard={isCreatingNewDashboard}
                                 onStartCreatingNewDashboard={() => {
                                     setIsCreatingNewDashboard(true);

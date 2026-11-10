@@ -41,6 +41,8 @@ export type DashboardParametersState = {
     parameterControls: DashboardParameterControl[] | null;
     /** The dashboard has a saved list; otherwise the list is filled from the tiles */
     areParameterControlsSaved: boolean;
+    /** Ids of the controls as last synced from the dashboard: any other is not saved yet */
+    savedParameterControlIds: string[];
     haveParameterControlsChanged: boolean;
 };
 
@@ -66,6 +68,7 @@ export const initialDashboardParametersState: DashboardParametersState = {
     tileVirtualViewSavedParameters: {},
     parameterControls: null,
     areParameterControlsSaved: false,
+    savedParameterControlIds: [],
     haveParameterControlsChanged: false,
 };
 
@@ -548,13 +551,16 @@ export const dashboardParametersReducer = (
         const parameterControls = isSaved
             ? controls
             : keepFilledControlIds(state.parameterControls, controls);
+        const savedParameterControlIds = parameterControls.map(({ id }) => id);
         return isEqual(parameterControls, state.parameterControls) &&
-            isSaved === state.areParameterControlsSaved
+            isSaved === state.areParameterControlsSaved &&
+            isEqual(savedParameterControlIds, state.savedParameterControlIds)
             ? state
             : {
                   ...state,
                   parameterControls,
                   areParameterControlsSaved: isSaved,
+                  savedParameterControlIds,
               };
     }
     if (dashboardParametersActions.deactivateParameterControls.match(action)) {
@@ -566,6 +572,7 @@ export const dashboardParametersReducer = (
                   ...state,
                   parameterControls: null,
                   areParameterControlsSaved: false,
+                  savedParameterControlIds: [],
                   haveParameterControlsChanged: false,
               };
     }

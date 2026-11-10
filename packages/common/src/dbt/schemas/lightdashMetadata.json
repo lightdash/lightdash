@@ -498,6 +498,19 @@
             "type": "object",
             "required": [],
             "properties": {
+                "explores": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                            "combine_joined_fields": { "type": "boolean" }
+                        }
+                    }
+                },
+                "combine_joined_fields": {
+                    "type": "boolean",
+                    "description": "Combine visible joined fields into shared Dimensions and Metrics sections. Defaults to false; named explores inherit the model setting."
+                },
                 "primary_key": {
                     "oneOf": [
                         {

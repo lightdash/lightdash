@@ -740,6 +740,10 @@
                         }
                     }
                 },
+                "combine_joined_fields": {
+                    "type": "boolean",
+                    "description": "Combine visible joined fields into shared Dimensions and Metrics sections. Defaults to false; named explores inherit the model setting."
+                },
                 "joins": {
                     "type": "array",
                     "items": {
@@ -1503,6 +1507,10 @@
                                             ]
                                         }
                                     }
+                                },
+                                "combine_joined_fields": {
+                                    "type": "boolean",
+                                    "description": "Combine visible joined fields into shared Dimensions and Metrics sections. Defaults to false; named explores inherit the model setting."
                                 },
                                 "default_filters": {
                                     "type": "array",

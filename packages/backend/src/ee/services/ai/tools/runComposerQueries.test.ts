@@ -25,6 +25,7 @@ import {
     type ToolComposerQueriesOutput,
     type ToolComposerSemanticLayerNode,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import type { ZodType } from 'zod';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import type { QueryReviewer } from '../decisions/queryReview';
@@ -41,6 +42,11 @@ import {
     getRunComposerQueries,
     type FilterValueHintDependencies,
 } from './runComposerQueries';
+
+vi.mock('@sentry/node', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@sentry/node')>()),
+    captureException: vi.fn(),
+}));
 
 type ComposerTool = ReturnType<typeof getRunComposerQueries>;
 type ComposerOutput = ToolComposerQueriesOutput;
@@ -881,6 +887,40 @@ describe('getRunComposerQueries', () => {
             expect(registry.nodes('thread-uuid')).toEqual([]);
         },
     );
+
+    it('leaves a failed run to the report made where its query error was thrown', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        const captureException = vi.mocked(Sentry.captureException);
+        captureException.mockClear();
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            status: 'failure',
+            error: 'Composer query failed.',
+            cause: null,
+            reportedAtSource: true,
+            nodeStatuses: [],
+        });
+        await executeTool(tool, makeArgs(), 'tool-call-1');
+        expect(captureException).not.toHaveBeenCalled();
+    });
+
+    it('reports a failed run with its in-process cause as a warning', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        const captureException = vi.mocked(Sentry.captureException);
+        captureException.mockClear();
+        const cause = new Error('poll failed');
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            status: 'failure',
+            error: 'poll failed',
+            cause,
+            reportedAtSource: false,
+            nodeStatuses: [],
+        });
+        await executeTool(tool, makeArgs(), 'tool-call-2');
+        expect(captureException).toHaveBeenCalledExactlyOnceWith(
+            expect.objectContaining({ cause }),
+            expect.objectContaining({ level: 'warning' }),
+        );
+    });
 
     it('keeps the successful nodes of a failed run, so the next call reads them and resubmits the failed node corrected', async () => {
         const { tool, dependencies, registry } = makeTool({

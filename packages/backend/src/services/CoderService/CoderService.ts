@@ -5905,8 +5905,7 @@ export class CoderService extends BaseService {
         const dashboardFilters = CoderService.getFiltersWithTileUuids(
             dashboardWithResolvedTabs,
             tilesWithUuids,
-            existingDashboard?.filters.dimensions ?? [],
-            controlsEnabled,
+            existingDashboard?.filters,
         );
         let dashboardConfig: DashboardConfig | undefined;
         if (dashboardWithResolvedTabs.config) {

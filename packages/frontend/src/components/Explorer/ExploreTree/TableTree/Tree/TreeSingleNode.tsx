@@ -290,6 +290,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
             missingCustomDimensions.includes(item));
 
     const isHoverCardDisabled = useMemo(() => {
+        if (node.source) return false;
         // Show metric info if either metric info or description is present
         if (
             (isCompiledMetric(item) || isAdditionalMetric(item)) &&
@@ -301,7 +302,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         if (!description && !isMissing) return true;
 
         return false;
-    }, [description, isMissing, item, metricInfo]);
+    }, [description, isMissing, item, metricInfo, node.source]);
 
     // Shared with the dashboard: edits go via impact preview, actions reduced
     const isRegistryMetric =
@@ -566,6 +567,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                         `This field from '${item.table}' table is no longer available`
                                     ) : (
                                         <ItemDetailPreview
+                                            sourceLabel={node.source?.label}
                                             onViewDescription={
                                                 onOpenDescriptionView
                                             }
@@ -575,6 +577,17 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                     )}
                                 </HoverCard.Dropdown>
                             </HoverCard>
+                            {node.source?.showInline && (
+                                <Text
+                                    fz="xs"
+                                    c="dimmed"
+                                    truncate
+                                    maw={110}
+                                    title={node.source.label}
+                                >
+                                    {node.source.label}
+                                </Text>
+                            )}
                             {isDashboardMetric && (
                                 <Tooltip label="Only available in this dashboard">
                                     <Badge

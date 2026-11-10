@@ -1,3 +1,65 @@
+# [3.206.0](https://github.com/lightdash/lightdash/compare/3.205.2...3.206.0) (2026-11-10)
+
+
+### Features
+
+* **mobile:** publish the Play App Signing fingerprint in assetlinks.json by default ([#32360](https://github.com/lightdash/lightdash/issues/32360)) ([b6ccdd6](https://github.com/lightdash/lightdash/commit/b6ccdd61e7f776f8b8e8b206f58268f17354363c))
+
+## [3.205.2](https://github.com/lightdash/lightdash/compare/3.205.1...3.205.2) (2026-11-10)
+
+
+### Bug Fixes
+
+* **dashboards-as-code:** metric and table calculation filters keep ids and tile targets ([#32354](https://github.com/lightdash/lightdash/issues/32354)) ([fa5fbd1](https://github.com/lightdash/lightdash/commit/fa5fbd18ae39018a6fea7c67630a132b77a500d4))
+
+## [3.205.1](https://github.com/lightdash/lightdash/compare/3.205.0...3.205.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** match parameter pill cues to filter pills ([#32355](https://github.com/lightdash/lightdash/issues/32355)) ([53c625e](https://github.com/lightdash/lightdash/commit/53c625eb860a491387d48c61932d9c680f4a08ec))
+
+# [3.205.0](https://github.com/lightdash/lightdash/compare/3.204.1...3.205.0) (2026-11-10)
+
+
+### Features
+
+* **ai:** move AI analysis settings under Ask AI ([#32342](https://github.com/lightdash/lightdash/issues/32342)) ([32f4f15](https://github.com/lightdash/lightdash/commit/32f4f15f2408365b37c9c7cfe9c1d433a878cba2))
+
+## [3.204.1](https://github.com/lightdash/lightdash/compare/3.204.0...3.204.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **bigquery:** let service accounts query Google Sheets external tables ([#32333](https://github.com/lightdash/lightdash/issues/32333)) ([169b231](https://github.com/lightdash/lightdash/commit/169b231243abc5ca42c3e2d107bdd0cd563904be))
+* **dashboard-controls:** show the parameter default on unset pills ([#32351](https://github.com/lightdash/lightdash/issues/32351)) ([34f1096](https://github.com/lightdash/lightdash/commit/34f1096f946e371ebbf6aa6bc1be8f62b6f440a2))
+
+# [3.204.0](https://github.com/lightdash/lightdash/compare/3.203.1...3.204.0) (2026-11-10)
+
+
+### Bug Fixes
+
+* **ai:** only show the AI analysis tab where viewers can use it ([#32343](https://github.com/lightdash/lightdash/issues/32343)) ([fcf246a](https://github.com/lightdash/lightdash/commit/fcf246a4487312a318e5a64e31b3a17c139b4520))
+
+
+### Features
+
+* **ai:** metadata-only tool call event with attempt, model, version ([#32321](https://github.com/lightdash/lightdash/issues/32321)) ([4ee7f75](https://github.com/lightdash/lightdash/commit/4ee7f75dc979007b5d1f1d3dc7f014af4d242a1e))
+* **ai:** report agent tool and query errors to Sentry with their cause ([#32320](https://github.com/lightdash/lightdash/issues/32320)) ([0338652](https://github.com/lightdash/lightdash/commit/03386522d204a9506103d8c75e9eee9102384d9e))
+* **ai:** stamp agent turn ids on AI log lines ([#32319](https://github.com/lightdash/lightdash/issues/32319)) ([6190a31](https://github.com/lightdash/lightdash/commit/6190a313ee817d212a22f0aa2d818dad9f29cf35))
+* choose the tab when adding a chart to a dashboard ([#32350](https://github.com/lightdash/lightdash/issues/32350)) ([901d20f](https://github.com/lightdash/lightdash/commit/901d20ffaad2e602362f7472ef5bc71cee9b1747))
+
+## [3.203.1](https://github.com/lightdash/lightdash/compare/3.203.0...3.203.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **dashboards-as-code:** say how to fix bad section references ([#32345](https://github.com/lightdash/lightdash/issues/32345)) ([6999451](https://github.com/lightdash/lightdash/commit/6999451943c836a04f88db49dcff2d5787445d66))
+* **semantic-studio:** cap the rows a draft's key checks read ([#32335](https://github.com/lightdash/lightdash/issues/32335)) ([1807fef](https://github.com/lightdash/lightdash/commit/1807fef7da9e28d4d2b02d0939f4af0734abed26))
+* **semantic-studio:** check a drafted model against the warehouse catalog first ([#32344](https://github.com/lightdash/lightdash/issues/32344)) ([ca58bc2](https://github.com/lightdash/lightdash/commit/ca58bc29e7040c2e4af4716f433e5816a89db7d7))
+* **semantic-studio:** run Studio threads on a stronger model when nobody picked one ([#32347](https://github.com/lightdash/lightdash/issues/32347)) ([7dc7993](https://github.com/lightdash/lightdash/commit/7dc7993a0d7b43b68c043197536e1f7640987322))
+* **semantic-studio:** show a proposal's problems under the model they are about ([#32336](https://github.com/lightdash/lightdash/issues/32336)) ([9999251](https://github.com/lightdash/lightdash/commit/99992516cfc86c584259655adb93ea25651348af))
+
 # [3.203.0](https://github.com/lightdash/lightdash/compare/3.202.0...3.203.0) (2026-11-10)
 
 

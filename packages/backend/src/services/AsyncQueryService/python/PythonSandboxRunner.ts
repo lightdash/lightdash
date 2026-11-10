@@ -59,8 +59,8 @@ export type PythonSandboxRunResult = {
 
 /** Raised when the user's python fails to compile or run; the message is safe to show. */
 export class PythonExecutionError extends Error {
-    constructor(message: string) {
-        super(message);
+    constructor(message: string, options?: ErrorOptions) {
+        super(message, options);
         this.name = 'PythonExecutionError';
     }
 }
@@ -326,7 +326,7 @@ export class PythonSandboxRunner {
             return { resultJsonl, resultMeta, stdout };
         } catch (error) {
             if (error instanceof SandboxOutputLimitError) {
-                throw new PythonExecutionError(error.message);
+                throw new PythonExecutionError(error.message, { cause: error });
             }
             throw error;
         } finally {
@@ -409,6 +409,7 @@ export class PythonSandboxRunner {
             if (e instanceof SandboxCommandError) {
                 throw new PythonExecutionError(
                     `Python code does not compile:\n${e.stderr.trim()}`,
+                    { cause: e },
                 );
             }
             throw e;
@@ -463,11 +464,13 @@ export class PythonSandboxRunner {
             if (e instanceof SandboxCommandError) {
                 throw new PythonExecutionError(
                     e.stderr.trim() || `Python exited with code ${e.exitCode}`,
+                    { cause: e },
                 );
             }
             if (e instanceof SandboxTimeoutError) {
                 throw new PythonExecutionError(
                     `Python run exceeded ${Math.round(timeoutMs / 1000)}s`,
+                    { cause: e },
                 );
             }
             throw e;

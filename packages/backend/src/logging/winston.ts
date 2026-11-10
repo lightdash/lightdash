@@ -19,6 +19,10 @@ import ExecutionContext from 'node-execution-context';
 import qs from 'qs';
 import * as winston from 'winston';
 import { lightdashConfig } from '../config/lightdashConfig';
+import {
+    getAiAgentLogContext,
+    type AiAgentLogContext,
+} from './aiAgentLogContext';
 import { AuditActor, AuditLogEvent, AuditResource } from './auditLog';
 
 const levels = {
@@ -100,6 +104,15 @@ const addExecutionContent = winston.format(
             : info,
 );
 
+export type AiAgentLogInfo = { aiAgent?: AiAgentLogContext };
+
+const addAiAgentLogContext = winston.format(
+    (info): winston.Logform.TransformableInfo & AiAgentLogInfo => {
+        const aiAgent = getAiAgentLogContext();
+        return aiAgent ? { ...info, aiAgent } : info;
+    },
+);
+
 export const getSchedulerContext = ():
     | NonNullable<ExecutionContextInfo['scheduler']>
     | undefined => {
@@ -136,10 +149,20 @@ const ALIAS_RESPONSE_TIME_AS_DURATION = winston.format((info) => {
 });
 
 const printMessage = (
-    info: winston.Logform.TransformableInfo & ExecutionContextInfo & SentryInfo,
+    info: winston.Logform.TransformableInfo &
+        ExecutionContextInfo &
+        SentryInfo &
+        AiAgentLogInfo,
 ): string => {
     const traceId = info.sentryTraceId ? `[${info.sentryTraceId}]` : '';
     const jobId = info.job?.id ? `[Job:${info.job.id}]` : '';
+    const aiAgent = info.aiAgent
+        ? `[AiAgent thread=${info.aiAgent.threadUuid} prompt=${info.aiAgent.promptUuid}${
+              info.aiAgent.toolCallId
+                  ? ` toolCall=${info.aiAgent.toolCallId}`
+                  : ''
+          }]`
+        : '';
     const serviceName = info.serviceName ? `[${info.serviceName}]` : '';
     const clientVersion = info.sdkVersion || info.clientVersion;
     let client = '';
@@ -148,13 +171,14 @@ const printMessage = (
     } else if (info.requestMethod === 'WEB_APP') {
         client = `[WEB${clientVersion ? `:${clientVersion}` : ''}]`;
     }
-    return `${info.timestamp} [Lightdash]${traceId}${jobId}${serviceName}${client} ${info.level}: ${info.message}`;
+    return `${info.timestamp} [Lightdash]${traceId}${jobId}${aiAgent}${serviceName}${client} ${info.level}: ${info.message}`;
 };
 
-const formatters = {
+export const formatters = {
     plain: winston.format.combine(
         addSentryTraceId(),
         addExecutionContent(),
+        addAiAgentLogContext(),
         ALIAS_RESPONSE_TIME_AS_DURATION(),
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         winston.format.uncolorize(),
@@ -163,6 +187,7 @@ const formatters = {
     pretty: winston.format.combine(
         addSentryTraceId(),
         addExecutionContent(),
+        addAiAgentLogContext(),
         ALIAS_RESPONSE_TIME_AS_DURATION(),
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         winston.format.colorize({ all: true }),
@@ -171,6 +196,7 @@ const formatters = {
     json: winston.format.combine(
         addSentryTraceId(),
         addExecutionContent(),
+        addAiAgentLogContext(),
         ALIAS_RESPONSE_TIME_AS_DURATION(),
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         winston.format.json(),

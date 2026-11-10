@@ -34,6 +34,7 @@ import {
     SourceQuery,
     TableSelectionType,
     UnitOfTime,
+    WarehouseQueryError,
     WarehouseTypes,
     type DataAppSearchResult,
     type DataAppVizSchema,
@@ -49,6 +50,7 @@ import { fromSession } from '../../../auth/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { singleRouteProjectModelMethods } from '../../../models/ProjectModel/ProjectModel.mock';
+import { isAlreadyReported } from '../../../sentry/aiAgentErrors';
 import {
     expectAdmissionSql,
     setupPermissionSql,
@@ -347,6 +349,26 @@ describe('AiAgentToolsService', () => {
             QueryExecutionContext.MCP_RUN_METRIC_QUERY,
             QuerySurface.MCP,
         );
+    });
+
+    it('leaves a stored SQL query error to the report made where it was thrown', async () => {
+        const service = makeService({
+            asyncQueryService: {
+                executeAsyncSqlQuery: vi
+                    .fn()
+                    .mockResolvedValue({ queryUuid: 'sql' }),
+                getAsyncQueryResults: vi.fn().mockResolvedValue({
+                    status: QueryHistoryStatus.ERROR,
+                    error: 'column "x" not found',
+                }),
+            },
+        });
+        const error = await service
+            .createRuntime(makeRuntimeContext())
+            .runSqlJob({ sql: 'select x', limit: 10 })
+            .catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(WarehouseQueryError);
+        expect(isAlreadyReported(error)).toBe(true);
     });
 
     it.each([QuerySurface.SLACK, QuerySurface.API])(
@@ -4527,6 +4549,8 @@ describe('AiAgentToolsService runComposerQueries', () => {
         expect(result).toEqual({
             status: 'failure',
             error: 'Composer query failed.',
+            cause: null,
+            reportedAtSource: true,
             nodeStatuses: [
                 {
                     nodeId: 'orders',

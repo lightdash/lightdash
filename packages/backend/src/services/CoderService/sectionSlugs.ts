@@ -201,11 +201,11 @@ export const getDashboardWithSectionIds = (
     const resolved = sections.map(({ slug, ...section }, index) => {
         if (slug !== undefined && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))
             throw new ParameterError(
-                `Invalid dashboard section slug "${slug}"`,
+                `Invalid dashboard section slug "${slug}"; use lowercase letters and digits, with single hyphens between them`,
             );
         if (idBySlug.has(slugs[index]))
             throw new ParameterError(
-                `Dashboard section slug "${slugs[index]}" is duplicated`,
+                `Dashboard section slug "${slugs[index]}" is used by sections ${slugs.indexOf(slugs[index]) + 1} ("${sections[slugs.indexOf(slugs[index])].name}") and ${index + 1} ("${section.name}") in config.controlSections; give each a unique slug`,
             );
         const id = controlsEnabled
             ? stableIds[index]
@@ -225,7 +225,7 @@ export const getDashboardWithSectionIds = (
         const id = idBySlug.get(sectionSlug);
         if (id === undefined)
             throw new ParameterError(
-                `Unknown dashboard section slug "${sectionSlug}"`,
+                `Unknown dashboard section slug "${sectionSlug}". Valid section slugs are ${[...idBySlug.keys()].join(', ') || 'none; add the section under config.controlSections'}`,
             );
         return { sectionId: id };
     });

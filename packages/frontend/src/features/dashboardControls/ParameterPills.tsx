@@ -1,13 +1,28 @@
-import { getControlTileUuids } from '@lightdash/common';
-import { ActionIcon, Box, Button, Popover, Text, Tooltip } from '@mantine/core';
+import {
+    getControlTileUuids,
+    resolveParameterDefault,
+} from '@lightdash/common';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    Group,
+    Popover,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import { useOs } from '@mantine/hooks';
 import {
     IconAdjustmentsHorizontal,
+    IconAsterisk,
     IconCheck,
     IconEyeOff,
     IconX,
 } from '@tabler/icons-react';
+import { isEqual } from 'es-toolkit/compat';
 import {
     Fragment,
+    useId,
     useMemo,
     type FC,
     type KeyboardEvent,
@@ -20,6 +35,7 @@ import { useProjectUuid } from '../../hooks/useProjectUuid';
 import {
     selectDashboardEffectiveParameterValues,
     selectParameterControlInputs,
+    selectSavedParameterControlIds,
     selectTileParameterReferences,
     useDashboardSelector,
 } from '../dashboard/store';
@@ -229,28 +245,65 @@ const ParameterPill: FC<{
         PARAMETER_PILL_SELECTOR,
     );
     const name = getParameterEntryName(entry);
-    // Hidden from viewers: its value still applies; editors see it muted
+    // Hidden from viewers: its value still applies; editors see the eye-off icon
     const isHidden = control.hidden === true;
+    // As a filter added while editing: dashed until the dashboard is saved
+    const isUnsaved = useDashboardSelector(
+        (state) =>
+            !isViewer &&
+            !isNeedsValue &&
+            !selectSavedParameterControlIds(state).includes(control.id),
+    );
     // A value set on the dashboard reads in ink; with none, the pill says
-    // so (amber when a tile it covers is left with no value at all)
+    // so (with the required mark when a tile it covers has no value at all)
     const hasValue = entry.shownValue !== null;
     const needsValue = !hasValue && isMissing;
     const isNotSet = !hasValue && !isMissing;
+    // As the legacy pill: with no value, the default its keys share
+    const defaults = parameters.map(({ definition }) =>
+        resolveParameterDefault(definition),
+    );
+    const showsDefault =
+        isNotSet &&
+        defaults[0] !== undefined &&
+        defaults.every((value) => isEqual(value, defaults[0]));
+    const needsValueMarkId = useId();
     const description = input.definition.description;
     const { getOrphanedTooltip } = useFilterTabPlacement();
     const { isOrphaned } = entry;
+    const os = useOs();
+    // As a filter pill's: why it looks so first, then the description, then
+    // the select hint
+    const unsavedNote = isUnsaved ? 'Not saved yet' : null;
+    const tooltipLines = [
+        unsavedNote,
+        isHidden ? 'Hidden from viewers' : null,
+        isNotSet ? getUiString('controls.parameter.notSetTooltip') : null,
+        description ?? null,
+        isSelectable
+            ? `Click to edit · ${os === 'macos' ? '⌘' : 'Ctrl'} click to select`
+            : null,
+    ].filter((line) => line !== null && line !== '');
     const tooltipLabel = isOrphaned ? (
-        getOrphanedTooltip(PARAMETER_ORPHANED_STRINGS)
-    ) : isNotSet ? (
+        unsavedNote === null ? (
+            getOrphanedTooltip(PARAMETER_ORPHANED_STRINGS)
+        ) : (
+            <>
+                <Text fz="xs">{unsavedNote}</Text>
+                <Text fz="xs">
+                    {getOrphanedTooltip(PARAMETER_ORPHANED_STRINGS)}
+                </Text>
+            </>
+        )
+    ) : tooltipLines.length > 0 ? (
         <>
-            <Text fz="xs">
-                {getUiString('controls.parameter.notSetTooltip')}
-            </Text>
-            {description && <Text fz="xs">{description}</Text>}
+            {tooltipLines.map((line) => (
+                <Text key={line} fz="xs">
+                    {line}
+                </Text>
+            ))}
         </>
-    ) : (
-        description
-    );
+    ) : null;
     const shadowedKey =
         parameters.find(({ key }) => bar.shadowedReservedNames.includes(key))
             ?.key ?? null;
@@ -282,11 +335,7 @@ const ParameterPill: FC<{
                 multiline
                 openDelay={isOrphaned ? 0 : 500}
                 label={tooltipLabel}
-                disabled={
-                    (!isOrphaned && !isNotSet && !description) ||
-                    isOpen ||
-                    isOnAction
-                }
+                disabled={tooltipLabel === null || isOpen || isOnAction}
             >
                 <Box
                     className={`${classes.pill} ${pillClasses.pill}`}
@@ -301,11 +350,15 @@ const ParameterPill: FC<{
                         data-parameter-pill={control.id}
                         data-parameter-name={name}
                         data-in-effect={(hasValue && !isOrphaned) || undefined}
-                        data-temporary={isNeedsValue || undefined}
+                        data-temporary={isNeedsValue || isUnsaved || undefined}
                         data-open={isOpen || undefined}
                         data-missing={needsValue || undefined}
                         data-hidden={isHidden || undefined}
                         aria-pressed={isOpen || isPicked}
+                        // The mark is not read in the name: the pill describes itself by it
+                        aria-describedby={
+                            needsValue ? needsValueMarkId : undefined
+                        }
                         classNames={{
                             label: filterClasses.label,
                             root: contractClasses?.parameter,
@@ -314,17 +367,50 @@ const ParameterPill: FC<{
                             isPicked ? ` ${pillClasses.pickedPill}` : ''
                         }`}
                         leftSection={
-                            <MantineIcon
-                                icon={
-                                    isPicked
-                                        ? IconCheck
-                                        : isHidden
-                                          ? IconEyeOff
-                                          : IconAdjustmentsHorizontal
-                                }
-                                size="sm"
-                                className={filterClasses.statusIcon}
-                            />
+                            <Group gap={4} wrap="nowrap">
+                                {/* A required filter's mark, before the icon */}
+                                {needsValue && (
+                                    <Tooltip
+                                        fz="xs"
+                                        label={getUiString(
+                                            'controls.parameter.needsValueTooltip',
+                                        )}
+                                    >
+                                        <span
+                                            className={
+                                                filterClasses.lockSlotActive
+                                            }
+                                            data-own-tooltip
+                                            aria-hidden
+                                        >
+                                            <span id={needsValueMarkId} hidden>
+                                                {getUiString(
+                                                    'controls.parameter.needsValueTooltip',
+                                                )}
+                                            </span>
+                                            <MantineIcon
+                                                size="sm"
+                                                icon={IconAsterisk}
+                                                color="dimmed"
+                                                className={
+                                                    filterClasses.statusIcon
+                                                }
+                                            />
+                                        </span>
+                                    </Tooltip>
+                                )}
+                                <MantineIcon
+                                    icon={
+                                        isPicked
+                                            ? IconCheck
+                                            : isHidden
+                                              ? IconEyeOff
+                                              : IconAdjustmentsHorizontal
+                                    }
+                                    size="sm"
+                                    className={filterClasses.statusIcon}
+                                />
+                            </Group>
                         }
                         rightSection={
                             (shadowedKey !== null || canEdit) && (
@@ -362,7 +448,7 @@ const ParameterPill: FC<{
                                         'controls.parameter.needsValue',
                                     )}
                                 </Text>
-                            ) : isNotSet ? (
+                            ) : isNotSet && !showsDefault ? (
                                 <Text span c="dimmed">
                                     {getUiString('controls.parameter.isNotSet')}
                                 </Text>
@@ -371,7 +457,10 @@ const ParameterPill: FC<{
                                     <Text span c="dimmed">
                                         {getUiString('parameters.is')}{' '}
                                     </Text>
-                                    <Text span fw={600}>
+                                    <Text
+                                        span
+                                        fw={showsDefault ? undefined : 600}
+                                    >
                                         {getParameterDisplayValue(
                                             input.definition,
                                             entry.shownValue,
@@ -382,13 +471,20 @@ const ParameterPill: FC<{
                         </Text>
                     </Button>
                     {canEdit && (
-                        <Tooltip fz="xs" label="Remove parameter">
+                        <Tooltip
+                            fz="xs"
+                            label={getUiString(
+                                'controls.parameter.removeParameter',
+                            )}
+                        >
                             <ActionIcon
                                 data-parameter-pill-action
                                 size="xs"
                                 radius="xl"
                                 className={classes.removeAction}
-                                aria-label="Remove parameter"
+                                aria-label={getUiString(
+                                    'controls.parameter.removeParameter',
+                                )}
                                 onClick={() => remove(control.id)}
                             >
                                 <MantineIcon size="sm" icon={IconX} />

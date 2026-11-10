@@ -8,7 +8,10 @@ import {
 import { store as aiAgentStore } from '../../ee/features/aiCopilot/store';
 import { openAnalysisPanel } from '../../ee/features/aiCopilot/store/aiAgentLauncherSlice';
 import { useAnalysisController } from '../../features/analysis/useAnalysisController';
-import { useAnalysisAvailability } from '../../features/apps/analysis/useDataAppAnalysisAvailability';
+import {
+    useAnalysisAvailability,
+    useIsAnalysisEntryVisible,
+} from '../../features/apps/analysis/useDataAppAnalysisAvailability';
 import {
     findActiveTileForQuery,
     selectDashboardAnalysisSources,
@@ -99,8 +102,7 @@ const DashboardAnalysisAdapterBridge = () => {
         [dashboardStore],
     );
 
-    // When analysis is unavailable, the panel explains why.
-    const showAnalysis = availability.status !== 'loading';
+    const showAnalysis = useIsAnalysisEntryVisible(availability);
     const adapter = useMemo<LauncherAnalysisAdapter | null>(
         () =>
             projectUuid && target && showAnalysis && !isEditMode

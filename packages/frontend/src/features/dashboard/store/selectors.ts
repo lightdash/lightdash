@@ -161,6 +161,8 @@ export const selectParameterControls = (state: DashboardStoreState) =>
     state.parameters.parameterControls;
 export const selectAreParameterControlsSaved = (state: DashboardStoreState) =>
     state.parameters.areParameterControlsSaved;
+export const selectSavedParameterControlIds = (state: DashboardStoreState) =>
+    state.parameters.savedParameterControlIds;
 export const selectHaveParameterControlsChanged = (
     state: DashboardStoreState,
 ) => state.parameters.haveParameterControlsChanged;

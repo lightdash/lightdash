@@ -263,7 +263,10 @@ Every flag-on pill is the default white pill; only these change it, all in
 - Picked (edit mode): blue fill and a check, the only blue.
 - Required with no value: a muted asterisk on the left, before the field
   icon, with the requirement's tooltip (the pill is described by it); none
-  once it has a value, nor on a locked pill (no viewer can set it). Locked
+  once it has a value, nor on a locked pill (no viewer can set it). A
+  parameter pill takes the same cues: the asterisk when a tile it sets has
+  no value, dashed until saved (the store's `savedParameterControlIds`),
+  the select hint; hidden from viewers is its eye-off icon, never muted. Locked
   and "changed since save" have no other cue; Save in the header is the one
   unsaved signal. An inner part with its own tooltip carries
   `data-own-tooltip` (or is a button), so the pill's tooltip waits on it.

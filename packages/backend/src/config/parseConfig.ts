@@ -3043,6 +3043,9 @@ const parseResultsCacheEnabled = (
     return ['1', 'true'].includes(normalized);
 };
 
+const LIGHTDASH_ANDROID_APP_SIGNING_FINGERPRINT =
+    'EB:2C:4B:A2:0C:21:91:EB:9A:47:DF:1C:09:69:36:80:89:95:93:F5:6A:E5:AF:E8:9F:3D:4B:B0:C1:E2:8C:90';
+
 const parseCertificateFingerprints = (value: string | undefined): string[] =>
     (value ?? '')
         .split(',')
@@ -3374,7 +3377,8 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.MOBILE_ANDROID_PACKAGE_NAME ??
                 'com.lightdash.mobile',
             androidCertificateFingerprints: parseCertificateFingerprints(
-                process.env.MOBILE_ANDROID_CERT_FINGERPRINTS,
+                process.env.MOBILE_ANDROID_CERT_FINGERPRINTS ??
+                    LIGHTDASH_ANDROID_APP_SIGNING_FINGERPRINT,
             ),
         },
         mobilePushNotifications: {

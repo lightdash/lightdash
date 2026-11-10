@@ -827,6 +827,179 @@ describe('empty finishes and interrupts', () => {
         });
     });
 
+    it('generate: tracks a tool call the SDK rejects before executing it', async () => {
+        const { generateText: generateWithSdk } =
+            await vi.importActual<typeof import('ai')>('ai');
+        vi.mocked(generateText).mockImplementationOnce(generateWithSdk);
+        const { dependencies } = buildInterruptibleDependencies(false);
+        const trackEvent = vi.fn();
+        Object.assign(dependencies, {
+            consumePromptSteers: async () => [],
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            trackEvent,
+        });
+        const args = buildAgentArgs();
+        Object.assign(args, {
+            organizationId: '00000000-0000-4000-8000-000000000001',
+            threadUuid: '00000000-0000-4000-8000-000000000004',
+            promptUuid: '00000000-0000-4000-8000-000000000005',
+            agentSettings: {
+                ...args.agentSettings,
+                projectUuid: '00000000-0000-4000-8000-000000000002',
+                uuid: '00000000-0000-4000-8000-000000000003',
+            },
+        });
+        let calls = 0;
+        args.model = new MockLanguageModelV4({
+            doGenerate: async () => {
+                calls += 1;
+                return {
+                    content:
+                        calls === 1
+                            ? [
+                                  {
+                                      type: 'tool-call' as const,
+                                      toolCallId: 'invalid-call',
+                                      toolName: 'runSql',
+                                      input: '{"limit":"ten"}',
+                                  },
+                              ]
+                            : [{ type: 'text' as const, text: 'Done.' }],
+                    finishReason: {
+                        unified: calls === 1 ? 'tool-calls' : 'stop',
+                        raw: undefined,
+                    },
+                    usage: {
+                        inputTokens: {
+                            total: 1,
+                            noCache: 1,
+                            cacheRead: 0,
+                            cacheWrite: 0,
+                        },
+                        outputTokens: { total: 1, text: 1, reasoning: 0 },
+                    },
+                    warnings: [],
+                };
+            },
+        });
+
+        await generateAgentResponse({
+            args,
+            dependencies,
+            mcpToolSetup: mcpToolSetup(),
+        });
+
+        expect(trackEvent).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'ai_agent.tool_call_completed',
+                properties: expect.objectContaining({
+                    toolCallId: 'invalid-call',
+                    toolName: 'runSql',
+                    status: 'error',
+                    attempt: 1,
+                }),
+            }),
+        );
+    });
+
+    it('stream: tracks a tool call the SDK rejects before executing it', async () => {
+        const { streamText: streamWithSdk } =
+            await vi.importActual<typeof import('ai')>('ai');
+        vi.mocked(streamText).mockImplementationOnce(streamWithSdk);
+        const { dependencies } = buildInterruptibleDependencies(false);
+        const trackEvent = vi.fn();
+        Object.assign(dependencies, {
+            consumePromptSteers: async () => [],
+            updateProgress: vi.fn().mockResolvedValue(undefined),
+            trackEvent,
+        });
+        const args = buildAgentArgs();
+        Object.assign(args, {
+            organizationId: '00000000-0000-4000-8000-000000000001',
+            threadUuid: '00000000-0000-4000-8000-000000000004',
+            promptUuid: '00000000-0000-4000-8000-000000000005',
+            agentSettings: {
+                ...args.agentSettings,
+                projectUuid: '00000000-0000-4000-8000-000000000002',
+                uuid: '00000000-0000-4000-8000-000000000003',
+            },
+        });
+        const usage = {
+            inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
+            outputTokens: { total: 1, text: 1, reasoning: 0 },
+        };
+        let calls = 0;
+        args.model = new MockLanguageModelV4({
+            doStream: async () => {
+                calls += 1;
+                const first = calls === 1;
+                return {
+                    stream: new ReadableStream({
+                        start(controller) {
+                            controller.enqueue({
+                                type: 'stream-start',
+                                warnings: [],
+                            });
+                            if (first) {
+                                controller.enqueue({
+                                    type: 'tool-call',
+                                    toolCallId: 'invalid-call',
+                                    toolName: 'runSql',
+                                    input: '{"limit":"ten"}',
+                                });
+                            } else {
+                                controller.enqueue({
+                                    type: 'text-start',
+                                    id: 't',
+                                });
+                                controller.enqueue({
+                                    type: 'text-delta',
+                                    id: 't',
+                                    delta: 'Done.',
+                                });
+                                controller.enqueue({
+                                    type: 'text-end',
+                                    id: 't',
+                                });
+                            }
+                            controller.enqueue({
+                                type: 'finish',
+                                finishReason: {
+                                    unified: first ? 'tool-calls' : 'stop',
+                                    raw: undefined,
+                                },
+                                usage,
+                            });
+                            controller.close();
+                        },
+                    }),
+                };
+            },
+        });
+
+        try {
+            const result = await streamAgentResponse({
+                args,
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            });
+            await result.consumeStream();
+            expect(trackEvent).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'ai_agent.tool_call_completed',
+                    properties: expect.objectContaining({
+                        toolCallId: 'invalid-call',
+                        toolName: 'runSql',
+                        status: 'error',
+                        attempt: 1,
+                    }),
+                }),
+            );
+        } finally {
+            vi.mocked(streamText).mockReset();
+        }
+    });
+
     it('generate: replays a persisted rejected SQL approval without executing it again', async () => {
         const { generateText: generateWithSdk } =
             await vi.importActual<typeof import('ai')>('ai');
@@ -1175,6 +1348,7 @@ describe('generateAgentResponse token usage persistence', () => {
                     chain.then(() =>
                         options.onStepEnd({
                             usage: { totalTokens },
+                            content: [],
                             toolCalls: [],
                             toolResults: [],
                             text: '',
