@@ -20,6 +20,7 @@ import {
     IconPlus,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
+import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { useSavedSqlChart } from '../../features/sqlRunner/hooks/useSavedSqlCharts';
 import {
@@ -29,11 +30,15 @@ import {
     useUpdateDashboard,
 } from '../../hooks/dashboard/useDashboard';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
+import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
+import { getTileLinkPath } from '../../hooks/dashboard/useTileLink';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
 import {
     useCreateMutation as useSpaceCreateMutation,
     useSpaceSummaries,
 } from '../../hooks/useSpaces';
+import DashboardTabSelect from '../common/Dashboard/DashboardTabSelect';
+import { getDestinationDashboardTab } from '../common/Dashboard/destinationDashboardTab';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import classes from './AddTilesToDashboardModal.module.css';
@@ -57,6 +62,9 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     const [isCreatingNewSpace, setIsCreatingNewSpace] =
         useState<boolean>(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [selectedTabUuid, setSelectedTabUuid] = useState<string | null>(null);
+    const navigate = useNavigate();
+    const { getDashboardActiveTabUuid } = useDashboardStorage();
 
     const exploreChartQuery = useSavedQuery({
         uuidOrSlug: uuid,
@@ -218,9 +226,22 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
     const { mutateAsync: updateDashboard } = useUpdateDashboard(
         form.getInputProps('dashboardUuid').value,
         projectUuid,
-        true,
     );
     const { mutateAsync: createSpace } = useSpaceCreateMutation(projectUuid);
+
+    const destinationTab = useMemo(
+        () =>
+            selectedDashboard
+                ? getDestinationDashboardTab({
+                      tabs: selectedDashboard.tabs,
+                      selectedTabUuid,
+                      lastActiveTabUuid: getDashboardActiveTabUuid(
+                          selectedDashboard.uuid,
+                      ),
+                  })
+                : null,
+        [selectedDashboard, selectedTabUuid, getDashboardActiveTabUuid],
+    );
 
     const handleSubmit = form.onSubmit(
         async ({
@@ -258,21 +279,27 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                             'Dashboard not found or failed to load. Please try selecting a different dashboard.',
                         );
                     }
-                    const firstTab = selectedDashboard.tabs?.[0];
                     await updateDashboard({
                         name: selectedDashboard.name,
                         filters: selectedDashboard.filters,
                         tiles: appendNewTilesToBottom(selectedDashboard.tiles, [
-                            firstTab
-                                ? {
-                                      ...tile.payload,
-                                      tabUuid: firstTab.uuid,
-                                  }
-                                : tile.payload, // TODO: add to first tab by default, need ux to allow user select tab
+                            {
+                                ...tile.payload,
+                                tabUuid: destinationTab?.uuid,
+                            },
                         ]),
                         tabs: selectedDashboard.tabs,
                     });
                     onClose?.();
+                    void navigate(
+                        getTileLinkPath({
+                            projectUrlIdentifier: projectUuid,
+                            dashboardSlug: selectedDashboard.slug,
+                            tileUuid: tile.payload.uuid,
+                            tileTabUuid: destinationTab?.uuid ?? null,
+                            search: '',
+                        }),
+                    );
                 }
             } catch (e) {
                 console.error(e);
@@ -342,6 +369,11 @@ const AddTilesToDashboardModal: FC<AddTilesToDashboardModalProps> = ({
                             nothingFoundMessage="No matching dashboards found"
                             required
                             {...form.getInputProps('dashboardUuid')}
+                        />
+                        <DashboardTabSelect
+                            tabs={selectedDashboard?.tabs ?? []}
+                            value={destinationTab?.uuid ?? null}
+                            onChange={setSelectedTabUuid}
                         />
                         <Anchor
                             component="span"
