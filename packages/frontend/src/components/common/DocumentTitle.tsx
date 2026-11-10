@@ -36,11 +36,16 @@ export const BrandedAppNameSync: FC = () => {
 };
 
 export const DocumentTitle: FC<Props> = ({ title }) => {
-    // The SDK renders inside the host's document, whose title is not ours.
+    // SDK embeds share the host's document, so leave its title alone.
     const { mode } = useEmbed();
     const currentAppName = useSyncExternalStore(subscribe, getAppName);
     if (mode === 'sdk') {
         return null;
+    }
+    // Iframe embeds are white-labelled: page title only, never the app name.
+    // The root title renders outside EmbedProvider, so detect them by route.
+    if (window.location.pathname.startsWith('/embed')) {
+        return title ? <title>{`${PREFIX}${title}`}</title> : null;
     }
 
     const fullTitle = currentAppName

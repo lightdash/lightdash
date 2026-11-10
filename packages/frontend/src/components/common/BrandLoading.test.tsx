@@ -321,4 +321,20 @@ describe('brand loading', () => {
         expect(document.title).toBe('Host app');
         expect(favicon).toHaveAttribute('href', '/host-icon.svg');
     });
+
+    it('never writes the app name into an iframe embed title', () => {
+        state.healthError = true;
+        window.history.pushState({}, '', '/embed/project-uuid');
+        try {
+            render(<AppBrand />);
+            expect(document.title).toContain('Settings');
+            expect(document.title).not.toContain('Lightdash');
+            cleanup();
+            document.title = 'Sales overview';
+            render(<DocumentTitle />);
+            expect(document.title).toBe('Sales overview');
+        } finally {
+            window.history.pushState({}, '', '/');
+        }
+    });
 });

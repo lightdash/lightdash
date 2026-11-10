@@ -24,6 +24,7 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
 import { useLocation } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
+import { DocumentTitle } from '../../../../../components/common/DocumentTitle';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ScreenshotReadyIndicator from '../../../../../components/common/ScreenshotReadyIndicator';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
@@ -1153,6 +1154,7 @@ const EmbedDashboard: FC<{
         if (!isMinimalLayoutSettled) return null;
         return (
             <Box className={DASHBOARD_GRID_CLASS}>
+                <DocumentTitle title={dashboard.name} />
                 {exportTabGroups.length === 0 ? (
                     <SuboptimalState
                         title="Empty dashboard"
@@ -1199,6 +1201,7 @@ const EmbedDashboard: FC<{
             style={containerStyles}
         >
             <div ref={setContentElement} className={classes.content}>
+                <DocumentTitle title={dashboard.name} />
                 <ControlsSidebarProvider
                     // No route says the mode in an embed
                     isEditMode={canWriteDashboard && isEditMode}
