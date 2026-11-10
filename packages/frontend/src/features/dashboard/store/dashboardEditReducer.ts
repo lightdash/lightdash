@@ -328,10 +328,13 @@ export const dashboardEditReducer = (
     if (dashboardEditActions.setHaveControlSectionsChanged.match(action)) {
         return set(state, 'haveControlSectionsChanged', action.payload);
     }
+    // A new section joins the line of the one before it; the first starts one
     if (dashboardEditActions.addControlSection.match(action)) {
         return withControlSections(state, [
             ...state.controlSections,
-            action.payload,
+            state.controlSections.length > 0
+                ? { ...action.payload, inline: true }
+                : action.payload,
         ]);
     }
     if (dashboardEditActions.renameControlSection.match(action)) {

@@ -1243,8 +1243,7 @@ export const SectionedFilters: FC<Props> = ({
             );
         });
 
-    // Sections always sit below the filters outside any section, each new
-    // one on a line of its own
+    // Sections always sit below the filters outside any section
     const isSectionsOwnLine = lines.length > 0 || naming !== null;
 
     // Named last, in the entry's place at the bar's end, wherever it was

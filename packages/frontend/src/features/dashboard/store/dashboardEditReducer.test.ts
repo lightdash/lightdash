@@ -313,6 +313,7 @@ describe('tile selectors', () => {
                 'b',
                 'c',
             ]);
+            expect(state.controlSections.at(-1)?.inline).toBe(true);
             expect(state.haveControlSectionsChanged).toBe(true);
         });
 

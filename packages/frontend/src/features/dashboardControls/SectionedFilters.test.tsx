@@ -1480,7 +1480,7 @@ describe('SectionedFilters', () => {
             },
             { loose: 3, moved: 2, saved: [] },
         ])(
-            'names a section on a line of its own below the filters ($loose loose, $moved moved)',
+            "names a section below the filters, on the last section's line ($loose loose, $moved moved)",
             async ({ loose, moved, saved }) => {
                 const ids = Array.from({ length: loose }, (_, i) => `p${i}`);
                 const { store } = renderSectioned(
@@ -1524,7 +1524,11 @@ describe('SectionedFilters', () => {
                             group.parentElement?.closest('[role="group"]') ===
                             null,
                     ),
-                ).toEqual([capsuleOf('Misc')]);
+                ).toEqual(
+                    saved.length > 0
+                        ? [capsuleOf('Empty'), capsuleOf('Misc')]
+                        : [capsuleOf('Misc')],
+                );
                 expect(
                     selectControlOrder(store.getState())?.find(
                         ({ id }) => id === 'p0',
@@ -2265,6 +2269,53 @@ describe('SectionedFilters', () => {
                     }),
                 }),
             );
+        });
+
+        it('adds a section after the first on the line of the one before it', async () => {
+            const user = userEvent.setup();
+            const { store } = renderSectioned(twoLoose(), 'tab-1', []);
+            await user.click(ghost() as HTMLElement);
+            await user.keyboard('First{Enter}');
+            await user.click(ghost() as HTMLElement);
+            await user.keyboard('Second{Enter}');
+            expect(
+                sectionsOf(store).map(({ name, inline }) => [name, inline]),
+            ).toEqual([
+                ['First', undefined],
+                ['Second', true],
+            ]);
+            expect(capsuleOf('Second').parentElement).toBe(
+                capsuleOf('First').parentElement,
+            );
+        });
+
+        it('adds a section to the last line of a stored order', async () => {
+            const user = userEvent.setup();
+            const { store } = renderSectioned(twoLoose(), 'tab-1', []);
+            act(() => {
+                store.dispatch(
+                    dashboardEditActions.syncControlOrder([
+                        { kind: DashboardControlRefKind.FILTER, id: 'one' },
+                        {
+                            kind: DashboardControlRefKind.FILTER,
+                            id: 'two',
+                            newLine: true,
+                        },
+                    ]),
+                );
+            });
+            await user.click(ghost() as HTMLElement);
+            await user.keyboard('Late{Enter}');
+            const added = sectionsOf(store)[0];
+            expect(
+                selectOrderedControls(store.getState()).map(
+                    ({ id, newLine }) => [id, newLine],
+                ),
+            ).toEqual([
+                ['one', false],
+                ['two', true],
+                [added.id, false],
+            ]);
         });
 
         it('takes a dropped pill into a new section named in its place', async () => {
