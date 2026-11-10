@@ -9,10 +9,12 @@ import {
     type CompiledMetric,
     type Explore as CompiledExplore,
     type LiveSourceField,
+    type SemanticLayerDraftModel,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import { useExploreByProjectUuid } from '../../hooks/useExplore';
 import { useLiveSourceFields } from '../externalConnections/hooks/useLiveSourceFields';
+import { diffDraftFields } from './draftState';
 import { type Explore, type Field, type Source } from './model';
 
 const toText = (hint: string | string[] | undefined): string =>
@@ -53,6 +55,7 @@ const fromCompiled = (
     isRequired: false,
     chartUsage: null,
     lastEdit: null,
+    draftState: null,
 });
 
 /** Visible fields of every table in the explore, base table first. */
@@ -104,7 +107,24 @@ const fromLive = (
     lastEdit: field.lastEdit
         ? { by: field.lastEdit.userName, at: field.lastEdit.at }
         : null,
+    draftState: null,
 });
+
+/** The fields as a draft leaves them, tagged, with the ones it removes kept in view. */
+const draftedFields = (
+    live: CompiledExplore,
+    { explore, contentAfter }: SemanticLayerDraftModel,
+): Field[] => {
+    // A draft that does not compile says so on the review page.
+    if (!explore && contentAfter !== null) return compiledFields(live);
+    const states = diffDraftFields(live, explore);
+    return [
+        ...(explore ? compiledFields(explore) : []),
+        ...compiledFields(live).filter(
+            ({ id }) => states.get(id) === 'removed',
+        ),
+    ].map((field) => ({ ...field, draftState: states.get(field.id) ?? null }));
+};
 
 export type ExploreDetails = {
     ymlPath: string | null;
@@ -117,11 +137,14 @@ export const useExploreFields = ({
     explore,
     source,
     canManageLive,
+    draft,
 }: {
     projectUuid: string;
     explore: Explore;
     source: Source;
     canManageLive: boolean;
+    /** This person's draft of the model; null when they have none. */
+    draft: SemanticLayerDraftModel | null;
 }) => {
     const liveConnection =
         source.kind === 'live' && canManageLive
@@ -142,8 +165,11 @@ export const useExploreFields = ({
                   )
                 : undefined;
         }
-        return compiled.data ? compiledFields(compiled.data) : undefined;
-    }, [liveConnection, live.data, compiled.data, explore.label]);
+        if (!compiled.data) return undefined;
+        return draft
+            ? draftedFields(compiled.data, draft)
+            : compiledFields(compiled.data);
+    }, [liveConnection, live.data, compiled.data, explore.label, draft]);
 
     const details = useMemo((): ExploreDetails | undefined => {
         if (!compiled.data) return undefined;

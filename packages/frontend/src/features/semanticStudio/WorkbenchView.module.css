@@ -1,16 +1,62 @@
 /*
- * Layering: the page canvas (--ld-color-page) holds a flat rail on the body
- * colour; the field table is the only raised surface. Tree and row
+ * Layering: the page canvas (--ld-color-page) holds the chat and one panel on
+ * the body colour; the rail and page live inside that panel. Tree and row
  * navigation never animate.
  */
 .shell {
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     display: grid;
-    grid-template-columns: 272px minmax(0, 1fr);
-    grid-template-areas: 'rail main';
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: 'agent workspace';
+    gap: var(--mantine-spacing-xs);
     height: 100%;
     min-height: 0;
+    padding: var(--mantine-spacing-xs);
     background: var(--ld-color-page);
+}
+
+.shell[data-no-chat='true'] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'workspace';
+}
+
+/* Two cards on the canvas: the chat, and everything it changes. */
+.workspace {
+    grid-area: workspace;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+    background: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-lg);
+}
+
+.toolbar {
+    flex: none;
+    min-height: 44px;
+    padding: 6px var(--mantine-spacing-xs);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.workspaceBody {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-areas: 'rail main';
+}
+
+.workspaceBody[data-no-rail='true'] {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'main';
+}
+
+@media (max-width: 1200px) {
+    .workspaceBody:not([data-no-rail='true']) {
+        grid-template-columns: 190px minmax(0, 1fr);
+    }
 }
 
 /* Rail */
@@ -21,32 +67,11 @@
     flex-direction: column;
     min-height: 0;
     border-right: 1px solid var(--mantine-color-default-border);
-    background: var(--mantine-color-body);
 }
 
 .railHeader {
     flex: none;
-    height: 48px;
-    padding: 0 10px 0 16px;
-}
-
-.railTitle {
-    all: unset;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    cursor: pointer;
-}
-
-.railTitle:focus-visible {
-    outline: 2px solid var(--mantine-primary-color-filled);
-    outline-offset: 2px;
-    border-radius: 4px;
-}
-
-.railSearch {
-    flex: none;
-    padding: 0 10px 8px 12px;
+    padding: var(--mantine-spacing-xs);
 }
 
 .treeScroll {
@@ -115,6 +140,48 @@
     font-size: 13px;
 }
 
+.draftDot {
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--mantine-color-yellow-6);
+}
+
+.fileRow:first-child {
+    margin-top: var(--mantine-spacing-xs);
+}
+
+.fileRow {
+    all: unset;
+    box-sizing: border-box;
+    width: 100%;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.fileRow:hover {
+    background: color-mix(in srgb, var(--mantine-color-text) 3%, transparent);
+}
+
+.fileRow:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: -2px;
+}
+
+.fileRow[data-selected='true'] {
+    background: color-mix(in srgb, var(--mantine-color-text) 12%, transparent);
+}
+
+.fileRow[data-selected='true'] .treeLabel {
+    font-weight: 500;
+}
+
 /* Main */
 
 .main {
@@ -127,6 +194,10 @@
     justify-self: center;
     width: 100%;
     max-width: calc(var(--page-content-width) + 48px);
+}
+
+.main[data-full='true'] {
+    max-width: none;
 }
 
 .mainHeader {

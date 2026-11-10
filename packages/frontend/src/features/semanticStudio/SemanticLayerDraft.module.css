@@ -1,0 +1,24 @@
+/* Same 24px gutter as the review body below it. */
+.heading {
+    flex: none;
+    padding: var(--mantine-spacing-sm) 24px;
+}
+
+.review {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+
+.review > * {
+    flex: none;
+}
+
+.model {
+    overflow: hidden;
+}
+
+.modelHead {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}

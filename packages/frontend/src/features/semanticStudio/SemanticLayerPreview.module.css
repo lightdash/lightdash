@@ -1,0 +1,237 @@
+.stage {
+    display: grid;
+    place-items: center;
+    padding-block: var(--mantine-spacing-xl);
+    overflow: hidden;
+    border-radius: var(--mantine-radius-lg);
+    background: var(--ld-color-page);
+    container-type: inline-size;
+}
+
+/* One fixed drawing, zoomed to fit, so the lines always meet the cards. */
+.scene {
+    position: relative;
+    width: 608px;
+    height: 172px;
+    font-size: 11px;
+    line-height: 1.3;
+}
+
+@container (max-width: 639px) {
+    .scene {
+        zoom: 0.88;
+    }
+}
+
+@container (max-width: 559px) {
+    .scene {
+        zoom: 0.68;
+    }
+}
+
+@container (max-width: 419px) {
+    .scene {
+        zoom: 0.6;
+    }
+}
+
+.beams {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    fill: none;
+}
+
+.rails path {
+    stroke: var(--mantine-color-ldGray-3);
+    stroke-width: 1;
+}
+
+.pulses path {
+    stroke: var(--mantine-color-text);
+    stroke-width: 1;
+    stroke-dasharray: 20 200;
+    stroke-dashoffset: 20;
+    animation: lineIn 4s ease-in-out infinite;
+}
+
+.pulses[data-direction='out'] path {
+    animation-name: lineOut;
+}
+
+.warehouse,
+.layer,
+.tool {
+    background: var(--mantine-color-body);
+}
+
+.warehouse,
+.tool {
+    border: 1px solid var(--mantine-color-default-border);
+}
+
+.warehouse {
+    position: absolute;
+    top: 18px;
+    left: 0;
+    width: 148px;
+    height: 136px;
+    border-radius: var(--mantine-radius-md);
+}
+
+.warehouseHead {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 39px;
+    padding-inline: 12px;
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    color: var(--mantine-color-text);
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.rawTable {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding-inline: 12px;
+    color: var(--mantine-color-dimmed);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 10px;
+}
+
+.layer {
+    position: absolute;
+    top: 32px;
+    left: 212px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+    width: 184px;
+    height: 108px;
+    padding-inline: 14px;
+    border: 1px solid var(--mantine-color-text);
+    border-radius: var(--mantine-radius-md);
+}
+
+.layerHead {
+    color: var(--mantine-color-text);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.metric {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.formula {
+    color: var(--mantine-color-dimmed);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.pills {
+    display: flex;
+    gap: 4px;
+}
+
+.pill {
+    padding: 1px 8px;
+    border-radius: var(--mantine-radius-xl);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.pill[data-kind='metric'] {
+    background: var(--ld-field-metric-bg);
+    color: var(--ld-field-metric-color);
+}
+
+.pill[data-kind='dimension'] {
+    background: var(--ld-field-dimension-bg);
+    color: var(--ld-field-dimension-color);
+}
+
+.tools {
+    position: absolute;
+    top: 12px;
+    left: 452px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 156px;
+}
+
+.tool {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 44px;
+    padding-inline: 12px;
+    border-radius: var(--mantine-radius-md);
+}
+
+.toolLabel {
+    flex: 1;
+    color: var(--mantine-color-dimmed);
+}
+
+.value {
+    color: var(--mantine-color-text);
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Tables feed the layer, then the layer feeds every tool. */
+@keyframes lineIn {
+    0% {
+        stroke-dashoffset: 20;
+        opacity: 1;
+    }
+    40% {
+        stroke-dashoffset: -100;
+        opacity: 1;
+    }
+    41%,
+    100% {
+        stroke-dashoffset: -100;
+        opacity: 0;
+    }
+}
+
+@keyframes lineOut {
+    0%,
+    45% {
+        stroke-dashoffset: 20;
+        opacity: 0;
+    }
+    46% {
+        stroke-dashoffset: 20;
+        opacity: 1;
+    }
+    85% {
+        stroke-dashoffset: -100;
+        opacity: 1;
+    }
+    86%,
+    100% {
+        stroke-dashoffset: -100;
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pulses {
+        display: none;
+    }
+}
