@@ -1,3 +1,18 @@
+# [3.199.0](https://github.com/lightdash/lightdash/compare/3.198.1...3.199.0) (2026-11-10)
+
+
+### Bug Fixes
+
+* **semantic-studio:** check a draft against saved content in the background ([#32314](https://github.com/lightdash/lightdash/issues/32314)) ([140b504](https://github.com/lightdash/lightdash/commit/140b504b9dea380f3b125c339f243f1628cc0e39))
+* **semantic-studio:** hold drafted models to composition and typing rules ([#32332](https://github.com/lightdash/lightdash/issues/32332)) ([dd915fe](https://github.com/lightdash/lightdash/commit/dd915fe1c4b326eaf316a67bb1d227b9b748956c))
+* stop polling the get-the-app link once step 1 is done (SPK-2950) ([#32288](https://github.com/lightdash/lightdash/issues/32288)) ([dad1614](https://github.com/lightdash/lightdash/commit/dad1614ce2f837f3cbea90c874f24b18ddc21e32))
+
+
+### Features
+
+* **autopilot:** label verified-content protection as on by default ([#32331](https://github.com/lightdash/lightdash/issues/32331)) ([046b167](https://github.com/lightdash/lightdash/commit/046b16729b8f8dd2b9a6838035b5cc10fd3e6d5d))
+* **semantic-studio:** edit the semantic layer from a chat and review drafts ([#32297](https://github.com/lightdash/lightdash/issues/32297)) ([9743816](https://github.com/lightdash/lightdash/commit/9743816bf98cafa1ba080794395e9373c0d2cf00))
+
 ## [3.198.1](https://github.com/lightdash/lightdash/compare/3.198.0...3.198.1) (2026-11-10)
 
 
