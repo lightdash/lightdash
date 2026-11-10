@@ -1891,9 +1891,9 @@ const SettingsSidebar: FC<{
                                         Protect verified content
                                     </Text>
                                     <Text fz="xs" c="dimmed">
-                                        Autopilot can report on verified charts
-                                        and dashboards but never changes or
-                                        deletes them.
+                                        On by default. Autopilot can report on
+                                        verified charts and dashboards but never
+                                        changes or deletes them.
                                     </Text>
                                 </Stack>
                                 <Switch
