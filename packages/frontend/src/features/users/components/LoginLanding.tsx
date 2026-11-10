@@ -262,6 +262,7 @@ export const LoginForm: FC<{
                             loading={isFormLoading}
                             disabled={isFormLoading}
                             fullWidth={isNewLayout}
+                            color="pink"
                             data-cy="signin-button"
                         >
                             Sign in
@@ -281,6 +282,7 @@ export const LoginForm: FC<{
                         loading={isFormLoading}
                         disabled={isFormLoading}
                         fullWidth={isNewLayout}
+                        color="pink"
                         data-cy="signin-button"
                     >
                         Continue
