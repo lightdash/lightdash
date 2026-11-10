@@ -379,6 +379,12 @@ describe('Composer chart rows on the real schema', () => {
                 model.getInfoForAvailableFilters([chart.uuid]),
             ).resolves.toEqual([]);
         });
+
+        test('getInfoForAvailableFilters still reports a chart that does not exist as not found', async () => {
+            await expect(
+                model.getInfoForAvailableFilters([randomUUID()]),
+            ).rejects.toThrow(NotFoundError);
+        });
     });
 
     describe('reading a semantic row', () => {

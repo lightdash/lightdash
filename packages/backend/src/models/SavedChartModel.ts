@@ -3521,6 +3521,14 @@ export class SavedChartModel {
             )
             .whereNull(`${SavedChartsTableName}.deleted_at`)
             .whereNull(`${SpaceTableName}.deleted_at`);
+
+        if (charts.length === 0) {
+            const composerCharts =
+                await this.findComposerCharts(savedChartUuids);
+            if (composerCharts.length === 0) {
+                throw new NotFoundError('Saved queries not found');
+            }
+        }
         return charts;
     }
 
