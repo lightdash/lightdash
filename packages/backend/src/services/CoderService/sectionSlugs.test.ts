@@ -346,7 +346,9 @@ describe('dashboard section slugs', () => {
                 undefined,
                 true,
             ),
-        ).toThrow(/duplicated/);
+        ).toThrow(
+            'Dashboard section slug "currency-comparison" is used by sections 1 ("Currency comparison") and 2 ("Currency comparison") in config.controlSections; give each a unique slug',
+        );
         expect(() =>
             getDashboardWithSectionIds(
                 {
@@ -359,11 +361,26 @@ describe('dashboard section slugs', () => {
                 undefined,
                 true,
             ),
-        ).toThrow(/Invalid.*slug/);
+        ).toThrow(
+            'Invalid dashboard section slug "BAD"; use lowercase letters and digits, with single hyphens between them',
+        );
         portable.config!.parameterControls![0].sectionSlug = 'unknown';
         expect(() =>
             getDashboardWithSectionIds(portable, undefined, true),
-        ).toThrow(/Unknown.*section/);
+        ).toThrow(
+            'Unknown dashboard section slug "unknown". Valid section slugs are currency-comparison',
+        );
+        const { controlSections: _sections, ...withoutSections } =
+            portable.config!;
+        expect(() =>
+            getDashboardWithSectionIds(
+                { ...portable, config: withoutSections },
+                undefined,
+                true,
+            ),
+        ).toThrow(
+            'Unknown dashboard section slug "currency-comparison". Valid section slugs are none; add the section under config.controlSections',
+        );
     });
 
     it('leaves dashboards without sections unchanged and drops dangling references on download', () => {
