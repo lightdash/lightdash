@@ -186,7 +186,26 @@ describe('hardenMcpToolDefinition', () => {
         expect(output.content[1].text).toMatch(
             /^## Charts\n&lt;Note&gt;Use "layout\.showIncompletePeriod" &amp; more&lt;\/Note&gt;\n/,
         );
+        expect(
+            output.content[1].text.match(/\[truncated by Lightdash\]/g),
+        ).toHaveLength(1);
         expect(output.content[1].text).toMatch(/\n\[truncated by Lightdash\]$/);
+    });
+
+    it('keeps short escaped text output whole', async () => {
+        const hardened = hardenMcpToolDefinition({
+            inputSchema: jsonSchema({ type: 'object' }),
+            execute: vi.fn().mockResolvedValue({
+                content: [{ type: 'text', text: 'a < b & c > d' }],
+            }),
+        } as never);
+
+        expect(await hardened.execute?.({}, {} as never)).toEqual({
+            content: [
+                { type: 'text', text: MCP_UNTRUSTED_OUTPUT_NOTICE },
+                { type: 'text', text: 'a &lt; b &amp; c &gt; d' },
+            ],
+        });
     });
 
     it('rejects a primitive-heavy schema over the final serialized limit', () => {
