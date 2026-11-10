@@ -164,3 +164,116 @@ describe('CommercialFeatureFlagModel live sources', () => {
         await expect(getLiveSources()).resolves.toBe(true);
     });
 });
+
+describe('CommercialFeatureFlagModel data apps', () => {
+    let tracker: Tracker;
+    const featureFlagId = FeatureFlags.EnableDataApps;
+    const organizationUuid = 'organization-uuid';
+    const user = { userUuid: 'user-uuid', organizationUuid };
+    const runtime = {
+        ...lightdashConfigMock.appRuntime,
+        sandboxProvider: 'e2b' as const,
+        e2bApiKey: 'e2b-key',
+    };
+    const gatedCopilot = {
+        ...lightdashConfigMock.ai,
+        copilot: {
+            ...lightdashConfigMock.ai.copilot,
+            enabled: true,
+            requiresFeatureFlag: true,
+        },
+    };
+
+    // Overrides are keyed by `${flag_id}:${user_uuid or organization_uuid}`
+    const respond = ({
+        overrides = {},
+        organizationCreatedAt = '2024-01-01T00:00:00Z',
+    }: {
+        overrides?: Record<string, boolean>;
+        organizationCreatedAt?: string;
+    }) => {
+        tracker.on.select('feature_flag_overrides').response((query) => {
+            const enabled =
+                overrides[`${query.bindings[0]}:${query.bindings[1]}`];
+            return enabled === undefined ? undefined : { enabled };
+        });
+        tracker.on.select('feature_flags').response({ default_enabled: null });
+        tracker.on
+            .select('organizations')
+            .response({ created_at: organizationCreatedAt });
+    };
+
+    const getDataApps = (config: Partial<typeof lightdashConfigMock> = {}) =>
+        createModel({ appRuntime: runtime, ai: gatedCopilot, ...config })
+            .get({ featureFlagId, user })
+            .then(({ enabled }) => enabled);
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    it('is off without a sandbox runtime, without querying anything', async () => {
+        respond({
+            overrides: {
+                [`${CommercialFeatureFlags.AiCopilot}:${organizationUuid}`]: true,
+            },
+        });
+        await expect(
+            getDataApps({
+                appRuntime: { ...runtime, e2bApiKey: null },
+            }),
+        ).resolves.toBe(false);
+        expect(tracker.history.select).toHaveLength(0);
+    });
+
+    it('is on for orgs with the AI copilot flag', async () => {
+        respond({
+            overrides: {
+                [`${CommercialFeatureFlags.AiCopilot}:${organizationUuid}`]: true,
+            },
+        });
+        await expect(getDataApps()).resolves.toBe(true);
+    });
+
+    it('is on for orgs created inside the AI trial window', async () => {
+        respond({ organizationCreatedAt: '2026-04-08T00:00:00Z' });
+        await expect(getDataApps()).resolves.toBe(true);
+    });
+
+    it('ignores a data apps override for an org without AI', async () => {
+        respond({
+            overrides: { [`${featureFlagId}:${organizationUuid}`]: true },
+        });
+        await expect(getDataApps()).resolves.toBe(false);
+    });
+
+    it('is off on instances without AI, whatever the org age', async () => {
+        respond({ organizationCreatedAt: '2026-04-08T00:00:00Z' });
+        await expect(
+            getDataApps({
+                ai: {
+                    ...gatedCopilot,
+                    copilot: { ...gatedCopilot.copilot, enabled: false },
+                },
+            }),
+        ).resolves.toBe(false);
+    });
+
+    it('is on for every org on dedicated instances with AI', async () => {
+        respond({});
+        await expect(
+            getDataApps({
+                ai: {
+                    ...gatedCopilot,
+                    copilot: {
+                        ...gatedCopilot.copilot,
+                        requiresFeatureFlag: false,
+                    },
+                },
+            }),
+        ).resolves.toBe(true);
+    });
+});

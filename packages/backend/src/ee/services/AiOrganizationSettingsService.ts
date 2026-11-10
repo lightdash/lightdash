@@ -48,6 +48,7 @@ import { BaseService } from '../../services/BaseService';
 import { AiOrganizationProviderCredentialModel } from '../models/AiOrganizationProviderCredentialModel';
 import { AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { CommercialFeatureFlagModel } from '../models/CommercialFeatureFlagModel';
+import { isCreatedInAiTrial } from './ai/aiTrial';
 import {
     filterModelsForOrg,
     getAvailableModels,
@@ -266,9 +267,6 @@ export class AiOrganizationSettingsService extends BaseService {
 
     private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
-    // Date when trial feature was enabled for new organizations
-    private static readonly TRIAL_START_DATE = new Date('2025-10-13T00:00:00Z');
-
     constructor(dependencies: AiOrganizationSettingsServiceDependencies) {
         super();
         this.aiOrganizationSettingsModel =
@@ -395,7 +393,7 @@ export class AiOrganizationSettingsService extends BaseService {
 
     /**
      * Check if the organization qualifies for AI trial
-     * Organization was created on or after TRIAL_START_DATE
+     * Organization was created on or after AI_TRIAL_START_DATE
      */
     async isEligibleForTrial(
         isCopilotEnabled: boolean,
@@ -416,9 +414,7 @@ export class AiOrganizationSettingsService extends BaseService {
             }
             const orgCreatedAt = new Date(org.createdAt);
 
-            return (
-                orgCreatedAt >= AiOrganizationSettingsService.TRIAL_START_DATE
-            );
+            return isCreatedInAiTrial(orgCreatedAt);
         } catch (error) {
             return false;
         }

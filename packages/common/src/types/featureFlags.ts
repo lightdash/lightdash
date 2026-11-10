@@ -58,11 +58,13 @@ export enum FeatureFlags {
     DashboardEditErgonomics = 'dashboard-edit-ergonomics',
 
     /**
-     * Enable data apps feature. Disabled by default. Self-hosted
-     * deployments can force it on with APPS_RUNTIME_ENABLED=true, which
-     * the config parser translates into the enable allowlist. Does not gate
-     * Chart Studio, which is available with a valid licence and a configured
-     * sandbox provider, but still keeps installed chart types usable.
+     * Data apps availability, computed rather than rolled out: on for any org
+     * with AI (the AI copilot flag or an AI trial) on an instance with a
+     * configured sandbox runtime. Overrides and the flag default are ignored
+     * (see CommercialFeatureFlagModel). Self-hosted deployments can still
+     * force it on with APPS_RUNTIME_ENABLED=true, which the config parser
+     * translates into the enable allowlist. Does not gate Chart Studio, which
+     * is available with a valid licence and a configured sandbox provider.
      */
     EnableDataApps = 'enable-data-apps',
 
