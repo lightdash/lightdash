@@ -19,6 +19,10 @@ export const selectDashboardTiles = (state: DashboardStoreState) =>
     state.edit.tiles;
 export const selectHaveTilesChanged = (state: DashboardStoreState) =>
     state.edit.haveTilesChanged;
+export const selectCanUndoTileLayout = (state: DashboardStoreState) =>
+    state.edit.tileLayoutHistory.past.length > 0;
+export const selectCanRedoTileLayout = (state: DashboardStoreState) =>
+    state.edit.tileLayoutHistory.future.length > 0;
 export const selectDashboardTabs = (state: DashboardStoreState) =>
     state.edit.tabs;
 export const selectHaveTabsChanged = (state: DashboardStoreState) =>

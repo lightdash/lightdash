@@ -15,6 +15,8 @@ import {
     dashboardEditReducer as reducer,
 } from './dashboardEditReducer';
 import {
+    selectCanRedoTileLayout,
+    selectCanUndoTileLayout,
     selectDateZoomConfig,
     selectDateZoomGranularities,
     selectDefaultDateZoomGranularity,
@@ -426,5 +428,91 @@ describe('tile selectors', () => {
                 ).controlSections[1],
             ).toEqual(sections[1]);
         });
+    });
+});
+
+describe('tile layout undo and redo', () => {
+    const editing = (tiles: Dashboard['tiles']) =>
+        reducer(initialDashboardEditState, actions.setTiles(tiles));
+    const move = (uuid: string, x: number) =>
+        actions.moveTiles([{ uuid, x, y: 0, w: 6, h: 3 }]);
+    const xs = (state: typeof initialDashboardEditState) =>
+        state.tiles?.map((t) => t.x);
+
+    it('undoes and redoes a move', () => {
+        const moved = reducer(editing([tile('a'), tile('b', 6)]), move('a', 3));
+        expect(xs(moved)).toEqual([3, 6]);
+
+        const undone = reducer(moved, actions.undoTileLayout());
+        expect(xs(undone)).toEqual([0, 6]);
+
+        const redone = reducer(undone, actions.redoTileLayout());
+        expect(xs(redone)).toEqual([3, 6]);
+    });
+
+    it('steps back through several moves in order', () => {
+        const state = [move('a', 1), move('a', 2), move('a', 3)].reduce(
+            reducer,
+            editing([tile('a')]),
+        );
+        const once = reducer(state, actions.undoTileLayout());
+        const twice = reducer(once, actions.undoTileLayout());
+        expect([xs(once), xs(twice)]).toEqual([[2], [1]]);
+    });
+
+    it('drops the redo steps when a new move follows an undo', () => {
+        const undone = reducer(
+            reducer(editing([tile('a')]), move('a', 3)),
+            actions.undoTileLayout(),
+        );
+        const movedAgain = reducer(undone, move('a', 5));
+        expect(selectCanRedoTileLayout(storeWith(movedAgain))).toBe(false);
+        expect(reducer(movedAgain, actions.redoTileLayout())).toBe(movedAgain);
+    });
+
+    it('records nothing when a drag ends where it started', () => {
+        const state = reducer(editing([tile('a')]), move('a', 0));
+        expect(selectCanUndoTileLayout(storeWith(state))).toBe(false);
+        expect(state.haveTilesChanged).toBe(true);
+    });
+
+    it('keeps the tiles that did not move', () => {
+        const before = editing([tile('a'), tile('b', 6)]);
+        const undone = reducer(
+            reducer(before, move('a', 3)),
+            actions.undoTileLayout(),
+        );
+        expect(undone.tiles?.[1]).toBe(before.tiles?.[1]);
+    });
+
+    it('leaves tiles added since a step where they are', () => {
+        const moved = reducer(editing([tile('a')]), move('a', 3));
+        const withNewTile = reducer(
+            moved,
+            actions.setTiles([...(moved.tiles ?? []), tile('new', 9)]),
+        );
+        expect(xs(reducer(withNewTile, actions.undoTileLayout()))).toEqual([
+            0, 9,
+        ]);
+    });
+
+    it('skips steps that only moved tiles removed since', () => {
+        const state = [move('a', 3), move('b', 9)].reduce(
+            reducer,
+            editing([tile('a'), tile('b', 6)]),
+        );
+        const withoutB = reducer(
+            state,
+            actions.setTiles(state.tiles?.filter((t) => t.uuid === 'a')),
+        );
+        expect(xs(reducer(withoutB, actions.undoTileLayout()))).toEqual([0]);
+    });
+
+    it('forgets the history when cleared', () => {
+        const cleared = reducer(
+            reducer(editing([tile('a')]), move('a', 3)),
+            actions.clearTileLayoutHistory(),
+        );
+        expect(selectCanUndoTileLayout(storeWith(cleared))).toBe(false);
     });
 });

@@ -19,10 +19,29 @@ import { isEqual, sortBy } from 'es-toolkit/compat';
  */
 type Draft<T> = { value: T; basedOn: T };
 
+/** Where a tile sits on the grid */
+export type TileLayout = Pick<
+    Dashboard['tiles'][number],
+    'uuid' | 'x' | 'y' | 'w' | 'h'
+>;
+
+/** Layouts before (`past`) and after (`future`) the current one, oldest first */
+type TileLayoutHistory = {
+    past: TileLayout[][];
+    future: TileLayout[][];
+};
+
+const EMPTY_TILE_LAYOUT_HISTORY: TileLayoutHistory = { past: [], future: [] };
+
+// Each step holds one small record per tile, so a long history stays cheap
+const TILE_LAYOUT_HISTORY_LIMIT = 50;
+
 export type DashboardEditState = {
     /** Undefined until the page seeds it from the loaded dashboard */
     tiles: Dashboard['tiles'] | undefined;
     haveTilesChanged: boolean;
+    /** Undo and redo of tile moves and resizes, for one edit session */
+    tileLayoutHistory: TileLayoutHistory;
     /** Always sorted by `order` */
     tabs: Dashboard['tabs'];
     haveTabsChanged: boolean;
@@ -52,6 +71,7 @@ export type DashboardEditState = {
 export const initialDashboardEditState: DashboardEditState = {
     tiles: undefined,
     haveTilesChanged: false,
+    tileLayoutHistory: EMPTY_TILE_LAYOUT_HISTORY,
     tabs: [],
     haveTabsChanged: false,
     activeTab: undefined,
@@ -104,6 +124,13 @@ export const isDraftCurrent = <T>(draft: Draft<T> | null, saved: T) =>
 export const dashboardEditActions = {
     setTiles: createAction<Dashboard['tiles'] | undefined>(
         'dashboardEdit/setTiles',
+    ),
+    /** A drag or resize that ended: one undo step when a tile moved */
+    moveTiles: createAction<TileLayout[]>('dashboardEdit/moveTiles'),
+    undoTileLayout: createAction('dashboardEdit/undoTileLayout'),
+    redoTileLayout: createAction('dashboardEdit/redoTileLayout'),
+    clearTileLayoutHistory: createAction(
+        'dashboardEdit/clearTileLayoutHistory',
     ),
     setHaveTilesChanged: createAction<boolean>(
         'dashboardEdit/setHaveTilesChanged',
@@ -206,6 +233,67 @@ const withControlSections = (
     haveControlSectionsChanged: true,
 });
 
+const layoutOf = (tiles: Dashboard['tiles']): TileLayout[] =>
+    tiles.map(({ uuid, x, y, w, h }) => ({ uuid, x, y, w, h }));
+
+// Unmoved tiles keep their identity, so only the moved ones re-render.
+// Null when no tile moves
+const placeTiles = (
+    tiles: Dashboard['tiles'],
+    layout: TileLayout[],
+): Dashboard['tiles'] | null => {
+    const layoutByUuid = new Map(layout.map((item) => [item.uuid, item]));
+    let hasMoved = false;
+    const placed = tiles.map((tile) => {
+        const item = layoutByUuid.get(tile.uuid);
+        if (
+            item === undefined ||
+            (item.x === tile.x &&
+                item.y === tile.y &&
+                item.w === tile.w &&
+                item.h === tile.h)
+        ) {
+            return tile;
+        }
+        hasMoved = true;
+        return { ...tile, x: item.x, y: item.y, w: item.w, h: item.h };
+    });
+    return hasMoved ? placed : null;
+};
+
+const pushStep = (steps: TileLayout[][], step: TileLayout[]) =>
+    [...steps, step].slice(-TILE_LAYOUT_HISTORY_LIMIT);
+
+// Steps whose tiles were all removed since are skipped, so every undo or
+// redo moves something
+const stepThroughHistory = (
+    state: DashboardEditState,
+    direction: 'undo' | 'redo',
+): DashboardEditState => {
+    const { tiles } = state;
+    if (tiles === undefined) return state;
+    const { past, future } = state.tileLayoutHistory;
+    const from = direction === 'undo' ? past : future;
+    const to = direction === 'undo' ? future : past;
+    const index = from.findLastIndex(
+        (step) => placeTiles(tiles, step) !== null,
+    );
+    if (index === -1) return state;
+    const placed = placeTiles(tiles, from[index]);
+    if (placed === null) return state;
+    const remaining = from.slice(0, index);
+    const reached = pushStep(to, layoutOf(tiles));
+    return {
+        ...state,
+        tiles: placed,
+        haveTilesChanged: true,
+        tileLayoutHistory:
+            direction === 'undo'
+                ? { past: remaining, future: reached }
+                : { past: reached, future: remaining },
+    };
+};
+
 const set = <K extends keyof DashboardEditState>(
     state: DashboardEditState,
     key: K,
@@ -219,6 +307,32 @@ export const dashboardEditReducer = (
 ): DashboardEditState => {
     if (dashboardEditActions.setTiles.match(action)) {
         return set(state, 'tiles', action.payload);
+    }
+    if (dashboardEditActions.moveTiles.match(action)) {
+        const { tiles } = state;
+        const placed =
+            tiles === undefined ? null : placeTiles(tiles, action.payload);
+        if (tiles === undefined || placed === null) {
+            return set(state, 'haveTilesChanged', true);
+        }
+        return {
+            ...state,
+            tiles: placed,
+            haveTilesChanged: true,
+            tileLayoutHistory: {
+                past: pushStep(state.tileLayoutHistory.past, layoutOf(tiles)),
+                future: [],
+            },
+        };
+    }
+    if (dashboardEditActions.undoTileLayout.match(action)) {
+        return stepThroughHistory(state, 'undo');
+    }
+    if (dashboardEditActions.redoTileLayout.match(action)) {
+        return stepThroughHistory(state, 'redo');
+    }
+    if (dashboardEditActions.clearTileLayoutHistory.match(action)) {
+        return set(state, 'tileLayoutHistory', EMPTY_TILE_LAYOUT_HISTORY);
     }
     if (dashboardEditActions.setHaveTilesChanged.match(action)) {
         return set(state, 'haveTilesChanged', action.payload);
