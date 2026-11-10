@@ -3716,6 +3716,12 @@ export type AiAgentPromptCreatedEvent = BaseTrack & {
         // Joins turn start to its steps, tool calls and response.
         promptId: string;
         context: 'slack' | 'web_app';
+        /** Where the thread was started, so a surface such as Semantic Studio can be told apart. */
+        threadCreatedFrom: string;
+        /** The model the prompt runs on; null when the instance default is used. */
+        modelProvider: string | null;
+        modelName: string | null;
+        reasoningEnabled: boolean | null;
         hasPinnedContext: boolean;
         pinnedContextCount: number;
         pinnedChartCount: number;

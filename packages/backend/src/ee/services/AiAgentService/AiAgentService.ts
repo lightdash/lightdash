@@ -500,6 +500,7 @@ import { composeInstantReply } from '../ai/decisions/instantReplies';
 import { classifyResponseSignals } from '../ai/decisions/responseSignals';
 import { selectVerifiedAnswers } from '../ai/decisions/verifiedAnswers';
 import {
+    findPreferredPreset,
     getCompactionModelMetadata,
     getDefaultModel,
     getModel,
@@ -509,6 +510,7 @@ import {
     resolveKeyManagement,
     resolveModelConfigForPrompt,
 } from '../ai/models';
+import { type ModelTier } from '../ai/models/presets';
 import {
     OrgAiCopilotConfigResolver,
     type AiConfigScope,
@@ -688,6 +690,7 @@ import { type ExternalConnectionService } from '../ExternalConnectionService/Ext
 import { type MobilePushNotificationService } from '../MobilePushNotificationService/MobilePushNotificationService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import { createReviewRemediationAgentWorkGuard } from '../reviewRemediationAgentWork';
+import { SEMANTIC_STUDIO_MODEL_TIER } from '../SemanticStudioService/modelPreference';
 import { type SemanticStudioService } from '../SemanticStudioService/SemanticStudioService';
 import {
     parseAgentSelectionValue,
@@ -1471,6 +1474,7 @@ export class AiAgentService extends BaseService {
         threadModelConfig,
         agentModelConfig,
         requestedModelConfig,
+        preferredTier,
     }: {
         organizationUuid: string;
         projectUuid: string;
@@ -1478,6 +1482,8 @@ export class AiAgentService extends BaseService {
         threadModelConfig: AiAgentModelConfig | null;
         agentModelConfig: AiAgentModelConfig | null;
         requestedModelConfig: AiAgentModelConfig | null;
+        /** The tier to prefer when nobody chose a model; null to take the default. */
+        preferredTier: ModelTier | null;
     }): Promise<AiAgentModelConfig | null> {
         if (threadModelConfig) return threadModelConfig;
         const pickedModelConfig = requestedModelConfig ?? agentModelConfig;
@@ -1486,20 +1492,40 @@ export class AiAgentService extends BaseService {
             (await this.aiOrganizationSettingsService.getDefaultModelConfig(
                 organizationUuid,
             ));
-        if (!modelConfig) return null;
+        if (!modelConfig && !preferredTier) return null;
         const { catalogue, copilotConfig } =
             await this.orgAiCopilotConfigResolver.getOrgModelCatalogue({
                 organizationUuid,
                 projectUuid,
                 credentialUuid,
             });
-        const resolved = resolveModelConfigForPrompt(catalogue, modelConfig);
+        const resolved = modelConfig
+            ? resolveModelConfigForPrompt(catalogue, modelConfig)
+            : null;
+        if (pickedModelConfig) return resolved;
         // An org-default model inherited into a scope the org default does not
         // serve (a project pinned to a Bedrock credential) is repointed at the
         // scoped config's own default; explicit picks fail closed instead.
-        return pickedModelConfig
-            ? resolved
-            : reconcileInheritedModelConfig(copilotConfig, resolved);
+        const inherited = resolved
+            ? reconcileInheritedModelConfig(copilotConfig, resolved)
+            : null;
+        // A preference only replaces a model nobody chose, and only within the provider already in use.
+        const provider =
+            inherited?.modelProvider ??
+            getDefaultModel(copilotConfig)?.provider;
+        const preferred =
+            preferredTier && provider
+                ? findPreferredPreset(catalogue, provider, preferredTier)
+                : null;
+        if (!preferred) return inherited;
+        this.logger.info(
+            `Running a thread on preferred model "${preferred.provider}/${preferred.name}" in place of ${inherited ? `"${inherited.modelProvider}/${inherited.modelName}"` : 'the instance default'}`,
+        );
+        return {
+            ...inherited,
+            modelProvider: preferred.provider,
+            modelName: preferred.name,
+        };
     }
 
     private static getPinnedContextAnalyticsProperties(
@@ -5490,6 +5516,10 @@ export class AiAgentService extends BaseService {
             threadModelConfig: null,
             agentModelConfig: agent.modelConfig,
             requestedModelConfig: body.modelConfig ?? null,
+            preferredTier:
+                body.createdFrom === 'semantic_studio'
+                    ? SEMANTIC_STUDIO_MODEL_TIER
+                    : null,
         });
 
         if (body.prompt) {
@@ -5525,6 +5555,10 @@ export class AiAgentService extends BaseService {
                     threadId: threadUuid,
                     promptId: promptUuid,
                     context: 'web_app',
+                    threadCreatedFrom: body.createdFrom ?? createdFrom,
+                    ...AiAgentService.getModelConfigAnalyticsProperties(
+                        modelConfig,
+                    ),
                     ...AiAgentService.getPinnedContextAnalyticsProperties(
                         context,
                     ),
@@ -5712,6 +5746,10 @@ export class AiAgentService extends BaseService {
                 await this.aiAgentModel.findThreadModelConfig(threadUuid),
             agentModelConfig: agent.modelConfig,
             requestedModelConfig: body.modelConfig ?? null,
+            preferredTier:
+                thread.createdFrom === 'semantic_studio'
+                    ? SEMANTIC_STUDIO_MODEL_TIER
+                    : null,
         });
 
         const messageUuid = await this.aiAgentModel.createWebAppPrompt({
@@ -5744,6 +5782,10 @@ export class AiAgentService extends BaseService {
                 threadId: threadUuid,
                 promptId: messageUuid,
                 context: 'web_app',
+                threadCreatedFrom: thread.createdFrom,
+                ...AiAgentService.getModelConfigAnalyticsProperties(
+                    modelConfig,
+                ),
                 ...AiAgentService.getPinnedContextAnalyticsProperties(context),
             },
         });
@@ -18409,6 +18451,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 : null,
             agentModelConfig: agent?.modelConfig ?? null,
             requestedModelConfig: data.modelConfig ?? null,
+            preferredTier: null,
         });
 
         if (!threadUuid) {
@@ -18458,6 +18501,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 threadId: threadUuid,
                 promptId: uuid,
                 context: 'slack',
+                threadCreatedFrom: 'slack',
+                ...AiAgentService.getModelConfigAnalyticsProperties(
+                    modelConfig,
+                ),
                 ...AiAgentService.getPinnedContextAnalyticsProperties(
                     undefined,
                 ),
