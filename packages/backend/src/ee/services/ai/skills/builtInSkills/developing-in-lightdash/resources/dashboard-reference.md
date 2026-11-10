@@ -601,7 +601,7 @@ When `config` is omitted, date zoom is enabled with all default granularities.
 
 ### Parameter controls
 
-When dashboard controls are enabled, `config.parameterControls` stores each control's value and its per-parameter tile rules. Each control has a `slug`, derived from its label (else its first parameter key) on every download and never saved; repeated slugs are all numbered (`-1`, `-2`). A slug only links references inside the same file. An upload keeps a control's internal ID only when no other control shares its unnumbered slug, on the saved dashboard or in the file, so relabelling a control gives it a new slug and ID. Legacy files with `id` remain accepted. Duplicate slugs are rejected.
+When dashboard controls are enabled, `config.parameterControls` stores each control's value and its per-parameter tile rules. Each control has a `slug`, derived from its label (else its first parameter key) on every download and never saved; repeated slugs are all numbered (`-1`, `-2`). A slug only links references inside the same file. An upload keeps a control's internal ID only when no other control shares its unnumbered slug, on the saved dashboard or in the file, so relabelling a control gives it a new slug and ID. Duplicate slugs are rejected.
 
 ```yaml
 config:

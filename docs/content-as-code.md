@@ -757,12 +757,12 @@ saved section's internal UUID only when no other section shares its slug base
 gets a new UUID v4. Duplicate section slugs and unknown `sectionSlug` references are
 rejected.
 
-With the flag off, downloads keep saved sections without their IDs, drop
-section references and omit parameter controls. Uploads
-resolve section slugs with either flag state, without enabling parameter
-controls or replacing their saved values while the flag is off. With the flag
-off, uploads match saved sections by their saved slug (or the slug of their
-name) and save each section's slug, as earlier releases did.
+With the flag off, downloads keep saved sections without their IDs, write
+`sectionSlug` references and omit parameter controls. Uploads resolve section
+slugs with either flag state, without enabling parameter controls or replacing
+their saved values while the flag is off. With the flag off, uploads match a
+saved section by its saved slug, else the slug of its name, never giving two
+sections the same saved section, and save each section's slug.
 
 ### Dashboard parameter controls
 
