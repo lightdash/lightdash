@@ -53,6 +53,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import {
+    selectCanvasZoom,
     selectDashboardFilters,
     selectDashboardTabs,
     selectDateZoomGranularity,
@@ -101,6 +102,11 @@ const EMPTY_LAYOUTS: DashboardLayouts = {
     xs: [],
 };
 
+// Unset outside edit mode, where the grid is never zoomed
+type DashboardGridProps = ReturnType<typeof getResponsiveGridLayoutProps> & {
+    transformScale: number | undefined;
+};
+
 const DASHBOARD_GRID_BOTTOM_PADDING = 60;
 // Room for the floating edit action bar, so it never covers the last row
 const EDIT_ACTION_BAR_CLEARANCE = 80;
@@ -112,7 +118,7 @@ type TabGridPanelProps = {
     isActive: boolean;
     isEditMode: boolean;
     locked: boolean;
-    gridProps: ReturnType<typeof getResponsiveGridLayoutProps>;
+    gridProps: DashboardGridProps;
     dashboardTabs: DashboardTab[];
     onDragStart: () => void;
     onDragStop: (layout: Layout[], before: Layout, after: Layout) => void;
@@ -506,9 +512,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
               SCROLL_TO_TOP_BOTTOM) +
         (isEditActionBarShown ? EDIT_ACTION_BAR_CLEARANCE : 0);
 
-    const gridProps = useMemo(
-        () =>
-            getResponsiveGridLayoutProps({
+    const canvasZoom = useDashboardSelector(selectCanvasZoom);
+    const isCanvasZoomable = isEditMode && editErgonomicsFlag?.enabled === true;
+    const gridProps: DashboardGridProps = useMemo(
+        () => ({
+            ...getResponsiveGridLayoutProps({
                 isEditMode,
                 gridScale,
                 rowHeight:
@@ -516,7 +524,15 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                         ? getRowHeightForScale(gridScale)
                         : (fitToScreenRowHeight ?? DEFAULT_ROW_HEIGHT),
             }),
-        [isEditMode, gridScale, fitToScreenRowHeight],
+            transformScale: isCanvasZoomable ? canvasZoom : undefined,
+        }),
+        [
+            isEditMode,
+            gridScale,
+            fitToScreenRowHeight,
+            isCanvasZoomable,
+            canvasZoom,
+        ],
     );
     const layoutsByTab = useMemo(() => {
         const map = new Map<string, DashboardLayouts>();

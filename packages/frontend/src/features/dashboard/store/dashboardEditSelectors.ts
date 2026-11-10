@@ -24,6 +24,8 @@ export const selectCanUndoTileLayout = (state: DashboardStoreState) =>
     canStepTileLayout(state.edit, 'undo');
 export const selectCanRedoTileLayout = (state: DashboardStoreState) =>
     canStepTileLayout(state.edit, 'redo');
+export const selectCanvasZoom = (state: DashboardStoreState) =>
+    state.edit.canvasZoom;
 export const selectDashboardTabs = (state: DashboardStoreState) =>
     state.edit.tabs;
 export const selectHaveTabsChanged = (state: DashboardStoreState) =>

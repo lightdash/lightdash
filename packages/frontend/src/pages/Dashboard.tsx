@@ -538,6 +538,11 @@ const Dashboard: FC = () => {
         [dashboardDispatch],
     );
 
+    // Each edit session starts at actual size
+    useEffect(() => {
+        dashboardDispatch(dashboardEditActions.setCanvasZoom(1));
+    }, [isEditMode, dashboardDispatch]);
+
     const handleAddTiles = useCallback(
         async (
             tiles: IDashboard['tiles'][number][],

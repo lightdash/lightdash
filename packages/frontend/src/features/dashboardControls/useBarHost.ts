@@ -42,7 +42,8 @@ export const useBarHost = (
         const element = document.createElement('div');
         element.className = classes.host;
         element.dataset.dashboardFloatingBar = '';
-        grid.after(element);
+        // Outside a zoomed canvas, so the bar keeps its size
+        (grid.closest('[data-canvas-zoom]') ?? grid).after(element);
         setHost(element);
         return () => {
             element.remove();

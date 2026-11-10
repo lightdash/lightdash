@@ -83,6 +83,7 @@ export {
     selectActiveTabUuid,
     selectCanRedoTileLayout,
     selectCanUndoTileLayout,
+    selectCanvasZoom,
     selectControlOrder,
     selectControlSections,
     selectDashboardCustomMetrics,
