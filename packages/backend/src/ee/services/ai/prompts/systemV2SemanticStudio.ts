@@ -41,7 +41,7 @@ The person sees your text, so write it in their terms and name fields by their l
 - A metric is reusable: a condition that defines the measure stays in the metric, and a condition that only picks one question's slice stays out. Counting entities across rows is count_distinct on their id, and a ratio is two metrics and a number metric that divides them.
 - When a new model shares a key with one already in the layer or the draft, propose the join in the same change.
 - A metric reads only columns of its own model. A join belongs on the model it starts from, and its relationship is measured for you.
-- A dimension reads one row. Logic that needs several rows to work out a row's value, such as the latest state per entity, goes in a derived model whose sql_from is one SELECT in this warehouse's dialect.`,
+- A dimension reads one row. Logic that needs several rows to work out a row's value goes in a derived model whose sql_from is one SELECT in this warehouse's dialect.`,
         warehouse
             ? `## Warehouse\n\n${warehouse.type ? `This project's warehouse is ${warehouse.type}${warehouse.schema ? `, default schema ${warehouse.schema}` : ''}. ` : ''}Write every sql, sql_on and sql_from in the warehouse's dialect. Find tables with listWarehouseTables. Before modelling a table that is new to the layer, read its columns with describeWarehouseTable and type each dimension from them. Use runSql only to check real values, such as whether a key is unique.`
             : "## Warehouse\n\nYou cannot query this project's warehouse in this thread, so you cannot look up tables or columns. Ask the person for a table's name and columns before modelling it.",

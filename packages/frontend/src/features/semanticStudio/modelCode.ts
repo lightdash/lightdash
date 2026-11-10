@@ -108,7 +108,7 @@ const WHOLE_PART_VERBS: Record<ModelFragmentChange['action'], string> = {
     removed: 'Removes',
 };
 
-/** A change in words, one line per thing it touches: `Redefines amount: sql, label`. */
+/** A change in words, one line per thing it touches: `Redefines <field>: sql, label`. */
 export const summarizeModelChanges = (
     model: string,
     changes: ModelFragmentChange[],
