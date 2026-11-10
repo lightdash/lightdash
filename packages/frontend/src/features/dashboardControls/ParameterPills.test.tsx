@@ -327,6 +327,9 @@ describe('ParameterPills', () => {
                 'Currency needs a value',
             );
             expect(pill('currency')).toHaveAttribute('data-missing');
+            expect(pill('currency')).toHaveAccessibleDescription(
+                'A tile using this parameter has no value',
+            );
             expect(pill('currency')).not.toHaveTextContent('any value');
         });
 
@@ -1128,8 +1131,24 @@ describe('ParameterPills', () => {
         });
     });
 
+    describe('not saved yet', () => {
+        it("dashes an editor's control that is not in the saved dashboard", () => {
+            const { store } = setup({ controls: [control('region')] });
+            act(() => {
+                store.dispatch(
+                    dashboardParametersActions.setParameterControls([
+                        control('region'),
+                        control('currency'),
+                    ]),
+                );
+            });
+            expect(pill('currency')).toHaveAttribute('data-temporary');
+            expect(pill('region')).not.toHaveAttribute('data-temporary');
+        });
+    });
+
     describe('hidden from viewers', () => {
-        it("leaves a hidden control off a viewer's bar, and muted on an editor's", () => {
+        it("leaves a hidden control off a viewer's bar, and marked on an editor's", () => {
             const controls = [
                 control('region', { value: 'EMEA', hidden: true }),
                 control('currency'),
