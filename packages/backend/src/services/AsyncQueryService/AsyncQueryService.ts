@@ -2102,6 +2102,7 @@ export class AsyncQueryService extends ProjectService {
                         dashboardUuid,
                         { projectUuid },
                     );
+                    let canEditDashboard = false;
                     if (isJwtUser(fresh)) {
                         await this.getJwtDashboardQueryContext(
                             fresh,
@@ -2118,32 +2119,36 @@ export class AsyncQueryService extends ProjectService {
                                     spaceUuid: dashboard.spaceUuid,
                                 },
                             );
-                        if (
-                            this.createAuditedAbility(fresh).cannot(
-                                'view',
-                                subject('Dashboard', {
-                                    organizationUuid:
-                                        dashboard.organizationUuid,
-                                    projectUuid,
-                                    inheritsFromOrgOrProject:
-                                        access.inheritsFromOrgOrProject,
-                                    access: access.access,
-                                    metadata: { dashboardUuid: dashboard.uuid },
-                                }),
-                            )
-                        )
+                        const dashboardSubject = subject('Dashboard', {
+                            organizationUuid: dashboard.organizationUuid,
+                            projectUuid,
+                            inheritsFromOrgOrProject:
+                                access.inheritsFromOrgOrProject,
+                            access: access.access,
+                            metadata: { dashboardUuid: dashboard.uuid },
+                        });
+                        const ability = this.createAuditedAbility(fresh);
+                        if (ability.cannot('view', dashboardSubject))
                             throw new ForbiddenError(
                                 "You don't have access to this dashboard",
                             );
+                        canEditDashboard =
+                            reader.kind === 'person' &&
+                            ability.can('update', dashboardSubject);
                     }
-                    if (
-                        tileUuid &&
-                        !dashboard.tiles.some((tile) => tile.uuid === tileUuid)
-                    )
+                    const tileIsPersisted =
+                        !tileUuid ||
+                        dashboard.tiles.some((tile) => tile.uuid === tileUuid);
+                    // Unsaved editor tiles exist only client-side; a save that removed the tile postdates the result.
+                    const isStagedEditorTile =
+                        !tileIsPersisted &&
+                        canEditDashboard &&
+                        node.createdAt >= dashboard.updatedAt;
+                    if (!tileIsPersisted && !isStagedEditorTile)
                         throw new ForbiddenError(
                             'The source dashboard tile is no longer available',
                         );
-                    checkedContent.add(key);
+                    if (tileIsPersisted) checkedContent.add(key);
                 }
             }
             const nodeKind = getQueryResultNodeKind(parameters);
