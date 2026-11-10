@@ -86,7 +86,7 @@ const proposalMetadataSchema = z.object({
             ),
             error: z.string().nullable(),
             // Absent on results stored before notes existed.
-            notes: z.array(z.string()).default([]),
+            notes: z.array(z.string()).optional(),
         }),
     ),
     diffs: z.array(

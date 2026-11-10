@@ -169,7 +169,7 @@ export const SemanticLayerProposalCard: FC<{
     const refusals = proposal.models.flatMap(({ model, refusals: refused }) =>
         refused.map((refusal) => refusalText(model, refusal)),
     );
-    const notes = proposal.models.flatMap(({ notes: noted }) => noted);
+    const notes = proposal.models.flatMap(({ notes: noted }) => noted ?? []);
     const status = settled
         ? STATUS_LABELS[settled]
         : inDraft
