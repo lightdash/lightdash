@@ -406,6 +406,10 @@ import {
     ProjectModelDraftChangesTableName,
 } from '../database/entities/projectModelDraftChanges';
 import {
+    ProjectModelDraftImpactsTable,
+    ProjectModelDraftImpactsTableName,
+} from '../database/entities/projectModelDraftImpacts';
+import {
     ProjectParametersTable,
     ProjectParametersTableName,
 } from '../database/entities/projectParameters';
@@ -989,6 +993,7 @@ declare module 'knex/types/tables' {
         [ProjectModelChangeSetsTableName]: ProjectModelChangeSetsTable;
         [ProjectModelRevisionsTableName]: ProjectModelRevisionsTable;
         [ProjectModelDraftChangesTableName]: ProjectModelDraftChangesTable;
+        [ProjectModelDraftImpactsTableName]: ProjectModelDraftImpactsTable;
         [AiAgentTableName]: AiAgentTable;
         [AiAgentDocumentTableName]: AiAgentDocumentTable;
         [AiAgentDocumentAccessTableName]: AiAgentDocumentAccessTable;

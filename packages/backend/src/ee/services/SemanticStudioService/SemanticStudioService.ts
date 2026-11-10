@@ -20,6 +20,8 @@ import {
     type SemanticLayerModelCode,
     type SessionUser,
 } from '@lightdash/common';
+import { createHash } from 'node:crypto';
+import { type DraftImpactBreaks } from '../../../database/entities/projectModelDraftImpacts';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { BaseService } from '../../../services/BaseService';
 import { type ProjectService } from '../../../services/ProjectService/ProjectService';
@@ -70,7 +72,17 @@ export type SemanticStudioServiceArguments = {
         | 'findSettledDraftChanges'
         | 'createDraftChange'
         | 'updateDraftChangeStatus'
+        | 'findDraftImpactCheck'
+        | 'startDraftImpactCheck'
+        | 'finishDraftImpactCheck'
     >;
+    schedulerClient: {
+        checkSemanticLayerDraftImpact: (payload: {
+            organizationUuid: string;
+            projectUuid: string;
+            userUuid: string;
+        }) => Promise<unknown>;
+    };
     validationService: Pick<ValidationService, 'generateValidation'>;
     projectService: Pick<ProjectService, 'setExplores'> &
         DraftCheckerProjectService;
@@ -107,6 +119,20 @@ export type DiscardTarget =
 // A write rereads and rechecks when another one lands first.
 const MAX_WRITE_ATTEMPTS = 3;
 
+// ponytail: a check whose worker died reads as failed after this long; sweep stale checks if that is not enough.
+const IMPACT_CHECK_TIMEOUT_MS = 10 * 60 * 1000;
+
+const NO_IMPACT: SemanticLayerDraftImpact = { status: 'done', breaks: [] };
+
+/** Identifies a draft on top of what is live, so a check of one is not read as a check of another. */
+const hashDraft = (
+    live: Map<string, string>,
+    writes: Map<string, string | null>,
+): string =>
+    createHash('sha256')
+        .update(JSON.stringify([[...live], [...writes]]))
+        .digest('hex');
+
 const EMPTY_DRAFT: SemanticLayerDraft = {
     changes: [],
     models: [],
@@ -136,6 +162,8 @@ export class SemanticStudioService extends BaseService {
 
     private readonly validationService: SemanticStudioServiceArguments['validationService'];
 
+    private readonly schedulerClient: SemanticStudioServiceArguments['schedulerClient'];
+
     private readonly checker: DraftChecker;
 
     constructor(args: SemanticStudioServiceArguments) {
@@ -145,6 +173,7 @@ export class SemanticStudioService extends BaseService {
         this.projectModelDocumentModel = args.projectModelDocumentModel;
         this.projectService = args.projectService;
         this.validationService = args.validationService;
+        this.schedulerClient = args.schedulerClient;
         this.checker = new DraftChecker(args.projectService);
     }
 
@@ -342,6 +371,14 @@ export class SemanticStudioService extends BaseService {
             return { results, diffs: [], draftChangeUuid: null };
         }
         const before = withWrites(draft.live, draft.writes);
+        const draftChangeUuid =
+            await this.projectModelDocumentModel.createDraftChange({
+                projectUuid,
+                userUuid: user.userUuid,
+                promptUuid,
+                models: passing,
+            });
+        await this.queueDraftImpactCheckAfterChange(user, projectUuid);
         return {
             results,
             diffs: [...new Set(passing.map(({ name }) => name))].map(
@@ -351,13 +388,7 @@ export class SemanticStudioService extends BaseService {
                     contentAfter: check.writes.get(model) ?? null,
                 }),
             ),
-            draftChangeUuid:
-                await this.projectModelDocumentModel.createDraftChange({
-                    projectUuid,
-                    userUuid: user.userUuid,
-                    promptUuid,
-                    models: passing,
-                }),
+            draftChangeUuid,
         };
     }
 
@@ -411,32 +442,125 @@ export class SemanticStudioService extends BaseService {
         };
     }
 
-    /** Saved content that works on what is live and would stop working with this person's draft, or one model of it. */
+    private canValidate(user: SessionUser, project: ModelProject): boolean {
+        return this.createAuditedAbility(user).can(
+            'manage',
+            subject('Validation', {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+            }),
+        );
+    }
+
+    /** What the last background check found for this person's draft as it is now, or for one model of it. */
     async getDraftImpact(
         user: SessionUser,
         projectUuid: string,
         model: string | null,
     ): Promise<SemanticLayerDraftImpact> {
         const project = await this.projectModel.get(projectUuid);
-        const canValidate = this.createAuditedAbility(user).can(
-            'manage',
-            subject('Validation', {
-                organizationUuid: project.organizationUuid,
-                projectUuid,
-            }),
-        );
-        if (!canValidate || (await this.findBlocker(user, project))) {
-            return { breaks: [] };
+        if (
+            !this.canValidate(user, project) ||
+            (await this.findBlocker(user, project))
+        ) {
+            return NO_IMPACT;
         }
+        const owner = { projectUuid, userUuid: user.userUuid };
+        const [{ live, writes }, check] = await Promise.all([
+            this.loadDraft(projectUuid, user.userUuid, null),
+            this.projectModelDocumentModel.findDraftImpactCheck(owner),
+        ]);
+        if (writes.size === 0) return NO_IMPACT;
+        if (!check || check.draftHash !== hashDraft(live, writes)) {
+            return { status: 'unchecked', breaks: [] };
+        }
+        if (check.status === 'done' && check.breaks) {
+            return {
+                status: 'done',
+                breaks:
+                    (model === null ? undefined : check.breaks.models[model]) ??
+                    check.breaks.draft,
+            };
+        }
+        const timedOut =
+            Date.now() - check.startedAt.getTime() > IMPACT_CHECK_TIMEOUT_MS;
+        return {
+            status:
+                check.status === 'checking' && !timedOut
+                    ? 'checking'
+                    : 'failed',
+            breaks: [],
+        };
+    }
+
+    /** Has a worker check this person's draft against saved content; does nothing for an empty draft. */
+    private async queueDraftImpactCheck(
+        user: SessionUser,
+        project: ModelProject,
+    ): Promise<void> {
+        if (!this.canValidate(user, project)) return;
+        const owner = {
+            projectUuid: project.projectUuid,
+            userUuid: user.userUuid,
+        };
         const { live, writes } = await this.loadDraft(
-            projectUuid,
-            user.userUuid,
-            model,
+            owner.projectUuid,
+            owner.userUuid,
+            null,
         );
-        // Saved content cannot depend on a model that is not live yet.
-        if ([...writes.keys()].every((name) => !live.has(name))) {
-            return { breaks: [] };
+        if (writes.size === 0) return;
+        await this.projectModelDocumentModel.startDraftImpactCheck({
+            ...owner,
+            draftHash: hashDraft(live, writes),
+        });
+        await this.schedulerClient.checkSemanticLayerDraftImpact({
+            ...owner,
+            organizationUuid: project.organizationUuid,
+        });
+    }
+
+    /** Queues the check after a change to the draft; a failure to queue leaves the draft unchecked, not the change undone. */
+    private async queueDraftImpactCheckAfterChange(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        try {
+            await this.queueDraftImpactCheck(
+                user,
+                await this.projectModel.get(projectUuid),
+            );
+        } catch (error) {
+            this.logger.error(
+                `Could not queue a semantic layer draft check for ${projectUuid}`,
+                error,
+            );
         }
+    }
+
+    /** Checks this person's draft against saved content again, on request. */
+    async requestDraftImpactCheck(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        const project = await this.projectModel.get(projectUuid);
+        const blocker = await this.findBlocker(user, project);
+        if (blocker) throw blocker;
+        if (!this.canValidate(user, project)) {
+            throw new ForbiddenError(
+                'User does not have permission to validate this project',
+            );
+        }
+        await this.queueDraftImpactCheck(user, project);
+    }
+
+    /** Saved content that works on what is live and would stop working with these writes. */
+    private async findBreaks(
+        projectUuid: string,
+        live: Map<string, string>,
+        writes: Map<string, string | null>,
+    ): Promise<SemanticLayerDraftImpact['breaks']> {
+        // Saved content cannot depend on a model that is not live yet.
+        if ([...writes.keys()].every((name) => !live.has(name))) return [];
         const [before, after] = await Promise.all([
             this.checker.compile(projectUuid, live),
             this.checker.compile(projectUuid, withWrites(live, writes)),
@@ -461,20 +585,75 @@ export class SemanticStudioService extends BaseService {
                 touched,
             );
         const drafted = await validate(after.explores);
-        if (drafted.length === 0) return { breaks: [] };
+        if (drafted.length === 0) return [];
         // Only now is what is broken already worth working out.
         const brokenAlready = new Set(
             (await validate(before.explores)).map(
                 ({ name, error }) => `${name}|${error}`,
             ),
         );
-        return {
-            breaks: drafted.flatMap(({ name, error }) =>
-                name !== undefined && !brokenAlready.has(`${name}|${error}`)
-                    ? [{ name, error }]
-                    : [],
-            ),
+        return drafted.flatMap(({ name, error }) =>
+            name !== undefined && !brokenAlready.has(`${name}|${error}`)
+                ? [{ name, error }]
+                : [],
+        );
+    }
+
+    /** The background check: what applying a person's draft, and each model of it alone, would break. */
+    async checkDraftImpact({
+        projectUuid,
+        userUuid,
+    }: {
+        projectUuid: string;
+        userUuid: string;
+    }): Promise<void> {
+        const { live, writes } = await this.loadDraft(
+            projectUuid,
+            userUuid,
+            null,
+        );
+        if (writes.size === 0) return;
+        const check = {
+            projectUuid,
+            userUuid,
+            draftHash: hashDraft(live, writes),
         };
+        try {
+            const models: DraftImpactBreaks['models'] = {};
+            // One model alone is the whole draft, so only a draft of several is checked per model.
+            if (writes.size > 1) {
+                for (const model of writes.keys()) {
+                    // eslint-disable-next-line no-await-in-loop
+                    const part = await this.loadDraft(
+                        projectUuid,
+                        userUuid,
+                        model,
+                    );
+                    // eslint-disable-next-line no-await-in-loop
+                    models[model] = await this.findBreaks(
+                        projectUuid,
+                        part.live,
+                        part.writes,
+                    );
+                }
+            }
+            await this.projectModelDocumentModel.finishDraftImpactCheck({
+                ...check,
+                outcome: {
+                    status: 'done',
+                    breaks: {
+                        draft: await this.findBreaks(projectUuid, live, writes),
+                        models,
+                    },
+                },
+            });
+        } catch (error) {
+            await this.projectModelDocumentModel.finishDraftImpactCheck({
+                ...check,
+                outcome: { status: 'failed' },
+            });
+            throw error;
+        }
     }
 
     /** Takes all of this person's draft away, or one change, or one model's part of every change. */
@@ -506,6 +685,7 @@ export class SemanticStudioService extends BaseService {
         if (discarded === 0 && target.kind !== 'all') {
             throw new NotFoundError('Nothing in the draft matches');
         }
+        await this.queueDraftImpactCheckAfterChange(user, projectUuid);
     }
 
     /** Takes this person's draft live as one change set, or one model of it; nothing goes live when any part fails its checks. */
@@ -515,6 +695,17 @@ export class SemanticStudioService extends BaseService {
         model: string | null,
     ): Promise<SemanticLayerDraftApplyResult> {
         await this.assertCanEditModels(user, projectUuid);
+        const result = await this.applyDraftOnce(user, projectUuid, model);
+        // What is left of the draft now sits on different live models.
+        await this.queueDraftImpactCheckAfterChange(user, projectUuid);
+        return result;
+    }
+
+    private applyDraftOnce(
+        user: SessionUser,
+        projectUuid: string,
+        model: string | null,
+    ): Promise<SemanticLayerDraftApplyResult> {
         return this.retryOnConflict(projectUuid, async () => {
             const draft = await this.loadDraft(
                 projectUuid,

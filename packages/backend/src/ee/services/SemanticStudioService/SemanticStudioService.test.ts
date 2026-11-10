@@ -24,6 +24,7 @@ import { user } from '../../../services/ProjectService/ProjectService.mock';
 import {
     ModelDocumentsChangedError,
     type ChangeSet,
+    type DraftImpactCheck,
     type ProjectModelDocumentModel,
     type StoredDraftChange,
 } from '../../models/ProjectModelDocumentModel';
@@ -213,6 +214,8 @@ const setup = ({
             _chartExploreNames?: string[],
         ) => validationFor(explores ?? []),
     );
+    let impactCheck: DraftImpactCheck | null = null;
+    const queueImpactCheck = vi.fn(async () => undefined);
     const args: SemanticStudioServiceArguments = {
         featureFlagModel: {
             get: async () => ({ id: 'semantic-studio-editing', enabled }),
@@ -273,7 +276,25 @@ const setup = ({
                 settled.push(...settling.map(() => status));
                 return settling.length;
             },
+            findDraftImpactCheck: async () => impactCheck,
+            startDraftImpactCheck: async ({ draftHash }) => {
+                impactCheck = {
+                    draftHash,
+                    status: 'checking',
+                    breaks: null,
+                    startedAt: new Date(),
+                };
+            },
+            finishDraftImpactCheck: async ({ draftHash, outcome }) => {
+                if (impactCheck?.draftHash !== draftHash) return;
+                impactCheck = {
+                    ...impactCheck,
+                    status: outcome.status,
+                    breaks: outcome.status === 'done' ? outcome.breaks : null,
+                };
+            },
         },
+        schedulerClient: { checkSemanticLayerDraftImpact: queueImpactCheck },
         validationService: { generateValidation },
         projectService: {
             getWarehouseSqlBuilderSettings: async () => ({
@@ -287,8 +308,9 @@ const setup = ({
             setExplores,
         },
     };
+    const service = new SemanticStudioService(args);
     return {
-        service: new SemanticStudioService(args),
+        service,
         upsert,
         commitCalls,
         setExplores,
@@ -299,6 +321,13 @@ const setup = ({
         drafts,
         settled,
         generateValidation,
+        queueImpactCheck,
+        /** Stands in for the worker picking the queued check up. */
+        runImpactCheck: () =>
+            service.checkDraftImpact({
+                projectUuid: PROJECT_UUID,
+                userUuid: USER_UUID,
+            }),
     };
 };
 
@@ -543,58 +572,119 @@ describe('SemanticStudioService', () => {
             ).toEqual([]);
         });
 
-        it('reports only what the draft newly breaks', async () => {
-            const context = setup({
-                validationFor: (explores) => [
-                    validationError('already broken', 'old'),
-                    ...(explores.some(
-                        (explore) =>
-                            !isExploreError(explore) &&
-                            !explore.tables.orders.dimensions.customer_id,
-                    )
-                        ? [validationError('Orders by customer', 'no field')]
-                        : []),
-                ],
-            });
+        const ORDERS_BREAK = { name: 'Orders by customer', error: 'no field' };
+        const breaksWithoutCustomerId = (
+            explores: (Explore | ExploreError)[],
+        ) => [
+            validationError('already broken', 'old'),
+            ...(explores.some(
+                (explore) =>
+                    !isExploreError(explore) &&
+                    explore.tables.orders &&
+                    !explore.tables.orders.dimensions.customer_id,
+            )
+                ? [validationError(ORDERS_BREAK.name, ORDERS_BREAK.error)]
+                : []),
+        ];
+        const dropCustomerId = draftModel(null, {
+            remove: ['dimensions.customer_id'],
+        });
+        const impact = (
+            context: ReturnType<typeof setup>,
+            model: string | null,
+        ) => context.service.getDraftImpact(validator, PROJECT_UUID, model);
+
+        it('queues a check on every change to the draft and reports only what it newly breaks', async () => {
+            const context = setup({ validationFor: breaksWithoutCustomerId });
             await context.service.proposeDraftChange(
-                deployer,
+                validator,
                 PROJECT_UUID,
-                [draftModel(null, { remove: ['dimensions.customer_id'] })],
+                [dropCustomerId],
                 null,
             );
-            expect(
-                (
-                    await context.service.getDraftImpact(
-                        validator,
-                        PROJECT_UUID,
-                        null,
-                    )
-                ).breaks,
-            ).toEqual([{ name: 'Orders by customer', error: 'no field' }]);
+            expect(context.queueImpactCheck).toHaveBeenCalledTimes(1);
+            expect(await impact(context, null)).toEqual({
+                status: 'checking',
+                breaks: [],
+            });
+
+            await context.runImpactCheck();
+            expect(await impact(context, null)).toEqual({
+                status: 'done',
+                breaks: [ORDERS_BREAK],
+            });
             expect(context.generateValidation.mock.calls[0][4]).toEqual([
                 'orders',
             ]);
-        });
 
-        it('validates once when nothing breaks, and not at all for new models only', async () => {
-            const context = setup();
             await context.service.proposeDraftChange(
-                deployer,
+                validator,
                 PROJECT_UUID,
-                [draftModel(stringify(customers), { name: 'customers' })],
+                [draftModel(REVENUE_YAML)],
                 null,
             );
-            await context.service.getDraftImpact(validator, PROJECT_UUID, null);
-            expect(context.generateValidation).not.toHaveBeenCalled();
+            expect(context.queueImpactCheck).toHaveBeenCalledTimes(2);
+            expect((await impact(context, null)).status).toBe('checking');
+        });
 
+        it('reads as unchecked when the draft changed without a check being queued', async () => {
+            const context = setup();
             await context.service.proposeDraftChange(
                 deployer,
                 PROJECT_UUID,
                 [draftModel(REVENUE_YAML)],
                 null,
             );
-            await context.service.getDraftImpact(validator, PROJECT_UUID, null);
+            expect(context.queueImpactCheck).not.toHaveBeenCalled();
+            expect((await impact(context, null)).status).toBe('unchecked');
+
+            await context.service.requestDraftImpactCheck(
+                validator,
+                PROJECT_UUID,
+            );
+            await context.runImpactCheck();
+            expect(await impact(context, null)).toEqual({
+                status: 'done',
+                breaks: [],
+            });
             expect(context.generateValidation).toHaveBeenCalledTimes(1);
+        });
+
+        it('says what each model of the draft breaks alone, validating nothing for a new model', async () => {
+            const context = setup({ validationFor: breaksWithoutCustomerId });
+            await context.service.proposeDraftChange(
+                validator,
+                PROJECT_UUID,
+                [dropCustomerId, toDraftModel(customers)],
+                null,
+            );
+            await context.runImpactCheck();
+            expect((await impact(context, 'orders')).breaks).toEqual([
+                ORDERS_BREAK,
+            ]);
+            expect((await impact(context, 'customers')).breaks).toEqual([]);
+            expect((await impact(context, null)).breaks).toEqual([
+                ORDERS_BREAK,
+            ]);
+            // Orders alone and the whole draft, each on the draft and on what is live.
+            expect(context.generateValidation).toHaveBeenCalledTimes(4);
+        });
+
+        it('reads as failed when the check could not finish', async () => {
+            const context = setup();
+            await context.service.proposeDraftChange(
+                validator,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+            );
+            context.generateValidation.mockRejectedValueOnce(
+                new Error('validator down'),
+            );
+            await expect(context.runImpactCheck()).rejects.toThrow(
+                'validator down',
+            );
+            expect((await impact(context, null)).status).toBe('failed');
         });
 
         it('checks no saved content for someone who cannot validate', async () => {
@@ -605,8 +695,17 @@ describe('SemanticStudioService', () => {
                 [draftModel(REVENUE_YAML)],
                 null,
             );
-            await context.service.getDraftImpact(deployer, PROJECT_UUID, null);
-            expect(context.generateValidation).not.toHaveBeenCalled();
+            expect(
+                await context.service.getDraftImpact(
+                    deployer,
+                    PROJECT_UUID,
+                    null,
+                ),
+            ).toEqual({ status: 'done', breaks: [] });
+            await expect(
+                context.service.requestDraftImpactCheck(deployer, PROJECT_UUID),
+            ).rejects.toThrow(ForbiddenError);
+            expect(context.queueImpactCheck).not.toHaveBeenCalled();
         });
     });
 

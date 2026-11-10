@@ -260,6 +260,12 @@ const getTagsForTask: {
         'user.uuid': payload.userUuid ?? '',
     }),
 
+    [SCHEDULER_TASKS.CHECK_SEMANTIC_LAYER_DRAFT_IMPACT]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
+
     [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,

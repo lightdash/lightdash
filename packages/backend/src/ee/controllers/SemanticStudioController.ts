@@ -138,6 +138,26 @@ export class SemanticStudioController extends BaseController {
     }
 
     /**
+     * Checks this person's draft against saved charts and dashboards again, in the background.
+     * @summary Check what my semantic layer draft would break
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/draft/impact')
+    @OperationId('checkSemanticLayerDraftImpact')
+    async checkDraftImpact(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().requestDraftImpactCheck(
+            toSessionUser(req.account),
+            projectUuid,
+        );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
      * Takes this person's whole draft live as one change, or none of it when any part fails its checks.
      * @summary Apply my semantic layer draft
      */

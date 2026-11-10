@@ -411,8 +411,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     spacePermissionService:
                         repository.getSpacePermissionService(),
                 }),
-            semanticStudioService: ({ models, repository }) =>
+            semanticStudioService: ({ models, repository, clients }) =>
                 new SemanticStudioService({
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
                     featureFlagModel: models.getFeatureFlagModel(),
                     projectModel: models.getProjectModel(),
                     projectModelDocumentModel:
@@ -1875,6 +1877,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 schedulerAiAugmentation:
                     context.serviceRepository.getSchedulerAiAugmentationService<SchedulerAiAugmentationService>(),
                 aiAgentService: context.serviceRepository.getAiAgentService(),
+                semanticStudioService:
+                    context.serviceRepository.getSemanticStudioService<SemanticStudioService>(),
                 dataAppAnalysisService:
                     context.serviceRepository.getDataAppAnalysisService<DataAppAnalysisService>(),
                 aiAgentMemoryService:

@@ -335,4 +335,37 @@ describe('Project model documents on PostgreSQL', () => {
         ).rejects.toThrow(ModelDocumentsChangedError);
         expect(await model.findDocuments(projectUuid)).toEqual([]);
     });
+
+    test('a draft impact check is one per person and project, and a finished older check does not overwrite a newer one', async () => {
+        const owner = { projectUuid, userUuid };
+        expect(await model.findDraftImpactCheck(owner)).toBeNull();
+
+        await model.startDraftImpactCheck({ ...owner, draftHash: 'first' });
+        await model.startDraftImpactCheck({ ...owner, draftHash: 'second' });
+        const breaks = {
+            draft: [{ name: 'Orders by customer', error: 'no field' }],
+            models: {},
+        };
+        await model.finishDraftImpactCheck({
+            ...owner,
+            draftHash: 'first',
+            outcome: { status: 'done', breaks },
+        });
+        expect(await model.findDraftImpactCheck(owner)).toMatchObject({
+            draftHash: 'second',
+            status: 'checking',
+            breaks: null,
+        });
+
+        await model.finishDraftImpactCheck({
+            ...owner,
+            draftHash: 'second',
+            outcome: { status: 'done', breaks },
+        });
+        expect(await model.findDraftImpactCheck(owner)).toMatchObject({
+            draftHash: 'second',
+            status: 'done',
+            breaks,
+        });
+    });
 });

@@ -116,8 +116,10 @@ export type SemanticLayerDraftApplyResult = {
 export type ApiSemanticLayerDraftApplyResponse =
     ApiSuccess<SemanticLayerDraftApplyResult>;
 
-/** Saved content the draft would break, found by the validator. */
+/** Saved content the draft would break, found by a background check of the draft as it is now. */
 export type SemanticLayerDraftImpact = {
+    /** `unchecked` when no check has run since the draft or the live models last changed. */
+    status: 'unchecked' | 'checking' | 'done' | 'failed';
     breaks: { name: string; error: string }[];
 };
 
