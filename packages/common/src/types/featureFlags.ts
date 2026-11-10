@@ -188,13 +188,6 @@ export enum FeatureFlags {
     ApiQuerySources = 'api-query-sources',
 
     /**
-     * Enable the "My query history" page
-     * (/projects/{projectUuid}/query-history) and its listing endpoint
-     * (GET /api/v2/projects/{projectUuid}/query/history). Off by default.
-     */
-    QueryHistory = 'query-history',
-
-    /**
      * Configurable retention for AI agent threads. Off by default; enabled
      * per-org on demand for enterprise customers.
      */

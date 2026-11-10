@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import { Button, getDefaultZIndex, Menu } from '@mantine/core';
 import {
     IconHistory,
@@ -10,7 +9,6 @@ import { type FC } from 'react';
 import { Link } from 'react-router';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
 import useLogoutMutation from '../../hooks/user/useUserLogoutMutation';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { UserAvatar } from '../UserAvatar';
@@ -21,7 +19,6 @@ const UserMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
     const menuProps = useNavBarMenuProps();
     const { user } = useApp();
     const { activeProjectUuid } = useActiveProjectUuid();
-    const queryHistoryFlag = useServerFeatureFlag(FeatureFlags.QueryHistory);
     const { mutate: logout } = useLogoutMutation({
         onSuccess: () => {
             window.location.href = '/login';
@@ -72,7 +69,7 @@ const UserMenu: FC<{ withLabel?: boolean }> = ({ withLabel = false }) => {
                     </Menu.Item>
                 ) : null}
 
-                {queryHistoryFlag.data?.enabled && activeProjectUuid ? (
+                {activeProjectUuid ? (
                     <Menu.Item
                         role="menuitem"
                         component={Link}

@@ -1794,17 +1794,6 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        const { enabled: isEndpointEnabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: account.user.id,
-                organizationUuid,
-            },
-            featureFlagId: FeatureFlags.QueryHistory,
-        });
-        if (!isEndpointEnabled) {
-            throw new ForbiddenError('Query history is not enabled');
-        }
-
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
