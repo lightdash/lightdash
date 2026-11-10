@@ -1,5 +1,11 @@
 import {
+    interpolateUiString,
+    type DataAppManifestBucket,
+    type DataAppManifestSlot,
+} from '@lightdash/common';
+import {
     ActionIcon,
+    Badge,
     Box,
     Button,
     Group,
@@ -11,7 +17,12 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import { IconAlertCircle, IconPointer, IconSearch } from '@tabler/icons-react';
+import {
+    IconAlertCircle,
+    IconCircleDashed,
+    IconPointer,
+    IconSearch,
+} from '@tabler/icons-react';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 // Spike: data app lineage reuses the AI composer pipeline view.
@@ -36,6 +47,7 @@ export type LineageChat = {
 };
 
 const NO_CHAT_NODES: ReadonlySet<string> = new Set();
+const NO_STATUSES: Record<string, ComposerRunNodeStatus> = {};
 
 const toNodeStatus = (
     status: DataAppPipeline['status'],
@@ -77,10 +89,11 @@ const PipelineDetail: FC<{
         nodeQueryUuids:
             pipeline.kind === 'composer' ? pipeline.nodeQueryUuids : null,
     });
-    const nodeStatuses =
+    const ranStatuses =
         pipeline.kind === 'composer'
             ? polledStatuses
             : singleQueryStatuses(pipeline);
+    const nodeStatuses = pipeline.hasRun ? ranStatuses : NO_STATUSES;
     const displayableNodeIds = useMemo(
         () => new Set(Object.keys(pipeline.nodeQueryUuids)),
         [pipeline.nodeQueryUuids],
@@ -132,7 +145,7 @@ const PipelineDetail: FC<{
             }
             onNodeHover={(nodeId) => hover(nodeId ? pipeline : null, nodeId)}
             renderNodeActions={(node) =>
-                node.isTerminal ? (
+                node.isTerminal && pipeline.hasRun ? (
                     <Tooltip label={showInAppLabel}>
                         <ActionIcon
                             size="sm"
@@ -178,6 +191,7 @@ const PipelineRailItem: FC<{
     selected: boolean;
     lineage: UseAppLineageViewResult;
 }> = ({ pipeline, selected, lineage }) => {
+    const getUiString = useUiStrings();
     const stepCount = pipeline.queries.length;
     return (
         <UnstyledButton
@@ -191,15 +205,100 @@ const PipelineRailItem: FC<{
             <Box className={classes.railIcon}>
                 <RailItemIcon pipeline={pipeline} />
             </Box>
-            <Text fz="sm" truncate flex={1}>
+            <Text
+                fz="sm"
+                truncate
+                flex={1}
+                c={pipeline.hasRun ? undefined : 'dimmed'}
+            >
                 {pipeline.title}
             </Text>
+            {!pipeline.hasRun && (
+                <Tooltip label={getUiString('dataApps.lineage.notRun')}>
+                    <Box className={classes.railIcon}>
+                        <MantineIcon
+                            icon={IconCircleDashed}
+                            size={14}
+                            color="ldGray.5"
+                        />
+                    </Box>
+                </Tooltip>
+            )}
             {stepCount > 1 && (
                 <Text fz="xs" c="dimmed" className={classes.railMeta}>
                     {stepCount}
                 </Text>
             )}
         </UnstyledButton>
+    );
+};
+
+const BUCKET_STRINGS = {
+    static: {
+        label: 'dataApps.lineage.bucket.static',
+        hint: 'dataApps.lineage.bucket.static.hint',
+        color: 'gray',
+    },
+    parametric: {
+        label: 'dataApps.lineage.bucket.parametric',
+        hint: 'dataApps.lineage.bucket.parametric.hint',
+        color: 'blue',
+    },
+    dynamic: {
+        label: 'dataApps.lineage.bucket.dynamic',
+        hint: 'dataApps.lineage.bucket.dynamic.hint',
+        color: 'orange',
+    },
+} as const satisfies Record<DataAppManifestBucket, object>;
+
+const slotText = (value: DataAppManifestSlot['default']): string =>
+    typeof value === 'string' ? value : JSON.stringify(value);
+
+/** What the build-time manifest says about a query: bucket, inputs, source line. */
+const DeclaredMeta: FC<{ pipeline: DataAppPipeline }> = ({ pipeline }) => {
+    const getUiString = useUiStrings();
+    const { declared, hasRun } = pipeline;
+    if (!declared) return null;
+    const bucket = BUCKET_STRINGS[declared.bucket];
+    return (
+        <Group gap={6} wrap="wrap" mt={2}>
+            {!hasRun && (
+                <Badge size="xs" variant="outline" color="gray">
+                    {getUiString('dataApps.lineage.notRun')}
+                </Badge>
+            )}
+            <Tooltip label={getUiString(bucket.hint)}>
+                <Badge size="xs" variant="light" color={bucket.color}>
+                    {getUiString(bucket.label)}
+                </Badge>
+            </Tooltip>
+            {declared.slots.map((slot) => (
+                <Tooltip
+                    key={slot.name}
+                    label={getUiString('dataApps.lineage.slot.hint')}
+                >
+                    <Badge size="xs" variant="default" tt="none">
+                        {slot.kind === 'globalFilter'
+                            ? interpolateUiString(
+                                  getUiString(
+                                      'dataApps.lineage.slot.globalFilter',
+                                  ),
+                                  { explore: slotText(slot.explore) },
+                              )
+                            : interpolateUiString(
+                                  getUiString('dataApps.lineage.slot.local'),
+                                  {
+                                      name: slot.name,
+                                      value: slotText(slot.default),
+                                  },
+                              )}
+                    </Badge>
+                </Tooltip>
+            ))}
+            <Text fz="xs" c="dimmed" ff="monospace">
+                {declared.loc}
+            </Text>
+        </Group>
     );
 };
 
@@ -281,23 +380,34 @@ export const AppLineageView: FC<{
                                         {selectedPipeline.description}
                                     </Text>
                                 )}
+                                <DeclaredMeta pipeline={selectedPipeline} />
                             </Stack>
-                            <Button
-                                size="compact-xs"
-                                variant="default"
-                                leftSection={
-                                    <MantineIcon icon={IconPointer} size={14} />
-                                }
-                                onMouseEnter={() =>
-                                    lineage.hover(selectedPipeline, null)
-                                }
-                                onMouseLeave={() => lineage.hover(null, null)}
-                                onClick={() =>
-                                    lineage.showInApp(selectedPipeline, null)
-                                }
-                            >
-                                {getUiString('dataApps.lineage.showInApp')}
-                            </Button>
+                            {selectedPipeline.hasRun && (
+                                <Button
+                                    size="compact-xs"
+                                    variant="default"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconPointer}
+                                            size={14}
+                                        />
+                                    }
+                                    onMouseEnter={() =>
+                                        lineage.hover(selectedPipeline, null)
+                                    }
+                                    onMouseLeave={() =>
+                                        lineage.hover(null, null)
+                                    }
+                                    onClick={() =>
+                                        lineage.showInApp(
+                                            selectedPipeline,
+                                            null,
+                                        )
+                                    }
+                                >
+                                    {getUiString('dataApps.lineage.showInApp')}
+                                </Button>
+                            )}
                         </Group>
                         <Box className={classes.graph}>
                             <PipelineDetail

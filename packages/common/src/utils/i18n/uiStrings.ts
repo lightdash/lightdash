@@ -508,6 +508,19 @@ export const DEFAULT_UI_STRINGS = {
     'dataApps.lineage.empty': 'No queries yet',
     'dataApps.lineage.search': 'Search queries',
     'dataApps.lineage.noMatches': 'No matching queries',
+    'dataApps.lineage.notRun': 'Not run yet',
+    'dataApps.lineage.bucket.static': 'Static',
+    'dataApps.lineage.bucket.static.hint':
+        'Fully known from the app code before it runs',
+    'dataApps.lineage.bucket.parametric': 'Parametric',
+    'dataApps.lineage.bucket.parametric.hint':
+        'Depends on filters or inputs; shown at their defaults',
+    'dataApps.lineage.bucket.dynamic': 'Dynamic',
+    'dataApps.lineage.bucket.dynamic.hint':
+        'Partly built while the app runs; the definition may be incomplete',
+    'dataApps.lineage.slot.globalFilter': 'Filters on {explore}',
+    'dataApps.lineage.slot.local': '{name}, default {value}',
+    'dataApps.lineage.slot.hint': 'Input this query depends on',
     'dataApps.lineage.selectPipeline': 'Select a query to see its lineage',
     'dataApps.lineage.showInApp': 'Show in app',
     'dataApps.lineage.steps.singular': '{count} step',

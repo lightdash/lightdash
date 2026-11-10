@@ -1,6 +1,7 @@
 import {
     type AppSdkLineageHighlight,
     type AppSdkLineageSelection,
+    type DataAppQueryManifest,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PipelineEvent, QueryEvent } from '../hooks/useAppSdkBridge';
@@ -10,6 +11,7 @@ import {
     toDataAppPipelines,
     type DataAppPipeline,
 } from './dataAppPipelines';
+import { declaredPipelineId, withDeclaredQueries } from './declaredPipelines';
 
 export type AppView = 'app' | 'lineage';
 
@@ -48,14 +50,21 @@ export const useAppLineageView = ({
     identityKey,
     queries,
     pipelineEvents,
+    manifest,
 }: {
     identityKey: string;
     queries: QueryEvent[];
     pipelineEvents: PipelineEvent[];
+    /** Build-time query manifest of the served version; null when it has none. */
+    manifest: DataAppQueryManifest | null;
 }): UseAppLineageViewResult => {
     const pipelines = useMemo(
-        () => toDataAppPipelines(queries, pipelineEvents),
-        [queries, pipelineEvents],
+        () =>
+            withDeclaredQueries(
+                toDataAppPipelines(queries, pipelineEvents),
+                manifest,
+            ),
+        [queries, pipelineEvents, manifest],
     );
     const [view, setView] = useState<AppView>('app');
     const [selectedPipelineId, setSelectedPipelineId] = useState<string | null>(
@@ -132,9 +141,15 @@ export const useAppLineageView = ({
         [],
     );
 
-    // Defaults to the newest pipeline until one is picked.
+    // Defaults to the newest pipeline until one is picked. A declared query
+    // keeps its selection when it first runs and its entry id changes.
     const selectedPipeline =
         pipelines.find((p) => p.id === selectedPipelineId) ??
+        pipelines.find(
+            (p) =>
+                p.declared !== null &&
+                declaredPipelineId(p.declared) === selectedPipelineId,
+        ) ??
         pipelines[pipelines.length - 1] ??
         null;
 

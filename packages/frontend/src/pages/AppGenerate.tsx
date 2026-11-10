@@ -120,6 +120,7 @@ import { ViewingOlderVersionCard } from '../features/apps/components/ViewingOlde
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppFileUpload } from '../features/apps/hooks/useAppFileUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
+import { useAppQueryManifest } from '../features/apps/hooks/useAppQueryManifest';
 import { useAppSubmitState } from '../features/apps/hooks/useAppSubmitState';
 import {
     refreshAppThumbnailQueries,
@@ -1194,12 +1195,18 @@ const AppGenerate: FC = () => {
         return { appUuid: activeAppUuid, version: latestReadyVersion.version };
     }, [activeAppUuid, effectivePinnedVersion, latestReadyVersion]);
 
+    const { data: queryManifest } = useAppQueryManifest(
+        projectUuid,
+        previewApp?.appUuid,
+        previewApp?.version,
+    );
     const lineageView = useAppLineageView({
         identityKey: previewApp
             ? `${previewApp.appUuid}:${previewApp.version}`
             : '',
         queries: trackedQueries,
         pipelineEvents: trackedPipelines,
+        manifest: queryManifest ?? null,
     });
     const showLineage =
         lineageView.view === 'lineage' && lineageView.canShowLineage;

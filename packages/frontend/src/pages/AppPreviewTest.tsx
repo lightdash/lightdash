@@ -31,6 +31,7 @@ import { getVisiblePreviewTokenError } from '../features/apps/hooks/previewToken
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppInspector } from '../features/apps/hooks/useAppInspector';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
+import { useAppQueryManifest } from '../features/apps/hooks/useAppQueryManifest';
 import { useCanEditVerifiedDataApp } from '../features/apps/hooks/useCanEditDataApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { AppLineageView } from '../features/apps/lineage/AppLineageView';
@@ -125,10 +126,16 @@ export default function AppPreviewTest() {
     const identityKey = `${appUuid}:${version}`;
     const inspector = useAppInspector({ identityKey, defaultHidden: true });
     const { rolloverLogs } = inspector;
+    const { data: queryManifest } = useAppQueryManifest(
+        projectUuid,
+        appUuid,
+        version,
+    );
     const lineageView = useAppLineageView({
         identityKey,
         queries: inspector.panelProps.queries,
         pipelineEvents: inspector.pipelines,
+        manifest: queryManifest ?? null,
     });
     const showLineage =
         lineageView.view === 'lineage' && lineageView.canShowLineage;

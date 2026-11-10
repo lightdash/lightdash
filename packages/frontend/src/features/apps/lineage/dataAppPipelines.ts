@@ -6,6 +6,7 @@ import {
     type AppSdkLineageHighlight,
     type AppSdkLineageSelection,
     type CustomDimension,
+    type DataAppManifestQuery,
     type MetricQueryRequest,
     type SemanticLayerSourceQuery,
     type SortField,
@@ -32,9 +33,13 @@ export type DataAppPipeline = {
     terminalNodeId: string;
     nodeQueryUuids: Record<string, string>;
     savedChartNodeIds: string[];
+    /** The query as declared in the build-time manifest; null when not in it. */
+    declared: DataAppManifestQuery | null;
+    /** False for a declared query the app has not run yet. */
+    hasRun: boolean;
 };
 
-const SINGLE_NODE_ID = 'query';
+export const SINGLE_NODE_ID = 'query';
 
 const EMPTY_QUERY_EVENT: QueryEvent = {
     id: '',
@@ -115,6 +120,8 @@ const fromQueryEvent = (event: QueryEvent): DataAppPipeline => {
             ? { [SINGLE_NODE_ID]: event.queryUuid }
             : {},
         savedChartNodeIds: event.chartUuid ? [SINGLE_NODE_ID] : [],
+        declared: null,
+        hasRun: true,
     };
 };
 
@@ -179,6 +186,8 @@ const fromPipelineEvent = (
         terminalNodeId: event.terminalNodeId,
         nodeQueryUuids: event.nodeQueryUuids,
         savedChartNodeIds: event.savedChartNodes.map((node) => node.nodeId),
+        declared: null,
+        hasRun: true,
     };
 };
 

@@ -83,6 +83,7 @@ import type {
     ApiExternalConnectionAsCodeUpsertResponse,
     ApiGenerateAppResponse,
     ApiGetAppCodeResponse,
+    ApiGetAppQueriesResponse,
     ApiGetAppResponse,
     ApiGetDataAppAuthoringContextResponse,
     ApiGetDataAppVizResponse,
@@ -1768,6 +1769,7 @@ type ApiResults =
     | ApiGetAppCodeResponse['results']
     | ApiGetDataAppAuthoringContextResponse['results']
     | ApiGetAppResponse['results']
+    | ApiGetAppQueriesResponse['results']
     | ApiListDataAppVizsResponse['results']
     | ApiListRegistryChartTypesResponse['results']
     | ApiInstallRegistryChartTypeResponse['results']
