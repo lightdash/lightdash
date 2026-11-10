@@ -175,6 +175,15 @@ export const getDashboardWithSectionIds = (
     );
     const claimed = new Set<string>();
     const slugs = sectionSlugs(sections);
+    // A stored slug yields to a saved section another file section names, so file order never decides
+    const namedIds = new Set(slugs.map((fileSlug) => byNameSlug.get(fileSlug)));
+    const matchesOf = (fileSlug: string) => {
+        const stored = byStoredSlug.get(fileSlug);
+        const named = byNameSlug.get(fileSlug);
+        return stored !== named && namedIds.has(stored)
+            ? [named, stored]
+            : [stored, named];
+    };
     const idBySlug = new Map<string, string>();
     const resolved = sections.map(({ slug, ...section }, index) => {
         if (slug !== undefined && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))
@@ -187,11 +196,9 @@ export const getDashboardWithSectionIds = (
             );
         const id = controlsEnabled
             ? stableIds[index]
-            : ([
-                  byStoredSlug.get(slugs[index]),
-                  byNameSlug.get(slugs[index]),
-              ].find((match) => match !== undefined && !claimed.has(match)) ??
-              uuidv4());
+            : (matchesOf(slugs[index]).find(
+                  (match) => match !== undefined && !claimed.has(match),
+              ) ?? uuidv4());
         claimed.add(id);
         idBySlug.set(slugs[index], id);
         const kept = { ...pick(section, ['name', 'collapsed']), id };
