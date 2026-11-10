@@ -396,8 +396,30 @@ GROUP BY ${aliases.join(', ')}
             storedContents === null
                 ? null
                 : parseModelDocument(storedContents, toModelPath(explore.name));
-        const checkKey = (table: string, dimensions: string[]) =>
-            this.checkKey(user, projectUuid, explore, table, dimensions, quote);
+        // The model already ran on the warehouse, so a key check that fails here hit a budget, a timeout or a type that cannot be grouped: not a reason to refuse the model.
+        const failures: string[] = [];
+        const checkKey = async (
+            table: string,
+            dimensions: string[],
+        ): Promise<KeyCheck | null> => {
+            try {
+                return await this.checkKey(
+                    user,
+                    projectUuid,
+                    explore,
+                    table,
+                    dimensions,
+                    quote,
+                );
+            } catch (error) {
+                failures.push(getErrorMessage(error));
+                return null;
+            }
+        };
+        const whyUnchecked = () =>
+            failures[0]
+                ? ` The warehouse said: ${failures[0].slice(0, 200)}`
+                : '';
         const measureJoin = async ({
             alias,
             join,
@@ -411,6 +433,7 @@ GROUP BY ${aliases.join(', ')}
             relationship: JoinRelationship | null;
             error: string | null;
             isEstimate: boolean;
+            isUnchecked: boolean;
         } | null> => {
             const on = SIMPLE_JOIN.exec(sqlOn);
             if (!on) return null;
@@ -436,6 +459,15 @@ GROUP BY ${aliases.join(', ')}
                 checkKey(local.table, [local.field]),
                 checkKey(other.table, [other.field]),
             ]);
+            if (!localKey || !otherKey) {
+                return {
+                    joined,
+                    relationship: null,
+                    error: null,
+                    isEstimate: false,
+                    isUnchecked: true,
+                };
+            }
             const localIsUnique = localKey.duplicates === 0;
             const otherIsUnique = otherKey.duplicates === 0;
             if (!localIsUnique && !otherIsUnique) {
@@ -443,6 +475,7 @@ GROUP BY ${aliases.join(', ')}
                     joined,
                     relationship: null,
                     isEstimate: false,
+                    isUnchecked: false,
                     error: `The join to ${joined} is many-to-many on ${local.field} and ${other.field}, so it would multiply rows on both sides. Leave it out, or join through a table where one side is unique.`,
                 };
             }
@@ -455,6 +488,7 @@ GROUP BY ${aliases.join(', ')}
                     joined,
                     relationship: null,
                     isEstimate: false,
+                    isUnchecked: false,
                     error: `The join to ${joined} is one-to-many, so it multiplies rows of ${local.table}, and its metrics are only protected from that with a primary_key. Set primary_key on ${local.table}, or define this from ${joined} instead.`,
                 };
             }
@@ -464,6 +498,7 @@ GROUP BY ${aliases.join(', ')}
                 error: null,
                 // A duplicate that was found is certain; none found in part of a table is not.
                 isEstimate: isEstimate(localKey) || isEstimate(otherKey),
+                isUnchecked: false,
             };
         };
         try {
@@ -473,12 +508,16 @@ GROUP BY ${aliases.join(', ')}
                 !isEqual(stored?.primary_key, model.primary_key)
             ) {
                 const key = await checkKey(explore.baseTable, primaryKey);
-                if (key.duplicates > 0) {
+                if (!key) {
+                    notes.push(
+                        `primary_key ${primaryKey.join(', ')} could not be checked on the warehouse, so confirm it identifies one row.${whyUnchecked()}`,
+                    );
+                } else if (key.duplicates > 0) {
                     return {
                         error: `primary_key ${primaryKey.join(', ')} is not unique, so it cannot identify a row. Remove it or name the column that does.`,
                     };
                 }
-                if (isEstimate(key)) {
+                if (key && isEstimate(key)) {
                     notes.push(
                         `primary_key ${primaryKey.join(', ')} was checked on the first ${MAX_KEY_CHECK_ROWS.toLocaleString('en-US')} rows only, so confirm it identifies one row.`,
                     );
@@ -504,6 +543,11 @@ GROUP BY ${aliases.join(', ')}
             const failed = measured.find((join) => join?.error);
             if (failed?.error) return { error: failed.error };
             measured.forEach((join) => {
+                if (join?.isUnchecked) {
+                    notes.push(
+                        `The join to ${join.joined} could not be measured on the warehouse, so its relationship is not set. Set it yourself before applying.${whyUnchecked()}`,
+                    );
+                }
                 if (!join?.relationship) return;
                 relationships.set(join.joined, join.relationship);
                 if (join.isEstimate) {

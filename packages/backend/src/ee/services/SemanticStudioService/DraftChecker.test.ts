@@ -36,10 +36,12 @@ const columnTypes: { fields: Record<string, { type: DimensionType }> } = {
 };
 
 /** What the warehouse was asked, and what a key check comes back with. */
-const warehouse: { queries: string[]; keyRow: Record<string, number> } = {
-    queries: [],
-    keyRow: {},
-};
+const warehouse: {
+    queries: string[];
+    keyRow: Record<string, number>;
+    /** Set to make every key check fail, as a budget or a timeout would. */
+    keyError: string | null;
+} = { queries: [], keyRow: {}, keyError: null };
 
 const checker = () =>
     new DraftChecker({
@@ -51,6 +53,9 @@ const checker = () =>
         }),
         runSqlQuery: async (_user, _projectUuid, sql) => {
             warehouse.queries.push(sql);
+            if (warehouse.keyError && sql.includes('duplicate_keys')) {
+                throw new Error(warehouse.keyError);
+            }
             return {
                 fields: columnTypes.fields,
                 rows: sql.includes('duplicate_keys') ? [warehouse.keyRow] : [],
@@ -65,6 +70,7 @@ describe('DraftChecker.compile', () => {
         columnTypes.fields = {};
         warehouse.queries = [];
         warehouse.keyRow = {};
+        warehouse.keyError = null;
     });
 
     test('the same documents compile once, and each caller gets its own copy', async () => {
@@ -238,6 +244,21 @@ describe('DraftChecker.compile', () => {
                 proposed(),
             );
             expect(notes.size).toBe(0);
+        });
+
+        test('leave the model in with a note when the warehouse refuses them', async () => {
+            warehouse.keyError = 'Query exceeded limit for bytes billed';
+            const { rejected, notes, writes } = await checker().check(
+                user,
+                'project',
+                new Map(),
+                proposed(),
+            );
+            expect(rejected.size).toBe(0);
+            expect(writes.get('orders')).not.toContain('relationship:');
+            expect(notes.get('orders')).toEqual([
+                'The join to customers could not be measured on the warehouse, so its relationship is not set. Set it yourself before applying. The warehouse said: Query exceeded limit for bytes billed',
+            ]);
         });
 
         test('are not repeated when the same draft is checked again', async () => {
