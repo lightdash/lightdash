@@ -1,3 +1,10 @@
+## [3.198.1](https://github.com/lightdash/lightdash/compare/3.198.0...3.198.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **data-apps:** honour create:DataApp@preview in the UI ([#32309](https://github.com/lightdash/lightdash/issues/32309)) ([41078fb](https://github.com/lightdash/lightdash/commit/41078fb844e920616ad92623f470c95adaa067a2)), closes [#32303](https://github.com/lightdash/lightdash/issues/32303)
+
 # [3.198.0](https://github.com/lightdash/lightdash/compare/3.197.3...3.198.0) (2026-11-10)
 
 
