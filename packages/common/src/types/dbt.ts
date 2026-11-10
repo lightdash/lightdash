@@ -140,6 +140,7 @@ type ExploreConfig = {
      */
     groups?: string[];
     joins?: DbtModelJoin[];
+    combine_joined_fields?: boolean; // Combine visible joined fields in the explore sidebar. Default is false.
     case_sensitive?: boolean; // When false, all string filters in this explore will be case insensitive. Default is true
     sql_filter?: string;
     sql_where?: string; // alias for sql_filter
@@ -237,6 +238,7 @@ export const RESERVED_MODEL_META_KEYS = [
     'groups',
     'joins',
     'case_sensitive',
+    'combine_joined_fields',
     'sql_filter',
     'sql_where',
     'additional_dimensions',

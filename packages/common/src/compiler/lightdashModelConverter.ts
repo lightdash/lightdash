@@ -75,6 +75,7 @@ export function convertLightdashModelToDbtModel(
     // LightdashModel extends DbtModelLightdashConfig, so we extract those properties
     const modelConfig: DbtModelLightdashConfig = {
         label: model.label,
+        combine_joined_fields: model.combine_joined_fields,
         description: model.description,
         metrics: model.metrics,
         sets: model.sets,

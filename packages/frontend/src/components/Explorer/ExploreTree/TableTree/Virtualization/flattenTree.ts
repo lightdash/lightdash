@@ -528,6 +528,67 @@ export function flattenTreeForVirtualization(
     const items: FlattenedItem[] = [];
     const sectionContexts = new Map<string, SectionContext>();
 
+    if (options.combinedTree) {
+        const { name, sections } = options.combinedTree;
+        const searchResults = options.searchResultsMap[name] ?? [];
+        if (options.missingFieldIds.length > 0) {
+            items.push({
+                id: `${name}-section-missing`,
+                type: 'section-header',
+                estimatedHeight: ITEM_HEIGHTS.SECTION_HEADER,
+                data: {
+                    tableName: name,
+                    treeSection: TreeSection.MissingFields,
+                    label: 'Missing fields',
+                    color: 'ldGray.6',
+                },
+            });
+            options.missingFieldIds.forEach((fieldId) => {
+                items.push({
+                    id: `${name}-missing-${fieldId}`,
+                    type: 'missing-field',
+                    estimatedHeight: ITEM_HEIGHTS.MISSING_FIELD,
+                    data: {
+                        fieldId,
+                        tableName: name,
+                        isDimension:
+                            options.selectedDimensions.includes(fieldId),
+                    },
+                });
+            });
+        }
+        sections.forEach((section) => {
+            const nodes = flattenSection(
+                section,
+                name,
+                options.expandedGroups,
+                searchResults,
+                options.isSearching,
+                options,
+                sectionContexts,
+            );
+            const hasNodes =
+                Object.keys(
+                    options.sectionNodeMaps.get(`${name}-${section.type}`) ??
+                        {},
+                ).length > 0;
+            if (options.isSearching ? nodes.length === 0 : !hasNodes) return;
+            items.push({
+                id: `${name}-section-${section.type}`,
+                type: 'section-header',
+                estimatedHeight: ITEM_HEIGHTS.SECTION_HEADER,
+                data: {
+                    tableName: name,
+                    treeSection: section.type,
+                    label: section.label,
+                    color: section.color,
+                },
+            });
+            items.push(...nodes);
+        });
+        return { items, sectionContexts };
+    }
+
     // Filter tables that have search results (or all if not searching)
     const visibleTables = options.tables.filter((table) => {
         if (!options.isSearching) return true;

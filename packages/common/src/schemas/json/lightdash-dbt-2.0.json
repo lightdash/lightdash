@@ -462,6 +462,10 @@
         "modelMeta": {
             "type": "object",
             "properties": {
+                "combine_joined_fields": {
+                    "type": "boolean",
+                    "description": "Combine visible joined fields into shared Dimensions and Metrics sections. Defaults to false; named explores inherit the model setting."
+                },
                 "joins": {
                     "type": "array",
                     "items": {
@@ -1209,6 +1213,10 @@
                         "^[a-zA-Z0-9_]+$": {
                             "type": "object",
                             "properties": {
+                                "combine_joined_fields": {
+                                    "type": "boolean",
+                                    "description": "Combine visible joined fields into shared Dimensions and Metrics sections. Defaults to false; named explores inherit the model setting."
+                                },
                                 "default_filters": {
                                     "type": "array",
                                     "description": "Default filters that are automatically applied when exploring this explore",
