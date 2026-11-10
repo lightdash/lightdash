@@ -255,6 +255,15 @@ run = "pnpm -F backend migrate"
 env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }
 memory = "12gb"
 
+# A fork's database was seeded at image build, so a dev seed a branch changes has never run there.
+# Full re-seed after `migrate`, not an upsert: anything made by hand in the preview is lost.
+[[tier]]
+name = "seed"
+files = ["packages/backend/src/database/seeds/**", "packages/backend/src/ee/database/seeds/**"]
+run = "pnpm -F backend seed"
+env = { LIGHTDASH_LICENSE_KEY = "dummy-build-key" }  # the knexfile adds the EE seeds only with a key set
+memory = "12gb"
+
 [[tier]]
 name = "api-routes"
 files = ["packages/backend/src/controllers/**", "packages/backend/src/ee/controllers/**"]
