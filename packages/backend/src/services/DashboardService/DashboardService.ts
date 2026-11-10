@@ -76,8 +76,8 @@ import {
     type DashboardBasicDetailsWithTileTypes,
     type DashboardCustomMetricUpdateResult,
     type DashboardHistory,
-    type DashboardTileParameterReferences,
-    type DashboardTileParameterReferencesTile,
+    type DashboardTileParameters,
+    type DashboardTileParametersRequestTile,
     type DashboardTileTarget,
     type DashboardVersion,
     type DuplicateDashboardParams,
@@ -85,6 +85,7 @@ import {
     type ExploreError,
     type MetricQuery,
     type ParameterDefinitions,
+    type ParametersValuesMap,
     type SavedChartDAO,
     type UpdateDashboardCustomMetric,
     type UUID,
@@ -216,12 +217,13 @@ type ParameterReferencesResult =
     | {
           parameterReferences: string[];
           parameterDefinitions: ParameterDefinitions;
+          chartSavedValues: ParametersValuesMap;
+          virtualViewSavedValues: ParametersValuesMap;
           error: null;
       }
-    | { parameterReferences: null; error: string };
+    | { error: string };
 
 const parameterReferencesFailure = (e: unknown): ParameterReferencesResult => ({
-    parameterReferences: null,
     error: typeof e === 'string' ? e : getErrorMessage(e),
 });
 
@@ -1060,11 +1062,11 @@ export class DashboardService
         return enabled;
     }
 
-    async getTileParameterReferences(
+    async getTileParameters(
         account: Account,
         projectUuid: string,
-        tiles: DashboardTileParameterReferencesTile[],
-    ): Promise<DashboardTileParameterReferences[]> {
+        tiles: DashboardTileParametersRequestTile[],
+    ): Promise<DashboardTileParameters> {
         if (tiles.length > MAX_PARAMETER_REFERENCE_TILES) {
             throw new ParameterError(
                 `A request can list the parameters of at most ${MAX_PARAMETER_REFERENCE_TILES} tiles`,
@@ -1118,23 +1120,40 @@ export class DashboardService
                 .then(toLookup)
                 .catch(getFailedResults),
         ]);
-        return tiles.map(({ tileUuid }, index) => {
+        const results = tiles.map(({ tileUuid }, index) => {
             const source = sources[index];
-            if (source === null) {
-                return {
-                    tileUuid,
-                    ...parameterReferencesFailure(
-                        'Tile is not on the embedded dashboard',
-                    ),
-                };
-            }
             const result =
-                (source.savedChartUuid &&
-                    chartResults(source.savedChartUuid)) ||
-                (source.savedSqlUuid && sqlResults(source.savedSqlUuid)) ||
-                parameterReferencesFailure('Tile has no saved chart');
-            return { tileUuid, ...result };
+                source === null
+                    ? parameterReferencesFailure(
+                          'Tile is not on the embedded dashboard',
+                      )
+                    : (source.savedChartUuid &&
+                          chartResults(source.savedChartUuid)) ||
+                      (source.savedSqlUuid &&
+                          sqlResults(source.savedSqlUuid)) ||
+                      parameterReferencesFailure('Tile has no saved chart');
+            return { tileUuid, result };
         });
+        return {
+            parameterDefinitions: results.reduce<ParameterDefinitions>(
+                (acc, { result }) =>
+                    result.error === null
+                        ? { ...acc, ...result.parameterDefinitions }
+                        : acc,
+                {},
+            ),
+            tiles: results.map(({ tileUuid, result }) =>
+                result.error === null
+                    ? {
+                          tileUuid,
+                          parameterReferences: result.parameterReferences,
+                          chartSavedValues: result.chartSavedValues,
+                          virtualViewSavedValues: result.virtualViewSavedValues,
+                          error: null,
+                      }
+                    : { tileUuid, error: result.error },
+            ),
+        };
     }
 
     /**
@@ -1144,8 +1163,8 @@ export class DashboardService
     private async getEmbedDashboardTileSources(
         account: AnonymousAccount,
         projectUuid: string,
-        tiles: DashboardTileParameterReferencesTile[],
-    ): Promise<(DashboardTileParameterReferencesTile | null)[]> {
+        tiles: DashboardTileParametersRequestTile[],
+    ): Promise<(DashboardTileParametersRequestTile | null)[]> {
         const { content } = account.access;
         if (content.type !== 'dashboard' || !content.dashboardUuid) {
             throw new ForbiddenError(
@@ -1265,18 +1284,19 @@ export class DashboardService
                     queries,
                     explores,
                 );
-                const definitions = queries.reduce<ParameterDefinitions>(
-                    (acc, { exploreName }) => {
-                        const explore = explores.get(exploreName);
-                        return explore &&
-                            !(explore instanceof Error) &&
-                            !isExploreError(explore)
-                            ? {
-                                  ...acc,
-                                  ...getExploreParameterDefinitions(explore),
-                              }
-                            : acc;
-                    },
+                const queryExplores = queries.flatMap(({ exploreName }) => {
+                    const explore = explores.get(exploreName);
+                    return explore &&
+                        !(explore instanceof Error) &&
+                        !isExploreError(explore)
+                        ? [explore]
+                        : [];
+                });
+                const definitions = queryExplores.reduce<ParameterDefinitions>(
+                    (acc, explore) => ({
+                        ...acc,
+                        ...getExploreParameterDefinitions(explore),
+                    }),
                     projectDefinitions,
                 );
                 results.set(chart.uuid, {
@@ -1285,6 +1305,15 @@ export class DashboardService
                         definitions,
                         parameterReferences,
                     ),
+                    chartSavedValues: chart.parameters ?? {},
+                    virtualViewSavedValues:
+                        queryExplores.reduce<ParametersValuesMap>(
+                            (acc, explore) => ({
+                                ...acc,
+                                ...explore.savedParameterValues,
+                            }),
+                            {},
+                        ),
                     error: null,
                 });
             } catch (e) {
@@ -1420,6 +1449,8 @@ export class DashboardService
                                   projectDefinitions,
                                   getParameterReferences(sqlChart.sql),
                               ),
+                          chartSavedValues: {},
+                          virtualViewSavedValues: {},
                           error: null,
                       }
                     : parameterReferencesFailure(

@@ -1,11 +1,11 @@
 import {
     assertRegisteredAccount,
     type ApiDashboardResponse,
-    type ApiDashboardTileParameterReferencesResponse,
+    type ApiDashboardTileParametersResponse,
     type ApiErrorPayload,
     type ApiGetComments,
     type ApiSuccessEmpty,
-    type DashboardTileParameterReferencesRequest,
+    type DashboardTileParametersRequest,
     type UpdateDashboard,
 } from '@lightdash/common';
 import {
@@ -75,36 +75,32 @@ export class ProjectDashboardControllerV2 extends BaseController {
     }
 
     /**
-     * List the parameters each dashboard tile uses, read from its saved query
-     * without running it. Tiles that can't be loaded or viewed report an error.
-     * The dashboard calls this while it is edited; in view mode each tile
-     * reports its parameters with its own query results.
+     * List the parameters each dashboard tile uses and the values saved with
+     * its chart and virtual views, read from its saved query without running
+     * it. Definitions of the referenced parameters are returned once. Tiles
+     * that can't be loaded or viewed report an error.
      *
      * Embed tokens can call this with the `Lightdash-Embed-Token` header. The
      * token must embed a dashboard: only that dashboard's tiles are listed,
      * with the charts saved on it (request chart uuids are ignored), and a
      * tile not on it reports an error.
-     * @summary Get tile parameter references
+     * @summary Get tile parameters
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('/tile-parameter-references')
-    @OperationId('getDashboardTileParameterReferences')
-    async getTileParameterReferences(
+    @Post('/tile-parameters')
+    @OperationId('getDashboardTileParameters')
+    async getTileParameters(
         @Path() projectUuid: string,
-        @Body() body: DashboardTileParameterReferencesRequest,
+        @Body() body: DashboardTileParametersRequest,
         @Request() req: express.Request,
-    ): Promise<ApiDashboardTileParameterReferencesResponse> {
+    ): Promise<ApiDashboardTileParametersResponse> {
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getDashboardService()
-                .getTileParameterReferences(
-                    req.account!,
-                    projectUuid,
-                    body.tiles,
-                ),
+                .getTileParameters(req.account!, projectUuid, body.tiles),
         };
     }
 

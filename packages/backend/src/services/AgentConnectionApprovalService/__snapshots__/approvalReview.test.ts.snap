@@ -240,11 +240,11 @@ exports[`pins every real admitted contract, base requirement and payload effect 
         "capabilities": [
           "read_discover",
         ],
-        "key": "ProjectDashboardControllerV2.getTileParameterReferences",
+        "key": "ProjectDashboardControllerV2.getTileParameters",
         "mapped": true,
       },
     ],
-    "key": "ProjectDashboardControllerV2.getTileParameterReferences",
+    "key": "ProjectDashboardControllerV2.getTileParameters",
     "kind": "path_project",
     "required": [
       "read_discover",

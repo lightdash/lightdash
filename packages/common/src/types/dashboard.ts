@@ -10,6 +10,7 @@ import { type AdditionalMetric } from './metricQuery';
 import {
     type DashboardParameters,
     type ParameterDefinitions,
+    type ParametersValuesMap,
     type ParameterValue,
 } from './parameters';
 import { type ProjectType } from './projects';
@@ -459,28 +460,34 @@ export type SavedChartsInfoForDashboardAvailableFilters = {
     savedChartUuid: string;
 }[];
 
-export type DashboardTileParameterReferencesTile = {
+export type DashboardTileParametersRequestTile = {
     tileUuid: string;
     savedChartUuid: string | null;
     savedSqlUuid: string | null;
 };
 
-export type DashboardTileParameterReferencesRequest = {
-    tiles: DashboardTileParameterReferencesTile[];
+export type DashboardTileParametersRequest = {
+    tiles: DashboardTileParametersRequestTile[];
 };
 
-export type DashboardTileParameterReferences =
+export type DashboardTileParametersTile =
     | {
           tileUuid: string;
           parameterReferences: string[];
-          parameterDefinitions?: ParameterDefinitions;
+          chartSavedValues: ParametersValuesMap;
+          virtualViewSavedValues: ParametersValuesMap;
           error: null;
       }
-    | { tileUuid: string; parameterReferences: null; error: string };
+    | { tileUuid: string; error: string };
 
-export type ApiDashboardTileParameterReferencesResponse = {
+export type DashboardTileParameters = {
+    parameterDefinitions: ParameterDefinitions;
+    tiles: DashboardTileParametersTile[];
+};
+
+export type ApiDashboardTileParametersResponse = {
     status: 'ok';
-    results: DashboardTileParameterReferences[];
+    results: DashboardTileParameters;
 };
 
 export const isDashboardUnversionedFields = (

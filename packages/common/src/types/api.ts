@@ -255,6 +255,7 @@ import {
     type DashboardBasicDetails,
     type DashboardCustomMetricUpdateResult,
     type DashboardHistory,
+    type DashboardTileParameters,
     type DashboardVersion,
 } from './dashboard';
 import { type ApiDataTimezonePreviewResults } from './dataTimezonePreview';
@@ -1575,6 +1576,7 @@ type ApiResults =
     | DashboardHistory
     | DashboardCustomMetricUpdateResult
     | DashboardVersion
+    | DashboardTileParameters
     | EmbedUrl
     | DecodedEmbed
     | Array<GitRepo>

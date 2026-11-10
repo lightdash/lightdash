@@ -2,7 +2,7 @@ import {
     DashboardTileTypes,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
-    type DashboardTileParameterReferencesTile,
+    type DashboardTileParametersRequestTile,
     type DateZoomConfig,
     type SavedChartsInfoForDashboardAvailableFilters,
 } from '@lightdash/common';
@@ -97,7 +97,7 @@ export const selectSavedChartUuidsAndTileUuids = createSelector(
 export const selectTileQuerySources = createSelector(
     [selectDashboardTiles],
     (tiles) =>
-        tiles?.flatMap<DashboardTileParameterReferencesTile>((tile) => {
+        tiles?.flatMap<DashboardTileParametersRequestTile>((tile) => {
             if (
                 isDashboardChartTileType(tile) &&
                 tile.properties.savedChartUuid

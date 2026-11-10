@@ -2,7 +2,7 @@ import {
     FeatureFlags,
     getErrorMessage,
     type ApiError,
-    type DashboardTileParameterReferences,
+    type DashboardTileParameters,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { chunk } from 'es-toolkit/compat';
@@ -45,36 +45,40 @@ export const useDashboardTileParameterReferences = ({
         !!projectUuid &&
         tilesKey !== '';
 
-    const { data } = useQuery<DashboardTileParameterReferences[], ApiError>({
-        queryKey: [
-            'dashboards',
-            'tileParameterReferences',
-            projectUuid,
-            tilesKey,
-        ],
+    const { data } = useQuery<DashboardTileParameters, ApiError>({
+        queryKey: ['dashboards', 'tileParameters', projectUuid, tilesKey],
         // The endpoint takes at most 200 tiles a request; larger dashboards go
         // in turns, and a failed request fails only its own tiles
         queryFn: () =>
             chunk(
                 selectTileQuerySources(store.getState()),
                 TILES_PER_REQUEST,
-            ).reduce<Promise<DashboardTileParameterReferences[]>>(
-                async (previous, batch) => [
-                    ...(await previous),
-                    ...(await lightdashApi<DashboardTileParameterReferences[]>({
-                        url: `/projects/${projectUuid}/dashboards/tile-parameter-references`,
+            ).reduce<Promise<DashboardTileParameters>>(
+                async (previous, batch) => {
+                    const merged = await previous;
+                    const result = await lightdashApi<DashboardTileParameters>({
+                        url: `/projects/${projectUuid}/dashboards/tile-parameters`,
                         version: 'v2',
                         method: 'POST',
                         body: JSON.stringify({ tiles: batch }),
-                    }).catch((e: unknown) =>
-                        batch.map(({ tileUuid }) => ({
-                            tileUuid,
-                            parameterReferences: null,
-                            error: getErrorMessage(e),
-                        })),
-                    )),
-                ],
-                Promise.resolve([]),
+                    }).catch(
+                        (e: unknown): DashboardTileParameters => ({
+                            parameterDefinitions: {},
+                            tiles: batch.map(({ tileUuid }) => ({
+                                tileUuid,
+                                error: getErrorMessage(e),
+                            })),
+                        }),
+                    );
+                    return {
+                        parameterDefinitions: {
+                            ...merged.parameterDefinitions,
+                            ...result.parameterDefinitions,
+                        },
+                        tiles: [...merged.tiles, ...result.tiles],
+                    };
+                },
+                Promise.resolve({ parameterDefinitions: {}, tiles: [] }),
             ),
         enabled: isEnabled,
     });
@@ -92,17 +96,9 @@ export const useDashboardTileParameterReferences = ({
                 JSON.stringify(source),
             ]),
         );
-        const complete = data.flatMap((result) =>
-            result.error === null &&
-            result.parameterDefinitions !== undefined &&
-            sourceByTile[result.tileUuid] !== undefined
-                ? [
-                      {
-                          tileUuid: result.tileUuid,
-                          references: result.parameterReferences,
-                          definitions: result.parameterDefinitions,
-                      },
-                  ]
+        const complete = data.tiles.flatMap((result) =>
+            result.error === null && sourceByTile[result.tileUuid] !== undefined
+                ? [result]
                 : [],
         );
         if (complete.length === 0) return;
@@ -111,13 +107,10 @@ export const useDashboardTileParameterReferences = ({
                 references: Object.fromEntries(
                     complete.map((result) => [
                         result.tileUuid,
-                        result.references,
+                        result.parameterReferences,
                     ]),
                 ),
-                definitions: Object.assign(
-                    {},
-                    ...complete.map((result) => result.definitions),
-                ),
+                definitions: data.parameterDefinitions,
                 sources: Object.fromEntries(
                     complete.map((result) => [
                         result.tileUuid,
