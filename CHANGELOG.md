@@ -1,3 +1,10 @@
+# [3.195.0](https://github.com/lightdash/lightdash/compare/3.194.3...3.195.0) (2026-11-10)
+
+
+### Features
+
+* **dashboard-controls:** render and edit the control order on the bar ([#32277](https://github.com/lightdash/lightdash/issues/32277)) ([95cd766](https://github.com/lightdash/lightdash/commit/95cd7669e99bd4f3eea9b1f6654fdefc41fa5176))
+
 ## [3.194.3](https://github.com/lightdash/lightdash/compare/3.194.2...3.194.3) (2026-11-10)
 
 
