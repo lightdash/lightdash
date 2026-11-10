@@ -292,6 +292,23 @@ describe('ParameterPills', () => {
             expect(pill('currency')).not.toHaveAttribute('data-in-effect');
         });
 
+        it('shows the default for a combined control whose keys share it', () => {
+            setup({
+                controls: [
+                    control('region', {
+                        parameters: { region: 'all', week: 'all' },
+                    }),
+                ],
+                references: { 'tile-1': ['region'], 'tile-2': ['week'] },
+                parameterDefinitions: {
+                    ...definitions,
+                    week: { ...definitions.week, default: 'EMEA' },
+                },
+            });
+            expect(pill('region')).toHaveTextContent('Region is EMEA');
+            expect(pill('region')).not.toHaveAttribute('data-in-effect');
+        });
+
         it('says "not set" for a combined control whose keys have different defaults', () => {
             setup({
                 controls: [

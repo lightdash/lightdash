@@ -383,7 +383,10 @@ const ParameterPill: FC<{
                                     <Text span c="dimmed">
                                         {getUiString('parameters.is')}{' '}
                                     </Text>
-                                    <Text span fw={600}>
+                                    <Text
+                                        span
+                                        fw={showsDefault ? undefined : 600}
+                                    >
                                         {getParameterDisplayValue(
                                             input.definition,
                                             entry.shownValue,
