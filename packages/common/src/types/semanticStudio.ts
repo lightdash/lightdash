@@ -116,9 +116,19 @@ export type SemanticLayerDraftApplyResult = {
 export type ApiSemanticLayerDraftApplyResponse =
     ApiSuccess<SemanticLayerDraftApplyResult>;
 
-/** Saved content the draft would break, found by the validator. */
+/** A saved chart or dashboard the draft would break; at most one uuid is set, to link to it. */
+export type SemanticLayerDraftBreak = {
+    name: string;
+    error: string;
+    chartUuid: string | null;
+    dashboardUuid: string | null;
+};
+
+/** Saved content the draft would break, found by a background check of the draft as it is now. */
 export type SemanticLayerDraftImpact = {
-    breaks: { name: string; error: string }[];
+    /** `unchecked` when no check has run since the draft or the live models last changed. */
+    status: 'unchecked' | 'checking' | 'done' | 'failed';
+    breaks: SemanticLayerDraftBreak[];
 };
 
 export type ApiSemanticLayerDraftImpactResponse =

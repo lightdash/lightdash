@@ -55,6 +55,7 @@ import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgen
 import { type MobilePushNotificationService } from '../services/MobilePushNotificationService/MobilePushNotificationService';
 import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
 import type { ProjectHomepageService } from '../services/ProjectHomepageService';
+import { type SemanticStudioService } from '../services/SemanticStudioService/SemanticStudioService';
 import { createReviewJiraIssue } from './tasks/createReviewJiraIssue';
 import { createReviewLinearIssue } from './tasks/createReviewLinearIssue';
 import { scanApiSourceSchema } from './tasks/scanApiSourceSchema';
@@ -131,6 +132,7 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
         'reconcileContent' | 'syncContent'
     >;
     aiAgentService: AiAgentService;
+    semanticStudioService: SemanticStudioService;
     dataAppAnalysisService: DataAppAnalysisService;
     aiAgentMemoryService: AiAgentMemoryService;
     aiWritebackService: AiWritebackService;
@@ -183,6 +185,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
     protected readonly analyticsProjectService: CommercialSchedulerWorkerArguments['analyticsProjectService'];
 
     protected readonly aiAgentService: AiAgentService;
+
+    protected readonly semanticStudioService: SemanticStudioService;
 
     protected readonly dataAppAnalysisService: DataAppAnalysisService;
 
@@ -254,6 +258,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         super(args);
         this.analyticsProjectService = args.analyticsProjectService;
         this.aiAgentService = args.aiAgentService;
+        this.semanticStudioService = args.semanticStudioService;
         this.dataAppAnalysisService = args.dataAppAnalysisService;
         this.aiAgentMemoryService = args.aiAgentMemoryService;
         this.aiWritebackService = args.aiWritebackService;
@@ -803,6 +808,11 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         });
                     },
                 );
+            },
+            [EE_SCHEDULER_TASKS.CHECK_SEMANTIC_LAYER_DRAFT_IMPACT]: async (
+                payload,
+            ) => {
+                await this.semanticStudioService.checkDraftImpact(payload);
             },
             [EE_SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: async (
                 payload,

@@ -6,9 +6,9 @@
  */
 import { assertUnreachable } from '@lightdash/common';
 import {
-    ActionIcon,
     Anchor,
     Box,
+    Button,
     Breadcrumbs,
     Center,
     Group,
@@ -24,8 +24,8 @@ import {
     IconCode,
     IconEye,
     IconFileCode,
-    IconLayoutSidebarLeftExpand,
     IconSearch,
+    IconSparkles,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
@@ -1015,30 +1015,13 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                 gap="sm"
                             >
                                 {chat.isAvailable ? (
-                                    <Group gap={4} wrap="nowrap" flex="none">
-                                        {isChatOpen ? null : (
-                                            <Tooltip label="Show chat">
-                                                <ActionIcon
-                                                    aria-label="Show chat"
-                                                    onClick={() =>
-                                                        setIsChatOpen(true)
-                                                    }
-                                                >
-                                                    <MantineIcon
-                                                        icon={
-                                                            IconLayoutSidebarLeftExpand
-                                                        }
-                                                    />
-                                                </ActionIcon>
-                                            </Tooltip>
-                                        )}
-                                        <SegmentedControl
-                                            size="xs"
-                                            value={isCode ? 'code' : 'preview'}
-                                            onChange={switchView}
-                                            data={VIEW_OPTIONS}
-                                        />
-                                    </Group>
+                                    <SegmentedControl
+                                        size="xs"
+                                        flex="none"
+                                        value={isCode ? 'code' : 'preview'}
+                                        onChange={switchView}
+                                        data={VIEW_OPTIONS}
+                                    />
                                 ) : null}
                                 <Group gap="xs" wrap="nowrap" miw={0} ml="auto">
                                     {isBuildingFirstModel ? null : (
@@ -1049,6 +1032,21 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                     {pane === 'review' ? null : (
                                         <AddSourceButton view={view} />
                                     )}
+                                    {chat.isAvailable && !isChatOpen ? (
+                                        <Button
+                                            size="xs"
+                                            variant="default"
+                                            flex="none"
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconSparkles}
+                                                />
+                                            }
+                                            onClick={() => setIsChatOpen(true)}
+                                        >
+                                            Ask the agent
+                                        </Button>
+                                    ) : null}
                                 </Group>
                             </Group>
                         )}

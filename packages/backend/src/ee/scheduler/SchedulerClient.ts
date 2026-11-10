@@ -26,6 +26,7 @@ import {
     PublishAnnouncementPayload,
     ScanApiSourceSchemaJobPayload,
     SlackPromptJobPayload,
+    TraceTaskBase,
 } from '@lightdash/common';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 
@@ -328,6 +329,21 @@ export class CommercialSchedulerClient extends SchedulerClient {
                 maxAttempts: 1,
                 // No jobKey: unlike anomalies nothing dedupes two different
                 // instructions, and repeat clicks are rate-limited upstream.
+            },
+        );
+        return { jobId };
+    }
+
+    /** One check per person and project: a newer request replaces one that has not started. */
+    async checkSemanticLayerDraftImpact(payload: TraceTaskBase) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.CHECK_SEMANTIC_LAYER_DRAFT_IMPACT,
+            payload,
+            {
+                runAt: new Date(),
+                maxAttempts: 1,
+                jobKey: `semantic-layer-draft-impact:${payload.projectUuid}:${payload.userUuid}`,
             },
         );
         return { jobId };

@@ -1,6 +1,7 @@
 /** The person's draft of the semantic layer: its review page, and the check before it goes live. */
 import { type SemanticLayerDraft } from '@lightdash/common';
 import {
+    Anchor,
     Badge,
     Box,
     Button,
@@ -38,6 +39,7 @@ import {
 import classes from './SemanticLayerDraft.module.css';
 import {
     useApplySemanticLayerDraft,
+    useCheckSemanticLayerDraftImpact,
     useDiscardSemanticLayerDraft,
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
@@ -89,13 +91,14 @@ const MessageList: FC<{
         </Callout>
     );
 
-/** The saved charts and dashboards the draft, or one model of it, would break. */
+/** What the background check found the draft, or one model of it, would break. */
 const DraftImpact: FC<{ projectUuid: string; model: string | null }> = ({
     projectUuid,
     model,
 }) => {
     const impact = useSemanticLayerDraftImpact(projectUuid, model);
-    if (impact.isInitialLoading) {
+    const check = useCheckSemanticLayerDraftImpact(projectUuid);
+    if (impact.isInitialLoading || impact.data?.status === 'checking') {
         return (
             <Group gap="xs">
                 <Loader size="xs" color="gray" />
@@ -105,21 +108,61 @@ const DraftImpact: FC<{ projectUuid: string; model: string | null }> = ({
             </Group>
         );
     }
-    if (impact.isError) {
+    if (impact.isError || (impact.data && impact.data.status !== 'done')) {
         return (
             <Callout
                 variant="warning"
-                title="Could not check saved charts and dashboards"
-            />
+                title={
+                    impact.data?.status === 'unchecked'
+                        ? 'Saved charts and dashboards not checked'
+                        : 'Could not check saved charts and dashboards'
+                }
+            >
+                <Button
+                    size="xs"
+                    variant="default"
+                    loading={check.isLoading}
+                    onClick={() => check.mutate(undefined)}
+                >
+                    Check now
+                </Button>
+            </Callout>
         );
     }
-    const breaks = impact.data?.breaks ?? [];
+    const breaks = uniqBy(
+        impact.data?.breaks ?? [],
+        ({ name, error }) => `${name}|${error}`,
+    );
+    if (breaks.length === 0) return null;
     return (
-        <MessageList
+        <Callout
             variant="warning"
             title={`This breaks ${breaks.length === 1 ? '1 saved chart or dashboard' : `${breaks.length} saved charts or dashboards`}`}
-            messages={breaks.map(({ name, error }) => `${name}: ${error}`)}
-        />
+        >
+            <Stack gap={4}>
+                {breaks.map(({ name, error, chartUuid, dashboardUuid }) => {
+                    const path = chartUuid
+                        ? `saved/${chartUuid}`
+                        : dashboardUuid && `dashboards/${dashboardUuid}`;
+                    return (
+                        <Text key={`${name}|${error}`} fz="xs">
+                            {path ? (
+                                <Anchor
+                                    href={`/projects/${projectUuid}/${path}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    {name}
+                                </Anchor>
+                            ) : (
+                                name
+                            )}
+                            : {error}
+                        </Text>
+                    );
+                })}
+            </Stack>
+        </Callout>
     );
 };
 
@@ -131,15 +174,15 @@ const ApplyModal: FC<{
 }> = ({ projectUuid, draft, model, onClose }) => {
     const impact = useSemanticLayerDraftImpact(projectUuid, model);
     const apply = useApplySemanticLayerDraft(projectUuid);
-    // An unchecked draft is applied knowingly, like one that breaks something.
-    const isRisky = impact.isError || (impact.data?.breaks.length ?? 0) > 0;
+    // Applying never waits for the check: an unchecked draft is applied knowingly, like one that breaks something.
+    const isRisky =
+        impact.data?.status !== 'done' || impact.data.breaks.length > 0;
     return (
         <MantineModal
             opened
             onClose={onClose}
             title={model === null ? 'Apply your draft' : `Apply ${model}`}
             confirmLabel={isRisky ? 'Apply anyway' : 'Apply'}
-            confirmDisabled={impact.isInitialLoading}
             confirmLoading={apply.isLoading}
             onConfirm={() =>
                 apply.mutate(model, {

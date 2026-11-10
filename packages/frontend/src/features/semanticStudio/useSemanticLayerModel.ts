@@ -16,6 +16,7 @@ import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
 const DRAFT_KEY = 'semantic-layer-draft';
 const MODEL_KEY = 'semantic-layer-model';
+const PENDING_POLL_MS = 2000;
 
 const toUrl = (projectUuid: string, path: string) =>
     `/projects/${projectUuid}/semantic-studio${path}`;
@@ -29,6 +30,8 @@ const useGet = <T extends ApiResponse['results']>(
     projectUuid: string,
     path: string,
     enabled: boolean,
+    /** Polls while this holds for what was last read. */
+    isPending: (data: T) => boolean = () => false,
 ) => {
     const lightdashApi = useLightdashApi();
     const flag = useServerFeatureFlag(FeatureFlags.SemanticStudioEditing);
@@ -41,6 +44,8 @@ const useGet = <T extends ApiResponse['results']>(
                 body: undefined,
             }),
         enabled: enabled && flag.data?.enabled === true,
+        refetchInterval: (data) =>
+            data !== undefined && isPending(data) ? PENDING_POLL_MS : false,
     });
 };
 
@@ -71,7 +76,7 @@ export const useSemanticLayerDraft = (projectUuid: string) =>
         true,
     );
 
-/** Saved charts and dashboards the draft, or one model of it, would break. */
+/** What the background check found the draft, or one model of it, would break in saved charts and dashboards. */
 export const useSemanticLayerDraftImpact = (
     projectUuid: string,
     model: string | null,
@@ -81,6 +86,7 @@ export const useSemanticLayerDraftImpact = (
         projectUuid,
         `/draft/impact${model === null ? '' : `?model=${encodeURIComponent(model)}`}`,
         true,
+        ({ status }) => status === 'checking',
     );
 
 export const useRefreshSemanticLayerDraft = (projectUuid: string) => {
@@ -150,6 +156,19 @@ export const useApplySemanticLayerDraft = (projectUuid: string) =>
         }),
         errorTitle: 'Could not apply',
         changesLive: true,
+    });
+
+/** Has the draft checked against saved charts and dashboards again. */
+export const useCheckSemanticLayerDraftImpact = (projectUuid: string) =>
+    useWrite<undefined, undefined>({
+        projectUuid,
+        request: () => ({
+            path: '/draft/impact',
+            method: 'POST',
+            body: undefined,
+        }),
+        errorTitle: 'Could not check',
+        changesLive: false,
     });
 
 /** Discards the draft, or one model of it. */

@@ -15,6 +15,11 @@ import {
     ProjectModelDraftChangesTableName,
     type SettledDraftChangeStatus,
 } from '../../database/entities/projectModelDraftChanges';
+import {
+    ProjectModelDraftImpactsTableName,
+    type DraftImpactBreaks,
+    type DraftImpactCheckStatus,
+} from '../../database/entities/projectModelDraftImpacts';
 import { AiPromptTableName } from '../database/entities/ai';
 
 const MODEL_HISTORY_LIMIT = 50;
@@ -50,6 +55,18 @@ export type ChangeSet = {
 };
 
 type DraftOwner = { projectUuid: string; userUuid: string };
+
+export type DraftImpactCheck = {
+    draftHash: string;
+    status: DraftImpactCheckStatus;
+    breaks: DraftImpactBreaks | null;
+    startedAt: Date;
+};
+
+/** How a check ended: with what the draft breaks, or without an answer. */
+export type DraftImpactOutcome =
+    | { status: 'done'; breaks: DraftImpactBreaks }
+    | { status: 'failed' };
 
 /** Another write changed the project's models or draft after they were read. */
 export class ModelDocumentsChangedError extends Error {
@@ -270,6 +287,71 @@ export class ProjectModelDocumentModel {
                 })
                 .returning('project_model_draft_change_uuid');
         return draftChangeUuid;
+    }
+
+    /** This person's latest check of their draft against saved content, whatever draft it was for. */
+    async findDraftImpactCheck({
+        projectUuid,
+        userUuid,
+    }: DraftOwner): Promise<DraftImpactCheck | null> {
+        const row = await this.database(ProjectModelDraftImpactsTableName)
+            .where({
+                project_uuid: projectUuid,
+                created_by_user_uuid: userUuid,
+            })
+            .first();
+        return row
+            ? {
+                  draftHash: row.draft_hash,
+                  status: row.status,
+                  breaks: row.breaks,
+                  startedAt: row.created_at,
+              }
+            : null;
+    }
+
+    /** Marks a check of this draft as running, replacing the person's previous one. */
+    async startDraftImpactCheck({
+        projectUuid,
+        userUuid,
+        draftHash,
+    }: DraftOwner & { draftHash: string }): Promise<void> {
+        await this.database(ProjectModelDraftImpactsTableName)
+            .insert({
+                project_uuid: projectUuid,
+                created_by_user_uuid: userUuid,
+                draft_hash: draftHash,
+                status: 'checking',
+                breaks: null,
+                created_at: new Date(),
+            })
+            .onConflict(['project_uuid', 'created_by_user_uuid'])
+            .merge();
+    }
+
+    /** Records how a check ended, unless a check of a newer draft replaced it. */
+    async finishDraftImpactCheck({
+        projectUuid,
+        userUuid,
+        draftHash,
+        outcome,
+    }: DraftOwner & {
+        draftHash: string;
+        outcome: DraftImpactOutcome;
+    }): Promise<void> {
+        await this.database(ProjectModelDraftImpactsTableName)
+            .where({
+                project_uuid: projectUuid,
+                created_by_user_uuid: userUuid,
+                draft_hash: draftHash,
+            })
+            .update({
+                status: outcome.status,
+                breaks:
+                    outcome.status === 'done'
+                        ? JSON.stringify(outcome.breaks)
+                        : null,
+            });
     }
 
     /** Moves `model` out of draft changes that also touch other models into one change of its own; returns the changes now holding only it. */

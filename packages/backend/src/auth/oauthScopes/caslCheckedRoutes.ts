@@ -288,6 +288,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'HomepageRecommendedActionSkipsController.unskip',
     'SemanticStudioController.applyDraft',
     'SemanticStudioController.applyDraftModel',
+    'SemanticStudioController.checkDraftImpact',
     'SemanticStudioController.discardDraft',
     'SemanticStudioController.discardDraftChange',
     'SemanticStudioController.discardDraftModel',

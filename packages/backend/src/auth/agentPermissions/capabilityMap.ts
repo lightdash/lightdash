@@ -1030,6 +1030,7 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'SemanticStudioController.applyDraft': [AgentCapability.DbtWriteback],
     'SemanticStudioController.applyDraftModel': [AgentCapability.DbtWriteback],
+    'SemanticStudioController.checkDraftImpact': [AgentCapability.DbtWriteback],
     'SemanticStudioController.discardDraftModel': [
         AgentCapability.DbtWriteback,
     ],

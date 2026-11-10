@@ -14,7 +14,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconLayoutSidebarLeftCollapse, IconPlus } from '@tabler/icons-react';
+import { IconLayoutSidebarRightCollapse, IconPlus } from '@tabler/icons-react';
 import { useEffect, useEffectEvent, useRef, type FC } from 'react';
 import { Provider } from 'react-redux';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -296,7 +296,7 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
                         aria-label="Hide chat"
                         onClick={() => setIsOpen(false)}
                     >
-                        <MantineIcon icon={IconLayoutSidebarLeftCollapse} />
+                        <MantineIcon icon={IconLayoutSidebarRightCollapse} />
                     </ActionIcon>
                 </Tooltip>
             </Group>
