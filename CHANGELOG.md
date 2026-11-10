@@ -1,3 +1,10 @@
+# [3.193.0](https://github.com/lightdash/lightdash/compare/3.192.0...3.193.0) (2026-11-10)
+
+
+### Features
+
+* **pre-aggregates:** explain results too wide to materialize ([#32252](https://github.com/lightdash/lightdash/issues/32252)) ([3b82bc7](https://github.com/lightdash/lightdash/commit/3b82bc7317c4f2603284772217f022823baeda4b))
+
 # [3.192.0](https://github.com/lightdash/lightdash/compare/3.191.0...3.192.0) (2026-11-10)
 
 

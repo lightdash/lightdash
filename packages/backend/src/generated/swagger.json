@@ -41401,6 +41401,33 @@
                     },
                     {
                         "properties": {
+                            "threshold": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "fieldCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "message": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["field_count_exceeded"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "threshold",
+                            "fieldCount",
+                            "message",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
                             "maxRows": {
                                 "type": "number",
                                 "format": "double"
@@ -76649,7 +76676,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.192.0",
+        "version": "3.193.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

@@ -46375,6 +46375,19 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        threshold: { dataType: 'double', required: true },
+                        fieldCount: { dataType: 'double', required: true },
+                        message: { dataType: 'string', required: true },
+                        type: {
+                            dataType: 'enum',
+                            enums: ['field_count_exceeded'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
                         maxRows: { dataType: 'double', required: true },
                         message: { dataType: 'string', required: true },
                         type: {
