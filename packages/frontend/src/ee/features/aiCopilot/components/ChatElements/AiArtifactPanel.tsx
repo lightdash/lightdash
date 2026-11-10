@@ -21,6 +21,7 @@ import InlineErrorState from '../../../../../components/common/InlineErrorState'
 import { getAiAccessRefusal } from '../../../../../features/aiAccess/errors';
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import useCreateInAnySpaceAccess from '../../../../../hooks/user/useCreateInAnySpaceAccess';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
@@ -150,6 +151,11 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
             (thread.user.uuid === user.data?.userUuid || !!canManageAgent);
         const { mutate: saveComposerVizConfig } =
             useUpdateComposerVizConfig(artifact);
+        const composeFlag = useServerFeatureFlag(FeatureFlags.ComposeSqlRunner);
+        const canCreateChart = useCreateInAnySpaceAccess(
+            artifact.projectUuid,
+            'SavedChart',
+        );
         const composerNodeChat = useComposerNodeChatContext({
             threadUuid: artifact.threadUuid,
             artifactUuid: artifact.artifactUuid,
@@ -398,6 +404,17 @@ const AiArtifactPanelContent: FC<AiArtifactPanelProps> = memo(
                     description={artifactData.description ?? null}
                     isRevision={isRevision}
                     config={composerConfig}
+                    canSaveToDashboard={
+                        canEditThread &&
+                        canCreateChart &&
+                        composeFlag.data?.enabled === true &&
+                        composerConfig.schemaVersion === 2
+                    }
+                    savedDashboardUuid={
+                        artifactData.savedQueryUuid
+                            ? artifactData.savedDashboardUuid
+                            : null
+                    }
                     run={composerRun}
                     runError={queryExecutionHandle.error ?? null}
                     onRerun={() => void queryExecutionHandle.refetch()}

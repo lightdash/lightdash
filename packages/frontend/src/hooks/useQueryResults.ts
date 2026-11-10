@@ -4,6 +4,7 @@ import {
     DownloadFileType,
     isBigqueryTokenErrorMessage,
     isPreviewWarehouseSignInExpiredMessage,
+    isRedshiftIamTokenErrorMessage,
     LightdashCustomSqlProvenanceChartUuidHeader,
     ParameterError,
     QueryExecutionContext,
@@ -58,14 +59,6 @@ export type ReadyQueryResultsPageWithClientFetchTimeMs =
     ReadyQueryResultsPage & {
         clientFetchTimeMs: number;
     };
-
-const isRedshiftIamTokenErrorMessage = (message: string): boolean => {
-    const normalizedMessage = message.toLowerCase();
-    return (
-        normalizedMessage.includes('redshift iam') &&
-        normalizedMessage.includes('expired')
-    );
-};
 
 const getAsyncQueryErrorType = (
     message: string,

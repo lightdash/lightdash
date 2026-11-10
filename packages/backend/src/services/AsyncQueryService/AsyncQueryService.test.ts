@@ -9,6 +9,7 @@ import {
     AnyType,
     ApiConnectorType,
     assertUnreachable,
+    AuthorizationError,
     BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER,
     BigqueryAuthenticationType,
     BigqueryTokenError,
@@ -41,12 +42,14 @@ import {
     getReferencedDimension,
     getReferencedMetric,
     getUserAttributeRegex,
+    isComposerChartQueryResults,
     isMergeMetricSource,
     lightdashVariablePattern,
     MAX_RESULTS_CACHE_INVALIDATION_EXPLORES,
     MAX_RESULTS_CACHE_TTL_SECONDS,
     MergeJoinType,
     MergeQueryErrorKind,
+    metricQueryOfSemanticNode,
     MetricType,
     MissingConfigError,
     NotFoundError,
@@ -69,6 +72,7 @@ import {
     ResultColumns,
     ResultsCacheMissReason,
     ResultsExpiredError,
+    SAVED_COMPOSER_PIPELINE_SCHEMA_VERSION,
     SignInSubjectBasis,
     SnowflakeAuthenticationType,
     SupportedDbtAdapter,
@@ -81,6 +85,10 @@ import {
     type AgentIdentityClaim,
     type AuthType,
     type CaslSubjectNames,
+    type ChartConfig,
+    type ComposerChartNodeRole,
+    type ComposerChartQuerySource,
+    type ComposerSavedChartDAO,
     type CreateBigqueryCredentials,
     type DashboardParameterControl,
     type Document,
@@ -96,6 +104,7 @@ import {
     type PivotConfiguration,
     type ProjectDefaults,
     type RegisteredAccount,
+    type SemanticLayerSourceQuery,
     type SessionUser,
     type UserAccessControls,
 } from '@lightdash/common';
@@ -107,6 +116,8 @@ import knex from 'knex';
 import { getTracker, MockClient } from 'knex-mock-client';
 import { StringCodec, type JsMsg } from 'nats';
 import ExecutionContext from 'node-execution-context';
+import { readFileSync } from 'node:fs';
+import { join as joinPath } from 'node:path';
 import { PassThrough, Readable, Writable } from 'stream';
 import type { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -190,7 +201,11 @@ import {
     withResultsCacheConfig,
 } from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
-import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import {
+    HIDDEN_COMPOSER_NODE_ERROR,
+    INPUT_COMPOSER_NODE_RESULTS_ERROR,
+    QueryHistoryModel,
+} from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { RefreshTokenLockTimeoutError } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
 import type { SavedChartModel } from '../../models/SavedChartModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -212,6 +227,7 @@ import {
 } from '../../nats/natsConfig';
 import { NatsWorker } from '../../nats/NatsWorker';
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { composerSavedChartVariant } from '../../testing/composerSavedChartFixture';
 import { buildCacheHash as buildIdentityCacheHash } from '../../utils/cacheUtils';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { buildComposeMergeSql } from '../../utils/QueryBuilder/composeMergeSql';
@@ -245,6 +261,7 @@ import {
     aiServiceAccountPlanMock,
     markedPersonPlanMock,
 } from '../AiAccessService/AiAccessService.mock';
+import { getQuerySourceParameters } from '../AiAccessService/queryResultLineage';
 import type { ICacheService } from '../CacheService/ICacheService';
 import {
     CacheHitCacheResult,
@@ -302,6 +319,7 @@ import {
     COMPOSE_ENGINE_INSTANCE_CACHE_KEY,
     ComposeEngineClient,
 } from './ComposeEngineClient';
+import { ComposerChartQueryContext } from './ComposerChartQueryContext';
 import { buildComposeMergeOriginalColumns } from './mergeQueryExecution';
 import {
     NoOpPreAggregateStrategy,
@@ -6446,7 +6464,7 @@ describe('AsyncQueryService', () => {
             return { service, prepare };
         };
 
-        const effectiveQueryLimit = (prepare: ReturnType<typeof vi.fn>) =>
+        const effectiveQueryLimit = (prepare: import('vitest').MockInstance) =>
             prepare.mock.calls[0][0].metricQuery.limit;
 
         // metricQueryMock has 3 columns (1 dimension, 1 metric, 1 table calc),
@@ -12349,7 +12367,7 @@ describe('AsyncQueryService', () => {
                 const events: string[] = [];
                 const queryError = new Error('query failed');
                 let attempt = 0;
-                const disconnects: ReturnType<typeof vi.fn>[] = [];
+                const disconnects: import('vitest').MockInstance[] = [];
                 const acquire = vi
                     .spyOn(service.warehouseClientFactory, 'acquireUnscoped')
                     .mockImplementation(async () => {
@@ -14011,7 +14029,7 @@ describe('AsyncQueryService', () => {
                 (
                     projectModel.getWarehouseClientFromCredentials as import('vitest').Mock
                 ).mockReturnValue(warehouseClient);
-                (service as AnyType).savedChartModel = {
+                (service as AnyType).savedChartModel = withSemanticVariant({
                     get: vi.fn().mockResolvedValue({
                         uuid: 'chart-1',
                         organizationUuid: projectSummary.organizationUuid,
@@ -14024,7 +14042,7 @@ describe('AsyncQueryService', () => {
                             clash: 'saved',
                         },
                     }),
-                };
+                });
                 (service as AnyType).spacePermissionService = {
                     resolveAccess: vi.fn().mockResolvedValue({
                         organizationUuid: projectSummary.organizationUuid,
@@ -14177,7 +14195,7 @@ describe('AsyncQueryService', () => {
 
         it('threads the source dateZoom from request_parameters into the totals query', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                savedChartModel: {
+                savedChartModel: withSemanticVariant({
                     get: vi.fn().mockResolvedValue({
                         uuid: 'chart-uuid',
                         projectUuid,
@@ -14185,7 +14203,7 @@ describe('AsyncQueryService', () => {
                         spaceUuid: 'space-uuid',
                         dashboardUuid: 'dashboard-uuid',
                     }),
-                },
+                }),
             } as never);
             const account = buildAccount();
             account.user.ability = new Ability<PossibleAbilities>([
@@ -14698,9 +14716,9 @@ describe('AsyncQueryService', () => {
 
         const buildService = () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                savedChartModel: {
+                savedChartModel: withSemanticVariant({
                     get: vi.fn(async () => savedChart),
-                } as unknown as SavedChartModel,
+                }),
                 savedSqlModel: {
                     getByUuid: vi.fn(async () => sqlChart),
                 } as unknown as SavedSqlModel,
@@ -14890,12 +14908,12 @@ describe('AsyncQueryService', () => {
                 const internals = service as AnyType;
                 // These cases exercise the real resolver
                 delete internals.resolveDashboardTileParameters;
-                internals.savedChartModel = {
+                internals.savedChartModel = withSemanticVariant({
                     get: vi.fn(async () => ({
                         ...savedChart,
                         parameters: { status: chartStatus },
                     })),
-                };
+                });
                 internals.dashboardModel = {
                     getDashboardParameterStateByIdOrSlug: vi.fn(async () => ({
                         parameters:
@@ -15367,9 +15385,9 @@ describe('AsyncQueryService', () => {
                 const service = getMockedAsyncQueryService(
                     lightdashConfigMock,
                     {
-                        savedChartModel: {
+                        savedChartModel: withSemanticVariant({
                             get: vi.fn(async () => stored),
-                        } as unknown as SavedChartModel,
+                        }),
                         analyticsModel: {
                             addChartViewEvent: vi.fn(async () => {}),
                         } as unknown as AnalyticsModel,
@@ -15439,9 +15457,9 @@ describe('AsyncQueryService', () => {
 
         test('uses an explicit pivot configuration instead of the saved chart layout', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                savedChartModel: {
+                savedChartModel: withSemanticVariant({
                     get: vi.fn(async () => bigNumberChart),
-                } as unknown as SavedChartModel,
+                }),
                 analyticsModel: {
                     addChartViewEvent: vi.fn(async () => {}),
                 } as unknown as AnalyticsModel,
@@ -15598,9 +15616,9 @@ describe('AsyncQueryService', () => {
                 throw new ForbiddenError('Chart is not embedded');
             });
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                savedChartModel: {
+                savedChartModel: withSemanticVariant({
                     get: vi.fn(async () => chart),
-                } as unknown as SavedChartModel,
+                }),
                 analyticsModel: {
                     addChartViewEvent: vi.fn(async () => {}),
                 } as unknown as AnalyticsModel,
@@ -15809,9 +15827,9 @@ describe('AsyncQueryService', () => {
 
         test('ANDs filterOverrides onto the chart metricQuery filters', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                savedChartModel: {
+                savedChartModel: withSemanticVariant({
                     get: vi.fn(async () => chart),
-                } as unknown as SavedChartModel,
+                }),
                 analyticsModel: {
                     addChartViewEvent: vi.fn(async () => {}),
                 } as unknown as AnalyticsModel,
@@ -15914,9 +15932,9 @@ describe('AsyncQueryService', () => {
 
         test('refuses schedulerFilters that replace a saved rule without explore access', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                savedChartModel: {
+                savedChartModel: withSemanticVariant({
                     get: vi.fn(async () => chart),
-                } as unknown as SavedChartModel,
+                }),
                 analyticsModel: {
                     addChartViewEvent: vi.fn(async () => {}),
                 } as unknown as AnalyticsModel,
@@ -15943,9 +15961,9 @@ describe('AsyncQueryService', () => {
 
         test('schedulerFilters replace the chart rule they target instead of narrowing it', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                savedChartModel: {
+                savedChartModel: withSemanticVariant({
                     get: vi.fn(async () => chart),
-                } as unknown as SavedChartModel,
+                }),
                 analyticsModel: {
                     addChartViewEvent: vi.fn(async () => {}),
                 } as unknown as AnalyticsModel,
@@ -16012,9 +16030,9 @@ describe('AsyncQueryService', () => {
 
         test('merges dashboard filters targeting the explore and silently drops the rest', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                savedChartModel: {
+                savedChartModel: withSemanticVariant({
                     get: vi.fn(async () => chart),
-                } as unknown as SavedChartModel,
+                }),
                 analyticsModel: {
                     addChartViewEvent: vi.fn(async () => {}),
                 } as unknown as AnalyticsModel,
@@ -16169,9 +16187,9 @@ describe('AsyncQueryService', () => {
 
         const buildService = () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                savedChartModel: {
+                savedChartModel: withSemanticVariant({
                     get: vi.fn(async () => mergedChart),
-                } as unknown as SavedChartModel,
+                }),
                 analyticsModel: {
                     addChartViewEvent: vi.fn(async () => {}),
                 } as unknown as AnalyticsModel,
@@ -16252,6 +16270,9 @@ describe('AsyncQueryService', () => {
                 ).toEqual(['b_dim1']);
             });
 
+            if (isComposerChartQueryResults(result)) {
+                throw new Error('expected a classic chart result');
+            }
             expect(result.queryUuid).toBe('merge-query-uuid');
             expect(result.dateZoomApplied).toBe(false);
             expect(
@@ -16265,7 +16286,7 @@ describe('AsyncQueryService', () => {
         test('sends the tile parameters above the fallback chain to the merge', async () => {
             const { service, mergeSpy } = buildService();
             const internals = service as AnyType;
-            internals.savedChartModel = {
+            internals.savedChartModel = withSemanticVariant({
                 get: vi.fn(async () => ({
                     ...mergedChart,
                     parameters: {
@@ -16274,7 +16295,7 @@ describe('AsyncQueryService', () => {
                         tier: 'silver',
                     },
                 })),
-            };
+            });
             internals.dashboardModel = {
                 getDashboardParameterStateByIdOrSlug: vi.fn(async () => ({
                     parameters: {
@@ -16955,7 +16976,7 @@ describe('saved chart query result access', () => {
             directOnly: false,
         });
         const service = getMockedAsyncQueryService(lightdashConfigMock, {
-            savedChartModel: { get: getChart },
+            savedChartModel: withSemanticVariant({ get: getChart }),
             spacePermissionService: { resolveAccess },
             featureFlagModel: {
                 get: vi.fn(async ({ featureFlagId }) => ({
@@ -21020,11 +21041,11 @@ describe('embedded field value search dashboard scoping', () => {
         }));
         const service = getMockedAsyncQueryService(lightdashConfigMock, {
             dashboardModel: { getByIdOrSlug } as unknown as DashboardModel,
-            savedChartModel: {
+            savedChartModel: withSemanticVariant({
                 getInfoForAvailableFilters: vi.fn(async () => [
                     { tableName: validExplore.name },
                 ]),
-            } as unknown as SavedChartModel,
+            }),
         });
         const internals = service as AnyType;
         internals.getWarehouseCredentialsWithConnection = vi
@@ -30090,13 +30111,19 @@ describe('fresh execution producer to result reader', () => {
                 auth.user.userUuid,
                 {},
                 args.paginateArgs,
-                { grantUuid: 'grant', revision: 1 },
+                {
+                    connection: { grantUuid: 'grant', revision: 1 },
+                    canViewNodeSql: expect.any(Boolean),
+                },
             );
             expect(getUserHistoryCounts).toHaveBeenLastCalledWith(
                 projectUuid,
                 auth.user.userUuid,
                 {},
-                { grantUuid: 'grant', revision: 1 },
+                {
+                    connection: { grantUuid: 'grant', revision: 1 },
+                    canViewNodeSql: expect.any(Boolean),
+                },
             );
             const person = fromOauth(auth.user, {
                 accessToken: 'ordinary',
@@ -30110,13 +30137,13 @@ describe('fresh execution producer to result reader', () => {
                 auth.user.userUuid,
                 {},
                 args.paginateArgs,
-                null,
+                { connection: null, canViewNodeSql: expect.any(Boolean) },
             );
             expect(getUserHistoryCounts).toHaveBeenLastCalledWith(
                 projectUuid,
                 auth.user.userUuid,
                 {},
-                null,
+                { connection: null, canViewNodeSql: expect.any(Boolean) },
             );
             findUserHistory.mockImplementationOnce(async () => {
                 Object.assign(auth.grant, { revokedAt: new Date() });
@@ -31285,4 +31312,2296 @@ describe('results cache stats', () => {
             ),
         ).rejects.toThrow(ForbiddenError);
     });
+});
+
+describe('composer chart node queries', () => {
+    const node: SemanticLayerSourceQuery & { nodeId: string } = {
+        sourceType: QuerySourceType.SEMANTIC_LAYER,
+        nodeId: 'orders',
+        exploreName: metricQueryMock.exploreName,
+        dimensions: metricQueryMock.dimensions,
+        metrics: metricQueryMock.metrics,
+        additionalMetrics: [
+            {
+                name: 'amount_x2',
+                table: metricQueryMock.exploreName,
+                type: MetricType.SUM,
+                sql: '${TABLE}.amount * 2',
+            },
+        ],
+        limit: 500,
+    };
+    const chart = {
+        uuid: 'composer-chart',
+        projectUuid,
+        pipeline: {
+            schemaVersion: SAVED_COMPOSER_PIPELINE_SCHEMA_VERSION,
+            nodes: [node],
+            terminalNodeId: 'orders',
+        },
+    } as unknown as ComposerSavedChartDAO;
+    const projectViewer = () => {
+        const account = buildAccount() as RegisteredAccount;
+        account.user.ability = new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'view' },
+        ]);
+        return account;
+    };
+    const stubExecution = (service: AsyncQueryService) => {
+        vi.spyOn(service, 'getExploreWithUserAccessControls').mockResolvedValue(
+            {
+                explore: validExplore,
+                userAccessControls: {
+                    userAttributes: {},
+                    intrinsicUserAttributes: {},
+                },
+            },
+        );
+        vi.spyOn(
+            service as unknown as {
+                prepareMetricQueryAsyncQueryArgs: (
+                    args: unknown,
+                ) => Promise<QueryComposer>;
+            },
+            'prepareMetricQueryAsyncQueryArgs',
+        ).mockResolvedValue(createQueryComposerMock({}));
+        return vi
+            .spyOn(
+                service as unknown as {
+                    executeAsyncQuery: (
+                        args: unknown,
+                        parameters: ExecuteAsyncQueryRequestParams,
+                    ) => Promise<ExecuteAsyncQueryReturn>;
+                },
+                'executeAsyncQuery',
+            )
+            .mockResolvedValue({
+                queryUuid: 'node-query',
+                cacheMetadata: { cacheHit: false },
+            });
+    };
+
+    test('a project viewer runs a stored node with custom SQL and the row records the chart', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const execute = stubExecution(service);
+        const account = projectViewer();
+
+        const result = await service.executeAsyncMetricQuery({
+            account,
+            projectUuid,
+            metricQuery: metricQueryOfSemanticNode(node),
+            context: QueryExecutionContext.DASHBOARD,
+            composerChartQueryContext: ComposerChartQueryContext.fromChart(
+                account,
+                chart,
+                null,
+            ).forSemanticNode('orders'),
+        });
+
+        expect(result.queryUuid).toBe('node-query');
+        expect(execute).toHaveBeenCalledWith(
+            expect.objectContaining({ account }),
+            expect.objectContaining({
+                chartUuid: chart.uuid,
+                composerChartSource: {
+                    chartUuid: chart.uuid,
+                    nodeId: 'orders',
+                    role: 'terminal',
+                },
+            }),
+        );
+    });
+
+    test('a query that is not a node of the chart is refused before any explore is read', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const execute = stubExecution(service);
+        const account = projectViewer();
+
+        await expect(
+            service.executeAsyncMetricQuery({
+                account,
+                projectUuid,
+                metricQuery: {
+                    ...metricQueryOfSemanticNode(node),
+                    dimensions: [...node.dimensions!, 'orders_order_id'],
+                },
+                context: QueryExecutionContext.DASHBOARD,
+                composerChartQueryContext: ComposerChartQueryContext.fromChart(
+                    account,
+                    chart,
+                    null,
+                ).forSemanticNode('orders'),
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(execute).not.toHaveBeenCalled();
+    });
+
+    test('without project access the node is refused', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const execute = stubExecution(service);
+        const account = buildAccount() as RegisteredAccount;
+        account.user.ability = new Ability<PossibleAbilities>([]);
+
+        await expect(
+            service.executeAsyncMetricQuery({
+                account,
+                projectUuid,
+                metricQuery: metricQueryOfSemanticNode(node),
+                context: QueryExecutionContext.DASHBOARD,
+                composerChartQueryContext: ComposerChartQueryContext.fromChart(
+                    account,
+                    chart,
+                    null,
+                ).forSemanticNode('orders'),
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(execute).not.toHaveBeenCalled();
+    });
+
+    test('totals over a node row are refused by name instead of returning the node query', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            savedChartModel: {
+                getVariant: vi.fn(async () => ({
+                    queryType: 'composer' as const,
+                    chart: {
+                        ...chart,
+                        name: 'Composer chart',
+                        organizationUuid: projectSummary.organizationUuid,
+                        spaceUuid: 'space',
+                        dashboardUuid: 'dashboard',
+                    },
+                })),
+            } as unknown as SavedChartModel,
+        } as never);
+        const execute = stubExecution(service);
+        const account = projectViewer();
+        account.user.ability = new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'view' },
+            { subject: 'SavedChart', action: 'view' },
+        ]);
+        const composerChartSource = {
+            chartUuid: chart.uuid,
+            nodeId: 'orders',
+            role: 'terminal' as const,
+        };
+        (
+            service.queryHistoryModel.get as import('vitest').Mock
+        ).mockResolvedValue({
+            queryUuid: 'node-query',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            createdByUserUuid: account.user.id,
+            metricQuery: metricQueryOfSemanticNode(node),
+            pivotConfiguration: null,
+            requestParameters: {
+                context: QueryExecutionContext.DASHBOARD,
+                chartUuid: chart.uuid,
+                composerChartSource,
+                query: metricQueryOfSemanticNode(node),
+            },
+        } as unknown as QueryHistory);
+
+        await expect(
+            service.executeAsyncCalculateTotalFromQueryHistory({
+                account,
+                projectUuid,
+                queryUuid: 'node-query',
+                kind: 'grandTotal',
+            }),
+        ).rejects.toThrow(NotSupportedError);
+        expect(execute).not.toHaveBeenCalled();
+        expect(composerChartSource.nodeId).toBe('orders');
+    });
+
+    test.each([
+        [
+            'a viewer',
+            [
+                { subject: 'Project', action: 'view' },
+                { subject: 'SavedChart', action: 'view' },
+                { subject: 'ExportCsv', action: 'manage' },
+            ],
+            HIDDEN_COMPOSER_NODE_ERROR,
+        ],
+        [
+            'SQL runner access',
+            [{ action: 'manage', subject: 'all' }],
+            'Binder Error: column "missing_amount" not found\nLINE 1: SELECT orders_status, SUM(missing_amount) OVER () FROM orders',
+        ],
+    ] as const)(
+        'downloading a failed node throws %s the error it may read into the job log',
+        async (_who, rules, expectedError) => {
+            const diagnostic =
+                'Binder Error: column "missing_amount" not found\nLINE 1: SELECT orders_status, SUM(missing_amount) OVER () FROM orders';
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                savedChartModel: {
+                    getVariant: vi.fn(async () => ({
+                        queryType: 'composer' as const,
+                        chart: {
+                            ...chart,
+                            name: 'Composer chart',
+                            organizationUuid: projectSummary.organizationUuid,
+                            spaceUuid: 'space',
+                            dashboardUuid: 'dashboard',
+                        },
+                    })),
+                } as unknown as SavedChartModel,
+            } as never);
+            const account = buildAccount() as RegisteredAccount;
+            account.user.ability = new Ability<PossibleAbilities>(
+                rules as unknown as ConstructorParameters<
+                    typeof Ability<PossibleAbilities>
+                >[0],
+            );
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue({
+                queryUuid: 'node-query',
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                createdByUserUuid: account.user.id,
+                status: QueryHistoryStatus.ERROR,
+                error: diagnostic,
+                metricQuery: { timezone: null },
+                fields: {},
+                requestParameters: {
+                    context: QueryExecutionContext.DASHBOARD,
+                    chartUuid: chart.uuid,
+                    sql: 'SELECT orders_status, SUM(missing_amount) OVER () FROM orders',
+                    composerChartSource: {
+                        chartUuid: chart.uuid,
+                        nodeId: 'revenue_share',
+                        role: 'terminal',
+                    },
+                },
+            } as unknown as QueryHistory);
+
+            service.exportsStorageClient.isEnabled = vi.fn(() => true);
+            await expect(
+                service.download({
+                    account,
+                    projectUuid,
+                    queryUuid: 'node-query',
+                    type: DownloadFileType.CSV,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                }),
+            ).rejects.toThrow(expectedError);
+        },
+    );
+
+    test.each([
+        [
+            'a viewer',
+            [
+                { subject: 'Project', action: 'view' },
+                { subject: 'SavedChart', action: 'view' },
+            ],
+            HIDDEN_COMPOSER_NODE_ERROR,
+        ],
+        [
+            'SQL runner access',
+            [{ action: 'manage', subject: 'all' }],
+            'Binder Error: column "missing_amount" not found\nLINE 1: SELECT orders_status, SUM(missing_amount) OVER () FROM orders',
+        ],
+    ] as const)(
+        'polling a failed node shows %s the error it may read',
+        async (_who, rules, expectedError) => {
+            const diagnostic =
+                'Binder Error: column "missing_amount" not found\nLINE 1: SELECT orders_status, SUM(missing_amount) OVER () FROM orders';
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                savedChartModel: {
+                    getVariant: vi.fn(async () => ({
+                        queryType: 'composer' as const,
+                        chart: {
+                            ...chart,
+                            name: 'Composer chart',
+                            organizationUuid: projectSummary.organizationUuid,
+                            spaceUuid: 'space',
+                            dashboardUuid: 'dashboard',
+                        },
+                    })),
+                } as unknown as SavedChartModel,
+            } as never);
+            const account = buildAccount() as RegisteredAccount;
+            account.user.ability = new Ability<PossibleAbilities>(
+                rules as unknown as ConstructorParameters<
+                    typeof Ability<PossibleAbilities>
+                >[0],
+            );
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue({
+                queryUuid: 'node-query',
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                createdByUserUuid: account.user.id,
+                status: QueryHistoryStatus.ERROR,
+                error: diagnostic,
+                erroredAt: new Date('2026-01-01T00:00:00Z'),
+                metricQuery: null,
+                fields: {},
+                requestParameters: {
+                    context: QueryExecutionContext.DASHBOARD,
+                    chartUuid: chart.uuid,
+                    sql: 'SELECT orders_status, SUM(missing_amount) OVER () FROM orders',
+                    composerChartSource: {
+                        chartUuid: chart.uuid,
+                        nodeId: 'revenue_share',
+                        role: 'terminal',
+                    },
+                },
+            } as unknown as QueryHistory);
+
+            await expect(
+                service.getAsyncQueryResults({
+                    account,
+                    projectUuid,
+                    queryUuid: 'node-query',
+                }),
+            ).resolves.toMatchObject({
+                status: QueryHistoryStatus.ERROR,
+                error: expectedError,
+            });
+            // The stream seam relays the same visible error, not the stored diagnostic
+            await expect(
+                service.getResultsStream({
+                    account,
+                    projectUuid,
+                    queryUuid: 'node-query',
+                }),
+            ).rejects.toThrow(expectedError);
+        },
+    );
+
+    test('underlying data over a node row is refused by name instead of writing an unmarked row', async () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            savedChartModel: {
+                getVariant: vi.fn(async () => ({
+                    queryType: 'composer' as const,
+                    chart: {
+                        ...chart,
+                        name: 'Composer chart',
+                        organizationUuid: projectSummary.organizationUuid,
+                        spaceUuid: 'space',
+                        dashboardUuid: 'dashboard',
+                    },
+                })),
+            } as unknown as SavedChartModel,
+        } as never);
+        const execute = stubExecution(service);
+        const account = buildAccount() as RegisteredAccount;
+        account.user.ability = new Ability<PossibleAbilities>([
+            { action: 'manage', subject: 'all' },
+        ]);
+        (
+            service.queryHistoryModel.get as import('vitest').Mock
+        ).mockResolvedValue({
+            queryUuid: 'node-query',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            createdByUserUuid: account.user.id,
+            metricQuery: metricQueryOfSemanticNode(node),
+            fields: {},
+            requestParameters: {
+                context: QueryExecutionContext.DASHBOARD,
+                chartUuid: chart.uuid,
+                composerChartSource: {
+                    chartUuid: chart.uuid,
+                    nodeId: 'orders',
+                    role: 'terminal',
+                },
+                query: metricQueryOfSemanticNode(node),
+            },
+        } as unknown as QueryHistory);
+
+        await expect(
+            service.executeAsyncUnderlyingDataQuery({
+                account,
+                projectUuid,
+                underlyingDataSourceQueryUuid: 'node-query',
+                context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                filters: {},
+            }),
+        ).rejects.toThrow(NotSupportedError);
+        expect(execute).not.toHaveBeenCalled();
+    });
+
+    describe("an input node's results are the chart author's, not the viewer's", () => {
+        // The inferred column name quotes the author's SQL
+        const nodeQueryUuid = '6f1d2c3b-4a5e-4f60-8b71-9c2d3e4f5a6b';
+        const secretColumn = 'sum((secret_amount * 0.73))';
+        const authoredSql = `SELECT ${secretColumn} FROM orders`;
+        const chartName = 'Composer chart';
+        const viewerRules = [
+            { subject: 'Project', action: 'view' },
+            { subject: 'SavedChart', action: 'view' },
+            { subject: 'ExportCsv', action: 'manage' },
+            { subject: 'Explore', action: 'manage' },
+        ];
+        const sqlRunnerRules = [{ action: 'manage', subject: 'all' }];
+        const accountWith = (rules: readonly unknown[]) => {
+            const account = buildAccount() as RegisteredAccount;
+            account.user.ability = new Ability<PossibleAbilities>(
+                rules as ConstructorParameters<
+                    typeof Ability<PossibleAbilities>
+                >[0],
+            );
+            return account;
+        };
+        const nodeRow = (
+            role: ComposerChartNodeRole,
+            status: QueryHistoryStatus,
+            createdByUserUuid: string,
+            chartUuid = chart.uuid,
+        ) =>
+            ({
+                queryUuid: nodeQueryUuid,
+                projectUuid,
+                organizationUuid: projectSummary.organizationUuid,
+                createdByUserUuid,
+                context: QueryExecutionContext.DASHBOARD,
+                status,
+                error: status === QueryHistoryStatus.ERROR ? authoredSql : null,
+                erroredAt: new Date('2026-01-01T00:00:00Z'),
+                resultsFileName: 'node.jsonl',
+                resultsExpiresAt: null,
+                columns: {
+                    [secretColumn]: {
+                        reference: secretColumn,
+                        type: DimensionType.NUMBER,
+                    },
+                },
+                metricQuery: { timezone: null, limit: 500 },
+                fields: {},
+                requestParameters: {
+                    context: QueryExecutionContext.DASHBOARD,
+                    chartUuid,
+                    sql: authoredSql,
+                    composerChartSource: { chartUuid, nodeId: 'orders', role },
+                },
+            }) as unknown as QueryHistory;
+        const buildService = (
+            config: LightdashConfig = lightdashConfigMock,
+        ) => {
+            const service = getMockedAsyncQueryService(config, {
+                featureFlagModel: {
+                    get: vi.fn(async ({ featureFlagId }: AnyType) => ({
+                        id: featureFlagId,
+                        enabled:
+                            featureFlagId === FeatureFlags.ComposeSqlRunner,
+                    })),
+                } as unknown as FeatureFlagModel,
+                savedChartModel: {
+                    getVariant: vi.fn(async () => ({
+                        queryType: 'composer' as const,
+                        chart: {
+                            ...chart,
+                            name: chartName,
+                            organizationUuid: projectSummary.organizationUuid,
+                            spaceUuid: 'space',
+                            dashboardUuid: 'dashboard',
+                        },
+                    })),
+                } as unknown as SavedChartModel,
+            } as never);
+            service.exportsStorageClient.isEnabled = vi.fn(() => true);
+            return service;
+        };
+        const expectRefusedByName = async (
+            service: AsyncQueryService,
+            read: Promise<unknown>,
+        ) => {
+            const error = await read.then(
+                () => null,
+                (caught: unknown) => caught,
+            );
+            expect(error).toBeInstanceOf(NotSupportedError);
+            const { message } = error as Error;
+            expect(message).toContain('composer chart');
+            expect(message).not.toContain('secret_amount');
+            expect(message).not.toContain(chartName);
+            expect(service.queryHistoryModel.create).not.toHaveBeenCalled();
+        };
+        const reads = [
+            [
+                'polling the results',
+                (service: AsyncQueryService, account: Account) =>
+                    service.getAsyncQueryResults({
+                        account,
+                        projectUuid,
+                        queryUuid: nodeQueryUuid,
+                    }),
+            ],
+            [
+                'downloading the results',
+                (service: AsyncQueryService, account: Account) =>
+                    service.download({
+                        account,
+                        projectUuid,
+                        queryUuid: nodeQueryUuid,
+                        type: DownloadFileType.CSV,
+                        accessMode:
+                            PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                    }),
+            ],
+            [
+                'rerunning without a limit',
+                (service: AsyncQueryService, account: Account) =>
+                    service.executeAsyncUnboundedRerunFromQueryHistory({
+                        account,
+                        projectUuid,
+                        queryUuid: nodeQueryUuid,
+                        context: QueryExecutionContext.CSV,
+                    }),
+            ],
+            [
+                'referencing the results from compose SQL',
+                (service: AsyncQueryService, account: Account) =>
+                    service.executeAsyncComposeSqlQuery({
+                        account,
+                        projectUuid,
+                        context: QueryExecutionContext.COMPOSE_SQL_RUNNER,
+                        sql: 'SELECT * FROM orders',
+                        references: { orders: nodeQueryUuid },
+                    }),
+            ],
+        ] as const;
+
+        test.each(reads)(
+            'a viewer %s of an input node is refused by name and writes no row',
+            async (_read, read) => {
+                const service = buildService();
+                const account = accountWith(viewerRules);
+                (
+                    service.queryHistoryModel.get as import('vitest').Mock
+                ).mockResolvedValue(
+                    nodeRow('input', QueryHistoryStatus.READY, account.user.id),
+                );
+                await expectRefusedByName(service, read(service, account));
+            },
+        );
+
+        test.each([
+            ['terminal', 'terminal'],
+            ['chart stage', 'chartStage'],
+        ] as const)(
+            'a viewer polls the %s node past the node check',
+            async (_label, role) => {
+                const service = buildService();
+                const account = accountWith(viewerRules);
+                (
+                    service.queryHistoryModel.get as import('vitest').Mock
+                ).mockResolvedValue(
+                    nodeRow(role, QueryHistoryStatus.ERROR, account.user.id),
+                );
+                await expect(
+                    service.getAsyncQueryResults({
+                        account,
+                        projectUuid,
+                        queryUuid: nodeQueryUuid,
+                    }),
+                ).resolves.toMatchObject({
+                    status: QueryHistoryStatus.ERROR,
+                    error: HIDDEN_COMPOSER_NODE_ERROR,
+                });
+            },
+        );
+
+        test('SQL runner access polls an input node as before', async () => {
+            const service = buildService();
+            const account = accountWith(sqlRunnerRules);
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue(
+                nodeRow('input', QueryHistoryStatus.ERROR, account.user.id),
+            );
+            await expect(
+                service.getAsyncQueryResults({
+                    account,
+                    projectUuid,
+                    queryUuid: nodeQueryUuid,
+                }),
+            ).resolves.toMatchObject({
+                status: QueryHistoryStatus.ERROR,
+                error: authoredSql,
+            });
+        });
+
+        test('a row written before roles existed is read as an input', async () => {
+            const service = buildService();
+            const account = accountWith(viewerRules);
+            const row = nodeRow(
+                'input',
+                QueryHistoryStatus.READY,
+                account.user.id,
+            );
+            delete (
+                row.requestParameters as unknown as {
+                    composerChartSource: { role?: string };
+                }
+            ).composerChartSource.role;
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue(row);
+            await expectRefusedByName(
+                service,
+                service.getAsyncQueryResults({
+                    account,
+                    projectUuid,
+                    queryUuid: nodeQueryUuid,
+                }),
+            );
+        });
+
+        // Results storage is missing on purpose: a reference that passes the
+        // node check fails later, by name, when the engine is built
+        const withoutResultsStorage: LightdashConfig = {
+            ...lightdashConfigMock,
+            results: { ...lightdashConfigMock.results, s3: undefined },
+        };
+        const plan = {
+            columns: { mode: 'discover' },
+            engine: 'scopedToReferencedResults',
+            guard: null,
+            referenceLabels: {},
+        } as const;
+
+        test("the chart's own terminal node reads its input as the viewer", async () => {
+            const service = buildService(withoutResultsStorage);
+            const account = accountWith(viewerRules);
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue(
+                nodeRow('input', QueryHistoryStatus.READY, account.user.id),
+            );
+            await expect(
+                service.executeAsyncDuckdbSourceQuery({
+                    account,
+                    projectUuid,
+                    context: QueryExecutionContext.DASHBOARD,
+                    sql: 'SELECT * FROM orders',
+                    references: { orders: nodeQueryUuid },
+                    plan,
+                    composerChartSource: {
+                        chartUuid: chart.uuid,
+                        nodeId: 'revenue_share',
+                        role: 'terminal',
+                    },
+                }),
+            ).rejects.toThrow(MissingConfigError);
+        });
+
+        test('a viewer merging over an input node row is refused by name before any leg runs', async () => {
+            const service = buildService();
+            const account = accountWith(viewerRules);
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue(
+                nodeRow('input', QueryHistoryStatus.READY, account.user.id),
+            );
+            await expectRefusedByName(
+                service,
+                service.executeAsyncMergeQuery({
+                    account,
+                    projectUuid,
+                    mergeQuery: {
+                        sources: [{ id: 'in', queryUuid: nodeQueryUuid }],
+                        joinKey: [],
+                        joinType: 'full',
+                        tableCalculations: [],
+                        limit: 500,
+                    } as never,
+                    context: QueryExecutionContext.EXPLORE,
+                    mode: { type: 'interactive' },
+                }),
+            );
+        });
+
+        test('a sync download of an input node is refused by name before it waits for the row', async () => {
+            const service = buildService();
+            const account = accountWith(viewerRules);
+            const poll = vi.fn();
+            service.queryHistoryModel.pollForQueryCompletion = poll;
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue(
+                nodeRow('input', QueryHistoryStatus.PENDING, account.user.id),
+            );
+            await expectRefusedByName(
+                service,
+                service.downloadSyncQueryResults({
+                    account,
+                    projectUuid,
+                    queryUuid: nodeQueryUuid,
+                    type: DownloadFileType.CSV,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                }),
+            );
+            expect(poll).not.toHaveBeenCalled();
+        });
+
+        test("another chart's node cannot read this chart's input as the viewer", async () => {
+            const service = buildService(withoutResultsStorage);
+            const account = accountWith(viewerRules);
+            (
+                service.queryHistoryModel.get as import('vitest').Mock
+            ).mockResolvedValue(
+                nodeRow('input', QueryHistoryStatus.READY, account.user.id),
+            );
+            await expectRefusedByName(
+                service,
+                service.executeAsyncDuckdbSourceQuery({
+                    account,
+                    projectUuid,
+                    context: QueryExecutionContext.DASHBOARD,
+                    sql: 'SELECT * FROM orders',
+                    references: { orders: nodeQueryUuid },
+                    plan,
+                    composerChartSource: {
+                        chartUuid: 'another-chart',
+                        nodeId: 'revenue_share',
+                        role: 'terminal',
+                    },
+                }),
+            );
+        });
+    });
+});
+
+describe('composer chart runs and the internal materialization context', () => {
+    const composerChart = {
+        uuid: 'composer-chart',
+        name: 'Composer chart',
+        projectUuid,
+        organizationUuid: projectSummary.organizationUuid,
+        spaceUuid: 'space',
+        dashboardUuid: 'dashboard',
+        pipeline: {
+            schemaVersion: SAVED_COMPOSER_PIPELINE_SCHEMA_VERSION,
+            nodes: [
+                {
+                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                    nodeId: 'orders',
+                    exploreName: 'orders',
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_total_order_amount'],
+                    limit: 500,
+                },
+            ],
+            terminalNodeId: 'orders',
+        },
+        chartConfig: { type: ChartType.TABLE, config: {} },
+        pivotConfig: null,
+        parameters: null,
+    } as unknown as ComposerSavedChartDAO;
+
+    const buildService = () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            savedChartModel: {
+                getVariant: vi.fn(async () => ({
+                    queryType: 'composer' as const,
+                    chart: composerChart,
+                })),
+            } as unknown as SavedChartModel,
+        } as never);
+        const submitQueries = vi
+            .spyOn(QuerySourceService.prototype, 'submitQueries')
+            .mockRejectedValue(new Error('must not submit'));
+        return { service, submitQueries };
+    };
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    test('the dashboard path refuses the materialization context by name before any node is submitted', async () => {
+        const { service, submitQueries } = buildService();
+        await expect(
+            service.executeAsyncDashboardChartQuery({
+                account: buildAccount(),
+                projectUuid,
+                chartUuid: composerChart.uuid,
+                tileUuid: 'tile',
+                dashboardUuid: 'dashboard',
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+                context: QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(submitQueries).not.toHaveBeenCalled();
+    });
+
+    test('the saved-chart path refuses it the same way', async () => {
+        const { service, submitQueries } = buildService();
+        await expect(
+            service.executeAsyncSavedChartQuery({
+                account: buildAccount(),
+                projectUuid,
+                chartUuid: composerChart.uuid,
+                context: QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+            }),
+        ).rejects.toThrow(
+            `context ${QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION} cannot run a composer chart`,
+        );
+        expect(submitQueries).not.toHaveBeenCalled();
+    });
+
+    // MCP and AI readers trust these contexts as proof a tool started the row
+    test.each([
+        QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+        QueryExecutionContext.MCP_RUN_SQL,
+        QueryExecutionContext.MCP_QUERY,
+        QueryExecutionContext.AI,
+    ])(
+        'a chart-bound run refuses the tool-started context %s',
+        async (context) => {
+            const { service, submitQueries } = buildService();
+            await expect(
+                service.executeAsyncSavedChartQuery({
+                    account: buildAccount(),
+                    projectUuid,
+                    chartUuid: composerChart.uuid,
+                    context,
+                }),
+            ).rejects.toThrow(`context ${context} cannot run a composer chart`);
+            expect(submitQueries).not.toHaveBeenCalled();
+        },
+    );
+});
+
+describe('composer chart runs check every node against the viewer explore before any node runs', () => {
+    const table = (
+        name: string,
+        dimensions: string[],
+        metrics: string[],
+    ): Explore['tables'][string] => ({
+        ...validExplore.tables.a,
+        name,
+        label: name,
+        dimensions: Object.fromEntries(
+            dimensions.map((dimension) => [
+                dimension,
+                {
+                    ...validExplore.tables.a.dimensions.dim1,
+                    name: dimension,
+                    label: dimension,
+                    table: name,
+                    tablesReferences: [name],
+                },
+            ]),
+        ),
+        metrics: Object.fromEntries(
+            metrics.map((metric) => [
+                metric,
+                {
+                    ...validExplore.tables.a.metrics.met1,
+                    name: metric,
+                    label: metric,
+                    table: name,
+                    tablesReferences: [name],
+                },
+            ]),
+        ),
+    });
+    const exploreOf = (
+        name: string,
+        visible: Explore['tables'][string],
+        unfiltered: Explore['tables'][string] = visible,
+    ): Explore => ({
+        ...validExplore,
+        name,
+        label: name,
+        baseTable: name,
+        joinedTables: [],
+        tables: { [name]: visible },
+        unfilteredTables: { [name]: unfiltered },
+    });
+    const ordersExplore = exploreOf(
+        'orders',
+        table('orders', ['status'], ['total_order_amount']),
+    );
+    const customersExplore = exploreOf(
+        'customers',
+        table('customers', ['age'], ['unique_customer_count']),
+    );
+    // The viewer lacks the attribute `customers_age` requires
+    const customersExploreWithoutAge = exploreOf(
+        'customers',
+        table('customers', [], ['unique_customer_count']),
+        table('customers', ['age'], ['unique_customer_count']),
+    );
+    const chart = {
+        uuid: 'composer-chart',
+        name: 'Revenue and customers',
+        projectUuid,
+        organizationUuid: projectSummary.organizationUuid,
+        spaceUuid: 'space',
+        dashboardUuid: 'dashboard',
+        pipeline: {
+            schemaVersion: SAVED_COMPOSER_PIPELINE_SCHEMA_VERSION,
+            nodes: [
+                {
+                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                    nodeId: 'orders',
+                    exploreName: 'orders',
+                    dimensions: ['orders_status'],
+                    metrics: ['orders_total_order_amount'],
+                    limit: 500,
+                },
+                {
+                    sourceType: QuerySourceType.SEMANTIC_LAYER,
+                    nodeId: 'customers',
+                    exploreName: 'customers',
+                    dimensions: ['customers_age'],
+                    metrics: ['customers_unique_customer_count'],
+                    limit: 500,
+                },
+                {
+                    sourceType: QuerySourceType.DUCKDB,
+                    nodeId: 'joined',
+                    sql: 'SELECT * FROM orders, customers',
+                    references: ['orders', 'customers'],
+                    limit: 500,
+                },
+            ],
+            terminalNodeId: 'joined',
+        },
+        chartConfig: { type: ChartType.TABLE, config: {} },
+        pivotConfig: null,
+        parameters: null,
+    } as unknown as ComposerSavedChartDAO;
+
+    const buildService = (explores: Record<string, Explore>) => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            savedChartModel: {
+                getVariant: vi.fn(async () => ({
+                    queryType: 'composer' as const,
+                    chart,
+                })),
+            } as unknown as SavedChartModel,
+            featureFlagModel: {
+                get: vi.fn(async ({ featureFlagId }: AnyType) => ({
+                    id: featureFlagId,
+                    enabled: featureFlagId === FeatureFlags.ComposeSqlRunner,
+                })),
+            } as unknown as FeatureFlagModel,
+            spaceModel: {
+                getSpaceSummary: vi.fn(async () => ({
+                    uuid: chart.spaceUuid,
+                    organizationUuid: projectSummary.organizationUuid,
+                    projectUuid,
+                })),
+            } as unknown as SpaceModel,
+            analyticsModel: {
+                addChartViewEvent: vi.fn(async () => {}),
+            } as unknown as AnalyticsModel,
+        } as never);
+        const getExplore = vi
+            .spyOn(service, 'getExploreWithUserAccessControls')
+            .mockImplementation(
+                async (_account, _projectUuid, exploreName) => ({
+                    explore: explores[exploreName],
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                }),
+            );
+        const submitQueries = vi
+            .spyOn(QuerySourceService.prototype, 'submitQueries')
+            .mockResolvedValue({
+                queries: chart.pipeline.nodes.map(({ nodeId, sourceType }) => ({
+                    nodeId,
+                    sourceType,
+                    queryUuid: `${nodeId}-query`,
+                    cacheHit: false,
+                })),
+            });
+        return { service, getExplore, submitQueries };
+    };
+    // A dashboard viewer: may view the project and the chart, nothing more
+    const viewerAccount = () => {
+        const account = buildAccount() as RegisteredAccount;
+        account.user.ability = new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'view' },
+            { subject: 'SavedChart', action: 'view' },
+        ]);
+        return account;
+    };
+    const dashboardArgs = () => ({
+        account: viewerAccount(),
+        projectUuid,
+        chartUuid: chart.uuid,
+        tileUuid: 'tile',
+        dashboardUuid: 'dashboard',
+        dashboardFilters: {
+            dimensions: [],
+            metrics: [],
+            tableCalculations: [],
+        },
+        dashboardSorts: [],
+        context: QueryExecutionContext.DASHBOARD,
+    });
+    const chartArgs = () => ({
+        account: viewerAccount(),
+        projectUuid,
+        chartUuid: chart.uuid,
+        context: QueryExecutionContext.CHART,
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    test('the dashboard path refuses a later hidden node before the permitted node is submitted', async () => {
+        const { service, getExplore, submitQueries } = buildService({
+            orders: ordersExplore,
+            customers: customersExploreWithoutAge,
+        });
+        await expect(
+            service.executeAsyncDashboardChartQuery(dashboardArgs()),
+        ).rejects.toThrow(AuthorizationError);
+        expect(submitQueries).not.toHaveBeenCalled();
+        expect(getExplore).toHaveBeenCalledTimes(2);
+    });
+
+    test('the saved-chart path refuses the same way', async () => {
+        const { service, submitQueries } = buildService({
+            orders: ordersExplore,
+            customers: customersExploreWithoutAge,
+        });
+        await expect(
+            service.executeAsyncSavedChartQuery(chartArgs()),
+        ).rejects.toThrow(
+            "You don't have authorization to access this explore",
+        );
+        expect(submitQueries).not.toHaveBeenCalled();
+    });
+
+    test('with every node field visible the whole pipeline is submitted once', async () => {
+        const { service, submitQueries } = buildService({
+            orders: ordersExplore,
+            customers: customersExplore,
+        });
+        const result =
+            await service.executeAsyncDashboardChartQuery(dashboardArgs());
+        expect(submitQueries).toHaveBeenCalledTimes(1);
+        expect(submitQueries.mock.calls[0][0].queries).toBe(
+            chart.pipeline.nodes,
+        );
+        expect(result).toMatchObject({
+            queryType: 'composer',
+            queryUuid: 'joined-query',
+            terminalNodeId: 'joined',
+        });
+    });
+
+    // HTTP has no `schedulerFilters` field on these routes, so only an
+    // internal caller can supply it; the service is where it is refused.
+    test('schedulerFilters supplied internally are refused by name before any explore is read', async () => {
+        const { service, getExplore, submitQueries } = buildService({
+            orders: ordersExplore,
+            customers: customersExplore,
+        });
+        await expect(
+            service.executeAsyncSavedChartQuery({
+                ...chartArgs(),
+                schedulerFilters: { dimensions: { id: 'g', and: [] } },
+            }),
+        ).rejects.toThrow(
+            'schedulerFilters cannot be applied to a composer chart',
+        );
+        expect(getExplore).not.toHaveBeenCalled();
+        expect(submitQueries).not.toHaveBeenCalled();
+    });
+});
+
+describe('getQueryHistoryList hides composer node SQL without SQL runner access', () => {
+    const nodeSql = 'SELECT orders_status FROM orders';
+    const historyRow = (
+        queryUuid: string,
+        requestParameters: QueryHistory['requestParameters'],
+    ) => ({
+        query_uuid: queryUuid,
+        created_at: new Date('2026-01-01T00:00:00Z'),
+        project_uuid: projectUuid,
+        context: QueryExecutionContext.DASHBOARD,
+        status: QueryHistoryStatus.READY,
+        error: null,
+        metric_query: null,
+        fields: {},
+        request_parameters: requestParameters,
+        compiled_sql: nodeSql,
+        total_row_count: 1,
+        warehouse_execution_time_ms: 1,
+        results_created_at: null,
+        results_expires_at: null,
+        processing_started_at: null,
+        results_updated_at: null,
+        errored_at: null,
+        chart_name: null,
+        sql_chart_name: null,
+        dashboard_name: null,
+    });
+    const rows = [
+        historyRow('node', {
+            sql: nodeSql,
+            context: QueryExecutionContext.DASHBOARD,
+            composerChartSource: {
+                chartUuid: 'chart',
+                nodeId: 'revenue_share',
+                role: 'terminal',
+            },
+        }),
+        historyRow('classic', {
+            sql: nodeSql,
+            context: QueryExecutionContext.SQL_RUNNER,
+        }),
+    ];
+    const accountWith = (ability: Ability<PossibleAbilities>) => {
+        const account = buildAccount() as RegisteredAccount;
+        account.user.ability = ability;
+        return account;
+    };
+    const buildService = () =>
+        getMockedAsyncQueryService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(async ({ featureFlagId }: AnyType) => ({
+                    id: featureFlagId,
+                    enabled: featureFlagId === FeatureFlags.QueryHistory,
+                })),
+            } as unknown as FeatureFlagModel,
+            queryHistoryModel: {
+                findUserHistory: vi.fn(async () => ({
+                    data: rows,
+                    pagination: {
+                        page: 1,
+                        pageSize: 10,
+                        totalPageCount: 1,
+                        totalResults: rows.length,
+                    },
+                })),
+                getUserHistoryCounts: vi.fn(async () => ({
+                    triggers: { interactive: 2, apps: 0, scheduled: 0 },
+                    windows: {},
+                    warehouseTimeMsLast7Days: 0,
+                })),
+            } as unknown as QueryHistoryModel,
+        } as never);
+    const list = (account: RegisteredAccount) =>
+        buildService().getQueryHistoryList({
+            account,
+            projectUuid,
+            filters: {},
+            paginateArgs: { page: 1, pageSize: 10 },
+        });
+    const bySql = (data: { queryUuid: string; compiledSql: string }[]) =>
+        Object.fromEntries(
+            data.map(({ queryUuid, compiledSql }) => [queryUuid, compiledSql]),
+        );
+
+    test('a project viewer gets the node row redacted and the classic row intact', async () => {
+        const { data } = await list(
+            accountWith(
+                new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: 'view' },
+                ]),
+            ),
+        );
+        expect(bySql(data)).toEqual({ node: '', classic: nodeSql });
+    });
+
+    test('a caller who can manage the SQL runner sees the node SQL', async () => {
+        const { data } = await list(
+            accountWith(
+                new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: 'view' },
+                    { subject: 'SqlRunner', action: 'manage' },
+                ]),
+            ),
+        );
+        expect(bySql(data)).toEqual({ node: nodeSql, classic: nodeSql });
+    });
+});
+
+describe('composer chart series split stage', () => {
+    const barByStatus: ChartConfig = {
+        type: ChartType.CARTESIAN,
+        config: {
+            layout: {
+                xField: 'composer_result_orders_status',
+                yField: ['composer_result_revenue'],
+            },
+            eChartsConfig: { series: [] },
+        },
+    };
+    const setup = (
+        chartOverrides: Partial<ComposerSavedChartDAO>,
+        featureEnabled = true,
+    ) => {
+        const variant = composerSavedChartVariant({
+            projectUuid,
+            chartConfig: barByStatus,
+            ...chartOverrides,
+        });
+        const submitQueries = vi.fn(
+            async ({ queries }: { queries: { nodeId: string }[] }) => ({
+                queries: queries.map(({ nodeId, ...query }) => ({
+                    ...query,
+                    nodeId,
+                    sourceType: (query as { sourceType: QuerySourceType })
+                        .sourceType,
+                    queryUuid: `${nodeId}-query`,
+                    cacheHit: false,
+                })),
+            }),
+        );
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            savedChartModel: {
+                getVariant: vi.fn(async () => variant),
+            } as unknown as SavedChartModel,
+            featureFlagModel: {
+                get: vi.fn(async () => ({ enabled: featureEnabled })),
+            } as unknown as FeatureFlagModel,
+            spaceModel: {
+                getSpaceSummary: vi.fn(async () => ({})),
+            } as unknown as SpaceModel,
+            analyticsModel: {
+                addChartViewEvent: vi.fn(async () => {}),
+            } as unknown as AnalyticsModel,
+        });
+        (service as AnyType).checkDashboardChartQueryPermissions = vi.fn(
+            async () => {},
+        );
+        // Node visibility against the viewer explore has its own describe
+        (service as AnyType).assertComposerChartNodesVisible = vi.fn(
+            async () => {},
+        );
+        (service as AnyType).getQuerySourceService = () => ({ submitQueries });
+        const run = () =>
+            service.executeAsyncDashboardChartQuery({
+                account: buildAccount(),
+                projectUuid,
+                tileUuid: 'tile-uuid',
+                chartUuid: variant.chart.uuid,
+                dashboardUuid: 'dashboard-uuid',
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+                context: QueryExecutionContext.DASHBOARD,
+                invalidateCache: false,
+            });
+        return { submitQueries, run, variant, service };
+    };
+
+    test('a stored split appends a pivot stage over the terminal node and the chart draws the stage', async () => {
+        const { submitQueries, run, variant } = setup({
+            pivotConfig: { columns: ['composer_result_orders_status'] },
+            chartConfig: {
+                type: ChartType.CARTESIAN,
+                config: {
+                    layout: {
+                        xField: 'composer_result_revenue',
+                        yField: ['composer_result_order_count'],
+                    },
+                    eChartsConfig: { series: [] },
+                },
+            },
+        });
+        const result = await run();
+        if (!isComposerChartQueryResults(result)) {
+            throw new Error('expected a composer run');
+        }
+
+        const { queries, plans } = submitQueries.mock.calls[0][0] as {
+            queries: { nodeId: string }[];
+            plans: Record<string, { engine: string }>;
+        };
+        expect(queries.map(({ nodeId }) => nodeId)).toEqual([
+            ...variant.chart.pipeline.nodes.map(({ nodeId }) => nodeId),
+            'chart_stage',
+        ]);
+        expect(queries[2]).toMatchObject({
+            sourceType: QuerySourceType.DUCKDB,
+            sql: 'SELECT "revenue" AS "composer_result_revenue", "orders_status" AS "composer_result_orders_status", "order_count" AS "composer_result_order_count" FROM "node_result"',
+            references: { node_result: 'by_status' },
+            pivotConfiguration: {
+                groupByColumns: [
+                    { reference: 'composer_result_orders_status' },
+                ],
+            },
+        });
+        expect(plans.chart_stage).toMatchObject({
+            engine: 'scopedToReferencedResults',
+        });
+
+        expect(result.queryUuid).toBe('by_status-query');
+        expect(result.chartStage).toEqual({
+            queryUuid: 'chart_stage-query',
+            cacheHit: false,
+        });
+        expect(result.nodes.map(({ nodeId }) => nodeId)).toEqual([
+            'orders',
+            'by_status',
+        ]);
+    });
+
+    test('the stage row is stamped chartStage, the terminal terminal, and a viewer reads both', async () => {
+        const { submitQueries, run, variant, service } = setup({
+            pivotConfig: { columns: ['composer_result_orders_status'] },
+            chartConfig: {
+                type: ChartType.CARTESIAN,
+                config: {
+                    layout: {
+                        xField: 'composer_result_revenue',
+                        yField: ['composer_result_order_count'],
+                    },
+                    eChartsConfig: { series: [] },
+                },
+            },
+        });
+        await run();
+        const { composerChartQueryContext } = submitQueries.mock
+            .calls[0][0] as unknown as {
+            composerChartQueryContext: ComposerChartQueryContext;
+        };
+        const stageSource = composerChartQueryContext.nodeSource('chart_stage');
+        expect(stageSource).toEqual({
+            chartUuid: variant.chart.uuid,
+            nodeId: 'chart_stage',
+            role: 'chartStage',
+        });
+        expect(composerChartQueryContext.nodeSource('by_status').role).toBe(
+            'terminal',
+        );
+        expect(composerChartQueryContext.nodeSource('orders').role).toBe(
+            'input',
+        );
+
+        // A dashboard viewer without SQL runner access polls the stage row
+        const viewer = buildAccount() as RegisteredAccount;
+        viewer.user.ability = new Ability<PossibleAbilities>([
+            { subject: 'Project', action: 'view' },
+            { subject: 'SavedChart', action: 'view' },
+        ]);
+        (
+            service.queryHistoryModel.get as import('vitest').Mock
+        ).mockResolvedValue({
+            queryUuid: 'chart_stage-query',
+            projectUuid,
+            organizationUuid: variant.chart.organizationUuid,
+            createdByUserUuid: viewer.user.id,
+            context: QueryExecutionContext.DASHBOARD,
+            status: QueryHistoryStatus.ERROR,
+            error: 'Binder Error: column "secret" not found',
+            erroredAt: new Date('2026-01-01T00:00:00Z'),
+            resultsFileName: null,
+            resultsExpiresAt: null,
+            columns: {},
+            metricQuery: { timezone: null, limit: 500 },
+            fields: {},
+            requestParameters: {
+                context: QueryExecutionContext.DASHBOARD,
+                chartUuid: variant.chart.uuid,
+                composerChartSource: stageSource,
+            },
+        } as unknown as QueryHistory);
+        await expect(
+            service.getAsyncQueryResults({
+                account: viewer,
+                projectUuid,
+                queryUuid: 'chart_stage-query',
+            }),
+        ).resolves.toMatchObject({
+            status: QueryHistoryStatus.ERROR,
+            error: HIDDEN_COMPOSER_NODE_ERROR,
+        });
+    });
+
+    test('without pivot columns the pipeline runs as stored and there is no stage', async () => {
+        const { submitQueries, run } = setup({});
+        const result = await run();
+        if (!isComposerChartQueryResults(result)) {
+            throw new Error('expected a composer run');
+        }
+        const { queries } = submitQueries.mock.calls[0][0] as {
+            queries: { nodeId: string }[];
+        };
+        expect(queries.map(({ nodeId }) => nodeId)).toEqual([
+            'orders',
+            'by_status',
+        ]);
+        expect(result.chartStage).toBeNull();
+    });
+
+    test('a split the stored config cannot describe fails the run by name', async () => {
+        const { run } = setup({
+            chartConfig: { type: ChartType.PIE, config: {} },
+            pivotConfig: { columns: ['composer_result_orders_status'] },
+        });
+        await expect(run()).rejects.toThrow(
+            'A series split needs a cartesian chart with x and y fields',
+        );
+    });
+});
+
+describe('every uuid-taking /query/* route over a composer chart node row', () => {
+    // Route inventory. A new QueryController route that takes a query uuid
+    // (path `{queryUuid}` or a body field naming one) goes in QUERY_UUID_ROUTES
+    // and gets a row in OPERATIONS; any other new route goes in
+    // ROUTES_WITHOUT_QUERY_UUID. The inventory test fails until it is placed.
+    const QUERY_UUID_ROUTES: Record<string, string> = {
+        getAsyncQueryResults: 'GET /{queryUuid}',
+        cancelAsyncQuery: 'POST /{queryUuid}/cancel',
+        executeAsyncCalculateTotal: 'POST /{queryUuid}/calculate-total',
+        getResultsStream: 'GET /{queryUuid}/results',
+        downloadResults: 'POST /{queryUuid}/download',
+        scheduleDownloadResults: 'POST /{queryUuid}/schedule-download',
+        executeAsyncMergeQuery:
+            'POST /merge-query (mergeQuery.sources[].queryUuid)',
+        executeAsyncComposeMergeQuery:
+            'POST /compose-merge-query (mergeQuery.sources[].queryUuid)',
+        executeAsyncUnderlyingDataQuery:
+            'POST /underlying-data (underlyingDataSourceQueryUuid)',
+        executeAsyncComposeSqlQuery: 'POST /compose-sql (references)',
+        executeAsyncPythonQuery: 'POST /python (references)',
+    };
+    const ROUTES_WITHOUT_QUERY_UUID = [
+        'getQueryHistory',
+        'executeAsyncMetricQuery',
+        'estimateAsyncMetricQuery',
+        'executeAsyncFieldValueSearch',
+        'executeAsyncSavedChartQuery',
+        'executeAsyncDashboardChartQuery',
+        'executeAsyncSqlQuery',
+        'estimateAsyncSqlQuery',
+        'executeAsyncSqlChartQuery',
+        'executeAsyncDashboardSqlChartQuery',
+    ];
+    const controllerSource = readFileSync(
+        joinPath(__dirname, '../../controllers/v2/QueryController.ts'),
+        'utf8',
+    );
+    const thisSource = readFileSync(__filename, 'utf8');
+
+    const sourceQueryUuid = '7a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d';
+    const authoredSql =
+        'SELECT sum((secret_amount * 0.73)) AS orders_total FROM orders';
+    const node: SemanticLayerSourceQuery & { nodeId: string } = {
+        sourceType: QuerySourceType.SEMANTIC_LAYER,
+        nodeId: 'orders',
+        exploreName: metricQueryMock.exploreName,
+        dimensions: metricQueryMock.dimensions,
+        metrics: metricQueryMock.metrics,
+        additionalMetrics: [
+            {
+                name: 'orders_total',
+                table: metricQueryMock.exploreName,
+                type: MetricType.SUM,
+                sql: '${TABLE}.secret_amount * 0.73',
+            },
+        ],
+        limit: 500,
+    };
+    const chart = {
+        uuid: 'composer-chart',
+        name: 'Composer chart',
+        projectUuid,
+        organizationUuid: projectSummary.organizationUuid,
+        spaceUuid: 'space',
+        dashboardUuid: 'dashboard',
+        pipeline: {
+            schemaVersion: SAVED_COMPOSER_PIPELINE_SCHEMA_VERSION,
+            nodes: [node],
+            terminalNodeId: 'orders',
+        },
+    } as unknown as ComposerSavedChartDAO;
+    const sourceOf = (
+        role: ComposerChartNodeRole,
+    ): ComposerChartQuerySource => ({
+        chartUuid: chart.uuid,
+        nodeId: 'orders',
+        role,
+    });
+
+    type Who = 'viewer' | 'sqlRunner';
+    const rulesOf: Record<Who, readonly unknown[]> = {
+        viewer: [
+            { subject: 'Project', action: 'view' },
+            { subject: 'SavedChart', action: 'view' },
+            { subject: 'ExportCsv', action: 'manage' },
+            { subject: 'Explore', action: 'manage' },
+            { subject: 'UnderlyingData', action: 'view' },
+        ],
+        sqlRunner: [{ action: 'manage', subject: 'all' }],
+    };
+    const accountWith = (who: Who) => {
+        const account = buildAccount() as RegisteredAccount;
+        account.user.ability = new Ability<PossibleAbilities>(
+            rulesOf[who] as ConstructorParameters<
+                typeof Ability<PossibleAbilities>
+            >[0],
+        );
+        return account;
+    };
+
+    const nodeRow = (
+        role: ComposerChartNodeRole,
+        account: Account,
+        overrides: Record<string, unknown> = {},
+    ) =>
+        ({
+            queryUuid: sourceQueryUuid,
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            createdByUserUuid: account.user.id,
+            context: QueryExecutionContext.DASHBOARD,
+            status: QueryHistoryStatus.READY,
+            error: null,
+            resultsFileName: 'node.jsonl',
+            resultsExpiresAt: null,
+            totalRowCount: 1,
+            columns: {
+                orders_total: {
+                    reference: 'orders_total',
+                    type: DimensionType.NUMBER,
+                },
+            },
+            compiledSql: authoredSql,
+            metricQuery: metricQueryOfSemanticNode(node),
+            fields: {},
+            pivotConfiguration: null,
+            requestParameters: {
+                context: QueryExecutionContext.DASHBOARD,
+                chartUuid: chart.uuid,
+                sql: authoredSql,
+                composerChartSource: sourceOf(role),
+                query: metricQueryOfSemanticNode(node),
+            },
+            ...overrides,
+        }) as unknown as QueryHistory;
+
+    type Harness = {
+        service: AsyncQueryService;
+        account: Account;
+        row: QueryHistory;
+        /** The metric-query seam every rerun writes its row through */
+        execute: import('vitest').MockInstance;
+        create: import('vitest').MockInstance;
+        getDownloadStream: import('vitest').MockInstance;
+    };
+    const buildHarness = (
+        who: Who,
+        rowOf: (account: Account) => QueryHistory,
+    ): Harness => {
+        const account = accountWith(who);
+        const row = rowOf(account);
+        const getDownloadStream = vi.fn(() =>
+            getJsonlStream([{ orders_total: 1 }]),
+        );
+        const service = getMockedAsyncQueryService(lightdashConfigMock, {
+            featureFlagModel: {
+                get: vi.fn(async ({ featureFlagId }: AnyType) => ({
+                    id: featureFlagId,
+                    enabled: featureFlagId === FeatureFlags.ComposeSqlRunner,
+                })),
+            } as unknown as FeatureFlagModel,
+            savedChartModel: {
+                getVariant: vi.fn(async () => ({
+                    queryType: 'composer' as const,
+                    chart,
+                })),
+            } as unknown as SavedChartModel,
+            schedulerClient: {
+                scheduleTask: vi.fn(),
+                downloadAsyncQueryResults: vi.fn(async () => 'download-job'),
+            } as unknown as SchedulerClient,
+            queryHistoryModel: inMemoryDuckdbHistory({
+                queryUuid: 'derived-query',
+                account,
+                overrides: {
+                    get: vi.fn(async () => row),
+                    pollForQueryCompletion: vi.fn(async () => row),
+                },
+            }),
+            resultsStorageClient: {
+                isEnabled: true,
+                configuration: { bucket: 'mock_bucket' },
+                getDownloadStream,
+                getFirstLine: vi.fn(async () => '{}'),
+                getFileUrl: vi.fn(
+                    async () => 'https://example.com/results.jsonl',
+                ),
+                createUploadStream: vi.fn(() => ({
+                    write: vi.fn(),
+                    close: vi.fn(),
+                })),
+            } as unknown as S3ResultsFileStorageClient,
+            composeEngineClient: new ComposeEngineClient({
+                resolveCaCertFile: () => '/etc/ssl/certs/ca-certificates.crt',
+                lightdashConfig: lightdashConfigMock,
+                createDuckdbWarehouseClient: () => warehouseClientMock,
+            }),
+        } as never);
+        service.exportsStorageClient.isEnabled = vi.fn(() => true);
+        vi.spyOn(service, 'getExploreWithUserAccessControls').mockResolvedValue(
+            {
+                explore: validExplore,
+                userAccessControls: {
+                    userAttributes: {},
+                    intrinsicUserAttributes: {},
+                },
+            },
+        );
+        vi.spyOn(service, 'getUserAttributes').mockResolvedValue({
+            userAttributes: {},
+            intrinsicUserAttributes: {},
+        });
+        vi.spyOn(
+            service as AnyType,
+            'prepareMetricQueryAsyncQueryArgs',
+        ).mockResolvedValue(createQueryComposerMock({}));
+        const execute = vi
+            .spyOn(service as AnyType, 'executeAsyncQuery')
+            .mockResolvedValue({
+                queryUuid: 'derived-query',
+                cacheMetadata: { cacheHit: false },
+            });
+        vi.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
+            undefined,
+        );
+        vi.spyOn(service as AnyType, 'runPythonQuery').mockResolvedValue(
+            undefined,
+        );
+        return {
+            service,
+            account,
+            row,
+            execute,
+            create: vi.mocked(service.queryHistoryModel.create),
+            getDownloadStream,
+        };
+    };
+
+    type Outcome =
+        /** An existing test asserts this cell; `by` are literal fragments of its title */
+        | { kind: 'covered'; by: string[]; file?: string }
+        | { kind: 'refusedInputNode' }
+        | { kind: 'refusedByName' }
+        | { kind: 'inheritsSource' }
+        | { kind: 'referencesSource' }
+        | { kind: 'readsRedacted' }
+        | { kind: 'writesNoRow' };
+    type Cell = [ComposerChartNodeRole, Who, Outcome];
+    type Operation = {
+        name: string;
+        /** QUERY_UUID_ROUTES keys this operation stands behind */
+        routes: string[];
+        row?: (role: ComposerChartNodeRole, account: Account) => QueryHistory;
+        run: (h: Harness) => Promise<unknown>;
+        onAllowed?: (
+            h: Harness,
+            result: unknown,
+            role: ComposerChartNodeRole,
+        ) => void;
+        onRefused?: (h: Harness) => void;
+        cells: Cell[];
+    };
+
+    const coveredHere = (fragments: string[]): Outcome => ({
+        kind: 'covered',
+        by: fragments,
+    });
+    const expectDerivedRowReferencesSource = (
+        h: Harness,
+        references: Record<string, string>,
+    ) => {
+        expect(h.create).toHaveBeenCalledTimes(1);
+        const stored = h.create.mock.calls[0][1]
+            .requestParameters as ExecuteAsyncQueryRequestParams;
+        expect(stored).toMatchObject({ references });
+        // The viewer's own SQL over a node the viewer may read: not a node row
+        expect(stored).not.toHaveProperty('composerChartSource');
+        expect(getQuerySourceParameters(stored)).toEqual({ references });
+    };
+
+    // Spies an operation installs in `run` and reads back in its assertion
+    let mergeTotalsSubmit: import('vitest').MockInstance | undefined;
+    let syncDownloadWrite: import('vitest').MockInstance | undefined;
+
+    const OPERATIONS: Operation[] = [
+        {
+            name: 'results page',
+            routes: ['getAsyncQueryResults'],
+            run: (h) =>
+                h.service.getAsyncQueryResults({
+                    account: h.account,
+                    projectUuid,
+                    queryUuid: sourceQueryUuid,
+                }),
+            onAllowed: (_h, result) => {
+                expect(result).toMatchObject({
+                    status: QueryHistoryStatus.READY,
+                    queryUuid: sourceQueryUuid,
+                    rows: [{ orders_total: expect.anything() }],
+                });
+                [
+                    'compiledSql',
+                    'metricQuery',
+                    'requestParameters',
+                    'fields',
+                ].forEach((key) => expect(result).not.toHaveProperty(key));
+                expect(JSON.stringify(result)).not.toContain('secret_amount');
+            },
+            cells: [
+                [
+                    'input',
+                    'viewer',
+                    coveredHere([
+                        'polling the results',
+                        'a viewer %s of an input node is refused by name and writes no row',
+                    ]),
+                ],
+                ['terminal', 'viewer', { kind: 'readsRedacted' }],
+                ['chartStage', 'viewer', { kind: 'readsRedacted' }],
+                [
+                    'input',
+                    'sqlRunner',
+                    {
+                        kind: 'covered',
+                        by: ['SQL runner access polls an input node as before'],
+                    },
+                ],
+            ],
+        },
+        {
+            name: 'results stream',
+            routes: ['getResultsStream'],
+            run: (h) =>
+                h.service.getResultsStream({
+                    account: h.account,
+                    projectUuid,
+                    queryUuid: sourceQueryUuid,
+                }),
+            onAllowed: (h, result) => {
+                expect(result).toBeInstanceOf(Readable);
+                expect(h.getDownloadStream).toHaveBeenCalledWith('node.jsonl');
+            },
+            cells: [
+                ['input', 'viewer', { kind: 'refusedInputNode' }],
+                ['terminal', 'viewer', { kind: 'readsRedacted' }],
+                ['chartStage', 'viewer', { kind: 'readsRedacted' }],
+            ],
+        },
+        {
+            name: 'cancel',
+            routes: ['cancelAsyncQuery'],
+            run: (h) =>
+                h.service.cancelAsyncQuery({
+                    account: h.account,
+                    projectUuid,
+                    queryUuid: sourceQueryUuid,
+                }),
+            onAllowed: (h) => {
+                expect(h.service.queryHistoryModel.update).toHaveBeenCalledWith(
+                    sourceQueryUuid,
+                    projectUuid,
+                    { status: QueryHistoryStatus.CANCELLED },
+                    h.account,
+                );
+                expect(h.create).not.toHaveBeenCalled();
+                expect(h.execute).not.toHaveBeenCalled();
+            },
+            // A viewer cancels their own run of any node; nothing is read or derived
+            cells: [
+                ['input', 'viewer', { kind: 'writesNoRow' }],
+                ['terminal', 'viewer', { kind: 'writesNoRow' }],
+            ],
+        },
+        {
+            name: 'totals rerun',
+            routes: ['executeAsyncCalculateTotal'],
+            run: (h) =>
+                h.service.executeAsyncCalculateTotalFromQueryHistory({
+                    account: h.account,
+                    projectUuid,
+                    queryUuid: sourceQueryUuid,
+                    kind: 'grandTotal',
+                }),
+            cells: [
+                ['input', 'viewer', { kind: 'refusedInputNode' }],
+                [
+                    'terminal',
+                    'viewer',
+                    coveredHere([
+                        'totals over a node row are refused by name instead of returning the node query',
+                    ]),
+                ],
+                ['chartStage', 'viewer', { kind: 'refusedByName' }],
+                ['terminal', 'sqlRunner', { kind: 'refusedByName' }],
+                ['input', 'sqlRunner', { kind: 'refusedByName' }],
+            ],
+        },
+        {
+            // The merge branch of calculate-total writes its references map
+            // itself, so it must never be reached from a node row
+            name: 'merge totals (executeAsyncCalculateMergeTotal)',
+            routes: ['executeAsyncCalculateTotal'],
+            row: (role, account) =>
+                nodeRow(role, account, {
+                    requestParameters: {
+                        context: QueryExecutionContext.EXPLORE,
+                        composerChartSource: sourceOf(role),
+                        mergeQuery: {
+                            sources: [
+                                {
+                                    id: 'a',
+                                    queryUuid:
+                                        '0b7c9c62-4b6e-4b1a-9c3e-4f6a0c8d2e11',
+                                },
+                            ],
+                            joinKey: [],
+                            joinType: 'full',
+                            tableCalculations: [],
+                            limit: 500,
+                        },
+                    },
+                }),
+            run: (h) => {
+                mergeTotalsSubmit = vi
+                    .spyOn(
+                        (h.service as AnyType).getQuerySourceService(),
+                        'submitQueries',
+                    )
+                    .mockResolvedValue({ queries: [] });
+                return h.service.executeAsyncCalculateTotalFromQueryHistory({
+                    account: h.account,
+                    projectUuid,
+                    queryUuid: sourceQueryUuid,
+                    kind: 'columnTotal',
+                });
+            },
+            onRefused: () => {
+                expect(mergeTotalsSubmit).not.toHaveBeenCalled();
+            },
+            cells: [
+                ['terminal', 'viewer', { kind: 'refusedByName' }],
+                ['terminal', 'sqlRunner', { kind: 'refusedByName' }],
+            ],
+        },
+        {
+            // Export totals (download / scheduled download with totals) run
+            // through executeCalculateTotalAndGetResults; the refusal is
+            // swallowed and the export ships without totals and without a row
+            name: 'export totals (executeCalculateTotalAndGetResults)',
+            routes: ['downloadResults', 'scheduleDownloadResults'],
+            run: (h) =>
+                (h.service as AnyType).getExportColumnTotals({
+                    account: h.account,
+                    projectUuid,
+                    sourceQueryUuid,
+                }),
+            onAllowed: (h, result) => {
+                expect(result).toBeUndefined();
+                expect(h.execute).not.toHaveBeenCalled();
+                expect(h.create).not.toHaveBeenCalled();
+            },
+            cells: [
+                ['input', 'viewer', { kind: 'writesNoRow' }],
+                ['terminal', 'viewer', { kind: 'writesNoRow' }],
+                ['terminal', 'sqlRunner', { kind: 'writesNoRow' }],
+            ],
+        },
+        {
+            name: 'download',
+            routes: ['downloadResults'],
+            run: (h) =>
+                h.service.download({
+                    account: h.account,
+                    projectUuid,
+                    queryUuid: sourceQueryUuid,
+                    type: DownloadFileType.CSV,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                }),
+            cells: [
+                [
+                    'input',
+                    'viewer',
+                    coveredHere([
+                        'downloading the results',
+                        'a viewer %s of an input node is refused by name and writes no row',
+                    ]),
+                ],
+                [
+                    'terminal',
+                    'viewer',
+                    {
+                        kind: 'covered',
+                        by: [
+                            'downloading a failed node throws %s the error it may read into the job log',
+                        ],
+                    },
+                ],
+            ],
+        },
+        {
+            name: 'scheduled download',
+            routes: ['scheduleDownloadResults'],
+            run: (h) =>
+                h.service.scheduleDownloadAsyncQueryResults({
+                    account: h.account,
+                    projectUuid,
+                    queryUuid: sourceQueryUuid,
+                    type: DownloadFileType.CSV,
+                }),
+            onAllowed: (h, result) => {
+                expect(result).toBe('download-job');
+                expect(
+                    (h.service as AnyType).schedulerClient
+                        .downloadAsyncQueryResults,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({ queryUuid: sourceQueryUuid }),
+                );
+            },
+            cells: [
+                ['input', 'viewer', { kind: 'refusedInputNode' }],
+                ['terminal', 'viewer', { kind: 'readsRedacted' }],
+                ['chartStage', 'viewer', { kind: 'readsRedacted' }],
+            ],
+        },
+        {
+            name: 'sync download (scheduler worker)',
+            routes: ['scheduleDownloadResults'],
+            run: (h) => {
+                syncDownloadWrite = vi
+                    .spyOn(h.service as AnyType, 'downloadAsyncQueryResults')
+                    .mockResolvedValue({ fileUrl: 'file' });
+                return h.service.downloadSyncQueryResults({
+                    account: h.account,
+                    projectUuid,
+                    queryUuid: sourceQueryUuid,
+                    type: DownloadFileType.CSV,
+                    accessMode:
+                        PersistentDownloadFileAccessMode.AUTHENTICATED_CREATOR,
+                });
+            },
+            onAllowed: (h) => {
+                expect(
+                    h.service.queryHistoryModel.pollForQueryCompletion,
+                ).toHaveBeenCalledWith(
+                    expect.objectContaining({ queryUuid: sourceQueryUuid }),
+                );
+                expect(syncDownloadWrite).toHaveBeenCalledTimes(1);
+            },
+            cells: [
+                [
+                    'input',
+                    'viewer',
+                    coveredHere([
+                        'a sync download of an input node is refused by name before it waits for the row',
+                    ]),
+                ],
+                ['terminal', 'viewer', { kind: 'readsRedacted' }],
+            ],
+        },
+        {
+            name: 'underlying data',
+            routes: ['executeAsyncUnderlyingDataQuery'],
+            run: (h) =>
+                h.service.executeAsyncUnderlyingDataQuery({
+                    account: h.account,
+                    projectUuid,
+                    underlyingDataSourceQueryUuid: sourceQueryUuid,
+                    context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                    filters: {},
+                }),
+            cells: [
+                ['input', 'viewer', { kind: 'refusedInputNode' }],
+                ['terminal', 'viewer', { kind: 'refusedByName' }],
+                ['chartStage', 'viewer', { kind: 'refusedByName' }],
+                [
+                    'terminal',
+                    'sqlRunner',
+                    {
+                        kind: 'covered',
+                        by: [
+                            'underlying data over a node row is refused by name instead of writing an unmarked row',
+                        ],
+                    },
+                ],
+            ],
+        },
+        {
+            name: 'unbounded rerun (scheduled delivery)',
+            routes: [],
+            run: (h) =>
+                h.service.executeAsyncUnboundedRerunFromQueryHistory({
+                    account: h.account,
+                    projectUuid,
+                    queryUuid: sourceQueryUuid,
+                    context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                }),
+            onAllowed: (h, result, role) => {
+                expect(result).toMatchObject({ outcome: 'executed' });
+                expect(h.execute).toHaveBeenCalledTimes(1);
+                const requestParameters = h.execute.mock
+                    .calls[0][1] as ExecuteAsyncQueryRequestParams;
+                // Inherited through runAsyncMetricQueryWithoutPermissionCheck's
+                // sourceQueryHistory seam: the exact marker, role included
+                expect(requestParameters.composerChartSource).toEqual(
+                    sourceOf(role),
+                );
+                expect(getQuerySourceParameters(requestParameters)).toEqual({
+                    references: { source: sourceQueryUuid },
+                });
+            },
+            cells: [
+                [
+                    'input',
+                    'viewer',
+                    coveredHere([
+                        'rerunning without a limit',
+                        'a viewer %s of an input node is refused by name and writes no row',
+                    ]),
+                ],
+                ['terminal', 'viewer', { kind: 'inheritsSource' }],
+                ['chartStage', 'viewer', { kind: 'inheritsSource' }],
+                ['input', 'sqlRunner', { kind: 'inheritsSource' }],
+            ],
+        },
+        {
+            name: 'compose SQL leg',
+            routes: ['executeAsyncComposeSqlQuery'],
+            run: (h) =>
+                h.service.executeAsyncComposeSqlQuery({
+                    account: h.account,
+                    projectUuid,
+                    context: QueryExecutionContext.COMPOSE_SQL_RUNNER,
+                    sql: 'SELECT orders_total FROM orders',
+                    references: { orders: sourceQueryUuid },
+                }),
+            onAllowed: (h) =>
+                expectDerivedRowReferencesSource(h, {
+                    orders: sourceQueryUuid,
+                }),
+            cells: [
+                [
+                    'input',
+                    'viewer',
+                    coveredHere([
+                        'referencing the results from compose SQL',
+                        'a viewer %s of an input node is refused by name and writes no row',
+                    ]),
+                ],
+                ['terminal', 'viewer', { kind: 'referencesSource' }],
+                ['chartStage', 'viewer', { kind: 'referencesSource' }],
+                ['input', 'sqlRunner', { kind: 'referencesSource' }],
+            ],
+        },
+        {
+            name: 'python leg',
+            routes: ['executeAsyncPythonQuery'],
+            run: (h) =>
+                h.service.executeAsyncPythonQuery({
+                    account: h.account,
+                    projectUuid,
+                    context: QueryExecutionContext.PYTHON_RUNNER,
+                    code: 'def run(inputs, params):\n    return inputs["orders"]',
+                    references: { orders: sourceQueryUuid },
+                }),
+            onAllowed: (h) =>
+                expectDerivedRowReferencesSource(h, {
+                    orders: sourceQueryUuid,
+                }),
+            cells: [
+                ['input', 'viewer', { kind: 'refusedInputNode' }],
+                ['terminal', 'viewer', { kind: 'referencesSource' }],
+                ['chartStage', 'viewer', { kind: 'referencesSource' }],
+            ],
+        },
+        {
+            // Merge sources are read through getMergeResultSourceMetadata; the
+            // merged row names them in mergeQuery.sources, which
+            // getQuerySourceParameters walks back to the node row
+            name: 'merge source read (getMergeResultSourceMetadata)',
+            routes: ['executeAsyncMergeQuery', 'executeAsyncComposeMergeQuery'],
+            row: (role, account) =>
+                nodeRow(role, account, {
+                    fields: {
+                        orders_total: {
+                            name: 'orders_total',
+                            label: 'Total',
+                            table: 'orders',
+                            fieldType: 'metric',
+                            type: MetricType.SUM,
+                            sql: '${TABLE}.secret_amount * 0.73',
+                        },
+                    },
+                }),
+            run: (h) =>
+                (h.service as AnyType).getMergeResultSourceMetadata(
+                    h.account,
+                    projectUuid,
+                    sourceQueryUuid,
+                ),
+            onAllowed: (h, result) => {
+                expect(result).toEqual({
+                    metricQuery: h.row.metricQuery,
+                    fields: h.row.fields,
+                });
+                expect(
+                    getQuerySourceParameters({
+                        context: QueryExecutionContext.EXPLORE,
+                        mergeQuery: {
+                            sources: [{ id: 'a', queryUuid: sourceQueryUuid }],
+                        },
+                    } as unknown as ExecuteAsyncQueryRequestParams),
+                ).toEqual({ references: { a: sourceQueryUuid } });
+            },
+            cells: [
+                [
+                    'input',
+                    'viewer',
+                    coveredHere([
+                        'a viewer merging over an input node row is refused by name before any leg runs',
+                    ]),
+                ],
+                ['terminal', 'viewer', { kind: 'referencesSource' }],
+                ['chartStage', 'viewer', { kind: 'referencesSource' }],
+            ],
+        },
+        {
+            // GET /query-sources/queries/status lives on QuerySourceController
+            // and applies the same predicate; asserted beside that service
+            name: 'statuses (QuerySourceService.getSourceQueryStatuses)',
+            routes: [],
+            run: () => Promise.reject(new Error('covered elsewhere')),
+            cells: [
+                [
+                    'input',
+                    'viewer',
+                    {
+                        kind: 'covered',
+                        by: [
+                            'a viewer asking for an input node is refused by name',
+                        ],
+                        file: 'QuerySourceService/QuerySourceService.test.ts',
+                    },
+                ],
+                [
+                    'input',
+                    'sqlRunner',
+                    {
+                        kind: 'covered',
+                        by: ['SQL runner access reads an input node'],
+                        file: 'QuerySourceService/QuerySourceService.test.ts',
+                    },
+                ],
+            ],
+        },
+    ];
+
+    test('the table names every uuid-taking route of QueryController', () => {
+        expect(controllerSource).toContain(
+            "@Route('/api/v2/projects/{projectUuid}/query')",
+        );
+        const routes = [
+            ...controllerSource.matchAll(
+                /@(Get|Post|Put|Patch|Delete)\('([^']*)'\)[\s\S]*?async (\w+)\(/g,
+            ),
+        ].map(([, , routePath, method]) => ({ routePath, method }));
+        expect(routes.length).toBeGreaterThan(0);
+        expect(routes.map(({ method }) => method).sort()).toEqual(
+            [
+                ...Object.keys(QUERY_UUID_ROUTES),
+                ...ROUTES_WITHOUT_QUERY_UUID,
+            ].sort(),
+        );
+        routes
+            .filter(({ routePath }) => routePath.includes('{queryUuid}'))
+            .forEach(({ method }) =>
+                expect(QUERY_UUID_ROUTES).toHaveProperty(method),
+            );
+        expect(
+            [...new Set(OPERATIONS.flatMap(({ routes: r }) => r))].sort(),
+        ).toEqual(Object.keys(QUERY_UUID_ROUTES).sort());
+    });
+
+    const cells = OPERATIONS.flatMap((operation) =>
+        operation.cells.map(
+            ([role, who, outcome]) =>
+                [
+                    operation.name,
+                    role,
+                    who,
+                    outcome.kind,
+                    operation,
+                    outcome,
+                ] as const,
+        ),
+    );
+
+    test.each(cells)(
+        '%s: %s node as %s → %s',
+        async (_name, role, who, _kind, operation, outcome) => {
+            if (outcome.kind === 'covered') {
+                // A fragment of this file appears here in the table too, so
+                // the referenced test must account for a second occurrence
+                const source = outcome.file
+                    ? readFileSync(
+                          joinPath(__dirname, '..', outcome.file),
+                          'utf8',
+                      )
+                    : thisSource;
+                const minimum = outcome.file ? 1 : 2;
+                outcome.by.forEach((fragment) =>
+                    expect(
+                        source.split(fragment).length - 1,
+                    ).toBeGreaterThanOrEqual(minimum),
+                );
+                return;
+            }
+            const harness = buildHarness(who, (account) =>
+                (operation.row ?? nodeRow)(role, account),
+            );
+            const run = operation.run(harness);
+            if (
+                outcome.kind === 'refusedInputNode' ||
+                outcome.kind === 'refusedByName'
+            ) {
+                const error = await run.then(
+                    () => null,
+                    (caught: unknown) => caught,
+                );
+                expect(error).toBeInstanceOf(NotSupportedError);
+                const { message } = error as Error;
+                expect(message).toContain(
+                    outcome.kind === 'refusedInputNode'
+                        ? INPUT_COMPOSER_NODE_RESULTS_ERROR
+                        : 'composer chart',
+                );
+                expect(message).not.toContain('secret_amount');
+                expect(message).not.toContain(chart.name);
+                expect(harness.create).not.toHaveBeenCalled();
+                expect(harness.execute).not.toHaveBeenCalled();
+                operation.onRefused?.(harness);
+                return;
+            }
+            const result = await run;
+            if (!operation.onAllowed) {
+                throw new Error(`${operation.name} has no allowed assertion`);
+            }
+            operation.onAllowed(harness, result, role);
+        },
+    );
 });

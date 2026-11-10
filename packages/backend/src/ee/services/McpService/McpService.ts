@@ -2874,6 +2874,18 @@ export class McpService extends BaseService {
         );
     }
 
+    // A node row carries the caller's context, so context alone does not prove an
+    // MCP tool started it; the query is the chart author's and no MCP reader shows it.
+    private static assertNotComposerChartNode(
+        queryHistory: Pick<QueryHistory, 'requestParameters'>,
+    ): void {
+        if (queryHistory.requestParameters?.composerChartSource) {
+            throw new ParameterError(
+                'Query was not started by an MCP query tool',
+            );
+        }
+    }
+
     /** Sample rows from a completed run_metric_query, the way Chart Studio shares them. */
     private async getSampleRows(
         ctx: McpProtocolContext,
@@ -2900,6 +2912,7 @@ export class McpService extends BaseService {
             projectUuid,
             queryUuid,
         });
+        McpService.assertNotComposerChartNode(queryHistory);
         if (
             queryHistory.context !== QueryExecutionContext.MCP_RUN_METRIC_QUERY
         ) {
@@ -4832,6 +4845,7 @@ export class McpService extends BaseService {
                                     },
                                 );
 
+                            McpService.assertNotComposerChartNode(queryHistory);
                             if (
                                 queryHistory.context !==
                                 QueryExecutionContext.MCP_RUN_METRIC_QUERY
@@ -5263,6 +5277,7 @@ export class McpService extends BaseService {
                             options.queryEnabled &&
                             queryHistory.context ===
                                 QueryExecutionContext.MCP_QUERY;
+                        McpService.assertNotComposerChartNode(queryHistory);
 
                         if (
                             !isMcpSqlQuery &&

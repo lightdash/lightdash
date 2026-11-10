@@ -2,6 +2,7 @@ import {
     type ApiError,
     type ChartHistory,
     type ChartVersion,
+    type ComposerSavedChart,
     type CreateSavedChart,
     type CreateSavedChartVersion,
     type SavedChart,
@@ -96,6 +97,8 @@ const updateSavedQuery = async (
     });
 };
 
+// Classic chart surfaces read a semantic chart; the server refuses a
+// composer chart by name so the 42 classic consumers stay typed.
 export const getSavedQuery = async (
     lightdashApi: LightdashApi,
     id: string,
@@ -110,6 +113,32 @@ export const getSavedQuery = async (
         method: 'GET',
         body: undefined,
     });
+
+const getSavedComposerChart = async (
+    lightdashApi: LightdashApi,
+    id: string,
+    projectUuid: string,
+): Promise<ComposerSavedChart> =>
+    lightdashApi<ComposerSavedChart>({
+        url: `/projects/${projectUuid}/saved/${id}/composer`,
+        version: 'v2',
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useSavedComposerChart = (
+    uuidOrSlug: string | undefined,
+    projectUuid: string | undefined,
+) => {
+    const lightdashApi = useLightdashApi();
+    return useQuery<ComposerSavedChart, ApiError>({
+        queryKey: ['saved_composer_chart', uuidOrSlug, projectUuid],
+        queryFn: () =>
+            getSavedComposerChart(lightdashApi, uuidOrSlug!, projectUuid!),
+        enabled: !!uuidOrSlug && !!projectUuid,
+        retry: false,
+    });
+};
 
 const addVersionSavedQuery = async (
     lightdashApi: LightdashApi,

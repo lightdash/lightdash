@@ -117,6 +117,10 @@ const editorUser = {
 const savedChartModel = {
     getSummary: vi.fn(async () => chartSummary),
     get: vi.fn(async () => savedChartData),
+    getVariant: vi.fn(async () => ({
+        queryType: 'semantic',
+        chart: savedChartData,
+    })),
     createVersion: vi.fn(async () => savedChartData),
     update: vi.fn(async () => ({
         queryType: 'semantic',
@@ -229,9 +233,13 @@ describe('SavedChartService - Content Verification', () => {
             'org-uuid',
             'my-project',
         );
-        expect(savedChartModel.get).toHaveBeenCalledWith('orders', undefined, {
-            projectUuid: 'resolved-project-uuid',
-        });
+        expect(savedChartModel.getVariant).toHaveBeenCalledWith(
+            'orders',
+            undefined,
+            {
+                projectUuid: 'resolved-project-uuid',
+            },
+        );
     });
 
     it('keeps a project uuid unchanged when loading a saved chart', async () => {
@@ -242,9 +250,13 @@ describe('SavedChartService - Content Verification', () => {
         });
 
         expect(projectModel.getUuidBySlug).not.toHaveBeenCalled();
-        expect(savedChartModel.get).toHaveBeenCalledWith('orders', undefined, {
-            projectUuid,
-        });
+        expect(savedChartModel.getVariant).toHaveBeenCalledWith(
+            'orders',
+            undefined,
+            {
+                projectUuid,
+            },
+        );
     });
 
     it('returns split candidates when a saved chart uses an original explore name', async () => {

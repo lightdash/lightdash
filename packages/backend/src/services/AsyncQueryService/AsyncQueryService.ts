@@ -24,6 +24,8 @@ import {
     CalculateTotalFromQuery,
     ChartType,
     CompiledDimension,
+    ComposerChartNotAvailableInEmbedError,
+    ComposerChartNotSupportedError,
     CreateWarehouseCredentials,
     CustomSqlQueryForbiddenError,
     DashboardFilters,
@@ -54,6 +56,7 @@ import {
     getAiExecutionCredentialUuid,
     getApiSourceQueryIssues,
     getColumnTimezone,
+    getComposerChartSeriesSplitStage,
     getDashboardFilterRulesForTables,
     getDateZoomFromRequestParameters,
     getDimensionMapFromTables,
@@ -73,12 +76,14 @@ import {
     getMetricsWithValidParameters,
     getPivotValueColumnName,
     getQueryCostEstimateSettings,
+    getSourceQueryResultReferences,
     getUserAttributeQueryTags,
     hasReservedParameterReference,
     isAiAccessQueryContext,
     isAiAgentContent,
     isBigqueryTokenErrorMessage,
     isCartesianChartConfig,
+    isComposerChartQueryResults,
     isCustomBinDimension,
     isCustomDimension,
     isDashboardChartTileType,
@@ -100,6 +105,7 @@ import {
     MAX_RESULTS_CACHE_TTL_SECONDS,
     MergeQuery,
     MetricQuery,
+    metricQueryOfSemanticNode,
     MissingConfigError,
     normalizeIndexColumns,
     NotFoundError,
@@ -143,10 +149,13 @@ import {
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
+    type ApiExecuteAsyncComposerChartQueryResults,
+    type ApiExecuteAsyncDashboardChartQueryResultsVariant,
     type ApiExecuteAsyncFieldValueSearchResults,
     type ApiExecuteAsyncMergeQueryResults,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiExecuteAsyncSavedChartQueryResults,
+    type ApiExecuteAsyncSavedChartQueryResultsVariant,
     type ApiGetAsyncQueryResults,
     type ApiQueryHistoryListResponse,
     type ApiSourceExplore,
@@ -156,6 +165,8 @@ import {
     type CalculateTotalKind,
     type CompiledCustomSqlDimension,
     type CompiledMetric,
+    type ComposerChartQuerySource,
+    type ComposerSavedChartDAO,
     type CustomDimension,
     type DocumentQueryReference,
     type DocumentSqlChart,
@@ -201,6 +212,7 @@ import {
     type ResultsCacheTtlProjections,
     type RunQueryTags,
     type SavedChartDAO,
+    type SavedChartVariant,
     type SavedChartVisualization,
     type SavedMergeDefinition,
     type SessionUser,
@@ -257,9 +269,13 @@ import {
 import { ContentDraftModel } from '../../models/ContentDraftModel';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import {
+    assertCanReadComposerNodeResults,
+    canViewComposerNodeSql,
+    getVisibleQueryError,
     mapQueryHistoryRowToListItem,
     QueryHistoryModel,
     type CachedResultsContent,
+    type UserHistoryReader,
 } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import type { ConnectionRouteWithOriginal } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
@@ -430,6 +446,8 @@ import {
     assertPivotWithinColumnLimit,
     getPivotColumnReferences,
 } from './composePivot';
+import { assertMetricQueryFieldsVisible } from './composerChartFieldAccess';
+import { ComposerChartQueryContext } from './ComposerChartQueryContext';
 import {
     setPhaseTimingAttributes,
     traceComposerQueryStage,
@@ -1827,6 +1845,11 @@ export class AsyncQueryService extends ProjectService {
         const connection = grant
             ? { grantUuid: grant.grantUuid, revision: grant.revision }
             : null;
+        const canViewNodeSql = canViewComposerNodeSql(auditedAbility, {
+            organizationUuid,
+            projectUuid,
+        });
+        const reader: UserHistoryReader = { connection, canViewNodeSql };
         const userUuid = account.user.id;
         const [{ data: rows, pagination }, counts] = await Promise.all([
             this.queryHistoryModel.findUserHistory(
@@ -1834,20 +1857,22 @@ export class AsyncQueryService extends ProjectService {
                 userUuid,
                 filters,
                 paginateArgs,
-                connection,
+                reader,
             ),
             this.queryHistoryModel.getUserHistoryCounts(
                 projectUuid,
                 userUuid,
                 filters,
-                connection,
+                reader,
             ),
         ]);
 
         if (grant) await validateConnection();
 
         return {
-            data: rows.map(mapQueryHistoryRowToListItem),
+            data: rows.map((row) =>
+                mapQueryHistoryRowToListItem(row, { canViewNodeSql }),
+            ),
             pagination,
             counts: {
                 ...counts,
@@ -1861,6 +1886,7 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    /** Every caller-facing read of one stored result passes here; the pipeline's own reference reads do not. */
     public async assertCanReadStoredResults(
         account: Account,
         projectUuid: string,
@@ -1869,6 +1895,11 @@ export class AsyncQueryService extends ProjectService {
         reader: QueryResultReader = buildResultReader(account),
         exportResults = false,
     ): Promise<void> {
+        this.assertCanReadComposerNodeResults(
+            account,
+            projectUuid,
+            queryHistory,
+        );
         await this.assertCanReadStoredResultsForQueries(
             account,
             projectUuid,
@@ -1879,6 +1910,23 @@ export class AsyncQueryService extends ProjectService {
             aiAccessOnly,
             false,
             exportResults,
+        );
+    }
+
+    private assertCanReadComposerNodeResults(
+        account: Account,
+        projectUuid: string,
+        queryHistory: Pick<
+            QueryHistory,
+            'organizationUuid' | 'requestParameters'
+        >,
+    ): void {
+        assertCanReadComposerNodeResults(
+            queryHistory.requestParameters?.composerChartSource,
+            canViewComposerNodeSql(this.createAuditedAbility(account), {
+                organizationUuid: queryHistory.organizationUuid,
+                projectUuid,
+            }),
         );
     }
 
@@ -2323,9 +2371,11 @@ export class AsyncQueryService extends ProjectService {
             return;
         }
 
-        const chart = await this.savedChartModel.get(chartUuid, undefined, {
-            projectUuid,
-        });
+        const { chart } = await this.savedChartModel.getVariant(
+            chartUuid,
+            undefined,
+            { projectUuid },
+        );
         const context = await this.spacePermissionService.resolveAccess(
             account.user.id,
             {
@@ -2618,12 +2668,19 @@ export class AsyncQueryService extends ProjectService {
             status === QueryHistoryStatus.ERROR ||
             status === QueryHistoryStatus.EXPIRED
         ) {
-            const error = await personaliseStoredSharedSignInError({
-                account,
-                projectUuid,
-                error: queryHistory.error,
-                projectModel: this.projectModel,
-            });
+            const error = getVisibleQueryError(
+                await personaliseStoredSharedSignInError({
+                    account,
+                    projectUuid,
+                    error: queryHistory.error,
+                    projectModel: this.projectModel,
+                }),
+                queryHistory.requestParameters?.composerChartSource,
+                canViewComposerNodeSql(this.createAuditedAbility(account), {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            );
             if (getAgentConnectionGrantRef(queryHistory.agentIdentity))
                 await this.assertCanReadStoredResults(
                     account,
@@ -3004,7 +3061,16 @@ export class AsyncQueryService extends ProjectService {
             status === QueryHistoryStatus.ERROR ||
             status === QueryHistoryStatus.EXPIRED
         ) {
-            throw new Error(queryHistory.error ?? 'Warehouse query failed');
+            throw new Error(
+                getVisibleQueryError(
+                    queryHistory.error,
+                    queryHistory.requestParameters?.composerChartSource,
+                    canViewComposerNodeSql(this.createAuditedAbility(account), {
+                        organizationUuid: project.organizationUuid,
+                        projectUuid,
+                    }),
+                ) ?? 'Warehouse query failed',
+            );
         }
 
         if (
@@ -3035,13 +3101,20 @@ export class AsyncQueryService extends ProjectService {
         args: DownloadAsyncQueryResultsArgs,
         pollingOptions?: PollingOptions,
     ) {
-        const { queryUuid, projectUuid, account } = args;
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { queryUuid, projectUuid, account, type } = args;
+        const project = await this.projectModel.getSummary(projectUuid);
+        await this.assertAnalyticsProjectAccess(account, project);
+        this.assertAnalyticsDownloadSupported(project, type);
         this.assertEmbedAiAgentCanDownload(
             account,
-            organizationUuid,
+            project.organizationUuid,
             projectUuid,
+        );
+        // Refused by name before waiting on a row the caller may not read
+        this.assertCanReadComposerNodeResults(
+            account,
+            projectUuid,
+            await this.queryHistoryModel.get(queryUuid, projectUuid, account),
         );
         await this.pollForQueryCompletion({
             account,
@@ -3382,7 +3455,17 @@ export class AsyncQueryService extends ProjectService {
                 throw new Error('Query was cancelled');
             case QueryHistoryStatus.EXPIRED:
             case QueryHistoryStatus.ERROR:
-                throw new Error(queryHistory.error ?? 'Warehouse query failed');
+                // The scheduler logs this message where the caller reads it
+                throw new Error(
+                    getVisibleQueryError(
+                        queryHistory.error,
+                        queryHistory.requestParameters?.composerChartSource,
+                        canViewComposerNodeSql(
+                            this.createAuditedAbility(account),
+                            { organizationUuid, projectUuid },
+                        ),
+                    ) ?? 'Warehouse query failed',
+                );
             case QueryHistoryStatus.PENDING:
             case QueryHistoryStatus.QUEUED:
             case QueryHistoryStatus.EXECUTING:
@@ -7657,6 +7740,36 @@ export class AsyncQueryService extends ProjectService {
                 organizationUuid,
             );
         }
+        if (args.composerChartQueryContext) {
+            args.composerChartQueryContext.assertMetricQuery(
+                account,
+                projectUuid,
+                inputMetricQuery,
+            );
+            // The node's custom SQL is the chart author's; project access
+            // and the explore's user attributes are still the viewer's.
+            if (
+                this.createAuditedAbility(account).cannot(
+                    'view',
+                    subject('Project', {
+                        organizationUuid,
+                        projectUuid,
+                        exploreNames: [inputMetricQuery.exploreName],
+                        metadata: {
+                            savedChartUuid:
+                                args.composerChartQueryContext.chartUuid,
+                            exploreName: inputMetricQuery.exploreName,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+            return this.runAsyncMetricQueryWithoutPermissionCheck(
+                args,
+                organizationUuid,
+            );
+        }
         const auditedAbility = this.createAuditedAbility(account);
         const isForbidden = auditedAbility.cannot(
             'view',
@@ -7710,6 +7823,7 @@ export class AsyncQueryService extends ProjectService {
             dashboardFilters,
             totalConfiguration,
             documentQueryContext,
+            composerChartQueryContext,
         }: ExecuteAsyncMetricQueryArgs,
         organizationUuid: string,
         sourceQueryHistory?: QueryHistory,
@@ -7897,10 +8011,24 @@ export class AsyncQueryService extends ProjectService {
                 sourceQueryHistory.requestParameters?.documentSource)
                 ? { source: sourceQueryHistory.queryUuid }
                 : sourceParameters.references;
+        // A rerun over a composer node row (totals) inherits the node's provenance
+        const composerChartSource = composerChartQueryContext
+            ? composerChartQueryContext.assertMetricQuery(
+                  account,
+                  projectUuid,
+                  inputMetricQuery,
+              )
+            : sourceQueryHistory?.requestParameters?.composerChartSource;
         const requestParameters: ExecuteAsyncQueryRequestParams = {
             ...(documentQueryContext
                 ? { documentSource: documentQueryContext.reference }
                 : {}),
+            // Result reads re-check chart access through chartUuid, as for saved
+            // charts; history hides the node's SQL through composerChartSource
+            ...(composerChartQueryContext
+                ? { chartUuid: composerChartQueryContext.chartUuid }
+                : {}),
+            ...(composerChartSource ? { composerChartSource } : {}),
             ...(references ? { references } : {}),
             context,
             query: effectiveMetricQuery,
@@ -8165,6 +8293,13 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             source,
         );
+        // The totals response carries the source query and its fields, which
+        // for a composer node are the chart author's SQL
+        if (source.requestParameters?.composerChartSource) {
+            throw new NotSupportedError(
+                'Totals are not available for a composer chart node',
+            );
+        }
 
         // A merged result has no single metric query to collapse: its totals
         // are aggregated over the merged rows on the compose engine
@@ -8960,6 +9095,384 @@ export class AsyncQueryService extends ProjectService {
         return { projectUuid, invalidatedAt };
     }
 
+    private static assertComposerChartRunnable(
+        account: Account,
+        chart: ComposerSavedChartDAO,
+        projectUuid: string,
+        context: QueryExecutionContext,
+    ): void {
+        if (isJwtUser(account)) {
+            throw new ComposerChartNotAvailableInEmbedError(chart.uuid);
+        }
+        if (chart.projectUuid !== projectUuid) {
+            throw new ForbiddenError('Chart does not belong to project');
+        }
+        // Materialization skips model required filters, and AI/MCP readers
+        // trust their contexts as proof a tool started the row; a chart-bound
+        // run carries neither
+        if (
+            context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION ||
+            isAiAccessQueryContext(context)
+        ) {
+            throw new ParameterError(
+                `context ${context} cannot run a composer chart`,
+            );
+        }
+    }
+
+    // Run-time reshaping of the stored pipeline is refused by name; `pivotResults`
+    // is ignored (nothing is pivoted) and `schedulerFilters` never arrives over HTTP.
+    private static assertNoComposerChartRunOptions(
+        options: Record<string, unknown>,
+    ): void {
+        const given = Object.entries(options)
+            .filter(([, value]) => value !== undefined && value !== null)
+            .map(([name]) => name);
+        if (given.length > 0) {
+            throw new ParameterError(
+                `${given.join(', ')} cannot be applied to a composer chart`,
+            );
+        }
+    }
+
+    // Every semantic node is checked against the viewer's attribute-filtered explore
+    // before any is submitted, so a refusal executes no node and writes no row.
+    private async assertComposerChartNodesVisible({
+        account,
+        chart,
+        userAttributeOverrides,
+    }: {
+        account: Account;
+        chart: ComposerSavedChartDAO;
+        userAttributeOverrides: UserAttributeValueMap | undefined;
+    }): Promise<void> {
+        const semanticNodes = chart.pipeline.nodes.filter(
+            (node) => node.sourceType === QuerySourceType.SEMANTIC_LAYER,
+        );
+        const exploreNames = [
+            ...new Set(semanticNodes.map((node) => node.exploreName)),
+        ];
+        const explores = Object.fromEntries(
+            await Promise.all(
+                exploreNames.map(async (exploreName) => {
+                    const { explore } =
+                        await this.getExploreWithUserAccessControls(
+                            account,
+                            chart.projectUuid,
+                            exploreName,
+                            chart.organizationUuid,
+                            true,
+                            userAttributeOverrides,
+                        );
+                    return [exploreName, explore] as const;
+                }),
+            ),
+        );
+        semanticNodes.forEach((node) => {
+            assertMetricQueryFieldsVisible(
+                metricQueryOfSemanticNode(node),
+                explores[node.exploreName],
+            );
+        });
+    }
+
+    // Semantic nodes carry the chart context so the metric-query path checks
+    // node membership; duckdb nodes run scoped to the results they reference.
+    private async executeAsyncComposerChartQuery({
+        account,
+        projectUuid,
+        chart,
+        context,
+        querySurface,
+        invalidateCache,
+        parameters,
+        userAttributeOverrides,
+    }: CommonAsyncQueryArgs & {
+        chart: ComposerSavedChartDAO;
+    }): Promise<ApiExecuteAsyncComposerChartQueryResults> {
+        assertIsAccountWithOrg(account);
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            },
+            featureFlagId: FeatureFlags.ComposeSqlRunner,
+        });
+        if (!enabled) {
+            throw new ForbiddenError('Composer charts are not enabled');
+        }
+
+        const { nodes, terminalNodeId } = chart.pipeline;
+        const stage = AsyncQueryService.getComposerChartStage(chart);
+        const queries = stage ? [...nodes, stage] : nodes;
+        const labels = Object.fromEntries(
+            nodes.map((node) => [node.nodeId, node.title ?? node.nodeId]),
+        );
+        const plans = Object.fromEntries(
+            queries
+                .filter((node) => node.sourceType === QuerySourceType.DUCKDB)
+                .map((node): [string, DuckdbQueryPlan] => [
+                    node.nodeId,
+                    {
+                        columns: { mode: 'discover' },
+                        engine: 'scopedToReferencedResults',
+                        guard: null,
+                        referenceLabels: Object.fromEntries(
+                            Object.entries(
+                                getSourceQueryResultReferences(node),
+                            ).map(([table, reference]) => [
+                                table,
+                                labels[reference] ?? reference,
+                            ]),
+                        ),
+                    },
+                ]),
+        );
+        const usedParametersValues = {
+            ...(chart.parameters ?? {}),
+            ...(parameters ?? {}),
+        };
+
+        await this.assertComposerChartNodesVisible({
+            account,
+            chart,
+            userAttributeOverrides,
+        });
+
+        const { queries: submissions } =
+            await this.getQuerySourceService().submitQueries({
+                composerChartQueryContext: ComposerChartQueryContext.fromChart(
+                    account,
+                    chart,
+                    stage?.nodeId ?? null,
+                ),
+                account,
+                projectUuid,
+                context,
+                querySurface,
+                queries,
+                parameters: usedParametersValues,
+                userAttributeOverrides: userAttributeOverrides ?? {},
+                invalidateCache: invalidateCache ?? false,
+                plans,
+                aiAttribution: null,
+            });
+        const submissionOf = (nodeId: string, label: string) => {
+            const submission = submissions.find(
+                (query) => query.nodeId === nodeId,
+            );
+            if (!submission) {
+                throw new UnexpectedServerError(
+                    `The composer chart ${label} was not submitted`,
+                );
+            }
+            return submission;
+        };
+        const terminal = submissionOf(terminalNodeId, 'terminal node');
+        const stageSubmission = stage
+            ? submissionOf(stage.nodeId, 'series split stage')
+            : null;
+        return {
+            queryType: 'composer',
+            queryUuid: terminal.queryUuid,
+            cacheMetadata: { cacheHit: terminal.cacheHit },
+            parameterReferences: [],
+            usedParametersValues,
+            resolvedTimezone: null,
+            terminalNodeId,
+            nodes: submissions
+                .filter(({ nodeId }) => nodeId !== stage?.nodeId)
+                .map(({ nodeId, sourceType, queryUuid, cacheHit }) => ({
+                    nodeId,
+                    sourceType,
+                    queryUuid,
+                    cacheHit,
+                })),
+            chartStage: stageSubmission
+                ? {
+                      queryUuid: stageSubmission.queryUuid,
+                      cacheHit: stageSubmission.cacheHit,
+                  }
+                : null,
+            chartVisualization: {
+                chartConfig: chart.chartConfig,
+                pivotConfig: chart.pivotConfig,
+            },
+        };
+    }
+
+    /** The series-split stage the stored pivot config asks for, named apart from the pipeline's nodes; null without a split. */
+    private static getComposerChartStage(
+        chart: ComposerSavedChartDAO,
+    ): (DuckdbSourceQuery & { nodeId: string }) | null {
+        const nodeIds = new Set(
+            chart.pipeline.nodes.map(({ nodeId }) => nodeId),
+        );
+        let nodeId = 'chart_stage';
+        while (nodeIds.has(nodeId)) nodeId = `_${nodeId}`;
+        const stage = getComposerChartSeriesSplitStage({
+            chartVisualization: {
+                chartConfig: chart.chartConfig,
+                pivotConfig: chart.pivotConfig,
+            },
+            nodeId,
+            source: chart.pipeline.terminalNodeId,
+        });
+        return stage ? { ...stage, nodeId } : null;
+    }
+
+    private async executeAsyncSavedComposerChartQuery({
+        account,
+        projectUuid,
+        chart,
+        context,
+        querySurface,
+        invalidateCache,
+        limit,
+        parameters,
+        pivotConfiguration,
+        filterOverrides,
+        schedulerFilters,
+        dashboardFilters,
+        userAttributeOverrides,
+    }: Omit<
+        ExecuteAsyncSavedChartQueryArgs,
+        'chartUuid' | 'versionUuid' | 'pivotResults'
+    > & {
+        chart: ComposerSavedChartDAO;
+    }): Promise<ApiExecuteAsyncComposerChartQueryResults> {
+        assertIsAccountWithOrg(account);
+        AsyncQueryService.assertComposerChartRunnable(
+            account,
+            chart,
+            projectUuid,
+            context,
+        );
+        AsyncQueryService.assertNoComposerChartRunOptions({
+            limit,
+            pivotConfiguration,
+            filters: filterOverrides,
+            schedulerFilters,
+            dashboardFilters,
+        });
+
+        const { access, inheritsFromOrgOrProject } =
+            await this.spacePermissionService.resolveAccess(account.user.id, {
+                type: 'chart',
+                chartUuid: chart.uuid,
+                dashboardUuid: chart.dashboardUuid,
+                spaceUuid: chart.spaceUuid,
+            });
+        if (
+            this.createAuditedAbility(account).cannot(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid: chart.organizationUuid,
+                    projectUuid,
+                    inheritsFromOrgOrProject,
+                    access,
+                    metadata: {
+                        savedChartUuid: chart.uuid,
+                        savedChartName: chart.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        void this.analyticsModel
+            .addChartViewEvent(
+                chart.uuid,
+                account.isRegisteredUser() ? account.user.id : null,
+            )
+            .catch((e) =>
+                this.logger.warn('Failed to track chart view event', {
+                    error: e,
+                }),
+            );
+
+        return this.executeAsyncComposerChartQuery({
+            account,
+            projectUuid,
+            chart,
+            context,
+            querySurface,
+            invalidateCache,
+            parameters,
+            userAttributeOverrides,
+        });
+    }
+
+    private async executeAsyncDashboardComposerChartQuery({
+        account,
+        projectUuid,
+        chart,
+        dashboardUuid,
+        context,
+        querySurface,
+        invalidateCache,
+        limit,
+        parameters,
+        userAttributeOverrides,
+    }: Pick<
+        ExecuteAsyncDashboardChartQueryArgs,
+        | 'account'
+        | 'projectUuid'
+        | 'dashboardUuid'
+        | 'context'
+        | 'querySurface'
+        | 'invalidateCache'
+        | 'limit'
+        | 'parameters'
+        | 'userAttributeOverrides'
+    > & {
+        chart: ComposerSavedChartDAO;
+    }): Promise<ApiExecuteAsyncComposerChartQueryResults> {
+        assertIsAccountWithOrg(account);
+        AsyncQueryService.assertComposerChartRunnable(
+            account,
+            chart,
+            projectUuid,
+            context,
+        );
+        // Dashboard filters, sorts and date zoom do not reach a composer
+        // chart yet; a limit would reshape the stored pipeline.
+        AsyncQueryService.assertNoComposerChartRunOptions({ limit });
+
+        const space = await this.spaceModel.getSpaceSummary(chart.spaceUuid);
+        await this.checkDashboardChartQueryPermissions(
+            account,
+            projectUuid,
+            chart.uuid,
+            space,
+            chart.dashboardUuid,
+        );
+
+        void this.analyticsModel
+            .addChartViewEvent(
+                chart.uuid,
+                account.isRegisteredUser() ? account.user.id : null,
+                { source: 'dashboard', dashboardUuid },
+            )
+            .catch((e) =>
+                this.logger.warn('Failed to track chart view event', {
+                    error: e,
+                }),
+            );
+
+        return this.executeAsyncComposerChartQuery({
+            account,
+            projectUuid,
+            chart,
+            context,
+            querySurface,
+            invalidateCache,
+            parameters,
+            userAttributeOverrides,
+        });
+    }
+
     async executeAsyncSavedChartQuery({
         account,
         projectUuid,
@@ -8976,17 +9489,33 @@ export class AsyncQueryService extends ProjectService {
         schedulerFilters,
         dashboardFilters,
         userAttributeOverrides,
-    }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncSavedChartQueryResults> {
+    }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncSavedChartQueryResultsVariant> {
         // Check user is in organization
         assertIsAccountWithOrg(account);
 
-        const storedChart = await this.savedChartModel.get(
+        const storedVariant = await this.savedChartModel.getVariant(
             chartUuid,
             versionUuid,
-            {
-                projectUuid,
-            },
+            { projectUuid },
         );
+        if (storedVariant.queryType === 'composer') {
+            return this.executeAsyncSavedComposerChartQuery({
+                account,
+                projectUuid,
+                chart: storedVariant.chart,
+                context,
+                querySurface,
+                invalidateCache,
+                limit,
+                parameters,
+                pivotConfiguration: requestedPivotConfiguration,
+                filterOverrides,
+                schedulerFilters,
+                dashboardFilters,
+                userAttributeOverrides,
+            });
+        }
+        const storedChart = storedVariant.chart;
         // Applied to the stored chart so merge queries built from it see the
         // delivery's filters too. The delivery runs as its creator, so this is
         // where a creator who lost explore access stops widening the chart.
@@ -9928,14 +10457,30 @@ export class AsyncQueryService extends ProjectService {
         preloadedSavedChart,
         preloadedProjectParameters,
         userAttributeOverrides,
-    }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
+    }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncDashboardChartQueryResultsVariant> {
         assertIsAccountWithOrg(account);
 
-        const publishedChart =
-            preloadedSavedChart ??
-            (await this.savedChartModel.get(chartUuid, undefined, {
+        const storedVariant: SavedChartVariant = preloadedSavedChart
+            ? { queryType: 'semantic', chart: preloadedSavedChart }
+            : await this.savedChartModel.getVariant(chartUuid, undefined, {
+                  projectUuid,
+              });
+        // Branches before the draft overlay: a draft belongs to a classic chart.
+        if (storedVariant.queryType === 'composer') {
+            return this.executeAsyncDashboardComposerChartQuery({
+                account,
                 projectUuid,
-            }));
+                chart: storedVariant.chart,
+                dashboardUuid,
+                context,
+                querySurface,
+                invalidateCache,
+                limit,
+                parameters,
+                userAttributeOverrides,
+            });
+        }
+        const publishedChart = storedVariant.chart;
         const savedChart = includeUnpublishedDraft
             ? await this.applyOpenChartDraft(account, publishedChart)
             : publishedChart;
@@ -10359,6 +10904,13 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             source,
         );
+        // Composer tiles offer no underlying data yet; a rerun here would
+        // write the node's SQL to history without its provenance
+        if (source.requestParameters?.composerChartSource) {
+            throw new NotSupportedError(
+                'Underlying data is not available for a composer chart node',
+            );
+        }
 
         const {
             warehouseCredentials,
@@ -11064,7 +11616,8 @@ export class AsyncQueryService extends ProjectService {
      * uuid (the creator-scoped QueryHistoryModel.get lookup plus
      * throwIfCannotReadQueryHistory). The referenced query does NOT need to
      * be finished — waiting for results happens in the background execution
-     * phase (waitForQueryReferences).
+     * phase (waitForQueryReferences). `composerChartSource` is the node being
+     * run when the reads are a composer chart's own pipeline.
      */
     private async authorizeQueryReferences({
         account,
@@ -11072,12 +11625,14 @@ export class AsyncQueryService extends ProjectService {
         references,
         context,
         querySurface,
+        composerChartSource,
     }: {
         account: Account;
         projectUuid: string;
         references: Record<string, string>;
         context: QueryExecutionContext;
         querySurface?: QuerySurface;
+        composerChartSource: ComposerChartQuerySource | null;
     }): Promise<AgentIdentityClaim | null> {
         const validTableName = /^[a-zA-Z_][a-zA-Z0-9_]{0,62}$/;
         const validUuid =
@@ -11116,6 +11671,19 @@ export class AsyncQueryService extends ProjectService {
                     project,
                     queryHistory,
                 );
+                // A chart's own nodes read its inputs; anything else reads
+                // only what the viewer may poll
+                const sameChart =
+                    composerChartSource !== null &&
+                    queryHistory.requestParameters?.composerChartSource
+                        ?.chartUuid === composerChartSource.chartUuid;
+                if (!sameChart) {
+                    this.assertCanReadComposerNodeResults(
+                        account,
+                        projectUuid,
+                        queryHistory,
+                    );
+                }
                 return {
                     queryHistory,
                     agentProducedOnly: !isAiAccessQueryContext(
@@ -11509,6 +12077,7 @@ export class AsyncQueryService extends ProjectService {
             references,
             context,
             querySurface,
+            composerChartSource: null,
         });
 
         const queryTags: RunQueryTags = withAgentMarkerTag({
@@ -12893,6 +13462,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         plan,
         invalidateCache,
+        composerChartSource,
     }: ExecuteAsyncDuckdbSourceQueryArgs): Promise<{ queryUuid: string }> {
         assertIsAccountWithOrg(account);
 
@@ -12919,6 +13489,7 @@ export class AsyncQueryService extends ProjectService {
                   references: normalizedReferences,
                   context,
                   querySurface,
+                  composerChartSource: composerChartSource ?? null,
               })
             : null;
 
@@ -13007,7 +13578,10 @@ export class AsyncQueryService extends ProjectService {
                 ...(agentIdentity ? { agentIdentity } : {}),
                 fields: resolved.fields,
                 compiledSql: resolved.sql,
-                requestParameters: resolved.requestParameters,
+                requestParameters: {
+                    ...resolved.requestParameters,
+                    ...(composerChartSource ? { composerChartSource } : {}),
+                },
                 usedParameters: resolved.usedParameters,
                 metricQuery: resolved.metricQuery,
                 cacheKey,
@@ -15295,6 +15869,13 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             queryUuid,
         );
+        // Checked here, not only in the references pass: compile errors
+        // name the source's fields before the join is authorized
+        this.assertCanReadComposerNodeResults(
+            account,
+            projectUuid,
+            queryHistory,
+        );
         if (!this.mergeSubmissionQueries.getStore()) {
             await this.assertCanReadStoredResults(
                 account,
@@ -16482,6 +17063,11 @@ export class AsyncQueryService extends ProjectService {
         const { account, projectUuid } = args;
 
         const executed = await this.executeAsyncSavedChartQuery(args);
+        if (isComposerChartQueryResults(executed)) {
+            throw new NotSupportedError(
+                'Composer chart results cannot be exported yet',
+            );
+        }
         const { queryUuid, cacheMetadata, fields } = executed;
         const execution = {
             metricQuery: executed.metricQuery,
@@ -16610,6 +17196,11 @@ export class AsyncQueryService extends ProjectService {
         const { account, projectUuid } = args;
 
         const executed = await this.executeAsyncDashboardChartQuery(args);
+        if (isComposerChartQueryResults(executed)) {
+            throw new NotSupportedError(
+                'Composer chart results cannot be exported yet',
+            );
+        }
         const { queryUuid, cacheMetadata, fields } = executed;
         const execution = {
             metricQuery: executed.metricQuery,
@@ -16825,7 +17416,16 @@ export class AsyncQueryService extends ProjectService {
     ) {
         assertIsAccountWithOrg(account);
 
-        const savedChart = await this.savedChartModel.get(chartUuid, undefined);
+        const savedChartVariant = await this.savedChartModel.getVariant(
+            chartUuid,
+            undefined,
+        );
+        if (savedChartVariant.queryType === 'composer') {
+            throw new ComposerChartNotSupportedError(
+                savedChartVariant.chart.uuid,
+            );
+        }
+        const savedChart = savedChartVariant.chart;
         const { organizationUuid, projectUuid } = savedChart;
 
         const explore = await this.getExplore(

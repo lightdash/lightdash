@@ -18,6 +18,7 @@ import { Box } from '@mantine/core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { useEffect, type ComponentProps, type ReactNode } from 'react';
+import { MemoryRouter } from 'react-router';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sharedLightdashApi } from '../../../../../api';
 import type * as QueryResultsHooks from '../../../../../hooks/useQueryResults';
@@ -39,6 +40,8 @@ const mocks = vi.hoisted(() => ({
     retry: vi.fn(),
     saveVizConfig: vi.fn(),
     chartEchartsRefSetter: vi.fn(),
+    canCreateInAnySpace: vi.fn(),
+    saveToDashboard: vi.fn(),
 }));
 vi.mock('../../../../../api');
 vi.mock('../../../../../hooks/useServerOrClientFeatureFlag', () => ({
@@ -50,6 +53,10 @@ vi.mock('../../../../providers/Embed/useIsEmbedded', () => ({
 vi.mock('../../hooks/useAiAgentArtifacts', () => ({
     useAiAgentArtifact: mocks.artifact,
     useUpdateComposerVizConfig: () => ({ mutate: mocks.saveVizConfig }),
+    useSaveComposerArtifactToDashboard: () => ({
+        mutateAsync: mocks.saveToDashboard,
+        isLoading: false,
+    }),
 }));
 vi.mock('../../hooks/useProjectAiAgents', () => ({
     useAiAgentThread: mocks.thread,
@@ -58,7 +65,7 @@ vi.mock('../../hooks/useProjectAiAgents', () => ({
     useUpdateArtifactVersionSavedSql: () => ({ mutateAsync: vi.fn() }),
 }));
 vi.mock('../../../../../hooks/user/useCreateInAnySpaceAccess', () => ({
-    default: () => false,
+    default: mocks.canCreateInAnySpace,
 }));
 vi.mock('./AiSqlArtifactDownloadModal', () => ({
     AiSqlArtifactDownloadModal: () => null,
@@ -193,6 +200,7 @@ const config: ToolRunQueryArgs = {
 beforeEach(() => {
     vi.clearAllMocks();
     mocks.isEmbedded.mockReturnValue(false);
+    mocks.canCreateInAnySpace.mockReturnValue(false);
     mocks.featureFlag.mockReturnValue({ data: { enabled: true } });
     mocks.artifact.mockReturnValue({
         data: {
@@ -648,6 +656,149 @@ describe('composer artifact', () => {
                     }),
                 ),
             );
+        });
+    });
+
+    describe('save to dashboard', () => {
+        const barConfig: AiComposerChartArtifactConfig = {
+            ...composerConfig,
+            schemaVersion: 2,
+            vizConfig: {
+                type: 'bar',
+                x: 'status',
+                y: ['n'],
+                groupBy: null,
+                stack: null,
+                horizontal: null,
+                y2: null,
+                labels: null,
+            },
+        };
+        const statusCounts = resultsOf(
+            {
+                status: { reference: 'status', type: 'string' },
+                n: { reference: 'n', type: 'number' },
+            },
+            [{ status: 'completed', n: 3 }],
+        );
+        const renderArtifact = (
+            chartConfig: AiComposerChartArtifactConfig,
+            saved: {
+                savedQueryUuid: string;
+                savedDashboardUuid: string;
+            } | null,
+        ) => {
+            mocks.artifact.mockReturnValue({
+                data: {
+                    artifactType: 'chart',
+                    title: 'Orders vs amounts',
+                    chartConfig,
+                    savedQueryUuid: saved?.savedQueryUuid ?? null,
+                    savedDashboardUuid: saved?.savedDashboardUuid ?? null,
+                },
+                isLoading: false,
+                error: null,
+                refetch: mocks.retry,
+            });
+            mocks.query.mockReturnValue(composerRun);
+            mocks.rows.mockReturnValue(statusCounts);
+            // The save modal and the backlink route through the app router.
+            return renderWithProviders(
+                <MemoryRouter>
+                    <AiArtifactPanel artifact={artifact} />
+                </MemoryRouter>,
+            );
+        };
+
+        it('lets an owner who can create charts pick a dashboard and save there', async () => {
+            mocks.canCreateInAnySpace.mockReturnValue(true);
+            mockedLightdashApi.mockImplementation((async ({
+                url,
+            }: {
+                url: string;
+            }) => {
+                if (url.includes('/spaces')) return [];
+                if (url.includes('/dashboards')) {
+                    return [{ uuid: 'dash', name: 'KPIs', spaceUuid: 'space' }];
+                }
+                return undefined;
+            }) as unknown as typeof sharedLightdashApi);
+            mocks.saveToDashboard.mockResolvedValue({
+                chart: { uuid: 'chart' },
+                dashboard: { uuid: 'dash', name: 'KPIs' },
+            });
+            renderArtifact(barConfig, null);
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Quick actions' }),
+            );
+            fireEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Save to dashboard',
+                }),
+            );
+            const dialog = within(
+                await screen.findByRole('dialog', {
+                    name: 'Save to dashboard',
+                }),
+            );
+            fireEvent.click(
+                dialog.getByRole('combobox', { name: /Dashboard/ }),
+            );
+            fireEvent.click(
+                await screen.findByRole('option', { name: 'KPIs' }),
+            );
+            fireEvent.click(dialog.getByRole('button', { name: 'Save' }));
+            await waitFor(() =>
+                expect(mocks.saveToDashboard).toHaveBeenCalledWith({
+                    dashboardUuid: 'dash',
+                }),
+            );
+        });
+
+        it('links to the dashboard once saved instead of offering to save again', async () => {
+            mocks.canCreateInAnySpace.mockReturnValue(true);
+            mockedLightdashApi.mockImplementation((async ({
+                url,
+            }: {
+                url: string;
+            }) =>
+                url.endsWith('/dashboards/dash')
+                    ? { uuid: 'dash', name: 'KPIs', tiles: [], tabs: [] }
+                    : undefined) as unknown as typeof sharedLightdashApi);
+            renderArtifact(barConfig, {
+                savedQueryUuid: 'chart',
+                savedDashboardUuid: 'dash',
+            });
+            fireEvent.click(
+                await screen.findByRole('button', { name: 'Quick actions' }),
+            );
+            const backlink = await screen.findByRole('menuitem', {
+                name: 'Saved to KPIs',
+            });
+            expect(backlink).toHaveAttribute(
+                'href',
+                '/projects/project/dashboards/dash',
+            );
+            expect(
+                screen.queryByRole('menuitem', { name: 'Save to dashboard' }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('hides it without create access', async () => {
+            renderArtifact(barConfig, null);
+            await screen.findByRole('table');
+            expect(
+                screen.queryByRole('button', { name: 'Quick actions' }),
+            ).not.toBeInTheDocument();
+        });
+
+        it('hides it for an artifact without a presented node', async () => {
+            mocks.canCreateInAnySpace.mockReturnValue(true);
+            renderArtifact(composerConfig, null);
+            await screen.findAllByRole('columnheader');
+            expect(
+                screen.queryByRole('button', { name: 'Quick actions' }),
+            ).not.toBeInTheDocument();
         });
     });
 

@@ -1,5 +1,6 @@
 import { type ExploreWarningReport } from '../compiler/compilationReport';
 import type { ApiAiAgentNodeCitationPipelineResponse } from '../composer/composerArtifact';
+import type { ComposerChartVisualization } from '../composer/composerChart';
 // Note: EE types removed from direct import to avoid circular module resolution
 // They are still available via the re-export below: export * from './ee';
 import type {
@@ -24,6 +25,7 @@ import type {
     ApiAiAgentReviewItemActivityResponse,
     ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemWritebackPreviewResponse,
+    ApiAiAgentSaveComposerArtifactResponse,
     ApiAiAgentSkillResponse,
     ApiAiAgentSkillSummaryListResponse,
     ApiAiAgentSkillValidationResponse,
@@ -423,6 +425,8 @@ import {
     type ApiGetSourceQueryStatusResults,
     type ApiListQuerySourcesResults,
     type ApiScanQuerySourceSchemaResults,
+    type QueryNodeId,
+    type QuerySourceType,
 } from './querySources';
 import { type ReleaseHighlightsResult } from './releaseHighlights';
 import { type ApiRenameFieldsResponse, type ApiRenameResponse } from './rename';
@@ -1216,6 +1220,47 @@ export type ApiExecuteAsyncDashboardChartQueryResults =
         dateZoomApplied: boolean;
     };
 
+/** One node of a composer chart run. Nodes other than the terminal one are there for lineage. */
+export type ComposerChartNodeSubmission = {
+    nodeId: QueryNodeId;
+    sourceType: QuerySourceType;
+    queryUuid: string;
+    cacheHit: boolean;
+};
+
+/** The series-split stage run over the terminal node; the chart draws its pivoted result. */
+export type ComposerChartStageSubmission = {
+    queryUuid: string;
+    cacheHit: boolean;
+};
+
+/** A composer chart run from either saved-chart endpoint; `queryUuid` is the terminal node's, columns are discovered when it runs. */
+export type ApiExecuteAsyncComposerChartQueryResults =
+    ApiExecuteAsyncQueryResultsCommon & {
+        queryType: 'composer';
+        terminalNodeId: QueryNodeId;
+        nodes: ComposerChartNodeSubmission[];
+        /** Present when the stored pivot config splits series; null otherwise. */
+        chartStage: ComposerChartStageSubmission | null;
+        chartVisualization: ComposerChartVisualization;
+    };
+
+export type ApiExecuteAsyncSavedChartQueryResultsVariant =
+    | ApiExecuteAsyncSavedChartQueryResults
+    | ApiExecuteAsyncComposerChartQueryResults;
+
+export type ApiExecuteAsyncDashboardChartQueryResultsVariant =
+    | ApiExecuteAsyncDashboardChartQueryResults
+    | ApiExecuteAsyncComposerChartQueryResults;
+
+/** The classic variants carry no tag; only a composer run says what it is. */
+export const isComposerChartQueryResults = (
+    results:
+        | ApiExecuteAsyncSavedChartQueryResultsVariant
+        | ApiExecuteAsyncDashboardChartQueryResultsVariant,
+): results is ApiExecuteAsyncComposerChartQueryResults =>
+    'queryType' in results && results.queryType === 'composer';
+
 export type ApiExecuteAsyncSqlQueryResults =
     ApiExecuteAsyncQueryResultsCommon & {
         // leaving empty for now
@@ -1725,6 +1770,7 @@ type ApiResults =
     | ApiExecuteAsyncSavedChartQueryResults
     | ApiQueryHistoryListResponse['results']
     | ApiExecuteAsyncDashboardChartQueryResults
+    | ApiExecuteAsyncComposerChartQueryResults
     | ApiGetAsyncQueryResults
     | ApiSchedulersResponse['results']
     | ApiUserSchedulersSummaryResponse['results']
@@ -1743,6 +1789,7 @@ type ApiResults =
     | ApiAiAgentThreadMessageVizResponse['results']
     | ApiAiAgentThreadMessageVizQueryResponse['results']
     | ApiAiAgentArtifactVizQueryResponse['results']
+    | ApiAiAgentSaveComposerArtifactResponse['results']
     | ApiAiAgentNodeCitationPipelineResponse['results']
     | ApiUpdateUserAgentPreferencesResponse['results']
     | ApiGetUserAgentPreferencesResponse[`results`]

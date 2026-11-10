@@ -3,6 +3,7 @@ import {
     ChartKind,
     getComposerVizPanelOptions,
     getComposerVizPanelValue,
+    interpolateUiString,
     switchComposerVizKind,
     type AiComposerChartArtifactConfig,
     type AllVizChartConfig,
@@ -20,12 +21,18 @@ import {
     Stack,
 } from '@mantine/core';
 import { useDebouncedCallback, useDisclosure } from '@mantine/hooks';
-import { IconDots, IconTableExport } from '@tabler/icons-react';
+import {
+    IconDots,
+    IconLayoutDashboard,
+    IconTableExport,
+} from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useMemo, useState, type FC, type RefObject } from 'react';
+import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ExportDataModal from '../../../../../components/DashboardTiles/ExportDataModal';
 import { type EChartsReact } from '../../../../../components/EChartsReactWrapper';
+import { useDashboardQuery } from '../../../../../hooks/dashboard/useDashboard';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
 import useApp from '../../../../../providers/App/useApp';
 import useIsEmbedded from '../../../../providers/Embed/useIsEmbedded';
@@ -38,6 +45,7 @@ import {
 import { AiComposerArtifactVisualization } from './AiComposerArtifactVisualization';
 import { AiComposerNodeResult } from './AiComposerNodeResult';
 import { AiComposerRunQueryVisualization } from './AiComposerRunQueryVisualization';
+import { AiComposerSaveToDashboardModal } from './AiComposerSaveToDashboardModal';
 import { ArtifactWindowControls } from './ArtifactFocusToggle';
 import { ArtifactLoadingSketch } from './ArtifactLoadingSketch';
 import { ArtifactPanelHeading } from './ArtifactPanelHeading';
@@ -78,6 +86,10 @@ type Props = {
     /** Null when this pipeline can't be pinned to the chat. */
     onAddToChat: ((node: { nodeId: string; title: string }) => void) | null;
     initialView: ArtifactView;
+    /** Whether this version can be saved to a dashboard from here. */
+    canSaveToDashboard: boolean;
+    /** The dashboard an earlier save put this version on; null until saved. */
+    savedDashboardUuid: string | null;
 };
 
 type ArtifactView = 'chart' | 'lineage';
@@ -100,6 +112,8 @@ export const AiComposerArtifactPanel: FC<Props> = ({
     chatNodeIds,
     onAddToChat,
     initialView,
+    canSaveToDashboard,
+    savedDashboardUuid,
 }) => {
     const getUiString = useUiStrings();
     const { user } = useApp();
@@ -116,6 +130,30 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         downloadModalOpened,
         { open: openDownloadModal, close: closeDownloadModal },
     ] = useDisclosure(false);
+    const [
+        saveToDashboardOpened,
+        { open: openSaveToDashboard, close: closeSaveToDashboard },
+    ] = useDisclosure(false);
+    const { data: savedDashboard } = useDashboardQuery({
+        uuidOrSlug: savedDashboardUuid ?? undefined,
+        projectUuid,
+        useQueryOptions: { enabled: !!savedDashboardUuid && !isEmbed },
+    });
+    const savedToDashboardLabel = savedDashboard
+        ? interpolateUiString(
+              getUiString('aiAgent.composer.actions.savedToDashboard'),
+              { dashboard: savedDashboard.name },
+          )
+        : null;
+    const savableArtifact =
+        source.kind === 'artifact' && canSaveToDashboard && !savedDashboardUuid
+            ? {
+                  projectUuid,
+                  agentUuid,
+                  artifactUuid: source.artifactUuid,
+                  versionUuid: source.versionUuid,
+              }
+            : null;
     const canExportData = user.data?.ability?.can(
         'manage',
         subject('ExportCsv', {
@@ -266,7 +304,10 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                         },
                     ]}
                 />
-                {(canExportImage || canDownloadResults) && (
+                {(canExportImage ||
+                    canDownloadResults ||
+                    savableArtifact ||
+                    savedToDashboardLabel) && (
                     <Menu withArrow position="bottom-end">
                         <Menu.Target>
                             <ActionIcon
@@ -300,6 +341,34 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                                     {getUiString(
                                         'aiAgent.composer.actions.downloadResults',
                                     )}
+                                </Menu.Item>
+                            )}
+                            {savableArtifact && (
+                                <Menu.Item
+                                    onClick={openSaveToDashboard}
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconLayoutDashboard}
+                                        />
+                                    }
+                                >
+                                    {getUiString(
+                                        'aiAgent.composer.actions.saveToDashboard',
+                                    )}
+                                </Menu.Item>
+                            )}
+                            {savedToDashboardLabel && (
+                                <Menu.Item
+                                    component={Link}
+                                    to={`/projects/${projectUuid}/dashboards/${savedDashboardUuid}`}
+                                    target="_blank"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconLayoutDashboard}
+                                        />
+                                    }
+                                >
+                                    {savedToDashboardLabel}
                                 </Menu.Item>
                             )}
                         </Menu.Dropdown>
@@ -397,6 +466,13 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                 opened={exportImageModalOpened}
                 onClose={closeExportImageModal}
             />
+            {savableArtifact && (
+                <AiComposerSaveToDashboardModal
+                    opened={saveToDashboardOpened}
+                    onClose={closeSaveToDashboard}
+                    artifact={savableArtifact}
+                />
+            )}
             {downloadQueryUuid && (
                 <ExportDataModal
                     isOpen={downloadModalOpened}

@@ -975,6 +975,11 @@ export type SavedChartVariant =
 
 export type SavedChartQueryType = SavedChartVariant['queryType'];
 
+/** A saved chart as services return it, tagged by the kind of query it runs. */
+export type SavedChartWithAccessVariant =
+    | { queryType: 'semantic'; chart: SavedChart }
+    | { queryType: 'composer'; chart: ComposerSavedChart };
+
 export type SavedChart = {
     createdAt?: Date;
     projectName?: string;
@@ -1567,6 +1572,11 @@ export type SkippedReplaceCustomFields = {
 export type ApiSavedChartResponse = {
     status: 'ok';
     results: SavedChart;
+};
+
+export type ApiComposerSavedChartResponse = {
+    status: 'ok';
+    results: ComposerSavedChart;
 };
 
 export type ApiSavedChartSchedulersResponse = {

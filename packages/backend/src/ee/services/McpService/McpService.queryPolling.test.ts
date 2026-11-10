@@ -2200,6 +2200,110 @@ describe('MCP async query polling', () => {
         },
     );
 
+    it('refuses get_query_result over a composer chart node whatever context it was run with', async () => {
+        const { asyncQueryService } = makeMcpService();
+        asyncQueryService.getAsyncQueryHistory.mockResolvedValueOnce({
+            ...makeQueryHistory(
+                QueryHistoryStatus.READY,
+                QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            ),
+            requestParameters: {
+                context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                chartUuid: 'composer-chart',
+                query: makeQueryHistory(QueryHistoryStatus.READY).metricQuery,
+                composerChartSource: {
+                    chartUuid: 'composer-chart',
+                    nodeId: 'orders',
+                    role: 'input',
+                },
+            },
+        });
+
+        const result = await getToolCallback(McpToolName.GET_QUERY_RESULT)(
+            { queryUuid },
+            extra,
+        );
+
+        expect(result).toMatchObject({ isError: true });
+        expect(JSON.stringify(result)).toContain(
+            'not started by an MCP query tool',
+        );
+        expect(
+            asyncQueryService.getRawAsyncQueryResults,
+        ).not.toHaveBeenCalled();
+        expect(asyncQueryService.getAsyncQueryResults).not.toHaveBeenCalled();
+    });
+
+    it('refuses get_query_result over the terminal node too: no MCP reader shows a chart node', async () => {
+        const { asyncQueryService } = makeMcpService();
+        asyncQueryService.getAsyncQueryHistory.mockResolvedValueOnce({
+            ...makeQueryHistory(
+                QueryHistoryStatus.READY,
+                QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+            ),
+            requestParameters: {
+                context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                chartUuid: 'composer-chart',
+                query: makeQueryHistory(QueryHistoryStatus.READY).metricQuery,
+                composerChartSource: {
+                    chartUuid: 'composer-chart',
+                    nodeId: 'joined',
+                    role: 'terminal',
+                },
+            },
+        });
+
+        const result = await getToolCallback(McpToolName.GET_QUERY_RESULT)(
+            { queryUuid },
+            extra,
+        );
+
+        expect(result).toMatchObject({ isError: true });
+        expect(
+            asyncQueryService.getRawAsyncQueryResults,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('refuses render_chart over a composer chart node run with the run_metric_query context', async () => {
+        const { asyncQueryService } = makeMcpService();
+        asyncQueryService.getAsyncQueryHistory.mockResolvedValue({
+            ...makeQueryHistory(
+                QueryHistoryStatus.ERROR,
+                QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                'Binder Error: LINE 1: SELECT SUM(missing_amount) OVER () FROM orders',
+            ),
+            requestParameters: {
+                context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
+                chartUuid: 'composer-chart',
+                query: makeQueryHistory(QueryHistoryStatus.READY).metricQuery,
+                composerChartSource: {
+                    chartUuid: 'composer-chart',
+                    nodeId: 'orders',
+                    role: 'terminal',
+                },
+            },
+        });
+
+        const result = await getToolCallback(McpToolName.RENDER_CHART)(
+            {
+                queryUuid,
+                title: 'Orders',
+                description: 'Orders count',
+                chartConfig: null,
+            },
+            extra,
+        );
+
+        expect(result).toMatchObject({ isError: true });
+        expect(JSON.stringify(result)).toContain(
+            'not started by an MCP query tool',
+        );
+        expect(JSON.stringify(result)).not.toContain('missing_amount');
+        expect(
+            asyncQueryService.getRawAsyncQueryResults,
+        ).not.toHaveBeenCalled();
+    });
+
     it('keeps get_query_result running without fetching result pages', async () => {
         const { asyncQueryService } = makeMcpService();
         asyncQueryService.getAsyncQueryHistory.mockResolvedValueOnce(

@@ -379,6 +379,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiAgentController.updateAgentThreadMessageSavedQuery': [
         AgentCapability.ContentWrite,
     ],
+    'AiAgentController.saveComposerArtifactToDashboard': [
+        AgentCapability.ContentWrite,
+    ],
     'AiAgentController.updateArtifactVersionSavedDashboard': [
         AgentCapability.ContentWrite,
     ],
@@ -1752,6 +1755,7 @@ export const REST_OPERATION_CAPABILITIES = {
     ],
     'ProjectSavedChartControllerV2.delete': [AgentCapability.Delete],
     'ProjectSavedChartControllerV2.get': [AgentCapability.ReadDiscover],
+    'ProjectSavedChartControllerV2.getComposer': [AgentCapability.ReadDiscover],
     'PullRequestsController.listPullRequests': [AgentCapability.ReadDiscover],
     'QueryController.cancelAsyncQuery': [AgentCapability.ReadDiscover],
     'QueryController.downloadResults': [AgentCapability.Export],

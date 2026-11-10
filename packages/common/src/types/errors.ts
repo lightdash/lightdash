@@ -9,6 +9,10 @@ import {
 /* eslint-disable max-classes-per-file */
 import { type AnyType } from './any';
 import { type DbtLog } from './job';
+import {
+    EXPIRED_WAREHOUSE_SIGN_IN_MESSAGE,
+    isExpiredSharedSignInMessage,
+} from './sharedSignIn';
 import type { SharedSignInExpiry } from './sharedSignIn';
 import type { WarehousePhaseTimings, WarehouseQueryPhase } from './warehouse';
 
@@ -472,6 +476,18 @@ export class ComposerChartNotSupportedError extends LightdashError {
             message:
                 'This chart is a composer chart, which this feature does not support yet.',
             name: COMPOSER_CHART_NOT_SUPPORTED_ERROR_NAME,
+            statusCode: 400,
+            data: { chartUuid },
+        });
+    }
+}
+
+/** Thrown by a composer-only surface when the row is a classic (semantic) chart. */
+export class NotComposerChartError extends LightdashError {
+    constructor(chartUuid: string) {
+        super({
+            message: 'This chart is not a composer chart.',
+            name: 'NotComposerChartError',
             statusCode: 400,
             data: { chartUuid },
         });
@@ -1033,6 +1049,33 @@ export const isPreviewWarehouseSignInExpiredMessage = (
     message: string,
 ): boolean =>
     message.includes(PREVIEW_WAREHOUSE_SIGN_IN_EXPIRED_MESSAGE_MARKER);
+
+export const isRedshiftIamTokenErrorMessage = (message: string): boolean => {
+    const normalizedMessage = message.toLowerCase();
+    return (
+        normalizedMessage.includes('redshift iam') &&
+        normalizedMessage.includes('expired')
+    );
+};
+
+/** Server-written expired-sign-in message for a hidden stored error, or null; never the stored text, which could quote SQL. */
+export const getCanonicalWarehouseSignInExpiredMessage = (
+    message: string,
+): string | null => {
+    if (isBigqueryTokenErrorMessage(message)) {
+        return `${BIGQUERY_TOKEN_ERROR_MESSAGE_MARKER}. Ask a project admin to reconnect the warehouse.`;
+    }
+    if (isPreviewWarehouseSignInExpiredMessage(message)) {
+        return `${PREVIEW_WAREHOUSE_SIGN_IN_EXPIRED_MESSAGE_MARKER}. Reconnect the warehouse on the upstream project.`;
+    }
+    if (isRedshiftIamTokenErrorMessage(message)) {
+        return 'The Redshift IAM credentials for this project have expired. Ask a project admin to reconnect the warehouse.';
+    }
+    if (isExpiredSharedSignInMessage(message)) {
+        return EXPIRED_WAREHOUSE_SIGN_IN_MESSAGE;
+    }
+    return null;
+};
 
 export class PreviewWarehouseSignInExpiredError extends LightdashError {
     constructor(upstream: {

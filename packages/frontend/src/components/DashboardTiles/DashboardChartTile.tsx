@@ -190,6 +190,7 @@ import UnderlyingDataModal from '../MetricQueryData/UnderlyingDataModal';
 import { useMetricQueryDataContext } from '../MetricQueryData/useMetricQueryDataContext';
 import { getDataFromChartClick } from '../MetricQueryData/utils';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
+import DashboardComposerChartTile from './DashboardComposerChartTile';
 import { DashboardExportImage } from './DashboardExportImage';
 import tileClasses from './DashboardTiles.module.css';
 import EditChartMenuItem from './EditChartMenuItem';
@@ -2639,7 +2640,7 @@ export const GenericDashboardChartTile: FC<
     );
 };
 
-const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
+const DashboardSemanticChartTile: FC<DashboardChartTileProps> = (props) => {
     // Handle orphaned tiles where the chart was deleted but tile remains
     const orphanedChartError = useMemo((): ClientSideError | null => {
         if (props.tile.properties.savedChartUuid === null) {
@@ -2729,6 +2730,30 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
             error={orphanedChartError ?? readyQuery.error ?? resultsData.error}
         />
     );
+};
+
+// A composer tile runs its pipeline; everything else is a semantic chart.
+const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
+    const { tile, minimal, canExportCsv, canExportImages } = props;
+    if (
+        tile.properties.queryType === 'composer' &&
+        tile.properties.savedChartUuid
+    ) {
+        return (
+            <DashboardComposerChartTile
+                tile={tile}
+                chartUuid={tile.properties.savedChartUuid}
+                isEditMode={props.isEditMode}
+                onEdit={props.onEdit}
+                onDelete={props.onDelete}
+                minimal={minimal}
+                canExportCsv={canExportCsv}
+                canExportImages={canExportImages}
+                queryContextOverride={props.queryContextOverride}
+            />
+        );
+    }
+    return <DashboardSemanticChartTile {...props} />;
 };
 
 export default DashboardChartTile;

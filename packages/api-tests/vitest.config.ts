@@ -16,6 +16,9 @@ const serialFiles = [
     // Toggles the org AI setting and a user attribute other files could read.
     'tests/dataAppAnalysisIsolation.test.ts',
     'tests/dashboardAnalysisIsolation.test.ts',
+    // Toggles the compose-sql-runner flag org-wide.
+    'tests/composerChart.test.ts',
+    'tests/composerArtifactSave.test.ts',
     // Asserts every project member's role name; must not overlap a file
     // that assigns a temporary custom role (dataAppVizRender).
     'tests/projectPermissions.test.ts',

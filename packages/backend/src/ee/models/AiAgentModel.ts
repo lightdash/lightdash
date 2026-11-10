@@ -6653,17 +6653,26 @@ export class AiAgentModel {
 
     async updateArtifactVersion(
         artifactVersionUuid: string,
-        update:
-            | Pick<AiArtifact, 'savedDashboardUuid'>
-            | Pick<AiArtifact, 'savedSqlUuid'>,
+        update: Partial<
+            Pick<
+                AiArtifact,
+                'savedQueryUuid' | 'savedSqlUuid' | 'savedDashboardUuid'
+            >
+        >,
     ): Promise<void> {
-        const dbUpdate =
-            'savedDashboardUuid' in update
-                ? { saved_dashboard_uuid: update.savedDashboardUuid }
-                : { saved_sql_uuid: update.savedSqlUuid };
+        const dbUpdate: Partial<DbAiArtifactVersion> = {};
+        if (update.savedDashboardUuid !== undefined) {
+            dbUpdate.saved_dashboard_uuid = update.savedDashboardUuid;
+        }
+        if (update.savedSqlUuid !== undefined) {
+            dbUpdate.saved_sql_uuid = update.savedSqlUuid;
+        }
+        if (update.savedQueryUuid !== undefined) {
+            dbUpdate.saved_query_uuid = update.savedQueryUuid;
+        }
 
         await this.database(AiArtifactVersionsTableName)
-            .update(dbUpdate satisfies Partial<DbAiArtifactVersion>)
+            .update(dbUpdate)
             .where({
                 ai_artifact_version_uuid: artifactVersionUuid,
             });

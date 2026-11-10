@@ -716,7 +716,7 @@ export const SEED_GROUP_2 = {
     name: 'Org 1 Editor Group',
 };
 
-// A dashboard-owned composer chart row seeded for the API tests
+// Dashboard-owned composer charts seeded for the viewer-run API tests
 export const SEED_COMPOSER_CHART_DASHBOARD = {
     name: 'Dashboard with a composer chart',
     slug: 'dashboard-with-a-composer-chart',
@@ -724,6 +724,59 @@ export const SEED_COMPOSER_CHART_DASHBOARD = {
 export const SEED_COMPOSER_CHART = {
     /** A hand-authored custom metric, reshaped by a DuckDB node */
     revenueShare: '[Composer] Revenue share by order status',
+    /** Reads a dimension gated by the is_admin user attribute */
+    customersByAge: '[Composer] Customers by age',
+    /** A permitted node ahead of the is_admin-gated one, joined by a DuckDB node */
+    revenueAndCustomers: '[Composer] Revenue and customers',
+};
+
+export const SEED_AI_AGENT = {
+    name: 'Jaffle Shop Agent',
+    slug: 'jaffle-shop-agent',
+};
+
+// Composer artifact versions seeded on the agent for the save-to-dashboard API tests
+export const SEED_COMPOSER_ARTIFACT = {
+    /** Bar over a DuckDB node; saves and runs */
+    revenueByStatus: {
+        artifactUuid: '73b83d55-7376-46de-b351-20124cb78e29',
+        versionUuid: 'd9125c73-8069-49de-9cc9-b578a9020406',
+    },
+    /** Line split by status; saves with pivot dimensions */
+    revenueByMonthAndStatus: {
+        artifactUuid: 'f255a043-06b3-4c89-aff1-25a355b4cfaf',
+        versionUuid: '35695726-1e87-4cda-a98f-9f0f46cda022',
+    },
+    /** No viz config; saves as a table */
+    statusTable: {
+        artifactUuid: '3f8cd150-d74c-436f-a942-d47f86324141',
+        versionUuid: '6f66be7e-2775-467d-91e9-eb942640e37b',
+    },
+    /** Refused: python node */
+    pythonNode: {
+        artifactUuid: '7e3a5ea8-5fad-4a07-ba2c-354d16ac9449',
+        versionUuid: '01d06094-0643-48cd-96fc-4b20eebe4be5',
+    },
+    /** Refused: reads a result by query uuid */
+    queryUuidReference: {
+        artifactUuid: '5196674e-0b47-4519-8dfd-2dced3559e2a',
+        versionUuid: 'c8fc8418-f0ba-4736-aa1a-8a8576b82fd9',
+    },
+    /** Refused: charts a column whose reference contains "__" */
+    doubleUnderscoreColumn: {
+        artifactUuid: '56b6320c-f403-4347-8dd6-35d5938b971e',
+        versionUuid: 'a3fd7e2b-9214-4205-8a1b-1e76af5d9950',
+    },
+    /** Refused: custom chart type viz config */
+    customChartType: {
+        artifactUuid: 'fd6b6175-1ca8-4414-9947-c446a1489b75',
+        versionUuid: '0013b9b6-5688-4fb9-aef7-3df0642ca542',
+    },
+    /** Same as revenueByStatus, in a thread owned by the seeded viewer */
+    viewerOwned: {
+        artifactUuid: '9809b8c7-d3b1-489f-8fbb-1d51b126c6f4',
+        versionUuid: 'b1650005-12ae-4d5d-b104-1554277fd007',
+    },
 };
 
 export type ArgumentsOf<F extends Function> = F extends (

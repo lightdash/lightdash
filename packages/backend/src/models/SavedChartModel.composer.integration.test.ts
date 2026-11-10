@@ -280,6 +280,49 @@ describe('Composer chart rows on the real schema', () => {
         });
     });
 
+    describe('writing composer rows', () => {
+        const createDashboard = async () => {
+            const [{ dashboard_uuid: dashboardUuid }] = await database(
+                'dashboards',
+            )
+                .insert({
+                    name: 'Revenue',
+                    description: undefined,
+                    project_uuid: fixture.projectUuid,
+                    slug: `revenue-${randomUUID()}`,
+                    space_id: fixture.spaceId,
+                })
+                .returning('dashboard_uuid');
+            return dashboardUuid as string;
+        };
+        const chartConfig = {
+            type: ChartType.CARTESIAN,
+            config: barChartConfig,
+        } as const;
+
+        test('createComposerChart stores a null description as null', async () => {
+            const created = await model.createComposerChart(
+                fixture.projectUuid,
+                fixture.userUuid,
+                {
+                    name: 'no description',
+                    description: null,
+                    dashboardUuid: await createDashboard(),
+                    pipeline,
+                    chartConfig,
+                    pivotConfig: undefined,
+                    slug: `no-description-${randomUUID()}`,
+                },
+            );
+            expect(created.description).toBeNull();
+            await expect(
+                database('saved_queries')
+                    .where('saved_query_uuid', created.uuid)
+                    .first('description'),
+            ).resolves.toEqual({ description: null });
+        });
+    });
+
     describe('finding composer rows in bulk', () => {
         test('findComposerCharts names the composer rows among the given charts', async () => {
             const composer = await createChart('pipeline');
@@ -350,6 +393,67 @@ describe('Composer chart rows on the real schema', () => {
             await expect(model.getVariant(chart.uuid)).resolves.toMatchObject({
                 queryType: 'semantic',
             });
+        });
+    });
+
+    describe('writing a composer row', () => {
+        const createDashboard = async (deleted: boolean) => {
+            const [{ dashboard_uuid: uuid }] = await database('dashboards')
+                .insert({
+                    project_uuid: fixture.projectUuid,
+                    name: 'Revenue',
+                    slug: `revenue-${randomUUID()}`,
+                    space_id: fixture.spaceId,
+                    ...(deleted && {
+                        deleted_at: new Date(),
+                        deleted_by_user_uuid: fixture.userUuid,
+                    }),
+                })
+                .returning('dashboard_uuid');
+            return uuid as string;
+        };
+        const composerChart = (dashboardUuid: string) => ({
+            name: 'Revenue share',
+            description: null,
+            dashboardUuid,
+            pipeline,
+            chartConfig: {
+                type: ChartType.CARTESIAN,
+                config: barChartConfig,
+            } as never,
+            pivotConfig: undefined,
+            slug: 'revenue-share',
+        });
+
+        test('createComposerChart writes a dashboard-owned composer row', async () => {
+            const dashboardUuid = await createDashboard(false);
+            const created = await model.createComposerChart(
+                fixture.projectUuid,
+                fixture.userUuid,
+                composerChart(dashboardUuid),
+            );
+            expect(created).toMatchObject({ dashboardUuid, pipeline });
+            await expect(
+                model.findComposerCharts([created.uuid]),
+            ).resolves.toEqual([
+                expect.objectContaining({ uuid: created.uuid }),
+            ]);
+        });
+
+        test('createComposerChart does not write into a soft-deleted dashboard', async () => {
+            const dashboardUuid = await createDashboard(true);
+            await expect(
+                model.createComposerChart(
+                    fixture.projectUuid,
+                    fixture.userUuid,
+                    composerChart(dashboardUuid),
+                ),
+            ).rejects.toBeInstanceOf(NotFoundError);
+            await expect(
+                database('saved_queries').where({
+                    dashboard_uuid: dashboardUuid,
+                }),
+            ).resolves.toEqual([]);
         });
     });
 

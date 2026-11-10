@@ -51,6 +51,7 @@ import {
     IntrinsicUserAttributes,
     isAiAgentContent,
     isChartContent,
+    isComposerChartQueryResults,
     isDashboardChartTileType,
     isDashboardContent,
     isDashboardSlugContent,
@@ -1664,6 +1665,9 @@ export class EmbedService extends BaseService {
                     ? (timezone ?? null)
                     : null,
             });
+        if (isComposerChartQueryResults(results)) {
+            throw new ComposerChartNotAvailableInEmbedError(chart.uuid);
+        }
         return this.asyncQueryService.redactFieldsSqlForResponse(
             account,
             projectUuid,

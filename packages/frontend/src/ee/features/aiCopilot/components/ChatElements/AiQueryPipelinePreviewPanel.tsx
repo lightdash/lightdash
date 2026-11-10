@@ -87,6 +87,8 @@ export const AiQueryPipelinePreviewPanel: FC<Props> = ({ pipelinePreview }) => {
             onAddToChat={null}
             onClose={() => dispatch(clearPreview())}
             initialView="lineage"
+            canSaveToDashboard={false}
+            savedDashboardUuid={null}
         />
     );
 };

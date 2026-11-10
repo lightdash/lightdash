@@ -6,6 +6,8 @@ import type {
     ApiSuccess,
     ApiSuccessEmpty,
     CacheMetadata,
+    ComposerSavedChart,
+    Dashboard,
     ItemsMap,
     KnexPaginatedData,
     MetricSourcedMergeQuery,
@@ -1310,6 +1312,20 @@ export type ApiAiAgentArtifactResponseTSOACompat =
 export type ApiUpdateComposerVizConfigRequest = {
     vizConfig: AllVizChartConfig;
 };
+
+/** Body of saving a composer artifact version to a dashboard. */
+export type ApiAiAgentSaveComposerArtifactRequest = {
+    dashboardUuid: UUID;
+};
+
+/** The composer chart the save created and the dashboard that now holds its tile. */
+export type ApiAiAgentSaveComposerArtifactResults = {
+    chart: ComposerSavedChart;
+    dashboard: Dashboard;
+};
+
+export type ApiAiAgentSaveComposerArtifactResponse =
+    ApiSuccess<ApiAiAgentSaveComposerArtifactResults>;
 
 /** Rows and a visualize-tool viz config to draw as the Slack chart image; vizConfig is parsed server-side. */
 export type ApiAiAgentVisualizeSlackPreviewRequest = {

@@ -24,6 +24,8 @@ import {
     ApiAiAgentNodeCitationPipelineResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentResponse,
+    ApiAiAgentSaveComposerArtifactRequest,
+    ApiAiAgentSaveComposerArtifactResponse,
     ApiAiAgentSqlApprovalRequest,
     ApiAiAgentSqlApprovalResponse,
     ApiAiAgentSummaryResponse,
@@ -2401,6 +2403,46 @@ export class AiAgentController extends BaseController {
                     },
                 ),
         };
+    }
+
+    /**
+     * Saves a composer artifact version to a dashboard as a dashboard-owned composer chart tile
+     * @summary Save composer artifact to dashboard
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        requireOAuthScopeOperation(
+            'AiAgentController.saveComposerArtifactToDashboard',
+        ),
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post(
+        '/{agentUuid}/artifacts/{artifactUuid}/versions/{versionUuid}/save-to-dashboard',
+    )
+    @OperationId('saveComposerArtifactToDashboard')
+    async saveComposerArtifactToDashboard(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() artifactUuid: UUID,
+        @Path() versionUuid: UUID,
+        @Body() body: ApiAiAgentSaveComposerArtifactRequest,
+    ): Promise<ApiAiAgentSaveComposerArtifactResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results =
+            await this.getAiAgentService().saveComposerArtifactToDashboard(
+                toSessionUser(req.account),
+                {
+                    projectUuid,
+                    agentUuid,
+                    artifactUuid,
+                    versionUuid,
+                    dashboardUuid: body.dashboardUuid,
+                },
+            );
+        return { status: 'ok', results };
     }
 
     @Middlewares([

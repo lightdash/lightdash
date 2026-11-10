@@ -87,6 +87,7 @@ import {
     type ExploreError,
     type MetricQuery,
     type ParameterDefinitions,
+    type SavedChart,
     type SavedChartDAO,
     type SavedChartVariant,
     type UpdateDashboardCustomMetric,
@@ -2962,6 +2963,39 @@ export class DashboardService
             current: current.snapshot,
             overlay: draft.draft,
         });
+    }
+
+    /** Adds a chart's tile below every other tile of the first tab, where saving a chart into a dashboard puts it. */
+    async appendChartTile(
+        user: SessionUser,
+        dashboardUuid: string,
+        chart: Pick<SavedChart, 'uuid' | 'name' | 'slug' | 'chartConfig'>,
+        options: { projectUuid: string },
+    ): Promise<Dashboard> {
+        const existing = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            options,
+        );
+        const bottom = existing.tiles.reduce(
+            (max, tile) => Math.max(max, tile.y + tile.h),
+            0,
+        );
+        const [tile] = createDashboardChartTiles(
+            [chart],
+            existing.tabs[0]?.uuid,
+        );
+        return this.update(
+            user,
+            existing.uuid,
+            {
+                tiles: [...existing.tiles, { ...tile, x: 0, y: bottom }],
+                filters: existing.filters,
+                tabs: existing.tabs,
+                parameters: existing.parameters,
+                config: existing.config,
+            },
+            options,
+        );
     }
 
     async update(

@@ -54,11 +54,13 @@ import {
     MetricType,
     MissingConfigError,
     normalizeSavedMergeDefinition,
+    NotComposerChartError,
     NotFoundError,
     ParameterError,
     ProjectType,
     SavedChart,
     SavedChartDAO,
+    SavedChartWithAccessVariant,
     SchedulerAndTargets,
     SchedulerFormat,
     SchedulerRun,
@@ -71,8 +73,10 @@ import {
     UpdateSavedChart,
     type ChartFieldUpdates,
     type ComposerSavedChart,
+    type ComposerSavedChartDAO,
     type ContentDraftStaleness,
     type ContentVerificationInfo,
+    type CreateComposerChart,
     type DashboardDAO,
     type Explore,
     type ExploreError,
@@ -2048,7 +2052,7 @@ export class SavedChartService
     private async checkPermissions(
         account: Account,
         space: SpaceSummaryBase,
-        savedChart: SavedChartDAO,
+        savedChart: SavedChartDAO | ComposerSavedChartDAO,
     ): Promise<{
         access: SpaceAccess[];
         inheritsFromOrgOrProject: boolean;
@@ -2129,11 +2133,12 @@ export class SavedChartService
         };
     }
 
-    async get(
+    /** Reads a chart of either query type; `get` keeps the classic-only contract for callers that need an explore. */
+    async getVariant(
         savedChartUuidOrSlug: string,
         account: Account,
         options?: { projectUuid?: string },
-    ): Promise<SavedChart> {
+    ): Promise<SavedChartWithAccessVariant> {
         const projectUuid =
             options?.projectUuid && !isValidUuid(options.projectUuid)
                 ? await this.projectModel.getUuidBySlug(
@@ -2141,11 +2146,12 @@ export class SavedChartService
                       options.projectUuid,
                   )
                 : options?.projectUuid;
-        const savedChart = await this.savedChartModel.get(
+        const variant = await this.savedChartModel.getVariant(
             savedChartUuidOrSlug,
             undefined,
             { projectUuid },
         );
+        const savedChart = variant.chart;
         const space = await this.spaceModel.getSpaceSummary(
             savedChart.spaceUuid,
         );
@@ -2153,14 +2159,16 @@ export class SavedChartService
         const { access, inheritsFromOrgOrProject } =
             await this.checkPermissions(account, space, savedChart);
 
-        try {
-            await this.projectModel.getExploreFromCache(
-                savedChart.projectUuid,
-                savedChart.tableName,
-            );
-        } catch (error) {
-            if (error instanceof ExploreSplitError) throw error;
-            if (!(error instanceof NotFoundError)) throw error;
+        if (variant.queryType === 'semantic') {
+            try {
+                await this.projectModel.getExploreFromCache(
+                    savedChart.projectUuid,
+                    variant.chart.tableName,
+                );
+            } catch (error) {
+                if (error instanceof ExploreSplitError) throw error;
+                if (!(error instanceof NotFoundError)) throw error;
+            }
         }
 
         void this.analyticsModel
@@ -2207,11 +2215,47 @@ export class SavedChartService
             },
         );
 
-        return {
-            ...savedChart,
-            inheritsFromOrgOrProject,
-            access,
-        };
+        return variant.queryType === 'semantic'
+            ? {
+                  queryType: 'semantic',
+                  chart: { ...variant.chart, inheritsFromOrgOrProject, access },
+              }
+            : {
+                  queryType: 'composer',
+                  chart: { ...variant.chart, inheritsFromOrgOrProject, access },
+              };
+    }
+
+    async get(
+        savedChartUuidOrSlug: string,
+        account: Account,
+        options?: { projectUuid?: string },
+    ): Promise<SavedChart> {
+        const variant = await this.getVariant(
+            savedChartUuidOrSlug,
+            account,
+            options,
+        );
+        if (variant.queryType === 'composer') {
+            throw new ComposerChartNotSupportedError(variant.chart.uuid);
+        }
+        return variant.chart;
+    }
+
+    async getComposer(
+        savedChartUuidOrSlug: string,
+        account: Account,
+        options?: { projectUuid?: string },
+    ): Promise<ComposerSavedChart> {
+        const variant = await this.getVariant(
+            savedChartUuidOrSlug,
+            account,
+            options,
+        );
+        if (variant.queryType === 'semantic') {
+            throw new NotComposerChartError(variant.chart.uuid);
+        }
+        return variant.chart;
     }
 
     // Interactive chart pages opt into the caller's unpublished overlay.
@@ -2221,9 +2265,17 @@ export class SavedChartService
         savedChartUuidOrSlug: string,
         account: Account,
         options?: { projectUuid?: string },
-    ): Promise<SavedChart> {
-        const chart = await this.get(savedChartUuidOrSlug, account, options);
-        return this.applyOpenDraftOverlay(user, chart);
+    ): Promise<SavedChartWithAccessVariant> {
+        const variant = await this.getVariant(
+            savedChartUuidOrSlug,
+            account,
+            options,
+        );
+        if (variant.queryType === 'composer') return variant;
+        return {
+            queryType: 'semantic',
+            chart: await this.applyOpenDraftOverlay(user, variant.chart),
+        };
     }
 
     async verifyChart(
@@ -2353,6 +2405,65 @@ export class SavedChartService
                         : writeSpaceUuids[0],
             },
         };
+    }
+
+    /** Writes a composer chart into a dashboard; the caller brings a stored pipeline and a converted drawing. */
+    async createComposerChart(
+        account: Account,
+        projectUuid: string,
+        chart: CreateComposerChart,
+    ): Promise<ComposerSavedChart> {
+        const { user, embedWriteActions } = getAccountWriteContext(account);
+        if (embedWriteActions) {
+            throw new ForbiddenError(
+                'Composer charts cannot be saved from an embedded view',
+            );
+        }
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            chart.dashboardUuid,
+            { projectUuid },
+        );
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const { access, inheritsFromOrgOrProject } =
+            await this.spacePermissionService.resolveAccess(user.userUuid, {
+                type: 'dashboard',
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: dashboard.spaceUuid,
+            });
+        if (
+            this.createAuditedAbility(user).cannot(
+                'create',
+                subject('SavedChart', {
+                    organizationUuid,
+                    projectUuid,
+                    inheritsFromOrgOrProject,
+                    access,
+                    metadata: {
+                        resolvedSpaceUuid: undefined,
+                        dashboardUuid: dashboard.uuid,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const created = await this.savedChartModel.createComposerChart(
+            projectUuid,
+            user.userUuid,
+            {
+                ...chart,
+                dashboardUuid: dashboard.uuid,
+                slug: generateSlug(chart.name),
+            },
+        );
+        const space = await this.spaceModel.getSpaceSummary(created.spaceUuid);
+        const permissions = await this.checkPermissions(
+            account,
+            space,
+            created,
+        );
+        return { ...created, ...permissions };
     }
 
     async create(

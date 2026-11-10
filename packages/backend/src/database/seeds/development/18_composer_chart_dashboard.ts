@@ -1,5 +1,5 @@
 import {
-    ChartKind,
+    CartesianSeriesType,
     ChartType,
     DashboardTileTypes,
     generateSlug,
@@ -10,47 +10,42 @@ import {
     SEED_COMPOSER_CHART_DASHBOARD,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
-    toTimezoneSetting,
+    type ChartConfig,
     type SavedComposerPipeline,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { v4 as uuidv4 } from 'uuid';
+import { lightdashConfig } from '../../../config/lightdashConfig';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
+import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SpaceModel } from '../../../models/SpaceModel';
-import {
-    SavedChartsTableName,
-    SavedChartVersionsTableName,
-} from '../../entities/savedCharts';
 
-// Rows are written directly: the saved chart model gains a composer writer
-// with the save-to-dashboard step.
 type SeedComposerChart = {
     name: string;
-    chartKind: ChartKind;
-    chartType: ChartType;
-    chartConfig: Record<string, unknown>;
+    chartConfig: ChartConfig;
     pipeline: SavedComposerPipeline;
 };
 
 const revenueShare: SeedComposerChart = {
     name: SEED_COMPOSER_CHART.revenueShare,
-    chartKind: ChartKind.VERTICAL_BAR,
-    chartType: ChartType.CARTESIAN,
     chartConfig: {
-        layout: {
-            xField: 'composer_result_orders_status',
-            yField: ['composer_result_revenue_share'],
-        },
-        eChartsConfig: {
-            series: [
-                {
-                    type: 'bar',
-                    encode: {
-                        xRef: { field: 'composer_result_orders_status' },
-                        yRef: { field: 'composer_result_revenue_share' },
+        type: ChartType.CARTESIAN,
+        config: {
+            layout: {
+                xField: 'composer_result_orders_status',
+                yField: ['composer_result_revenue_share'],
+            },
+            eChartsConfig: {
+                series: [
+                    {
+                        type: CartesianSeriesType.BAR,
+                        encode: {
+                            xRef: { field: 'composer_result_orders_status' },
+                            yRef: { field: 'composer_result_revenue_share' },
+                        },
                     },
-                },
-            ],
+                ],
+            },
         },
     },
     pipeline: {
@@ -94,51 +89,110 @@ const revenueShare: SeedComposerChart = {
     },
 };
 
-const insertComposerChart = async (
-    knex: Knex,
+const customersByAge: SeedComposerChart = {
+    name: SEED_COMPOSER_CHART.customersByAge,
+    chartConfig: { type: ChartType.TABLE },
+    pipeline: {
+        schemaVersion: SAVED_COMPOSER_PIPELINE_SCHEMA_VERSION,
+        nodes: [
+            {
+                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                nodeId: 'customers',
+                title: 'Customers by age',
+                exploreName: 'customers',
+                dimensions: ['customers_age'],
+                metrics: ['customers_unique_customer_count'],
+                sorts: [{ fieldId: 'customers_age', descending: false }],
+                limit: 500,
+            },
+            {
+                sourceType: QuerySourceType.DUCKDB,
+                nodeId: 'by_age',
+                title: 'By age',
+                sql: 'SELECT customers_age, customers_unique_customer_count FROM customers ORDER BY customers_age',
+                references: ['customers'],
+                limit: 100,
+            },
+        ],
+        terminalNodeId: 'by_age',
+    },
+};
+
+// Mirrors the proof fixture: an attribute refusal on `customers` must leave
+// the already-permitted `orders` node unexecuted.
+const revenueAndCustomers: SeedComposerChart = {
+    name: SEED_COMPOSER_CHART.revenueAndCustomers,
+    chartConfig: { type: ChartType.TABLE },
+    pipeline: {
+        schemaVersion: SAVED_COMPOSER_PIPELINE_SCHEMA_VERSION,
+        nodes: [
+            {
+                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                nodeId: 'orders',
+                title: 'Revenue by order status',
+                exploreName: 'orders',
+                dimensions: ['orders_status'],
+                metrics: ['orders_total_order_amount'],
+                sorts: [{ fieldId: 'orders_status', descending: false }],
+                limit: 500,
+            },
+            {
+                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                nodeId: 'customers',
+                title: 'Customers by age',
+                exploreName: 'customers',
+                dimensions: ['customers_age'],
+                metrics: ['customers_unique_customer_count'],
+                sorts: [{ fieldId: 'customers_age', descending: false }],
+                limit: 500,
+            },
+            {
+                sourceType: QuerySourceType.DUCKDB,
+                nodeId: 'joined',
+                title: 'Revenue and customers',
+                sql: [
+                    'SELECT o.orders_status, o.orders_total_order_amount, c.customers_age, c.customers_unique_customer_count',
+                    'FROM orders o',
+                    'INNER JOIN customers c ON c.customers_age % 5 = CASE o.orders_status',
+                    "  WHEN 'placed' THEN 0 WHEN 'completed' THEN 1 WHEN 'returned' THEN 2 WHEN 'return_pending' THEN 3 ELSE 4 END",
+                    'ORDER BY o.orders_status, c.customers_age',
+                ].join('\n'),
+                references: ['orders', 'customers'],
+                limit: 500,
+            },
+        ],
+        terminalNodeId: 'joined',
+    },
+};
+
+const createComposerChart = (
+    savedChartModel: SavedChartModel,
     dashboardUuid: string,
     chart: SeedComposerChart,
-): Promise<string> => {
-    const [{ saved_query_id: savedQueryId, saved_query_uuid: savedQueryUuid }] =
-        await knex(SavedChartsTableName)
-            .insert({
+): Promise<string> =>
+    savedChartModel
+        .createComposerChart(
+            SEED_PROJECT.project_uuid,
+            SEED_ORG_1_ADMIN.user_uuid,
+            {
                 name: chart.name,
                 description: 'Seeded composer chart',
+                dashboardUuid,
+                pipeline: chart.pipeline,
+                chartConfig: chart.chartConfig,
+                pivotConfig: undefined,
                 slug: generateSlug(chart.name),
-                last_version_chart_kind: chart.chartKind,
-                last_version_updated_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
-                color_palette_uuid: null,
-                project_uuid: SEED_PROJECT.project_uuid,
-                space_id: null,
-                dashboard_uuid: dashboardUuid,
-            })
-            .returning(['saved_query_id', 'saved_query_uuid']);
-    const terminalNode = chart.pipeline.nodes.find(
-        (node) => node.nodeId === chart.pipeline.terminalNodeId,
-    );
-    await knex(SavedChartVersionsTableName).insert({
-        saved_query_id: savedQueryId,
-        explore_name: null,
-        pipeline: chart.pipeline,
-        filters: {},
-        row_limit: terminalNode?.limit ?? 500,
-        chart_type: chart.chartType,
-        chart_config: chart.chartConfig,
-        pivot_dimensions: null,
-        pivot_rows: null,
-        metric_overrides: null,
-        dimension_overrides: null,
-        parameters: null,
-        updated_by_user_uuid: SEED_ORG_1_ADMIN.user_uuid,
-        timezone: toTimezoneSetting(undefined),
-        agent_identity: null,
-    });
-    return savedQueryUuid;
-};
+            },
+        )
+        .then((created) => created.uuid);
 
 export async function seed(knex: Knex): Promise<void> {
     const dashboardModel = new DashboardModel({ database: knex });
     const spaceModel = new SpaceModel({ database: knex });
+    const savedChartModel = new SavedChartModel({
+        database: knex,
+        lightdashConfig,
+    });
 
     const [seedSpace] = await spaceModel.find({
         projectUuid: SEED_PROJECT.project_uuid,
@@ -160,27 +214,25 @@ export async function seed(knex: Knex): Promise<void> {
         SEED_PROJECT.project_uuid,
     );
 
-    const savedChartUuid = await insertComposerChart(
-        knex,
-        dashboard.uuid,
-        revenueShare,
+    const chartUuids = await Promise.all(
+        [revenueShare, customersByAge, revenueAndCustomers].map((chart) =>
+            createComposerChart(savedChartModel, dashboard.uuid, chart),
+        ),
     );
 
     await dashboardModel.addVersion(
         dashboard.uuid,
         {
-            tiles: [
-                {
-                    uuid: uuidv4(),
-                    x: 0,
-                    y: 0,
-                    w: 24,
-                    h: 9,
-                    type: DashboardTileTypes.SAVED_CHART,
-                    tabUuid: undefined,
-                    properties: { savedChartUuid },
-                },
-            ],
+            tiles: chartUuids.map((savedChartUuid, index) => ({
+                uuid: uuidv4(),
+                x: 0,
+                y: index * 9,
+                w: 24,
+                h: 9,
+                type: DashboardTileTypes.SAVED_CHART,
+                tabUuid: undefined,
+                properties: { savedChartUuid },
+            })),
             filters: undefined,
             tabs: [],
             updatedByUser: { userUuid: SEED_ORG_1_ADMIN.user_uuid },
