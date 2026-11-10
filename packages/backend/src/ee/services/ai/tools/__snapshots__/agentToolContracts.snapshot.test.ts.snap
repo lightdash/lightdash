@@ -18458,7 +18458,7 @@ Each result renders as its own artifact with a "Continue exploring in SQL Runner
     "description": "Run a pipeline: up to 25 nodes submitted together, where duckdb nodes join or transform other nodes' results. One call returns the terminal node's rows; every other submitted node is listed with its columns and first rows.
 
 Node kinds:
-- "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
+- "semanticLayer": a metric query against an explore. Result columns are the field ids it selects.
 - "sql": raw SQL against the project warehouse; may need user approval.
 - "external": DuckDB SQL over uploaded or connected tables declared in "tables".
 - "duckdb": DuckDB SQL over other results declared in "references".
@@ -18534,7 +18534,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                               "type": "string",
                             },
                             "name": {
-                              "description": "snake_case name. The metric's field id is "<table>_<name>"; defining it selects it, and the id works in sorts, metric filters and periodComparisons.",
+                              "description": "snake_case name. The metric's field id is "<table>_<name>" and names it everywhere, its result column included; defining it selects it.",
                               "pattern": "^[a-z][a-z0-9_]*$",
                               "type": "string",
                             },

@@ -89,7 +89,7 @@ const getComposerNodeKindsDescription = ({
     enablePythonNodes,
     sqlNote,
 }: ComposerQueriesDescriptionOptions & { sqlNote: string }) => `Node kinds:
-- "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
+- "semanticLayer": a metric query against an explore. Result columns are the field ids it selects.
 - "sql": raw SQL against the project warehouse; ${sqlNote}.
 - "external": DuckDB SQL over uploaded or connected tables declared in "tables".
 - "duckdb": DuckDB SQL over other results declared in "references".${
@@ -177,7 +177,7 @@ const composerCustomMetricSchema = z.object({
             'Custom metric names use lowercase snake_case',
         )
         .describe(
-            'snake_case name. The metric\'s field id is "<table>_<name>"; defining it selects it, and the id works in sorts, metric filters and periodComparisons.',
+            'snake_case name. The metric\'s field id is "<table>_<name>" and names it everywhere, its result column included; defining it selects it.',
         ),
     label: z.string().describe('Column label shown to users.'),
     description: z
