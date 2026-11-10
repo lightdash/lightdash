@@ -1,3 +1,10 @@
+# [3.202.0](https://github.com/lightdash/lightdash/compare/3.201.0...3.202.0) (2026-11-10)
+
+
+### Features
+
+* **dashboards:** floating edit bar with a filters visibility switch ([#32326](https://github.com/lightdash/lightdash/issues/32326)) ([a2f54f4](https://github.com/lightdash/lightdash/commit/a2f54f469c2cca1141c2bf485b123bef2db4ff97))
+
 # [3.201.0](https://github.com/lightdash/lightdash/compare/3.200.0...3.201.0) (2026-11-10)
 
 
