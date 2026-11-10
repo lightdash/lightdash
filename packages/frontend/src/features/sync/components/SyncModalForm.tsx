@@ -10,7 +10,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { useMemo, type FC, type ReactNode } from 'react';
+import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import TimeZonePicker from '../../../components/common/TimeZonePicker';
 import { CronInternalInputs } from '../../../components/CronInput';
@@ -31,7 +31,6 @@ type Props = {
      *  "first tab" to override, so the tab-name override doesn't apply. */
     isApp?: boolean;
     supportsFilters?: boolean;
-    filterOverrides?: ReactNode;
 };
 
 export const SyncModalForm: FC<Props> = ({
@@ -39,7 +38,6 @@ export const SyncModalForm: FC<Props> = ({
     onSubmit,
     isApp = false,
     supportsFilters = false,
-    filterOverrides,
 }) => {
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
@@ -97,8 +95,6 @@ export const SyncModalForm: FC<Props> = ({
                 </Input.Wrapper>
 
                 <SelectGoogleSheetButton />
-
-                {filterOverrides}
 
                 {supportsFilters && (
                     <Switch

@@ -1,12 +1,6 @@
-import { subject } from '@casl/ability';
-import {
-    getTotalFilterRules,
-    type FilterRule,
-    type Filters,
-} from '@lightdash/common';
+import { type FilterRule, type Filters } from '@lightdash/common';
 import { Stack, Switch } from '@mantine/core';
 import { type FC } from 'react';
-import useApp from '../../../providers/App/useApp';
 import { SchedulerFormChartFilterOverridesTab } from '../../scheduler/components/SchedulerForm/SchedulerFormChartFilterOverridesTab';
 import { type SyncResource } from '../types';
 import { useSyncModalFormContext } from './syncModalFormContext';
@@ -14,6 +8,7 @@ import { useSyncModalFormContext } from './syncModalFormContext';
 type Props = {
     chart: Extract<SyncResource, { type: 'chart' }>['chart'];
     savedFilters: Filters | undefined;
+    canAdjustFilters: boolean;
     isEditing: boolean;
     filtersWithUnmetRequirements: FilterRule[];
 };
@@ -21,28 +16,11 @@ type Props = {
 export const SyncChartFilterOverrides: FC<Props> = ({
     chart,
     savedFilters,
+    canAdjustFilters,
     isEditing,
     filtersWithUnmetRequirements,
 }) => {
     const form = useSyncModalFormContext();
-    const { user } = useApp();
-    const canAdjustFilters = user.data?.ability.can(
-        'manage',
-        subject('Explore', {
-            organizationUuid: chart.organizationUuid,
-            projectUuid: chart.projectUuid,
-        }),
-    );
-
-    const hasSavedOverrides =
-        !!savedFilters && getTotalFilterRules(savedFilters).length > 0;
-    if (
-        !hasSavedOverrides &&
-        (!canAdjustFilters ||
-            getTotalFilterRules(chart.metricQuery.filters).length === 0)
-    ) {
-        return null;
-    }
 
     return (
         <Stack gap="xs">
