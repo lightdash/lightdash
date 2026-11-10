@@ -214,15 +214,10 @@ export const PendingChangesButton = memo<Props>(({ settingsChanges }) => {
                         <MantineIcon icon={IconChevronDown} size={14} />
                     }
                 >
-                    {changes.length === 1
-                        ? '1 change'
-                        : `${changes.length} changes`}
+                    Unsaved changes
                 </Button>
             </Popover.Target>
             <Popover.Dropdown p="xs" w={360}>
-                <Text fz="xs" fw={500} c="dimmed" mb="xs">
-                    Unsaved changes
-                </Text>
                 <Stack gap="xs" className={classes.list}>
                     {changes.map((change) => (
                         <ChangeRow
