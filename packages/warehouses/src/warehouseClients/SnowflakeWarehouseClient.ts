@@ -276,6 +276,12 @@ const getAccessTokenExpiresAt = (token: string): Date | null => {
     }
 };
 
+// snowflake-sdk 3.x token cache keys: SnowflakeTokenCache.v2.<TokenType>.<sha256>
+const OAUTH_ACCESS_TOKEN_KEY_PREFIX =
+    'SnowflakeTokenCache.v2.OauthAccessToken.';
+const OAUTH_REFRESH_TOKEN_KEY_PREFIX =
+    'SnowflakeTokenCache.v2.OauthRefreshToken.';
+
 const createOAuthCredentialManager = (): SnowflakeOAuthCredentialManager => {
     const values = new Map<string, string>();
     let accessToken: string | null = null;
@@ -296,22 +302,18 @@ const createOAuthCredentialManager = (): SnowflakeOAuthCredentialManager => {
                 return;
             }
             values.set(key, token);
-            if (key.endsWith(':{OAUTH_AUTHORIZATION_CODE_ACCESS_TOKEN}')) {
+            if (key.startsWith(OAUTH_ACCESS_TOKEN_KEY_PREFIX)) {
                 accessToken = token;
-            } else if (
-                key.endsWith(':{OAUTH_AUTHORIZATION_CODE_REFRESH_TOKEN}')
-            ) {
+            } else if (key.startsWith(OAUTH_REFRESH_TOKEN_KEY_PREFIX)) {
                 refreshToken = token;
             }
         },
         async remove(key) {
             if (!key) return;
             values.delete(key);
-            if (key.endsWith(':{OAUTH_AUTHORIZATION_CODE_ACCESS_TOKEN}')) {
+            if (key.startsWith(OAUTH_ACCESS_TOKEN_KEY_PREFIX)) {
                 accessToken = null;
-            } else if (
-                key.endsWith(':{OAUTH_AUTHORIZATION_CODE_REFRESH_TOKEN}')
-            ) {
+            } else if (key.startsWith(OAUTH_REFRESH_TOKEN_KEY_PREFIX)) {
                 refreshToken = null;
             }
         },

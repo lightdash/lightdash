@@ -610,11 +610,11 @@ describe('SnowflakeWarehouseClient', () => {
         const customCredentialManager = getConfiguredCredentialManager();
 
         await customCredentialManager.write(
-            '{HOST}:{USER}:{OAUTH_AUTHORIZATION_CODE_ACCESS_TOKEN}',
+            'SnowflakeTokenCache.v2.OauthAccessToken.abc123',
             accessToken,
         );
         await customCredentialManager.write(
-            '{HOST}:{USER}:{OAUTH_AUTHORIZATION_CODE_REFRESH_TOKEN}',
+            'SnowflakeTokenCache.v2.OauthRefreshToken.abc123',
             'refresh-token',
         );
 
