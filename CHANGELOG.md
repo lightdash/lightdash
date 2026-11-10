@@ -1,3 +1,18 @@
+# [3.204.0](https://github.com/lightdash/lightdash/compare/3.203.1...3.204.0) (2026-11-10)
+
+
+### Bug Fixes
+
+* **ai:** only show the AI analysis tab where viewers can use it ([#32343](https://github.com/lightdash/lightdash/issues/32343)) ([fcf246a](https://github.com/lightdash/lightdash/commit/fcf246a4487312a318e5a64e31b3a17c139b4520))
+
+
+### Features
+
+* **ai:** metadata-only tool call event with attempt, model, version ([#32321](https://github.com/lightdash/lightdash/issues/32321)) ([4ee7f75](https://github.com/lightdash/lightdash/commit/4ee7f75dc979007b5d1f1d3dc7f014af4d242a1e))
+* **ai:** report agent tool and query errors to Sentry with their cause ([#32320](https://github.com/lightdash/lightdash/issues/32320)) ([0338652](https://github.com/lightdash/lightdash/commit/03386522d204a9506103d8c75e9eee9102384d9e))
+* **ai:** stamp agent turn ids on AI log lines ([#32319](https://github.com/lightdash/lightdash/issues/32319)) ([6190a31](https://github.com/lightdash/lightdash/commit/6190a313ee817d212a22f0aa2d818dad9f29cf35))
+* choose the tab when adding a chart to a dashboard ([#32350](https://github.com/lightdash/lightdash/issues/32350)) ([901d20f](https://github.com/lightdash/lightdash/commit/901d20ffaad2e602362f7472ef5bc71cee9b1747))
+
 ## [3.203.1](https://github.com/lightdash/lightdash/compare/3.203.0...3.203.1) (2026-11-10)
 
 
