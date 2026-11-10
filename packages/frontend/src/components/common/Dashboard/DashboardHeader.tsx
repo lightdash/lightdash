@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import {
     Badge,
+    ActionBar,
     ActionIcon,
     Box,
     Button,
@@ -71,6 +72,10 @@ import {
 import DashboardAsCodeModal from '../../../features/contentAsCode/components/DashboardAsCodeModal';
 import ProjectContentAsCodeUploadModal from '../../../features/contentAsCode/components/ProjectContentAsCodeUploadModal';
 import { useCanUploadContentAsCode } from '../../../features/contentAsCode/hooks/useCanUploadContentAsCode';
+import {
+    EditFiltersVisibilityControl,
+    type EditFiltersVisibility,
+} from '../../../features/dashboardFilters/EditFiltersVisibilityControl';
 import {
     DirectAccessModal,
     useCanManageDirectAccess,
@@ -164,6 +169,9 @@ type DashboardHeaderProps = {
     isFitToScreen: boolean;
     isFitToScreenAvailable: boolean;
     onToggleFitToScreen: () => void;
+    // null when the control is not offered
+    editFiltersVisibility: EditFiltersVisibility | null;
+    onEditFiltersVisibilityChange: (value: EditFiltersVisibility) => void;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
     onEditClicked: () => void;
     className?: string;
@@ -198,6 +206,8 @@ const DashboardHeader = memo(
         isFitToScreen,
         isFitToScreenAvailable,
         onToggleFitToScreen,
+        editFiltersVisibility,
+        onEditFiltersVisibilityChange,
         setAddingTab,
         onEditClicked,
         className,
@@ -714,15 +724,38 @@ const DashboardHeader = memo(
                             dashboardTabs={dashboardTabs}
                         />
 
-                        <AddTileButton
-                            onAddTiles={onAddTiles}
-                            disabled={isSaving}
-                            setAddingTab={setAddingTab}
-                            activeTabUuid={activeTabUuid}
-                            dashboardTabs={dashboardTabs}
-                            onNewChart={onNewChart}
-                            radius="md"
-                        />
+                        {editFiltersVisibility === null ? (
+                            <AddTileButton
+                                onAddTiles={onAddTiles}
+                                disabled={isSaving}
+                                setAddingTab={setAddingTab}
+                                activeTabUuid={activeTabUuid}
+                                dashboardTabs={dashboardTabs}
+                                onNewChart={onNewChart}
+                                radius="md"
+                            />
+                        ) : (
+                            <ActionBar
+                                opened
+                                shadow="md"
+                                aria-label="Dashboard editing tools"
+                            >
+                                <AddTileButton
+                                    onAddTiles={onAddTiles}
+                                    disabled={isSaving}
+                                    setAddingTab={setAddingTab}
+                                    activeTabUuid={activeTabUuid}
+                                    dashboardTabs={dashboardTabs}
+                                    onNewChart={onNewChart}
+                                    radius="md"
+                                />
+                                <ActionBar.Divider />
+                                <EditFiltersVisibilityControl
+                                    value={editFiltersVisibility}
+                                    onChange={onEditFiltersVisibilityChange}
+                                />
+                            </ActionBar>
+                        )}
 
                         <Tooltip
                             fz="xs"
