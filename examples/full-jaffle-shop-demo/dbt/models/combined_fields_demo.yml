@@ -6,6 +6,8 @@ models:
           tags: ['core']
           meta:
               label: Combined fields demo
+              # Reuse the seeded relation so this metadata-only demo works in previews.
+              sql_from: '"{{ target.schema }}"."orders"'
               primary_key: order_id
               combine_joined_fields: true
               order_fields_by: label
@@ -79,6 +81,7 @@ models:
           meta:
               hidden: true
               label: Customers
+              sql_from: '"{{ target.schema }}"."customers"'
               primary_key: customer_id
               group_details:
                   identifiers:

@@ -48,6 +48,8 @@ demo** explores, both defined in
 `examples/full-jaffle-shop-demo/dbt/models/combined_fields_demo.yml`.
 They use the same orders-to-customers join, with the combined setting enabled
 on the base model and explicitly disabled on the separate named explore.
+Both demo models use `sql_from` to query the existing seeded orders and customers
+relations, so preview environments only need to refresh their dbt metadata.
 
 Compare the shared Sales group under Metrics (Customer count, Order count,
 Order revenue), the two ID fields under Identifiers, and the two Date groups
