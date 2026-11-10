@@ -142,6 +142,41 @@ describe('dashboard section slugs', () => {
         expect(getDashboardWithSectionSlugs(restored)).toEqual(portable);
     });
 
+    it.each([true, false])(
+        'drops removed fields from an uploaded file (flag on: %s)',
+        (controlsEnabled) => {
+            const file = {
+                ...getDashboardWithSectionSlugs(dashboard()),
+            } as DashboardAsCode;
+            file.config = {
+                ...file.config!,
+                controlSections: [
+                    {
+                        ...file.config!.controlSections![0],
+                        id: 'old-id',
+                        inline: true,
+                    } as DashboardControlSection,
+                ],
+                parameterSections: { 'old-id': ['currency'] },
+                parameterSectionSlugs: { currency: 'x' },
+            } as DashboardAsCode['config'];
+            const restored = JSON.stringify(
+                getDashboardWithSectionIds(
+                    file,
+                    savedConfig(dashboard()),
+                    controlsEnabled,
+                ),
+            );
+            expect(
+                [
+                    '"inline"',
+                    '"parameterSections"',
+                    '"parameterSectionSlugs"',
+                ].filter((key) => restored.includes(key)),
+            ).toEqual([]);
+        },
+    );
+
     it('derives the slug of a section written without one from its name', () => {
         const portable = getDashboardWithSectionSlugs(dashboard());
         const { slug: _slug, ...section } =
@@ -421,6 +456,45 @@ describe('dashboard section slugs', () => {
                 collapsed: true,
             });
             expect(restored.filters?.dimensions?.[0].sectionId).toBe('old-id');
+        });
+
+        it('never gives two sections one saved id', () => {
+            const saved: DashboardConfig = {
+                isDateZoomDisabled: false,
+                controlSections: [
+                    { id: 'a', slug: 'revenue', name: 'Sales' },
+                    { id: 'b', name: 'Revenue' },
+                ],
+            };
+            const file = getDashboardWithSectionSlugs({
+                name: 'Dashboard',
+                slug: 'dashboard',
+                spaceSlug: 'space',
+                version: 1,
+                tiles: [],
+                tabs: [],
+                filters: {
+                    dimensions: [
+                        {
+                            target: { fieldId: 'f', tableName: 't' },
+                            operator: FilterOperator.EQUALS,
+                            label: 'Example',
+                            sectionId: 'b',
+                        },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                config: {
+                    isDateZoomDisabled: false,
+                    controlSections: saved.controlSections,
+                },
+            });
+            const restored = getDashboardWithSectionIds(file, saved, false);
+            expect(
+                restored.config?.controlSections?.map(({ id }) => id),
+            ).toEqual(['a', 'b']);
+            expect(restored.filters?.dimensions?.[0].sectionId).toBe('b');
         });
 
         it('matches a saved section by its stored slug, not its name', () => {

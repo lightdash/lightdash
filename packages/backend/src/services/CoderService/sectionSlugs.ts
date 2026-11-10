@@ -162,19 +162,18 @@ export const getDashboardWithSectionIds = (
     const stableIds = controlsEnabled
         ? getStableIds(sections, existingSections, sectionBase)
         : [];
-    // Flag off matches stored slugs, then the name-derived slugs downloads write
+    // Flag off matches a stored slug, then the name-derived slug downloads write; each saved id once
     const storedSlugs = sectionSlugs(existingSections);
     const nameSlugs = sectionSlugs(
         existingSections.map(({ name }) => ({ name })),
     );
-    const existingBySlug = new Map([
-        ...existingSections.map(
-            ({ id }, index) => [nameSlugs[index], id] as const,
-        ),
-        ...existingSections.map(
-            ({ id }, index) => [storedSlugs[index], id] as const,
-        ),
-    ]);
+    const byStoredSlug = new Map(
+        existingSections.map(({ id }, index) => [storedSlugs[index], id]),
+    );
+    const byNameSlug = new Map(
+        existingSections.map(({ id }, index) => [nameSlugs[index], id]),
+    );
+    const claimed = new Set<string>();
     const slugs = sectionSlugs(sections);
     const idBySlug = new Map<string, string>();
     const resolved = sections.map(({ slug, ...section }, index) => {
@@ -188,14 +187,19 @@ export const getDashboardWithSectionIds = (
             );
         const id = controlsEnabled
             ? stableIds[index]
-            : (existingBySlug.get(slugs[index]) ?? uuidv4());
+            : ([
+                  byStoredSlug.get(slugs[index]),
+                  byNameSlug.get(slugs[index]),
+              ].find((match) => match !== undefined && !claimed.has(match)) ??
+              uuidv4());
+        claimed.add(id);
         idBySlug.set(slugs[index], id);
-        if (controlsEnabled) return { ...section, id };
+        const kept = { ...pick(section, ['name', 'collapsed']), id };
+        if (controlsEnabled) return kept;
         const savedSlug =
             slug ?? existingSections.find((item) => item.id === id)?.slug;
         return {
-            ...section,
-            id,
+            ...kept,
             ...(savedSlug !== undefined && { slug: savedSlug }),
         };
     });
@@ -212,7 +216,16 @@ export const getDashboardWithSectionIds = (
         const { config: _config, ...withoutConfig } = converted;
         return withoutConfig;
     }
-    const { controlSections: _sections, ...config } = converted.config;
+    // Keys earlier versions accepted; nothing reads them, so an upload drops them
+    const {
+        controlSections: _sections,
+        parameterSections: _parameterSections,
+        parameterSectionSlugs: _parameterSectionSlugs,
+        ...config
+    } = converted.config as typeof converted.config & {
+        parameterSections?: unknown;
+        parameterSectionSlugs?: unknown;
+    };
     return {
         ...converted,
         config: {
