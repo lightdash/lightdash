@@ -1,3 +1,10 @@
+# [3.207.0](https://github.com/lightdash/lightdash/compare/3.206.0...3.207.0) (2026-11-10)
+
+
+### Features
+
+* combine joined fields at the explore level ([#32334](https://github.com/lightdash/lightdash/issues/32334)) ([c69be06](https://github.com/lightdash/lightdash/commit/c69be063eb019041ce58ffd5f9c4937c0a758db7))
+
 # [3.206.0](https://github.com/lightdash/lightdash/compare/3.205.2...3.206.0) (2026-11-10)
 
 
