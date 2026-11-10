@@ -222,7 +222,7 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
                     {node.source?.showInline && (
                         <Text
                             fz="xs"
-                            c="ldGray.6"
+                            c="dimmed"
                             truncate
                             maw={110}
                             title={node.source.label}

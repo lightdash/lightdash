@@ -133,7 +133,7 @@ export const ItemDetailPreview: FC<{
     return (
         <Stack gap="sm">
             {sourceLabel && (
-                <Text fz="xs" c="ldGray.7">
+                <Text fz="xs" c="dimmed">
                     Source table: {sourceLabel}
                 </Text>
             )}
