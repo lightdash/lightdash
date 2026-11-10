@@ -45,6 +45,7 @@ const buildChecklistTailSections = (
 - preagg_misses_by_reason distinguishes explores with no pre-aggregate from pre-aggregates that keep missing. dimension_not_in_pre_aggregate and metric_not_in_pre_aggregate mean an EXISTING pre-aggregate should be extended, not a new one added
 - ineligible_fields can never be pre-aggregated (non-additive metrics, custom SQL, user attributes). Mention them so admins understand the coverage gap; do not propose workarounds
 - Tell admins to check the materialized row count before adopting a suggestion: high-cardinality dimensions can exceed the recommended 1,000,000 row threshold. Suggest max_rows or filters when that risk looks real
+- A no_suggestion_reason starting with too_many_fields_for_one_pre_aggregate means the observed queries need more fields than one pre-aggregate should hold. Recommend several narrower pre-aggregates on the same model, one per group of charts, using top_query_shapes to group them. Never suggest extending an existing pre-aggregate past that size
 - If it returns nothing, skip this step`,
                   },
               ]
