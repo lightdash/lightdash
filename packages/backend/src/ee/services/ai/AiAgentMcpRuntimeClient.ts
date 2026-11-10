@@ -178,11 +178,19 @@ const markMcpOutputAsUntrusted = (value: unknown): unknown => {
 };
 
 const hardenMcpOutput = (value: unknown): unknown => {
-    const hardened = markMcpOutputAsUntrusted(
-        sanitizeBoundedMcpValue(value, MCP_TOOL_OUTPUT_MAX_CHARS),
-    );
-    const serialized = JSON.stringify(hardened);
-    if (serialized.length <= MCP_TOOL_OUTPUT_MAX_CHARS) return hardened;
+    // Escaping and JSON encoding grow the bounded value, so shrink the raw
+    // budget until the serialized output fits.
+    let budget = MCP_TOOL_OUTPUT_MAX_CHARS;
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+        const hardened = markMcpOutputAsUntrusted(
+            sanitizeBoundedMcpValue(value, budget),
+        );
+        const serializedLength = JSON.stringify(hardened).length;
+        if (serializedLength <= MCP_TOOL_OUTPUT_MAX_CHARS) return hardened;
+        budget = Math.floor(
+            budget * (MCP_TOOL_OUTPUT_MAX_CHARS / serializedLength) * 0.95,
+        );
+    }
     return {
         content: [
             {

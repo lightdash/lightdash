@@ -16,6 +16,7 @@ import {
     createPublicMcpLookup,
     getMcpOAuthCallbackUrl,
     hardenMcpToolDefinition,
+    MCP_UNTRUSTED_OUTPUT_NOTICE,
     McpAuthorizationRequiredError,
     McpTimeoutError,
     normalizeMcpOAuthPayloadForRedirect,
@@ -156,7 +157,36 @@ describe('hardenMcpToolDefinition', () => {
 
         const output = await hardened.execute?.({}, {} as never);
         expect(JSON.stringify(output).length).toBeLessThanOrEqual(32_000);
-        expect(JSON.stringify(output)).toContain('Untrusted remote MCP output');
+        expect(output).toMatchObject({
+            _lightdashNotice: expect.stringContaining(
+                'Untrusted remote MCP output',
+            ),
+            value: expect.arrayContaining([Number.MAX_VALUE]),
+        });
+    });
+
+    it('trims oversized escaped text output instead of dropping it', async () => {
+        const chunk =
+            '## Charts\n<Note>Use "layout.showIncompletePeriod" & more</Note>\n';
+        const text = chunk.repeat(2_000).slice(0, 100_000);
+        const hardened = hardenMcpToolDefinition({
+            inputSchema: jsonSchema({ type: 'object' }),
+            execute: vi
+                .fn()
+                .mockResolvedValue({ content: [{ type: 'text', text }] }),
+        } as never);
+
+        const output = (await hardened.execute?.({}, {} as never)) as {
+            content: { type: string; text: string }[];
+        };
+        const serializedLength = JSON.stringify(output).length;
+        expect(serializedLength).toBeLessThanOrEqual(32_000);
+        expect(serializedLength).toBeGreaterThan(25_000);
+        expect(output.content[0].text).toBe(MCP_UNTRUSTED_OUTPUT_NOTICE);
+        expect(output.content[1].text).toMatch(
+            /^## Charts\n&lt;Note&gt;Use "layout\.showIncompletePeriod" &amp; more&lt;\/Note&gt;\n/,
+        );
+        expect(output.content[1].text).toMatch(/\n\[truncated by Lightdash\]$/);
     });
 
     it('rejects a primitive-heavy schema over the final serialized limit', () => {
