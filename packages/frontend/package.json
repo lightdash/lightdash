@@ -1,6 +1,6 @@
 {
     "name": "@lightdash/frontend",
-    "version": "3.193.0",
+    "version": "3.197.1",
     "private": true,
     "scripts": {
         "typecheck": "tsrs --project tsconfig.json --noEmit",
@@ -99,7 +99,7 @@
         "leaflet": "1.9.4",
         "leaflet.heat": "0.2.0",
         "mantine-form-zod-resolver": "1.3.0",
-        "moment": "2.29.4",
+        "moment": "2.31.0",
         "monaco-editor": "0.54.0",
         "monaco-sql-languages": "0.12.2",
         "monaco-yaml": "5.4.0",
@@ -116,7 +116,7 @@
         "react-grid-layout": "1.3.4",
         "react-leaflet": "4.2.1",
         "react-redux": "9.2.0",
-        "react-router": "7.15.0",
+        "react-router": "7.18.2",
         "react-use": "17.6.0",
         "react-use-intercom": "4.1.0",
         "react-vega": "8.0.0",

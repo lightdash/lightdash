@@ -66500,6 +66500,191 @@
             "ApiNotificationUpdateParams": {
                 "$ref": "#/components/schemas/Pick_Notification.viewed_"
             },
+            "MobileSignInCode": {
+                "properties": {
+                    "expiresInSeconds": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "expiresAt": {
+                        "type": "string"
+                    },
+                    "approvalNonce": {
+                        "type": "string"
+                    },
+                    "signInUrl": {
+                        "type": "string"
+                    },
+                    "codeUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "expiresInSeconds",
+                    "expiresAt",
+                    "approvalNonce",
+                    "signInUrl",
+                    "codeUuid"
+                ],
+                "type": "object"
+            },
+            "ApiMobileSignInCodeResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/MobileSignInCode"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "MintMobileSignInCodeRequest": {
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "enum": ["show", "auto_refresh"]
+                    }
+                },
+                "required": ["reason"],
+                "type": "object"
+            },
+            "MobileSignInCodeStatus": {
+                "enum": [
+                    "pending",
+                    "claimed",
+                    "approved",
+                    "declined",
+                    "redeemed",
+                    "expired"
+                ],
+                "type": "string"
+            },
+            "MobileSignInPlatform": {
+                "type": "string",
+                "enum": ["ios", "android"]
+            },
+            "MobileSignInCodeDevice": {
+                "properties": {
+                    "clientName": {
+                        "type": "string"
+                    },
+                    "platform": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/MobileSignInPlatform"
+                            },
+                            {
+                                "type": "string",
+                                "enum": ["unknown"]
+                            }
+                        ]
+                    }
+                },
+                "required": ["clientName", "platform"],
+                "type": "object"
+            },
+            "MobileSignInCodeState": {
+                "properties": {
+                    "device": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MobileSignInCodeDevice"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "matchNumber": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "expiresAt": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/MobileSignInCodeStatus"
+                    },
+                    "codeUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "device",
+                    "matchNumber",
+                    "expiresAt",
+                    "status",
+                    "codeUuid"
+                ],
+                "type": "object"
+            },
+            "ApiMobileSignInCodeStateResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/MobileSignInCodeState"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "MobileSignInCodeStatus.APPROVED": {
+                "enum": ["approved"],
+                "type": "string"
+            },
+            "MobileSignInCodeStatus.DECLINED": {
+                "enum": ["declined"],
+                "type": "string"
+            },
+            "MobileSignInDecision": {
+                "properties": {
+                    "matchNumber": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/MobileSignInCodeStatus.APPROVED"
+                            },
+                            {
+                                "$ref": "#/components/schemas/MobileSignInCodeStatus.DECLINED"
+                            }
+                        ]
+                    }
+                },
+                "required": ["matchNumber", "status"],
+                "type": "object"
+            },
+            "ApiMobileSignInDecisionResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/MobileSignInDecision"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "DecideMobileSignInCodeRequest": {
+                "properties": {
+                    "nonce": {
+                        "type": "string"
+                    }
+                },
+                "required": ["nonce"],
+                "type": "object"
+            },
             "MobileAppLink": {
                 "properties": {
                     "expiresInSeconds": {
@@ -76676,7 +76861,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.193.0",
+        "version": "3.197.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -109198,6 +109383,223 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ApiNotificationUpdateParams"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/mobile/sign-in-codes": {
+            "post": {
+                "operationId": "CreateMobileSignInCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMobileSignInCodeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Creates a one-time code that signs the mobile app in as the current\nuser. Replaces the earlier code of this browser session",
+                "summary": "Create mobile sign-in code",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MintMobileSignInCodeRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/mobile/sign-in-codes/{codeUuid}": {
+            "get": {
+                "operationId": "GetMobileSignInCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMobileSignInCodeStateResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Gets the state of a mobile sign-in code created by this browser session",
+                "summary": "Get mobile sign-in code",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "codeUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "CancelMobileSignInCode",
+                "responses": {
+                    "204": {
+                        "description": "Deleted"
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Deletes an unused mobile sign-in code created by this browser session",
+                "summary": "Cancel mobile sign-in code",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "codeUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/user/mobile/sign-in-codes/{codeUuid}/approve": {
+            "post": {
+                "operationId": "ApproveMobileSignInCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMobileSignInDecisionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Confirms that the phone that claimed this code may sign in",
+                "summary": "Approve mobile sign-in code",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "codeUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DecideMobileSignInCodeRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/mobile/sign-in-codes/{codeUuid}/decline": {
+            "post": {
+                "operationId": "DeclineMobileSignInCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMobileSignInDecisionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Refuses the phone that claimed this code",
+                "summary": "Decline mobile sign-in code",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "codeUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DecideMobileSignInCodeRequest"
                             }
                         }
                     }

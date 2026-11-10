@@ -73,7 +73,7 @@ def run(inputs, params):
     df = inputs["orders"]                           # one DataFrame per reference, columns already typed
     cutoff = pd.Timestamp("2026-01-01")             # all datetimes are tz-naive UTC wall clock; never tz_localize/tz_convert
     out = df[df["created_at"] >= cutoff].groupby("customer_id", as_index=False)["revenue"].sum()
-    return out                                      # unique [A-Za-z_][A-Za-z0-9_]* column names, index dropped
+    return out                                      # unique snake_case column names, letter first, max 63 chars (revenue_2024, not "Revenue 2024" or 2024); flatten pivot/unstack columns; index dropped
 
 Imports aside, all code inside run(). Read columns as df["col"], never df.col. Check df.dtypes before sum/astype.
 Libraries: ${PYTHON_SANDBOX_LIBRARIES_DESCRIPTION}. No network, no installs.`;
@@ -214,7 +214,7 @@ const composerCustomMetricSchema = z.object({
     filter: filterExpressionInputSchema
         .nullish()
         .describe(
-            'Aggregates only the rows this flat AND expression over dimensions matches, in the node filter grammar, e.g. "orders_status equals=completed". Null aggregates every row.',
+            'Aggregates only the rows this flat AND expression over dimensions matches, in the node filter grammar, e.g. `orders_status equals="completed"`. Null aggregates every row.',
         ),
 });
 

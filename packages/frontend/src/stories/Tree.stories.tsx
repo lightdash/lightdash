@@ -24,7 +24,7 @@ const meta: Meta<typeof Tree> = {
 export default meta;
 type Story = StoryObj<typeof Tree>;
 
-const data = [
+const paths = [
     {
         uuid: 'fake0',
         name: 'The most main space',
@@ -101,6 +101,15 @@ const data = [
         path: 'kinda_top_level_space3',
     },
 ];
+
+const data = paths.map((item) => {
+    const parentPath = item.path.split('.').slice(0, -1).join('.');
+    return {
+        ...item,
+        parentSpaceUuid:
+            paths.find((parent) => parent.path === parentPath)?.uuid ?? null,
+    };
+});
 
 export const Primary: Story = {
     args: {

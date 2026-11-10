@@ -3,8 +3,10 @@ import {
     AGENT_SUGGESTIONS_SPACE_SLUG,
     AgentActorSurface,
     AiAccessRefusedError,
+    AiCreditsPausedError,
     applyNewChartDefaults,
     assertUnreachable,
+    CommercialFeatureFlags,
     computeAutopilotExcludedSpaceUuids,
     ConflictError,
     DEFAULT_MANAGED_AGENT_POLICY,
@@ -94,6 +96,7 @@ import {
 } from '../ai/utils/aiCallTelemetry';
 import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import type { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
+import type { AiCreditService } from '../AiCreditService';
 import type { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { runAutopilotAgent } from './AutopilotAgentRunner';
 import {
@@ -239,6 +242,7 @@ type ManagedAgentServiceDependencies = {
     aiAgentToolsService: AiAgentToolsService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
     asyncQueryService: AsyncQueryService;
+    aiCreditService: Pick<AiCreditService, 'assertAiCreditsAvailable'>;
 };
 
 type AutopilotToolCallHandler = (
@@ -303,6 +307,11 @@ export class ManagedAgentService extends BaseService {
 
     private readonly asyncQueryService: AsyncQueryService;
 
+    private readonly aiCreditService: Pick<
+        AiCreditService,
+        'assertAiCreditsAvailable'
+    >;
+
     constructor(deps: ManagedAgentServiceDependencies) {
         super();
         this.lightdashConfig = deps.lightdashConfig;
@@ -325,6 +334,7 @@ export class ManagedAgentService extends BaseService {
         this.aiAgentToolsService = deps.aiAgentToolsService;
         this.aiOrganizationSettingsService = deps.aiOrganizationSettingsService;
         this.asyncQueryService = deps.asyncQueryService;
+        this.aiCreditService = deps.aiCreditService;
     }
 
     // --- Validation helpers ---
@@ -1528,7 +1538,9 @@ export class ManagedAgentService extends BaseService {
         return { runs, nextCursor: encodeRunsCursor(nextCursor) };
     }
 
-    async isAiAutopilotEnabledForProject(
+    // Autopilot is available wherever AI is: the AI copilot flag or an AI
+    // trial, resolved for the admin who enabled it, as for AI agents.
+    async isAutopilotAvailableForProject(
         settings: ManagedAgentSettings,
     ): Promise<boolean> {
         const project = await this.projectModel.getSummary(
@@ -1540,12 +1552,15 @@ export class ManagedAgentService extends BaseService {
                   project.organizationUuid,
               )
             : undefined;
-        const featureFlag = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.AiAutopilot,
+        const { enabled: copilotEnabled } = await this.featureFlagModel.get({
+            user: user ?? { organizationUuid: project.organizationUuid },
+            featureFlagId: CommercialFeatureFlags.AiCopilot,
         });
-
-        return featureFlag.enabled;
+        if (copilotEnabled) return true;
+        return this.aiOrganizationSettingsService.isEligibleForTrial(
+            copilotEnabled,
+            project.organizationUuid,
+        );
     }
 
     // --- Actions API ---
@@ -1742,7 +1757,10 @@ export class ManagedAgentService extends BaseService {
                 `Heartbeat session error for project ${projectUuid}: ${error instanceof Error ? error.message : 'Unknown'}`,
             );
             const authorityFailure = ctx.authority?.guard.getFailure();
-            if (!ctx.authority?.isStoppingError(error))
+            if (
+                !ctx.authority?.isStoppingError(error) &&
+                !(error instanceof AiCreditsPausedError)
+            )
                 this.reportHeartbeatFailure(ctx, 'session', error);
             runError = error instanceof Error ? error.message : 'Unknown';
             if (authorityFailure && ctx.authority?.isStoppingError(error))
@@ -1905,6 +1923,13 @@ export class ManagedAgentService extends BaseService {
                 this.projectModel.getSummary(projectUuid),
                 this.resolveAutopilotModel(organizationUuid, projectUuid),
             ]);
+        // Refuse the run while the organization's AI credits are paused, as
+        // agents and data apps do. Runs on the organization's own key never pause.
+        await this.aiCreditService.assertAiCreditsAvailable({
+            user: actor,
+            resolveKeyManagement: async () => resolvedModel.keyManagement,
+            isEmbedViewer: false,
+        });
         const runtimeInfo = this.describeAiSdkRuntime(policy, resolvedModel);
         // Persist before tools or model execution: a crash must not erase the
         // selected model, and later configuration changes must not rewrite it.

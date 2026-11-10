@@ -2158,10 +2158,13 @@ export class CoderService extends BaseService {
                 controlTileSlugs,
             ),
         );
+        // A stored empty order renders as none
+        const storedOrder = config?.controlOrder?.length
+            ? config.controlOrder
+            : undefined;
         // The order appears only once stored; agents also get filter slugs so they can write one
         const orderedControls =
-            controlsEnabled &&
-            (withFilterSlugs || config?.controlOrder !== undefined)
+            controlsEnabled && (withFilterSlugs || storedOrder !== undefined)
                 ? {
                       filters: {
                           dimensions: dashboard.filters.dimensions,
@@ -2199,10 +2202,10 @@ export class CoderService extends BaseService {
                         ),
                     }),
                     ...(orderedControls &&
-                        config.controlOrder !== undefined && {
+                        storedOrder !== undefined && {
                             controlOrder: getControlOrderAsCode({
                                 ...orderedControls,
-                                controlOrder: config?.controlOrder,
+                                controlOrder: storedOrder,
                             }),
                         }),
                 },

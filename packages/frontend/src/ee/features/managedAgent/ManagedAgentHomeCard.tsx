@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
-    FeatureFlags,
     ManagedAgentScheduleOption,
 } from '@lightdash/common';
 import { Box, Button, Group, Stack, Text, UnstyledButton } from '@mantine/core';
@@ -21,8 +20,8 @@ import {
 } from 'react';
 import { useNavigate } from 'react-router';
 import { BetaBadge } from '../../../components/common/BetaBadge';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
+import { useIsCopilotEnabled } from '../aiCopilot/hooks/useIsCopilotEnabled';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentHomeCard.module.css';
@@ -122,10 +121,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                 projectUuid,
             }),
         ) ?? false;
-    const { data: aiAutopilotFlag } = useServerFeatureFlag(
-        FeatureFlags.AiAutopilot,
-    );
-    const managedAgentEnabled = !!aiAutopilotFlag?.enabled;
+    const { isCopilotEnabled: managedAgentEnabled } = useIsCopilotEnabled();
     const { data: settings } = useManagedAgentSettings({
         enabled: managedAgentEnabled && canManageAutopilot,
     });

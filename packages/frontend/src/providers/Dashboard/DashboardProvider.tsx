@@ -1,5 +1,6 @@
 import {
     applyDimensionOverrides,
+    isDashboardControlOrder,
     isStandardDateGranularity,
     type DashboardConfig,
     type DashboardFilterRule,
@@ -276,6 +277,17 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             ),
         );
     }, [store, isDashboardLoaded, savedControlSections]);
+    const savedControlOrder = currentDashboardConfig?.controlOrder;
+    useEffect(() => {
+        if (!isDashboardLoaded) return;
+        store.dispatch(
+            dashboardEditActions.syncControlOrder(
+                isDashboardControlOrder(savedControlOrder)
+                    ? savedControlOrder
+                    : undefined,
+            ),
+        );
+    }, [store, isDashboardLoaded, savedControlOrder]);
 
     // Seed the staged custom-metrics registry from config; keep user edits
     // until save/cancel resets the changed flag.

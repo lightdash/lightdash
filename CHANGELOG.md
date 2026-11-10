@@ -1,3 +1,84 @@
+## [3.197.1](https://github.com/lightdash/lightdash/compare/3.197.0...3.197.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **ai:** trim oversized MCP tool output instead of dropping it ([#32312](https://github.com/lightdash/lightdash/issues/32312)) ([ba30a48](https://github.com/lightdash/lightdash/commit/ba30a48c05259d76539e1d2a1995854a237f6b22))
+* **spaces:** move only the selected space when spaces share a path ([#32261](https://github.com/lightdash/lightdash/issues/32261)) ([d1c806b](https://github.com/lightdash/lightdash/commit/d1c806bb7a05edb94ebd2facea289af6b62f8bb7))
+
+# [3.197.0](https://github.com/lightdash/lightdash/compare/3.196.0...3.197.0) (2026-11-10)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** bar follow-ups for sections, Add filter and pill borders ([#32308](https://github.com/lightdash/lightdash/issues/32308)) ([185464d](https://github.com/lightdash/lightdash/commit/185464dc8523d16d5d25c4e3ffd0fc72f7458ba1))
+
+
+### Features
+
+* enable query history for everyone ([#32310](https://github.com/lightdash/lightdash/issues/32310)) ([8213fe3](https://github.com/lightdash/lightdash/commit/8213fe34a69f56e87dc985f562bae952b14a50cd))
+
+# [3.196.0](https://github.com/lightdash/lightdash/compare/3.195.2...3.196.0) (2026-11-10)
+
+
+### Features
+
+* **autopilot:** make Autopilot available wherever AI is, and check AI credits ([#32279](https://github.com/lightdash/lightdash/issues/32279)) ([a51a14b](https://github.com/lightdash/lightdash/commit/a51a14b247f6fce0eb59c6cd6a9f8c78d61ef72c))
+
+## [3.195.2](https://github.com/lightdash/lightdash/compare/3.195.1...3.195.2) (2026-11-10)
+
+
+### Bug Fixes
+
+* **analytics:** show clearer query errors ([#32301](https://github.com/lightdash/lightdash/issues/32301)) ([db443f2](https://github.com/lightdash/lightdash/commit/db443f2b11fa0f49a999e33d60747a85add421ff))
+
+## [3.195.1](https://github.com/lightdash/lightdash/compare/3.195.0...3.195.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* accept single-character organization email domains ([#32285](https://github.com/lightdash/lightdash/issues/32285)) ([6e7bae8](https://github.com/lightdash/lightdash/commit/6e7bae8f6dc77cdef899b5a48a86fc40f2f1a2e7))
+
+# [3.195.0](https://github.com/lightdash/lightdash/compare/3.194.3...3.195.0) (2026-11-10)
+
+
+### Features
+
+* **dashboard-controls:** render and edit the control order on the bar ([#32277](https://github.com/lightdash/lightdash/issues/32277)) ([95cd766](https://github.com/lightdash/lightdash/commit/95cd7669e99bd4f3eea9b1f6654fdefc41fa5176))
+
+## [3.194.3](https://github.com/lightdash/lightdash/compare/3.194.2...3.194.3) (2026-11-10)
+
+
+### Bug Fixes
+
+* **ai-agent:** no failed state on tool calls the agent recovers from ([#32287](https://github.com/lightdash/lightdash/issues/32287)) ([590e707](https://github.com/lightdash/lightdash/commit/590e707ba688e658f9de8eecf5271f174a3d020e))
+* **ai:** tell agents to quote every filter string value ([#32299](https://github.com/lightdash/lightdash/issues/32299)) ([fe94899](https://github.com/lightdash/lightdash/commit/fe94899f4d8a2cba94acd5a0f3ea1d82d44d2982))
+* **dashboards:** allow editors to preview unsaved dashboard tiles ([#32204](https://github.com/lightdash/lightdash/issues/32204)) ([1412c71](https://github.com/lightdash/lightdash/commit/1412c71204adf08264b93f152c93909d137463da))
+* **rainbow:** clear turbo cache and old bundle before frontend-build ([#32293](https://github.com/lightdash/lightdash/issues/32293)) ([ad1c8d9](https://github.com/lightdash/lightdash/commit/ad1c8d96a46deeeb3ecd0f090331aa758d3e87b5))
+* **rainbow:** re-seed preview databases when a branch changes dev seeds ([#32302](https://github.com/lightdash/lightdash/issues/32302)) ([2485d91](https://github.com/lightdash/lightdash/commit/2485d91457a9c836c371672c876ba0dbdccc52c9))
+
+## [3.194.2](https://github.com/lightdash/lightdash/compare/3.194.1...3.194.2) (2026-11-10)
+
+
+### Bug Fixes
+
+* **ai:** accept singular date units in filter expressions ([#32289](https://github.com/lightdash/lightdash/issues/32289)) ([61671da](https://github.com/lightdash/lightdash/commit/61671da92a8e033ea7f496d1ad49bf5a71e20694))
+
+## [3.194.1](https://github.com/lightdash/lightdash/compare/3.194.0...3.194.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **composer:** list all invalid python column names with fix hint ([#32286](https://github.com/lightdash/lightdash/issues/32286)) ([6c1b5cd](https://github.com/lightdash/lightdash/commit/6c1b5cda410aee6db91585f9f81370c53e3b414c))
+* **composer:** tell python nodes to return snake_case column names ([#32290](https://github.com/lightdash/lightdash/issues/32290)) ([de96686](https://github.com/lightdash/lightdash/commit/de96686476ee224afa15c4b707faa91f32f65e91))
+
+# [3.194.0](https://github.com/lightdash/lightdash/compare/3.193.0...3.194.0) (2026-11-10)
+
+
+### Features
+
+* sign in the mobile app with a QR code from the Mobile page (SPK-2951) ([#32246](https://github.com/lightdash/lightdash/issues/32246)) ([1095663](https://github.com/lightdash/lightdash/commit/1095663be283c577b257eeffcf47b6a72df6587d))
+
 # [3.193.0](https://github.com/lightdash/lightdash/compare/3.192.0...3.193.0) (2026-11-10)
 
 

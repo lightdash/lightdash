@@ -76,6 +76,26 @@ describe('private query staging of cached Parquet', () => {
         expect(manifest.tables[0].urls[0]).not.toContain('?');
     });
 
+    it.each([
+        [
+            'SELECT value + FROM query_events',
+            'sql_parser_error',
+            'The analytics query contains malformed SQL. Check any custom column expressions.',
+        ],
+        [
+            'SELECT private_column FROM query_events',
+            'unknown_field',
+            'The analytics query references an unknown field. Check the fields in your custom columns.',
+        ],
+    ])('reports invalid SQL safely (%s)', async (sql, code, message) => {
+        await expect(
+            reader(bufferedSource()).runQuery(sql),
+        ).rejects.toMatchObject({
+            message,
+            code,
+        });
+    });
+
     it('signs only unsigned objects and reads the whole table remotely after a staging failure', async () => {
         const requests: string[] = [];
         const server = createServer((request, response) => {

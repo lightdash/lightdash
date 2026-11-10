@@ -2,6 +2,7 @@ import {
     getMissingRequiredDashboardParameters,
     getDashboardTileParameterOverrides,
     omitDisallowedParameterValues,
+    reconcileDashboardControlOrder,
     isReservedParameterName,
     stripOverridesForLockedFiltersOnTab,
     type DashboardFilters,
@@ -11,6 +12,11 @@ import {
 import { createSelector } from '@reduxjs/toolkit';
 import { type DashboardStoreState } from '.';
 import { applyParameterLabelOverrides } from '../../../providers/Dashboard/parameterLabelOverrides';
+import { getEffectiveControlOrder } from '../../dashboardControls/controlOrder';
+import {
+    selectControlOrder,
+    selectControlSections,
+} from './dashboardEditSelectors';
 import {
     getParameterControlInputs,
     getDashboardParameterOptionValues,
@@ -373,3 +379,29 @@ export const selectAvailableCustomGranularities = (
 ) => state.tileStatus.availableCustomGranularities;
 export const selectCompletedEmbedTiles = (state: DashboardStoreState) =>
     state.tileStatus.completedEmbedTiles;
+
+/** Every control in bar order: the stored order (none when absent or empty), else the default bar */
+export const selectOrderedControls = createSelector(
+    [
+        selectControlOrder,
+        selectDashboardFilters,
+        selectParameterControls,
+        selectAreParameterControlsSaved,
+        selectControlSections,
+    ],
+    (controlOrder, filters, parameterControls, areSaved, sections) =>
+        reconcileDashboardControlOrder({
+            controlOrder: getEffectiveControlOrder(
+                controlOrder,
+                parameterControls,
+                areSaved,
+            ),
+            filters,
+            parameterControls: parameterControls ?? [],
+            sections,
+        }),
+);
+
+/** Whether the bar follows a stored order rather than the default */
+export const selectHasStoredControlOrder = (state: DashboardStoreState) =>
+    (selectControlOrder(state)?.length ?? 0) > 0;

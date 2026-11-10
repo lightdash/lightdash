@@ -2626,75 +2626,71 @@ export class SpaceModel {
             );
         }
 
-        // check if parent space is not subtree of space
-        const isCycle = await tx
-            .with('space_to_move', (query) => {
-                void query
-                    .select('path')
-                    .from(SpaceTableName)
-                    .where('space_uuid', spaceUuid)
-                    .andWhere('project_id', project.project_id); // scope the space being moved to the project
-            })
-            .with('target_parent', (query) => {
-                if (targetSpaceUuid === null) {
-                    // If moving to root, there's no parent, so no cycle is possible from here.
+        // Hierarchy comes from parent_space_uuid: paths can collide across spaces.
+        if (targetSpaceUuid !== null) {
+            const isCycle = await tx
+                .withRecursive('target_ancestors', (query) => {
                     void query
-                        .select(tx.raw('null::ltree as path'))
-                        .where(tx.raw('false'));
-                } else {
-                    void query
-                        .select('path')
+                        .select('space_uuid', 'parent_space_uuid')
                         .from(SpaceTableName)
                         .where('space_uuid', targetSpaceUuid)
-                        .andWhere('project_id', project.project_id); // scope the target parent space to the project
-                }
-            })
-            .select(tx.raw('1')) // We only care if a row exists
-            .from('space_to_move')
-            // Check if the target parent's path is a descendant of the space we are moving.
-            .joinRaw(
-                'JOIN target_parent ON target_parent.path <@ space_to_move.path',
-            )
-            .first();
+                        .andWhere('project_id', project.project_id)
+                        .union((recursive) => {
+                            void recursive
+                                .select('s.space_uuid', 's.parent_space_uuid')
+                                .from(`${SpaceTableName} as s`)
+                                .join(
+                                    'target_ancestors as a',
+                                    'a.parent_space_uuid',
+                                    's.space_uuid',
+                                );
+                        });
+                })
+                .select(tx.raw('1'))
+                .from('target_ancestors')
+                .where('space_uuid', spaceUuid)
+                .first();
 
-        if (isCycle) {
-            throw new ParameterError(
-                'You cannot move a space into one of its own nested-spaces. Please choose a different location.',
-            );
+            if (isCycle) {
+                throw new ParameterError(
+                    'You cannot move a space into one of its own nested-spaces. Please choose a different location.',
+                );
+            }
         }
 
         await tx.raw(
             `
+                -- UNION ALL: ltree is not hashable before Postgres 17; visited guards cycles.
+                WITH RECURSIVE moved AS (
+                    SELECT m.space_uuid, COALESCE(p.path, ''::ltree) || subpath(m.path, -1) AS new_path, ARRAY[m.space_uuid] AS visited
+                    FROM ${SpaceTableName} AS m
+                    LEFT JOIN ${SpaceTableName} AS p
+                        ON p.space_uuid = ? AND p.project_id = m.project_id
+                    WHERE m.space_uuid = ?
+                        AND m.project_id = ?
+                        AND ((?::uuid) IS NULL OR p.space_uuid IS NOT NULL)
+                    UNION ALL
+                    SELECT c.space_uuid, moved.new_path || subpath(c.path, -1), moved.visited || c.space_uuid
+                    FROM ${SpaceTableName} AS c
+                    JOIN moved ON c.parent_space_uuid = moved.space_uuid
+                    WHERE c.space_uuid <> ALL(moved.visited)
+                )
                 UPDATE ${SpaceTableName} AS s
                 SET
-                    -- Recalculate the path by prepending the new parent's path.
-                    -- COALESCE handles moving to the root (where p.path is NULL).
-                    path = COALESCE(p.path, ''::ltree) || subpath(s.path, nlevel(m.path) - 1),
-                    -- Update the foreign key for the specific space being moved.
+                    path = moved.new_path,
                     parent_space_uuid = CASE
                         WHEN s.space_uuid = ? THEN ?
                         ELSE s.parent_space_uuid
                     END
-                FROM
-                    -- 'm' is the space being moved.
-                    ${SpaceTableName} AS m
-                    -- 'p' is the target parent space. LEFT JOIN handles moving to the root.
-                    LEFT JOIN ${SpaceTableName} AS p ON p.space_uuid = ?
-                WHERE
-                    m.space_uuid = ?
-                    -- Scope the space being moved ('m') to the correct project and UUID.
-                    AND m.project_id = ?
-                    -- Ensure the parent space 'p' also belongs to the same project.
-                    AND s.project_id = m.project_id
-                    AND s.path <@ m.path
-                    AND ((?::uuid) IS NULL OR p.project_id = m.project_id)
+                FROM moved
+                WHERE s.space_uuid = moved.space_uuid
             `,
             [
-                spaceUuid,
-                targetSpaceUuid,
                 targetSpaceUuid,
                 spaceUuid,
                 project.project_id,
+                targetSpaceUuid,
+                spaceUuid,
                 targetSpaceUuid,
             ],
         );

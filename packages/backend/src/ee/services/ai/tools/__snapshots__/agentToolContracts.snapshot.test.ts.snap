@@ -71,13 +71,13 @@ For \`generateVisualization\`, \`dimensions\`, \`metrics\`, and \`tableCalculati
 - The tool schema is authoritative for where each string is placed.
 
 Raw placement examples:
-- dimensions: orders_status equals=completed,shipped AND orders_order_date inThePast=2{unit:weeks,completed:true}
-- dimensions (alternatives): orders_promo_code startsWith=VIP OR orders_promo_code endsWith=25
+- dimensions: orders_status equals="completed","shipped" AND orders_order_date inThePast=2{unit:weeks,completed:true}
+- dimensions (alternatives): orders_promo_code startsWith="VIP" OR orders_promo_code endsWith="25"
 - metrics: orders_total_order_amount greaterThan=100
 - tableCalculations: rank lessThanOrEqual=10
 
 - Join flat rules with AND or OR. Do not mix both connectors in one expression.
-- Bare scalars work. Double-quote reserved and whitespace/punctuation strings (apostrophes/parentheses); quote when unsure. Quoted commas/braces literal; backslash escapes. E.g. \`orders_product_name equals="Coffee Filters (100pk)"\`.
+- Double-quote every string-field value; an unquoted value stops at the first space or punctuation. Commas outside quotes separate values: \`orders_product_name equals="Coffee Filters (100pk)","Paper Cups"\`. Inside quotes, escape \`"\` and \`\\\` with a backslash.
 - Limits: 256 rules; 256 values including settings/rule; 256 characters/literal; 16384 characters/expression.
 
 ### string
@@ -277,13 +277,13 @@ For \`generateVisualization\`, \`dimensions\`, \`metrics\`, and \`tableCalculati
 - The tool schema is authoritative for where each string is placed.
 
 Raw placement examples:
-- dimensions: orders_status equals=completed,shipped AND orders_order_date inThePast=2{unit:weeks,completed:true}
-- dimensions (alternatives): orders_promo_code startsWith=VIP OR orders_promo_code endsWith=25
+- dimensions: orders_status equals="completed","shipped" AND orders_order_date inThePast=2{unit:weeks,completed:true}
+- dimensions (alternatives): orders_promo_code startsWith="VIP" OR orders_promo_code endsWith="25"
 - metrics: orders_total_order_amount greaterThan=100
 - tableCalculations: rank lessThanOrEqual=10
 
 - Join flat rules with AND or OR. Do not mix both connectors in one expression.
-- Bare scalars work. Double-quote reserved and whitespace/punctuation strings (apostrophes/parentheses); quote when unsure. Quoted commas/braces literal; backslash escapes. E.g. \`orders_product_name equals="Coffee Filters (100pk)"\`.
+- Double-quote every string-field value; an unquoted value stops at the first space or punctuation. Commas outside quotes separate values: \`orders_product_name equals="Coffee Filters (100pk)","Paper Cups"\`. Inside quotes, escape \`"\` and \`\\\` with a backslash.
 - Limits: 256 rules; 256 values including settings/rule; 256 characters/literal; 16384 characters/expression.
 
 ### string
@@ -604,12 +604,12 @@ Filter a semanticLayer node with expression strings.
 - A field used only to restrict rows stays in its filter expression. Add it to the node's \`dimensions\` only when the user asked to group by or display it: an extra dimension changes the grain.
 
 Raw placement examples:
-- dimensions: orders_status equals=completed,shipped AND orders_order_date inThePast=2{unit:weeks,completed:true}
-- dimensions (alternatives): orders_promo_code startsWith=VIP OR orders_promo_code endsWith=25
+- dimensions: orders_status equals="completed","shipped" AND orders_order_date inThePast=2{unit:weeks,completed:true}
+- dimensions (alternatives): orders_promo_code startsWith="VIP" OR orders_promo_code endsWith="25"
 - metrics: orders_total_order_amount greaterThan=100
 
 - Join flat rules with AND or OR. Do not mix both connectors in one expression.
-- Bare scalars work. Double-quote reserved and whitespace/punctuation strings (apostrophes/parentheses); quote when unsure. Quoted commas/braces literal; backslash escapes. E.g. \`orders_product_name equals="Coffee Filters (100pk)"\`.
+- Double-quote every string-field value; an unquoted value stops at the first space or punctuation. Commas outside quotes separate values: \`orders_product_name equals="Coffee Filters (100pk)","Paper Cups"\`. Inside quotes, escape \`"\` and \`\\\` with a backslash.
 - Limits: 256 rules; 256 values including settings/rule; 256 characters/literal; 16384 characters/expression.
 
 ### string
@@ -18527,7 +18527,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                                   "type": "null",
                                 },
                               ],
-                              "description": "Aggregates only the rows this flat AND expression over dimensions matches, in the node filter grammar, e.g. "orders_status equals=completed". Null aggregates every row.",
+                              "description": "Aggregates only the rows this flat AND expression over dimensions matches, in the node filter grammar, e.g. \`orders_status equals="completed"\`. Null aggregates every row.",
                             },
                             "label": {
                               "description": "Column label shown to users.",

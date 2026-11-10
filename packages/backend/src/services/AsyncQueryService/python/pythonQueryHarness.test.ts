@@ -291,6 +291,23 @@ describe.skipIf(!hasPythonDependencies)(
     },
 );
 
+describe.skipIf(!hasPythonDependencies)(
+    'Python harness result column names',
+    () => {
+        it('lists every invalid column name with how to fix them', () => {
+            expect(() =>
+                runHarness({
+                    columns: { n: 'number' },
+                    rows: [{ n: 1 }],
+                    code: 'import pandas as pd\n\ndef run(inputs, params):\n    return pd.DataFrame({"Live loans": [1], "ok": [2], 0: [3]})\n',
+                }),
+            ).toThrow(
+                /Invalid column names: 'Live loans', '0'\. Column names must match .+ Rename them to snake_case/,
+            );
+        });
+    },
+);
+
 const timings = {
     importMs: 120,
     loadInputsMs: 3,

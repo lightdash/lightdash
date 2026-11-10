@@ -1304,6 +1304,16 @@ orders_order_dat inThePast=30{completed:false,unit:days} AND orders_product_cate
                 'orders_order_date inTheCurrent=years{toDate:false,excludeToday:false}',
             settings: { unitOfTime: 'years', completed: false },
         },
+        {
+            expression:
+                'orders_order_date inTheCurrent=week{toDate:true,excludeToday:true}',
+            settings: {
+                unitOfTime: 'weeks',
+                completed: false,
+                toDate: true,
+                excludeToday: true,
+            },
+        },
     ])(
         'resolves current-period bounds in $expression without undefined keys',
         async ({ expression, settings }) => {
@@ -1334,6 +1344,10 @@ orders_order_dat inThePast=30{completed:false,unit:days} AND orders_product_cate
         ],
         [
             'orders_order_date inTheCurrent=days{toDate:true}',
+            'not valid for days',
+        ],
+        [
+            'orders_order_date inTheCurrent=day{toDate:true}',
             'not valid for days',
         ],
         [
@@ -2107,7 +2121,11 @@ describe('strict expression value interpretation', () => {
         },
         {
             expression: 'orders_order_date inTheCurrent=hours',
-            example: 'orders_order_date inTheCurrent=days',
+            example: 'orders_order_date inTheCurrent=months',
+        },
+        {
+            expression: 'orders_order_date inTheCurrent=hour{toDate:true}',
+            example: 'orders_order_date inTheCurrent=months{toDate:true}',
         },
     ])(
         'changes only an unsupported date unit in $expression',
@@ -2241,39 +2259,76 @@ describe('strict expression value interpretation', () => {
         },
     );
 
-    it('repairs positional relative-date settings without changing their values', async () => {
-        const expression = 'orders_order_date inThePast=7,weeks,true';
-        const example =
-            'orders_order_date inThePast=7{unit:weeks,completed:true}';
-        const error = await expectResolutionError(
-            expressionArgs({
-                filters: {
-                    dimensions: expression,
-                    metrics: null,
-                    tableCalculations: null,
-                },
-            }),
-        );
+    it.each([
+        ['day', 'days'],
+        ['week', 'weeks'],
+        ['month', 'months'],
+        ['quarter', 'quarters'],
+        ['year', 'years'],
+    ] as const)(
+        'normalizes the singular relative-date unit %s to %s',
+        async (unit, unitOfTime) => {
+            const data = await expectResolved(
+                expressionArgs({
+                    filters: {
+                        dimensions: `orders_order_date inThePast=3{unit:${unit},completed:false} AND orders_order_date inTheCurrent=${unit}`,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+            );
 
-        expect(error).toMatchObject({
-            code: 'FILTER_EXPRESSION_WRONG_ARITY',
-            operator: FilterOperator.IN_THE_PAST,
-            expected: 1,
-            actual: 3,
-            guidance:
-                'Keep the period count as the only value and move unit and completed into named settings.',
-            example,
-        });
-        await expectResolved(
-            expressionArgs({
-                filters: {
-                    dimensions: example,
-                    metrics: null,
-                    tableCalculations: null,
-                },
-            }),
-        );
-    });
+            expect(
+                data.persistedArgs.queryConfig.filters?.dimensions,
+            ).toMatchObject([
+                { values: [3], settings: { unitOfTime, completed: false } },
+                { values: [1], settings: { unitOfTime, completed: false } },
+            ]);
+        },
+    );
+
+    it.each([
+        {
+            expression: 'orders_order_date inThePast=7,weeks,true',
+            example: 'orders_order_date inThePast=7{unit:weeks,completed:true}',
+        },
+        {
+            expression: 'orders_order_date inThePast=7,week,true',
+            example: 'orders_order_date inThePast=7{unit:week,completed:true}',
+        },
+    ])(
+        'repairs positional relative-date settings in $expression without changing their values',
+        async ({ expression, example }) => {
+            const error = await expectResolutionError(
+                expressionArgs({
+                    filters: {
+                        dimensions: expression,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+            );
+
+            expect(error).toMatchObject({
+                code: 'FILTER_EXPRESSION_WRONG_ARITY',
+                operator: FilterOperator.IN_THE_PAST,
+                expected: 1,
+                actual: 3,
+                guidance:
+                    'Keep the period count as the only value and move unit and completed into named settings.',
+                example,
+            });
+            await expectResolved(
+                expressionArgs({
+                    filters: {
+                        dimensions: example,
+                        metrics: null,
+                        tableCalculations: null,
+                    },
+                }),
+            );
+        },
+    );
 
     it.each([
         {

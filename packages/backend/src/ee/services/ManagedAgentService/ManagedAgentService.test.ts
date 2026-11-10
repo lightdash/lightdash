@@ -3,6 +3,7 @@ import {
     AgentActorSurface,
     AiAccessRefusalReason,
     AiAccessRefusedError,
+    AiCreditsPausedError,
     AnyType,
     ConflictError,
     DEFAULT_MANAGED_AGENT_POLICY,
@@ -226,6 +227,9 @@ const buildService = ({
     const agentActionLogModel = {
         insert: vi.fn().mockResolvedValue(undefined),
     };
+    const aiCreditService = {
+        assertAiCreditsAvailable: vi.fn().mockResolvedValue(undefined),
+    };
     const service = new ManagedAgentService({
         lightdashConfig,
         analytics,
@@ -255,6 +259,7 @@ const buildService = ({
         aiOrganizationSettingsService,
         aiAgentToolsService,
         asyncQueryService,
+        aiCreditService,
     } as AnyType);
 
     return {
@@ -269,6 +274,7 @@ const buildService = ({
         analytics,
         aiAgentToolsService,
         asyncQueryService,
+        aiCreditService,
         dataRuntime,
         aiOrganizationSettingsService,
         orgAiCopilotConfigResolver,
@@ -965,6 +971,43 @@ describe('ManagedAgentService AI SDK heartbeat lifecycle', () => {
                     keyManagement: null,
                     status: 'error',
                 }),
+            }),
+        );
+    });
+
+    it('stops before the model while AI credits are paused', async () => {
+        captureAutopilotFailure.mockClear();
+        const { service, managedAgentModel, aiCreditService } = buildService();
+        const doGenerate = vi.fn();
+        vi.mocked(getModel).mockReturnValue({
+            ...resolvedModel,
+            keyManagement: 'lightdash-managed',
+            model: new MockLanguageModelV3({
+                provider: 'openai.responses',
+                modelId: 'gpt-test',
+                doGenerate,
+            }),
+        } as AnyType);
+        aiCreditService.assertAiCreditsAvailable.mockRejectedValue(
+            new AiCreditsPausedError({
+                reason: 'allowance_exhausted',
+                message: 'AI credits are paused',
+            }),
+        );
+        await service.runHeartbeat(PROJECT_UUID, 'run-uuid');
+        const [{ user: actor, resolveKeyManagement, isEmbedViewer }] =
+            aiCreditService.assertAiCreditsAvailable.mock.calls[0];
+        expect(actor.userUuid).toBe(USER_UUID);
+        expect(isEmbedViewer).toBe(false);
+        await expect(resolveKeyManagement()).resolves.toBe('lightdash-managed');
+        expect(doGenerate).not.toHaveBeenCalled();
+        expect(managedAgentModel.setRunModel).not.toHaveBeenCalled();
+        expect(captureAutopilotFailure).not.toHaveBeenCalled();
+        expect(managedAgentModel.finishRun).toHaveBeenCalledWith(
+            'run-uuid',
+            expect.objectContaining({
+                status: 'error',
+                error: 'AI credits are paused',
             }),
         );
     });

@@ -439,53 +439,6 @@ describe('LiveActivityCard step status', () => {
         },
     ];
 
-    it('flags failed steps in the finished summary header', () => {
-        renderWithProviders(
-            <LiveActivityCard
-                isLive={false}
-                toolGroups={sqlGroup({})}
-                toolResults={[
-                    {
-                        uuid: 'result-1',
-                        promptUuid: 'prompt-1',
-                        createdAt: new Date(),
-                        toolCallId: 'sql-call',
-                        toolType: 'built-in',
-                        toolName: 'runSql',
-                        result: 'Bad SQL',
-                        metadata: { status: 'error' },
-                    },
-                ]}
-            />,
-        );
-        expect(screen.getByText('1 step failed')).toBeInTheDocument();
-        expect(screen.queryByText('1 step')).not.toBeInTheDocument();
-    });
-
-    it('leaves the failure to the summary below when one carries the error', () => {
-        renderWithProviders(
-            <LiveActivityCard
-                isLive={false}
-                isFailureSummarized
-                toolGroups={sqlGroup({})}
-                toolResults={[
-                    {
-                        uuid: 'result-1',
-                        promptUuid: 'prompt-1',
-                        createdAt: new Date(),
-                        toolCallId: 'sql-call',
-                        toolType: 'built-in',
-                        toolName: 'runSql',
-                        result: 'Bad SQL',
-                        metadata: { status: 'error' },
-                    },
-                ]}
-            />,
-        );
-        expect(screen.queryByText('1 step failed')).not.toBeInTheDocument();
-        expect(screen.getByText('1 step')).toBeInTheDocument();
-    });
-
     it('counts a single finished step like any other turn', () => {
         renderWithProviders(
             <LiveActivityCard
@@ -509,19 +462,23 @@ describe('LiveActivityCard step status', () => {
         expect(screen.getByText('1 step')).toBeInTheDocument();
     });
 
-    it('keeps a finished latest step in the present tense while streaming', () => {
-        renderWithProviders(
-            <LiveActivityCard
-                isLive
-                toolGroups={sqlGroup({
-                    toolOutput: { result: '', metadata: { status: 'success' } },
-                    isPreliminary: false,
-                })}
-            />,
-        );
-        expect(screen.getByText('Running SQL query')).toBeInTheDocument();
-        expect(screen.queryByText('Ran SQL query')).not.toBeInTheDocument();
-    });
+    // A failed step reads like a finished one: the agent recovers on its own.
+    it.each(['success', 'error'])(
+        'keeps a %s latest step in the present tense while streaming',
+        (status) => {
+            renderWithProviders(
+                <LiveActivityCard
+                    isLive
+                    toolGroups={sqlGroup({
+                        toolOutput: { result: '', metadata: { status } },
+                        isPreliminary: false,
+                    })}
+                />,
+            );
+            expect(screen.getByText('Running SQL query')).toBeInTheDocument();
+            expect(screen.queryByText('Ran SQL query')).not.toBeInTheDocument();
+        },
+    );
 });
 
 describe('LiveActivityCard failed composer run', () => {

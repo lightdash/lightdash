@@ -62,6 +62,7 @@ import {
     QueryHistory,
     QueryHistoryStatus,
     QueryHistoryWindow,
+    QueryResultReader,
     QuerySourceType,
     QuerySurface,
     QueryTrigger,
@@ -12285,6 +12286,47 @@ describe('AsyncQueryService', () => {
             displayTimezone: null,
         };
 
+        test('stores the safe analytics message and logs the storage status', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const error = new warehouses.AnalyticsQueryError(
+                'storage_access_denied',
+                403,
+            );
+            vi.spyOn(
+                AsyncQueryService,
+                'runQueryAndTransformRows',
+            ).mockRejectedValueOnce(error);
+            const log = vi.spyOn(service['logger'], 'error');
+
+            await service.runAsyncWarehouseQuery({
+                ...args,
+                queryTags: {
+                    ...args.queryTags,
+                    user_attribute_sensitive: 'private-attribute',
+                },
+            });
+
+            expect(
+                service.queryHistoryModel.updateStatusToError,
+            ).toHaveBeenCalledWith(
+                args.queryUuid,
+                projectUuid,
+                'Access to analytics storage was denied.',
+                expect.any(Object),
+            );
+            expect(log).toHaveBeenCalledWith(
+                `Query ${args.queryUuid} execution error: Access to analytics storage was denied.`,
+                expect.objectContaining({
+                    queryUuid: args.queryUuid,
+                    errorCode: 'storage_access_denied',
+                    storageStatus: 403,
+                }),
+            );
+            expect(JSON.stringify(log.mock.calls)).not.toContain(
+                'private-attribute',
+            );
+        });
+
         test.each(['success', 'failure', 'retry'] as const)(
             'releases each attempt once on %s',
             async (outcome) => {
@@ -17503,12 +17545,6 @@ describe('getQueryHistoryList', () => {
         counts: Awaited<ReturnType<QueryHistoryModel['getUserHistoryCounts']>>,
     ) =>
         getMockedAsyncQueryService(lightdashConfigMock, {
-            featureFlagModel: {
-                get: vi.fn(async ({ featureFlagId }: AnyType) => ({
-                    id: featureFlagId,
-                    enabled: featureFlagId === FeatureFlags.QueryHistory,
-                })),
-            } as unknown as FeatureFlagModel,
             queryHistoryModel: {
                 findUserHistory: vi.fn(async () => ({
                     data: [],
@@ -23079,6 +23115,126 @@ describe('fresh stored result read boundary', () => {
         expect(
             f.service.queryHistoryModel.getDuckdbExecution,
         ).toHaveBeenCalledOnce();
+    });
+
+    describe('unsaved dashboard tiles', () => {
+        const resultCreatedAt = new Date('2026-11-06T12:00:00Z');
+        const before = new Date('2026-11-06T11:00:00Z');
+        const after = new Date('2026-11-06T13:00:00Z');
+        const setupTileRead = ({
+            tiles,
+            dashboardSavedAt,
+            canUpdateDashboard = true,
+        }: {
+            tiles: { uuid: string }[];
+            dashboardSavedAt: Date;
+            canUpdateDashboard?: boolean;
+        }) => {
+            const f = setupRead();
+            f.history.createdAt = resultCreatedAt;
+            f.history.requestParameters = {
+                ...f.history.requestParameters,
+                chartUuid: 'dashboard-owned-chart',
+                dashboardUuid: 'dashboard',
+                tileUuid: 'new-tile',
+            } as QueryHistory['requestParameters'];
+            const chartAccess = vi
+                .spyOn(
+                    f.service as AnyType,
+                    'assertSavedChartQuerySourceAccess',
+                )
+                .mockResolvedValue(undefined);
+            Object.assign(f.service.dashboardModel, {
+                getByIdOrSlug: vi.fn(async () => ({
+                    uuid: 'dashboard',
+                    organizationUuid: projectSummary.organizationUuid,
+                    spaceUuid: 'space',
+                    updatedAt: dashboardSavedAt,
+                    tiles,
+                })),
+            });
+            if (!canUpdateDashboard) {
+                const ability = new Ability<PossibleAbilities>([
+                    { action: 'manage', subject: 'all' },
+                    { action: 'update', subject: 'Dashboard', inverted: true },
+                ]);
+                f.currentUser.ability = ability;
+                f.currentUser.abilityRules = ability.rules;
+            }
+            const read = (reader?: QueryResultReader) =>
+                f.service.getAsyncQueryResults({
+                    account: f.account,
+                    projectUuid,
+                    queryUuid: f.history.queryUuid,
+                    ...(reader ? { reader } : {}),
+                });
+            return { ...f, chartAccess, read };
+        };
+
+        test('editor previews a new tile before the dashboard is saved', async () => {
+            const f = setupTileRead({ tiles: [], dashboardSavedAt: before });
+            await expect(f.read()).resolves.toBeDefined();
+            expect(f.chartAccess).toHaveBeenCalled();
+        });
+
+        test('preview keeps working once the dashboard save persists the tile', async () => {
+            const f = setupTileRead({
+                tiles: [{ uuid: 'new-tile' }],
+                dashboardSavedAt: after,
+            });
+            await expect(f.read()).resolves.toBeDefined();
+        });
+
+        test('a tile removed by a later dashboard save stays denied', async () => {
+            const f = setupTileRead({ tiles: [], dashboardSavedAt: after });
+            await expect(f.read()).rejects.toThrow(
+                'tile is no longer available',
+            );
+        });
+
+        test('viewers without dashboard edit access cannot read unsaved tiles', async () => {
+            const f = setupTileRead({
+                tiles: [],
+                dashboardSavedAt: before,
+                canUpdateDashboard: false,
+            });
+            await expect(f.read()).rejects.toThrow(
+                'tile is no longer available',
+            );
+        });
+
+        test('chart access is still enforced for unsaved tiles', async () => {
+            const f = setupTileRead({ tiles: [], dashboardSavedAt: before });
+            f.chartAccess.mockRejectedValue(
+                new ForbiddenError('The chart is no longer accessible'),
+            );
+            await expect(f.read()).rejects.toThrow(
+                'chart is no longer accessible',
+            );
+        });
+
+        test('agent readers cannot read unsaved tiles', async () => {
+            const f = setupTileRead({ tiles: [], dashboardSavedAt: before });
+            const claim = buildAgentIdentityClaim({
+                subject: { type: 'user', uuid: f.account.user.id },
+                surface: AgentActorSurface.MCP,
+                clientId: 'client',
+                agentUuid: null,
+            });
+            Object.assign(f.access, {
+                resolveEnabledPlan: vi.fn(async () => markedPersonPlanMock),
+            });
+            f.history.requestParameters.resultProducer!.agentIdentity = claim;
+            f.history.requestParameters.resultProducer!.authMethod =
+                testAuthMethod(claim);
+            await expect(
+                f.read({
+                    kind: 'agent',
+                    claim,
+                    authMethod: testAuthMethod(claim),
+                }),
+            ).rejects.toThrow('tile is no longer available');
+        });
     });
 
     test.each(['chart', 'dashboard', 'tile'] as const)(

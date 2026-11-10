@@ -1,4 +1,4 @@
-import { FilterOperator } from '@lightdash/common';
+import { DashboardControlRefKind, FilterOperator } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import { type ComponentProps, type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -222,6 +222,47 @@ describe('ControlsBar', () => {
             screen.queryByRole('button', { name: 'Add filter' }),
         ).not.toBeInTheDocument();
         expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
+    });
+
+    it('renders the sectioned filters in view mode for a stored order with no sections, the flat bar for none', () => {
+        const ordered = createDashboardTestStore();
+        seedDashboardEditState(ordered, {
+            dashboard: {
+                config: {
+                    isDateZoomDisabled: false,
+                    controlOrder: [
+                        { kind: DashboardControlRefKind.FILTER, id: 'f' },
+                    ],
+                },
+            },
+        });
+        const { unmount } = renderWithAppProviders(
+            <DashboardStoreTestProvider store={ordered}>
+                <ControlsBar {...baseProps} />
+            </DashboardStoreTestProvider>,
+        );
+        expect(screen.getByTestId('sectioned-filters')).toBeInTheDocument();
+        expect(
+            screen.getByTestId('sectioned-filters').parentElement,
+        ).toHaveStyle('--group-align: flex-start');
+        unmount();
+
+        // An empty order is none: the flat bar, as without the flag's order
+        const empty = createDashboardTestStore();
+        seedDashboardEditState(empty, {
+            dashboard: {
+                config: { isDateZoomDisabled: false, controlOrder: [] },
+            },
+        });
+        renderWithAppProviders(
+            <DashboardStoreTestProvider store={empty}>
+                <ControlsBar {...baseProps} />
+            </DashboardStoreTestProvider>,
+        );
+        expect(screen.getByTestId('filter-pills')).toBeInTheDocument();
+        expect(
+            screen.queryByTestId('sectioned-filters'),
+        ).not.toBeInTheDocument();
     });
 
     it('renders the sections in edit mode when the dashboard has sections, with no Required button', () => {

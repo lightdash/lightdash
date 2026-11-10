@@ -5,6 +5,7 @@ import {
     getDefaultChartTileSize,
     getItemId,
     getShadowedReservedNames,
+    isDashboardControlOrder,
     mergeDashboardCustomMetrics,
     normalizeDateZoomConfig,
     removeDateZoomTileTargets,
@@ -70,7 +71,9 @@ import {
     selectDashboardParameters,
     selectDashboardTabs,
     selectDashboardTiles,
+    selectControlOrder,
     selectControlSections,
+    selectHasControlOrderChanged,
     selectHasDefaultDateZoomGranularityChanged,
     selectHasParameterOrderChanged,
     selectHaveControlSectionsChanged,
@@ -141,7 +144,7 @@ import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
 import {
     buildDashboardConfig,
-    getParametersToSave,
+    getControlsToSave,
 } from '../utils/dashboardConfig';
 import { isSameDashboardRoute } from '../utils/dashboardRoutes';
 import '../styles/react-grid.css';
@@ -302,6 +305,9 @@ const Dashboard: FC = () => {
     const haveControlSectionsChanged = useDashboardSelector(
         selectHaveControlSectionsChanged,
     );
+    const hasControlOrderChanged = useDashboardSelector(
+        selectHasControlOrderChanged,
+    );
     const dateZoomGranularities = useDashboardDateZoomGranularities();
     const haveDateZoomGranularitiesChanged = useDashboardSelector(
         selectHaveDateZoomGranularitiesChanged,
@@ -364,8 +370,21 @@ const Dashboard: FC = () => {
         (updatedDashboard: IDashboard) => {
             setDashboardTiles(updatedDashboard.tiles);
             setDashboardTabs(updatedDashboard.tabs);
+            // The order as saved (reconciled), not the editor's draft of it
+            dashboardDispatch(
+                dashboardEditActions.setHasControlOrderChanged(false),
+            );
+            dashboardDispatch(
+                dashboardEditActions.syncControlOrder(
+                    isDashboardControlOrder(
+                        updatedDashboard.config?.controlOrder,
+                    )
+                        ? updatedDashboard.config.controlOrder
+                        : undefined,
+                ),
+            );
         },
-        [setDashboardTiles, setDashboardTabs],
+        [setDashboardTiles, setDashboardTabs, dashboardDispatch],
     );
 
     const {
@@ -767,6 +786,16 @@ const Dashboard: FC = () => {
                 dashboard.config?.controlSections ?? [],
             ),
         );
+        dashboardDispatch(
+            dashboardEditActions.setHasControlOrderChanged(false),
+        );
+        dashboardDispatch(
+            dashboardEditActions.syncControlOrder(
+                isDashboardControlOrder(dashboard.config?.controlOrder)
+                    ? dashboard.config.controlOrder
+                    : undefined,
+            ),
+        );
         setDateZoomGranularities(
             dashboard.config?.dateZoomGranularities ??
                 Object.values(DateGranularity),
@@ -875,6 +904,7 @@ const Dashboard: FC = () => {
         havePinnedParametersChanged ||
         hasParameterOrderChanged ||
         haveControlSectionsChanged ||
+        hasControlOrderChanged ||
         haveDateZoomGranularitiesChanged ||
         hasDefaultDateZoomGranularityChanged ||
         hasDateZoomConfigChanged;
@@ -923,6 +953,9 @@ const Dashboard: FC = () => {
             setHasDateZoomConfigChanged(false);
             dashboardDispatch(
                 dashboardEditActions.setHaveControlSectionsChanged(false),
+            );
+            dashboardDispatch(
+                dashboardEditActions.setHasControlOrderChanged(false),
             );
             dashboardDispatch(
                 dashboardParametersActions.setHaveParameterControlsChanged(
@@ -1389,27 +1422,36 @@ const Dashboard: FC = () => {
             isDashboardControlsEnabled,
         );
 
-        const { parameterControlsToSave, parameters } = getParametersToSave({
-            parameterControls: selectParameterControls(dashboardState),
-            areParameterControlsSaved:
-                selectAreParameterControlsSaved(dashboardState),
-            haveParameterControlsChanged:
-                selectHaveParameterControlsChanged(dashboardState),
-            existingParameterControls:
-                dashboard.config?.parameterControls ?? null,
-            parameterPicks: selectParameterPicks(dashboardState),
-            appliedParameters: selectDashboardParameters(dashboardState),
-            savedParameters: dashboard.parameters ?? {},
+        const controlsToSave = getControlsToSave({
+            controlOrder: selectControlOrder(dashboardState),
+            hasControlOrderChanged:
+                selectHasControlOrderChanged(dashboardState),
+            dimensions: dimensionFiltersToSave,
+            metrics: [
+                ...dashboardFilters.metrics,
+                ...dashboardTemporaryFilters.metrics,
+            ],
+            controlSections,
+            haveControlSectionsChanged,
+            parameterInputs: {
+                parameterControls: selectParameterControls(dashboardState),
+                areParameterControlsSaved:
+                    selectAreParameterControlsSaved(dashboardState),
+                haveParameterControlsChanged:
+                    selectHaveParameterControlsChanged(dashboardState),
+                existingParameterControls:
+                    dashboard.config?.parameterControls ?? null,
+                parameterPicks: selectParameterPicks(dashboardState),
+                appliedParameters: selectDashboardParameters(dashboardState),
+                savedParameters: dashboard.parameters ?? {},
+            },
         });
 
         const dashboardUpdate: UpdateDashboard = {
             tiles: dashboardTiles,
             filters: {
-                dimensions: dimensionFiltersToSave,
-                metrics: [
-                    ...dashboardFilters.metrics,
-                    ...dashboardTemporaryFilters.metrics,
-                ],
+                dimensions: controlsToSave.dimensions,
+                metrics: controlsToSave.metrics,
                 tableCalculations: [
                     ...dashboardFilters.tableCalculations,
                     ...dashboardTemporaryFilters.tableCalculations,
@@ -1434,11 +1476,13 @@ const Dashboard: FC = () => {
                 stagedCustomMetrics: haveCustomMetricsChanged
                     ? dashboardCustomMetrics
                     : undefined,
-                controlSections,
-                haveControlSectionsChanged,
-                parameterControlsToSave,
+                controlSections: controlsToSave.controlSections,
+                haveControlSectionsChanged:
+                    controlsToSave.haveControlSectionsChanged,
+                parameterControlsToSave: controlsToSave.parameterControlsToSave,
+                controlOrderToSave: controlsToSave.controlOrderToSave,
             }),
-            parameters,
+            parameters: controlsToSave.parameters,
             ...(preserveVerification !== undefined
                 ? { preserveVerification }
                 : {}),

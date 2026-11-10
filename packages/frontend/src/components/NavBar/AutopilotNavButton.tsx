@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    FeatureFlags,
     ManagedAgentActionType,
     ManagedAgentRunStatus,
     type ManagedAgentRun,
@@ -17,10 +16,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { type LightdashApi } from '../../api';
+import { useIsCopilotEnabled } from '../../ee/features/aiCopilot/hooks/useIsCopilotEnabled';
 import { useManagedAgentLatestRun } from '../../ee/features/managedAgent/hooks/useManagedAgentLatestRun';
 import { useManagedAgentSettings } from '../../ee/features/managedAgent/hooks/useManagedAgentSettings';
 import { ManagedAgentSetupModal } from '../../ee/features/managedAgent/ManagedAgentSetupModal';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import MantineIcon from '../common/MantineIcon';
@@ -97,10 +96,8 @@ export const AutopilotNavButton = ({
                 projectUuid,
             }),
         ) ?? false;
-    const { data: aiAutopilotFlag } = useServerFeatureFlag(
-        FeatureFlags.AiAutopilot,
-    );
-    const active = !!aiAutopilotFlag?.enabled && canManage;
+    const { isCopilotEnabled } = useIsCopilotEnabled();
+    const active = isCopilotEnabled && canManage;
 
     const { data: settings } = useManagedAgentSettings({ enabled: active });
     const isEnabled = settings?.enabled ?? false;

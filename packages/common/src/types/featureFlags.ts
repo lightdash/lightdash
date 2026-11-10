@@ -50,6 +50,14 @@ export enum FeatureFlags {
     DashboardControls = 'dashboard-controls',
 
     /**
+     * Dashboard edit ergonomics: editing uses a grid twice as fine (72
+     * columns, half-height rows), so tiles can land on half-steps, saved as
+     * fractional positions. Rolled out per organization. Temporary: remove
+     * once it is the default.
+     */
+    DashboardEditErgonomics = 'dashboard-edit-ergonomics',
+
+    /**
      * Enable data apps feature. Disabled by default. Self-hosted
      * deployments can force it on with APPS_RUNTIME_ENABLED=true, which
      * the config parser translates into the enable allowlist. Does not gate
@@ -100,11 +108,6 @@ export enum FeatureFlags {
      * Disabled by default on Cloud and self-hosted.
      */
     EnableDataAppState = 'enable-data-app-state',
-
-    /**
-     * Enable Autopilot project health agent.
-     */
-    AiAutopilot = 'ai-autopilot',
 
     /**
      * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.
@@ -191,13 +194,6 @@ export enum FeatureFlags {
      * NewOnboarding is on, unless a user or org override turns it off.
      */
     ApiQuerySources = 'api-query-sources',
-
-    /**
-     * Enable the "My query history" page
-     * (/projects/{projectUuid}/query-history) and its listing endpoint
-     * (GET /api/v2/projects/{projectUuid}/query/history). Off by default.
-     */
-    QueryHistory = 'query-history',
 
     /**
      * Configurable retention for AI agent threads. Off by default; enabled

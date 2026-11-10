@@ -76,12 +76,12 @@ import GridTile from './GridTile';
 import {
     convertLayoutToBaseCoordinates,
     DEFAULT_ROW_HEIGHT,
+    FINE_GRID_SCALE,
     FIT_TO_SCREEN_GRID_BOTTOM_PADDING,
     getDashboardLayouts,
     type DashboardLayouts,
     getResponsiveGridLayoutProps,
-    GRID_COLS,
-    GRID_CONTAINER_PADDING,
+    getRowHeightForScale,
 } from './gridUtils';
 import { ResponsiveGridLayout } from './ResponsiveGridLayout';
 import DraggableTab from './Tab';
@@ -112,7 +112,6 @@ type TabGridPanelProps = {
     onDragStop: (layout: Layout[]) => void;
     onResizeStart: () => void;
     onResizeStop: (layout: Layout[]) => void;
-    onBreakpointChange: (breakpoint: string, cols: number) => void;
     onWidthChange: (width: number) => void;
     onDeleteTile: (tile: IDashboard['tiles'][number]) => Promise<void>;
     onEditTile: (tile: IDashboard['tiles'][number]) => void;
@@ -144,7 +143,6 @@ const TabGridPanel = memo<TabGridPanelProps>(
         onDragStop,
         onResizeStart,
         onResizeStop,
-        onBreakpointChange,
         onWidthChange,
         onDeleteTile,
         onEditTile,
@@ -158,13 +156,14 @@ const TabGridPanel = memo<TabGridPanelProps>(
             >
                 <ErrorBoundary>
                     <ResponsiveGridLayout
+                        // react-grid-layout keeps its old layout when only the column
+                        // count changes, so a new grid resolution needs a new grid
+                        key={gridProps.cols.lg}
                         {...gridProps}
-                        containerPadding={GRID_CONTAINER_PADDING}
                         onDragStart={onDragStart}
                         onDragStop={onDragStop}
                         onResizeStart={onResizeStart}
                         onResizeStop={onResizeStop}
-                        onBreakpointChange={onBreakpointChange}
                         onWidthChange={onWidthChange}
                         layouts={layouts}
                     >
@@ -207,7 +206,7 @@ const TabGridPanel = memo<TabGridPanelProps>(
             return false;
         if (nextProps.isActive && prevProps.gridProps !== nextProps.gridProps)
             return false;
-        // Drop handlers close over the current breakpoint's column count
+        // Drop handlers close over the grid scale
         if (
             nextProps.isActive &&
             (prevProps.onDragStop !== nextProps.onDragStop ||
@@ -285,7 +284,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 }) => {
     const gridWrapperRef = useRef<HTMLDivElement>(null);
     const mergedGridWrapperRef = useMergedRef(gridWrapperRef, gridContainerRef);
-    const [currentCols, setCurrentCols] = useState<number>(GRID_COLS.lg);
     const { showToastError } = useToaster();
     const { health } = useApp();
     const [, startTabTransition] = useTransition();
@@ -299,13 +297,19 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         FeatureFlags.DashboardControls,
     );
     const isDashboardControlsEnabled = dashboardControlsFlag?.enabled === true;
+    const { data: editErgonomicsFlag } = useServerFeatureFlag(
+        FeatureFlags.DashboardEditErgonomics,
+    );
+    // Editing gets a grid twice as fine; stored positions stay in base units
+    const gridScale =
+        isEditMode && editErgonomicsFlag?.enabled === true
+            ? FINE_GRID_SCALE
+            : 1;
     const FiltersBar = isDashboardControlsEnabled
         ? ControlsBar
         : DashboardFiltersBar;
 
     const [isInteracting, setIsInteracting] = useState(false);
-
-    const gridLineStyles = useGridStyles({ ref: gridWrapperRef });
 
     const showGridLines = isEditMode && isInteracting;
 
@@ -313,11 +317,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         async (layout: Layout[]) => {
             const unscaledLayout = convertLayoutToBaseCoordinates(
                 layout,
-                currentCols,
+                gridScale,
             );
             await handleUpdateTiles(unscaledLayout);
         },
-        [currentCols, handleUpdateTiles],
+        [gridScale, handleUpdateTiles],
     );
 
     const { start: startAutoScroll, stop: stopAutoScroll } =
@@ -346,10 +350,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             void handleUpdateTilesWithScaling(layout);
         },
         [handleUpdateTilesWithScaling, stopAutoScroll],
-    );
-    const handleBreakpointChange = useCallback(
-        (_: string, cols: number) => setCurrentCols(cols),
-        [],
     );
     const handleWidthChange = useCallback(
         (cw: number) => setGridWidth(cw),
@@ -496,27 +496,33 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         () =>
             getResponsiveGridLayoutProps({
                 isEditMode,
-                rowHeight: fitToScreenRowHeight ?? DEFAULT_ROW_HEIGHT,
+                gridScale,
+                rowHeight:
+                    gridScale > 1
+                        ? getRowHeightForScale(gridScale)
+                        : (fitToScreenRowHeight ?? DEFAULT_ROW_HEIGHT),
             }),
-        [isEditMode, fitToScreenRowHeight],
+        [isEditMode, gridScale, fitToScreenRowHeight],
     );
     const layoutsByTab = useMemo(() => {
         const map = new Map<string, DashboardLayouts>();
         for (const [tabUuid, tiles] of tilesByTab) {
-            map.set(
-                tabUuid,
-                getDashboardLayouts(tiles, isEditMode, gridProps.cols),
-            );
+            map.set(tabUuid, getDashboardLayouts(tiles, isEditMode, gridScale));
         }
         return map;
-    }, [tilesByTab, isEditMode, gridProps]);
+    }, [tilesByTab, isEditMode, gridScale]);
 
     // Layouts for non-tabbed dashboards (single grid with all tiles)
     const allTilesLayouts = useMemo(
-        () =>
-            getDashboardLayouts(visibleTiles ?? [], isEditMode, gridProps.cols),
-        [visibleTiles, isEditMode, gridProps],
+        () => getDashboardLayouts(visibleTiles ?? [], isEditMode, gridScale),
+        [visibleTiles, isEditMode, gridScale],
     );
+
+    const gridLineStyles = useGridStyles({
+        ref: gridWrapperRef,
+        cols: gridProps.cols,
+        rowHeight: gridProps.rowHeight,
+    });
 
     // Compute whether there are unmet filter requirements that apply to the current tab
     // Note: We use doesFilterApplyToTile because getTabUuidsForFilterRules from common
@@ -1207,9 +1213,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                   onResizeStop={
                                                       handleResizeStop
                                                   }
-                                                  onBreakpointChange={
-                                                      handleBreakpointChange
-                                                  }
                                                   onWidthChange={
                                                       handleWidthChange
                                                   }
@@ -1225,17 +1228,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                   visibleTiles && (
                                       <ErrorBoundary>
                                           <ResponsiveGridLayout
+                                              key={gridProps.cols.lg}
                                               {...gridProps}
-                                              containerPadding={
-                                                  GRID_CONTAINER_PADDING
-                                              }
                                               onDragStart={handleDragStart}
                                               onDragStop={handleDragStop}
                                               onResizeStart={handleResizeStart}
                                               onResizeStop={handleResizeStop}
-                                              onBreakpointChange={
-                                                  handleBreakpointChange
-                                              }
                                               onWidthChange={handleWidthChange}
                                               layouts={allTilesLayouts}
                                           >

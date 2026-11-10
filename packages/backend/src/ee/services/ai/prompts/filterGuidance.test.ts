@@ -1,6 +1,6 @@
 import {
     FILTER_EXPRESSION_GRAMMAR_DESCRIPTION,
-    FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE,
+    FILTER_EXPRESSION_STRING_VALUES_EXAMPLE,
     parseFilterExpression,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
@@ -37,10 +37,10 @@ describe('filter expression prompt guidance', () => {
         ['Agent', FILTER_EXPRESSION_GUIDANCE_SECTION],
         ['MCP', MCP_FILTER_EXPRESSION_GUIDANCE_SECTION],
     ])(
-        'includes the canonical punctuated-string example once for %s',
+        'includes the canonical string-values example once for %s',
         (_, guidance) => {
             expect(
-                guidance.split(FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE),
+                guidance.split(FILTER_EXPRESSION_STRING_VALUES_EXAMPLE),
             ).toHaveLength(2);
         },
     );
@@ -60,9 +60,9 @@ describe('filter expression prompt guidance', () => {
         );
     });
 
-    it('keeps the punctuated-string example parseable', () => {
+    it('keeps the string-values example parseable', () => {
         expect(
-            parseFilterExpression(FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE),
+            parseFilterExpression(FILTER_EXPRESSION_STRING_VALUES_EXAMPLE),
         ).toMatchObject({ success: true });
     });
 });

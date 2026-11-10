@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/common",
-  "version": "3.193.0",
+  "version": "3.197.1",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -97,7 +97,7 @@
     "handlebars": "4.7.10",
     "js-yaml": "4.3.2",
     "liquidjs": "10.27.2",
-    "moment": "2.29.4",
+    "moment": "2.31.0",
     "moment-timezone": "0.5.48",
     "numfmt": "3.2.1",
     "pegjs": "0.10.0",

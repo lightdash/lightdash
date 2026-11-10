@@ -72,17 +72,20 @@ export const MCP_TOOL_OUTPUT_MAX_CHARS = 32_000;
 export const MCP_TOOL_SCHEMA_MAX_CHARS = 64_000;
 export const MCP_HTTP_RESPONSE_MAX_BYTES = 4 * 1024 * 1024;
 
-export const sanitizeUntrustedMcpText = (
-    value: string,
-    maxChars: number,
-): string => {
-    const sanitized = value
+const escapeUntrustedMcpText = (value: string): string =>
+    value
         .replace(/\p{Cc}|\p{Cf}/gu, (character) =>
             ['\t', '\n', '\r'].includes(character) ? character : '',
         )
         .replaceAll('&', '&amp;')
         .replaceAll('<', '&lt;')
         .replaceAll('>', '&gt;');
+
+export const sanitizeUntrustedMcpText = (
+    value: string,
+    maxChars: number,
+): string => {
+    const sanitized = escapeUntrustedMcpText(value);
     if (sanitized.length <= maxChars) return sanitized;
     return `${sanitized.slice(0, maxChars)}\n[truncated by Lightdash]`;
 };
@@ -102,7 +105,7 @@ const sanitizeBoundedMcpValue = (
         state.remaining -= bounded.length;
         const suffix =
             value.length > bounded.length ? '\n[truncated by Lightdash]' : '';
-        return `${sanitizeUntrustedMcpText(bounded, bounded.length)}${suffix}`;
+        return `${escapeUntrustedMcpText(bounded)}${suffix}`;
     }
     if (
         value === null ||
@@ -138,7 +141,7 @@ const sanitizeBoundedMcpValue = (
             const boundedKey = key.slice(0, state.remaining);
             // eslint-disable-next-line no-param-reassign
             state.remaining -= boundedKey.length;
-            sanitized[sanitizeUntrustedMcpText(boundedKey, boundedKey.length)] =
+            sanitized[escapeUntrustedMcpText(boundedKey)] =
                 sanitizeBoundedMcpValue(child, maxChars, state, depth + 1);
         }
         return sanitized;
@@ -178,11 +181,19 @@ const markMcpOutputAsUntrusted = (value: unknown): unknown => {
 };
 
 const hardenMcpOutput = (value: unknown): unknown => {
-    const hardened = markMcpOutputAsUntrusted(
-        sanitizeBoundedMcpValue(value, MCP_TOOL_OUTPUT_MAX_CHARS),
-    );
-    const serialized = JSON.stringify(hardened);
-    if (serialized.length <= MCP_TOOL_OUTPUT_MAX_CHARS) return hardened;
+    // Escaping and JSON encoding grow the bounded value, so shrink the raw
+    // budget until the serialized output fits.
+    let budget = MCP_TOOL_OUTPUT_MAX_CHARS;
+    for (let attempt = 0; attempt < 4 && budget > 0; attempt += 1) {
+        const hardened = markMcpOutputAsUntrusted(
+            sanitizeBoundedMcpValue(value, budget),
+        );
+        const serializedLength = JSON.stringify(hardened).length;
+        if (serializedLength <= MCP_TOOL_OUTPUT_MAX_CHARS) return hardened;
+        budget = Math.floor(
+            budget * (MCP_TOOL_OUTPUT_MAX_CHARS / serializedLength) * 0.95,
+        );
+    }
     return {
         content: [
             {

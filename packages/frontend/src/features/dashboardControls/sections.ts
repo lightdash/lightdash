@@ -3,6 +3,7 @@ import {
     pointerWithin,
     type Announcements,
     type CollisionDetection,
+    type Modifier,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import {
@@ -277,175 +278,47 @@ export const isCollapsedByDefault = (
     memberCount: number,
 ): boolean => section.collapsed ?? memberCount > COLLAPSED_BY_DEFAULT_ABOVE;
 
-/**
- * The bar's section lines, in order: a section starts a line unless it is
- * `inline`, then it shares the line of the section before it. The first
- * section always starts one
- */
-export const groupSectionsIntoLines = <T extends DashboardControlSection>(
-    sections: T[],
-): T[][] =>
-    sections.reduce<T[][]>((lines, section) => {
-        const last = lines.at(-1);
-        if (section.inline && last !== undefined) last.push(section);
-        else lines.push([section]);
-        return lines;
-    }, []);
+/** The droppable id of the gap before the bar line `lineStartId` starts (null: after the last) */
+export const lineGapTargetId = (lineStartId: string | null) =>
+    `line-gap:${lineStartId ?? ''}`;
 
-/** Writes `inline` only where it is true, and never on a line's first section */
-const withLineKeys = (
-    section: DashboardControlSection,
-    inline: boolean,
-): DashboardControlSection => {
-    const { inline: previous, ...rest } = section;
-    return inline ? { ...rest, inline: true } : rest;
-};
-
-const normaliseLines = (
-    sections: DashboardControlSection[],
-): DashboardControlSection[] =>
-    sections.map((section, index) =>
-        withLineKeys(section, index > 0 && section.inline === true),
-    );
-
-/** Takes a section out; the section after it keeps its line's start */
-export const removeSectionKeepingLines = (
-    sections: DashboardControlSection[],
+/** The placement a line gap's id names, else null */
+export const lineGapPlacementOf = (
     id: string,
-): DashboardControlSection[] => {
-    const index = sections.findIndex((section) => section.id === id);
-    if (index === -1) return sections;
-    const removed = sections[index];
-    return normaliseLines(
-        sections.flatMap((section, i) => {
-            if (i === index) return [];
-            // It started a line: the next one, sharing it, starts it now
-            if (i === index + 1 && !removed.inline)
-                return [withLineKeys(section, false)];
-            return [section];
-        }),
-    );
-};
-
-/**
- * Where a dragged section lands: beside another section (`side` of it, on
- * its line) or on a line of its own before the line `lineIndex`, counting
- * the lines on screen (the line count: after the last line)
- */
-export type SectionPlacement =
-    | { overId: string; side: 'before' | 'after' }
-    | { lineIndex: number };
-
-/** Puts the section `id` at `placement`; the same array when nothing moves */
-export const placeSection = (
-    sections: DashboardControlSection[],
-    id: string,
-    placement: SectionPlacement,
-): DashboardControlSection[] => {
-    const moving = sections.find((section) => section.id === id);
-    if (moving === undefined) return sections;
-    if ('overId' in placement && placement.overId === id) return sections;
-    const rest = removeSectionKeepingLines(sections, id);
-    let next: DashboardControlSection[];
-    if ('overId' in placement) {
-        const overIndex = rest.findIndex((s) => s.id === placement.overId);
-        if (overIndex === -1) return sections;
-        const over = rest[overIndex];
-        next =
-            placement.side === 'after'
-                ? [
-                      ...rest.slice(0, overIndex + 1),
-                      withLineKeys(moving, true),
-                      ...rest.slice(overIndex + 1),
-                  ]
-                : [
-                      ...rest.slice(0, overIndex),
-                      // It takes the line's start when the section it goes before had it
-                      withLineKeys(moving, over.inline === true),
-                      withLineKeys(over, true),
-                      ...rest.slice(overIndex + 1),
-                  ];
-    } else {
-        // `lineIndex` counts the lines on screen, the moving section's own
-        // included: a line it leaves empty goes
-        const current = groupSectionsIntoLines(sections);
-        const own = current.findIndex((line) =>
-            line.some((section) => section.id === id),
-        );
-        const lineIndex =
-            current[own].length === 1 && placement.lineIndex > own
-                ? placement.lineIndex - 1
-                : placement.lineIndex;
-        const lines = groupSectionsIntoLines(rest);
-        const at = Math.max(0, Math.min(lineIndex, lines.length));
-        const index = lines.slice(0, at).flat().length;
-        next = [
-            ...rest.slice(0, index),
-            withLineKeys(moving, false),
-            ...rest.slice(index),
-        ];
-    }
-    next = normaliseLines(next);
-    const shape = (list: DashboardControlSection[]) =>
-        normaliseLines(list)
-            .map(({ id: key, inline }) => `${key}:${inline ? 1 : 0}`)
-            .join(',');
-    return shape(next) === shape(sections) ? sections : next;
-};
-
-/**
- * A keyboard move: Alt+Left/Right goes one place along the bar, joining the
- * neighbour's line; Alt+Up/Down joins the line above or below, or takes a
- * line of its own at the top or bottom when it shares its line
- */
-export const moveSectionBy = (
-    sections: DashboardControlSection[],
-    id: string,
-    direction: 'left' | 'right' | 'up' | 'down',
-): DashboardControlSection[] => {
-    const index = sections.findIndex((section) => section.id === id);
-    if (index === -1) return sections;
-    if (direction === 'left' || direction === 'right') {
-        const neighbour =
-            sections[direction === 'left' ? index - 1 : index + 1];
-        if (neighbour === undefined) return sections;
-        return placeSection(sections, id, {
-            overId: neighbour.id,
-            side: direction === 'left' ? 'before' : 'after',
-        });
-    }
-    const lines = groupSectionsIntoLines(sections);
-    const lineIndex = lines.findIndex((line) =>
-        line.some((section) => section.id === id),
-    );
-    const isAlone = lines[lineIndex].length === 1;
-    const target = lines[direction === 'up' ? lineIndex - 1 : lineIndex + 1];
-    if (target === undefined)
-        return isAlone
-            ? sections
-            : placeSection(sections, id, {
-                  lineIndex: direction === 'up' ? 0 : lines.length,
-              });
-    return placeSection(sections, id, {
-        overId: target[target.length - 1].id,
-        side: 'after',
-    });
-};
-
-/** The droppable id of the gap before the bar's section line `index` */
-export const sectionLineTargetId = (index: number) => `section-line:${index}`;
-
-/** The line index a section line target names, else null */
-export const sectionLineIndexOf = (id: string): number | null => {
-    const match = /^section-line:(\d+)$/.exec(id);
-    return match ? Number(match[1]) : null;
-};
+): { lineStartId: string | null } | null =>
+    id.startsWith('line-gap:')
+        ? { lineStartId: id.slice('line-gap:'.length) || null }
+        : null;
 
 /** The droppable id of the rail's header, which takes a filter out of its section */
 export const UNSECTIONED_TARGET_ID = 'unsectioned-target';
 
-/** The droppable id of the bar's space outside every capsule and pill */
-export const BAR_SPACE_TARGET_ID = 'bar-space-target';
+/**
+ * The dragged copy floats just below-right of the pointer, so the drop line
+ * by the pointer stays in sight; a keyboard drag's copy stays on its control
+ */
+export const besidePointer: Modifier = ({
+    activatorEvent,
+    draggingNodeRect,
+    transform,
+}) =>
+    draggingNodeRect !== null &&
+    activatorEvent !== null &&
+    'clientX' in activatorEvent
+        ? {
+              ...transform,
+              x:
+                  transform.x +
+                  (activatorEvent as PointerEvent).clientX -
+                  draggingNodeRect.left +
+                  12,
+              y:
+                  transform.y +
+                  (activatorEvent as PointerEvent).clientY -
+                  draggingNodeRect.top +
+                  8,
+          }
+        : transform;
 
 /** The droppable id of the bar's New section capsule */
 export const NEW_SECTION_TARGET_ID = 'new-section-target';
@@ -467,80 +340,23 @@ export const getDragAnnouncements = (
         `Dragging ${nameOf(String(active.id))} was cancelled`,
 });
 
-// The target is what is under the pointer; anywhere else a pointer is (the
-// bar's empty space, beside or below the bar) is outside every section. The
-// keyboard sensor has no pointer, so it falls back to the nearest centre
-const underPointer: CollisionDetection = (args) => {
-    const within = pointerWithin(args);
-    const covered = within.filter(({ id }) => id !== BAR_SPACE_TARGET_ID);
-    if (covered.length > 0) return covered;
-    const barSpace = args.droppableContainers.find(
-        ({ id }) => id === BAR_SPACE_TARGET_ID,
-    );
-    if (args.pointerCoordinates !== null && barSpace !== undefined)
-        return [
-            {
-                id: BAR_SPACE_TARGET_ID,
-                data: { droppableContainer: barSpace, value: 0 },
-            },
-        ];
-    return closestCenter({
-        ...args,
-        droppableContainers: args.droppableContainers.filter(
-            ({ id }) => id !== BAR_SPACE_TARGET_ID,
-        ),
-    });
-};
-
-// A dragged capsule lands only on another capsule, or a gap between section lines
+// A keyboard drag's target: the nearest centre; a pointer's only what is
+// under it, as its drop comes from `chooseInsertionPoint`; a dragged capsule only meets capsules, line gaps
+// and controls outside every section (`sectionTargetIds`), a pill no line gap
 export const SECTION_DRAG = 'section';
-export const underPointerFor: CollisionDetection = (args) => {
+const NO_IDS: ReadonlySet<string> = new Set();
+export const underPointerFor = (
+    args: Parameters<CollisionDetection>[0],
+    sectionTargetIds: ReadonlySet<string> = NO_IDS,
+): ReturnType<CollisionDetection> => {
     const isSectionDrag = args.active.data?.current?.kind === SECTION_DRAG;
     const droppableContainers = args.droppableContainers.filter((container) =>
         isSectionDrag
-            ? container.data?.current?.kind === SECTION_DRAG
-            : // The gaps between section lines take capsules only
-              container.data?.current?.isLineGap !== true,
+            ? container.data?.current?.kind === SECTION_DRAG ||
+              sectionTargetIds.has(String(container.id))
+            : container.data?.current?.isLineGap !== true,
     );
-    const pointer = args.pointerCoordinates;
-    if (isSectionDrag && pointer !== null) {
-        const within = pointerWithin({ ...args, droppableContainers });
-        if (within.length > 0) return within;
-        // The empty space among the capsules lands beside the nearest one in
-        // the row the pointer is on (capsules top-align, so a row shares its
-        // top); above or below them all is left to the line gaps
-        const capsules = droppableContainers.flatMap((container) => {
-            const rect = args.droppableRects.get(container.id);
-            return rect === undefined || container.data.current?.isLineGap
-                ? []
-                : [{ container, rect }];
-        });
-        const above = capsules.filter(({ rect }) => rect.top <= pointer.y);
-        const rowTop = Math.max(...above.map(({ rect }) => rect.top));
-        const isAmongCapsules =
-            above.length > 0 &&
-            capsules.some(({ rect }) => rect.bottom >= pointer.y);
-        const nearest = above
-            .filter(({ rect }) => rect.top >= rowTop - 1)
-            .map(({ container, rect }) => ({
-                container,
-                distance: Math.max(
-                    rect.left - pointer.x,
-                    pointer.x - rect.right,
-                    0,
-                ),
-            }))
-            .sort((a, b) => a.distance - b.distance)[0];
-        if (isAmongCapsules && nearest !== undefined)
-            return [
-                {
-                    id: nearest.container.id,
-                    data: {
-                        droppableContainer: nearest.container,
-                        value: nearest.distance,
-                    },
-                },
-            ];
-    }
-    return underPointer({ ...args, droppableContainers });
+    return args.pointerCoordinates === null
+        ? closestCenter({ ...args, droppableContainers })
+        : pointerWithin({ ...args, droppableContainers });
 };

@@ -1,4 +1,5 @@
 import {
+    DashboardControlRefKind,
     DashboardTileTypes,
     DateGranularity,
     type Dashboard,
@@ -313,7 +314,19 @@ describe('tile selectors', () => {
                 'b',
                 'c',
             ]);
+            expect(state.controlSections.at(-1)?.inline).toBe(true);
             expect(state.haveControlSectionsChanged).toBe(true);
+            // A stored order places it; `inline` would only mislabel it
+            const ordered = reducer(
+                reducer(
+                    seeded,
+                    actions.syncControlOrder([
+                        { kind: DashboardControlRefKind.SECTION, id: 'a' },
+                    ]),
+                ),
+                actions.addControlSection({ id: 'c', name: 'New' }),
+            );
+            expect(ordered.controlSections.at(-1)).not.toHaveProperty('inline');
         });
 
         it('renames and removes a section, marking the change', () => {

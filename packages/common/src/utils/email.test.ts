@@ -2,6 +2,7 @@
 import {
     getEmailDomain,
     isPublicEmailProviderDomain,
+    isValidEmailDomain,
     validateOrganizationEmailDomains,
 } from './email';
 
@@ -94,6 +95,19 @@ describe('getEmailDomain', () => {
             'example.org',
         );
     });
+});
+
+describe('isValidEmailDomain', () => {
+    it.each(['x.ai', 'x.com', 't.co'])('accepts %s', (domain) => {
+        expect(isValidEmailDomain(domain)).toEqual([domain]);
+    });
+
+    it.each(['x', 'x.c', '.com', 'x.12', 'x.ai/path', 'x.ai@example.com'])(
+        'rejects %s',
+        (value) => {
+            expect(isValidEmailDomain(value)).toBeNull();
+        },
+    );
 });
 
 describe('isPublicEmailProviderDomain', () => {

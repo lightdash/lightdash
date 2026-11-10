@@ -2096,6 +2096,38 @@ describe('CoderService', () => {
             expect(exported.config).toEqual({ isDateZoomDisabled: false });
         });
 
+        it('reads a stored empty control order as no order', () => {
+            const exported = (
+                CoderService as unknown as {
+                    transformDashboard: (...args: AnyType[]) => AnyType;
+                }
+            ).transformDashboard(
+                {
+                    description: null,
+                    filters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    name: 'Dashboard',
+                    slug: 'dashboard',
+                    spaceUuid: 'space-uuid',
+                    tabs: [],
+                    tiles: [],
+                    uuid: 'dashboard-uuid',
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlSections: [{ id: 'section-1', name: 'S' }],
+                        controlOrder: [],
+                    },
+                },
+                [{ name: 'Space', path: 'space', uuid: 'space-uuid' }],
+                new Map(),
+                true,
+            );
+            expect(exported.config).not.toHaveProperty('controlOrder');
+        });
+
         it('round-trips controls when generated tile slugs collide with chart slugs', () => {
             const tiles = ['sales', 'sales', 'sales-1'].map(
                 (chartSlug, index) => ({

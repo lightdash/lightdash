@@ -3,6 +3,7 @@ import useFuzzySearch, {
     type FuzzyMatches,
 } from '../../../hooks/useFuzzySearch';
 import { type NestableItem } from './types';
+import { getAncestorUuids, getParentUuids } from './utils';
 
 export type FuzzyFilteredItem<T> = T & {
     _fuzzyFilteredBy: 'match' | 'parent';
@@ -16,21 +17,6 @@ const FUZZY_SEARCH_OPTIONS = {
     includeMatches: true,
 };
 
-/** Every proper ancestor path of the given ltree-style paths. */
-const getAncestorPaths = (paths: string[]) => {
-    const ancestors = new Set<string>();
-    for (const path of paths) {
-        const segments = path.split('.');
-        for (let depth = segments.length - 1; depth > 0; depth -= 1) {
-            const ancestorPath = segments.slice(0, depth).join('.');
-            // Once an ancestor is known, everything above it is too.
-            if (ancestors.has(ancestorPath)) break;
-            ancestors.add(ancestorPath);
-        }
-    }
-    return ancestors;
-};
-
 function useFuzzyTreeSearch<T extends NestableItem>(items: T[], query: string) {
     const matchedItems = useFuzzySearch(
         items,
@@ -42,21 +28,24 @@ function useFuzzyTreeSearch<T extends NestableItem>(items: T[], query: string) {
     const filteredItems = useMemo(() => {
         if (!matchedItems) return;
 
-        const matchedByPath = new Map(
-            matchedItems.map((matchedItem) => [matchedItem.path, matchedItem]),
+        const matchedByUuid = new Map(
+            matchedItems.map((matchedItem) => [matchedItem.uuid, matchedItem]),
         );
-        const ancestorPaths = getAncestorPaths(
-            matchedItems.map((matchedItem) => matchedItem.path),
+        const parentUuids = getParentUuids(items);
+        const ancestorUuids = new Set(
+            matchedItems.flatMap((matchedItem) =>
+                getAncestorUuids(parentUuids, matchedItem.uuid).slice(0, -1),
+            ),
         );
 
         return items.flatMap<
             FuzzyFilteredItem<T> | FuzzyFilteredItem<FuzzyMatches<T>>
         >((item) => {
-            const matchedItem = matchedByPath.get(item.path);
+            const matchedItem = matchedByUuid.get(item.uuid);
             if (matchedItem) {
                 return [{ ...matchedItem, _fuzzyFilteredBy: 'match' }];
             }
-            if (ancestorPaths.has(item.path)) {
+            if (ancestorUuids.has(item.uuid)) {
                 return [{ ...item, _fuzzyFilteredBy: 'parent' }];
             }
             return [];
