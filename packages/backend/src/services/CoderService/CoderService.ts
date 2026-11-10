@@ -3005,26 +3005,28 @@ export class CoderService extends BaseService {
             chartSummaries,
             spaces,
         );
+        // Composer charts have no code shape yet: left out before paging, so pages and total agree
+        const composerCharts = await this.savedChartModel.findComposerCharts(
+            chartsSummariesWithAccess.map((chart) => chart.uuid),
+        );
+        const composerChartUuids = new Set(
+            composerCharts.map((composerChart) => composerChart.uuid),
+        );
         const {
             page: limitedChartSummaries,
             total: chartsTotal,
             offset: newOffset,
         } = paginateAsCode({
-            items: chartsSummariesWithAccess,
+            items: chartsSummariesWithAccess.filter(
+                (chart) => !composerChartUuids.has(chart.uuid),
+            ),
             offset,
             pageSize: this.lightdashConfig.contentAsCode.maxDownloads,
         });
 
-        // Composer charts have no code shape yet, so the download names them instead of failing
-        const composerCharts = await this.savedChartModel.findComposerCharts(
-            limitedChartSummaries.map((chart) => chart.uuid),
+        const chartPromises = limitedChartSummaries.map((chart) =>
+            this.savedChartModel.get(chart.uuid),
         );
-        const composerChartUuids = new Set(
-            composerCharts.map((composerChart) => composerChart.uuid),
-        );
-        const chartPromises = limitedChartSummaries
-            .filter((chart) => !composerChartUuids.has(chart.uuid))
-            .map((chart) => this.savedChartModel.get(chart.uuid));
         const charts = await Promise.all(chartPromises);
 
         // get all spaces to map  dashboardSlug
