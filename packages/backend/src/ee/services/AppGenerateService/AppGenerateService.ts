@@ -302,6 +302,10 @@ import {
     SEMANTIC_LAYER_POINTER_FILE,
 } from './appContext';
 import {
+    assertDataAppQueryAllowed,
+    type DataAppQueryInputs,
+} from './appQueryAuthorization';
+import {
     CLARIFY_APP_SYSTEM_PROMPT,
     CLARIFY_VIZ_SYSTEM_PROMPT,
 } from './clarifierPrompts';
@@ -13313,6 +13317,93 @@ export class AppGenerateService extends BaseService {
         } finally {
             this.dataReferenceRefreshes.delete(key);
         }
+    }
+
+    /** Rechecks app access for stored results and reruns of consumer queries. */
+    async assertCanViewQuerySource({
+        account,
+        projectUuid,
+        appUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        appUuid: string;
+    }): Promise<void> {
+        if (!account.isRegisteredUser()) throw new ForbiddenError();
+        const app = await this.appModel.findApp(appUuid, projectUuid);
+        if (!app || app.project_uuid !== projectUuid)
+            throw new ForbiddenError();
+        const [accessContext, projectContext] = await Promise.all([
+            this.spacePermissionService.resolveAccess(account.user.id, {
+                type: 'app',
+                appUuid: app.app_id,
+                organizationUuid: app.organization_uuid,
+                projectUuid: app.project_uuid,
+                spaceUuid: app.space_uuid,
+            }),
+            this.getDataAppProjectContext(projectUuid),
+        ]);
+        if (
+            app.organization_uuid !== projectContext.organizationUuid ||
+            this.createAuditedAbility(account).cannot(
+                'view',
+                subject('DataApp', {
+                    ...projectContext,
+                    ...accessContext,
+                    createdByUserUuid: app.created_by_user_uuid,
+                }),
+            )
+        )
+            throw new ForbiddenError('You do not have access to this data app');
+    }
+
+    /**
+     * Authorizes a metric query for a user without Explore access. The signed
+     * token proves the app version; its saved data references bound the fields.
+     */
+    async authorizeConsumerQuery({
+        account,
+        projectUuid,
+        organizationUuid,
+        previewToken,
+        ...queryInputs
+    }: DataAppQueryInputs & {
+        account: Account;
+        projectUuid: string;
+        organizationUuid: string;
+        previewToken: string;
+    }): Promise<{ appUuid: string; version: number }> {
+        if (!account.isRegisteredUser()) throw new ForbiddenError();
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid, userUuid: account.user.id },
+            featureFlagId: FeatureFlags.DataAppConsumerAccess,
+        });
+        if (!enabled) throw new ForbiddenError();
+        const verified = verifyPreviewTokenClaims(
+            previewToken,
+            this.lightdashConfig.lightdashSecrets,
+        );
+        if (
+            !verified.ok ||
+            verified.payload.userUuid !== account.user.id ||
+            verified.payload.projectUuid !== projectUuid ||
+            verified.payload.organizationUuid !== organizationUuid
+        )
+            throw new ForbiddenError('Invalid data app query token');
+        const { appUuid, version } = verified.payload;
+        await this.assertCanViewQuerySource({ account, projectUuid, appUuid });
+        // Re-extraction reads the version's stored source, never the request.
+        const dataReferences = await this.getVersionDataReferences(
+            appUuid,
+            version,
+        );
+        if (!dataReferences)
+            throw new ForbiddenError(
+                'This data app version has no saved data references',
+            );
+        assertDataAppQueryAllowed(dataReferences, queryInputs);
+        setQueryAppVersion(appUuid, version);
+        return { appUuid, version };
     }
 
     async getCustomSqlProvenance({

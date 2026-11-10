@@ -8,6 +8,7 @@ import {
     CommercialFeatureFlags,
     CreateUserArgs,
     CreateUserWithRole,
+    FeatureFlags,
     ForbiddenError,
     getAllScopesForRole,
     getTrainingProjectLockedSubjects,
@@ -1358,25 +1359,35 @@ export class UserModel {
         ].filter((roleUuid): roleUuid is string => Boolean(roleUuid));
         const isEnterprise =
             this.lightdashConfig.license.licenseKey !== undefined;
-        const [customRoleScopes, customRolesFlag, patScopeAuthoritativeFlag] =
-            await Promise.all([
-                this.customRoleScopes(customRoleUuids, trx),
-                this.featureFlagModel.get(
-                    {
-                        user: lightdashUser,
-                        featureFlagId: CommercialFeatureFlags.CustomRoles,
-                    },
-                    { trx },
-                ),
-                this.featureFlagModel.get(
-                    {
-                        user: lightdashUser,
-                        featureFlagId:
-                            CommercialFeatureFlags.PatScopeAuthoritative,
-                    },
-                    { trx },
-                ),
-            ]);
+        const [
+            customRoleScopes,
+            customRolesFlag,
+            patScopeAuthoritativeFlag,
+            dataAppConsumerAccessFlag,
+        ] = await Promise.all([
+            this.customRoleScopes(customRoleUuids, trx),
+            this.featureFlagModel.get(
+                {
+                    user: lightdashUser,
+                    featureFlagId: CommercialFeatureFlags.CustomRoles,
+                },
+                { trx },
+            ),
+            this.featureFlagModel.get(
+                {
+                    user: lightdashUser,
+                    featureFlagId: CommercialFeatureFlags.PatScopeAuthoritative,
+                },
+                { trx },
+            ),
+            this.featureFlagModel.get(
+                {
+                    user: lightdashUser,
+                    featureFlagId: FeatureFlags.DataAppConsumerAccess,
+                },
+                { trx },
+            ),
+        ]);
 
         // Narrow empty-role resolution: only the flagged enterprise human's
         // primary org role uuid is checked for existence when it has no
@@ -1410,6 +1421,7 @@ export class UserModel {
                     customRolesFlag.enabled,
                 isEnterprise,
                 patScopeAuthoritative: patScopeAuthoritativeFlag.enabled,
+                dataAppConsumerAccess: dataAppConsumerAccessFlag.enabled,
             });
 
         if (invalidScopes.length > 0) {

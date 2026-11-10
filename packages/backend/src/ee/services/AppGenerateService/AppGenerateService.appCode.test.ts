@@ -3,6 +3,7 @@ import {
     DATA_REFERENCE_EXTRACTOR_VERSION,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
     DirectAccessResourceType,
+    extractDataAppDataReferences,
     FeatureFlags,
     ForbiddenError,
     getCustomSqlFieldKey,
@@ -13,6 +14,7 @@ import {
     type DataAppCode,
     type DataAppDependencies,
     type ImportAppCodeRequestBody,
+    type MetricQuery,
 } from '@lightdash/common';
 import ExecutionContext from 'node-execution-context';
 import { createHash } from 'node:crypto';
@@ -159,6 +161,7 @@ function buildService(
         canManageDataAppDependencies?: boolean;
         dataAppsEnabled?: boolean;
         chartStudioAvailable?: boolean;
+        consumerAccessEnabled?: boolean;
     } = {},
 ) {
     const appModel = {
@@ -196,6 +199,8 @@ function buildService(
 
     const featureFlagModel = featureFlagModelWith({
         [FeatureFlags.EnableDataApps]: opts.dataAppsEnabled ?? true,
+        [FeatureFlags.DataAppConsumerAccess]:
+            opts.consumerAccessEnabled ?? true,
     });
 
     const organizationSettingsModel = {
@@ -2912,5 +2917,166 @@ describe('importAppCode slug validation', () => {
             undefined,
             { forceSlug: true, thread: IMPORT_THREAD, vizPreview: null },
         );
+    });
+});
+
+describe('AppGenerateService.authorizeConsumerQuery', () => {
+    const metricQuery: MetricQuery = {
+        exploreName: 'orders',
+        dimensions: ['orders_country'],
+        metrics: ['orders_revenue'],
+        filters: {},
+        sorts: [],
+        limit: 100,
+        tableCalculations: [],
+    };
+    const dataReferences = extractDataAppDataReferences([
+        {
+            path: 'src/App.tsx',
+            content:
+                "import { query } from '@lightdash/query-sdk'; query('orders').dimensions(['country']).metrics(['revenue']);",
+        },
+    ]);
+    const request = {
+        account: {
+            isRegisteredUser: () => true,
+            user: { id: USER_UUID },
+        } as never,
+        projectUuid: PROJECT_UUID,
+        organizationUuid: PROJECT_ORG_UUID,
+        previewToken: mintPreviewToken(
+            {
+                active: 'test-lightdash-secret',
+                fallbacks: [],
+                all: ['test-lightdash-secret'],
+            },
+            NEW_APP_UUID,
+            2,
+            USER_UUID,
+            PROJECT_ORG_UUID,
+            PROJECT_UUID,
+        ),
+        metricQuery,
+    };
+    const setup = (opts: { consumerAccessEnabled?: boolean } = {}) => {
+        const result = buildService(opts);
+        result.appModel.findApp.mockResolvedValue({
+            app_id: NEW_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            space_uuid: 'space-uuid',
+            created_by_user_uuid: 'author-uuid',
+        });
+        result.appModel.getVersion.mockResolvedValue({
+            status: 'ready',
+            data_references: dataReferences,
+        });
+        return result;
+    };
+
+    it('authorizes from the signed version without updating its references', async () => {
+        const { service, appModel } = setup();
+        await expect(service.authorizeConsumerQuery(request)).resolves.toEqual({
+            appUuid: NEW_APP_UUID,
+            version: 2,
+        });
+        expect(appModel.getVersion).toHaveBeenCalledWith(NEW_APP_UUID, 2);
+        expect(appModel.updateVersionDataReferences).not.toHaveBeenCalled();
+    });
+
+    it('denies every consumer query when the flag is off', async () => {
+        const { service, appModel } = setup({ consumerAccessEnabled: false });
+        await expect(service.authorizeConsumerQuery(request)).rejects.toThrow(
+            ForbiddenError,
+        );
+        expect(appModel.findApp).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        { previewToken: 'forged-token' },
+        { projectUuid: 'another-project' },
+        { organizationUuid: 'another-org' },
+        {
+            account: {
+                isRegisteredUser: () => true,
+                user: { id: 'another-user' },
+            } as never,
+        },
+    ])(
+        'rejects tokens outside the current account and project: %j',
+        async (overrides) => {
+            const { service, appModel } = setup();
+            await expect(
+                service.authorizeConsumerQuery({ ...request, ...overrides }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(appModel.getVersion).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([null, { status: 'building', data_references: dataReferences }])(
+        'denies versions that are not ready: %j',
+        async (version) => {
+            const { service, appModel } = setup();
+            appModel.getVersion.mockResolvedValue(version);
+            await expect(
+                service.authorizeConsumerQuery(request),
+            ).rejects.toThrow(ForbiddenError);
+        },
+    );
+
+    it('re-extracts stale references from stored source and denies when that fails', async () => {
+        const { service, appModel } = setup();
+        appModel.getVersion.mockResolvedValue({
+            status: 'ready',
+            data_references: { ...dataReferences, extractorVersion: 0 },
+        });
+        const refresh = vi
+            .spyOn(
+                service as unknown as {
+                    refreshVersionDataReferences: () => Promise<null>;
+                },
+                'refreshVersionDataReferences',
+            )
+            .mockResolvedValue(null);
+        await expect(service.authorizeConsumerQuery(request)).rejects.toThrow(
+            ForbiddenError,
+        );
+        expect(refresh).toHaveBeenCalledWith(NEW_APP_UUID, 2);
+    });
+
+    it('rechecks app access even with a valid token', async () => {
+        const { service } = setup();
+        vi.spyOn(
+            service as unknown as { createAuditedAbility: () => unknown },
+            'createAuditedAbility',
+        ).mockReturnValue({ cannot: () => true });
+        await expect(service.authorizeConsumerQuery(request)).rejects.toThrow(
+            ForbiddenError,
+        );
+    });
+
+    it('rejects a query for fields missing from the saved references', async () => {
+        const { service } = setup();
+        await expect(
+            service.authorizeConsumerQuery({
+                ...request,
+                metricQuery: { ...metricQuery, dimensions: ['orders_email'] },
+            }),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('rejects a query against another explore', async () => {
+        const { service } = setup();
+        await expect(
+            service.authorizeConsumerQuery({
+                ...request,
+                metricQuery: {
+                    ...metricQuery,
+                    exploreName: 'customers',
+                    dimensions: ['customers_email'],
+                    metrics: [],
+                },
+            }),
+        ).rejects.toThrow(ForbiddenError);
     });
 });
