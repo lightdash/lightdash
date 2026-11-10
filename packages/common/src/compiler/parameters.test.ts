@@ -5,6 +5,7 @@ import {
     getExploreParameterReferences,
     getMissingRequiredParameters,
     getParameterReferences,
+    getReferencedExploreParameterDefinitions,
     getReferencedParameterDefinitions,
     hasReservedParameterReference,
     validateParameterConfiguration,
@@ -668,40 +669,55 @@ describe('validateParameterConfiguration', () => {
 });
 
 describe('getExploreParameterDefinitions', () => {
-    it('includes active explore parameter aliases so shadowed reserved names can be matched by reference', () => {
-        const definitions = getExploreParameterDefinitions({
-            name: 'orders',
-            label: 'Orders',
-            baseTable: 'orders',
-            joinedTables: [],
-            type: ExploreType.DEFAULT,
-            tables: {
-                orders: {
-                    name: 'orders',
-                    label: 'Orders',
-                    parameters: {
-                        date_zoom: {
-                            label: 'Table-scoped date zoom',
-                            options: ['week'],
-                        },
+    const ordersExplore = {
+        name: 'orders',
+        label: 'Orders',
+        baseTable: 'orders',
+        joinedTables: [],
+        type: ExploreType.DEFAULT,
+        tables: {
+            orders: {
+                name: 'orders',
+                label: 'Orders',
+                parameters: {
+                    date_zoom: {
+                        label: 'Table-scoped date zoom',
+                        options: ['week'],
                     },
-                    dimensions: {},
-                    metrics: {},
-                    lineageGraph: {},
                 },
+                parameterReferences: ['date_zoom'],
+                dimensions: {},
+                metrics: {},
+                lineageGraph: {},
             },
-            parameters: {
-                date_zoom: {
-                    label: 'Shadowed date zoom',
-                    options: ['week'],
-                },
+        },
+        parameters: {
+            date_zoom: {
+                label: 'Unprefixed model date zoom',
+                options: ['week'],
             },
-        } as unknown as Explore);
+        },
+    } as unknown as Explore;
+
+    it('returns only model-prefixed definitions', () => {
+        const definitions = getExploreParameterDefinitions(ordersExplore);
 
         expect(definitions['orders.date_zoom']?.label).toBe(
             'Table-scoped date zoom',
         );
-        expect(definitions.date_zoom?.label).toBe('Shadowed date zoom');
+        expect(definitions).not.toHaveProperty('date_zoom');
+    });
+
+    it('keeps a project definition that shares a model parameter short name', () => {
+        const projectDateZoom: LightdashProjectParameter = {
+            label: 'Project date zoom',
+        };
+
+        expect(
+            getReferencedExploreParameterDefinitions(ordersExplore, {
+                date_zoom: projectDateZoom,
+            }),
+        ).toEqual({ date_zoom: projectDateZoom });
     });
 });
 
