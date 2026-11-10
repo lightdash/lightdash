@@ -126,6 +126,30 @@ describe('useMobileAppLink', () => {
         expect(server.mintCount()).toBe(1);
     });
 
+    it('stops polling while paused and resumes when unpaused', async () => {
+        const server = mockServer({ scannedAfterPolls: Infinity });
+        const { result, rerender } = renderHookWithProviders(
+            ({ isPaused }: { isPaused: boolean }) =>
+                useMobileAppLink({ isPaused }),
+            undefined,
+            { initialProps: { isPaused: false } },
+        );
+        await waitFor(() =>
+            expect(result.current.link?.linkUuid).toBe('link-1'),
+        );
+        await advance(MOBILE_APP_LINK_POLL_INTERVAL_MS * 2);
+        expect(server.statusCalls.length).toBeGreaterThan(0);
+
+        rerender({ isPaused: true });
+        const pollsWhenPaused = server.statusCalls.length;
+        await advance(MOBILE_APP_LINK_POLL_INTERVAL_MS * 20);
+        expect(server.statusCalls).toHaveLength(pollsWhenPaused);
+
+        rerender({ isPaused: false });
+        await advance(MOBILE_APP_LINK_POLL_INTERVAL_MS * 2);
+        expect(server.statusCalls.length).toBeGreaterThan(pollsWhenPaused);
+    });
+
     it('mints a new link at expiry and swaps it in place', async () => {
         const server = mockServer({ scannedAfterPolls: Infinity });
         const { result } = renderHookWithProviders(() => useMobileAppLink());

@@ -18,7 +18,9 @@ const monotonicNow = () => performance.now();
 
 type MintSchedule = { id: number; at: number };
 
-export const useMobileAppLink = () => {
+export const useMobileAppLink = ({
+    isPaused = false,
+}: { isPaused?: boolean } = {}) => {
     const lightdashApi = useLightdashApi();
     const isVisible = useDocumentVisibility() === 'visible';
 
@@ -80,7 +82,7 @@ export const useMobileAppLink = () => {
                 body: undefined,
             }),
         {
-            enabled: link !== null && isVisible && !hasFailed,
+            enabled: link !== null && isVisible && !hasFailed && !isPaused,
             refetchInterval: (data) =>
                 data?.scannedAt ? false : MOBILE_APP_LINK_POLL_INTERVAL_MS,
             refetchIntervalInBackground: false,

@@ -191,6 +191,11 @@ type ViewProps = {
     appLink: ReturnType<typeof useMobileAppLink>;
 };
 
+type SignInStepsViewProps = ViewProps & {
+    hasApp: boolean;
+    setHasApp: (hasApp: boolean) => void;
+};
+
 // The scan removes the focused control, so move focus on instead of to body.
 const useFocusAfterScan = (
     isScanned: boolean,
@@ -248,10 +253,14 @@ const getStepTwoState = (
     return isStepOneDone ? 'current' : 'upcoming';
 };
 
-const SignInStepsView: FC<ViewProps> = ({ host, appLink }) => {
+const SignInStepsView: FC<SignInStepsViewProps> = ({
+    host,
+    appLink,
+    hasApp,
+    setHasApp,
+}) => {
     const { link, isScanned, hasFailed, retry } = appLink;
     const { user } = useApp();
-    const [hasApp, setHasApp] = useState(false);
     const isStepOneDone = isScanned || hasApp;
     const signIn = useMobileSignInCode();
 
@@ -333,7 +342,8 @@ const SignInStepsView: FC<ViewProps> = ({ host, appLink }) => {
 export const MobileSettingsPage: FC = () => {
     const { data: health } = useHealth();
     const host = getHost(health?.siteUrl);
-    const appLink = useMobileAppLink();
+    const [hasApp, setHasApp] = useState(false);
+    const appLink = useMobileAppLink({ isPaused: hasApp });
     const { data: qrSignInFlag } = useServerFeatureFlag(
         FeatureFlags.MobileQrSignIn,
     );
@@ -341,7 +351,12 @@ export const MobileSettingsPage: FC = () => {
     return (
         <SettingsPage title={MOBILE_STRINGS.pageTitle}>
             {qrSignInFlag?.enabled ? (
-                <SignInStepsView host={host} appLink={appLink} />
+                <SignInStepsView
+                    host={host}
+                    appLink={appLink}
+                    hasApp={hasApp}
+                    setHasApp={setHasApp}
+                />
             ) : (
                 <GetAppView host={host} appLink={appLink} />
             )}
