@@ -1,4 +1,7 @@
-import { getControlTileUuids } from '@lightdash/common';
+import {
+    getControlTileUuids,
+    resolveParameterDefault,
+} from '@lightdash/common';
 import { ActionIcon, Box, Button, Popover, Text, Tooltip } from '@mantine/core';
 import {
     IconAdjustmentsHorizontal,
@@ -6,6 +9,7 @@ import {
     IconEyeOff,
     IconX,
 } from '@tabler/icons-react';
+import { isEqual } from 'es-toolkit/compat';
 import {
     Fragment,
     useMemo,
@@ -236,6 +240,14 @@ const ParameterPill: FC<{
     const hasValue = entry.shownValue !== null;
     const needsValue = !hasValue && isMissing;
     const isNotSet = !hasValue && !isMissing;
+    // As the legacy pill: with no value, the default its keys share
+    const defaults = parameters.map(({ definition }) =>
+        resolveParameterDefault(definition),
+    );
+    const showsDefault =
+        isNotSet &&
+        defaults[0] !== undefined &&
+        defaults.every((value) => isEqual(value, defaults[0]));
     const description = input.definition.description;
     const { getOrphanedTooltip } = useFilterTabPlacement();
     const { isOrphaned } = entry;
@@ -362,7 +374,7 @@ const ParameterPill: FC<{
                                         'controls.parameter.needsValue',
                                     )}
                                 </Text>
-                            ) : isNotSet ? (
+                            ) : isNotSet && !showsDefault ? (
                                 <Text span c="dimmed">
                                     {getUiString('controls.parameter.isNotSet')}
                                 </Text>
