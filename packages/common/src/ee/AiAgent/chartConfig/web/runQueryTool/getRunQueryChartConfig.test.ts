@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { getRunQueryChartConfig } from '../../../../../composer/runQueryChart/getRunQueryChartConfig';
 import { ChartType } from '../../../../../types/savedCharts';
 import { toolRunQueryArgsSchemaTransformed } from '../../../schemas';
 import { getWebAiChartConfig } from '../getWebAiChartConfig';
 import { getGroupByDimensions } from '../shared/getGroupByDimensions';
-import { getRunQueryChartConfig } from './getRunQueryChartConfig';
 
 const metricQuery = {
     exploreName: 'orders',

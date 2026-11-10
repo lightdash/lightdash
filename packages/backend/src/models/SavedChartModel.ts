@@ -9,6 +9,7 @@ import {
     ChartSummary,
     ChartType,
     ChartVersionSummary,
+    ComposerChartNotSupportedError,
     ConflictError,
     ContentReviewContentType,
     ContentType,
@@ -44,11 +45,14 @@ import {
     NotFoundError,
     Organization,
     ParameterError,
+    parseStoredComposerPipeline,
     parseStoredMergeDefinition,
     Project,
     ResolvedProjectColorPalette,
     SAVED_MERGE_QUERY_SCHEMA_VERSION,
     SavedChartDAO,
+    SavedChartVariant,
+    SavedComposerPipeline,
     SessionUser,
     SortField,
     Space,
@@ -56,6 +60,7 @@ import {
     TimeFrames,
     TimezoneSetting,
     toTimezoneSetting,
+    UnexpectedServerError,
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
@@ -126,6 +131,7 @@ import {
 import { dismissOpenContentDrafts } from './ContentDraftModel';
 import { cancelPendingContentReviewRequests } from './ContentReviewRequestModel';
 import { ContentVerificationModel } from './ContentVerificationModel';
+import { joinLatestSavedChartVersion } from './latestSavedChartVersion';
 import { type OnContentVersionCreated } from './OnContentVersionCreated';
 
 type DbSavedChartDetails = {
@@ -135,7 +141,8 @@ type DbSavedChartDetails = {
     name: string;
     description: string | undefined;
     saved_queries_version_id: number;
-    explore_name: string;
+    explore_name: string | null;
+    pipeline: SavedComposerPipeline | null;
     filters: AnyType;
     row_limit: number;
     metric_overrides: MetricOverrides | null;
@@ -184,13 +191,17 @@ const additionalMetricColumns = [
 
 type SavedChartVersionQueryRow = Pick<
     DbSavedChartVersion,
-    | 'explore_name'
     | 'filters'
     | 'row_limit'
     | 'metric_overrides'
     | 'dimension_overrides'
     | 'timezone'
->;
+> & { explore_name: string };
+
+type SavedChartReadOptions = {
+    deleted?: boolean | 'any';
+    projectUuid?: string;
+};
 
 type SavedChartVersionRows = {
     fields: Pick<DbSavedChartVersionField, 'name' | 'field_type' | 'order'>[];
@@ -366,6 +377,7 @@ const createSavedChartVersion = async (
                 dimension_overrides: storedDimensionOverrides,
                 filters: JSON.stringify(filters),
                 explore_name: tableName,
+                pipeline: null,
                 saved_query_id: savedChartId,
                 pivot_dimensions: pivotConfig ? pivotConfig.columns : null,
                 pivot_rows: pivotConfig?.rows ?? null,
@@ -660,7 +672,7 @@ export const createSavedChart = async (
                 let chart: InsertChart;
                 const baseChart = {
                     name,
-                    description,
+                    description: description ?? null,
                     last_version_chart_kind:
                         getChartKind(chartConfig.type, chartConfig.config) ||
                         ChartKind.VERTICAL_BAR,
@@ -806,6 +818,29 @@ type VersionSummaryRow = {
     first_name: string | null;
     last_name: string | null;
 };
+
+/** A chart row as validation reads it; a composer row has no explore to validate against. */
+export type ChartForValidation = {
+    uuid: string;
+    name: string;
+    filters: Filters;
+    dimensions: string[];
+    metrics: string[];
+    tableCalculations: string[];
+    customMetrics: string[];
+    customMetricsBaseDimensions: string[];
+    customBinDimensions: string[];
+    customSqlDimensions: string[];
+    sorts: string[];
+    customMetricsFilters: MetricFilterRule[];
+    dashboardUuid: string | undefined;
+    chartType: ChartConfig['type'];
+    chartConfig: ChartConfig['config'] | undefined;
+    pivotDimensions: string[];
+} & (
+    | { queryType: 'semantic'; tableName: string }
+    | { queryType: 'composer'; tableName: null }
+);
 
 export class SavedChartModel {
     private database: Knex;
@@ -1491,14 +1526,14 @@ export class SavedChartModel {
         savedChartUuid: string,
         data: UpdateSavedChart,
         expectedLocation?: SavedChartLocation,
-    ): Promise<SavedChartDAO> {
+    ): Promise<SavedChartVariant> {
         await this.updateChart(
             this.database,
             savedChartUuid,
             data,
             expectedLocation,
         );
-        return this.get(savedChartUuid);
+        return this.getVariant(savedChartUuid);
     }
 
     async updateInTransaction(
@@ -1619,7 +1654,7 @@ export class SavedChartModel {
     async updateMultiple(
         projectUuid: string,
         data: UpdateMultipleSavedChart[],
-    ): Promise<SavedChartDAO[]> {
+    ): Promise<SavedChartVariant[]> {
         await this.database.transaction(async (trx) => {
             const promises = data.map(async (savedChart) => {
                 const space = await trx(SpaceTableName)
@@ -1657,13 +1692,13 @@ export class SavedChartModel {
         });
         return Promise.all(
             data.map(async (savedChart) =>
-                this.get(savedChart.uuid, undefined, { projectUuid }),
+                this.getVariant(savedChart.uuid, undefined, { projectUuid }),
             ),
         );
     }
 
-    async permanentDelete(savedChartUuid: string): Promise<SavedChartDAO> {
-        const savedChart = await this.get(savedChartUuid, undefined, {
+    async permanentDelete(savedChartUuid: string): Promise<SavedChartVariant> {
+        const savedChart = await this.getVariant(savedChartUuid, undefined, {
             deleted: 'any',
         });
         await this.database(SavedChartsTableName)
@@ -1683,8 +1718,8 @@ export class SavedChartModel {
     async softDelete(
         savedChartUuid: string,
         userUuid: string,
-    ): Promise<SavedChartDAO> {
-        const savedChart = await this.get(savedChartUuid);
+    ): Promise<SavedChartVariant> {
+        const savedChart = await this.getVariant(savedChartUuid);
         await this.database(SavedChartsTableName)
             .update({
                 deleted_at: new Date(),
@@ -2271,12 +2306,32 @@ export class SavedChartModel {
         };
     }
 
+    /** Reads a classic chart. Throws a typed error on a composer row; readers that handle both kinds use getVariant. */
     async get(
         savedChartUuidOrSlug: string,
         versionUuid?: string,
-        options?: { deleted?: boolean | 'any'; projectUuid?: string },
+        options?: SavedChartReadOptions,
         trx?: Knex,
     ): Promise<SavedChartDAO> {
+        const variant = await this.getVariant(
+            savedChartUuidOrSlug,
+            versionUuid,
+            options,
+            trx,
+        );
+        if (variant.queryType === 'composer') {
+            throw new ComposerChartNotSupportedError(variant.chart.uuid);
+        }
+        return variant.chart;
+    }
+
+    /** Reads a chart of either kind, tagged by the query it runs. */
+    async getVariant(
+        savedChartUuidOrSlug: string,
+        versionUuid?: string,
+        options?: SavedChartReadOptions,
+        trx?: Knex,
+    ): Promise<SavedChartVariant> {
         const database = trx ?? this.database;
         return traceSpan(
             {
@@ -2376,6 +2431,7 @@ export class SavedChartModel {
                         `${DashboardsTableName}.slug as dashboardSlug`,
                         'saved_queries_versions.saved_queries_version_id',
                         'saved_queries_versions.explore_name',
+                        'saved_queries_versions.pipeline',
                         'saved_queries_versions.filters',
                         'saved_queries_versions.row_limit',
                         'saved_queries_versions.metric_overrides',
@@ -2452,6 +2508,101 @@ export class SavedChartModel {
                 const savedQueriesVersionId =
                     savedQuery.saved_queries_version_id;
 
+                const [resolvedPalette, verification] = await Promise.all([
+                    this.resolveColorPalette(
+                        {
+                            projectUuid: savedQuery.project_uuid,
+                            chartUuid: savedQuery.saved_query_uuid,
+                            dashboardUuid:
+                                savedQuery.dashboard_uuid ?? undefined,
+                        },
+                        trx,
+                    ),
+                    this.contentVerificationModel?.getByContent(
+                        ContentType.CHART,
+                        savedQuery.saved_query_uuid,
+                        trx,
+                    ) ?? null,
+                ]);
+
+                const chartConfig = {
+                    type: savedQuery.chart_type,
+                    config: savedQuery.chart_config,
+                } as ChartConfig;
+
+                // Everything both kinds share; the query itself is added per kind.
+                const base = {
+                    uuid: savedQuery.saved_query_uuid,
+                    projectUuid: savedQuery.project_uuid,
+                    name: savedQuery.name,
+                    description: savedQuery.description,
+                    createdAt: savedQuery.content_created_at,
+                    projectName: savedQuery.project_name,
+                    projectType: savedQuery.project_type,
+                    updatedAt: savedQuery.created_at,
+                    updatedByUser: {
+                        userUuid: savedQuery.user_uuid,
+                        firstName: savedQuery.first_name,
+                        lastName: savedQuery.last_name,
+                    },
+                    parameters: savedQuery.parameters || undefined,
+                    chartConfig,
+                    organizationUuid: savedQuery.organization_uuid,
+                    pivotConfig: getSavedChartPivotConfig(
+                        savedQuery.pivot_dimensions,
+                        savedQuery.pivot_rows,
+                    ),
+                    spaceUuid: savedQuery.space_uuid,
+                    spaceName: savedQuery.spaceName,
+                    pinnedListUuid: savedQuery.pinned_list_uuid,
+                    pinnedListOrder: null,
+                    dashboardUuid: savedQuery.dashboard_uuid,
+                    dashboardName: savedQuery.dashboardName,
+                    dashboardSlug: savedQuery.dashboardSlug,
+                    colorPalette: resolvedPalette.colors,
+                    colorPaletteUuid: savedQuery.color_palette_uuid ?? null,
+                    resolvedColorPalette: resolvedPalette,
+                    slug: savedQuery.slug,
+                    verification,
+                    // Soft delete fields (only populated when deleted: true)
+                    ...(savedQuery.deleted_at
+                        ? {
+                              deletedAt: savedQuery.deleted_at,
+                              deletedBy: savedQuery.deleted_by_user_uuid
+                                  ? {
+                                        userUuid:
+                                            savedQuery.deleted_by_user_uuid,
+                                        firstName:
+                                            savedQuery.deleted_by_user_first_name ??
+                                            '',
+                                        lastName:
+                                            savedQuery.deleted_by_user_last_name ??
+                                            '',
+                                    }
+                                  : null,
+                          }
+                        : {}),
+                };
+
+                // A composer version has no field, sort or metric query rows.
+                if (savedQuery.pipeline !== null) {
+                    return {
+                        queryType: 'composer',
+                        chart: {
+                            ...base,
+                            pipeline: parseStoredComposerPipeline(
+                                savedQuery.pipeline,
+                            ),
+                        },
+                    };
+                }
+                const exploreName = savedQuery.explore_name;
+                if (exploreName === null) {
+                    throw new UnexpectedServerError(
+                        `Chart version ${savedQueriesVersionId} has neither an explore nor a pipeline`,
+                    );
+                }
+
                 const fieldsQuery = database('saved_queries_version_fields')
                     .select(['name', 'field_type', 'order'])
                     .where('saved_queries_version_id', savedQueriesVersionId)
@@ -2507,7 +2658,6 @@ export class SavedChartModel {
                     additionalMetricsRows,
                     customBinDimensionsRows,
                     customSqlDimensionsRows,
-                    resolvedPalette,
                     mergeRow,
                 ] = await Promise.all([
                     fieldsQuery,
@@ -2516,20 +2666,11 @@ export class SavedChartModel {
                     additionalMetricsQuery,
                     customBinDimensionsQuery,
                     customSqlDimensionsQuery,
-                    this.resolveColorPalette(
-                        {
-                            projectUuid: savedQuery.project_uuid,
-                            chartUuid: savedQuery.saved_query_uuid,
-                            dashboardUuid:
-                                savedQuery.dashboard_uuid ?? undefined,
-                        },
-                        trx,
-                    ),
                     mergeQuery,
                 ]);
 
                 const metricQuery = SavedChartModel.buildMetricQuery(
-                    savedQuery,
+                    { ...savedQuery, explore_name: exploreName },
                     {
                         fields,
                         sorts,
@@ -2557,75 +2698,17 @@ export class SavedChartModel {
                     .sort((a, b) => a.order - b.order)
                     .map((x) => x.name);
 
-                const chartConfig = {
-                    type: savedQuery.chart_type,
-                    config: savedQuery.chart_config,
-                } as ChartConfig;
-
-                const verification =
-                    (await this.contentVerificationModel?.getByContent(
-                        ContentType.CHART,
-                        savedQuery.saved_query_uuid,
-                        trx,
-                    )) ?? null;
-
                 return {
-                    uuid: savedQuery.saved_query_uuid,
-                    projectUuid: savedQuery.project_uuid,
-                    name: savedQuery.name,
-                    description: savedQuery.description,
-                    tableName: savedQuery.explore_name,
-                    merge,
-                    createdAt: savedQuery.content_created_at,
-                    projectName: savedQuery.project_name,
-                    projectType: savedQuery.project_type,
-                    updatedAt: savedQuery.created_at,
-                    updatedByUser: {
-                        userUuid: savedQuery.user_uuid,
-                        firstName: savedQuery.first_name,
-                        lastName: savedQuery.last_name,
+                    queryType: 'semantic',
+                    chart: {
+                        ...base,
+                        tableName: exploreName,
+                        merge,
+                        metricQuery,
+                        tableConfig: {
+                            columnOrder,
+                        },
                     },
-                    metricQuery,
-                    parameters: savedQuery.parameters || undefined,
-                    chartConfig,
-                    tableConfig: {
-                        columnOrder,
-                    },
-                    organizationUuid: savedQuery.organization_uuid,
-                    pivotConfig: getSavedChartPivotConfig(
-                        savedQuery.pivot_dimensions,
-                        savedQuery.pivot_rows,
-                    ),
-                    spaceUuid: savedQuery.space_uuid,
-                    spaceName: savedQuery.spaceName,
-                    pinnedListUuid: savedQuery.pinned_list_uuid,
-                    pinnedListOrder: null,
-                    dashboardUuid: savedQuery.dashboard_uuid,
-                    dashboardName: savedQuery.dashboardName,
-                    dashboardSlug: savedQuery.dashboardSlug,
-                    colorPalette: resolvedPalette.colors,
-                    colorPaletteUuid: savedQuery.color_palette_uuid ?? null,
-                    resolvedColorPalette: resolvedPalette,
-                    slug: savedQuery.slug,
-                    verification,
-                    // Soft delete fields (only populated when deleted: true)
-                    ...(savedQuery.deleted_at
-                        ? {
-                              deletedAt: savedQuery.deleted_at,
-                              deletedBy: savedQuery.deleted_by_user_uuid
-                                  ? {
-                                        userUuid:
-                                            savedQuery.deleted_by_user_uuid,
-                                        firstName:
-                                            savedQuery.deleted_by_user_first_name ??
-                                            '',
-                                        lastName:
-                                            savedQuery.deleted_by_user_last_name ??
-                                            '',
-                                    }
-                                  : null,
-                          }
-                        : {}),
                 };
             },
         );
@@ -2682,7 +2765,9 @@ export class SavedChartModel {
             ])
             .whereIn(`${SavedChartsTableName}.saved_query_uuid`, uuids)
             .where(`${SavedChartsTableName}.project_uuid`, projectUuid)
-            .whereNull(`${SavedChartsTableName}.deleted_at`);
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            // Composer charts have no metric query to compare
+            .whereNotNull(`${SavedChartVersionsTableName}.explore_name`);
         if (charts.length === 0) return [];
         const versionIds = charts.map(
             (chart) => chart.saved_queries_version_id,
@@ -2928,27 +3013,7 @@ export class SavedChartModel {
         projectUuid: string,
         chartUuid?: string,
         exploreNames?: string[],
-    ): Promise<
-        Array<{
-            uuid: string;
-            name: string;
-            tableName: string;
-            filters: Filters;
-            dimensions: string[];
-            metrics: string[];
-            tableCalculations: string[];
-            customMetrics: string[];
-            customMetricsBaseDimensions: string[];
-            customBinDimensions: string[];
-            customSqlDimensions: string[];
-            sorts: string[];
-            customMetricsFilters: MetricFilterRule[];
-            dashboardUuid: string | undefined;
-            chartType: ChartConfig['type'];
-            chartConfig: ChartConfig['config'] | undefined;
-            pivotDimensions: string[];
-        }>
-    > {
+    ): Promise<ChartForValidation[]> {
         // Optimized: Use scalar subqueries instead of multiple LEFT JOINs to avoid cartesian product.
         // Previously, joining 6 child tables caused row explosion (e.g., 5 fields × 2 calcs × 3 metrics = 30+ rows per chart)
         const cteName = 'chart_last_version_cte';
@@ -2960,6 +3025,9 @@ export class SavedChartModel {
                 uuid: `${cteName}.saved_query_uuid`,
                 name: `${cteName}.name`,
                 dashboardUuid: `${cteName}.dashboard_uuid`,
+                queryType: this.database.raw(
+                    `CASE WHEN saved_queries_versions.pipeline IS NULL THEN 'semantic' ELSE 'composer' END`,
+                ),
                 tableName: 'saved_queries_versions.explore_name',
                 filters: 'saved_queries_versions.filters',
                 parameters: 'saved_queries_versions.parameters',
@@ -3025,6 +3093,29 @@ export class SavedChartModel {
                 pivotDimensions: chart.pivotDimensions ?? [],
             }))
             .filter((chart) => !chartsNotInTilesUuids.has(chart.uuid));
+    }
+
+    /** The live composer charts among the given uuids, so bulk surfaces can leave them out by name. */
+    async findComposerCharts(
+        savedChartUuids: string[],
+    ): Promise<Pick<ChartSummary, 'uuid' | 'name' | 'slug'>[]> {
+        if (savedChartUuids.length === 0) return [];
+        return joinLatestSavedChartVersion(
+            this.database(SavedChartsTableName).select({
+                uuid: `${SavedChartsTableName}.saved_query_uuid`,
+                name: `${SavedChartsTableName}.name`,
+                slug: `${SavedChartsTableName}.slug`,
+            }),
+            this.database,
+            ['pipeline'],
+            'latest_version',
+        )
+            .whereIn(
+                `${SavedChartsTableName}.saved_query_uuid`,
+                savedChartUuids,
+            )
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .whereNotNull('latest_version.pipeline');
     }
 
     async getSlugsForUuids(uuids: string[]): Promise<string[]> {
@@ -3368,6 +3459,7 @@ export class SavedChartModel {
             .whereNull(`${SavedChartsTableName}.deleted_at`);
     }
 
+    /** Composer charts are left out: they have no explore to offer filters from yet. */
     async getInfoForAvailableFilters(savedChartUuids: string[]): Promise<
         ({
             spaceUuid: Space['uuid'];
@@ -3408,20 +3500,15 @@ export class SavedChartModel {
                     `${SavedChartsTableName}.space_id`,
                 );
             })
-            .joinRaw(
-                `inner join lateral (
-                    select sqv.explore_name
-                    from ?? as sqv
-                    where sqv.saved_query_id = ??.saved_query_id
-                    order by sqv.saved_queries_version_id desc
-                    limit 1
-                ) as ?? on true`,
-                [
+            .modify((query) =>
+                joinLatestSavedChartVersion(
+                    query,
+                    this.database,
+                    ['explore_name', 'pipeline'],
                     SavedChartVersionsTableName,
-                    SavedChartsTableName,
-                    SavedChartVersionsTableName,
-                ],
+                ),
             )
+            .whereNull(`${SavedChartVersionsTableName}.pipeline`)
             .leftJoin(
                 'projects',
                 `${SpaceTableName}.project_id`,
@@ -3434,10 +3521,6 @@ export class SavedChartModel {
             )
             .whereNull(`${SavedChartsTableName}.deleted_at`)
             .whereNull(`${SpaceTableName}.deleted_at`);
-
-        if (charts.length === 0) {
-            throw new NotFoundError('Saved queries not found');
-        }
         return charts;
     }
 
@@ -3500,7 +3583,8 @@ export class SavedChartModel {
                                            limit 1)`),
             )
             .whereNull(`${SavedChartsTableName}.deleted_at`)
-            .whereNull(`${SpaceTableName}.deleted_at`);
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .whereNotNull(`${SavedChartVersionsTableName}.explore_name`);
     }
 
     async findChartsWithCustomFields(projectUuid: string): Promise<

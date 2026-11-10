@@ -172,6 +172,12 @@ const setup = () => {
             })),
         ),
     };
+    const savedChartModel = {
+        getVariant: vi.fn().mockResolvedValue({
+            queryType: 'semantic',
+            chart: { uuid: 'chart', spaceUuid, name: 'Chart' },
+        }),
+    };
     const service = new FavoritesService({
         analytics: { track: vi.fn() },
         userFavoritesModel,
@@ -180,11 +186,7 @@ const setup = () => {
         spacePermissionService,
         directAccessService,
         documentService,
-        savedChartModel: {
-            get: vi
-                .fn()
-                .mockResolvedValue({ uuid: 'chart', spaceUuid, name: 'Chart' }),
-        },
+        savedChartModel,
         dashboardModel: {
             getByIdOrSlug: vi.fn().mockResolvedValue({
                 uuid: 'dashboard',
@@ -208,6 +210,7 @@ const setup = () => {
         spacePermissionService,
         directAccessService,
         userFavoritesModel,
+        savedChartModel,
     };
 };
 
@@ -257,6 +260,37 @@ describe('Document favorites', () => {
             expect(stored.get(userUuid)).toEqual([]);
         },
     );
+
+    it('favourites a composer chart like any other chart', async () => {
+        const { service, savedChartModel } = setup();
+        savedChartModel.getVariant.mockResolvedValueOnce({
+            queryType: 'composer',
+            chart: {
+                uuid: 'composer',
+                spaceUuid,
+                dashboardUuid: 'dashboard',
+                name: 'Pipeline',
+            },
+        });
+        const account = makeAccount(
+            userUuid,
+            undefined,
+            OrganizationMemberRole.INTERACTIVE_VIEWER,
+        );
+
+        expect(
+            await service.toggleFavorite(
+                account,
+                projectUuid,
+                ContentType.CHART,
+                'composer',
+            ),
+        ).toEqual({
+            isFavorite: true,
+            contentType: ContentType.CHART,
+            contentUuid: 'composer',
+        });
+    });
 
     it('resolves a slug to the canonical UUID and keeps toggles personal', async () => {
         const { service } = setup();

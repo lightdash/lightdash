@@ -1,8 +1,8 @@
+import { formatFieldLabel } from '../../../../composer/runQueryChart/shared/formatFieldLabel';
 import { type ItemsMap } from '../../../../types/field';
 import { type ParametersValuesMap } from '../../../../types/parameters';
 import { getFormattedValue } from '../../../../visualizations/helpers/valueFormatter';
 import { type PivotValuesColumn } from '../../../../visualizations/types';
-import { formatFieldLabel } from '../shared/formatFieldLabel';
 import { type GetPivotedResultsFn } from './types';
 
 // Mirrors the app's pivoted series names: formatted pivot values, prefixed with the metric when the chart plots several.

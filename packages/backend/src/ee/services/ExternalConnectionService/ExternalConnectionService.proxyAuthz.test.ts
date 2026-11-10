@@ -149,6 +149,10 @@ function buildService({
                 config: { dataAppVizUuid: chartAppUuid },
             },
         }),
+        getVariant: vi.fn(async (...args: unknown[]) => ({
+            queryType: 'semantic',
+            chart: await savedChartModel.get(...args),
+        })),
         getSummary: vi.fn().mockResolvedValue({
             uuid: 'chart-1',
             projectUuid: chartProjectUuid,

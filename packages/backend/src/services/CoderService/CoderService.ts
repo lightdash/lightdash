@@ -3015,9 +3015,16 @@ export class CoderService extends BaseService {
             pageSize: this.lightdashConfig.contentAsCode.maxDownloads,
         });
 
-        const chartPromises = limitedChartSummaries.map((chart) =>
-            this.savedChartModel.get(chart.uuid),
+        // Composer charts have no code shape yet, so the download names them instead of failing
+        const composerCharts = await this.savedChartModel.findComposerCharts(
+            limitedChartSummaries.map((chart) => chart.uuid),
         );
+        const composerChartUuids = new Set(
+            composerCharts.map((composerChart) => composerChart.uuid),
+        );
+        const chartPromises = limitedChartSummaries
+            .filter((chart) => !composerChartUuids.has(chart.uuid))
+            .map((chart) => this.savedChartModel.get(chart.uuid));
         const charts = await Promise.all(chartPromises);
 
         // get all spaces to map  dashboardSlug
@@ -3091,7 +3098,7 @@ export class CoderService extends BaseService {
 
         const missingIds = CoderService.getMissingIds(
             chartIds,
-            charts,
+            [...charts, ...composerCharts],
             chartAliases,
         );
 
@@ -4584,6 +4591,7 @@ export class CoderService extends BaseService {
                 `Finished creating chart "${chartWithDefaults.name}" on project ${projectUuid}`,
             );
             const promotionChanges: PromotionChanges = {
+                skippedCharts: [],
                 charts: [
                     {
                         action: PromotionAction.CREATE,
@@ -5141,6 +5149,7 @@ export class CoderService extends BaseService {
             // Note: We use a minimal object for the promotion changes since SQL charts
             // don't have the same structure as regular charts. The CLI only uses the action.
             const promotionChanges: PromotionChanges = {
+                skippedCharts: [],
                 charts: [
                     {
                         action: PromotionAction.CREATE,
@@ -5211,6 +5220,7 @@ export class CoderService extends BaseService {
         await this.stampAppliedSqlChartSnapshot(user, projectUuid, slug, false);
 
         const promotionChanges: PromotionChanges = {
+            skippedCharts: [],
             charts: [
                 {
                     action: PromotionAction.UPDATE,
@@ -6173,6 +6183,7 @@ export class CoderService extends BaseService {
 
             return withTileWarnings(
                 {
+                    skippedCharts: [],
                     dashboards: [
                         {
                             action: PromotionAction.CREATE,

@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    ComposerChartNotSupportedError,
     ContentType,
     DashboardControlRefKind,
     DashboardTileTypes,
@@ -25,6 +26,7 @@ import {
     type DashboardFilterRule,
     type DashboardParameterControl,
     type Explore,
+    type SavedChartVariant,
     type UpdateDashboard,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -119,14 +121,23 @@ const analyticsModel = {
 };
 const savedChartModel = {
     get: vi.fn(async () => chart),
+    getVariant: vi.fn(
+        async (_uuid: string): Promise<SavedChartVariant> => ({
+            queryType: 'semantic',
+            chart,
+        }),
+    ),
+    findComposerCharts: vi.fn(
+        async (): Promise<{ uuid: string; name: string; slug: string }[]> => [],
+    ),
     transaction: vi.fn(async (cb: (tx: never) => Promise<void>) =>
         cb(undefined as never),
     ),
     createVersion: vi.fn(async () => chart),
     create: vi.fn(async () => ({ ...chart, uuid: 'duplicated-chart-uuid' })),
     permanentDelete: vi.fn(async () => ({
-        uuid: 'chart_uuid',
-        projectUuid: 'project_uuid',
+        queryType: 'semantic',
+        chart: { uuid: 'chart_uuid', projectUuid: 'project_uuid' },
     })),
     getInfoForAvailableFilters: vi.fn(async () => []),
 };
@@ -918,11 +929,14 @@ describe('DashboardService', () => {
         });
 
         test('allows referencing a chart from a source space', async () => {
-            savedChartModel.get.mockResolvedValueOnce({
-                ...chart,
-                uuid: 'source-chart-uuid',
-                spaceUuid: sourceSpaceUuid,
-                dashboardUuid: null,
+            savedChartModel.getVariant.mockResolvedValueOnce({
+                queryType: 'semantic',
+                chart: {
+                    ...chart,
+                    uuid: 'source-chart-uuid',
+                    spaceUuid: sourceSpaceUuid,
+                    dashboardUuid: null,
+                },
             });
 
             await service.updateFromAccount(
@@ -940,11 +954,14 @@ describe('DashboardService', () => {
         });
 
         test('rejects a chart from a space outside the token scope', async () => {
-            savedChartModel.get.mockResolvedValueOnce({
-                ...chart,
-                uuid: 'other-chart-uuid',
-                spaceUuid: 'other-space-uuid',
-                dashboardUuid: null,
+            savedChartModel.getVariant.mockResolvedValueOnce({
+                queryType: 'semantic',
+                chart: {
+                    ...chart,
+                    uuid: 'other-chart-uuid',
+                    spaceUuid: 'other-space-uuid',
+                    dashboardUuid: null,
+                },
             });
 
             await expect(
@@ -959,11 +976,14 @@ describe('DashboardService', () => {
         });
 
         test('rejects a dashboard-owned chart from a source space', async () => {
-            savedChartModel.get.mockResolvedValueOnce({
-                ...chart,
-                uuid: 'owned-chart-uuid',
-                spaceUuid: sourceSpaceUuid,
-                dashboardUuid: 'another-dashboard-uuid',
+            savedChartModel.getVariant.mockResolvedValueOnce({
+                queryType: 'semantic',
+                chart: {
+                    ...chart,
+                    uuid: 'owned-chart-uuid',
+                    spaceUuid: sourceSpaceUuid,
+                    dashboardUuid: 'another-dashboard-uuid',
+                },
             });
 
             await expect(
@@ -978,11 +998,14 @@ describe('DashboardService', () => {
         });
 
         test('rejects a source-space chart when the actor cannot view it', async () => {
-            savedChartModel.get.mockResolvedValueOnce({
-                ...chart,
-                uuid: 'source-chart-uuid',
-                spaceUuid: sourceSpaceUuid,
-                dashboardUuid: null,
+            savedChartModel.getVariant.mockResolvedValueOnce({
+                queryType: 'semantic',
+                chart: {
+                    ...chart,
+                    uuid: 'source-chart-uuid',
+                    spaceUuid: sourceSpaceUuid,
+                    dashboardUuid: null,
+                },
             });
             const actorWithoutChartAccess = {
                 ...user,
@@ -1020,7 +1043,7 @@ describe('DashboardService', () => {
                 { projectUuid: dashboard.projectUuid },
             );
 
-            expect(savedChartModel.get).not.toHaveBeenCalled();
+            expect(savedChartModel.getVariant).not.toHaveBeenCalled();
             expect(dashboardModel.addVersion).toHaveBeenCalled();
         });
 
@@ -1058,11 +1081,14 @@ describe('DashboardService', () => {
         });
 
         test('validates an existing tile retargeted to a new chart', async () => {
-            savedChartModel.get.mockResolvedValueOnce({
-                ...chart,
-                uuid: 'other-chart-uuid',
-                spaceUuid: 'other-space-uuid',
-                dashboardUuid: null,
+            savedChartModel.getVariant.mockResolvedValueOnce({
+                queryType: 'semantic',
+                chart: {
+                    ...chart,
+                    uuid: 'other-chart-uuid',
+                    spaceUuid: 'other-space-uuid',
+                    dashboardUuid: null,
+                },
             });
 
             await expect(
@@ -1749,6 +1775,90 @@ describe('DashboardService', () => {
             );
         });
 
+        test('refuses a duplicated composer tile before renaming the dashboard', async () => {
+            savedChartModel.findComposerCharts.mockResolvedValueOnce([
+                {
+                    uuid: 'scoped-chart-uuid',
+                    name: 'Pipeline',
+                    slug: 'pipeline',
+                },
+            ]);
+            const composerTile = {
+                uuid: 'tile-1',
+                type: DashboardTileTypes.SAVED_CHART as const,
+                x: 0,
+                y: 0,
+                h: 5,
+                w: 5,
+                tabUuid: undefined,
+                properties: {
+                    title: 'Pipeline',
+                    savedChartUuid: 'scoped-chart-uuid',
+                    belongsToDashboard: true,
+                },
+            };
+
+            await expect(
+                service.update(user, dashboardUuid, {
+                    ...updateDashboardTiles,
+                    name: 'Renamed',
+                    tiles: [composerTile, { ...composerTile, uuid: 'tile-2' }],
+                }),
+            ).rejects.toBeInstanceOf(ComposerChartNotSupportedError);
+            expect(dashboardModel.update).not.toHaveBeenCalled();
+            expect(dashboardModel.addVersion).not.toHaveBeenCalled();
+        });
+
+        test('retitles, moves a composer tile and adds a classic tile without copying anything', async () => {
+            const composerTile = {
+                uuid: 'composer-tile',
+                type: DashboardTileTypes.SAVED_CHART as const,
+                x: 0,
+                y: 0,
+                h: 5,
+                w: 5,
+                tabUuid: undefined,
+                properties: {
+                    title: 'Pipeline',
+                    savedChartUuid: 'composer-chart-uuid',
+                    belongsToDashboard: true,
+                    queryType: 'composer' as const,
+                },
+            };
+            const movedComposerTile = { ...composerTile, x: 12, y: 9 };
+            const classicTile = {
+                ...composerTile,
+                uuid: 'classic-tile',
+                properties: {
+                    title: 'Orders',
+                    savedChartUuid: 'classic-chart-uuid',
+                    belongsToDashboard: false,
+                    queryType: 'semantic' as const,
+                },
+            };
+
+            await service.update(user, dashboardUuid, {
+                ...updateDashboardTiles,
+                name: 'Renamed',
+                tiles: [movedComposerTile, classicTile],
+            });
+
+            expect(dashboardModel.update).toHaveBeenCalledWith(
+                dashboardUuid,
+                expect.objectContaining({ name: 'Renamed' }),
+            );
+            expect(dashboardModel.addVersion).toHaveBeenCalledWith(
+                dashboardUuid,
+                expect.objectContaining({
+                    tiles: [movedComposerTile, classicTile],
+                }),
+                user,
+                projectUuid,
+            );
+            expect(savedChartModel.create).not.toHaveBeenCalled();
+            expect(savedChartModel.createVersion).not.toHaveBeenCalled();
+        });
+
         describe('control order', () => {
             const savedOrder = [
                 { kind: DashboardControlRefKind.FILTER, id: 'filter-1' },
@@ -2030,7 +2140,10 @@ describe('DashboardService', () => {
 
         afterEach(() => {
             projectModel.getExploreFromCache.mockReset();
-            savedChartModel.get.mockImplementation(async () => chart);
+            savedChartModel.getVariant.mockImplementation(async () => ({
+                queryType: 'semantic',
+                chart,
+            }));
             catalogModel.updateFieldsChartUsage.mockImplementation(
                 async () => undefined,
             );
@@ -2041,9 +2154,9 @@ describe('DashboardService', () => {
                 ...dashboard,
                 tiles,
             });
-            savedChartModel.get.mockResolvedValueOnce({
-                ...chart,
-                tableName: 'missing',
+            savedChartModel.getVariant.mockResolvedValueOnce({
+                queryType: 'semantic',
+                chart: { ...chart, tableName: 'missing' },
             });
             projectModel.getExploreFromCache
                 .mockRejectedValueOnce(new NotFoundError('missing Explore'))
@@ -2056,6 +2169,43 @@ describe('DashboardService', () => {
                 39,
             );
             expect(dashboardModel.permanentDelete).toHaveBeenCalledTimes(1);
+        });
+
+        test('deletes a dashboard holding a composer tile without looking for its explore', async () => {
+            const { tableName, metricQuery, tableConfig, ...composerChart } =
+                chart;
+            dashboardModel.getByIdOrSlug.mockResolvedValueOnce({
+                ...dashboard,
+                tiles: tiles.slice(0, 2),
+            });
+            savedChartModel.getVariant.mockImplementation(
+                async (uuid: string) =>
+                    uuid === 'chart-1'
+                        ? {
+                              queryType: 'composer',
+                              chart: {
+                                  ...composerChart,
+                                  uuid,
+                                  pipeline: {
+                                      schemaVersion: 1,
+                                      nodes: [],
+                                      terminalNodeId: 'orders',
+                                  },
+                              },
+                          }
+                        : { queryType: 'semantic', chart },
+            );
+            projectModel.getExploreFromCache.mockResolvedValue(explore);
+
+            await service.delete(user, dashboardUuid);
+
+            expect(projectModel.getExploreFromCache).toHaveBeenCalledTimes(1);
+            expect(catalogModel.updateFieldsChartUsage).toHaveBeenCalledTimes(
+                1,
+            );
+            expect(dashboardModel.permanentDelete).toHaveBeenCalledWith(
+                dashboardUuid,
+            );
         });
 
         test('loads the same missing Explore only once per deletion request', async () => {
@@ -2087,9 +2237,9 @@ describe('DashboardService', () => {
             let active = 0;
             let peak = 0;
             let index = 0;
-            savedChartModel.get.mockImplementation(async () => ({
-                ...chart,
-                tableName: `table-${(index += 1)}`,
+            savedChartModel.getVariant.mockImplementation(async () => ({
+                queryType: 'semantic',
+                chart: { ...chart, tableName: `table-${(index += 1)}` },
             }));
             projectModel.getExploreFromCache.mockImplementation(async () => {
                 active += 1;
@@ -2522,6 +2672,27 @@ describe('DashboardService', () => {
                 service as any,
                 'duplicateChartForDashboard',
             ).mockResolvedValue('new-duplicated-chart-uuid');
+        });
+
+        test('refuses by name before creating the copy when a dashboard-owned tile is a composer chart', async () => {
+            savedChartModel.findComposerCharts.mockResolvedValueOnce([
+                {
+                    uuid: 'scoped-chart-uuid',
+                    name: 'Pipeline',
+                    slug: 'pipeline',
+                },
+            ]);
+
+            await expect(
+                service.duplicate(user, projectUuid, dashboard.uuid, {
+                    dashboardName: 'Duplicated',
+                    dashboardDesc: 'desc',
+                }),
+            ).rejects.toBeInstanceOf(ComposerChartNotSupportedError);
+            expect(savedChartModel.findComposerCharts).toHaveBeenCalledWith([
+                'scoped-chart-uuid',
+            ]);
+            expect(dashboardModel.create).not.toHaveBeenCalled();
         });
 
         test('should make whoever duplicates the owner of the copy', async () => {

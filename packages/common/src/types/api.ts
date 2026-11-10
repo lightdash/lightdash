@@ -1,4 +1,5 @@
 import { type ExploreWarningReport } from '../compiler/compilationReport';
+import type { ApiAiAgentNodeCitationPipelineResponse } from '../composer/composerArtifact';
 // Note: EE types removed from direct import to avoid circular module resolution
 // They are still available via the re-export below: export * from './ee';
 import type {
@@ -19,7 +20,6 @@ import type {
     ApiAiAgentEvaluationRunSummaryListResponse,
     ApiAiAgentEvaluationSummaryListResponse,
     ApiAiAgentMemoryResponse,
-    ApiAiAgentNodeCitationPipelineResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentReviewItemActivityResponse,
     ApiAiAgentReviewItemPrDiffResponse,

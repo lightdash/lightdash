@@ -1,0 +1,4 @@
+# Composer pipeline definition
+
+- Nothing here imports from an `ee/` path, type-only imports included; `no-restricted-imports` in `packages/common/.oxlintrc.json` enforces it. Open-source rendering and content as code read these modules.
+- Schema descriptions here are read by the in-app agent and the MCP server. Before editing them, read `docs/ai-agent/prompt-writing-principles.md`.

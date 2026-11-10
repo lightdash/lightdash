@@ -1,5 +1,7 @@
+import { isAiComposerChartArtifactConfig } from '../../composer/composerArtifact';
+import { parseComposerStoredChartVizConfig } from '../../composer/composerChartVizConfigSchema';
+import { isCustomChartTypeSlugChartConfig } from '../../composer/runQueryChart/chartConfigSchema';
 import { type DataAppVizChart } from '../../types/savedCharts';
-import { isAiComposerChartArtifactConfig } from './composerArtifact';
 import { AI_DEFAULT_MAX_QUERY_LIMIT } from './constants';
 import type {
     AiChartArtifactConfig,
@@ -9,13 +11,11 @@ import type {
 import {
     convertAiTableCalcsSchemaToTableCalcs,
     filterAggregationCustomMetrics,
-    isCustomChartTypeSlugChartConfig,
     parsePersistedRunQueryArgs,
     parsePersistedRunQueryPayload,
     toolRunQueryArgsSchemaPersisted,
     toolRunQueryExpressionResolvedArgsSchema,
 } from './schemas';
-import { parseComposerStoredChartVizConfig } from './schemas/tools/composerChartVizConfigSchema';
 import { AiResultType } from './types';
 import { getValidAiQueryLimit } from './validators';
 

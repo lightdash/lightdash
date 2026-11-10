@@ -97,6 +97,7 @@ export * from './dbt/metricFlow';
 export * from './dbt/projectMergedManifest';
 // './dbt/validation' is not re-exported: it eagerly imports ~3.6 MB of dbt JSON
 // schemas. Import it from '@lightdash/common/dbt/validation' instead.
+export * from './composer';
 export * from './ee';
 export * from './preAggregates';
 export * from './pivot/derivePivotConfigFromChart';
@@ -713,6 +714,16 @@ export const SEED_GROUP = {
 export const SEED_GROUP_2 = {
     groupUuid: '1456c265-f375-4d64-bd33-105c84ad9b5d',
     name: 'Org 1 Editor Group',
+};
+
+// A dashboard-owned composer chart row seeded for the API tests
+export const SEED_COMPOSER_CHART_DASHBOARD = {
+    name: 'Dashboard with a composer chart',
+    slug: 'dashboard-with-a-composer-chart',
+};
+export const SEED_COMPOSER_CHART = {
+    /** A hand-authored custom metric, reshaped by a DuckDB node */
+    revenueShare: '[Composer] Revenue share by order status',
 };
 
 export type ArgumentsOf<F extends Function> = F extends (

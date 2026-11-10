@@ -9,6 +9,7 @@ import {
     CatalogType,
     ChartType,
     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
+    ComposerChartNotSupportedError,
     ContentType,
     CustomDimensionType,
     DATA_APP_VIZ_TEMPLATE,
@@ -61,6 +62,10 @@ import { CoderService } from '../../../services/CoderService/CoderService';
 import { validatePagination } from '../../../services/ProjectService/resultsPagination';
 import { PromoteService } from '../../../services/PromoteService/PromoteService';
 import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlService';
+import {
+    composerSavedChartVariant,
+    semanticSavedChartVariant,
+} from '../../../testing/composerSavedChartFixture';
 import { getDescribeWarehouseTable } from '../ai/tools/describeWarehouseTable';
 import { getRunContentQuery } from '../ai/tools/runContentQuery';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
@@ -7117,7 +7122,11 @@ describe.each(agentActionTestCases)(
                 const resource = { uuid: 'resource', spaceUuid: 'space' };
                 const service = makeService({
                     savedChartModel: {
-                        get: vi.fn().mockResolvedValue(resource),
+                        getVariant: vi
+                            .fn()
+                            .mockResolvedValue(
+                                semanticSavedChartVariant(resource),
+                            ),
                     },
                     dashboardModel: {
                         getByIdOrSlug: vi.fn().mockResolvedValue(resource),
@@ -8644,14 +8653,22 @@ describe('AiAgentToolsService in a thread bound to a dashboard', () => {
             const service = makeService({
                 dashboardModel: dashboardModel(),
                 savedChartModel: {
-                    get: vi.fn(async (slug: string) => ({
-                        uuid: `${slug}-uuid`,
-                        spaceUuid: 'space-uuid',
-                        dashboardUuid:
-                            slug === 'dashboard-chart'
-                                ? boundDashboard.uuid
-                                : null,
-                    })),
+                    getVariant: vi.fn(async (slug: string) =>
+                        slug === 'composer-chart'
+                            ? composerSavedChartVariant({
+                                  uuid: 'composer-chart-uuid',
+                                  spaceUuid: 'space-uuid',
+                                  dashboardUuid: boundDashboard.uuid,
+                              })
+                            : semanticSavedChartVariant({
+                                  uuid: `${slug}-uuid`,
+                                  spaceUuid: 'space-uuid',
+                                  dashboardUuid:
+                                      slug === 'dashboard-chart'
+                                          ? boundDashboard.uuid
+                                          : null,
+                              }),
+                    ),
                 },
                 savedChartService: { createScheduler: createChartScheduler },
                 dashboardService: {
@@ -8681,6 +8698,16 @@ describe('AiAgentToolsService in a thread bound to a dashboard', () => {
 
             expect(createDashboardScheduler).toHaveBeenCalled();
             expect(createChartScheduler).toHaveBeenCalled();
+        });
+
+        it('refuses a composer chart saved in the bound dashboard by name before creating anything', async () => {
+            const { service, createChartScheduler } = deliveryService();
+
+            await expect(
+                deliver(service, 'chart', 'composer-chart'),
+            ).rejects.toBeInstanceOf(ComposerChartNotSupportedError);
+
+            expect(createChartScheduler).not.toHaveBeenCalled();
         });
 
         it('rejects other dashboards and space charts', async () => {
@@ -8733,11 +8760,14 @@ describe('AiAgentToolsService in a thread bound to a chart', () => {
         });
     const savedChartModel = () => ({
         getSummary: vi.fn().mockResolvedValue(boundChart),
-        get: vi.fn(async (slug: string) => ({
-            uuid: slug === boundChart.slug ? boundChart.uuid : `${slug}-uuid`,
-            spaceUuid: 'space-uuid',
-            dashboardUuid: null,
-        })),
+        getVariant: vi.fn(async (slug: string) =>
+            semanticSavedChartVariant({
+                uuid:
+                    slug === boundChart.slug ? boundChart.uuid : `${slug}-uuid`,
+                spaceUuid: 'space-uuid',
+                dashboardUuid: null,
+            }),
+        ),
     });
     const contentValidation = () => ({
         validateNewContent: vi.fn(),

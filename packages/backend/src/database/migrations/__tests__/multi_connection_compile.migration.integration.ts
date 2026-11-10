@@ -2152,7 +2152,7 @@ Sources in this project: Core models, marketing, finance.`;
                             const saved =
                                 await projectModel.getExploreFromCache(
                                     fixture.projectUuid,
-                                    storedChart!.tableName,
+                                    storedChart!.tableName!,
                                 );
                             return (
                                 await warehouse.raw(

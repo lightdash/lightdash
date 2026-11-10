@@ -359,7 +359,7 @@ describe('ContentReviewRequestModel PostgreSQL integration', () => {
             const [chart] = await transaction(SavedChartsTableName)
                 .insert({
                     name,
-                    description: undefined,
+                    description: null,
                     slug: `similar-${randomUUID()}`,
                     project_uuid: projectUuid,
                     space_id: space.space_id,

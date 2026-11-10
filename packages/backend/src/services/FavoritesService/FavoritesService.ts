@@ -123,7 +123,8 @@ export class FavoritesService extends BaseService {
                 );
                 break;
             case ContentType.CHART: {
-                const chart = await this.savedChartModel.get(contentUuid);
+                const { chart } =
+                    await this.savedChartModel.getVariant(contentUuid);
                 resolvedContentUuid = chart.uuid;
                 const context = await this.spacePermissionService.resolveAccess(
                     user.userUuid,

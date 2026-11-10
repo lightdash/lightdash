@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { customChartTypeOptionValueSchema } from './toolRunQueryArgs';
+import { customChartTypeOptionValueSchema } from './runQueryChart/chartConfigSchema';
 
 const refSchema = z
     .string()

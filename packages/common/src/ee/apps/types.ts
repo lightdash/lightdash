@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { dataAppVizGradientValueSchema } from '../../composer/runQueryChart/chartConfigSchema';
 import { type AgentIdentityClaim } from '../../types/agentIdentity';
 import { type ReadyQueryResultsPage } from '../../types/api';
 import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
@@ -21,10 +22,10 @@ import { type ResultRow } from '../../types/results';
 import {
     type ChartConfig,
     type DataAppVizFieldMapping,
+    type DataAppVizFieldType,
     type SavedChart,
 } from '../../types/savedCharts';
 import assertUnreachable from '../../utils/assertUnreachable';
-import { isHexCodeColor } from '../../utils/colors';
 import { toLlmJsonSchema } from '../../utils/zodJsonSchema';
 import { type ChartTypeIcon } from './chartTypeIcons';
 import {
@@ -902,9 +903,6 @@ export type ApiDataAppActivityResponse = ApiSuccess<{
 // schema (runtime validation of the generated declaration), kept in sync by the
 // compile-time assertion below.
 
-// Binds a host query column: dimension (grouping), metric (measure), series
-// (splits/colours), column (any result column — metric or dimension).
-export type DataAppVizFieldType = 'dimension' | 'metric' | 'series' | 'column';
 export type DataAppVizField = {
     name: string;
     label: string;
@@ -1063,22 +1061,6 @@ const vizFieldsForRead = z
 const vizFieldsForGeneration = z
     .array(vizField(true))
     .describe(vizFieldsDescription);
-
-export const dataAppVizGradientValueSchema = z.object({
-    colors: z
-        .array(
-            z
-                .string()
-                .refine(
-                    isHexCodeColor,
-                    'Expected a 3, 6, or 8-digit hex color',
-                ),
-        )
-        .min(2)
-        .max(5),
-    min: z.union([z.number().finite(), z.literal('auto')]),
-    max: z.union([z.number().finite(), z.literal('auto')]),
-});
 
 const vizConfigOptionBranches = [
     z.object({

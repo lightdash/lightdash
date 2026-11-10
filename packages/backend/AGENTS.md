@@ -10,6 +10,15 @@ Anything persisted or verified using `LIGHTDASH_SECRET` must be covered by the `
 
 Tests in `rotation.test.ts` pin the registry contents — update them together with the registry.
 
+## Model Return Variants Need Service-Seam Tests
+
+When a model method starts returning a new variant (a tagged union, a
+nullable column, a second entity kind), a passing model test proves the
+model only. Every service that consumes the method needs a test with that
+variant from a mocked model, at the service's public method. A claim that a
+feature "works" for the new variant is met at the API or service seam, not
+at the model.
+
 ## Slugs — Project-Scoped Portable Identifiers
 
 Slugs are unique per project and resource type for charts, dashboards, SQL Runner charts, spaces, and data apps. Database constraints are authoritative and include soft-deleted rows, so a deleted resource reserves its slug for a safe restore. The same slug may be used in a different project.

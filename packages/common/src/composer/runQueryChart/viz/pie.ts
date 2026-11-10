@@ -1,9 +1,6 @@
-import { type MetricQuery } from '../../../../../../types/metricQuery';
-import {
-    ChartType,
-    type PieChartConfig,
-} from '../../../../../../types/savedCharts';
-import { type RunQueryBuiltinChartInput } from '../../types';
+import { type MetricQuery } from '../../../types/metricQuery';
+import { ChartType, type PieChartConfig } from '../../../types/savedCharts';
+import { type RunQueryBuiltinChartInput } from '../types';
 
 export const getPieChartConfig = ({
     queryTool,

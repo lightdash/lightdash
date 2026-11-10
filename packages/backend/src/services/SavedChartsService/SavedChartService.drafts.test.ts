@@ -108,18 +108,28 @@ const buildService = (
         charts.find((candidate) => candidate.uuid === uuid) ?? chart;
     const savedChartModel = {
         get: vi.fn(async (uuid: string) => getChart(uuid)),
+        getVariant: vi.fn(async (uuid: string) => ({
+            queryType: 'semantic',
+            chart: getChart(uuid),
+        })),
         getSummary: vi.fn(async (uuid: string) => getChart(uuid)),
         createVersion: vi.fn(),
-        update: vi.fn(),
+        update: vi.fn(async (uuid: string, update: AnyType) => ({
+            queryType: 'semantic',
+            chart: { ...getChart(uuid), ...update },
+        })),
         updateMultiple: vi.fn(
             async (_projectUuid: string, updates: AnyType[]) =>
                 updates.map((update) => ({
-                    ...getChart(update.uuid),
-                    ...update,
+                    queryType: 'semantic',
+                    chart: { ...getChart(update.uuid), ...update },
                 })),
         ),
-        permanentDelete: vi.fn().mockResolvedValue(chart),
-        softDelete: vi.fn().mockResolvedValue(chart),
+        findComposerCharts: vi.fn(async () => []),
+        permanentDelete: vi
+            .fn()
+            .mockResolvedValue({ queryType: 'semantic', chart }),
+        softDelete: vi.fn().mockResolvedValue({ queryType: 'semantic', chart }),
     };
     const service = new SavedChartService({
         analytics: analyticsMock,

@@ -1,9 +1,9 @@
 import { type EChartsOption } from 'echarts';
+import { formatFieldLabel } from '../../../../../../composer/runQueryChart/shared/formatFieldLabel';
 import { type ItemsMap } from '../../../../../../types/field';
 import { type SortField } from '../../../../../../types/metricQuery';
 import { getCartesianAxisFormatterConfig } from '../../../../../../visualizations/helpers/getCartesianAxisFormatterConfig';
 import { type ToolRunQueryArgsTransformedBuiltinChart } from '../../../../schemas';
-import { formatFieldLabel } from '../../../shared/formatFieldLabel';
 import { getCommonEChartsConfig } from '../../shared/getCommonEChartsConfig';
 import { type GetPivotedResultsFn } from '../../types';
 

@@ -1,8 +1,6 @@
 import { type EChartsOption } from 'echarts';
-import {
-    isCustomChartTypeSlugChartConfig,
-    type ToolRunQueryArgsTransformed,
-} from '../../../schemas';
+import { isCustomChartTypeSlugChartConfig } from '../../../../../composer/runQueryChart/chartConfigSchema';
+import { type ToolRunQueryArgsTransformed } from '../../../schemas';
 import { type GetPivotedResultsFn, type QueryResults } from '../types';
 import { getBarChartEchartsConfig } from './viz/bar';
 import { getFunnelChartEchartsConfig } from './viz/funnel';

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { chartConfigBuiltinOnlySchema } from '../../../../composer/runQueryChart/chartConfigSchema';
 import { isValidDashboardTilePositions } from '../../../../utils/dashboardTilePositions';
 import { AI_DASHBOARD_LAYOUT_TEMPLATES } from '../../dashboardLayout';
 import {
@@ -7,7 +8,6 @@ import {
 } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 import {
-    chartConfigBuiltinOnlySchema,
     rejectAgentMergeConfig,
     toolRunQueryArgsSchemaPersisted,
     toolRunQueryArgsSchemaTransformed,

@@ -1,4 +1,4 @@
-import { isCustomChartTypeSlugChartConfig } from '../../../schemas';
+import { isCustomChartTypeSlugChartConfig } from '../../../../../composer/runQueryChart/chartConfigSchema';
 import { type getWebAiChartConfig } from '../getWebAiChartConfig';
 
 export const getGroupByDimensions = (

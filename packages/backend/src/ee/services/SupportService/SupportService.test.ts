@@ -1,5 +1,6 @@
-import { SessionUser } from '@lightdash/common';
+import { LightdashPage, SessionUser } from '@lightdash/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { composerSavedChartVariant } from '../../../testing/composerSavedChartFixture';
 import { SupportService } from './SupportService';
 
 const ORGANIZATION_UUID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
@@ -105,6 +106,79 @@ describe('SupportService project URL parsing', () => {
         expect(unfurlService.parseUrl).toHaveBeenCalledWith(
             referer,
             ORGANIZATION_UUID,
+        );
+    });
+});
+
+describe('SupportService chart details', () => {
+    it('describes a composer chart from its chart config and pipeline without compiling SQL', async () => {
+        const uploadTxt = vi
+            .fn()
+            .mockImplementation(
+                async (_buffer: Buffer, name: string) =>
+                    `https://files.example/${name}`,
+            );
+        const compileQuery = vi.fn();
+        const service = new SupportService({
+            dashboardModel: {} as never,
+            savedChartModel: {
+                getVariant: vi.fn().mockResolvedValue(
+                    composerSavedChartVariant({
+                        uuid: 'composer-chart-uuid',
+                    }),
+                ),
+            } as never,
+            spaceModel: {} as never,
+            projectModel: {
+                get: vi.fn().mockResolvedValue({
+                    projectUuid: PROJECT_UUID,
+                    name: 'Analytics project',
+                }),
+            } as never,
+            fileStorageClient: { uploadTxt } as never,
+            organizationModel: {
+                get: vi.fn().mockResolvedValue({
+                    organizationUuid: ORGANIZATION_UUID,
+                    name: 'Test organization',
+                }),
+            } as never,
+            unfurlService: {
+                parseUrl: vi.fn().mockReturnValue({
+                    isValid: true,
+                    lightdashPage: LightdashPage.CHART,
+                    projectUuid: PROJECT_UUID,
+                    chartUuid: 'composer-chart-uuid',
+                    url: 'https://app.example/chart',
+                    minimalUrl: 'https://app.example/chart',
+                }),
+            } as never,
+            projectService: { compileQuery } as never,
+            lightdashConfig: {
+                slack: { supportUrl: 'https://support.example' },
+                k8s: { podNamespace: 'test' },
+            } as never,
+            analytics: { track: vi.fn() } as never,
+        });
+        vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+            status: 200,
+        } as Response);
+
+        await service.shareWithSupport(
+            user,
+            { canImpersonate: false, logs: [], network: [] },
+            {
+                referer: `https://app.example/projects/${PROJECT_UUID}/saved/composer-chart-uuid`,
+                origin: 'https://app.example',
+            },
+        );
+
+        expect(compileQuery).not.toHaveBeenCalled();
+        const uploaded = uploadTxt.mock.calls.map(([, name]) => name);
+        expect(uploaded).toEqual(
+            expect.arrayContaining([
+                expect.stringMatching(/^support-chartconfig-/),
+                expect.stringMatching(/^support-pipeline-/),
+            ]),
         );
     });
 });

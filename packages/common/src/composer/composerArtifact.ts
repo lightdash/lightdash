@@ -1,22 +1,22 @@
-import { ParameterError } from '../../types/errors';
-import { type DimensionType } from '../../types/field';
+import { ParameterError } from '../types/errors';
+import { type DimensionType } from '../types/field';
 import {
     isAndFilterGroup,
     isOrFilterGroup,
     type FilterGroupItem,
     type Filters,
-} from '../../types/filter';
+} from '../types/filter';
 import {
     getSourceQueryResultReferences,
     QuerySourceType,
     type QueryNodeId,
     type SourceQuery,
-} from '../../types/querySources';
-import { type ResultColumns } from '../../types/results';
-import assertUnreachable from '../../utils/assertUnreachable';
-import { stableJson } from '../../utils/stableJson';
-import { type AllVizChartConfig } from '../../visualizations/types';
-import { type ComposerStoredChartVizConfig } from './schemas/tools/composerChartVizConfigSchema';
+} from '../types/querySources';
+import { type ResultColumns } from '../types/results';
+import assertUnreachable from '../utils/assertUnreachable';
+import { stableJson } from '../utils/stableJson';
+import { type AllVizChartConfig } from '../visualizations/types';
+import { type ComposerStoredChartVizConfig } from './composerChartVizConfigSchema';
 
 /**
  * A composer artifact version: a declarative pipeline, its terminal node and
@@ -221,11 +221,7 @@ export const toComposerNodeColumns = (
 const hasNodeId = (node: SourceQuery): node is ComposerPipelineNode =>
     !!node.nodeId;
 
-/**
- * Builds a submission's pipeline: submitted nodes plus every reused thread
- * node and everything it reads, in dependency order. A node id names one
- * definition for the whole thread.
- */
+/** A submission's pipeline: submitted nodes plus every reused thread node and what it reads, in dependency order; a node id names one definition per thread. */
 export const buildComposerArtifactPipeline = ({
     queries,
     threadNodes: threadNodeList,

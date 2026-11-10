@@ -1,5 +1,5 @@
+import { isSameComposerNodeDefinition } from '../../../../composer/composerArtifact';
 import { QuerySourceType } from '../../../../types/querySources';
-import { isSameComposerNodeDefinition } from '../../composerArtifact';
 import {
     createToolComposerQueriesArgsSchema,
     DEFAULT_COMPOSER_QUERY_LIMIT,

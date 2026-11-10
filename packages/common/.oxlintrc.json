@@ -27,6 +27,22 @@
     },
     "overrides": [
         {
+            "files": ["src/composer/**"],
+            "rules": {
+                "no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": [
+                            {
+                                "group": ["**/ee/**", "**/ee"],
+                                "message": "Composer modules must not import from ee/ (types included); see src/composer/AGENTS.md."
+                            }
+                        ]
+                    }
+                ]
+            }
+        },
+        {
             "files": [
                 "src/compiler/exploreCompiler.ts",
                 "src/compiler/translator.ts",

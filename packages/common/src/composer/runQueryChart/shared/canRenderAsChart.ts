@@ -1,6 +1,6 @@
-import { type MetricQuery } from '../../../../../types/metricQuery';
-import { isMetricsOnlyFunnel } from '../../shared/isMetricsOnlyFunnel';
+import { type MetricQuery } from '../../../types/metricQuery';
 import { type AiAgentChartTypeOption } from '../types';
+import { isMetricsOnlyFunnel } from './isMetricsOnlyFunnel';
 
 /**
  * Determines if a query can be rendered as a specific chart type

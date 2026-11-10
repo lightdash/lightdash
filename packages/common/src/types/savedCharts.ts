@@ -1,3 +1,4 @@
+import { type SavedComposerPipeline } from '../composer/savedComposerPipeline';
 import { type DataAppVizOptionValue } from '../ee/apps/dataAppVizConfigOptions';
 import assertUnreachable from '../utils/assertUnreachable';
 import { type AgentIdentityClaim } from './agentIdentity';
@@ -800,6 +801,16 @@ export type CustomVis = {
 /** Maps a viz field name to one query field id or an ordered collection. */
 export type DataAppVizFieldMapping = Record<string, string | string[]>;
 
+// Binds a host query column: dimension (grouping), metric (measure), series
+// (splits/colours), column (any result column — metric or dimension).
+export type DataAppVizFieldType = 'dimension' | 'metric' | 'series' | 'column';
+
+/** Normalize one binding for consumers that handle either cardinality. */
+export const getDataAppVizFieldIds = (
+    value: string | string[] | undefined,
+): string[] =>
+    typeof value === 'string' ? [value] : [...new Set(value ?? [])];
+
 /** Maps a declared config option's name → the value the user chose for it. */
 export type DataAppVizOptionValues = Record<string, DataAppVizOptionValue>;
 
@@ -936,6 +947,33 @@ export type SavedChartDAO = Omit<
     SavedChart,
     'inheritsFromOrgOrProject' | 'access'
 >;
+
+/** A saved chart whose query is a pipeline: no explore, metric query or merge; the chart config draws the terminal node. */
+export type ComposerSavedChartDAO = Omit<
+    SavedChartDAO,
+    'tableName' | 'metricQuery' | 'merge' | 'tableConfig'
+> & {
+    pipeline: SavedComposerPipeline;
+};
+
+/** A composer chart decorated with the caller's space access, as services return it. */
+export type ComposerSavedChart = ComposerSavedChartDAO &
+    Pick<SavedChart, 'inheritsFromOrgOrProject' | 'access'>;
+
+/** A chart a bulk surface left out, named so the caller can act on it. */
+export type SkippedChart = {
+    uuid: string;
+    slug: string;
+    name: string;
+    reason: string;
+};
+
+/** A saved chart tagged by the kind of query it runs, as read from storage. */
+export type SavedChartVariant =
+    | { queryType: 'semantic'; chart: SavedChartDAO }
+    | { queryType: 'composer'; chart: ComposerSavedChartDAO };
+
+export type SavedChartQueryType = SavedChartVariant['queryType'];
 
 export type SavedChart = {
     createdAt?: Date;

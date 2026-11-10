@@ -53,7 +53,8 @@ export type DashboardSearchResult = Pick<
 } & RankedItem;
 
 export type DashboardChartSummary = DashboardSearchResult['charts'][number] & {
-    exploreName: string;
+    /** Null for a composer chart, which has no single explore. */
+    exploreName: string | null;
 };
 
 export type SavedChartSearchResult = Pick<

@@ -1,10 +1,6 @@
-import {
-    friendlyName,
-    isField,
-    type ItemsMap,
-} from '../../../../../types/field';
-import { type PivotReference } from '../../../../../types/savedCharts';
-import { formatItemValue } from '../../../../../utils/formatting';
+import { friendlyName, isField, type ItemsMap } from '../../../types/field';
+import { type PivotReference } from '../../../types/savedCharts';
+import { formatItemValue } from '../../../utils/formatting';
 
 export const formatPivotValueLabel = (
     pivotReference: PivotReference,

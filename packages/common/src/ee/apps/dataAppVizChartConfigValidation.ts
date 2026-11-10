@@ -1,10 +1,10 @@
+import { dataAppVizGradientValueSchema } from '../../composer/runQueryChart/chartConfigSchema';
 import {
     type DataAppVizFieldMapping,
     type DataAppVizOptionValues,
 } from '../../types/savedCharts';
 import assertUnreachable from '../../utils/assertUnreachable';
 import {
-    dataAppVizGradientValueSchema,
     type DataAppVizConfigOption,
     type DataAppVizOptionValue,
     type DataAppVizSchema,

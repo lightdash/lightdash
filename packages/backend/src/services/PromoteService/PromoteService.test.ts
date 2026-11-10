@@ -147,6 +147,9 @@ const savedChartModel = {
     })),
     get: vi.fn(async () => promotedChart.chart),
     find: vi.fn(async () => [existingUpstreamChart.chart]),
+    findComposerCharts: vi.fn(
+        async (): Promise<{ uuid: string; name: string; slug: string }[]> => [],
+    ),
     create: vi.fn(createChart),
     createVersion: vi.fn(createChartVersion),
     updateInTransaction: vi.fn(async () => undefined),
@@ -168,6 +171,7 @@ beforeEach(() => {
     savedChartModel.find
         .mockReset()
         .mockResolvedValue([existingUpstreamChart.chart]);
+    savedChartModel.findComposerCharts.mockReset().mockResolvedValue([]);
     savedChartModel.create.mockReset().mockImplementation(createChart);
     savedChartModel.createVersion
         .mockReset()
@@ -784,6 +788,38 @@ describe('PromoteService dashboard changes', () => {
         ]);
     });
 
+    test('getPromotionDashboardChanges leaves a composer tile out and names it', async () => {
+        savedChartModel.findComposerCharts.mockResolvedValueOnce([
+            {
+                uuid: promotedChart.chart.uuid,
+                name: promotedChart.chart.name,
+                slug: promotedChart.chart.slug,
+            },
+        ]);
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
+
+        const [changes] = await service.getPromotionDashboardChanges(
+            user,
+            promotedDashboard,
+            existingUpstreamDashboard,
+        );
+
+        expect(changes.charts).toEqual([]);
+        expect(changes.dashboards[0].action).toBe('update');
+        expect(changes.dashboards[0].data.tiles).toEqual([]);
+        expect(changes.skippedCharts).toEqual([
+            {
+                uuid: promotedChart.chart.uuid,
+                name: promotedChart.chart.name,
+                slug: promotedChart.chart.slug,
+                reason: expect.stringContaining('composer chart'),
+            },
+        ]);
+        expect(savedChartModel.get).not.toHaveBeenCalled();
+    });
+
     test('getPromotionDashboardChanges update dashboard with chart tiles', async () => {
         const updatedAt = new Date();
         const updatedPromotedChart = { ...promotedChart.chart, updatedAt };
@@ -1383,6 +1419,7 @@ describe('PromoteService promoting and mutating changes', () => {
             slug: 'renamed-chart',
         };
         const changes: PromotionChanges = {
+            skippedCharts: [],
             spaces: [],
             dashboards: [],
             charts: [
@@ -1443,6 +1480,7 @@ describe('PromoteService promoting and mutating changes', () => {
             slug: 'occupied-chart',
         };
         const changes: PromotionChanges = {
+            skippedCharts: [],
             spaces: [],
             dashboards: [],
             charts: [
@@ -1483,6 +1521,7 @@ describe('PromoteService promoting and mutating changes', () => {
             slug: 'renamed-chart',
         };
         const changes: PromotionChanges = {
+            skippedCharts: [],
             spaces: [],
             dashboards: [],
             charts: [
@@ -2360,6 +2399,7 @@ describe('PromoteService data app promotion', () => {
     const serviceWithoutApps = new PromoteService(baseArgs);
 
     const dataAppChanges = (): PromotionChanges => ({
+        skippedCharts: [],
         spaces: [],
         charts: [],
         dashboards: [
@@ -2430,6 +2470,7 @@ describe('PromoteService data app promotion', () => {
 
     test('returns changes unchanged and skips the app service when there are no DATA_APP tiles', async () => {
         const changesWithoutApps: PromotionChanges = {
+            skippedCharts: [],
             spaces: [],
             charts: [],
             dashboards: [
@@ -2467,6 +2508,7 @@ describe('PromoteService data app promotion', () => {
     });
 
     const vizChartChanges = (): PromotionChanges => ({
+        skippedCharts: [],
         spaces: [],
         dashboards: [],
         charts: [
@@ -2605,6 +2647,7 @@ describe('agent content writes', () => {
                 expect(log).toHaveBeenCalledTimes(expectedClaim ? 1 : 0);
                 log.mockClear();
                 const dashboardChanges: PromotionChanges = {
+                    skippedCharts: [],
                     charts: [],
                     spaces: [],
                     dashboards: [
@@ -2646,6 +2689,7 @@ describe('agent content writes', () => {
                 await service.upsertSqlCharts(
                     user,
                     {
+                        skippedCharts: [],
                         charts: [],
                         dashboards: [],
                         spaces: [
@@ -2755,6 +2799,7 @@ describe('agent content writes', () => {
             agentActionLogModel.insert.mockClear();
             const run = async () => {
                 await service.upsertCharts(user, {
+                    skippedCharts: [],
                     spaces: [],
                     dashboards: [],
                     charts: [
@@ -2794,6 +2839,7 @@ describe('agent content writes', () => {
                 agentActionLogModel.insert.mockClear();
                 log.mockClear();
                 await service.updateDashboard(user, {
+                    skippedCharts: [],
                     spaces: [],
                     charts: [],
                     dashboards: [
@@ -2825,6 +2871,7 @@ describe('agent content writes', () => {
                 await service.upsertSqlCharts(
                     user,
                     {
+                        skippedCharts: [],
                         charts: [],
                         dashboards: [],
                         spaces: [
@@ -2908,6 +2955,7 @@ describe('agent content writes', () => {
         await expect(
             agentExecutionContext.run(scope, () =>
                 service.upsertCharts(user, {
+                    skippedCharts: [],
                     spaces: [],
                     dashboards: [],
                     charts: [

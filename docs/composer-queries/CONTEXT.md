@@ -207,7 +207,15 @@ The chart artifact created when the agent presents a node: the presented
 node's result plus the snapshot that produces it. One per thread, one version
 per presented node. A version is declarative: its snapshot, presented node
 and viz config. It holds no results, and a run never changes it.
-_Avoid_: composer chart, result artifact
+_Avoid_: composer chart (the saved chart made from one), result artifact
+
+**Composer chart**:
+A saved chart whose query is a pipeline rather than one explore's metric
+query: a presented node's snapshot plus a chart config converted from its
+viz config at save, kept outside any thread. Saving copies the definition; it
+holds no results, and every view runs it again.
+_Avoid_: saved composer query (a composer query is one submission), saved
+pipeline, saved artifact, result set
 
 **Lineage**:
 The composer artifact view beside the chart that shows the pipeline: a graph

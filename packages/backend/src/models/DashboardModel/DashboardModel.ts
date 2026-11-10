@@ -103,6 +103,7 @@ import {
     MAX_SLUG_ALIAS_LENGTH,
 } from '../../utils/SlugUtils';
 import { ContentVerificationModel } from '../ContentVerificationModel';
+import { isComposerChartSelect } from '../latestSavedChartVersion';
 import { type OnContentVersionCreated } from '../OnContentVersionCreated';
 import Transaction = Knex.Transaction;
 import { dismissOpenContentDrafts } from '../ContentDraftModel';
@@ -1343,6 +1344,7 @@ export class DashboardModel {
                     belongs_to_dashboard: boolean;
                     name: string | null;
                     last_version_chart_kind: string | null;
+                    is_composer_chart: boolean | null;
                     tab_uuid: string;
                     chart_slug: string;
                     app_uuid: string | null;
@@ -1371,6 +1373,7 @@ export class DashboardModel {
                     ) AS chart_slug`,
                 ),
                 `${SavedChartsTableName}.last_version_chart_kind`,
+                isComposerChartSelect(this.database),
                 `${DashboardTileSqlChartTableName}.saved_sql_uuid`,
                 database.raw(
                     `${SavedChartsTableName}.dashboard_uuid IS NOT NULL AS belongs_to_dashboard`,
@@ -1584,6 +1587,7 @@ export class DashboardModel {
                     belongs_to_dashboard,
                     name,
                     last_version_chart_kind,
+                    is_composer_chart,
                     tab_uuid,
                     chart_slug,
                     app_uuid,
@@ -1619,6 +1623,9 @@ export class DashboardModel {
                                     chartSlug: chart_slug,
                                     lastVersionChartKind:
                                         last_version_chart_kind,
+                                    queryType: is_composer_chart
+                                        ? 'composer'
+                                        : 'semantic',
                                 },
                             };
                         case DashboardTileTypes.MARKDOWN:
@@ -2894,6 +2901,7 @@ export class DashboardModel {
                     belongs_to_dashboard: boolean;
                     name: string | null;
                     last_version_chart_kind: string | null;
+                    is_composer_chart: boolean | null;
                     tab_uuid: string;
                     chart_slug: string;
                     app_uuid: string | null;
@@ -2922,6 +2930,7 @@ export class DashboardModel {
                     ) AS chart_slug`,
                 ),
                 `${SavedChartsTableName}.last_version_chart_kind`,
+                isComposerChartSelect(this.database),
                 `${DashboardTileSqlChartTableName}.saved_sql_uuid`,
                 this.database.raw(
                     `${SavedChartsTableName}.dashboard_uuid IS NOT NULL AS belongs_to_dashboard`,
@@ -3116,6 +3125,7 @@ export class DashboardModel {
                     belongs_to_dashboard,
                     name,
                     last_version_chart_kind,
+                    is_composer_chart,
                     tab_uuid,
                     chart_slug,
                     app_uuid,
@@ -3151,6 +3161,9 @@ export class DashboardModel {
                                     chartSlug: chart_slug,
                                     lastVersionChartKind:
                                         last_version_chart_kind,
+                                    queryType: is_composer_chart
+                                        ? 'composer'
+                                        : 'semantic',
                                 },
                             };
                         case DashboardTileTypes.MARKDOWN:

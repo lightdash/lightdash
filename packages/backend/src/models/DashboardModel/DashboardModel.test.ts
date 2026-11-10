@@ -137,6 +137,7 @@ describe('DashboardModel', () => {
         tracker.on
             .select(
                 queryMatcher(DashboardTilesTableName, [
+                    1,
                     dashboardWithVersionEntry.dashboard_version_id,
                 ]),
             )
@@ -188,6 +189,62 @@ describe('DashboardModel', () => {
         expect(whereClause).toContain('"dashboards"."dashboard_uuid" = $');
         expect(whereClause).not.toContain('"dashboards"."slug"');
         expect(whereClause).not.toContain('exists');
+    });
+
+    test('tags a composer chart tile by its query type', async () => {
+        tracker.on
+            .select(
+                queryMatcher(DashboardsTableName, [
+                    true,
+                    validDashboardUuid,
+                    1,
+                ]),
+            )
+            .response([
+                {
+                    ...dashboardWithVersionEntry,
+                    dashboard_uuid: validDashboardUuid,
+                    space_uuid: 'spaceUuid',
+                    space_name: 'space name',
+                },
+            ]);
+        tracker.on
+            .select(
+                queryMatcher(DashboardViewsTableName, [
+                    dashboardWithVersionEntry.dashboard_version_id,
+                ]),
+            )
+            .response([dashboardViewEntry]);
+        tracker.on
+            .select(
+                queryMatcher(DashboardTilesTableName, [
+                    1,
+                    dashboardWithVersionEntry.dashboard_version_id,
+                ]),
+            )
+            .response([
+                {
+                    ...dashboardTileWithSavedChartEntry,
+                    is_composer_chart: true,
+                },
+            ]);
+        tracker.on
+            .select(
+                queryMatcher(DashboardTabsTableName, [
+                    dashboardWithVersionEntry.dashboard_version_id,
+                    dashboardWithVersionEntry.dashboard_id,
+                ]),
+            )
+            .response([]);
+
+        const dashboard = await model.getByIdOrSlug(validDashboardUuid);
+
+        expect(dashboard.tiles[0].properties).toMatchObject({
+            savedChartUuid: savedChartEntry.saved_query_uuid,
+            queryType: 'composer',
+        });
+        const [, , tilesQuery] = tracker.history.select;
+        expect(tilesQuery.sql).toContain('pipeline');
     });
 
     test('should get dashboard by current slug', async () => {
@@ -357,6 +414,7 @@ describe('DashboardModel', () => {
         tracker.on
             .select(
                 queryMatcher(DashboardTilesTableName, [
+                    1,
                     dashboardWithVersionEntry.dashboard_version_id,
                 ]),
             )
@@ -945,6 +1003,7 @@ describe('DashboardModel', () => {
         tracker.on
             .select(
                 queryMatcher(DashboardTilesTableName, [
+                    1,
                     dashboardWithVersionEntry.dashboard_version_id,
                 ]),
             )
@@ -1520,6 +1579,7 @@ describe('DashboardModel', () => {
             tracker.on
                 .select(
                     queryMatcher(DashboardTilesTableName, [
+                        1,
                         dashboardWithVersionEntry.dashboard_version_id,
                     ]),
                 )

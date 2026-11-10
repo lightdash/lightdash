@@ -1,3 +1,4 @@
+import { isCustomChartTypeSlugChartConfig } from '../../../../composer/runQueryChart/chartConfigSchema';
 import { DimensionType } from '../../../../types/field';
 import {
     FilterOperator,
@@ -6,7 +7,6 @@ import {
 } from '../../../../types/filter';
 import { getTotalFilterRules } from '../../../../utils/filters';
 import {
-    isCustomChartTypeSlugChartConfig,
     isRunQueryArgsV1,
     migrateRunQueryArgsV1ToV2,
     parsePersistedRunQueryArgs,

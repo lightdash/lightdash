@@ -1,4 +1,4 @@
-export { formatFieldLabel } from '../shared/formatFieldLabel';
+export { formatFieldLabel } from '../../../../composer/runQueryChart/shared/formatFieldLabel';
 export { getComposerSlackEchartsConfig } from './getComposerSlackEchartsConfig';
 export {
     getSlackAiEchartsConfig,

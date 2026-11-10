@@ -10,6 +10,7 @@ import {
     CatalogType,
     COMPOSER_NODE_SAMPLE_ROW_LIMIT,
     COMPOSER_QUERY_PREVIEW_ROW_LIMIT,
+    ComposerChartNotSupportedError,
     ConflictError,
     ContentType,
     DATA_APP_VIZ_TEMPLATE,
@@ -4109,11 +4110,12 @@ export class AiAgentToolsService extends BaseService {
                 let resourceUuid;
                 switch (args.resourceType) {
                     case 'chart': {
-                        const chart = await this.savedChartModel.get(
+                        const variant = await this.savedChartModel.getVariant(
                             args.resourceUuidOrSlug,
                             undefined,
                             { projectUuid: context.projectUuid },
                         );
+                        const { chart } = variant;
                         if (
                             !AiAgentToolsService.hasAgentSpaceAccess(
                                 context.spaceAccess,
@@ -4136,6 +4138,12 @@ export class AiAgentToolsService extends BaseService {
                                 chart.uuid !== bound.uuid)
                         ) {
                             await refuseOutsideBinding(bound);
+                        }
+                        // Deliveries run the classic chart query; a composer chart is refused before anything is created
+                        if (variant.queryType === 'composer') {
+                            throw new ComposerChartNotSupportedError(
+                                chart.uuid,
+                            );
                         }
                         resourceUuid = chart.uuid;
                         scheduler =

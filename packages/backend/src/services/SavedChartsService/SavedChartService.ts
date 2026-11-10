@@ -9,6 +9,7 @@ import {
     ChartSummary,
     ChartType,
     ChartVersion,
+    ComposerChartNotSupportedError,
     computeContentDraftStaleness,
     ContentAsCodeType,
     ContentType,
@@ -69,6 +70,7 @@ import {
     UpdateMultipleSavedChart,
     UpdateSavedChart,
     type ChartFieldUpdates,
+    type ComposerSavedChart,
     type ContentDraftStaleness,
     type ContentVerificationInfo,
     type DashboardDAO,
@@ -575,7 +577,12 @@ export class SavedChartService
         };
     }
 
-    static getChartConfigEventProperties(savedChart: SavedChartDAO) {
+    static getChartConfigEventProperties(
+        savedChart: Pick<SavedChartDAO, 'chartConfig'> & {
+            metricQuery: MetricQuery | null;
+        },
+    ) {
+        const { metricQuery } = savedChart;
         const tableConfig =
             savedChart.chartConfig.type === ChartType.TABLE
                 ? savedChart.chartConfig.config
@@ -597,21 +604,23 @@ export class SavedChartService
             ).filter((column) => column.width !== undefined).length,
             tableCalculationFunctions: TABLE_CALCULATION_FUNCTIONS.filter(
                 ({ pattern }) =>
-                    savedChart.metricQuery.tableCalculations.some(
+                    metricQuery?.tableCalculations.some(
                         (tableCalculation) =>
                             (isSqlTableCalculation(tableCalculation) &&
                                 pattern.test(tableCalculation.sql)) ||
                             (isFormulaTableCalculation(tableCalculation) &&
                                 pattern.test(tableCalculation.formula)),
-                    ),
+                    ) ?? false,
             ).map(({ name }) => name),
             hasAverageDistinctAdditionalMetric:
-                savedChart.metricQuery.additionalMetrics?.some(
+                metricQuery?.additionalMetrics?.some(
                     (metric) => metric.type === MetricType.AVERAGE_DISTINCT,
                 ) ?? false,
             numCustomGroupBinCustomDimensions:
-                countCustomDimensionsInMetricQuery(savedChart.metricQuery)
-                    .numCustomGroupBinCustomDimensions,
+                metricQuery === null
+                    ? 0
+                    : countCustomDimensionsInMetricQuery(metricQuery)
+                          .numCustomGroupBinCustomDimensions,
         };
     }
 
@@ -783,6 +792,17 @@ export class SavedChartService
         );
     }
 
+    /** Surfaces that would write a classic chart version refuse a composer chart by name before any write. */
+    private async assertNoComposerCharts(
+        savedChartUuids: string[],
+    ): Promise<void> {
+        const [composerChart] =
+            await this.savedChartModel.findComposerCharts(savedChartUuids);
+        if (composerChart) {
+            throw new ComposerChartNotSupportedError(composerChart.uuid);
+        }
+    }
+
     private async assertCanDeleteGitBackedChart(
         user: SessionUser,
         chart: Pick<SavedChartDAO, 'projectUuid' | 'slug'>,
@@ -859,6 +879,19 @@ export class SavedChartService
         base: ContentDraftBase,
     ): Promise<SavedChart> {
         assertChartDraftOverlay(draftFields);
+        // Drafts overlay a classic chart, so a composer chart is refused before anything is stored
+        let chartForOverlay: SavedChartDAO;
+        if ('metricQuery' in existingChart) {
+            chartForOverlay = existingChart;
+        } else {
+            const variant = await this.savedChartModel.getVariant(
+                existingChart.uuid,
+            );
+            if (variant.queryType === 'composer') {
+                throw new ComposerChartNotSupportedError(variant.chart.uuid);
+            }
+            chartForOverlay = variant.chart;
+        }
         const stored = await this.contentDraftModel.upsertOpenDraft({
             projectUuid: existingChart.projectUuid,
             contentType: 'chart',
@@ -879,10 +912,6 @@ export class SavedChartService
                 draftedFieldCount: Object.keys(stored.draft).length,
             },
         });
-        const chartForOverlay =
-            'metricQuery' in existingChart
-                ? existingChart
-                : await this.savedChartModel.get(existingChart.uuid);
         return {
             ...mergeDraftIntoChart(chartForOverlay, stored.draft),
             verification: verificationAfterUpdate,
@@ -1334,7 +1363,7 @@ export class SavedChartService
         user: SessionUser,
         savedChartUuid: string,
         data: UpdateSavedChart,
-    ): Promise<SavedChart> {
+    ): Promise<SavedChart | ComposerSavedChart> {
         const { preserveVerification, ...chartUpdate } = data;
         const existingChart =
             await this.savedChartModel.getSummary(savedChartUuid);
@@ -1400,6 +1429,8 @@ export class SavedChartService
                     "You don't have access to move this chart out of its space",
                 );
             }
+            // A composer chart is dashboard-owned only: a space-owned one has no page
+            await this.assertNoComposerCharts([savedChartUuid]);
         }
 
         await this.assertCanMutateVerifiedChart({
@@ -1408,7 +1439,6 @@ export class SavedChartService
             projectUuid,
             organizationUuid,
         });
-
         if (chartUpdate.colorPaletteUuid) {
             const palette = await this.organizationModel.findColorPalette(
                 organizationUuid,
@@ -1452,11 +1482,12 @@ export class SavedChartService
         );
         if (draftResult) return draftResult;
 
-        const savedChart = await this.savedChartModel.update(
+        const updated = await this.savedChartModel.update(
             savedChartUuid,
             chartUpdate,
             { projectUuid, dashboardUuid: dashboardUuid ?? null, spaceUuid },
         );
+        const savedChart = updated.chart;
 
         if (!verificationAfterUpdate) {
             await this.contentVerificationModel.unverify(
@@ -1465,10 +1496,13 @@ export class SavedChartService
             );
         }
 
-        const cachedExplore = await this.projectModel.getExploreFromCache(
-            projectUuid,
-            savedChart.tableName,
-        );
+        const cachedExplore =
+            updated.queryType === 'semantic'
+                ? await this.projectModel.getExploreFromCache(
+                      projectUuid,
+                      updated.chart.tableName,
+                  )
+                : null;
         this.analytics.track({
             event: 'saved_chart.updated',
             userId: user.userUuid,
@@ -1480,7 +1514,13 @@ export class SavedChartService
                     cachedExplore?.type === ExploreType.VIRTUAL
                         ? cachedExplore.name
                         : undefined,
-                ...SavedChartService.getChartConfigEventProperties(savedChart),
+                ...SavedChartService.getChartConfigEventProperties({
+                    chartConfig: savedChart.chartConfig,
+                    metricQuery:
+                        updated.queryType === 'semantic'
+                            ? updated.chart.metricQuery
+                            : null,
+                }),
                 viaDashboardGrant:
                     SavedChartService.hasDashboardGrantRow(access),
                 grantOnly: directOnly,
@@ -1691,6 +1731,8 @@ export class SavedChartService
             }),
         );
 
+        await this.assertNoComposerCharts(data.map((chart) => chart.uuid));
+
         const draftBases = await Promise.all(
             chartSpaceContexts.map(({ existingChart }) =>
                 this.resolveDraftBase(existingChart),
@@ -1726,13 +1768,19 @@ export class SavedChartService
         const directUpdates = data.filter(
             (_chart, index) => draftBases[index] === null,
         );
-        const savedChartsDaos =
+        const updatedVariants =
             directUpdates.length > 0
                 ? await this.savedChartModel.updateMultiple(
                       projectUuid,
                       directUpdates,
                   )
                 : [];
+        const savedChartsDaos = updatedVariants.map((variant) => {
+            if (variant.queryType === 'composer') {
+                throw new ComposerChartNotSupportedError(variant.chart.uuid);
+            }
+            return variant.chart;
+        });
         const savedCharts = await Promise.all(
             savedChartsDaos.map(async (savedChart) => {
                 const { inheritsFromOrgOrProject, access } =
@@ -1771,6 +1819,11 @@ export class SavedChartService
         savedChartUuid: string,
         options?: ContentAsCodeDeleteOptions,
     ): Promise<void> {
+        const variant = await this.savedChartModel.getVariant(
+            savedChartUuid,
+            undefined,
+            { projectUuid: options?.projectUuid },
+        );
         const {
             uuid: resolvedUuid,
             organizationUuid,
@@ -1778,11 +1831,7 @@ export class SavedChartService
             spaceUuid,
             dashboardUuid,
             slug,
-            metricQuery: { metrics, dimensions },
-            tableName,
-        } = await this.savedChartModel.get(savedChartUuid, undefined, {
-            projectUuid: options?.projectUuid,
-        });
+        } = variant.chart;
 
         let deleteAuditContext = { viaDashboardGrant: false, grantOnly: false };
         if (options?.bypassPermissions) {
@@ -1846,27 +1895,30 @@ export class SavedChartService
             });
         }
 
-        try {
-            const cachedExplore = await this.projectModel.getExploreFromCache(
-                projectUuid,
-                tableName,
-            );
+        if (variant.queryType === 'semantic') {
+            try {
+                const cachedExplore =
+                    await this.projectModel.getExploreFromCache(
+                        projectUuid,
+                        variant.chart.tableName,
+                    );
 
-            await this.updateChartFieldUsage(projectUuid, cachedExplore, {
-                oldChartFields: {
-                    metrics,
-                    dimensions,
-                },
-                newChartFields: {
-                    metrics: [],
-                    dimensions: [],
-                },
-            });
-        } catch (error) {
-            this.logger.error(
-                `Error updating chart field usage for chart ${savedChartUuid}`,
-                error,
-            );
+                await this.updateChartFieldUsage(projectUuid, cachedExplore, {
+                    oldChartFields: {
+                        metrics: variant.chart.metricQuery.metrics,
+                        dimensions: variant.chart.metricQuery.dimensions,
+                    },
+                    newChartFields: {
+                        metrics: [],
+                        dimensions: [],
+                    },
+                });
+            } catch (error) {
+                this.logger.error(
+                    `Error updating chart field usage for chart ${savedChartUuid}`,
+                    error,
+                );
+            }
         }
 
         this.analytics.track({
@@ -1888,9 +1940,13 @@ export class SavedChartService
     ): Promise<void> {
         const chart =
             !options?.contentAsCodePolicyChecked || !options?.bypassPermissions
-                ? await this.savedChartModel.get(savedChartUuid, undefined, {
-                      projectUuid: options?.projectUuid,
-                  })
+                ? (
+                      await this.savedChartModel.getVariant(
+                          savedChartUuid,
+                          undefined,
+                          { projectUuid: options?.projectUuid },
+                      )
+                  ).chart
                 : undefined;
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'delete', {
@@ -1947,8 +2003,8 @@ export class SavedChartService
             user,
             savedChartUuid,
             {
-                projectUuid: deletedChart.projectUuid,
-                organizationUuid: deletedChart.organizationUuid,
+                projectUuid: deletedChart.chart.projectUuid,
+                organizationUuid: deletedChart.chart.organizationUuid,
             },
             { bypassPermissions: true }, // chart delete authorized above
         );
@@ -2889,6 +2945,8 @@ export class SavedChartService
 
         const { projectUuid, organizationUuid } =
             await this.checkCreateScheduledDeliveryAccess(user, chartUuid);
+        // Deliveries run the classic chart query; composer charts are refused until deliveries branch on the pipeline
+        await this.assertNoComposerCharts([chartUuid]);
 
         if (newScheduler.format === SchedulerFormat.GSHEETS) {
             const auditedAbility = this.createAuditedAbility(user);
@@ -3326,6 +3384,8 @@ export class SavedChartService
                 organizationUuid,
             });
         }
+        // A composer chart is dashboard-owned only: a space-owned one has no page
+        await this.assertNoComposerCharts([savedChartUuid]);
 
         await this.savedChartModel.moveToSpace(
             { projectUuid, itemUuid: savedChartUuid, targetSpaceUuid },
@@ -3404,7 +3464,7 @@ export class SavedChartService
         chartUuid: string,
         options?: SoftDeleteOptions,
     ): Promise<void> {
-        const deletedChart = await this.savedChartModel.get(
+        const { chart: deletedChart } = await this.savedChartModel.getVariant(
             chartUuid,
             undefined,
             { deleted: true, projectUuid: options?.projectUuid },
@@ -3485,10 +3545,16 @@ export class SavedChartService
     ): Promise<void> {
         const deletedChart =
             !options?.contentAsCodePolicyChecked || !options?.bypassPermissions
-                ? await this.savedChartModel.get(chartUuid, undefined, {
-                      deleted: true,
-                      projectUuid: options?.projectUuid,
-                  })
+                ? (
+                      await this.savedChartModel.getVariant(
+                          chartUuid,
+                          undefined,
+                          {
+                              deleted: true,
+                              projectUuid: options?.projectUuid,
+                          },
+                      )
+                  ).chart
                 : undefined;
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {

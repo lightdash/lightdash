@@ -1,5 +1,6 @@
 import {
     ChartType,
+    ComposerChartNotAvailableInEmbedError,
     DashboardTileTypes,
     ForbiddenError,
     NotFoundError,
@@ -8,6 +9,10 @@ import {
     type EmbedContent,
 } from '@lightdash/common';
 import { verifyPreviewToken } from '../../../routers/appPreviewToken';
+import {
+    composerSavedChartVariant,
+    semanticSavedChartVariant,
+} from '../../../testing/composerSavedChartFixture';
 import { EmbedService } from './EmbedService';
 import {
     embedLightdashConfigMock,
@@ -141,7 +146,7 @@ const buildService = ({
 describe('EmbedService data app viz rendering', () => {
     it('resolves the template-filtered viz before the feature flag or chart authorization', async () => {
         const featureFlagModel = { get: vi.fn() };
-        const savedChartModel = { get: vi.fn() };
+        const savedChartModel = { getVariant: vi.fn() };
         const service = buildService({
             appModel: {
                 findVisualizationApp: vi.fn().mockResolvedValue(undefined),
@@ -160,12 +165,41 @@ describe('EmbedService data app viz rendering', () => {
         ).rejects.toThrow(NotFoundError);
 
         expect(featureFlagModel.get).not.toHaveBeenCalled();
-        expect(savedChartModel.get).not.toHaveBeenCalled();
+        expect(savedChartModel.getVariant).not.toHaveBeenCalled();
+    });
+
+    it('refuses a composer chart named by the JWT by name', async () => {
+        const service = buildService({
+            appModel: {
+                findVisualizationApp: vi
+                    .fn()
+                    .mockResolvedValue(makeDataAppVizRow()),
+            },
+            savedChartModel: {
+                getVariant: vi.fn().mockResolvedValue(
+                    composerSavedChartVariant({
+                        uuid: SAVED_CHART_UUID,
+                        projectUuid: PROJECT_UUID,
+                    }),
+                ),
+            },
+        });
+
+        await expect(
+            service.getEmbedDataAppVizRenderMetadata(
+                chartAccount(),
+                PROJECT_UUID,
+                SAVED_CHART_UUID,
+                DATA_APP_VIZ_UUID,
+            ),
+        ).rejects.toThrow(ComposerChartNotAvailableInEmbedError);
     });
 
     it('serves metadata to the standalone chart named by the JWT', async () => {
         const savedChartModel = {
-            get: vi.fn().mockResolvedValue(makeSavedChart()),
+            getVariant: vi
+                .fn()
+                .mockResolvedValue(semanticSavedChartVariant(makeSavedChart())),
         };
         const service = buildService({
             appModel: {
@@ -198,7 +232,9 @@ describe('EmbedService data app viz rendering', () => {
             preview: null,
             latestBuildInProgress: true,
         });
-        expect(savedChartModel.get).toHaveBeenCalledWith(SAVED_CHART_UUID);
+        expect(savedChartModel.getVariant).toHaveBeenCalledWith(
+            SAVED_CHART_UUID,
+        );
     });
 
     it('renders the project chart type version pinned by the embedded chart', async () => {
@@ -217,17 +253,19 @@ describe('EmbedService data app viz rendering', () => {
         const service = buildService({
             appModel,
             savedChartModel: {
-                get: vi.fn().mockResolvedValue(
-                    makeSavedChart({
-                        chartConfig: {
-                            type: ChartType.DATA_APP_VIZ,
-                            config: {
-                                dataAppVizUuid: DATA_APP_VIZ_UUID,
-                                dataAppVizVersion: 2,
-                                fieldMapping: {},
+                getVariant: vi.fn().mockResolvedValue(
+                    semanticSavedChartVariant(
+                        makeSavedChart({
+                            chartConfig: {
+                                type: ChartType.DATA_APP_VIZ,
+                                config: {
+                                    dataAppVizUuid: DATA_APP_VIZ_UUID,
+                                    dataAppVizVersion: 2,
+                                    fieldMapping: {},
+                                },
                             },
-                        },
-                    }),
+                        }),
+                    ),
                 ),
             },
         });
@@ -254,17 +292,19 @@ describe('EmbedService data app viz rendering', () => {
         const service = buildService({
             appModel,
             savedChartModel: {
-                get: vi.fn().mockResolvedValue(
-                    makeSavedChart({
-                        chartConfig: {
-                            type: ChartType.DATA_APP_VIZ,
-                            config: {
-                                dataAppVizUuid: DATA_APP_VIZ_UUID,
-                                dataAppVizVersion: 2,
-                                fieldMapping: {},
+                getVariant: vi.fn().mockResolvedValue(
+                    semanticSavedChartVariant(
+                        makeSavedChart({
+                            chartConfig: {
+                                type: ChartType.DATA_APP_VIZ,
+                                config: {
+                                    dataAppVizUuid: DATA_APP_VIZ_UUID,
+                                    dataAppVizVersion: 2,
+                                    fieldMapping: {},
+                                },
                             },
-                        },
-                    }),
+                        }),
+                    ),
                 ),
             },
         });
@@ -294,7 +334,11 @@ describe('EmbedService data app viz rendering', () => {
         const service = buildService({
             appModel,
             savedChartModel: {
-                get: vi.fn().mockResolvedValue(makeSavedChart()),
+                getVariant: vi
+                    .fn()
+                    .mockResolvedValue(
+                        semanticSavedChartVariant(makeSavedChart()),
+                    ),
             },
         });
 
@@ -310,7 +354,7 @@ describe('EmbedService data app viz rendering', () => {
     });
 
     it('rejects a different chart than the standalone chart named by the JWT', async () => {
-        const savedChartModel = { get: vi.fn() };
+        const savedChartModel = { getVariant: vi.fn() };
         const service = buildService({
             appModel: {
                 findVisualizationApp: vi
@@ -328,7 +372,7 @@ describe('EmbedService data app viz rendering', () => {
                 DATA_APP_VIZ_UUID,
             ),
         ).rejects.toThrow('Not authorized to access this chart');
-        expect(savedChartModel.get).not.toHaveBeenCalled();
+        expect(savedChartModel.getVariant).not.toHaveBeenCalled();
     });
 
     it('serves metadata when the saved chart is a tile on the authorized dashboard', async () => {
@@ -345,7 +389,9 @@ describe('EmbedService data app viz rendering', () => {
             }),
         };
         const savedChartModel = {
-            get: vi.fn().mockResolvedValue(makeSavedChart()),
+            getVariant: vi
+                .fn()
+                .mockResolvedValue(semanticSavedChartVariant(makeSavedChart())),
         };
         const service = buildService({
             appModel: {
@@ -376,7 +422,7 @@ describe('EmbedService data app viz rendering', () => {
     });
 
     it('rejects a saved chart that is not a tile on the authorized dashboard', async () => {
-        const savedChartModel = { get: vi.fn() };
+        const savedChartModel = { getVariant: vi.fn() };
         const service = buildService({
             appModel: {
                 findVisualizationApp: vi
@@ -400,7 +446,7 @@ describe('EmbedService data app viz rendering', () => {
                 DATA_APP_VIZ_UUID,
             ),
         ).rejects.toThrow('Tile for saved chart');
-        expect(savedChartModel.get).not.toHaveBeenCalled();
+        expect(savedChartModel.getVariant).not.toHaveBeenCalled();
     });
 
     it('rejects a saved chart that does not reference the requested viz', async () => {
@@ -411,16 +457,18 @@ describe('EmbedService data app viz rendering', () => {
                     .mockResolvedValue(makeDataAppVizRow()),
             },
             savedChartModel: {
-                get: vi.fn().mockResolvedValue(
-                    makeSavedChart({
-                        chartConfig: {
-                            type: ChartType.DATA_APP_VIZ,
-                            config: {
-                                dataAppVizUuid: 'another-viz',
-                                fieldMapping: {},
+                getVariant: vi.fn().mockResolvedValue(
+                    semanticSavedChartVariant(
+                        makeSavedChart({
+                            chartConfig: {
+                                type: ChartType.DATA_APP_VIZ,
+                                config: {
+                                    dataAppVizUuid: 'another-viz',
+                                    fieldMapping: {},
+                                },
                             },
-                        },
-                    }),
+                        }),
+                    ),
                 ),
             },
         });
@@ -443,12 +491,14 @@ describe('EmbedService data app viz rendering', () => {
                     .mockResolvedValue(makeDataAppVizRow()),
             },
             savedChartModel: {
-                get: vi.fn().mockResolvedValue(
-                    makeSavedChart({
-                        chartConfig: {
-                            type: ChartType.TABLE,
-                        },
-                    }),
+                getVariant: vi.fn().mockResolvedValue(
+                    semanticSavedChartVariant(
+                        makeSavedChart({
+                            chartConfig: {
+                                type: ChartType.TABLE,
+                            },
+                        }),
+                    ),
                 ),
             },
         });
@@ -466,7 +516,7 @@ describe('EmbedService data app viz rendering', () => {
     it.each(['dataApp', 'aiAgent', 'metricsCatalog', 'apiAccess'] as const)(
         'rejects %s embed JWTs',
         async (type) => {
-            const savedChartModel = { get: vi.fn() };
+            const savedChartModel = { getVariant: vi.fn() };
             const service = buildService({
                 appModel: {
                     findVisualizationApp: vi
@@ -484,7 +534,7 @@ describe('EmbedService data app viz rendering', () => {
                     DATA_APP_VIZ_UUID,
                 ),
             ).rejects.toThrow(ForbiddenError);
-            expect(savedChartModel.get).not.toHaveBeenCalled();
+            expect(savedChartModel.getVariant).not.toHaveBeenCalled();
         },
     );
 
@@ -501,7 +551,11 @@ describe('EmbedService data app viz rendering', () => {
         const service = buildService({
             appModel,
             savedChartModel: {
-                get: vi.fn().mockResolvedValue(makeSavedChart()),
+                getVariant: vi
+                    .fn()
+                    .mockResolvedValue(
+                        semanticSavedChartVariant(makeSavedChart()),
+                    ),
             },
         });
 

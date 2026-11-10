@@ -315,6 +315,21 @@ import type {
     RunDuckdbQueryArgs,
 } from './types';
 
+/** Test models stub `get`; the service reads charts through `getVariant`. */
+const withSemanticVariant = <T extends object>(model: T): SavedChartModel =>
+    ({
+        ...model,
+        async getVariant(
+            this: { get: SavedChartModel['get'] },
+            ...args: Parameters<SavedChartModel['get']>
+        ) {
+            return {
+                queryType: 'semantic' as const,
+                chart: await this.get(...args),
+            };
+        },
+    }) as unknown as SavedChartModel;
+
 const projectUuid = '11111111-1111-4111-8111-111111111111';
 
 const noOpStrategy = new NoOpPreAggregateStrategy();
@@ -24218,9 +24233,9 @@ describe('fresh execution producer to result reader', () => {
                         [validExplore.name]: validExplore,
                     })),
                 } as unknown as ProjectModel,
-                savedChartModel: {
+                savedChartModel: withSemanticVariant({
                     ...savedChartModel,
-                } as unknown as SavedChartModel,
+                }),
                 spaceModel: { ...spaceModel } as unknown as SpaceModel,
             },
             {

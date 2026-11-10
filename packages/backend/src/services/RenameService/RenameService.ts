@@ -28,6 +28,7 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import { partitionComposerCharts } from '../../models/composerChartPartition';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -970,10 +971,24 @@ export class RenameService extends BaseService {
                 `Rename resources: Found ${chartSummaries.length} chartSummaries to rename`,
             );
 
+            // Composer charts have no classic query to rename, so they are left out by name
+            const { supported: classicChartUuids, skipped: composerCharts } =
+                await partitionComposerCharts(
+                    this.savedChartModel,
+                    chartSummaries.map((chart) => chart.uuid),
+                );
+            if (composerCharts.length > 0) {
+                this.logger.info(
+                    `Rename resources: skipping composer charts ${composerCharts
+                        .map((composerChart) => composerChart.name)
+                        .join(', ')}`,
+                );
+            }
+
             // We intentionally do not filter charts on private spaces, since we want to rename all charts
             // And the user will not be able to see the charts in private spaces anyway, so it should not become a vulnerability
-            const chartPromises = chartSummaries.map((chart) =>
-                this.savedChartModel.get(chart.uuid),
+            const chartPromises = classicChartUuids.map((chartUuid) =>
+                this.savedChartModel.get(chartUuid),
             );
 
             const charts = await Promise.all(chartPromises);
@@ -1143,6 +1158,10 @@ export class RenameService extends BaseService {
                 dashboardSchedulers: dashboardSchedulerChanges.map((d) => ({
                     uuid: d.schedulerUuid,
                     name: d.name,
+                })),
+                skippedCharts: composerCharts.map(({ uuid, name }) => ({
+                    uuid,
+                    name,
                 })),
             };
         } catch (error) {

@@ -1,7 +1,7 @@
 import { type EChartsOption } from 'echarts';
+import { type ComposerStoredChartVizConfig } from '../../../../composer/composerChartVizConfigSchema';
 import { type ResultColumn } from '../../../../types/results';
-import { getComposerSlackRunQueryChart } from '../../composerChartVizConfig';
-import { type ComposerStoredChartVizConfig } from '../../schemas';
+import { getComposerSlackRunQueryChart } from '../../composerSlackRunQueryChart';
 import { AiResultType } from '../../types';
 import { getSlackAiEchartsConfig } from './getSlackAiEchartsConfig';
 import { type GetPivotedResultsFn } from './types';

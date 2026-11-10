@@ -48,6 +48,7 @@ import type { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import Logger from '../../logging/logger';
 import { type AgentActionLogModel } from '../../models/AgentActionLogModel';
 import type { AppModel } from '../../models/AppModel';
+import { partitionComposerCharts } from '../../models/composerChartPartition';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -2108,6 +2109,7 @@ export class PromoteService extends BaseService {
                 upstreamProjectUuid,
             );
         const result = await this.upsertSpaces(user, projectUuid, {
+            skippedCharts: [],
             spaces: spaceChanges,
             dashboards: [],
             charts: [],
@@ -2348,6 +2350,7 @@ export class PromoteService extends BaseService {
         );
 
         return {
+            ...promotionChanges,
             spaces: allSpaces,
             dashboards: updateDashboardWithSpace,
             charts: updateChartsWithSpace,
@@ -2488,6 +2491,7 @@ export class PromoteService extends BaseService {
         if (sqlChartChange.action === PromotionAction.NO_CHANGES) {
             return {
                 promotionChanges: {
+                    skippedCharts: [],
                     spaces: [spaceChange],
                     dashboards: [],
                     charts: [],
@@ -2504,6 +2508,7 @@ export class PromoteService extends BaseService {
 
         return {
             promotionChanges: {
+                skippedCharts: [],
                 spaces: [spaceChange, ...spaceChanges],
                 dashboards: [],
                 charts: [],
@@ -2610,6 +2615,7 @@ export class PromoteService extends BaseService {
                 spaces: [spaceChange],
                 dashboards: [],
                 charts: [chartChange],
+                skippedCharts: [],
             };
         }
 
@@ -2623,6 +2629,7 @@ export class PromoteService extends BaseService {
             spaces: [spaceChange, ...spaceChanges],
             dashboards: [],
             charts: [chartChange],
+            skippedCharts: [],
         };
     }
 
@@ -2677,7 +2684,13 @@ export class PromoteService extends BaseService {
             ),
         );
 
-        const chartPromises = chartUuids.map((chartUuid) =>
+        // Promotion writes classic chart versions, so composer tiles are left out and named until it carries pipelines
+        const { supported: classicChartUuids, skipped: skippedCharts } =
+            await partitionComposerCharts(this.savedChartModel, chartUuids);
+        const composerChartUuids = new Set(
+            skippedCharts.map((composerChart) => composerChart.uuid),
+        );
+        const chartPromises = classicChartUuids.map((chartUuid) =>
             this.getPromoteCharts(
                 user,
                 upstreamProjectUuid,
@@ -2755,19 +2768,31 @@ export class PromoteService extends BaseService {
             spaceChanges.push(spaceChange);
         }
 
+        // The promoted dashboard carries no tile for a skipped composer chart
+        const promotableDashboard = {
+            ...promotedDashboard.dashboard,
+            tiles: promotedDashboard.dashboard.tiles.filter(
+                (tile) =>
+                    !(
+                        isDashboardChartTileType(tile) &&
+                        tile.properties.savedChartUuid &&
+                        composerChartUuids.has(tile.properties.savedChartUuid)
+                    ),
+            ),
+        };
         const dashboardChanges: PromotionChanges['dashboards'] = [
             upstreamDashboard,
         ].map(() => {
             if (upstreamDashboard.dashboard !== undefined) {
                 return {
                     action: PromoteService.isDashboardUpdated(
-                        promotedDashboard.dashboard,
+                        promotableDashboard,
                         upstreamDashboard.dashboard,
                     )
                         ? PromotionAction.UPDATE
                         : PromotionAction.NO_CHANGES,
                     data: {
-                        ...promotedDashboard.dashboard,
+                        ...promotableDashboard,
                         uuid: upstreamDashboard.dashboard.uuid,
                         spaceUuid: upstreamDashboard.dashboard.spaceUuid,
                         spaceSlug: promotedDashboard.space?.slug,
@@ -2779,7 +2804,7 @@ export class PromoteService extends BaseService {
             return {
                 action: PromotionAction.CREATE,
                 data: {
-                    ...promotedDashboard.dashboard,
+                    ...promotableDashboard,
                     spaceUuid:
                         upstreamDashboard.space?.uuid ||
                         promotedDashboard.dashboard.spaceUuid, // Or set the new space uuid after creation
@@ -2810,6 +2835,7 @@ export class PromoteService extends BaseService {
                 spaces: spaceChanges,
                 dashboards: dashboardChanges,
                 charts: chartChanges,
+                skippedCharts,
             },
             charts, // For permission checks
             sqlCharts, // For permission checks
@@ -3108,6 +3134,7 @@ export class PromoteService extends BaseService {
             spaces: PromoteService.sortSpaceChanges(spaceChanges),
             dashboards: [],
             charts: [],
+            skippedCharts: [],
             dataApps: dataAppChanges.map(({ uuid, name, action }) => ({
                 action:
                     action === 'create'
