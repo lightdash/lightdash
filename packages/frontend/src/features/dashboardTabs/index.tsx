@@ -81,6 +81,7 @@ import {
     convertLayoutToBaseCoordinates,
     hasGridItemMoved,
     DEFAULT_ROW_HEIGHT,
+    EDIT_ACTION_BAR_CLEARANCE,
     FINE_GRID_SCALE,
     FIT_TO_SCREEN_GRID_BOTTOM_PADDING,
     getDashboardLayouts,
@@ -108,8 +109,6 @@ type DashboardGridProps = ReturnType<typeof getResponsiveGridLayoutProps> & {
 };
 
 const DASHBOARD_GRID_BOTTOM_PADDING = 60;
-// Room for the floating edit action bar, so it never covers the last row
-const EDIT_ACTION_BAR_CLEARANCE = 80;
 
 type TabGridPanelProps = {
     tabUuid: string;
@@ -514,9 +513,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 
     const canvasZoom = useDashboardSelector(selectCanvasZoom);
     const isCanvasZoomable = isEditMode && editErgonomicsFlag?.enabled === true;
-    const gridProps: DashboardGridProps = useMemo(
-        () => ({
-            ...getResponsiveGridLayoutProps({
+    // Apart from the zoom, so a zoom step keeps the grid's own props stable
+    const unzoomedGridProps = useMemo(
+        () =>
+            getResponsiveGridLayoutProps({
                 isEditMode,
                 gridScale,
                 rowHeight:
@@ -524,15 +524,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                         ? getRowHeightForScale(gridScale)
                         : (fitToScreenRowHeight ?? DEFAULT_ROW_HEIGHT),
             }),
+        [isEditMode, gridScale, fitToScreenRowHeight],
+    );
+    const gridProps: DashboardGridProps = useMemo(
+        () => ({
+            ...unzoomedGridProps,
             transformScale: isCanvasZoomable ? canvasZoom : undefined,
         }),
-        [
-            isEditMode,
-            gridScale,
-            fitToScreenRowHeight,
-            isCanvasZoomable,
-            canvasZoom,
-        ],
+        [unzoomedGridProps, isCanvasZoomable, canvasZoom],
     );
     const layoutsByTab = useMemo(() => {
         const map = new Map<string, DashboardLayouts>();
@@ -550,8 +549,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 
     const gridLineStyles = useGridStyles({
         ref: gridWrapperRef,
-        cols: gridProps.cols,
-        rowHeight: gridProps.rowHeight,
+        cols: unzoomedGridProps.cols,
+        rowHeight: unzoomedGridProps.rowHeight,
     });
 
     // Compute whether there are unmet filter requirements that apply to the current tab

@@ -1,21 +1,19 @@
 import { Box } from '@mantine/core';
 import { useLayoutEffect, useRef, type FC, type ReactNode } from 'react';
 import classes from './CanvasZoom.module.css';
+import { ACTUAL_SIZE_ZOOM } from './canvasZoomUtils';
 
 type Props = {
     zoom: number;
     children: ReactNode;
 };
 
-/**
- * Draws the grid smaller without changing its layout, so tiles keep their
- * size (and charts don't redraw) while the editor sees more of the canvas.
- * Sizes are written straight to the DOM, so a resize never re-renders tiles.
- */
+// Scales the drawing, not the layout, so charts don't redraw; sizes go
+// straight to the DOM, so a resize never re-renders tiles
 export const CanvasZoom: FC<Props> = ({ zoom, children }) => {
     const canvasRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
-    const isZoomed = zoom !== 1;
+    const isZoomed = zoom !== ACTUAL_SIZE_ZOOM;
 
     useLayoutEffect(() => {
         const canvas = canvasRef.current;

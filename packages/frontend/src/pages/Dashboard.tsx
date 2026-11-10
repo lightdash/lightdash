@@ -119,6 +119,7 @@ import { type EditFiltersVisibility } from '../features/dashboardFilters/EditFil
 import { getDimensionFiltersToSave } from '../features/dashboardFilters/FilterConfiguration/utils';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
+import { ACTUAL_SIZE_ZOOM } from '../features/dashboardTabs/canvasZoomUtils';
 import { useFitToScreen } from '../features/dashboardTabs/useFitToScreen';
 import { isLeavingTrainingCopy } from '../features/scopeTours/trainingCopy';
 import {
@@ -537,11 +538,6 @@ const Dashboard: FC = () => {
         },
         [dashboardDispatch],
     );
-
-    // Each edit session starts at actual size
-    useEffect(() => {
-        dashboardDispatch(dashboardEditActions.setCanvasZoom(1));
-    }, [isEditMode, dashboardDispatch]);
 
     const handleAddTiles = useCallback(
         async (
@@ -1096,6 +1092,7 @@ const Dashboard: FC = () => {
 
     const handleEnterEditMode = useCallback(async () => {
         resetDashboardFilters();
+        dashboardDispatch(dashboardEditActions.setCanvasZoom(ACTUAL_SIZE_ZOOM));
 
         await refreshDashboardVersion();
 
@@ -1116,6 +1113,7 @@ const Dashboard: FC = () => {
         projectUrlIdentifier,
         dashboardIdentifier,
         resetDashboardFilters,
+        dashboardDispatch,
         refreshDashboardVersion,
         navigate,
         activeTab?.uuid,

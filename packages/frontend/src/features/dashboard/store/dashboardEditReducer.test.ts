@@ -432,6 +432,18 @@ describe('tile selectors', () => {
 });
 
 describe('tile layout undo and redo', () => {
+    it('leaves the draft and its history alone when the canvas is zoomed', () => {
+        const zoomed = reducer(
+            initialDashboardEditState,
+            actions.setCanvasZoom(0.5),
+        );
+        expect(zoomed.canvasZoom).toBe(0.5);
+        expect(zoomed.haveTilesChanged).toBe(false);
+        expect(zoomed.tileLayoutHistory).toBe(
+            initialDashboardEditState.tileLayoutHistory,
+        );
+    });
+
     const editing = (tiles: Dashboard['tiles']) =>
         reducer(initialDashboardEditState, actions.setTiles(tiles));
     const move = (uuid: string, x: number) =>
