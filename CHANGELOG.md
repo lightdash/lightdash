@@ -1,3 +1,11 @@
+# [3.198.0](https://github.com/lightdash/lightdash/compare/3.197.3...3.198.0) (2026-11-10)
+
+
+### Features
+
+* **data-apps:** make data apps available wherever AI and a sandbox are ([#32330](https://github.com/lightdash/lightdash/issues/32330)) ([23717b9](https://github.com/lightdash/lightdash/commit/23717b998f2575288497e15507a4fbc1254a8aae))
+* **data-apps:** move custom dependencies to an org setting ([#32278](https://github.com/lightdash/lightdash/issues/32278)) ([9fcf1d1](https://github.com/lightdash/lightdash/commit/9fcf1d151f164dd6cf7ce796bd8348dfb2562c5c))
+
 ## [3.197.3](https://github.com/lightdash/lightdash/compare/3.197.2...3.197.3) (2026-11-10)
 
 

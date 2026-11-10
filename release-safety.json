@@ -1,18 +1,35 @@
 {
   "schemaVersion": "2",
-  "version": "3.197.3",
-  "previousVersion": "3.197.2",
-  "releaseDate": "2026-11-10T13:46:31.711Z",
+  "version": "3.198.0",
+  "previousVersion": "3.197.3",
+  "releaseDate": "2026-11-10T13:59:56.249Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261109190000_add_data_app_custom_dependencies_to_organization_settings.ts",
+        "edition": "core",
+        "tables": [
+          "SET",
+          "feature_flag_overrides",
+          "feature_flags",
+          "organization_settings",
+          "organizations"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": true,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
-    "rollingUpdateSafe": true,
-    "recommendedStrategy": "RollingUpdate"
+    "rollingUpdateSafe": false,
+    "recommendedStrategy": "Recreate"
   },
   "api": {
     "rest": {
@@ -41,6 +58,12 @@
     "minPreviousVersion": "2.497.1",
     "requiredStops": []
   },
-  "declaredBreaks": [],
+  "declaredBreaks": [
+    {
+      "id": "data-app-custom-dependencies-flag-removed",
+      "reason": "The EnableDataAppCustomDependencies member is removed from the exported FeatureFlags enum. TypeScript consumers referencing this rollout flag must remove it when upgrading. Whether an organization may upload custom data app dependencies is now the dataAppCustomDependenciesEnabled organization setting, which a migration seeds from the flag, so self-hosters who listed enable-data-app-custom-dependencies in LIGHTDASH_ENABLE_FEATURE_FLAGS keep access and later changes are made by an org admin in the data apps settings.",
+      "requiredStop": false
+    }
+  ],
   "declaredAdvisories": []
 }

@@ -64237,6 +64237,10 @@
             },
             "OrganizationSettings": {
                 "properties": {
+                    "dataAppCustomDependenciesEnabled": {
+                        "type": "boolean",
+                        "description": "Whether data app uploads may declare custom npm dependencies. Off by\ndefault; only org admins can change it. Uploaders also need the\n`manage:DataAppDependency` permission."
+                    },
                     "dataAppCapturesEnabled": {
                         "type": "boolean",
                         "nullable": true,
@@ -64325,6 +64329,7 @@
                     }
                 },
                 "required": [
+                    "dataAppCustomDependenciesEnabled",
                     "dataAppCapturesEnabled",
                     "dataAppAutomaticThumbnailsEnabled",
                     "corsAllowedDomains",
@@ -64445,6 +64450,10 @@
                         "type": "boolean",
                         "nullable": true,
                         "description": "Whether images of a running data app, and files, may be captured or\nattached anywhere in the data app builder: prompt-bar screenshots, file\nattachments sent to the coding agent, manual and automatic thumbnails,\nand the Slack build-outcome image. Inherits and is capped by the\ninstance-wide `LIGHTDASH_APP_CAPTURES_ENABLED` (the ceiling): an org can\nturn captures off, never back on past the env. `null` inherits it.\nAlways resolved to an effective boolean in API responses."
+                    },
+                    "dataAppCustomDependenciesEnabled": {
+                        "type": "boolean",
+                        "description": "Whether data app uploads may declare custom npm dependencies. Off by\ndefault; only org admins can change it. Uploaders also need the\n`manage:DataAppDependency` permission."
                     }
                 },
                 "type": "object",
@@ -76861,7 +76870,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.197.3",
+        "version": "3.198.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

@@ -69511,6 +69511,10 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                dataAppCustomDependenciesEnabled: {
+                    dataType: 'boolean',
+                    required: true,
+                },
                 dataAppCapturesEnabled: {
                     dataType: 'union',
                     subSchemas: [
@@ -69770,6 +69774,13 @@ const models: TsoaRoute.Models = {
                     subSchemas: [
                         { dataType: 'boolean' },
                         { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                dataAppCustomDependenciesEnabled: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
                         { dataType: 'undefined' },
                     ],
                 },
