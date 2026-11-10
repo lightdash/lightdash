@@ -170,8 +170,10 @@ const relativeDateUnits = [
 
 type RelativeDateUnit = (typeof relativeDateUnits)[number];
 
-const isRelativeDateUnit = (value: string): value is RelativeDateUnit =>
-    relativeDateUnits.some((unit) => unit === value);
+// "in the current week" reads naturally, so accept singular units too.
+const toRelativeDateUnit = (value: string): RelativeDateUnit | null =>
+    relativeDateUnits.find((unit) => unit === value || unit === `${value}s`) ??
+    null;
 
 const getCategoryLabel = (category: QueryFilterExpressionCategory): string => {
     switch (category) {
@@ -710,7 +712,7 @@ const getPositionalRelativeDateRepairExample = ({
         count === null ||
         !Number.isInteger(count) ||
         count <= 0 ||
-        !isRelativeDateUnit(unitScalar.value) ||
+        toRelativeDateUnit(unitScalar.value) === null ||
         strictBoolean(completedScalar) === null
     ) {
         return null;
@@ -909,7 +911,8 @@ const resolveRelativeDateRule = ({
         );
     }
 
-    if (!isRelativeDateUnit(unitSetting.value.value)) {
+    const unitOfTime = toRelativeDateUnit(unitSetting.value.value);
+    if (unitOfTime === null) {
         return failure(
             invalidValueError({
                 source,
@@ -955,7 +958,7 @@ const resolveRelativeDateRule = ({
         operator: rule.operator.value,
         values: [count],
         settings: {
-            unitOfTime: unitSetting.value.value,
+            unitOfTime,
             completed,
         },
     });
@@ -1084,7 +1087,8 @@ const resolveCurrentDateRule = ({
     source: FilterExpressionSource;
 }): ResolutionResult<RawFilterRule> => {
     const unitScalar = rule.arguments[0];
-    if (!unitScalar || !isRelativeDateUnit(unitScalar.value)) {
+    const unit = unitScalar ? toRelativeDateUnit(unitScalar.value) : null;
+    if (!unitScalar || unit === null) {
         return failure(
             invalidValueError({
                 source,
@@ -1097,7 +1101,7 @@ const resolveCurrentDateRule = ({
                 example: unitScalar
                     ? replaceScalarInRuleExample({
                           expressionInput,
-                          replacementValue: 'days',
+                          replacementValue: 'months',
                           rule,
                           scalar: unitScalar,
                       })
@@ -1111,7 +1115,7 @@ const resolveCurrentDateRule = ({
         rule,
         field,
         source,
-        unit: unitScalar.value,
+        unit,
     });
     if (!boundsResult.success) return boundsResult;
 
@@ -1122,7 +1126,7 @@ const resolveCurrentDateRule = ({
         operator: rule.operator.value,
         values: [1],
         settings: {
-            unitOfTime: unitScalar.value,
+            unitOfTime: unit,
             completed: false,
             ...boundsResult.data,
         },
