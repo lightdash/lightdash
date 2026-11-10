@@ -1,4 +1,4 @@
-import { type ControlPlacement } from './sections';
+import { type ControlPlacement } from './controlOrder';
 
 export type BarRect = {
     left: number;

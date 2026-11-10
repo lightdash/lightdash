@@ -1,12 +1,12 @@
 import { DashboardControlRefKind } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
+import { placeControl } from './controlOrder';
 import {
     chooseInsertionPoint,
     type BarItem,
     type BarLayout,
     type BarRect,
 } from './insertionPoints';
-import { placeControl } from './sections';
 
 const box = (left: number, right: number, top = 0, bottom = 28): BarRect => ({
     left,

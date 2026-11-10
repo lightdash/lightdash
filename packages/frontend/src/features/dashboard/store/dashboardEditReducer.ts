@@ -11,7 +11,7 @@ import {
 } from '@lightdash/common';
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
 import { isEqual, sortBy } from 'es-toolkit/compat';
-import { removeSectionKeepingLines } from '../../dashboardControls/sections';
+import { removeSectionKeepingLines } from '../../dashboardControls/controlOrder';
 
 /**
  * An unsaved edit of a saved setting. It applies only while the saved value

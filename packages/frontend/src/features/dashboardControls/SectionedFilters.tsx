@@ -93,6 +93,15 @@ import {
     MOVE_KEYS,
     type BarSelection,
 } from './barSelection';
+import {
+    getShownBarLines,
+    groupSectionsIntoLines,
+    moveControlBy,
+    placeControl,
+    toControlRefs,
+    type ControlPlacement,
+    type MoveDirection,
+} from './controlOrder';
 import { formatSectionCount } from './fieldLabels';
 import { FilterPills } from './FilterPills';
 import pillClasses from './FilterPills.module.css';
@@ -124,15 +133,8 @@ import {
     SECTION_DRAG,
     underPointerFor,
     besidePointer,
-    groupSectionsIntoLines,
-    getShownBarLines,
     lineGapPlacementOf,
     lineGapTargetId,
-    moveControlBy,
-    placeControl,
-    toControlRefs,
-    type ControlPlacement,
-    type MoveDirection,
 } from './sections';
 import { SelectionBar } from './SelectionBar';
 import { isEditingIn, isNewFilterIn, removeFilterRule } from './sidebarState';

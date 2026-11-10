@@ -125,6 +125,7 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `TabCounts.tsx`, `usePortalTargets.ts`, `useTileHover.ts`, `useScrollToHighlightedTile.ts` | Tab counts, portal targets and sibling locking, pill hover marks, scroll to tile |
 | `LinkPrompts.tsx`, `linkCandidates.ts` | Link prompts on tiles added while editing |
 | `SectionedFilters.tsx`, `SectionMenu.tsx`, `SectionNameInput.tsx`, `sections.ts`, `nameFocus.ts` | Sections bar, drag and drop, naming (focus after naming, shared with the editor's name); pure section helpers |
+| `controlOrder.ts` | Pure bar order and section line helpers, free of dnd-kit: the store and `utils/dashboardConfig.ts` import them |
 | `SelectionBar.tsx`, `SelectionActions.tsx`, `barSelection.ts` | Multi-select on the sectioned bar |
 | `sectionVersionChanges.ts` | Section rows for the version comparison page |
 | `DashboardHeaderGuard.tsx` | Wraps the shipped header; inert while an editor's filter is edited |
