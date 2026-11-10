@@ -509,7 +509,7 @@ describe('content-as-code upload refuses what save refuses', () => {
                     syncEnabled: false,
                 },
             ),
-        ).rejects.toThrow('Composer charts are not enabled');
+        ).rejects.toThrow('Creating composer charts is not enabled');
         expect(savedChartModel.createComposerChart).not.toHaveBeenCalled();
     });
 

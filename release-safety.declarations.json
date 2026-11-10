@@ -255,7 +255,7 @@
             "requiredStop": false
         },
         "chart-as-code-upload-accepts-composer-chart-files": {
-            "reason": "Chart-as-code upload bodies now accept a composer chart file (a pipeline instead of a metricQuery) beside the classic chart file. Every body the CLI and API accepted before is still accepted unchanged; the OpenAPI schema widens to a union, which generated clients see as a loosened request type.",
+            "reason": "Chart-as-code upload bodies now accept a composer chart file (a pipeline instead of a metricQuery) beside the classic chart file. Every body the CLI and API accepted before is still accepted unchanged; the OpenAPI schema widens to a union, which generated clients see as a loosened request type. Uploading a composer chart file needs the composer-sql-runner-charts flag, which is off by default on Cloud and on self-hosted.",
             "requiredStop": false,
             "impact": {
                 "kind": "no-external-callers",

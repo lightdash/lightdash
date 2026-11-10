@@ -1,5 +1,6 @@
 import {
     DashboardTileTypes,
+    FeatureFlags,
     generateSlug,
     isComposerChartAsCode,
     PromotionAction,
@@ -23,8 +24,8 @@ import { login } from '../helpers/auth';
 // A composer chart round-trips through content as code: download emits its
 // stored pipeline, upload writes it back through the composer save path.
 const projectUuid = SEED_PROJECT.project_uuid;
-const COMPOSE_FLAG = 'compose-sql-runner';
-const CHARTS_FLAG = 'composer-sql-runner-charts';
+const COMPOSE_FLAG = FeatureFlags.ComposeSqlRunner;
+const CHARTS_FLAG = FeatureFlags.ComposerSqlRunnerCharts;
 const REQUIRED_FLAGS = [COMPOSE_FLAG, CHARTS_FLAG];
 const seedChartSlug = generateSlug(SEED_COMPOSER_CHART.revenueShare);
 const seedChartSlugs = Object.values(SEED_COMPOSER_CHART).map(generateSlug);
@@ -41,10 +42,10 @@ const isChartTileAsCode = (
 
 describe('Composer charts as code', () => {
     let admin: ApiClient;
-    const flagsToRestore: string[] = [];
+    const flagsToRestore: FeatureFlags[] = [];
     let seedChart: ComposerChartAsCode;
 
-    const setFlag = async (flagId: string, enabled: boolean) => {
+    const setFlag = async (flagId: FeatureFlags, enabled: boolean) => {
         const response = await admin.post(`/api/v2/feature-flag/${flagId}`, {
             enabled,
         });
