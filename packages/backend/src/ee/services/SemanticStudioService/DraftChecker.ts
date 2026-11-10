@@ -46,6 +46,15 @@ export type DraftCheck = {
     writes: Map<string, string | null>;
     /** The live models with `writes` on top, compiled; null when nothing passed. */
     explores: (Explore | ExploreError)[] | null;
+    /** What a model that passed should still be checked for by a person. */
+    notes: Map<string, string[]>;
+};
+
+/** How unique a key is, as far as the rows that were read say. */
+type KeyCheck = {
+    duplicates: number;
+    /** False when the table has more rows than were read, so no duplicates is an estimate. */
+    isWholeTable: boolean;
 };
 
 // Computed over the result set, so they cannot be selected on their own.
@@ -60,6 +69,11 @@ const MAX_KEPT_COMPILES = 4;
 
 // A dimension that reads a column as it is, so the column's type is its type.
 const PLAIN_COLUMN = /^\s*\$\{TABLE\}\.\w+\s*$/;
+
+// ponytail: a fixed cap on the rows a key check reads; make it a setting if admins need to tune cost.
+const MAX_KEY_CHECK_ROWS = 1_000_000;
+const KEY_CHECK_TTL_MS = 10 * 60 * 1000;
+const MAX_KEPT_KEY_CHECKS = 200;
 
 const SIMPLE_JOIN = /^\s*\$\{(\w+)\.(\w+)\}\s*=\s*\$\{(\w+)\.(\w+)\}\s*$/;
 
@@ -116,6 +130,11 @@ export class DraftChecker {
     private readonly projectService: DraftCheckerProjectService;
 
     private readonly compiles = new Map<string, Promise<Compiled>>();
+
+    private readonly keyChecks = new Map<
+        string,
+        { at: number; check: Promise<KeyCheck> }
+    >();
 
     constructor(projectService: DraftCheckerProjectService) {
         this.projectService = projectService;
@@ -301,33 +320,59 @@ export class DraftChecker {
         }
     }
 
-    /** How many values of these dimensions identify more than one row of a table. */
-    private async countDuplicateKeys(
+    /** Whether these dimensions identify one row of a table, read from at most a capped number of rows and kept for a while so a retry or an apply does not read them again. */
+    private async checkKey(
         user: SessionUser,
         projectUuid: string,
         explore: Explore,
         tableName: string,
         dimensionNames: string[],
         quote: string,
-    ): Promise<number> {
+    ): Promise<KeyCheck> {
         const table = explore.tables[tableName];
         const keys = dimensionNames.map(
             (name) => table.dimensions[name].compiledSql,
         );
-        const { rows } = await this.projectService.runSqlQuery(
-            user,
-            projectUuid,
-            `SELECT COUNT(*) AS duplicate_keys FROM (
-SELECT ${keys.join(', ')}
+        const memoKey = [projectUuid, table.sqlTable, ...keys].join('|');
+        const kept = this.keyChecks.get(memoKey);
+        if (kept && Date.now() - kept.at < KEY_CHECK_TTL_MS) return kept.check;
+        const aliases = keys.map((_key, index) => `k${index}`);
+        const check = this.projectService
+            .runSqlQuery(
+                user,
+                projectUuid,
+                `SELECT COALESCE(SUM(CASE WHEN key_rows > 1 THEN 1 ELSE 0 END), 0) AS duplicate_keys, COALESCE(SUM(key_rows), 0) AS checked_rows FROM (
+SELECT COUNT(*) AS key_rows FROM (
+SELECT ${keys.map((key, index) => `${key} AS ${aliases[index]}`).join(', ')}
 FROM ${table.sqlTable} AS ${quote}${tableName}${quote}
 WHERE ${keys.map((key) => `${key} IS NOT NULL`).join(' AND ')}
-GROUP BY ${keys.join(', ')}
-HAVING COUNT(*) > 1
-) AS duplicated`,
-            { kind: 'original' },
-        );
-        const [count] = Object.values(rows[0] ?? {});
-        return Number(count ?? 0);
+LIMIT ${MAX_KEY_CHECK_ROWS}
+) AS read_rows
+GROUP BY ${aliases.join(', ')}
+) AS counted`,
+                { kind: 'original' },
+            )
+            .then(({ rows }): KeyCheck => {
+                // Some warehouses fold an unquoted alias to upper case.
+                const row = new Map(
+                    Object.entries(rows[0] ?? {}).map(([column, value]) => [
+                        column.toLowerCase(),
+                        Number(value ?? 0),
+                    ]),
+                );
+                return {
+                    duplicates: row.get('duplicate_keys') ?? 0,
+                    isWholeTable:
+                        (row.get('checked_rows') ?? 0) < MAX_KEY_CHECK_ROWS,
+                };
+            });
+        this.keyChecks.set(memoKey, { at: Date.now(), check });
+        if (this.keyChecks.size > MAX_KEPT_KEY_CHECKS) {
+            const [oldest] = this.keyChecks.keys();
+            this.keyChecks.delete(oldest);
+        }
+        check.catch(() => this.keyChecks.delete(memoKey));
+        return check;
     }
 
     /** Checks a model's new primary key on the warehouse, and measures what each new join does to row counts. */
@@ -339,23 +384,20 @@ HAVING COUNT(*) > 1
         storedContents: string | null,
         quote: string,
     ): Promise<
-        { error: string } | { relationships: Map<string, JoinRelationship> }
+        | { error: string }
+        | { relationships: Map<string, JoinRelationship>; notes: string[] }
     > {
         const relationships = new Map<string, JoinRelationship>();
+        const notes: string[] = [];
+        const isEstimate = ({ duplicates, isWholeTable }: KeyCheck) =>
+            duplicates === 0 && !isWholeTable;
         const model = parseModelDocument(contents, toModelPath(explore.name));
         const stored =
             storedContents === null
                 ? null
                 : parseModelDocument(storedContents, toModelPath(explore.name));
-        const duplicates = (table: string, dimensions: string[]) =>
-            this.countDuplicateKeys(
-                user,
-                projectUuid,
-                explore,
-                table,
-                dimensions,
-                quote,
-            );
+        const checkKey = (table: string, dimensions: string[]) =>
+            this.checkKey(user, projectUuid, explore, table, dimensions, quote);
         const measureJoin = async ({
             alias,
             join,
@@ -368,6 +410,7 @@ HAVING COUNT(*) > 1
             joined: string;
             relationship: JoinRelationship | null;
             error: string | null;
+            isEstimate: boolean;
         } | null> => {
             const on = SIMPLE_JOIN.exec(sqlOn);
             if (!on) return null;
@@ -389,16 +432,17 @@ HAVING COUNT(*) > 1
             ) {
                 return null;
             }
-            const [localCount, otherCount] = await Promise.all([
-                duplicates(local.table, [local.field]),
-                duplicates(other.table, [other.field]),
+            const [localKey, otherKey] = await Promise.all([
+                checkKey(local.table, [local.field]),
+                checkKey(other.table, [other.field]),
             ]);
-            const localIsUnique = localCount === 0;
-            const otherIsUnique = otherCount === 0;
+            const localIsUnique = localKey.duplicates === 0;
+            const otherIsUnique = otherKey.duplicates === 0;
             if (!localIsUnique && !otherIsUnique) {
                 return {
                     joined,
                     relationship: null,
+                    isEstimate: false,
                     error: `The join to ${joined} is many-to-many on ${local.field} and ${other.field}, so it would multiply rows on both sides. Leave it out, or join through a table where one side is unique.`,
                 };
             }
@@ -410,6 +454,7 @@ HAVING COUNT(*) > 1
                 return {
                     joined,
                     relationship: null,
+                    isEstimate: false,
                     error: `The join to ${joined} is one-to-many, so it multiplies rows of ${local.table}, and its metrics are only protected from that with a primary_key. Set primary_key on ${local.table}, or define this from ${joined} instead.`,
                 };
             }
@@ -417,18 +462,27 @@ HAVING COUNT(*) > 1
                 joined,
                 relationship: toRelationship(localIsUnique, otherIsUnique),
                 error: null,
+                // A duplicate that was found is certain; none found in part of a table is not.
+                isEstimate: isEstimate(localKey) || isEstimate(otherKey),
             };
         };
         try {
             const { primaryKey } = explore.tables[explore.baseTable];
             if (
                 primaryKey &&
-                !isEqual(stored?.primary_key, model.primary_key) &&
-                (await duplicates(explore.baseTable, primaryKey)) > 0
+                !isEqual(stored?.primary_key, model.primary_key)
             ) {
-                return {
-                    error: `primary_key ${primaryKey.join(', ')} is not unique, so it cannot identify a row. Remove it or name the column that does.`,
-                };
+                const key = await checkKey(explore.baseTable, primaryKey);
+                if (key.duplicates > 0) {
+                    return {
+                        error: `primary_key ${primaryKey.join(', ')} is not unique, so it cannot identify a row. Remove it or name the column that does.`,
+                    };
+                }
+                if (isEstimate(key)) {
+                    notes.push(
+                        `primary_key ${primaryKey.join(', ')} was checked on the first ${MAX_KEY_CHECK_ROWS.toLocaleString('en-US')} rows only, so confirm it identifies one row.`,
+                    );
+                }
             }
             if (
                 stored?.primary_key &&
@@ -450,11 +504,15 @@ HAVING COUNT(*) > 1
             const failed = measured.find((join) => join?.error);
             if (failed?.error) return { error: failed.error };
             measured.forEach((join) => {
-                if (join?.relationship) {
-                    relationships.set(join.joined, join.relationship);
+                if (!join?.relationship) return;
+                relationships.set(join.joined, join.relationship);
+                if (join.isEstimate) {
+                    notes.push(
+                        `The join to ${join.joined} was measured on the first ${MAX_KEY_CHECK_ROWS.toLocaleString('en-US')} rows only, so its ${join.relationship} relationship is an estimate. Confirm it before applying.`,
+                    );
                 }
             });
-            return { relationships };
+            return { relationships, notes };
         } catch (error) {
             return {
                 error: `The warehouse could not check this model's keys: ${getErrorMessage(error)}`,
@@ -487,6 +545,7 @@ HAVING COUNT(*) > 1
     ): Promise<DraftCheck> {
         const writes = new Map(proposed);
         const rejected = new Map<string, string>();
+        const notes = new Map<string, string[]>();
         const reject = (model: string, error: string) => {
             writes.delete(model);
             rejected.set(model, error);
@@ -555,7 +614,9 @@ HAVING COUNT(*) > 1
         });
 
         const afterCompile = await compile();
-        if (!afterCompile) return { rejected, writes, explores: null };
+        if (!afterCompile) {
+            return { rejected, writes, explores: null, notes };
+        }
 
         // Redefining a model can break those that join it.
         const usable = await Promise.all(
@@ -581,7 +642,7 @@ HAVING COUNT(*) > 1
             else rejectAll(`This would break ${name}: ${error}`);
         });
         const afterUse = unusable.length > 0 ? await compile() : afterCompile;
-        if (!afterUse) return { rejected, writes, explores: null };
+        if (!afterUse) return { rejected, writes, explores: null, notes };
 
         const measured = await Promise.all(
             afterUse.explores.filter(isCompiled).flatMap((explore) => {
@@ -607,7 +668,10 @@ HAVING COUNT(*) > 1
         measured.forEach(({ name, contents, measure }) => {
             if ('error' in measure) {
                 reject(name, measure.error);
-            } else if (measure.relationships.size > 0) {
+                return;
+            }
+            if (measure.notes.length > 0) notes.set(name, measure.notes);
+            if (measure.relationships.size > 0) {
                 writes.set(
                     name,
                     setModelJoinRelationships({
@@ -619,6 +683,11 @@ HAVING COUNT(*) > 1
             }
         });
         const settled = await compile();
-        return { rejected, writes, explores: settled?.explores ?? null };
+        return {
+            rejected,
+            writes,
+            explores: settled?.explores ?? null,
+            notes,
+        };
     }
 }

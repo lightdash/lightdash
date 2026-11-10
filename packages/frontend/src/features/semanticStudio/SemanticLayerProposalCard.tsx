@@ -169,6 +169,7 @@ export const SemanticLayerProposalCard: FC<{
     const refusals = proposal.models.flatMap(({ model, refusals: refused }) =>
         refused.map((refusal) => refusalText(model, refusal)),
     );
+    const notes = proposal.models.flatMap(({ notes: noted }) => noted);
     const status = settled
         ? STATUS_LABELS[settled]
         : inDraft
@@ -220,8 +221,13 @@ export const SemanticLayerProposalCard: FC<{
                     actions={index === 0 ? getActions(model) : null}
                 />
             ))}
-            {failures.length > 0 || refusals.length > 0 ? (
+            {failures.length > 0 || refusals.length > 0 || notes.length > 0 ? (
                 <Stack gap={2} p="xs">
+                    {notes.map((text) => (
+                        <Text key={text} fz="xs" c="orange">
+                            {text}
+                        </Text>
+                    ))}
                     {failures.map(({ model, error }) => (
                         <Text key={model} fz="xs" c="red">
                             {model}: {error}

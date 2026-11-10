@@ -35,6 +35,12 @@ const columnTypes: { fields: Record<string, { type: DimensionType }> } = {
     fields: {},
 };
 
+/** What the warehouse was asked, and what a key check comes back with. */
+const warehouse: { queries: string[]; keyRow: Record<string, number> } = {
+    queries: [],
+    keyRow: {},
+};
+
 const checker = () =>
     new DraftChecker({
         getWarehouseSqlBuilderSettings: async () => ({
@@ -43,7 +49,13 @@ const checker = () =>
             columnTimezone: 'UTC',
             dataTimezone: null,
         }),
-        runSqlQuery: async () => ({ fields: columnTypes.fields, rows: [] }),
+        runSqlQuery: async (_user, _projectUuid, sql) => {
+            warehouse.queries.push(sql);
+            return {
+                fields: columnTypes.fields,
+                rows: sql.includes('duplicate_keys') ? [warehouse.keyRow] : [],
+            };
+        },
         compileQuery: async () => ({ query: '', compilationErrors: [] }),
     });
 
@@ -51,6 +63,8 @@ describe('DraftChecker.compile', () => {
     beforeEach(() => {
         compiles.count = 0;
         columnTypes.fields = {};
+        warehouse.queries = [];
+        warehouse.keyRow = {};
     });
 
     test('the same documents compile once, and each caller gets its own copy', async () => {
@@ -176,6 +190,61 @@ describe('DraftChecker.compile', () => {
                 'CAST(${TABLE}.id AS INT)',
             );
             expect((await check(new Map(), cast)).rejected.size).toBe(0);
+        });
+    });
+
+    describe('key checks', () => {
+        const joined = `${model('orders')}joins:
+  - join: customers
+    sql_on: \${orders.id} = \${customers.id}
+`;
+        const proposed = () =>
+            new Map([
+                ['orders', joined],
+                ['customers', model('customers')],
+            ]);
+        const keyChecks = () =>
+            warehouse.queries.filter((sql) => sql.includes('duplicate_keys'));
+
+        test('read a capped number of rows', async () => {
+            await checker().check(user, 'project', new Map(), proposed());
+            expect(keyChecks()).toHaveLength(2);
+            keyChecks().forEach((sql) =>
+                expect(sql).toContain('LIMIT 1000000'),
+            );
+        });
+
+        test('say so when a table is larger than what was read', async () => {
+            warehouse.keyRow = { duplicate_keys: 0, CHECKED_ROWS: 1_000_000 };
+            const { rejected, notes, writes } = await checker().check(
+                user,
+                'project',
+                new Map(),
+                proposed(),
+            );
+            expect(rejected.size).toBe(0);
+            expect(writes.get('orders')).toContain('relationship: one-to-one');
+            expect(notes.get('orders')).toEqual([
+                'The join to customers was measured on the first 1,000,000 rows only, so its one-to-one relationship is an estimate. Confirm it before applying.',
+            ]);
+        });
+
+        test('have nothing to add when the whole table was read', async () => {
+            warehouse.keyRow = { duplicate_keys: 0, checked_rows: 200 };
+            const { notes } = await checker().check(
+                user,
+                'project',
+                new Map(),
+                proposed(),
+            );
+            expect(notes.size).toBe(0);
+        });
+
+        test('are not repeated when the same draft is checked again', async () => {
+            const drafts = checker();
+            await drafts.check(user, 'project', new Map(), proposed());
+            await drafts.check(user, 'project', new Map(), proposed());
+            expect(keyChecks()).toHaveLength(2);
         });
     });
 });
