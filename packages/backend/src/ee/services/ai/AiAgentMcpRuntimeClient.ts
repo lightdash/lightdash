@@ -71,6 +71,8 @@ export const MCP_TOOL_DESCRIPTION_MAX_CHARS = 2_000;
 export const MCP_TOOL_OUTPUT_MAX_CHARS = 32_000;
 export const MCP_TOOL_SCHEMA_MAX_CHARS = 64_000;
 export const MCP_HTTP_RESPONSE_MAX_BYTES = 4 * 1024 * 1024;
+/** Every truncation notice ends with this. */
+export const MCP_TRUNCATION_MARKER = 'truncated by Lightdash]';
 
 const escapeUntrustedMcpText = (value: string): string =>
     value
@@ -87,7 +89,7 @@ export const sanitizeUntrustedMcpText = (
 ): string => {
     const sanitized = escapeUntrustedMcpText(value);
     if (sanitized.length <= maxChars) return sanitized;
-    return `${sanitized.slice(0, maxChars)}\n[truncated by Lightdash]`;
+    return `${sanitized.slice(0, maxChars)}\n[${MCP_TRUNCATION_MARKER}`;
 };
 
 const sanitizeBoundedMcpValue = (
@@ -96,7 +98,7 @@ const sanitizeBoundedMcpValue = (
     state = { remaining: maxChars },
     depth = 0,
 ): unknown => {
-    if (state.remaining <= 0) return '[truncated by Lightdash]';
+    if (state.remaining <= 0) return `[${MCP_TRUNCATION_MARKER}`;
     if (depth > 20) return '[maximum nesting depth reached]';
     if (typeof value === 'string') {
         const bounded = value.slice(0, state.remaining);
@@ -104,7 +106,7 @@ const sanitizeBoundedMcpValue = (
         // eslint-disable-next-line no-param-reassign
         state.remaining -= bounded.length;
         const suffix =
-            value.length > bounded.length ? '\n[truncated by Lightdash]' : '';
+            value.length > bounded.length ? `\n[${MCP_TRUNCATION_MARKER}` : '';
         return `${escapeUntrustedMcpText(bounded)}${suffix}`;
     }
     if (
@@ -122,7 +124,7 @@ const sanitizeBoundedMcpValue = (
         const sanitized: unknown[] = [];
         for (const item of value.slice(0, 1_000)) {
             if (state.remaining <= 0) {
-                sanitized.push('[truncated by Lightdash]');
+                sanitized.push(`[${MCP_TRUNCATION_MARKER}`);
                 break;
             }
             sanitized.push(
@@ -135,7 +137,7 @@ const sanitizeBoundedMcpValue = (
         const sanitized: Record<string, unknown> = {};
         for (const [key, child] of Object.entries(value).slice(0, 1_000)) {
             if (state.remaining <= 0) {
-                sanitized.truncated = '[truncated by Lightdash]';
+                sanitized.truncated = `[${MCP_TRUNCATION_MARKER}`;
                 break;
             }
             const boundedKey = key.slice(0, state.remaining);
@@ -198,7 +200,7 @@ const hardenMcpOutput = (value: unknown): unknown => {
         content: [
             {
                 type: 'text',
-                text: '[Untrusted remote MCP output; content truncated by Lightdash]',
+                text: `[Untrusted remote MCP output; content ${MCP_TRUNCATION_MARKER}`,
             },
         ],
     };

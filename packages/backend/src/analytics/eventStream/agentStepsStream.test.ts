@@ -1,3 +1,4 @@
+import { aiAgentToolCallCompletedPropertiesSchema } from '../../ee/services/ai/analytics/toolCallEvent';
 import type {
     AiAgentStepCompletedEvent,
     AiAgentToolCallCompletedEvent,
@@ -52,24 +53,40 @@ const stepEvent: AiAgentStepCompletedEvent = {
     },
 };
 
+const TOOL_CALL_PROMPT_ID = '00000000-0000-4000-8000-000000000005';
 const toolCallEvent: AiAgentToolCallCompletedEvent = {
     event: 'ai_agent.tool_call_completed',
     userId: 'user-1',
-    properties: {
-        organizationId: 'org-1',
-        projectId: 'project-1',
-        aiAgentId: 'agent-1',
+    properties: aiAgentToolCallCompletedPropertiesSchema.parse({
+        organizationId: '00000000-0000-4000-8000-000000000001',
+        projectId: '00000000-0000-4000-8000-000000000002',
+        aiAgentId: '00000000-0000-4000-8000-000000000003',
         toolName: 'runMetricQuery',
-        threadId: 'thread-1',
-        promptId: 'prompt-1',
+        threadId: '00000000-0000-4000-8000-000000000004',
+        promptId: TOOL_CALL_PROMPT_ID,
         toolCallId: 'call-9',
+        model: 'claude-sonnet-4-5',
+        serverVersion: '3.195.1',
         stepIndex: 2,
         durationMs: 1_300,
         stage: 'query',
         queryCacheHit: true,
         queryReuseHit: true,
         status: 'success',
-    },
+        outcome: 'ok',
+        errorCode: null,
+        pythonExceptionType: null,
+        rowCount: 12,
+        truncated: false,
+        attempt: 1,
+        composerSemanticLayerNodes: null,
+        composerSqlNodes: null,
+        composerDuckdbNodes: null,
+        composerPythonNodes: null,
+        composerExternalNodes: null,
+        composerApiNodes: null,
+        filterOperators: [],
+    }),
 };
 
 describe('agentStepsStream', () => {
@@ -103,7 +120,7 @@ describe('agentStepsStream', () => {
         expect(stream).toBe('agent_steps');
         expect(row).toMatchObject({
             record_type: 'tool_call',
-            prompt_id: 'prompt-1',
+            prompt_id: TOOL_CALL_PROMPT_ID,
             step_index: 2,
             tool_call_id: 'call-9',
             tool_name: 'runMetricQuery',
