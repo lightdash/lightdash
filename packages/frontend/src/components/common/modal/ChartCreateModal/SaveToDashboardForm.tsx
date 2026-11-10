@@ -1,5 +1,6 @@
 import {
     type DashboardBasicDetails,
+    type DashboardTab,
     type SpaceSummary,
 } from '@lightdash/common';
 import {
@@ -14,6 +15,7 @@ import {
 import { type UseFormReturnType } from '@mantine/form';
 import { IconArrowLeft, IconPlus } from '@tabler/icons-react';
 import { useMemo } from 'react';
+import DashboardTabSelect from '../../Dashboard/DashboardTabSelect';
 import MantineIcon from '../../MantineIcon';
 import {
     type SaveToDashboardFormType,
@@ -24,6 +26,9 @@ type Props<T extends SaveToDashboardFormType & SaveToSpaceFormType> = {
     form: UseFormReturnType<T>;
     spaces: SpaceSummary[] | undefined;
     dashboards: DashboardBasicDetails[] | undefined;
+    tabs: DashboardTab[];
+    destinationTabUuid: string | null;
+    onSelectTab: (tabUuid: string) => void;
     isLoading: boolean;
     isCreatingNewDashboard: boolean;
     onStartCreatingNewDashboard: () => void;
@@ -39,6 +44,9 @@ const SaveToDashboardForm = <
     form,
     spaces = [],
     dashboards = [],
+    tabs,
+    destinationTabUuid,
+    onSelectTab,
     isLoading,
     isCreatingNewDashboard,
     onStartCreatingNewDashboard,
@@ -158,6 +166,11 @@ const SaveToDashboardForm = <
                 required
                 {...form.getInputProps('dashboardUuid')}
                 value={form.values.dashboardUuid ?? null}
+            />
+            <DashboardTabSelect
+                tabs={tabs}
+                value={destinationTabUuid}
+                onChange={onSelectTab}
             />
             <Anchor component="span" onClick={onStartCreatingNewDashboard}>
                 <Group gap="two">
