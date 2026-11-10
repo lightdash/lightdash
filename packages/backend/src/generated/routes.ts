@@ -67,6 +67,8 @@ import { MapTileController } from './../controllers/mapTileController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { MetricsExplorerController } from './../controllers/metricsExplorerController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { MobileAppController } from './../controllers/mobileAppController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { NotificationsController } from './../controllers/notificationsController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { OrganizationBrandController } from './../controllers/organizationBrandController';
@@ -63765,6 +63767,7 @@ const models: TsoaRoute.Models = {
                     dataType: 'enum',
                     enums: ['pollEmailWhitelabelVerification'],
                 },
+                { dataType: 'enum', enums: ['cleanMobileAppLinks'] },
                 { dataType: 'enum', enums: ['cleanWarehouseConnectCodes'] },
                 { dataType: 'enum', enums: ['clearDueResultsCaches'] },
                 {
@@ -71825,6 +71828,84 @@ const models: TsoaRoute.Models = {
     ApiNotificationUpdateParams: {
         dataType: 'refAlias',
         type: { ref: 'Pick_Notification.viewed_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MobileAppLink: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                expiresInSeconds: { dataType: 'double', required: true },
+                expiresAt: { dataType: 'string', required: true },
+                scanUrl: { dataType: 'string', required: true },
+                linkUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiMobileAppLinkResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'MobileAppLink', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MobileAppPlatform: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['ios'] },
+                { dataType: 'enum', enums: ['android'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MobileAppLinkStatus: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                scanPlatform: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'MobileAppPlatform' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                scannedAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                expiresAt: { dataType: 'string', required: true },
+                linkUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiMobileAppLinkStatusResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'MobileAppLinkStatus', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MetricWithAssociatedTimeDimension: {
@@ -135936,6 +136017,122 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'updateNotification',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsMobileAppController_createMobileAppLink: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v1/user/mobile/app-links',
+        ...fetchMiddlewares<RequestHandler>(MobileAppController),
+        ...fetchMiddlewares<RequestHandler>(
+            MobileAppController.prototype.createMobileAppLink,
+        ),
+
+        async function MobileAppController_createMobileAppLink(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsMobileAppController_createMobileAppLink,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<MobileAppController>(
+                        MobileAppController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'createMobileAppLink',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsMobileAppController_getMobileAppLinkStatus: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        linkUuid: {
+            in: 'path',
+            name: 'linkUuid',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.get(
+        '/api/v1/user/mobile/app-links/:linkUuid',
+        ...fetchMiddlewares<RequestHandler>(MobileAppController),
+        ...fetchMiddlewares<RequestHandler>(
+            MobileAppController.prototype.getMobileAppLinkStatus,
+        ),
+
+        async function MobileAppController_getMobileAppLinkStatus(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsMobileAppController_getMobileAppLinkStatus,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<MobileAppController>(
+                        MobileAppController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getMobileAppLinkStatus',
                     controller,
                     response,
                     next,

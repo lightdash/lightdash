@@ -1,3 +1,10 @@
+# [3.192.0](https://github.com/lightdash/lightdash/compare/3.191.0...3.192.0) (2026-11-10)
+
+
+### Features
+
+* QR code to get the mobile app, with a scan redirect (SPK-2950) ([#32241](https://github.com/lightdash/lightdash/issues/32241)) ([4c8fccd](https://github.com/lightdash/lightdash/commit/4c8fccd01e76e8ff775292ec2a04eab3a53275c4))
+
 # [3.191.0](https://github.com/lightdash/lightdash/compare/3.190.0...3.191.0) (2026-11-10)
 
 

@@ -58271,6 +58271,7 @@
                     "compactUsageEvents",
                     "backfillUsageQueryHistory",
                     "pollEmailWhitelabelVerification",
+                    "cleanMobileAppLinks",
                     "cleanWarehouseConnectCodes",
                     "clearDueResultsCaches",
                     "cleanAgentConnectionApprovalRequests",
@@ -66471,6 +66472,92 @@
             },
             "ApiNotificationUpdateParams": {
                 "$ref": "#/components/schemas/Pick_Notification.viewed_"
+            },
+            "MobileAppLink": {
+                "properties": {
+                    "expiresInSeconds": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Lifetime set by the server, so clients need not trust their own clock."
+                    },
+                    "expiresAt": {
+                        "type": "string"
+                    },
+                    "scanUrl": {
+                        "type": "string"
+                    },
+                    "linkUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "expiresInSeconds",
+                    "expiresAt",
+                    "scanUrl",
+                    "linkUuid"
+                ],
+                "type": "object"
+            },
+            "ApiMobileAppLinkResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/MobileAppLink"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "MobileAppPlatform": {
+                "type": "string",
+                "enum": ["ios", "android"]
+            },
+            "MobileAppLinkStatus": {
+                "properties": {
+                    "scanPlatform": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MobileAppPlatform"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "scannedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "expiresAt": {
+                        "type": "string"
+                    },
+                    "linkUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "scanPlatform",
+                    "scannedAt",
+                    "expiresAt",
+                    "linkUuid"
+                ],
+                "type": "object"
+            },
+            "ApiMobileAppLinkStatusResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/MobileAppLinkStatus"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             },
             "MetricWithAssociatedTimeDimension": {
                 "allOf": [
@@ -76562,7 +76649,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.191.0",
+        "version": "3.192.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -109088,6 +109175,80 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/user/mobile/app-links": {
+            "post": {
+                "operationId": "CreateMobileAppLink",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMobileAppLinkResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Creates a link that opens the mobile app's store page. The link expires\nafter 30 minutes",
+                "summary": "Create mobile app link",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/user/mobile/app-links/{linkUuid}": {
+            "get": {
+                "operationId": "GetMobileAppLinkStatus",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMobileAppLinkStatusResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Gets whether a phone opened a mobile app link created by the current user",
+                "summary": "Get mobile app link status",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "The uuid of the mobile app link",
+                        "in": "path",
+                        "name": "linkUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/metricsExplorer/{explore}/{metric}/runMetricTotal": {
