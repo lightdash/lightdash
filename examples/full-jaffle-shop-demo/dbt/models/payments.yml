@@ -30,6 +30,23 @@ models:
           - join: customers
             sql_on: ${customers.customer_id} = ${orders.customer_id}
             relationship: many-to-one
+        # Model-level dimensions: not tied to a single column
+        additional_dimensions:
+          payment_size:
+            type: string
+            label: Payment size
+            description: Size band of the payment, based on its amount
+            sql: |
+              CASE
+                WHEN ${amount} < 10 THEN 'Small'
+                WHEN ${amount} < 20 THEN 'Medium'
+                ELSE 'Large'
+              END
+          is_large_card_payment:
+            type: boolean
+            label: Is large card payment
+            description: Credit card payments of 20 or more
+            sql: ${payment_method} = 'credit_card' AND ${amount} >= 20
     columns:
       - name: payment_id
         description: This is a unique identifier for a payment
