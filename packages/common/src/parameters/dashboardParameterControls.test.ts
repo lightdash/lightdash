@@ -145,7 +145,6 @@ describe('parameter control targeting', () => {
             definitions: {},
             tileParameterReferences: { a: ['date_zoom', 'region'] },
             parameterOrder: [],
-            parameterSections: {},
         };
         expect(
             fillParameterControls(args).map((c) => Object.keys(c.parameters)),

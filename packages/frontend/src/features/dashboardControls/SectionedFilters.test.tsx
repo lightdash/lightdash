@@ -534,12 +534,12 @@ describe('SectionedFilters', () => {
         ).toHaveAttribute('data-own-line');
     });
 
-    it('puts each section on a line of its own unless it is saved inline, whatever its fold', () => {
+    it('puts each section on a line of its own without a stored order, whatever its fold', () => {
         const saved = [
             { id: 'a', name: 'Dates' },
-            { id: 'b', name: 'Regions', collapsed: true, inline: true },
+            { id: 'b', name: 'Regions', collapsed: true },
             { id: 'c', name: 'Status', collapsed: true },
-            { id: 'd', name: 'Totals', inline: true },
+            { id: 'd', name: 'Totals' },
         ];
         renderSectioned(
             [
@@ -554,15 +554,11 @@ describe('SectionedFilters', () => {
         const lineOf = (name: string) =>
             capsuleOf(name).parentElement as HTMLElement;
         expect(lineOf('Dates').className).toMatch(/sectionLine/);
-        expect(lineOf('Regions')).toBe(lineOf('Dates'));
-        expect(lineOf('Totals')).toBe(lineOf('Status'));
-        expect(lineOf('Status')).not.toBe(lineOf('Dates'));
         const sectionsLine = lineOf('Dates').parentElement;
         expect(sectionsLine?.className).toMatch(/sections/);
-        expect([...(sectionsLine?.children ?? [])].slice(0, 2)).toEqual([
-            lineOf('Dates'),
-            lineOf('Status'),
-        ]);
+        expect([...(sectionsLine?.children ?? [])].slice(0, 4)).toEqual(
+            ['Dates', 'Regions', 'Status', 'Totals'].map(lineOf),
+        );
     });
 
     it("starts a viewer's capsules on a line below the filters", () => {
@@ -2281,14 +2277,19 @@ describe('SectionedFilters', () => {
             await user.keyboard('First{Enter}');
             await user.click(ghost() as HTMLElement);
             await user.keyboard('Second{Enter}');
+            const [first, second] = sectionsOf(store);
             expect(
-                sectionsOf(store).map(({ name, inline }) => [name, inline]),
+                selectOrderedControls(store.getState()).map(
+                    ({ id, newLine }) => [id, newLine],
+                ),
             ).toEqual([
-                ['First', undefined],
-                ['Second', true],
+                ['one', false],
+                ['two', false],
+                [first.id, true],
+                [second.id, false],
             ]);
-            expect(capsuleOf('Second').parentElement).toBe(
-                capsuleOf('First').parentElement,
+            expect(capsuleOf('Second').closest('[class*="orderLine"]')).toBe(
+                capsuleOf('First').closest('[class*="orderLine"]'),
             );
         });
 
@@ -2869,19 +2870,33 @@ describe('SectionedFilters', () => {
                 mockSidebar.current = { isViewer, isSidebarOpen: false };
                 const saved = [
                     { id: 'a', name: 'Dates' },
-                    { id: 'b', name: 'Regions', collapsed: true, inline: true },
+                    { id: 'b', name: 'Regions', collapsed: true },
                 ];
-                renderSectioned(
+                const { store } = renderSectioned(
                     [rule('one', 'a'), rule('two', 'b')],
                     'tab-1',
                     saved,
                 );
+                act(() => {
+                    store.dispatch(
+                        dashboardEditActions.syncControlOrder([
+                            {
+                                kind: DashboardControlRefKind.SECTION,
+                                id: 'a',
+                                newLine: true,
+                            },
+                            { kind: DashboardControlRefKind.SECTION, id: 'b' },
+                        ]),
+                    );
+                });
                 const toggleOf = (name: string) =>
                     isViewer
                         ? screen.getByRole('button', { name })
                         : foldOf(name);
-                const line = capsuleOf('Dates').parentElement;
-                expect(capsuleOf('Regions').parentElement).toBe(line);
+                const line = capsuleOf('Dates').closest('[class*="orderLine"]');
+                expect(
+                    capsuleOf('Regions').closest('[class*="orderLine"]'),
+                ).toBe(line);
 
                 await userEvent.click(toggleOf('Regions'));
                 expect(toggleOf('Regions')).toHaveAttribute(
@@ -2889,10 +2904,14 @@ describe('SectionedFilters', () => {
                     'true',
                 );
                 expect(toggleOf('Regions')).toHaveFocus();
-                expect(capsuleOf('Regions').parentElement).toBe(line);
+                expect(
+                    capsuleOf('Regions').closest('[class*="orderLine"]'),
+                ).toBe(line);
 
                 await userEvent.click(toggleOf('Dates'));
-                expect(capsuleOf('Dates').parentElement).toBe(line);
+                expect(capsuleOf('Dates').closest('[class*="orderLine"]')).toBe(
+                    line,
+                );
             },
         );
 
@@ -2976,7 +2995,7 @@ describe('SectionedFilters', () => {
         it('offers no line item in the section menu: lines change by drag and keyboard', async () => {
             renderSectioned([rule('one', 'a')], 'tab-1', [
                 { id: 'a', name: 'Dates' },
-                { id: 'b', name: 'Regions', inline: true },
+                { id: 'b', name: 'Regions' },
             ]);
             await userEvent.click(
                 screen.getByRole('button', { name: 'Regions menu' }),

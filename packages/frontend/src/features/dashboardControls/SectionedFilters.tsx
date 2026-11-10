@@ -95,7 +95,6 @@ import {
 } from './barSelection';
 import {
     getShownBarLines,
-    groupSectionsIntoLines,
     moveControlBy,
     placeControl,
     toControlRefs,
@@ -942,12 +941,10 @@ export const SectionedFilters: FC<Props> = ({
             arrange(next);
         },
     );
-    // The bar's lines: a section shares the line of the one before it when
-    // it is `inline`, else starts its own. A viewer's hidden sections leave
-    // their lines as they are
-    const lines = groupSectionsIntoLines(sections)
-        .map((line) => line.filter(({ id }) => groupById.has(id)))
-        .filter((line) => line.length > 0);
+    // Without a stored order each section starts its own line
+    const lines = sections
+        .filter(({ id }) => groupById.has(id))
+        .map((section) => [section]);
     // A capsule's drop line: beside it, last in it, or after it for a member
     // leaving it by keyboard on the first button
     const capsuleDropOf = (
@@ -1262,7 +1259,12 @@ export const SectionedFilters: FC<Props> = ({
                 onAdd={(name, exit) => {
                     const section = { id: uuidv4(), name };
                     focusNewSection.current = { id: section.id, exit };
-                    dispatch(dashboardEditActions.addControlSection(section));
+                    dispatch(
+                        dashboardEditActions.addControlSection({
+                            section,
+                            barOrder: toControlRefs(ordered),
+                        }),
+                    );
                     const before = store.getState();
                     const [parameterIds, ruleIds] = partition(
                         naming.moveIds,

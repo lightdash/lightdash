@@ -1,4 +1,5 @@
 import {
+    DashboardControlRefKind,
     DateGranularity,
     EMPTY_DATE_ZOOM_CONFIG,
     isSubDayGranularity,
@@ -11,7 +12,6 @@ import {
 } from '@lightdash/common';
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
 import { isEqual, sortBy } from 'es-toolkit/compat';
-import { removeSectionKeepingLines } from '../../dashboardControls/controlOrder';
 
 /**
  * An unsaved edit of a saved setting. It applies only while the saved value
@@ -164,9 +164,11 @@ export const dashboardEditActions = {
     setHaveControlSectionsChanged: createAction<boolean>(
         'dashboardEdit/setHaveControlSectionsChanged',
     ),
-    addControlSection: createAction<DashboardControlSection>(
-        'dashboardEdit/addControlSection',
-    ),
+    /** `barOrder` is the bar's current order, from `selectOrderedControls` */
+    addControlSection: createAction<{
+        section: DashboardControlSection;
+        barOrder: DashboardControlRef[];
+    }>('dashboardEdit/addControlSection'),
     renameControlSection: createAction<DashboardControlSection>(
         'dashboardEdit/renameControlSection',
     ),
@@ -328,16 +330,25 @@ export const dashboardEditReducer = (
     if (dashboardEditActions.setHaveControlSectionsChanged.match(action)) {
         return set(state, 'haveControlSectionsChanged', action.payload);
     }
-    // A new section joins the line of the one before it; the first starts
-    // one. A stored order ignores `inline`: it ends the last line there
+    // A new section joins the line of the one before it, stored as an order;
+    // the first starts one. A stored order ends the last line with it
     if (dashboardEditActions.addControlSection.match(action)) {
-        const isInline =
-            state.controlSections.length > 0 &&
-            (state.controlOrder?.length ?? 0) === 0;
-        return withControlSections(state, [
+        const { section, barOrder } = action.payload;
+        const withSection = withControlSections(state, [
             ...state.controlSections,
-            isInline ? { ...action.payload, inline: true } : action.payload,
+            section,
         ]);
+        return state.controlSections.length > 0 &&
+            (state.controlOrder?.length ?? 0) === 0
+            ? {
+                  ...withSection,
+                  controlOrder: [
+                      ...barOrder,
+                      { kind: DashboardControlRefKind.SECTION, id: section.id },
+                  ],
+                  hasControlOrderChanged: true,
+              }
+            : withSection;
     }
     if (dashboardEditActions.renameControlSection.match(action)) {
         const { id, name } = action.payload;
@@ -351,7 +362,7 @@ export const dashboardEditReducer = (
     if (dashboardEditActions.removeControlSection.match(action)) {
         return withControlSections(
             state,
-            removeSectionKeepingLines(state.controlSections, action.payload),
+            state.controlSections.filter(({ id }) => id !== action.payload),
         );
     }
     if (dashboardEditActions.setControlSectionCollapsed.match(action)) {

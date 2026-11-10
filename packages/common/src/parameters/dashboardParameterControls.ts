@@ -267,14 +267,12 @@ export const fillParameterControls = ({
     definitions,
     tileParameterReferences,
     parameterOrder,
-    parameterSections,
     userParameterNames = [],
 }: {
     dashboardParameters: DashboardParameters;
     definitions: ParameterDefinitions;
     tileParameterReferences: Record<string, string[]>;
     parameterOrder: string[];
-    parameterSections: Record<string, string>;
     userParameterNames?: string[];
 }): DashboardParameterControl[] => {
     const referenced = [
@@ -297,9 +295,6 @@ export const fillParameterControls = ({
                 type: definitions[key]?.type ?? 'string',
                 multiple: definitions[key]?.multiple ?? false,
             },
-            ...(parameterSections[key] !== undefined && {
-                sectionId: parameterSections[key],
-            }),
             parameters: { [key]: 'all' as const },
         }));
 };

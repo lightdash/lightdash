@@ -90,8 +90,6 @@ export const useSyncParameterControls = ({
                                   definitions: parameterDefinitions,
                                   tileParameterReferences,
                                   parameterOrder: config?.parameterOrder ?? [],
-                                  parameterSections:
-                                      config?.parameterSections ?? {},
                                   // Loaded definitions are user parameters, which may shadow a reserved name
                                   userParameterNames:
                                       Object.keys(parameterDefinitions),

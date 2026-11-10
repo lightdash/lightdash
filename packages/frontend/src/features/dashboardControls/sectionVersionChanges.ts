@@ -23,7 +23,6 @@ export const hasControlSections = (...sides: DashboardSide[]): boolean =>
 // section never reads as a reorder of the others; the fold as the bar reads it
 const sectionLabel = (
     section: DashboardControlSection,
-    sections: DashboardControlSection[],
     shared: string[],
     memberCount: number,
 ): string => {
@@ -31,10 +30,6 @@ const sectionLabel = (
     return [
         `"${section.name}"`,
         ...(position === -1 ? [] : [`position ${position + 1}`]),
-        // The bar puts a first section on its own line whatever it saved
-        ...(section.inline && sections[0]?.id !== section.id
-            ? ['on the line of the section before']
-            : []),
         ...(isCollapsedByDefault(section, memberCount)
             ? ['collapsed by default']
             : []),
@@ -90,7 +85,6 @@ export const getSectionChangeRows = (
                 current: before
                     ? sectionLabel(
                           before,
-                          currentSections,
                           currentShared,
                           currentCounts.get(id) ?? 0,
                       )
@@ -98,7 +92,6 @@ export const getSectionChangeRows = (
                 selected: after
                     ? sectionLabel(
                           after,
-                          selectedSections,
                           selectedShared,
                           selectedCounts.get(id) ?? 0,
                       )
