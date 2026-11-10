@@ -987,7 +987,7 @@ export const useAiAgentThreadWorkstreams = (
  */
 const toOptimisticContextItem = (
     item: AiPromptContextItemInput,
-): AiPromptContextItem => {
+): AiPromptContextItem | null => {
     switch (item.type) {
         case 'chart':
             return {
@@ -1027,6 +1027,10 @@ const toOptimisticContextItem = (
                 sourceType: null,
                 tables: [],
             };
+        // A UUID alone cannot truthfully reconstruct an image snapshot. Wait for
+        // the server unless the composer supplies the upload's optimistic metadata.
+        case 'thread_image':
+            return null;
         case 'thread_file':
             return {
                 type: 'thread_file',
@@ -1382,7 +1386,9 @@ export const useCreateAgentThreadMutation = (
                             // Otherwise fall back to nulls and wait for the
                             // post-stream refetch to fill them in.
                             variables.optimisticContext ??
-                                variables.context?.map(toOptimisticContextItem),
+                                variables.context
+                                    ?.map(toOptimisticContextItem)
+                                    .filter((item) => item !== null),
                             false,
                             !variables.skipAgentResponse,
                             variables.modelConfig ?? null,
@@ -1577,7 +1583,9 @@ export const useCreateAgentThreadMessageMutation = (
                                 agent!,
                                 isEmbed,
                                 data.optimisticContext ??
-                                    data.context?.map(toOptimisticContextItem),
+                                    data.context
+                                        ?.map(toOptimisticContextItem)
+                                        .filter((item) => item !== null),
                                 data.hidden,
                                 !data.skipAgentResponse,
                                 data.modelConfig ?? null,

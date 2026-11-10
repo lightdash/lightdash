@@ -1,3 +1,4 @@
+import { S3ServiceException } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { S3Client } from './S3Client';
@@ -34,6 +35,38 @@ describe('S3Client', () => {
             const result = await client.getFileStream('csv-my-chart-123.csv');
 
             expect(result.contentDisposition).toBeNull();
+        });
+    });
+
+    describe('deleteFile', () => {
+        const rejecting = (name: string) => {
+            const client = createClient(undefined);
+            // @ts-expect-error `s3` is protected; swapped for a stub to avoid network I/O
+            client.s3 = {
+                send: vi.fn(async () => {
+                    throw new S3ServiceException({
+                        name,
+                        $fault: 'client',
+                        $metadata: { httpStatusCode: 404 },
+                    });
+                }),
+            };
+            return client;
+        };
+
+        it.each(['NoSuchKey', 'NotFound'])(
+            'treats %s as already deleted',
+            async (name) => {
+                await expect(
+                    rejecting(name).deleteFile('key'),
+                ).resolves.toBeUndefined();
+            },
+        );
+
+        it('does not report a missing bucket as a completed delete', async () => {
+            await expect(
+                rejecting('NoSuchBucket').deleteFile('key'),
+            ).rejects.toMatchObject({ name: 'NoSuchBucket' });
         });
     });
 });

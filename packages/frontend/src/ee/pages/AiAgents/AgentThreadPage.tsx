@@ -295,7 +295,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             typeof createAgentThreadMessage
         >[0]['optimisticContext'];
     }) => {
-        void createAgentThreadMessage({
+        return createAgentThreadMessage({
             prompt: message,
             context: mergeAiPromptContextInput(pageContextInput, context),
             optimisticContext: mergeAiPromptContextItems(
@@ -362,10 +362,10 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const retryPrompt = reviewItem?.remediation?.retryPrompt ?? null;
     const handleRetryOriginalQuestion = () => {
         if (!retryPrompt) return;
-        handleSubmit({
+        void handleSubmit({
             message: retryPrompt,
             toolHints: [],
-        });
+        }).catch(() => undefined);
     };
     const handleMarkFixed = () => {
         if (!reviewItem || reviewItem.status === 'resolved') return;

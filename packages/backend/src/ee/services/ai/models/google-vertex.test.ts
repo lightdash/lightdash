@@ -352,6 +352,7 @@ describe('Vertex model routing', () => {
         });
         expect(getModel(adcConfig).model.provider).toBe('vertex');
         expect(createGoogleVertex).toHaveBeenCalledWith({
+            fetch: expect.any(Function),
             project: 'test-project',
             location: 'global',
         });
