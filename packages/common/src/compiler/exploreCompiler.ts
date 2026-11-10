@@ -366,6 +366,7 @@ export type UncompiledExplore = {
     projectParameters?: LightdashProjectConfig['parameters'];
     preAggregates?: PreAggregateDef[];
     caseSensitive?: boolean;
+    combineJoinedFields?: boolean;
     projectDefaults?: LightdashProjectConfig['defaults'];
 };
 
@@ -423,6 +424,7 @@ export class ExploreCompiler {
         projectParameters,
         preAggregates,
         caseSensitive,
+        combineJoinedFields,
         projectDefaults,
     }: UncompiledExplore): Explore {
         // Check that base table exists (always required)
@@ -780,6 +782,9 @@ export class ExploreCompiler {
             label,
             tags,
             baseTable,
+            ...(combineJoinedFields !== undefined
+                ? { combineJoinedFields }
+                : {}),
             joinedTables: compiledJoins,
             tables: compiledTables,
             targetDatabase,

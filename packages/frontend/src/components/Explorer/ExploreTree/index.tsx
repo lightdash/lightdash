@@ -39,6 +39,7 @@ import SelectedFieldsSection, {
 } from './SelectedFieldsSection';
 import { type NodeItem } from './TableTree/Tree/types';
 import { getSearchResults } from './TableTree/Tree/utils';
+import { buildCombinedFieldTree } from './TableTree/Virtualization/combinedTree';
 import {
     flattenTreeForVirtualization,
     getNodeMapsForVirtualization,
@@ -135,14 +136,37 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
         return !!trimmedSearch && trimmedSearch !== '';
     }, [debouncedSearch]);
 
-    // Pre-compute node maps for all sections to avoid expensive recomputation during rendering
-    const sectionNodeMaps = useMemo(() => {
-        return getNodeMapsForVirtualization(
+    const combinedTree = useMemo(
+        () =>
+            explore.combineJoinedFields
+                ? buildCombinedFieldTree(
+                      explore,
+                      additionalMetrics,
+                      customDimensions,
+                      missingCustomMetrics,
+                      missingCustomDimensions,
+                  )
+                : null,
+        [
             explore,
             additionalMetrics,
             customDimensions,
+            missingCustomMetrics,
+            missingCustomDimensions,
+        ],
+    );
+
+    // Pre-compute node maps for all sections to avoid expensive recomputation during rendering
+    const sectionNodeMaps = useMemo(() => {
+        return (
+            combinedTree?.nodeMaps ??
+            getNodeMapsForVirtualization(
+                explore,
+                additionalMetrics,
+                customDimensions,
+            )
         );
-    }, [explore, additionalMetrics, customDimensions]);
+    }, [explore, additionalMetrics, customDimensions, combinedTree]);
 
     const handleSearchChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -176,6 +200,22 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     useEffect(() => {
         startTransition(() => {
             if (!isSearching) return;
+            if (combinedTree) {
+                setSearchResultsMap({
+                    [combinedTree.name]: getSearchResults(
+                        combinedTree.itemsMap,
+                        debouncedSearch,
+                        [
+                            '1.label',
+                            '1.name',
+                            '1.groupLabel',
+                            '1.groups',
+                            '1.tableLabel',
+                        ],
+                    ),
+                });
+                return;
+            }
             setSearchResultsMap(
                 Object.values(explore.tables).reduce<Record<string, string[]>>(
                     (acc, table) => {
@@ -185,7 +225,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                 ),
             );
         });
-    }, [explore, isSearching, searchResults]);
+    }, [explore, isSearching, searchResults, combinedTree, debouncedSearch]);
 
     const tableTrees = useMemo(() => {
         return Object.values(explore.tables)
@@ -277,6 +317,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
 
     const virtualizedTreeData = useMemo(() => {
         return flattenTreeForVirtualization({
+            combinedTree,
             tables: tableTrees,
             showMultipleTables: true,
             expandedTables,
@@ -295,6 +336,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
             sectionNodeMaps,
         });
     }, [
+        combinedTree,
         activeFields,
         additionalMetrics,
         customDimensions,

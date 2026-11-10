@@ -8,6 +8,7 @@ import {
     type Metric,
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { describe, expect, it, vi } from 'vitest';
 import { createExplorerStore } from '../../../../../features/explorer/store';
@@ -15,7 +16,7 @@ import { renderWithProviders } from '../../../../../testing/testUtils';
 import { TreeSection } from '../Virtualization/types';
 import TreeContext from './TreeContext';
 import TreeSingleNode from './TreeSingleNode';
-import { type TableTreeContext } from './types';
+import { type Node, type TableTreeContext } from './types';
 
 vi.mock('../../../../../hooks/useExplore', () => ({
     useExplore: () => ({ data: undefined }),
@@ -89,7 +90,7 @@ const UNLABELLED_DIMENSION: Dimension = {
     hidden: false,
 };
 
-const renderRow = (item: Dimension | Metric) => {
+const renderRow = (item: Dimension | Metric, source?: Node['source']) => {
     const key = `${item.table}_${item.name}`;
     const context: TableTreeContext = {
         itemsMap: { [key]: item },
@@ -105,10 +106,13 @@ const renderRow = (item: Dimension | Metric) => {
     renderWithProviders(
         <Provider store={createExplorerStore()}>
             <TreeContext.Provider value={context}>
-                <TreeSingleNode node={{ key, label: item.label, index: 0 }} />
+                <TreeSingleNode
+                    node={{ key, label: item.label, index: 0, source }}
+                />
             </TreeContext.Provider>
         </Provider>,
     );
+    return context.onItemClick;
 };
 
 /**
@@ -142,5 +146,38 @@ describe('TreeSingleNode tour anchors', () => {
         renderRow(UNLABELLED_DIMENSION);
 
         expectRowNamed('explore-dimension', 'payment_method');
+    });
+});
+
+describe('combined tree source information', () => {
+    it('shows the source beside duplicate labels and selects the original field', async () => {
+        const user = userEvent.setup();
+        const onItemClick = renderRow(METRIC, {
+            label: 'Payments',
+            showInline: true,
+        });
+        expect(screen.getByText('Payments')).toBeInTheDocument();
+        await user.click(screen.getByText('Average payment amount'));
+        expect(onItemClick).toHaveBeenCalledWith(
+            'payments_average_payment_amount',
+            METRIC,
+        );
+    });
+
+    it('keeps unique labels compact', () => {
+        renderRow(METRIC, { label: 'Payments', showInline: false });
+        expect(screen.queryByText('Payments')).not.toBeInTheDocument();
+    });
+
+    it('exposes the source on hover even for dimensions without descriptions', async () => {
+        const user = userEvent.setup();
+        renderRow(UNLABELLED_DIMENSION, {
+            label: 'Payments',
+            showInline: false,
+        });
+        await user.hover(screen.getByText('payment_method'));
+        expect(
+            await screen.findByText('Source table: Payments'),
+        ).toBeInTheDocument();
     });
 });

@@ -1818,6 +1818,7 @@ export async function* iterateExplores(
                           joins: meta?.joins || [],
                           description: meta.description,
                           caseSensitive: meta.case_sensitive,
+                          combineJoinedFields: meta.combine_joined_fields,
                           tables: tableLookup,
                       },
                   ]),
@@ -1899,6 +1900,9 @@ export async function* iterateExplores(
                               joins: exploreConfig.joins || meta?.joins || [],
                               description: exploreConfig.description,
                               caseSensitive: exploreConfig.case_sensitive,
+                              combineJoinedFields:
+                                  exploreConfig.combine_joined_fields ??
+                                  meta.combine_joined_fields,
                               tables: {
                                   ...tableLookup,
                                   // Override the base table with required filters and explore-scoped dimensions
@@ -1959,6 +1963,7 @@ export async function* iterateExplores(
                         ? { groups: exploreToCreate.groups }
                         : {}),
                     caseSensitive: exploreToCreate.caseSensitive,
+                    combineJoinedFields: exploreToCreate.combineJoinedFields,
                     joinedTables: exploreJoins.map((join) => ({
                         table: join.join,
                         sqlOn: join.sql_on,

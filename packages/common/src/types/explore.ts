@@ -125,6 +125,7 @@ export type Explore = {
      * the label.
      */
     groups?: string[];
+    combineJoinedFields?: boolean; // Display visible joined fields in shared sidebar sections.
     baseTable: string; // Must match a tableName in tables
     joinedTables: CompiledExploreJoin[]; // Must match a tableName in tables
     tables: { [tableName: string]: CompiledTable }; // All tables in this explore, potentially filtered by user attributes

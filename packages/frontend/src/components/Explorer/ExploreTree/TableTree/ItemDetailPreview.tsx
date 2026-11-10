@@ -108,6 +108,7 @@ const SourceFieldRow: FC<{ label: string; field: Dimension | Metric }> = ({
  */
 export const ItemDetailPreview: FC<{
     description?: string;
+    sourceLabel?: string;
     onViewDescription: () => void;
     metricInfo?: {
         type: string;
@@ -118,7 +119,7 @@ export const ItemDetailPreview: FC<{
         baseDimension?: Dimension;
         baseMetric?: Metric;
     };
-}> = ({ description, onViewDescription, metricInfo }) => {
+}> = ({ description, sourceLabel, onViewDescription, metricInfo }) => {
     /**
      * This value is pretty arbitrary - it's an amount of characters that will exceed
      * a single line, and for which the 'Read more' option should make sense, and not
@@ -135,6 +136,11 @@ export const ItemDetailPreview: FC<{
 
     return (
         <Stack gap="sm">
+            {sourceLabel && (
+                <Text fz="xs" c="ldGray.7">
+                    Source table: {sourceLabel}
+                </Text>
+            )}
             {metricInfo && (
                 <>
                     <Group gap="xs" justify="space-between">
