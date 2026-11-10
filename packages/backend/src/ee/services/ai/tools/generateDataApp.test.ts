@@ -105,7 +105,7 @@ describe('getGenerateDataApp', () => {
         expect(output.structuredContent).toEqual({ error: output.result });
     });
 
-    it('reports an unknown slug as an error naming it, without paging Sentry', async () => {
+    it('reports an unknown slug as an error naming it, as a Sentry warning rather than a page', async () => {
         const generateDataApp = vi
             .fn()
             .mockRejectedValue(
@@ -124,6 +124,9 @@ describe('getGenerateDataApp', () => {
         });
         expect(output.result).toContain('No app was created');
         expect(output.structuredContent).toEqual({ error: output.result });
-        expect(captureException).not.toHaveBeenCalled();
+        expect(captureException).toHaveBeenCalledExactlyOnceWith(
+            expect.any(NotFoundError),
+            expect.objectContaining({ level: 'warning' }),
+        );
     });
 });

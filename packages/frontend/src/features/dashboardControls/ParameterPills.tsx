@@ -1,4 +1,7 @@
-import { getControlTileUuids } from '@lightdash/common';
+import {
+    getControlTileUuids,
+    resolveParameterDefault,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -16,6 +19,7 @@ import {
     IconEyeOff,
     IconX,
 } from '@tabler/icons-react';
+import { isEqual } from 'es-toolkit/compat';
 import {
     Fragment,
     useId,
@@ -255,6 +259,14 @@ const ParameterPill: FC<{
     const hasValue = entry.shownValue !== null;
     const needsValue = !hasValue && isMissing;
     const isNotSet = !hasValue && !isMissing;
+    // As the legacy pill: with no value, the default its keys share
+    const defaults = parameters.map(({ definition }) =>
+        resolveParameterDefault(definition),
+    );
+    const showsDefault =
+        isNotSet &&
+        defaults[0] !== undefined &&
+        defaults.every((value) => isEqual(value, defaults[0]));
     const needsValueMarkId = useId();
     const description = input.definition.description;
     const { getOrphanedTooltip } = useFilterTabPlacement();
@@ -426,7 +438,7 @@ const ParameterPill: FC<{
                                         'controls.parameter.needsValue',
                                     )}
                                 </Text>
-                            ) : isNotSet ? (
+                            ) : isNotSet && !showsDefault ? (
                                 <Text span c="dimmed">
                                     {getUiString('controls.parameter.isNotSet')}
                                 </Text>
@@ -435,7 +447,10 @@ const ParameterPill: FC<{
                                     <Text span c="dimmed">
                                         {getUiString('parameters.is')}{' '}
                                     </Text>
-                                    <Text span fw={600}>
+                                    <Text
+                                        span
+                                        fw={showsDefault ? undefined : 600}
+                                    >
                                         {getParameterDisplayValue(
                                             input.definition,
                                             entry.shownValue,

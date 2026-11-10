@@ -6,6 +6,7 @@ import {
     initOtelHttpMetrics,
     shouldSelfRegisterHttpInstrumentation,
 } from './prometheus/otelHttpMetrics';
+import { dropIgnoredErrors } from './sentry/ignoredErrors';
 import { otelTracingEnabled } from './tracing/tracing';
 import { VERSION } from './version';
 
@@ -76,29 +77,6 @@ export const errorsOnlyIntegrations = (
     ),
     Sentry.httpIntegration({ spans: false }),
     Sentry.nativeNodeFetchIntegration({ spans: false }),
-];
-
-export const IGNORE_ERRORS = [
-    'WarehouseConnectionError',
-    'WarehouseQueryError',
-    'WarehouseQueryTimeoutError',
-    'FieldReferenceError',
-    'NotEnoughResults',
-    'CompileError',
-    'NotFoundError',
-    'ForbiddenError',
-    'TokenError',
-    'AuthorizationError',
-    'SshTunnelError',
-    'ReadFileError',
-    'AiAgentValidatorError',
-    'UserInfoError', // Google oauth2 error when using invalid credentials
-    // Invalid user-supplied parameter (e.g. AI writeback requires a GitHub
-    // dbt connection but the project uses "none") — surfaced to the user,
-    // not a server bug.
-    'ParameterError',
-    // Overdue deprecated routes fire once per request — keep GCP logs, drop Sentry.
-    'DeprecatedRouteError',
 ];
 
 const anrIntegrations = lightdashConfig.sentry.anr.enabled
@@ -198,7 +176,7 @@ Sentry.init({
                     ]
                   : []),
           ],
-    ignoreErrors: IGNORE_ERRORS,
+    beforeSend: dropIgnoredErrors,
     ...(otelTracingEnabled()
         ? {}
         : {

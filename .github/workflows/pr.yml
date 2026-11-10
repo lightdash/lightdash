@@ -159,7 +159,7 @@ jobs:
   # args are part of the Turbo hash, so shards cache independently.
   unit-tests:
     name: "Unit Tests (${{ matrix.name }})"
-    runs-on: depot-ubuntu-24.04-4
+    runs-on: ${{ matrix.runner }}
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: ${{ vars.TURBO_TEAM }}
@@ -170,21 +170,28 @@ jobs:
       matrix:
         include:
           - name: backend 1/2
+            runner: depot-ubuntu-24.04-4
             filter: --filter=backend
             args: -- --shard=1/2
           - name: backend 2/2
+            runner: depot-ubuntu-24.04-4
             filter: --filter=backend
             args: -- --shard=2/2
           - name: frontend 1/2
+            # Frontend tests scale with vitest workers, so 8 vCPU halves the shard time.
+            runner: depot-ubuntu-24.04-8
             filter: --filter=@lightdash/frontend
             args: -- --shard=1/2
           - name: frontend 2/2
+            runner: depot-ubuntu-24.04-8
             filter: --filter=@lightdash/frontend
             args: -- --shard=2/2
           - name: cli
+            runner: depot-ubuntu-24.04-4
             filter: --filter=@lightdash/cli
             args: ""
           - name: common, visualization, warehouses, api-tests, query-sdk
+            runner: depot-ubuntu-24.04-4
             filter: --filter=@lightdash/common --filter=@lightdash/visualization --filter=@lightdash/warehouses --filter=api-tests --filter=@lightdash/query-sdk
             args: ""
     steps:
