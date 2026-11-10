@@ -44,7 +44,7 @@ vi.mock('./DashboardRefreshButton', () => ({
     DashboardRefreshButton: () => null,
 }));
 vi.mock('./PendingChangesButton', () => ({
-    PendingChangesButton: () => <span>No unsaved changes</span>,
+    PendingChangesButton: () => <span>Changes status</span>,
 }));
 vi.mock('./TileLayoutHistoryButtons', () => ({
     TileLayoutHistoryButtons: () => null,
@@ -106,7 +106,7 @@ describe('DashboardHeader editing badge', () => {
     it('replaces the badge with the unsaved changes status', () => {
         renderHeader(true, []);
         expect(screen.queryByText('Editing')).not.toBeInTheDocument();
-        expect(screen.getByText('No unsaved changes')).toBeInTheDocument();
+        expect(screen.getByText('Changes status')).toBeInTheDocument();
     });
 
     it('hides the badge in view mode', () => {

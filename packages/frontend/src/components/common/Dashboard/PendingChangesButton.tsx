@@ -197,7 +197,7 @@ export const PendingChangesButton = memo<Props>(({ settingsChanges }) => {
             <Group gap="xs" wrap="nowrap" px="xs">
                 <Box className={classes.dot} />
                 <Text fz="xs" c="dimmed">
-                    No unsaved changes
+                    Editing
                 </Text>
             </Group>
         );
