@@ -5,7 +5,6 @@ import {
     type DashboardParameterControl,
     type DashboardParameterControlAsCode,
 } from '@lightdash/common';
-import { v4 as uuidv4 } from 'uuid';
 import { getStableIds } from './dashboardReferences';
 
 const baseSlug = (
@@ -53,37 +52,28 @@ export const getParameterControlsWithIds = (
     const malformed = getMalformedParameterControlMessages(
         controls.map((control) =>
             typeof control === 'object' && control !== null
-                ? { ...control, id: control.id || 'pending' }
+                ? { ...control, id: 'pending' }
                 : control,
         ),
     );
     if (malformed.length) throw new ParameterError(malformed.join('. '));
     const seenSlugs = new Set<string>();
-    const claimed = new Set<string>();
-    controls.forEach(({ slug, id }) => {
-        if (slug !== undefined) {
-            if (!slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))
-                throw new ParameterError(
-                    `Invalid parameter control slug "${slug}"`,
-                );
-            if (seenSlugs.has(slug))
-                throw new ParameterError(
-                    `Parameter control slug "${slug}" is duplicated`,
-                );
-            seenSlugs.add(slug);
-        }
-        if (id !== undefined) {
-            if (!id || claimed.has(id))
-                throw new ParameterError(
-                    `Parameter control id "${id}" is duplicated`,
-                );
-            claimed.add(id);
-        }
+    controls.forEach(({ slug }) => {
+        if (slug === undefined) return;
+        if (!slug || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))
+            throw new ParameterError(
+                `Invalid parameter control slug "${slug}"`,
+            );
+        if (seenSlugs.has(slug))
+            throw new ParameterError(
+                `Parameter control slug "${slug}" is duplicated`,
+            );
+        seenSlugs.add(slug);
     });
     const stableIds = getStableIds(controls, existing, baseSlug);
     // A file's slugs only resolve refs inside it
-    return controls.map(({ slug: _slug, id, ...control }, index) => ({
+    return controls.map(({ slug: _slug, ...control }, index) => ({
         ...control,
-        id: id ?? (claimed.has(stableIds[index]) ? uuidv4() : stableIds[index]),
+        id: stableIds[index],
     }));
 };

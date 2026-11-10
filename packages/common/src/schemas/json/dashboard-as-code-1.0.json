@@ -474,20 +474,6 @@
                     },
                     "type": "array"
                 },
-                "parameterSections": {
-                    "additionalProperties": {
-                        "type": "string"
-                    },
-                    "properties": {},
-                    "type": "object"
-                },
-                "parameterSectionSlugs": {
-                    "additionalProperties": {
-                        "type": "string"
-                    },
-                    "properties": {},
-                    "type": "object"
-                },
                 "pinnedParameters": {
                     "items": {
                         "type": "string"
@@ -512,7 +498,7 @@
                     "type": "boolean"
                 },
                 "slug": {
-                    "description": "Slug of a filter, parameter control or section in this file",
+                    "description": "Slug of a control of this kind in this file: a filter, parameter control, date zoom control or section",
                     "type": "string"
                 }
             },
@@ -529,17 +515,11 @@
                 "collapsed": {
                     "type": "boolean"
                 },
-                "id": {
-                    "description": "Legacy section identifier accepted on upload.",
-                    "type": "string"
-                },
-                "inline": {
-                    "type": "boolean"
-                },
                 "name": {
                     "type": "string"
                 },
                 "slug": {
+                    "description": "Portable section identifier; absent, derived from the name.",
                     "type": "string"
                 }
             },
@@ -636,46 +616,10 @@
             "required": ["tableName", "fieldId"],
             "type": "object"
         },
-        "DashboardFilterRule": {
-            "allOf": [
-                {
-                    "$ref": "#/$defs/FilterRule_FilterOperator.DashboardFieldTarget.AnyType.AnyType_"
-                },
-                {
-                    "properties": {
-                        "label": {
-                            "type": "string"
-                        },
-                        "lockedTabUuids": {
-                            "description": "Tab UUIDs where this filter is locked. When the active tab is in this\nlist, viewers see the filter but cannot change it, and URL / embed\nfilter overrides targeting the same field are ignored on that tab.\nEmpty or omitted means the filter is not locked anywhere.",
-                            "items": {
-                                "type": "string"
-                            },
-                            "type": "array"
-                        },
-                        "requiredGroupId": {
-                            "description": "Dashboard filters sharing a requiredGroupId form an \"any-one required\"\ngroup: the dashboard is locked until at least one member has a value.",
-                            "type": "string"
-                        },
-                        "sectionId": {
-                            "description": "Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling.",
-                            "type": "string"
-                        },
-                        "singleValue": {
-                            "type": "boolean"
-                        },
-                        "tileTargets": {
-                            "$ref": "#/$defs/DashboardTileTargets"
-                        }
-                    },
-                    "type": "object"
-                }
-            ]
-        },
         "DashboardFilterRuleAsCode": {
             "allOf": [
                 {
-                    "$ref": "#/$defs/DashboardFilterRule"
+                    "$ref": "#/$defs/Omit_DashboardFilterRule.sectionId_"
                 },
                 {
                     "properties": {
@@ -880,18 +824,11 @@
                 "hidden": {
                     "type": "boolean"
                 },
-                "id": {
-                    "description": "Legacy project-local identifier accepted on upload.",
-                    "type": "string"
-                },
                 "label": {
                     "type": ["string", "null"]
                 },
                 "parameters": {
                     "$ref": "#/$defs/Record_string.DashboardParameterTarget_"
-                },
-                "sectionId": {
-                    "type": "string"
                 },
                 "sectionSlug": {
                     "type": "string"
@@ -1229,9 +1166,6 @@
                 "name": {
                     "type": "string"
                 },
-                "sectionId": {
-                    "type": "string"
-                },
                 "sectionSlug": {
                     "type": "string"
                 },
@@ -1288,52 +1222,6 @@
                 "inPeriodToDate"
             ],
             "type": "string"
-        },
-        "FilterRule_FilterOperator.DashboardFieldTarget.AnyType.AnyType_": {
-            "additionalProperties": true,
-            "properties": {
-                "caseSensitive": {
-                    "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting.",
-                    "type": "boolean"
-                },
-                "disabled": {
-                    "description": "Whether this filter is disabled",
-                    "type": "boolean"
-                },
-                "id": {
-                    "description": "Unique identifier for the filter",
-                    "type": "string"
-                },
-                "includeNull": {
-                    "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule.",
-                    "type": "boolean"
-                },
-                "operator": {
-                    "$ref": "#/$defs/FilterOperator",
-                    "description": "Filter operator"
-                },
-                "required": {
-                    "description": "Whether this filter is required",
-                    "type": "boolean"
-                },
-                "settings": {
-                    "$ref": "#/$defs/AnyType",
-                    "description": "Additional settings for date/time filters"
-                },
-                "target": {
-                    "$ref": "#/$defs/DashboardFieldTarget",
-                    "description": "Target field for the filter"
-                },
-                "values": {
-                    "description": "Values to filter by",
-                    "items": {
-                        "$ref": "#/$defs/AnyType"
-                    },
-                    "type": "array"
-                }
-            },
-            "required": ["operator", "id", "target"],
-            "type": "object"
         },
         "Format": {
             "enum": [
@@ -1438,6 +1326,10 @@
             ],
             "type": "string"
         },
+        "Omit_DashboardFilterRule.sectionId_": {
+            "$ref": "#/$defs/Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.sectionId__",
+            "description": "Construct a type with the properties of T except for those in type K."
+        },
         "Omit_DashboardFilterRuleAsCode.id_": {
             "$ref": "#/$defs/Pick_DashboardFilterRuleAsCode.Exclude_keyofDashboardFilterRuleAsCode.id__",
             "description": "Construct a type with the properties of T except for those in type K."
@@ -1494,6 +1386,69 @@
             "required": ["title"],
             "type": "object"
         },
+        "Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.sectionId__": {
+            "description": "From T, pick a set of properties whose keys are in the union K",
+            "properties": {
+                "caseSensitive": {
+                    "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting.",
+                    "type": "boolean"
+                },
+                "disabled": {
+                    "description": "Whether this filter is disabled",
+                    "type": "boolean"
+                },
+                "id": {
+                    "description": "Unique identifier for the filter",
+                    "type": "string"
+                },
+                "includeNull": {
+                    "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule.",
+                    "type": "boolean"
+                },
+                "label": {
+                    "type": "string"
+                },
+                "lockedTabUuids": {
+                    "description": "Tab UUIDs where this filter is locked. When the active tab is in this\nlist, viewers see the filter but cannot change it, and URL / embed\nfilter overrides targeting the same field are ignored on that tab.\nEmpty or omitted means the filter is not locked anywhere.",
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                "operator": {
+                    "$ref": "#/$defs/FilterOperator",
+                    "description": "Filter operator"
+                },
+                "required": {
+                    "description": "Whether this filter is required",
+                    "type": "boolean"
+                },
+                "requiredGroupId": {
+                    "description": "Dashboard filters sharing a requiredGroupId form an \"any-one required\"\ngroup: the dashboard is locked until at least one member has a value.",
+                    "type": "string"
+                },
+                "settings": {
+                    "description": "Additional settings for date/time filters"
+                },
+                "singleValue": {
+                    "type": "boolean"
+                },
+                "target": {
+                    "$ref": "#/$defs/DashboardFieldTarget",
+                    "description": "Target field for the filter"
+                },
+                "tileTargets": {
+                    "$ref": "#/$defs/DashboardTileTargets"
+                },
+                "values": {
+                    "description": "Values to filter by",
+                    "items": {},
+                    "type": "array"
+                }
+            },
+            "required": ["target", "id", "operator"],
+            "type": "object"
+        },
         "Pick_DashboardFilterRuleAsCode.Exclude_keyofDashboardFilterRuleAsCode.id__": {
             "description": "From T, pick a set of properties whose keys are in the union K",
             "properties": {
@@ -1529,10 +1484,6 @@
                 },
                 "requiredGroupId": {
                     "description": "Dashboard filters sharing a requiredGroupId form an \"any-one required\"\ngroup: the dashboard is locked until at least one member has a value.",
-                    "type": "string"
-                },
-                "sectionId": {
-                    "description": "Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling.",
                     "type": "string"
                 },
                 "sectionSlug": {

@@ -464,6 +464,7 @@ export * from './utils/normalizeCellRawForFilter';
 export * from './utils/oauth';
 export * from './utils/organization';
 export * from './utils/portableSlugs';
+export * from './utils/removedDashboardControlFields';
 export * from './utils/projectMemberRole';
 export * from './utils/promises';
 export * from './utils/sanitizeHtml';

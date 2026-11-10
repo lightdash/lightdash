@@ -4,6 +4,7 @@ import {
     ContentAsCodeType,
     dashboardAsCodeSchema,
     getErrorMessage,
+    getRemovedDashboardControlFieldMessages,
     modelAsCodeSchema,
 } from '@lightdash/common';
 import type { ErrorObject } from 'ajv';
@@ -207,14 +208,31 @@ function validateAsCodeSchema({
             );
     }
     const valid = validate(data);
+    // The schema still allows these keys; upload rejects them
+    const removedFieldErrors: ErrorObject[] =
+        type === 'dashboard'
+            ? getRemovedDashboardControlFieldMessages(data).map((message) => ({
+                  keyword: 'removed',
+                  instancePath: '',
+                  schemaPath: '',
+                  params: {},
+                  message,
+              }))
+            : [];
+    const errors = [
+        // The chart schema picks a SQL chart or semantic layer chart shape
+        // with if/then/else; the wrapper error repeats the shape's errors.
+        ...(valid ? [] : (validate.errors ?? [])).filter(
+            (error) => error.keyword !== 'if',
+        ),
+        ...removedFieldErrors,
+    ];
 
-    if (!valid && validate.errors) {
+    if ((!valid && validate.errors) || errors.length > 0) {
         return {
             filePath,
             valid: false,
-            // The chart schema picks a SQL chart or semantic layer chart shape
-            // with if/then/else; the wrapper error repeats the shape's errors.
-            errors: validate.errors.filter((error) => error.keyword !== 'if'),
+            errors,
             fileContent,
             locationMap,
             type,

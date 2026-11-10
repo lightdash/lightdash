@@ -61,6 +61,7 @@ import {
     getLtreePathFromContentAsCodePath,
     getParameterMirror,
     getParameterReferences,
+    getRemovedDashboardControlFieldMessages,
     hasChartsInDashboard,
     isChartScheduler,
     isDashboardChartTileType,
@@ -235,8 +236,11 @@ import {
     getScheduledDeliveryTargetsAsCode,
 } from './scheduledContent';
 import {
+    getDashboardWithoutSectionIds,
     getDashboardWithSectionIds,
     getDashboardWithSectionSlugs,
+    withoutStoredOnlyKeys,
+    type DashboardWithSectionIds,
 } from './sectionSlugs';
 
 type RuntimeChartAsCode = Omit<ChartAsCode, 'chartConfig'> & {
@@ -2175,7 +2179,7 @@ export class CoderService extends BaseService {
                       sections: config?.controlSections ?? [],
                   }
                 : undefined;
-        const dashboardAsCode: DashboardAsCode = {
+        const dashboardAsCode: DashboardWithSectionIds = {
             name: dashboard.name,
             description: dashboard.description,
             updatedAt: dashboard.updatedAt,
@@ -2195,7 +2199,7 @@ export class CoderService extends BaseService {
             slug: dashboard.slug,
             ...(config && {
                 config: {
-                    ...omit(config, 'controlOrder'),
+                    ...withoutStoredOnlyKeys(config),
                     ...(config?.parameterControls !== undefined && {
                         parameterControls: getParameterControlsWithSlugs(
                             config.parameterControls,
@@ -2225,7 +2229,7 @@ export class CoderService extends BaseService {
 
         return controlsEnabled
             ? getDashboardWithSectionSlugs(dashboardAsCode)
-            : dashboardAsCode;
+            : getDashboardWithoutSectionIds(dashboardAsCode);
     }
 
     private static convertTabsWithSlugsToUuids(
@@ -5762,6 +5766,10 @@ export class CoderService extends BaseService {
         dashboardAsCode: DashboardAsCode,
         options: UpsertContentAsCodeOptions = {},
     ): Promise<DashboardAsCodeUpsertResult> {
+        const removedFields =
+            getRemovedDashboardControlFieldMessages(dashboardAsCode);
+        if (removedFields.length > 0)
+            throw new ParameterError(removedFields.join('. '));
         await this.assertAgentUploadAllowed(
             options.account ?? null,
             user,

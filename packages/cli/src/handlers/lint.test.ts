@@ -58,6 +58,34 @@ describe('lintHandler', () => {
         expect(lintOutput).toContain("Missing required property 'version'");
     });
 
+    test('rejects removed dashboard control fields, naming the replacement', async () => {
+        const dashboardsDir = path.join(tempDir, 'dashboards');
+        await fs.mkdir(dashboardsDir);
+        await fs.writeFile(
+            path.join(dashboardsDir, 'sections.yml'),
+            [
+                'name: Sections',
+                'slug: sections',
+                'spaceSlug: shared',
+                'version: 1',
+                'tiles: []',
+                'tabs: []',
+                'config:',
+                '  isDateZoomDisabled: false',
+                '  controlSections:',
+                '    - slug: region',
+                '      name: Region',
+                '      inline: true',
+            ].join('\n'),
+        );
+
+        const lintOutput = await expectLintFailure();
+
+        expect(lintOutput).toContain(
+            '`inline` on section \\"region\\" was removed: use `newLine` on its `controlOrder` entry',
+        );
+    });
+
     test('fails for a chart missing its required version alongside a valid sibling', async () => {
         const chartsDir = path.join(tempDir, 'charts');
         const dashboardsDir = path.join(tempDir, 'dashboards');

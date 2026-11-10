@@ -193,11 +193,7 @@ describe('buildDashboardConfig', () => {
         // A key missing from the built object is deleted on save — this
         // pins the landmine the extraction exists to defuse.
         const result = buildDashboardConfig(baseArgs);
-        // `parameterSections` is no longer read, so a save drops it
-        const expectedKeys: Record<
-            Exclude<keyof DashboardConfig, 'parameterSections'>,
-            true
-        > = {
+        const expectedKeys: Record<keyof DashboardConfig, true> = {
             isDateZoomDisabled: true,
             isAddFilterDisabled: true,
             pinnedParameters: true,

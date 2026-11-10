@@ -28,7 +28,7 @@ describe('portable parameter controls', () => {
             'region-3',
             'region-1',
         ]);
-        expect(portable.every((item) => item.id === undefined)).toBe(true);
+        portable.forEach((item) => expect(item).not.toHaveProperty('id'));
         const ids = getParameterControlsWithIds(portable, existing).map(
             (item) => item.id,
         );
@@ -58,15 +58,11 @@ describe('portable parameter controls', () => {
         expect(uploaded.id).not.toMatch(/^[ab]$/);
     });
 
-    it('accepts legacy ids and mints an id for a new control', () => {
-        const [legacy, fresh] = getParameterControlsWithIds(
-            [
-                control('legacy', null),
-                { ...control('unused', 'New'), id: undefined, slug: 'new' },
-            ],
+    it('ignores an id in the file and mints one for a new control', () => {
+        const [fresh] = getParameterControlsWithIds(
+            [{ ...control('file-id', 'New'), slug: 'new' }],
             [],
         );
-        expect(legacy.id).toBe('legacy');
         expect(fresh.id).toMatch(/^[0-9a-f-]{36}$/);
     });
 
@@ -81,13 +77,7 @@ describe('portable parameter controls', () => {
     it('mints a new id for a relabelled control, whatever slug the file keeps', () => {
         const existing = [control('saved-id', 'Initial')];
         const [relabelled] = getParameterControlsWithIds(
-            [
-                {
-                    ...control('ignored', 'First edit'),
-                    id: undefined,
-                    slug: 'initial',
-                },
-            ],
+            [{ ...control('ignored', 'First edit'), slug: 'initial' }],
             existing,
         );
         expect(relabelled.id).not.toBe('saved-id');
@@ -116,14 +106,11 @@ describe('portable parameter controls', () => {
         ).toEqual(['west', 'region']);
     });
 
-    it('rejects duplicate slugs and duplicate ids', () => {
+    it('rejects duplicate slugs', () => {
         const item = { ...control('a', 'Region'), slug: 'region' };
-        expect(() =>
-            getParameterControlsWithIds([item, { ...item, id: 'b' }], []),
-        ).toThrow('slug "region" is duplicated');
-        expect(() =>
-            getParameterControlsWithIds([item, { ...item, slug: 'other' }], []),
-        ).toThrow('id "a" is duplicated');
+        expect(() => getParameterControlsWithIds([item, item], [])).toThrow(
+            'slug "region" is duplicated',
+        );
     });
 
     it('keeps the id of an unchanged control on repeated upload', () => {

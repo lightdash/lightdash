@@ -1849,7 +1849,7 @@ const registerContentAccessTests = (
                         ],
                         parameterControls: [
                             {
-                                id: 'control-uuid',
+                                slug: 'week-start',
                                 sectionSlug,
                                 label: null,
                                 value: 'monday',
@@ -3560,7 +3560,10 @@ describe.each([true, false])(
                         controlSections: [
                             { id: 'saved-section', name: 'Saved section' },
                         ],
-                        parameterSections: { currency: 'saved-section' },
+                        // Stored by earlier versions; never downloaded
+                        ...({
+                            parameterSections: { currency: 'saved-section' },
+                        } as object),
                         ...(withControls && {
                             parameterControls: [
                                 {
@@ -3654,39 +3657,34 @@ describe.each([true, false])(
                     expect(exported.filters.dimensions[0].sectionSlug).toBe(
                         'saved-section',
                     );
-                    expect(
-                        exported.filters.dimensions[0].sectionId,
-                    ).toBeUndefined();
-                    expect(exported.config.parameterSectionSlugs).toEqual({
-                        currency: 'saved-section',
-                    });
-                    expect(exported.config.parameterSections).toBeUndefined();
+                    if (withControls)
+                        expect(
+                            exported.config.parameterControls[0].sectionSlug,
+                        ).toBe('saved-section');
                 } else {
-                    expect(exported.config.controlSections).toEqual(
-                        dashboard.config!.controlSections,
-                    );
-                    expect(exported.filters.dimensions[0].sectionId).toBe(
-                        'saved-section',
-                    );
+                    expect(exported.config.controlSections).toEqual([
+                        { name: 'Saved section' },
+                    ]);
                     expect(
                         exported.filters.dimensions[0].sectionSlug,
                     ).toBeUndefined();
-                    expect(exported.config.parameterSections).toEqual({
-                        currency: 'saved-section',
-                    });
-                    expect(
-                        exported.config.parameterSectionSlugs,
-                    ).toBeUndefined();
                     expect(exported.config.parameterControls).toBeUndefined();
                 }
+                expect(
+                    exported.filters.dimensions[0].sectionId,
+                ).toBeUndefined();
+                expect(exported.config).not.toHaveProperty('parameterSections');
+                expect(exported.config).not.toHaveProperty(
+                    'parameterSectionSlugs',
+                );
             },
         );
     },
 );
 
 describe('CoderService section uploads with the flag disabled', () => {
-    it.each(['legacy', 'portable'] as const)(
-        'prepares a %s reupload without replacing saved parameter controls',
+    it.each(['portable', 'legacy'] as const)(
+        'prepares a portable reupload without replacing saved parameter controls, and rejects a %s one',
         async (format) => {
             const service = buildService();
             const savedConfig: NonNullable<DashboardDAO['config']> = {
@@ -3730,10 +3728,8 @@ describe('CoderService section uploads with the flag disabled', () => {
                 format === 'legacy'
                     ? { sectionId: 'saved-section' }
                     : { sectionSlug: 'saved-section' };
-            // A portable section keeps its id by name, so only the legacy one is renamed
-            const sectionName =
-                format === 'legacy' ? 'Renamed section' : 'Saved section';
-            const uploaded: DashboardAsCode = {
+            const sectionName = 'Saved section';
+            const uploaded = {
                 ...dashboardAsCode,
                 filters: {
                     dimensions: [
@@ -3769,18 +3765,26 @@ describe('CoderService section uploads with the flag disabled', () => {
                         },
                     ],
                 },
-            };
-            await expect(
-                service.upsertDashboard(
-                    makeSessionUser([
-                        { subject: 'ContentAsCode', action: 'create' },
-                        { subject: 'Dashboard', action: 'update' },
-                    ]),
-                    PROJECT_UUID,
-                    'dashboard',
-                    uploaded,
-                ),
-            ).rejects.toThrow('captured upload');
+            } as DashboardAsCode;
+            const upload = service.upsertDashboard(
+                makeSessionUser([
+                    { subject: 'ContentAsCode', action: 'create' },
+                    { subject: 'Dashboard', action: 'update' },
+                ]),
+                PROJECT_UUID,
+                'dashboard',
+                uploaded,
+            );
+            if (format === 'legacy') {
+                await expect(upload).rejects.toThrow(
+                    '`id` on section "Saved section" was removed: use `slug`. `sectionId` on dimension filter "orders_status" was removed: use `sectionSlug`',
+                );
+                expect(
+                    service.promoteService.getPromotedDashboard,
+                ).not.toHaveBeenCalled();
+                return;
+            }
+            await expect(upload).rejects.toThrow('captured upload');
             expect(
                 service.promoteService.getPromotedDashboard,
             ).toHaveBeenCalledWith(
@@ -3996,6 +4000,29 @@ describe('CoderService dashboard control order as code', () => {
         expect(file).toBe(JSON.stringify(download(withoutOrder(), false)));
         expect(file).not.toContain('orders-status');
         expect(file).not.toContain('controlOrder');
+    });
+
+    it('keeps a flag-off download and upload of a dashboard without sections byte for byte', async () => {
+        const dashboard = savedDashboard();
+        const { controlSections: _sections, ...config } = dashboard.config!;
+        const noSections = {
+            ...dashboard,
+            filters: {
+                ...dashboard.filters,
+                dimensions: dashboard.filters.dimensions.map(
+                    ({ sectionId: _sectionId, ...filter }) => filter,
+                ),
+            },
+            config,
+        };
+        const file = download(noSections, false);
+        expect(JSON.stringify(file)).toMatchInlineSnapshot(
+            `"{"name":"Dashboard","description":null,"updatedAt":"2026-01-01T00:00:00.000Z","tiles":[],"filters":{"dimensions":[{"target":{"fieldId":"orders_status","tableName":"orders"},"operator":"equals","values":["first-id"],"tileTargets":{}},{"target":{"fieldId":"orders_city","tableName":"orders"},"operator":"equals","values":["second-id"],"tileTargets":{}}],"metrics":[{"id":"metric-id","target":{"fieldId":"orders_total","tableName":"orders"},"operator":"greaterThan","values":[1]}],"tableCalculations":[]},"tabs":[],"slug":"dashboard","config":{"isDateZoomDisabled":false,"parameterControls":[{"slug":"region","label":"Region","value":null,"valueType":{"type":"string","multiple":false},"parameters":{"region":"all"}}]},"spaceSlug":"space","version":1,"contentType":"dashboard","verification":null}"`,
+        );
+        const saved = await upload(file, { enabled: false, saved: noSections });
+        expect(JSON.stringify(saved)).toMatchInlineSnapshot(
+            `"{"uuid":"dashboard-uuid","slug":"dashboard","name":"Dashboard","description":null,"updatedAt":"2026-01-01T00:00:00.000Z","spaceUuid":"space-uuid","tabs":[],"tiles":[],"filters":{"metrics":[{"id":"metric-id","target":{"fieldId":"orders_total","tableName":"orders"},"operator":"greaterThan","values":[1]}],"tableCalculations":[],"dimensions":[{"id":"first-id","target":{"fieldId":"orders_status","tableName":"orders"},"operator":"equals","values":["first-id"],"tileTargets":{}},{"id":"second-id","target":{"fieldId":"orders_city","tableName":"orders"},"operator":"equals","values":["second-id"],"tileTargets":{}}]},"config":{"isDateZoomDisabled":false,"parameterControls":[{"id":"region-id","label":"Region","value":null,"valueType":{"type":"string","multiple":false},"parameters":{"region":"all"}}],"controlOrder":[{"kind":"parameter","id":"region-id"},{"kind":"filter","id":"metric-id"},{"kind":"section","id":"section-id"},{"kind":"filter","id":"second-id"},{"kind":"filter","id":"first-id"}]},"spaceSlug":"space","version":1,"contentType":"dashboard","verification":null,"projectUuid":"11111111-1111-4111-8111-111111111111","organizationUuid":"org-uuid"}"`,
+        );
     });
 
     it('downloads a never-reordered dashboard without filter slugs or an order with the flag on', () => {
