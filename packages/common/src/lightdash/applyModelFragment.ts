@@ -129,7 +129,6 @@ const PART_RULES = {
 
 // Who can see a model, a field or a row: no merge sets these.
 const ACCESS_KEYS = new Set([
-    'hidden',
     'required_attributes',
     'any_attributes',
     'tags',
@@ -178,7 +177,11 @@ const hasAccessKey = (value: unknown): boolean => {
     if (Array.isArray(value)) return value.some(hasAccessKey);
     if (!isObject(value)) return false;
     return Object.entries(value).some(
-        ([key, child]) => ACCESS_KEYS.has(key) || hasAccessKey(child),
+        ([key, child]) =>
+            ACCESS_KEYS.has(key) ||
+            // Hiding is allowed; showing what someone hid is not.
+            (key === 'hidden' && child !== true) ||
+            hasAccessKey(child),
     );
 };
 

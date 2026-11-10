@@ -489,7 +489,7 @@ describe('SemanticStudioService', () => {
                     PROJECT_UUID,
                     [
                         draftModel(
-                            'dimensions:\n  - name: amount\n    hidden: true\n',
+                            'dimensions:\n  - name: amount\n    required_attributes:\n      team: sales\n',
                         ),
                     ],
                     null,

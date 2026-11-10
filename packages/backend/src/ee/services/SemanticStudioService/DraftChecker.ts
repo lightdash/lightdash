@@ -21,6 +21,7 @@ import { fromSession } from '../../../auth/account';
 import { type ProjectService } from '../../../services/ProjectService/ProjectService';
 import { type WarehouseSqlBuilderSettings } from '../../../services/ProjectService/warehouseSqlBuilderSettings';
 import { toModelPath, withWrites } from './draftFold';
+import { findChangedFields } from './draftLint';
 
 export type DraftCheckerProjectService = Pick<
     ProjectService,
@@ -55,6 +56,9 @@ const POST_CALCULATION_METRICS = new Set<MetricType>([
 
 // ponytail: a few whole compiles kept per process; shrink or add a TTL if large projects weigh on memory.
 const MAX_KEPT_COMPILES = 4;
+
+// A dimension that reads a column as it is, so the column's type is its type.
+const PLAIN_COLUMN = /^\s*\$\{TABLE\}\.\w+\s*$/;
 
 const SIMPLE_JOIN = /^\s*\$\{(\w+)\.(\w+)\}\s*=\s*\$\{(\w+)\.(\w+)\}\s*$/;
 
@@ -206,6 +210,7 @@ export class DraftChecker {
         projectUuid: string,
         explore: Explore,
         quote: string,
+        changedDimensions: Set<string>,
     ): Promise<string | null> {
         const queryError = await this.findQueryError(
             user,
@@ -215,23 +220,22 @@ export class DraftChecker {
         if (queryError) {
             return `This model does not work in a query: ${queryError}`;
         }
-        const warehouseError = await this.findWarehouseError(
+        return this.findWarehouseError(
             user,
             projectUuid,
             explore,
             quote,
+            changedDimensions,
         );
-        return warehouseError
-            ? `The warehouse rejected this model: ${warehouseError}`
-            : null;
     }
 
-    /** Has the warehouse plan a model's dimensions, metrics and joins over no rows, so it scans nothing; returns its error, if any. */
+    /** Has the warehouse plan a model's dimensions, metrics and joins over no rows, so it scans nothing; returns why it cannot be used, if so. */
     private async findWarehouseError(
         user: SessionUser,
         projectUuid: string,
         explore: Explore,
         quote: string,
+        changedDimensions: Set<string>,
     ): Promise<string | null> {
         const base = explore.tables[explore.baseTable];
         const alias = (name: string) => `${quote}${name}${quote}`;
@@ -249,21 +253,38 @@ export class DraftChecker {
             `SELECT ${expressions.map((sql, index) => `${sql} AS c${index}`).join(',\n')}\nFROM ${from}`;
         const resolved = ({ compiledSql }: { compiledSql: string }) =>
             !compiledSql.includes('${');
-        const dimensions = Object.values(base.dimensions)
-            .filter(resolved)
-            .map(({ compiledSql }) => compiledSql);
+        const dimensions = Object.values(base.dimensions).filter(resolved);
         const metrics = Object.values(base.metrics)
             .filter(resolved)
             .filter(({ type }) => !POST_CALCULATION_METRICS.has(type))
             .map(({ compiledSql }) => compiledSql);
         try {
             if (dimensions.length > 0) {
-                await this.projectService.runSqlQuery(
+                const { fields } = await this.projectService.runSqlQuery(
                     user,
                     projectUuid,
-                    select(dimensions),
+                    select(dimensions.map(({ compiledSql }) => compiledSql)),
                     { kind: 'original' },
                 );
+                // Some warehouses fold an unquoted alias to upper case.
+                const columnTypes = new Map(
+                    Object.entries(fields).map(([column, { type }]) => [
+                        column.toLowerCase(),
+                        type,
+                    ]),
+                );
+                const mistyped = dimensions.flatMap((dimension, index) => {
+                    const columnType = columnTypes.get(`c${index}`);
+                    return changedDimensions.has(dimension.name) &&
+                        PLAIN_COLUMN.test(dimension.sql) &&
+                        columnType !== undefined &&
+                        columnType !== dimension.type
+                        ? [{ name: dimension.name, columnType }]
+                        : [];
+                });
+                if (mistyped.length > 0) {
+                    return `${mistyped.map(({ name, columnType }) => `${name} reads a ${columnType} column`).join(', ')}, but ${mistyped.length === 1 ? 'is' : 'are'} typed differently. Use the column's type, or cast in sql to change it.`;
+                }
             }
             if (metrics.length > 0) {
                 await this.projectService.runSqlQuery(
@@ -275,7 +296,7 @@ export class DraftChecker {
             }
             return null;
         } catch (error) {
-            return getErrorMessage(error);
+            return `The warehouse rejected this model: ${getErrorMessage(error)}`;
         }
     }
 
@@ -501,6 +522,26 @@ HAVING COUNT(*) > 1
             return null;
         };
 
+        const changed = new Map(
+            [...writes].flatMap(([name, contents]) =>
+                contents === null
+                    ? []
+                    : [
+                          [
+                              name,
+                              findChangedFields(
+                                  name,
+                                  contents,
+                                  live.get(name) ?? null,
+                              ),
+                          ] as const,
+                      ],
+            ),
+        );
+        changed.forEach(({ metricError }, name) => {
+            if (metricError) reject(name, metricError);
+        });
+
         const afterCompile = await compile();
         if (!afterCompile) return { rejected, writes, explores: null };
 
@@ -516,6 +557,7 @@ HAVING COUNT(*) > 1
                         projectUuid,
                         explore,
                         afterCompile.quote,
+                        changed.get(explore.name)?.dimensions ?? new Set(),
                     ),
                 })),
         );

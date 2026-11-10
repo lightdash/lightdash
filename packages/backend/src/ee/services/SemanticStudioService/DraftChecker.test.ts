@@ -1,4 +1,8 @@
-import { isExploreError, WarehouseTypes } from '@lightdash/common';
+import {
+    DimensionType,
+    isExploreError,
+    WarehouseTypes,
+} from '@lightdash/common';
 import { user } from '../../../services/ProjectService/ProjectService.mock';
 import { DraftChecker, usesAnyModel } from './DraftChecker';
 
@@ -26,6 +30,11 @@ dimensions:
     sql: \${TABLE}.id
 `;
 
+/** The types the warehouse reports for the columns a check selects, by alias. */
+const columnTypes: { fields: Record<string, { type: DimensionType }> } = {
+    fields: {},
+};
+
 const checker = () =>
     new DraftChecker({
         getWarehouseSqlBuilderSettings: async () => ({
@@ -34,13 +43,14 @@ const checker = () =>
             columnTimezone: 'UTC',
             dataTimezone: null,
         }),
-        runSqlQuery: vi.fn(),
-        compileQuery: vi.fn(),
+        runSqlQuery: async () => ({ fields: columnTypes.fields, rows: [] }),
+        compileQuery: async () => ({ query: '', compilationErrors: [] }),
     });
 
 describe('DraftChecker.compile', () => {
     beforeEach(() => {
         compiles.count = 0;
+        columnTypes.fields = {};
     });
 
     test('the same documents compile once, and each caller gets its own copy', async () => {
@@ -93,5 +103,68 @@ describe('DraftChecker.compile', () => {
         if (!orders || isExploreError(orders)) throw new Error('not compiled');
         expect(usesAnyModel(orders, new Map([['customers', null]]))).toBe(true);
         expect(usesAnyModel(orders, new Map([['payments', null]]))).toBe(false);
+    });
+
+    describe('rules for new work', () => {
+        const withMetrics = (metrics: string) =>
+            `${model('orders')}metrics:\n${metrics}`;
+        const RATIO = `  per_order:
+    type: number
+    sql: SUM(\${TABLE}.id) / COUNT(\${TABLE}.id)
+`;
+        const check = (live: Map<string, string>, contents: string) =>
+            checker().check(
+                user,
+                'project',
+                live,
+                new Map([['orders', contents]]),
+            );
+
+        test('a number metric that aggregates in its own sql is rejected', async () => {
+            const { rejected } = await check(new Map(), withMetrics(RATIO));
+            expect(rejected.get('orders')).toContain(
+                'per_order is a number metric that aggregates in its own sql',
+            );
+        });
+
+        test('a number metric that combines other metrics passes', async () => {
+            const { rejected } = await check(
+                new Map(),
+                withMetrics(`  total:
+    type: sum
+    sql: \${TABLE}.id
+  per_order:
+    type: number
+    sql: \${total} / 2
+`),
+            );
+            expect(rejected.size).toBe(0);
+        });
+
+        test('what is already live is not held to the new rules', async () => {
+            const live = withMetrics(RATIO);
+            const { rejected } = await check(
+                new Map([['orders', live]]),
+                `${live}  total:
+    type: sum
+    sql: \${TABLE}.id
+`,
+            );
+            expect(rejected.size).toBe(0);
+        });
+
+        test('a dimension typed differently from its column is rejected, unless it casts', async () => {
+            columnTypes.fields = { C0: { type: DimensionType.TIMESTAMP } };
+            const { rejected } = await check(new Map(), model('orders'));
+            expect(rejected.get('orders')).toBe(
+                "id reads a timestamp column, but is typed differently. Use the column's type, or cast in sql to change it.",
+            );
+
+            const cast = model('orders').replace(
+                '${TABLE}.id',
+                'CAST(${TABLE}.id AS INT)',
+            );
+            expect((await check(new Map(), cast)).rejected.size).toBe(0);
+        });
     });
 });

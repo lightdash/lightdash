@@ -176,7 +176,7 @@ describe('applyModelFragment', () => {
         const { changes, refusals } = apply(orders, {
             name: 'orders',
             dimensions: [
-                { name: 'status', hidden: true },
+                { name: 'status', hidden: false },
                 {
                     name: 'region',
                     type: DimensionType.STRING,
@@ -197,6 +197,18 @@ describe('applyModelFragment', () => {
         expect(changes).toEqual([
             { path: 'metrics.largest_order', action: 'added' },
         ]);
+    });
+
+    it('hides a field, since hiding shows nobody anything new', () => {
+        const { contents, changes, refusals } = apply(orders, {
+            name: 'orders',
+            dimensions: [{ name: 'status', hidden: true }],
+        });
+        expect(refusals).toEqual([]);
+        expect(changes.map(({ path }) => path)).toEqual([
+            'dimensions.status.hidden',
+        ]);
+        expect(contents).toContain('hidden: true');
     });
 
     it('refuses a new definition that is missing what it needs', () => {
@@ -375,7 +387,7 @@ describe('parseModelFragment', () => {
             const { contents, refusals } = apply(orders, {
                 name: 'orders',
                 sql_filter: '${TABLE}.org = 1',
-                dimensions: [{ name: 'amount', hidden: true }],
+                dimensions: [{ name: 'amount', hidden: false }],
             });
             expect(contents).toBe(orders);
             expect(refusals).toEqual([
