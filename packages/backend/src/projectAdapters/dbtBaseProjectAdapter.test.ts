@@ -1,7 +1,10 @@
 import {
+    DbtManifestVersion,
     DEFAULT_SPOTLIGHT_CONFIG,
+    SupportedDbtAdapter,
     SupportedDbtVersions,
     type DbtManifest,
+    type DbtRawModelNode,
     type LightdashProjectConfig,
     type WarehouseClient,
 } from '@lightdash/common';
@@ -277,4 +280,58 @@ describe('getDbtManifest', () => {
 
 afterAll(() => {
     readFileSpy.mockRestore();
+});
+
+describe('_validateDbtModel with no documented columns', () => {
+    const rawModel = (meta: Record<string, unknown>) =>
+        ({
+            alias: 'orders',
+            checksum: { name: '', checksum: '' },
+            fqn: [],
+            language: '',
+            package_name: '',
+            path: '',
+            raw_code: '',
+            compiled: true,
+            unique_id: 'model.project.orders',
+            description: '',
+            resource_type: 'model',
+            columns: {},
+            meta,
+            database: 'db',
+            schema: 'public',
+            name: 'orders',
+            tags: [],
+            relation_name: 'orders',
+            depends_on: { nodes: [] },
+            patch_path: null,
+            original_file_path: '',
+        }) as unknown as DbtRawModelNode;
+
+    const validate = (model: DbtRawModelNode) =>
+        DbtBaseProjectAdapter._validateDbtModel(
+            SupportedDbtAdapter.POSTGRES,
+            [model],
+            DbtManifestVersion.V12,
+        );
+
+    it('rejects a model with no dimensions', () => {
+        const [valid, invalid] = validate(rawModel({}));
+
+        expect(valid).toHaveLength(0);
+        expect(invalid[0].errors?.[0].message).toBe('No dimensions available');
+    });
+
+    it('accepts a model with a model-level additional dimension', () => {
+        const [valid, invalid] = validate(
+            rawModel({
+                additional_dimensions: {
+                    band: { type: 'string', sql: '${TABLE}.band' },
+                },
+            }),
+        );
+
+        expect(invalid).toEqual([]);
+        expect(valid).toHaveLength(1);
+    });
 });

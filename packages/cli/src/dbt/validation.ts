@@ -54,7 +54,14 @@ export const validateDbtModel = async (
                         ? formatServedManifestValidationError(errorMessage)
                         : errorMessage,
                 };
-            } else if (isValid && Object.values(model.columns).length <= 0) {
+            } else if (
+                isValid &&
+                Object.values(model.columns).length <= 0 &&
+                Object.keys({
+                    ...model.meta.additional_dimensions,
+                    ...model.config?.meta?.additional_dimensions,
+                }).length === 0
+            ) {
                 error = {
                     type: InlineErrorType.NO_DIMENSIONS_FOUND,
                     message: 'No dimensions available',

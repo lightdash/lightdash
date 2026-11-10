@@ -584,6 +584,18 @@
                     },
                     "maxItems": 5
                 },
+                "additional_dimensions": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "allOf": [
+                            {
+                                "$ref": "#/definitions/LightdashAdditionalDimension"
+                            },
+                            { "type": "object", "required": ["type", "sql"] }
+                        ]
+                    },
+                    "default": {}
+                },
                 "metrics": {
                     "type": "object",
                     "additionalProperties": {

@@ -247,6 +247,22 @@ columns:
           sql: "NOT ${TABLE}.email LIKE '%gmail.com' AND NOT ${TABLE}.email LIKE '%yahoo.com'"
 ```
 
+### Model-level additional dimensions
+
+Use model-level `additional_dimensions` for a dimension that spans several columns or isn't tied to one. `type` and `sql` are required. The dimension belongs to the model, so it's available in every explore that includes it. If its name matches an existing dimension, the existing dimension is kept and a warning is shown.
+
+```yaml
+models:
+  - name: orders
+    config:
+      meta:
+        additional_dimensions:
+          order_size_band:
+            type: string
+            label: "Order Size Band"
+            sql: "CASE WHEN ${amount} > 100 THEN 'large' ELSE 'small' END"
+```
+
 ## Complete Example
 
 ```yaml

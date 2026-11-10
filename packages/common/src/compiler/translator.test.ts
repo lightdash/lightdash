@@ -5560,3 +5560,241 @@ describe('known missing catalog entries', () => {
         ).not.toThrow();
     });
 });
+
+describe('model-level additional dimensions', () => {
+    const amountColumn = {
+        name: 'amount',
+        data_type: DimensionType.NUMBER,
+        meta: {},
+    };
+    const orderSizeBand = {
+        type: DimensionType.STRING,
+        sql: "CASE WHEN ${amount} > 100 THEN 'large' ELSE 'small' END",
+    };
+    const ordersModel = (
+        meta: DbtModelNode['meta'],
+        columns: DbtModelNode['columns'] = { amount: amountColumn },
+    ) => ({ ...model, name: 'orders', columns, meta });
+    const convert = (
+        meta: DbtModelNode['meta'],
+        columns?: DbtModelNode['columns'],
+    ) =>
+        convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            ordersModel(meta, columns),
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+    it('adds the dimension to the table after the column dimensions', () => {
+        const table = convert({
+            additional_dimensions: { order_size_band: orderSizeBand },
+        });
+
+        expect(table.dimensions.order_size_band).toMatchObject({
+            name: 'order_size_band',
+            table: 'orders',
+            type: DimensionType.STRING,
+            sql: orderSizeBand.sql,
+            isAdditionalDimension: true,
+        });
+        expect(table.dimensions.amount.index).toBe(0);
+        expect(table.dimensions.order_size_band.index).toBe(1);
+        expect(table.warnings ?? []).toEqual([]);
+    });
+
+    it('prefers config.meta over meta', () => {
+        const table = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            {
+                ...ordersModel({
+                    additional_dimensions: { order_size_band: orderSizeBand },
+                }),
+                config: {
+                    materialized: 'table',
+                    meta: {
+                        additional_dimensions: {
+                            order_size_band: {
+                                ...orderSizeBand,
+                                label: 'From config',
+                            },
+                        },
+                    },
+                },
+            },
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(table.dimensions.order_size_band.label).toBe('From config');
+    });
+
+    it('keeps an existing dimension when the name collides and warns', () => {
+        const table = convert({
+            additional_dimensions: {
+                amount: { type: DimensionType.STRING, sql: "'replaced'" },
+            },
+        });
+
+        expect(table.dimensions.amount.type).toBe(DimensionType.NUMBER);
+        expect(table.warnings).toEqual([
+            expect.objectContaining({
+                type: InlineErrorType.DUPLICATE_FIELD_NAME,
+                message: expect.stringContaining('"amount"'),
+            }),
+        ]);
+    });
+
+    it('keeps a generated interval when an interval name collides and warns', () => {
+        const table = convert(
+            {
+                additional_dimensions: {
+                    shipped: {
+                        type: DimensionType.TIMESTAMP,
+                        sql: '${TABLE}.shipped_at',
+                        time_intervals: [TimeFrames.DAY],
+                    },
+                },
+            },
+            {
+                amount: amountColumn,
+                shipped_day: {
+                    name: 'shipped_day',
+                    data_type: DimensionType.STRING,
+                    meta: {},
+                },
+            },
+        );
+
+        expect(table.dimensions.shipped).toBeDefined();
+        expect(table.dimensions.shipped_day.type).toBe(DimensionType.STRING);
+        expect(table.warnings).toEqual([
+            expect.objectContaining({
+                type: InlineErrorType.DUPLICATE_FIELD_NAME,
+                message: expect.stringContaining('"shipped_day"'),
+            }),
+        ]);
+    });
+
+    it('generates standard and custom time intervals', () => {
+        const table = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            ordersModel({
+                additional_dimensions: {
+                    shipped: {
+                        type: DimensionType.TIMESTAMP,
+                        sql: '${TABLE}.shipped_at',
+                        time_intervals: [TimeFrames.DAY, 'fiscal_year'],
+                    },
+                },
+            }),
+            DEFAULT_SPOTLIGHT_CONFIG,
+            undefined,
+            undefined,
+            {
+                fiscal_year: {
+                    label: 'Fiscal year',
+                    sql: "DATE_TRUNC('year', ${COLUMN})",
+                },
+            },
+        );
+
+        expect(table.dimensions.shipped_day).toMatchObject({
+            timeInterval: TimeFrames.DAY,
+            isAdditionalDimension: true,
+        });
+        expect(table.dimensions.shipped_fiscal_year).toMatchObject({
+            customTimeInterval: 'fiscal_year',
+            isAdditionalDimension: true,
+        });
+    });
+
+    it('honours disabled timestamp conversion', () => {
+        const table = convertTable(
+            SupportedDbtAdapter.SNOWFLAKE,
+            ordersModel({
+                additional_dimensions: {
+                    shipped: {
+                        type: DimensionType.TIMESTAMP,
+                        sql: '${TABLE}.shipped_at',
+                    },
+                },
+            }),
+            DEFAULT_SPOTLIGHT_CONFIG,
+            undefined,
+            true,
+        );
+
+        expect(table.dimensions.shipped.sql).toBe('${TABLE}.shipped_at');
+    });
+
+    it('compiles for metrics, additional explores and joined tables', async () => {
+        const result = await convertExplores(
+            [
+                ordersModel({
+                    additional_dimensions: { order_size_band: orderSizeBand },
+                    metrics: {
+                        large_orders: {
+                            type: MetricType.COUNT,
+                            sql: "CASE WHEN ${order_size_band} = 'large' THEN 1 END",
+                        },
+                    },
+                    explores: { curated_orders: {} },
+                }),
+                {
+                    ...ordersModel({
+                        joins: [
+                            {
+                                join: 'orders',
+                                sql_on: '${customers.amount} = ${orders.amount}',
+                            },
+                        ],
+                    }),
+                    name: 'customers',
+                    unique_id: 'customers_id',
+                },
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        );
+
+        expect(result.filter((explore) => 'errors' in explore)).toEqual([]);
+        expect(
+            result.map((explore) =>
+                explore.tables
+                    ? Object.keys(explore.tables.orders.dimensions)
+                    : [],
+            ),
+        ).toEqual([
+            expect.arrayContaining(['order_size_band']),
+            expect.arrayContaining(['order_size_band']),
+            expect.arrayContaining(['order_size_band']),
+        ]);
+    });
+
+    it('compiles a model with no documented columns', async () => {
+        const result = await convertExplores(
+            [
+                ordersModel(
+                    {
+                        additional_dimensions: {
+                            order_label: {
+                                type: DimensionType.STRING,
+                                sql: '${TABLE}.label',
+                            },
+                        },
+                    },
+                    {},
+                ),
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        );
+
+        expect(result).toHaveLength(1);
+        expect(result[0]).not.toHaveProperty('errors');
+        expect(result[0].tables?.orders.dimensions.order_label).toBeDefined();
+    });
+});
