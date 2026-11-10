@@ -1,3 +1,10 @@
+## [3.197.2](https://github.com/lightdash/lightdash/compare/3.197.1...3.197.2) (2026-11-10)
+
+
+### Bug Fixes
+
+* keep dashboard tiles in place at every window width ([#32273](https://github.com/lightdash/lightdash/issues/32273)) ([fb42e3f](https://github.com/lightdash/lightdash/commit/fb42e3faf61f49097cd280bfe69ef5d1e3206398))
+
 ## [3.197.1](https://github.com/lightdash/lightdash/compare/3.197.0...3.197.1) (2026-11-10)
 
 
