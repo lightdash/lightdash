@@ -13,7 +13,9 @@ import {
     FeatureFlagModel,
     FeatureFlagQueryOptions,
 } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfig';
 import { ExternalConnectionsTableName } from '../database/entities/externalConnections';
+import { isPreAggregatesEnabled } from '../preAggregates/isPreAggregatesEnabled';
 import { isCreatedInAiTrial } from '../services/ai/aiTrial';
 
 export class CommercialFeatureFlagModel extends FeatureFlagModel {
@@ -27,7 +29,22 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
             [FeatureFlags.ApiQuerySources]:
                 this.getApiQuerySourcesEnabled.bind(this),
             [FeatureFlags.EnableDataApps]: this.getDataAppsEnabled.bind(this),
+            [FeatureFlags.ExternalSources]:
+                this.getExternalSourcesEnabled.bind(this),
         };
+    }
+
+    // External sources run on the pre-aggregates DuckDB engine, so they're on
+    // for every org wherever that engine is: pre-aggregates enabled and their
+    // S3 storage configured. Overrides and the flag default are ignored.
+    private async getExternalSourcesEnabled({
+        featureFlagId,
+    }: FeatureFlagLogicArgs): Promise<FeatureFlag> {
+        const enabled =
+            isPreAggregatesEnabled(this.lightdashConfig) &&
+            getDuckdbRuntimeConfig(this.lightdashConfig.preAggregates.s3) !==
+                undefined;
+        return { id: featureFlagId, enabled };
     }
 
     // Data apps follow AI and the sandbox runtime, not a per-org rollout:

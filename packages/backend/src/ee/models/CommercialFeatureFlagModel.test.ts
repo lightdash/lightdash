@@ -277,3 +277,51 @@ describe('CommercialFeatureFlagModel data apps', () => {
         ).resolves.toBe(true);
     });
 });
+
+describe('CommercialFeatureFlagModel external sources', () => {
+    let tracker: Tracker;
+    const featureFlagId = FeatureFlags.ExternalSources;
+    const user = {
+        userUuid: 'user-uuid',
+        organizationUuid: 'organization-uuid',
+    };
+    const preAggregates = {
+        ...lightdashConfigMock.preAggregates,
+        enabled: true,
+    };
+
+    const getExternalSources = (
+        config: Partial<typeof lightdashConfigMock> = {},
+    ) =>
+        createModel({ preAggregates, ...config })
+            .get({ featureFlagId, user })
+            .then(({ enabled }) => enabled);
+
+    beforeAll(() => {
+        tracker = getTracker();
+    });
+    afterEach(() => {
+        tracker.reset();
+    });
+
+    it('is on wherever pre-aggregates and their storage are, without querying', async () => {
+        await expect(getExternalSources()).resolves.toBe(true);
+        expect(tracker.history.select).toHaveLength(0);
+    });
+
+    it('is off without pre-aggregates', async () => {
+        await expect(
+            getExternalSources({
+                preAggregates: { ...preAggregates, enabled: false },
+            }),
+        ).resolves.toBe(false);
+    });
+
+    it('is off without pre-aggregate storage', async () => {
+        await expect(
+            getExternalSources({
+                preAggregates: { ...preAggregates, s3: undefined },
+            }),
+        ).resolves.toBe(false);
+    });
+});
