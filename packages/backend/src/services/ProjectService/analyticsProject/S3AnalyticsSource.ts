@@ -1,6 +1,13 @@
-import { ListObjectsV2Command, type S3Client } from '@aws-sdk/client-s3';
+import {
+    ListObjectsV2Command,
+    S3ServiceException,
+    type S3Client,
+} from '@aws-sdk/client-s3';
 import { ParameterError } from '@lightdash/common';
-import { type DuckdbParquetSource } from '@lightdash/warehouses';
+import {
+    AnalyticsQueryError,
+    type DuckdbParquetSource,
+} from '@lightdash/warehouses';
 import { createHash } from 'crypto';
 import { compactedStreamSchemas } from '../../../analytics/eventStream/registry';
 import {
@@ -64,10 +71,42 @@ const mapFiles = async <T>(
     return values;
 };
 
-const storageError = () =>
-    new Error(
-        'Analytics storage access failed. Check bucket credentials, organization and compacted data availability.',
-    );
+const storageError = (error: unknown): AnalyticsQueryError => {
+    if (error instanceof AnalyticsQueryError) return error;
+
+    const status =
+        error instanceof S3ServiceException
+            ? error.$metadata.httpStatusCode
+            : undefined;
+    if (
+        status === 401 ||
+        status === 403 ||
+        (error instanceof Error &&
+            [
+                'AccessDenied',
+                'CredentialsProviderError',
+                'ExpiredToken',
+            ].includes(error.name))
+    ) {
+        return new AnalyticsQueryError('storage_access_denied', status);
+    }
+    if (
+        error instanceof Error &&
+        (['AbortError', 'TimeoutError'].includes(error.name) ||
+            ('code' in error &&
+                typeof error.code === 'string' &&
+                [
+                    'EAI_AGAIN',
+                    'ECONNREFUSED',
+                    'ECONNRESET',
+                    'ENOTFOUND',
+                    'ETIMEDOUT',
+                ].includes(error.code)))
+    ) {
+        return new AnalyticsQueryError('storage_network_error', status);
+    }
+    return new AnalyticsQueryError('storage_read_failed', status);
+};
 
 /** Server-only: the caller must authorize the persisted project org first. */
 export const createS3AnalyticsSourceResolver = ({
@@ -241,8 +280,8 @@ export const createS3AnalyticsSourceResolver = ({
                         if (!requested || requested.has(tableName)) {
                             fileCount += 1;
                             if (fileCount > MAX_FILES)
-                                throw new Error(
-                                    'Analytics manifest exceeds file limit',
+                                throw new AnalyticsQueryError(
+                                    'file_limit_exceeded',
                                 );
                             const files = filesByTable.get(tableName) ?? [];
                             files.push({ key, etag, size });
@@ -324,9 +363,9 @@ export const createS3AnalyticsSourceResolver = ({
                 signingMs: Math.round(signingMs),
                 totalMs: Math.round(performance.now() - started),
             });
-        } catch {
+        } catch (error) {
             // SDK errors may contain credentials, signatures, or object contents.
-            throw storageError();
+            throw storageError(error);
         } finally {
             client.destroy();
         }
@@ -382,8 +421,8 @@ export const createS3AnalyticsSourceResolver = ({
                               const signing =
                                   await signingContext(fallbackClient);
                               return await mapFiles(files, signing.sign);
-                          } catch {
-                              throw storageError();
+                          } catch (error) {
+                              throw storageError(error);
                           } finally {
                               fallbackClient.destroy();
                               Logger.info('Analytics source staging fallback', {

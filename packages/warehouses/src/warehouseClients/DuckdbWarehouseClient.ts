@@ -38,6 +38,7 @@ import fsSync from 'fs';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
+import { toAnalyticsQueryError } from './AnalyticsQueryError';
 import {
     getEmbeddedDatabaseFileName,
     resolveEmbeddedBundleDatabasePath,
@@ -2584,9 +2585,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                         error instanceof ParquetQueryTimeoutError
                     )
                         throw error;
-                    throw new WarehouseQueryError(
-                        'Internal analytics query failed. Check storage access and query permissions.',
-                    );
+                    throw toAnalyticsQueryError(error);
                 }
             }
             if (this.embeddedConfig) {

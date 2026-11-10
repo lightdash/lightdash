@@ -213,6 +213,7 @@ import {
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import {
+    AnalyticsQueryError,
     DuckdbWarehouseClient,
     mapFieldTypeFromDuckdbTypeName,
     warehouseSqlBuilderFromType,
@@ -5779,12 +5780,15 @@ export class AsyncQueryService extends ProjectService {
                         e instanceof WarehouseQueryTimeoutError
                             ? e.data
                             : undefined,
-                    // Surface every queryTag (chart_uuid, dashboard_uuid,
-                    // saved_sql_uuid, scheduler_uuid, scheduler_name, job_id,
-                    // explore_name, query_context, …) onto the error log so a
-                    // single Cloud Logging filter maps a warehouse failure
-                    // back to the originating chart / scheduled sync.
-                    ...queryTags,
+                    // Keep user attribute tags out of Analytics error logs.
+                    ...(e instanceof AnalyticsQueryError
+                        ? {
+                              storageStatus: e.storageStatus ?? undefined,
+                              query_context: queryTags.query_context,
+                              chart_uuid: queryTags.chart_uuid,
+                              dashboard_uuid: queryTags.dashboard_uuid,
+                          }
+                        : queryTags),
                 },
             );
 

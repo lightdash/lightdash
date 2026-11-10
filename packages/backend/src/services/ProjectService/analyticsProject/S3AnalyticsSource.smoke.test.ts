@@ -265,7 +265,7 @@ describe.skipIf(!process.env.ANALYTICS_S3_SMOKE_ENDPOINT)(
                 await expect(
                     failedReader.runQuery('SELECT count(*) FROM query_events'),
                 ).rejects.toThrow(
-                    /^Internal analytics query failed\. Check storage access and query permissions\.$/,
+                    /^(?:Access to analytics storage was denied\.|Could not read analytics data from storage\. Try again or contact your administrator\.)$/,
                 );
                 // Neither denied attempt modified the original object.
                 expect(

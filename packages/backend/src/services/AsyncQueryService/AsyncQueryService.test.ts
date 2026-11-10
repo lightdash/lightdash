@@ -12286,6 +12286,47 @@ describe('AsyncQueryService', () => {
             displayTimezone: null,
         };
 
+        test('stores the safe analytics message and logs the storage status', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const error = new warehouses.AnalyticsQueryError(
+                'storage_access_denied',
+                403,
+            );
+            vi.spyOn(
+                AsyncQueryService,
+                'runQueryAndTransformRows',
+            ).mockRejectedValueOnce(error);
+            const log = vi.spyOn(service['logger'], 'error');
+
+            await service.runAsyncWarehouseQuery({
+                ...args,
+                queryTags: {
+                    ...args.queryTags,
+                    user_attribute_sensitive: 'private-attribute',
+                },
+            });
+
+            expect(
+                service.queryHistoryModel.updateStatusToError,
+            ).toHaveBeenCalledWith(
+                args.queryUuid,
+                projectUuid,
+                'Access to analytics storage was denied.',
+                expect.any(Object),
+            );
+            expect(log).toHaveBeenCalledWith(
+                `Query ${args.queryUuid} execution error: Access to analytics storage was denied.`,
+                expect.objectContaining({
+                    queryUuid: args.queryUuid,
+                    errorCode: 'storage_access_denied',
+                    storageStatus: 403,
+                }),
+            );
+            expect(JSON.stringify(log.mock.calls)).not.toContain(
+                'private-attribute',
+            );
+        });
+
         test.each(['success', 'failure', 'retry'] as const)(
             'releases each attempt once on %s',
             async (outcome) => {
