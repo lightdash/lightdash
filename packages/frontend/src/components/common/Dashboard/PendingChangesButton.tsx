@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     assertUnreachable,
     getItemLabelWithoutTableName,
     type DashboardFilterRule,
@@ -30,6 +31,8 @@ import {
     type PendingChangeKind,
 } from '../../../features/dashboard/pendingChanges/getPendingChanges';
 import {
+    selectAllFilterableFieldsMap,
+    selectDashboard,
     selectDashboardParameterDefinitions,
     selectDashboardParameters,
     selectDashboardTabs,
@@ -37,8 +40,8 @@ import {
     useDashboardAllFilters,
     useDashboardSelector,
 } from '../../../features/dashboard/store';
-import { selectAllFilterableFieldsMap } from '../../../features/dashboard/store/dashboardSourceSelectors';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import { getDimensionFiltersToSave } from '../../../features/dashboardFilters/FilterConfiguration/utils';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../MantineIcon';
 import TruncatedText from '../TruncatedText';
 import classes from './PendingChangesButton.module.css';
@@ -52,7 +55,6 @@ const AREA_NAMES: Record<PendingChangeArea, string> = {
     setting: 'Setting',
 };
 
-// Diff marks: green adds, red removes, grey for everything else
 const markOf = (kind: PendingChangeKind): { icon: Icon; color: string } => {
     switch (kind) {
         case 'added':
@@ -78,25 +80,12 @@ const rankOf = (kind: PendingChangeKind) => {
     return index === -1 ? KIND_ORDER.length : index;
 };
 
-const nameOf = (change: PendingChange): string => {
-    if (change.area === 'tab' && change.kind === 'reordered') {
-        return 'Tab order';
-    }
-    if (change.kind === 'renamed' && change.detail !== null) {
-        return `${change.detail} → ${change.label}`;
-    }
-    if (change.area === 'tile' && change.kind === 'moved') {
-        return `${change.label} → ${change.detail ?? 'another tab'}`;
-    }
-    return change.label;
-};
-
 const ChangeRow: FC<{ change: PendingChange }> = ({ change }) => {
     const mark = markOf(change.kind);
     return (
         <Group gap="xs" wrap="nowrap">
-            <ThemeIcon size={18} radius="sm" variant="light" color={mark.color}>
-                <MantineIcon icon={mark.icon} size={12} strokeWidth={2.5} />
+            <ThemeIcon size="sm" variant="light" color={mark.color}>
+                <MantineIcon icon={mark.icon} size={14} />
             </ThemeIcon>
             <TruncatedText
                 maxWidth="100%"
@@ -107,7 +96,7 @@ const ChangeRow: FC<{ change: PendingChange }> = ({ change }) => {
                     change.kind === 'removed' ? classes.removed : undefined
                 }
             >
-                {nameOf(change)}
+                {change.label}
             </TruncatedText>
             <Text fz="xs" c="dimmed" flex="0 0 auto">
                 {AREA_NAMES[change.area]}
@@ -122,7 +111,7 @@ type Props = {
 };
 
 export const PendingChangesButton = memo<Props>(({ settingsChanges }) => {
-    const dashboard = useDashboardContext((c) => c.dashboard);
+    const dashboard = useDashboardSelector(selectDashboard);
     const tiles = useDashboardSelector(selectDashboardTiles);
     const tabs = useDashboardSelector(selectDashboardTabs);
     const filters = useDashboardAllFilters();
@@ -131,6 +120,10 @@ export const PendingChangesButton = memo<Props>(({ settingsChanges }) => {
     const parameterDefinitions = useDashboardSelector(
         selectDashboardParameterDefinitions,
     );
+    const { data: dashboardControlsFlag } = useServerFeatureFlag(
+        FeatureFlags.DashboardControls,
+    );
+    const keepsRequiredDefaults = dashboardControlsFlag?.enabled === true;
 
     const getFilterLabel = useCallback(
         (rule: DashboardFilterRule) => {
@@ -156,7 +149,13 @@ export const PendingChangesButton = memo<Props>(({ settingsChanges }) => {
                 {
                     tiles: tiles ?? dashboard.tiles,
                     tabs,
-                    filters,
+                    filters: {
+                        ...filters,
+                        dimensions: getDimensionFiltersToSave(
+                            filters.dimensions,
+                            keepsRequiredDefaults,
+                        ),
+                    },
                     parameters,
                 },
                 {
@@ -172,6 +171,7 @@ export const PendingChangesButton = memo<Props>(({ settingsChanges }) => {
         tiles,
         tabs,
         filters,
+        keepsRequiredDefaults,
         parameters,
         getFilterLabel,
         parameterDefinitions,
@@ -180,7 +180,7 @@ export const PendingChangesButton = memo<Props>(({ settingsChanges }) => {
 
     if (changes.length === 0) {
         return (
-            <Group gap={6} wrap="nowrap" px="xs">
+            <Group gap="xs" wrap="nowrap" px="xs">
                 <Box className={classes.dot} />
                 <Text fz="xs" c="dimmed">
                     No unsaved changes

@@ -25,13 +25,22 @@ export type TileLayout = Pick<
     'uuid' | 'x' | 'y' | 'w' | 'h'
 >;
 
-/** Layouts before (`past`) and after (`future`) the current one, oldest first */
+/** A tile's place before a step, on the tab it was on */
+type TileSnapshot = TileLayout & { tabUuid: string | null };
+
+/** Steps before (`past`) and after (`future`) the current layout, oldest first */
 type TileLayoutHistory = {
-    past: TileLayout[][];
-    future: TileLayout[][];
+    past: TileSnapshot[][];
+    future: TileSnapshot[][];
+    /** Tile changes no undo reaches, so an empty `past` is not a clean draft */
+    hasOtherTileChanges: boolean;
 };
 
-const EMPTY_TILE_LAYOUT_HISTORY: TileLayoutHistory = { past: [], future: [] };
+const EMPTY_TILE_LAYOUT_HISTORY: TileLayoutHistory = {
+    past: [],
+    future: [],
+    hasOtherTileChanges: false,
+};
 
 // Each step holds one small record per tile, so a long history stays cheap
 const TILE_LAYOUT_HISTORY_LIMIT = 50;
@@ -40,7 +49,7 @@ export type DashboardEditState = {
     /** Undefined until the page seeds it from the loaded dashboard */
     tiles: Dashboard['tiles'] | undefined;
     haveTilesChanged: boolean;
-    /** Undo and redo of tile moves and resizes, for one edit session */
+    /** Undo and redo of tile moves and resizes, until the draft is saved or discarded */
     tileLayoutHistory: TileLayoutHistory;
     /** Always sorted by `order` */
     tabs: Dashboard['tabs'];
@@ -129,9 +138,6 @@ export const dashboardEditActions = {
     moveTiles: createAction<TileLayout[]>('dashboardEdit/moveTiles'),
     undoTileLayout: createAction('dashboardEdit/undoTileLayout'),
     redoTileLayout: createAction('dashboardEdit/redoTileLayout'),
-    clearTileLayoutHistory: createAction(
-        'dashboardEdit/clearTileLayoutHistory',
-    ),
     setHaveTilesChanged: createAction<boolean>(
         'dashboardEdit/setHaveTilesChanged',
     ),
@@ -233,8 +239,23 @@ const withControlSections = (
     haveControlSectionsChanged: true,
 });
 
-const layoutOf = (tiles: Dashboard['tiles']): TileLayout[] =>
-    tiles.map(({ uuid, x, y, w, h }) => ({ uuid, x, y, w, h }));
+export const isSameTilePlacement = (a: TileLayout, b: TileLayout) =>
+    a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
+
+const snapshotOf = (
+    tiles: Dashboard['tiles'],
+    uuids: Set<string>,
+): TileSnapshot[] =>
+    tiles
+        .filter((tile) => uuids.has(tile.uuid))
+        .map(({ uuid, x, y, w, h, tabUuid }) => ({
+            uuid,
+            x,
+            y,
+            w,
+            h,
+            tabUuid: tabUuid ?? null,
+        }));
 
 // Unmoved tiles keep their identity, so only the moved ones re-render.
 // Null when no tile moves
@@ -243,54 +264,121 @@ const placeTiles = (
     layout: TileLayout[],
 ): Dashboard['tiles'] | null => {
     const layoutByUuid = new Map(layout.map((item) => [item.uuid, item]));
-    let hasMoved = false;
     const placed = tiles.map((tile) => {
         const item = layoutByUuid.get(tile.uuid);
-        if (
-            item === undefined ||
-            (item.x === tile.x &&
-                item.y === tile.y &&
-                item.w === tile.w &&
-                item.h === tile.h)
-        ) {
-            return tile;
-        }
-        hasMoved = true;
-        return { ...tile, x: item.x, y: item.y, w: item.w, h: item.h };
+        return item === undefined || isSameTilePlacement(item, tile)
+            ? tile
+            : { ...tile, x: item.x, y: item.y, w: item.w, h: item.h };
     });
-    return hasMoved ? placed : null;
+    return placed.some((tile, index) => tile !== tiles[index]) ? placed : null;
 };
 
-const pushStep = (steps: TileLayout[][], step: TileLayout[]) =>
+// With one tab or none a single grid shows every tile: null. A tile with a
+// stale tab shows on the first one
+const shownTabOf = (
+    tile: Dashboard['tiles'][number],
+    tabs: Dashboard['tabs'],
+): string | null => {
+    if (tabs.length <= 1) return null;
+    return tabs.some((tab) => tab.uuid === tile.tabUuid)
+        ? (tile.tabUuid ?? null)
+        : tabs[0].uuid;
+};
+
+const activeTabOf = (state: DashboardEditState): string | null =>
+    state.tabs.length <= 1
+        ? null
+        : (state.activeTab?.uuid ?? state.tabs[0].uuid);
+
+// A step moves only tiles the editor is looking at, and never one that
+// changed tab since: its old place belongs to the other tab's grid
+const restorableOf = (
+    state: DashboardEditState,
+    tiles: Dashboard['tiles'],
+    step: TileSnapshot[],
+): TileSnapshot[] => {
+    const activeTab = activeTabOf(state);
+    const tilesByUuid = new Map(tiles.map((tile) => [tile.uuid, tile]));
+    return step.filter((item) => {
+        const tile = tilesByUuid.get(item.uuid);
+        return (
+            tile !== undefined &&
+            (tile.tabUuid ?? null) === item.tabUuid &&
+            shownTabOf(tile, state.tabs) === activeTab
+        );
+    });
+};
+
+type HistoryDirection = 'undo' | 'redo';
+
+// The latest step that still moves something on the tab in view
+const findStep = (state: DashboardEditState, direction: HistoryDirection) => {
+    const { tiles } = state;
+    if (tiles === undefined) return undefined;
+    const { past, future } = state.tileLayoutHistory;
+    return (direction === 'undo' ? past : future)
+        .map((step, index) => ({
+            step,
+            index,
+            placed: placeTiles(tiles, restorableOf(state, tiles, step)),
+        }))
+        .findLast(({ placed }) => placed !== null);
+};
+
+export const canStepTileLayout = (
+    state: DashboardEditState,
+    direction: HistoryDirection,
+) => findStep(state, direction) !== undefined;
+
+const pushStep = (steps: TileSnapshot[][], step: TileSnapshot[]) =>
     [...steps, step].slice(-TILE_LAYOUT_HISTORY_LIMIT);
 
-// Steps whose tiles were all removed since are skipped, so every undo or
-// redo moves something
+// Dropping the oldest step leaves a move no undo reaches
+const pushPast = (
+    history: TileLayoutHistory,
+    step: TileSnapshot[],
+): TileLayoutHistory => ({
+    ...history,
+    past: pushStep(history.past, step),
+    hasOtherTileChanges:
+        history.hasOtherTileChanges ||
+        history.past.length >= TILE_LAYOUT_HISTORY_LIMIT,
+});
+
 const stepThroughHistory = (
     state: DashboardEditState,
-    direction: 'undo' | 'redo',
+    direction: HistoryDirection,
 ): DashboardEditState => {
     const { tiles } = state;
-    if (tiles === undefined) return state;
-    const { past, future } = state.tileLayoutHistory;
-    const from = direction === 'undo' ? past : future;
-    const to = direction === 'undo' ? future : past;
-    const index = from.findLastIndex(
-        (step) => placeTiles(tiles, step) !== null,
+    const found = findStep(state, direction);
+    if (tiles === undefined || found === undefined || found.placed === null) {
+        return state;
+    }
+    const history = state.tileLayoutHistory;
+    const reverse = snapshotOf(
+        tiles,
+        new Set(found.step.map(({ uuid }) => uuid)),
     );
-    if (index === -1) return state;
-    const placed = placeTiles(tiles, from[index]);
-    if (placed === null) return state;
-    const remaining = from.slice(0, index);
-    const reached = pushStep(to, layoutOf(tiles));
+    const without = (steps: TileSnapshot[][]) =>
+        steps.filter((_, index) => index !== found.index);
+    const tileLayoutHistory =
+        direction === 'undo'
+            ? {
+                  ...history,
+                  past: without(history.past),
+                  future: pushStep(history.future, reverse),
+              }
+            : {
+                  ...pushPast(history, reverse),
+                  future: without(history.future),
+              };
     return {
         ...state,
-        tiles: placed,
-        haveTilesChanged: true,
-        tileLayoutHistory:
-            direction === 'undo'
-                ? { past: remaining, future: reached }
-                : { past: reached, future: remaining },
+        tiles: found.placed,
+        haveTilesChanged:
+            tileLayoutHistory.hasOtherTileChanges ||
+            tileLayoutHistory.past.length > 0,
+        tileLayoutHistory,
     };
 };
 
@@ -312,15 +400,17 @@ export const dashboardEditReducer = (
         const { tiles } = state;
         const placed =
             tiles === undefined ? null : placeTiles(tiles, action.payload);
-        if (tiles === undefined || placed === null) {
-            return set(state, 'haveTilesChanged', true);
-        }
+        if (tiles === undefined || placed === null) return state;
+        const step = snapshotOf(
+            tiles,
+            new Set(action.payload.map(({ uuid }) => uuid)),
+        );
         return {
             ...state,
             tiles: placed,
             haveTilesChanged: true,
             tileLayoutHistory: {
-                past: pushStep(state.tileLayoutHistory.past, layoutOf(tiles)),
+                ...pushPast(state.tileLayoutHistory, step),
                 future: [],
             },
         };
@@ -331,11 +421,18 @@ export const dashboardEditReducer = (
     if (dashboardEditActions.redoTileLayout.match(action)) {
         return stepThroughHistory(state, 'redo');
     }
-    if (dashboardEditActions.clearTileLayoutHistory.match(action)) {
-        return set(state, 'tileLayoutHistory', EMPTY_TILE_LAYOUT_HISTORY);
-    }
+    // A clean draft (saved or discarded) starts a new history
     if (dashboardEditActions.setHaveTilesChanged.match(action)) {
-        return set(state, 'haveTilesChanged', action.payload);
+        return action.payload
+            ? set(set(state, 'haveTilesChanged', true), 'tileLayoutHistory', {
+                  ...state.tileLayoutHistory,
+                  hasOtherTileChanges: true,
+              })
+            : set(
+                  set(state, 'haveTilesChanged', false),
+                  'tileLayoutHistory',
+                  EMPTY_TILE_LAYOUT_HISTORY,
+              );
     }
     if (dashboardEditActions.setTabs.match(action)) {
         return { ...state, tabs: sortBy(action.payload, 'order') };

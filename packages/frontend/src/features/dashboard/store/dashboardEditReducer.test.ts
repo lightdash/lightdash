@@ -473,7 +473,80 @@ describe('tile layout undo and redo', () => {
     it('records nothing when a drag ends where it started', () => {
         const state = reducer(editing([tile('a')]), move('a', 0));
         expect(selectCanUndoTileLayout(storeWith(state))).toBe(false);
-        expect(state.haveTilesChanged).toBe(true);
+        expect(state.haveTilesChanged).toBe(false);
+    });
+
+    it('has nothing to save once every move is undone', () => {
+        const moved = reducer(editing([tile('a')]), move('a', 3));
+        expect(moved.haveTilesChanged).toBe(true);
+        const undone = reducer(moved, actions.undoTileLayout());
+        expect(undone.haveTilesChanged).toBe(false);
+        expect(reducer(undone, actions.redoTileLayout()).haveTilesChanged).toBe(
+            true,
+        );
+    });
+
+    it('still has tiles to save when another tile change came with the moves', () => {
+        const edited = reducer(
+            reducer(editing([tile('a')]), move('a', 3)),
+            actions.setHaveTilesChanged(true),
+        );
+        expect(reducer(edited, actions.undoTileLayout()).haveTilesChanged).toBe(
+            true,
+        );
+    });
+
+    describe('with tabs', () => {
+        const tabs = [
+            { uuid: 't1', name: 'One', order: 0 },
+            { uuid: 't2', name: 'Two', order: 1 },
+        ];
+        const onTab = (uuid: string, tabUuid: string, x = 0) => ({
+            ...tile(uuid, x),
+            tabUuid,
+        });
+        const editingTabs = (tiles: Dashboard['tiles']) =>
+            [actions.setTabs(tabs), actions.setActiveTab(tabs[0])].reduce(
+                reducer,
+                editing(tiles),
+            );
+
+        it('leaves a tile that changed tab where it was put', () => {
+            const moved = reducer(
+                editingTabs([onTab('a', 't1'), onTab('b', 't1', 6)]),
+                actions.moveTiles([
+                    { uuid: 'a', x: 3, y: 0, w: 6, h: 3 },
+                    { uuid: 'b', x: 9, y: 0, w: 6, h: 3 },
+                ]),
+            );
+            const retabbed = reducer(
+                moved,
+                actions.setTiles(
+                    moved.tiles?.map((t) =>
+                        t.uuid === 'b' ? { ...t, x: 0, tabUuid: 't2' } : t,
+                    ),
+                ),
+            );
+            expect(xs(reducer(retabbed, actions.undoTileLayout()))).toEqual([
+                0, 0,
+            ]);
+        });
+
+        it('undoes only moves on the tab in view', () => {
+            const moved = [move('a', 3), move('b', 9)].reduce(
+                reducer,
+                editingTabs([onTab('a', 't1'), onTab('b', 't2', 6)]),
+            );
+            const undone = reducer(moved, actions.undoTileLayout());
+            expect(xs(undone)).toEqual([0, 9]);
+            expect(selectCanUndoTileLayout(storeWith(undone))).toBe(false);
+
+            const onOtherTab = reducer(undone, actions.setActiveTab(tabs[1]));
+            expect(selectCanUndoTileLayout(storeWith(onOtherTab))).toBe(true);
+            expect(xs(reducer(onOtherTab, actions.undoTileLayout()))).toEqual([
+                0, 6,
+            ]);
+        });
     });
 
     it('keeps the tiles that did not move', () => {
@@ -508,10 +581,10 @@ describe('tile layout undo and redo', () => {
         expect(xs(reducer(withoutB, actions.undoTileLayout()))).toEqual([0]);
     });
 
-    it('forgets the history when cleared', () => {
+    it('forgets the history once the draft is saved or discarded', () => {
         const cleared = reducer(
             reducer(editing([tile('a')]), move('a', 3)),
-            actions.clearTileLayoutHistory(),
+            actions.setHaveTilesChanged(false),
         );
         expect(selectCanUndoTileLayout(storeWith(cleared))).toBe(false);
     });

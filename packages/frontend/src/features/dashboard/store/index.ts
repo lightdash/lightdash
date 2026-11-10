@@ -75,6 +75,7 @@ export { dashboardTileStatusActions } from './dashboardTileStatusReducer';
 export {
     dashboardEditActions,
     getSavedDateZoomSettings,
+    isSameTilePlacement,
 } from './dashboardEditReducer';
 export type { DashboardEditState } from './dashboardEditReducer';
 export {
@@ -117,6 +118,8 @@ export type {
 export {
     getFilterableFieldsByTileUuid,
     getTemporaryFilterLocks,
+    selectAllFilterableFieldsMap,
+    selectDashboard,
     selectEmbedDashboard,
 } from './dashboardSourceSelectors';
 export { getDashboardContextView } from './contextView';

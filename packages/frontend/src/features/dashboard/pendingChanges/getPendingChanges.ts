@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { isEqual, sortBy } from 'es-toolkit/compat';
 import { hasSavedFilterValueChanged } from '../../dashboardFilters/FilterConfiguration/utils';
+import { isSameTilePlacement } from '../store';
 
 export type PendingChangeArea =
     | 'layout'
@@ -29,13 +30,11 @@ export type PendingChange = {
     area: PendingChangeArea;
     kind: PendingChangeKind;
     id: string;
+    /** What changed, as the list shows it */
     label: string;
-    /** Extra context, such as the tab a tile moved to */
-    detail: string | null;
 };
 
 type Tile = Dashboard['tiles'][number];
-type Tab = Dashboard['tabs'][number];
 
 export type DashboardSnapshot = {
     tiles: Dashboard['tiles'];
@@ -54,11 +53,23 @@ const change = (
     kind: PendingChangeKind,
     id: string,
     label: string,
-    detail: string | null = null,
-): PendingChange => ({ area, kind, id, label, detail });
+): PendingChange => ({ area, kind, id, label });
 
 const byKey = <T>(items: T[], keyOf: (item: T) => string) =>
     new Map(items.map((item) => [keyOf(item), item]));
+
+const diffByKey = <T>(saved: T[], draft: T[], keyOf: (item: T) => string) => {
+    const savedByKey = byKey(saved, keyOf);
+    const draftByKey = byKey(draft, keyOf);
+    return {
+        added: draft.filter((item) => !savedByKey.has(keyOf(item))),
+        removed: saved.filter((item) => !draftByKey.has(keyOf(item))),
+        kept: draft.flatMap((after) => {
+            const before = savedByKey.get(keyOf(after));
+            return before === undefined ? [] : [{ before, after }];
+        }),
+    };
+};
 
 const tileTypeName = (type: DashboardTileTypes): string => {
     switch (type) {
@@ -89,45 +100,33 @@ const getTileLabel = (tile: Tile): string => {
     return tileTypeName(tile.type);
 };
 
-const hasMoved = (a: Tile, b: Tile) =>
-    a.x !== b.x || a.y !== b.y || a.w !== b.w || a.h !== b.h;
-
 // The grid pushes other tiles aside, so every placement change is one entry
 const getTileChanges = (
     saved: Dashboard['tiles'],
     draft: Dashboard['tiles'],
     draftTabs: Dashboard['tabs'],
 ): PendingChange[] => {
-    const savedByUuid = byKey(saved, (tile) => tile.uuid);
-    const draftByUuid = byKey(draft, (tile) => tile.uuid);
+    const diff = diffByKey(saved, draft, (tile) => tile.uuid);
     const tabNameOf = (uuid: string | null | undefined) =>
-        draftTabs.find((tab) => tab.uuid === uuid)?.name ?? null;
+        draftTabs.find((tab) => tab.uuid === uuid)?.name ?? 'another tab';
 
-    const added = draft
-        .filter((tile) => !savedByUuid.has(tile.uuid))
-        .map((tile) => change('tile', 'added', tile.uuid, getTileLabel(tile)));
-    const removed = saved
-        .filter((tile) => !draftByUuid.has(tile.uuid))
-        .map((tile) =>
-            change('tile', 'removed', tile.uuid, getTileLabel(tile)),
-        );
-
-    const kept = draft.flatMap((tile) => {
-        const before = savedByUuid.get(tile.uuid);
-        return before === undefined ? [] : [{ before, after: tile }];
-    });
-    const movedToTab = kept
+    const added = diff.added.map((tile) =>
+        change('tile', 'added', tile.uuid, getTileLabel(tile)),
+    );
+    const removed = diff.removed.map((tile) =>
+        change('tile', 'removed', tile.uuid, getTileLabel(tile)),
+    );
+    const movedToTab = diff.kept
         .filter(({ before, after }) => before.tabUuid !== after.tabUuid)
         .map(({ after }) =>
             change(
                 'tile',
                 'moved',
                 after.uuid,
-                getTileLabel(after),
-                tabNameOf(after.tabUuid),
+                `${getTileLabel(after)} → ${tabNameOf(after.tabUuid)}`,
             ),
         );
-    const edited = kept
+    const edited = diff.kept
         .filter(
             ({ before, after }) =>
                 before.type !== after.type ||
@@ -136,9 +135,10 @@ const getTileChanges = (
         .map(({ after }) =>
             change('tile', 'edited', after.uuid, getTileLabel(after)),
         );
-    const placed = kept.filter(
+    const placed = diff.kept.filter(
         ({ before, after }) =>
-            before.tabUuid === after.tabUuid && hasMoved(before, after),
+            before.tabUuid === after.tabUuid &&
+            !isSameTilePlacement(before, after),
     ).length;
     const layout =
         placed === 0
@@ -155,36 +155,50 @@ const getTileChanges = (
     return [...layout, ...added, ...removed, ...movedToTab, ...edited];
 };
 
-const tabOrder = (tabs: Dashboard['tabs'], uuids: Set<string>) =>
-    sortBy(tabs, 'order')
-        .map((tab) => tab.uuid)
-        .filter((uuid) => uuids.has(uuid));
+const tabOrder = (tabs: Dashboard['tabs']) =>
+    sortBy(tabs, 'order').map((tab) => tab.uuid);
 
 const getTabChanges = (
     saved: Dashboard['tabs'],
     draft: Dashboard['tabs'],
 ): PendingChange[] => {
-    const savedByUuid = byKey(saved, (tab) => tab.uuid);
-    const draftByUuid = byKey(draft, (tab) => tab.uuid);
-    const added = draft
-        .filter((tab) => !savedByUuid.has(tab.uuid))
-        .map((tab) => change('tab', 'added', tab.uuid, tab.name));
-    const removed = saved
-        .filter((tab) => !draftByUuid.has(tab.uuid))
-        .map((tab) => change('tab', 'removed', tab.uuid, tab.name));
-    const renamed = draft.flatMap((tab: Tab) => {
-        const before = savedByUuid.get(tab.uuid);
-        return before !== undefined && before.name !== tab.name
-            ? [change('tab', 'renamed', tab.uuid, tab.name, before.name)]
-            : [];
-    });
-    const common = new Set(
-        draft.map((tab) => tab.uuid).filter((uuid) => savedByUuid.has(uuid)),
+    const diff = diffByKey(saved, draft, (tab) => tab.uuid);
+    const added = diff.added.map((tab) =>
+        change('tab', 'added', tab.uuid, tab.name),
     );
-    const reordered = isEqual(tabOrder(saved, common), tabOrder(draft, common))
+    const removed = diff.removed.map((tab) =>
+        change('tab', 'removed', tab.uuid, tab.name),
+    );
+    const renamed = diff.kept
+        .filter(({ before, after }) => before.name !== after.name)
+        .map(({ before, after }) =>
+            change(
+                'tab',
+                'renamed',
+                after.uuid,
+                `${before.name} → ${after.name}`,
+            ),
+        );
+    const visibility = diff.kept
+        .filter(
+            ({ before, after }) =>
+                (before.hidden === true) !== (after.hidden === true),
+        )
+        .map(({ after }) =>
+            change(
+                'tab',
+                'edited',
+                `${after.uuid}:hidden`,
+                `${after.name} ${after.hidden === true ? 'hidden' : 'shown'}`,
+            ),
+        );
+    const reordered = isEqual(
+        tabOrder(diff.kept.map(({ before }) => before)),
+        tabOrder(diff.kept.map(({ after }) => after)),
+    )
         ? []
-        : [change('tab', 'reordered', 'tab-order', 'Tabs')];
-    return [...added, ...removed, ...renamed, ...reordered];
+        : [change('tab', 'reordered', 'tab-order', 'Tab order')];
+    return [...added, ...removed, ...renamed, ...visibility, ...reordered];
 };
 
 const allRules = (filters: DashboardFilters): DashboardFilterRule[] => [
@@ -193,6 +207,15 @@ const allRules = (filters: DashboardFilters): DashboardFilterRule[] => [
     ...filters.tableCalculations,
 ];
 
+// Absent and off are the same setting
+const ruleSettingsOf = (rule: DashboardFilterRule) => ({
+    required: rule.required === true,
+    singleValue: rule.singleValue === true,
+    requiredGroupId: rule.requiredGroupId ?? null,
+    lockedTabUuids: rule.lockedTabUuids ?? [],
+    sectionId: rule.sectionId ?? null,
+});
+
 const hasRuleChanged = (
     before: DashboardFilterRule,
     after: DashboardFilterRule,
@@ -200,33 +223,26 @@ const hasRuleChanged = (
     hasSavedFilterValueChanged(before, after) ||
     before.target.fieldId !== after.target.fieldId ||
     (before.label ?? null) !== (after.label ?? null) ||
-    !isEqual(before.tileTargets ?? {}, after.tileTargets ?? {});
+    !isEqual(before.tileTargets ?? {}, after.tileTargets ?? {}) ||
+    !isEqual(ruleSettingsOf(before), ruleSettingsOf(after));
 
 const getFilterChanges = (
     saved: DashboardFilters,
     draft: DashboardFilters,
     getFilterLabel: Labels['getFilterLabel'],
 ): PendingChange[] => {
-    const savedRules = allRules(saved);
-    const draftRules = allRules(draft);
-    const savedById = byKey(savedRules, (rule) => rule.id);
-    const draftById = byKey(draftRules, (rule) => rule.id);
-    const added = draftRules
-        .filter((rule) => !savedById.has(rule.id))
-        .map((rule) =>
-            change('filter', 'added', rule.id, getFilterLabel(rule)),
+    const diff = diffByKey(allRules(saved), allRules(draft), (rule) => rule.id);
+    const added = diff.added.map((rule) =>
+        change('filter', 'added', rule.id, getFilterLabel(rule)),
+    );
+    const removed = diff.removed.map((rule) =>
+        change('filter', 'removed', rule.id, getFilterLabel(rule)),
+    );
+    const edited = diff.kept
+        .filter(({ before, after }) => hasRuleChanged(before, after))
+        .map(({ after }) =>
+            change('filter', 'edited', after.id, getFilterLabel(after)),
         );
-    const removed = savedRules
-        .filter((rule) => !draftById.has(rule.id))
-        .map((rule) =>
-            change('filter', 'removed', rule.id, getFilterLabel(rule)),
-        );
-    const edited = draftRules.flatMap((rule) => {
-        const before = savedById.get(rule.id);
-        return before !== undefined && hasRuleChanged(before, rule)
-            ? [change('filter', 'edited', rule.id, getFilterLabel(rule))]
-            : [];
-    });
     return [...added, ...removed, ...edited];
 };
 

@@ -538,11 +538,6 @@ const Dashboard: FC = () => {
         [dashboardDispatch],
     );
 
-    // Undo history covers one edit session
-    useEffect(() => {
-        dashboardDispatch(dashboardEditActions.clearTileLayoutHistory());
-    }, [isEditMode, dashboardDispatch]);
-
     const handleAddTiles = useCallback(
         async (
             tiles: IDashboard['tiles'][number][],
@@ -978,22 +973,11 @@ const Dashboard: FC = () => {
 
     const hasDashboardChanged =
         haveTilesChanged ||
-        haveCustomMetricsChanged ||
         haveFiltersChanged ||
         hasTemporaryFilters ||
         haveTabsChanged ||
-        hasDateZoomDisabledChanged ||
-        hasAddFilterDisabledChanged ||
-        hasRequiredFiltersNoteChanged ||
         parametersHaveChanged ||
-        haveParameterControlsChanged ||
-        havePinnedParametersChanged ||
-        hasParameterOrderChanged ||
-        haveControlSectionsChanged ||
-        hasControlOrderChanged ||
-        haveDateZoomGranularitiesChanged ||
-        hasDefaultDateZoomGranularityChanged ||
-        hasDateZoomConfigChanged;
+        settingsChanges.length > 0;
 
     // Block navigating away if there are unsaved changes
     const blocker = useBlocker(({ nextLocation }) => {

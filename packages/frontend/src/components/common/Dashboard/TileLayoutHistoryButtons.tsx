@@ -36,7 +36,7 @@ const HistoryButton: FC<HistoryButtonProps> = ({
                 <Text fz="xs" inherit>
                     {label}
                 </Text>
-                <Group gap={2} wrap="nowrap">
+                <Group gap="xxs" wrap="nowrap">
                     {keys.map((key) => (
                         <Kbd key={key} size="xs">
                             {key}
@@ -73,15 +73,19 @@ export const TileLayoutHistoryButtons = memo(() => {
         () => dispatch(dashboardEditActions.redoTileLayout()),
         [dispatch],
     );
+    // The grid is out of reach behind a modal, so the keys leave it alone
+    const unlessModalOpen = (step: () => void) => () => {
+        if (document.querySelector('[aria-modal="true"]') === null) step();
+    };
 
     useHotkeys([
-        ['mod+Z', undo],
-        ['mod+shift+Z', redo],
-        ['mod+Y', redo],
+        ['mod+Z', unlessModalOpen(undo)],
+        ['mod+shift+Z', unlessModalOpen(redo)],
+        ['mod+Y', unlessModalOpen(redo)],
     ]);
 
     return (
-        <Group gap={4} wrap="nowrap">
+        <Group gap="xxs" wrap="nowrap">
             <HistoryButton
                 label="Undo"
                 keys={[modKey, 'Z']}

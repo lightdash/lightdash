@@ -56,7 +56,7 @@ const labels = {
 
 const changesOf = (draft: Partial<DashboardSnapshot>) =>
     getPendingChanges(snapshot(), snapshot(draft), labels).map(
-        ({ area, kind, label, detail }) => ({ area, kind, label, detail }),
+        ({ area, kind, label }) => ({ area, kind, label }),
     );
 
 describe('getPendingChanges', () => {
@@ -75,19 +75,17 @@ describe('getPendingChanges', () => {
                     area: 'layout',
                     kind: 'moved',
                     label: '2 tiles',
-                    detail: null,
                 },
             ]);
         });
 
         it('lists added and removed tiles by name', () => {
             expect(changesOf({ tiles: [tile('a'), tile('c')] })).toEqual([
-                { area: 'tile', kind: 'added', label: 'Tile c', detail: null },
+                { area: 'tile', kind: 'added', label: 'Tile c' },
                 {
                     area: 'tile',
                     kind: 'removed',
                     label: 'Tile b',
-                    detail: null,
                 },
             ]);
         });
@@ -102,8 +100,8 @@ describe('getPendingChanges', () => {
                     snapshot({ tabs, tiles: [tile('a', { tabUuid: 't1' })] }),
                     snapshot({ tabs, tiles: [tile('a', { tabUuid: 't2' })] }),
                     labels,
-                ).map(({ kind, detail }) => ({ kind, detail })),
-            ).toEqual([{ kind: 'moved', detail: 'Details' }]);
+                ).map(({ kind, label }) => ({ kind, label })),
+            ).toEqual([{ kind: 'moved', label: 'Tile a → Details' }]);
         });
 
         it('marks a renamed tile as edited', () => {
@@ -124,7 +122,6 @@ describe('getPendingChanges', () => {
                     area: 'tile',
                     kind: 'edited',
                     label: 'Renamed',
-                    detail: null,
                 },
             ]);
         });
@@ -168,10 +165,8 @@ describe('getPendingChanges', () => {
                         tabs: [{ ...tabs[0], name: 'Summary' }, tabs[1]],
                     }),
                     labels,
-                ).map(({ kind, label, detail }) => ({ kind, label, detail })),
-            ).toEqual([
-                { kind: 'renamed', label: 'Summary', detail: 'Overview' },
-            ]);
+                ).map(({ kind, label }) => ({ kind, label })),
+            ).toEqual([{ kind: 'renamed', label: 'Overview → Summary' }]);
         });
 
         it('reports a reorder once', () => {
@@ -199,6 +194,33 @@ describe('getPendingChanges', () => {
                     labels,
                 ).map(({ kind }) => kind),
             ).toEqual(['added']);
+        });
+
+        it('lists a tab that was hidden or shown again', () => {
+            const labelsOf = (saved: boolean, draft: boolean) =>
+                getPendingChanges(
+                    snapshot({
+                        tabs: [{ ...tabs[0], hidden: saved }, tabs[1]],
+                    }),
+                    snapshot({
+                        tabs: [{ ...tabs[0], hidden: draft }, tabs[1]],
+                    }),
+                    labels,
+                ).map(({ label }) => label);
+            expect(labelsOf(false, true)).toEqual(['Overview hidden']);
+            expect(labelsOf(true, false)).toEqual(['Overview shown']);
+        });
+
+        it('reads a tab with no hidden setting as shown', () => {
+            expect(
+                getPendingChanges(
+                    snapshot({ tabs }),
+                    snapshot({
+                        tabs: [{ ...tabs[0], hidden: false }, tabs[1]],
+                    }),
+                    labels,
+                ),
+            ).toEqual([]);
         });
     });
 
@@ -231,6 +253,35 @@ describe('getPendingChanges', () => {
                     ({ kind }) => kind,
                 ),
             ).toEqual(['edited']);
+        });
+
+        it.each([
+            ['required', { required: true }],
+            ['limited to one value', { singleValue: true }],
+            ['put in a required group', { requiredGroupId: 'g1' }],
+            ['locked on a tab', { lockedTabUuids: ['t1'] }],
+            ['moved to a section', { sectionId: 's1' }],
+        ])('counts a filter that was %s', (_, setting) => {
+            expect(
+                changesOf({
+                    filters: filters([{ ...rule('f1'), ...setting }]),
+                }).map(({ kind }) => kind),
+            ).toEqual(['edited']);
+        });
+
+        it('reads a setting that is absent as off', () => {
+            expect(
+                changesOf({
+                    filters: filters([
+                        {
+                            ...rule('f1'),
+                            required: false,
+                            singleValue: false,
+                            lockedTabUuids: [],
+                        },
+                    ]),
+                }),
+            ).toEqual([]);
         });
 
         it('ignores a date value that only changed serialization', () => {
