@@ -82,7 +82,7 @@ export const MOBILE_SIGN_IN_STRINGS = {
 } as const;
 
 export const MOBILE_SIGN_IN_LANDING_STRINGS = {
-    body: 'Then scan the sign-in code again.',
+    body: 'Open the Lightdash app on this phone, then scan the code again with your phone camera.',
 } as const;
 
 export const MOBILE_APP_SIGN_IN_STRINGS = {
