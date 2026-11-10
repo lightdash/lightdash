@@ -827,7 +827,7 @@ describe('empty finishes and interrupts', () => {
         });
     });
 
-    it('generate: tracks a tool call the SDK rejects before executing it', async () => {
+    it('generate: tracks a rejected tool call and the prompt outcome', async () => {
         const { generateText: generateWithSdk } =
             await vi.importActual<typeof import('ai')>('ai');
         vi.mocked(generateText).mockImplementationOnce(generateWithSdk);
@@ -836,6 +836,10 @@ describe('empty finishes and interrupts', () => {
         Object.assign(dependencies, {
             consumePromptSteers: async () => [],
             updateProgress: vi.fn().mockResolvedValue(undefined),
+            getThreadToolErrorCodes: async () => [
+                'invalid_input',
+                'invalid_input',
+            ],
             trackEvent,
         });
         const args = buildAgentArgs();
@@ -902,6 +906,27 @@ describe('empty finishes and interrupts', () => {
                 }),
             }),
         );
+        await vi.waitFor(() =>
+            expect(trackEvent).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    event: 'ai_agent.prompt_outcome',
+                    properties: expect.objectContaining({
+                        promptId: '00000000-0000-4000-8000-000000000005',
+                        toolCalls: 1,
+                        failedToolCalls: 1,
+                        gaveUp: true,
+                        recovered: false,
+                        repeatedErrorCode: 'invalid_input',
+                        repeatedErrorCount: 3,
+                    }),
+                }),
+            ),
+        );
+        expect(
+            trackEvent.mock.calls.filter(
+                ([event]) => event.event === 'ai_agent.prompt_outcome',
+            ),
+        ).toHaveLength(1);
     });
 
     it('generate: replays a persisted rejected SQL approval without executing it again', async () => {

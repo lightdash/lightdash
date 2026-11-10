@@ -195,6 +195,7 @@ describe('tool call event privacy', () => {
             composerExternalNodes: null,
             composerApiNodes: null,
             filterOperators: [],
+            detour: false,
         });
         const reject = (overrides: Record<string, unknown>) =>
             aiAgentToolCallCompletedPropertiesSchema.safeParse({
@@ -358,6 +359,24 @@ describe('createToolCallEventTracker', () => {
                 filters: `orders_status equals=${CANARY}`,
             }),
         ).toEqual([FilterOperator.EQUALS]);
+    });
+
+    it('flags detours into our own repo, docs and tool catalog', () => {
+        const detour = (toolName: string, input: unknown) =>
+            summarizeToolCallInput(toolName, input).detour;
+        expect(detour('exploreRepo', { target: 'lightdash/lightdash' })).toBe(
+            true,
+        );
+        expect(
+            detour('exploreRepo', {
+                target: null,
+                command: 'cat /lightdash/lightdash/README.md',
+            }),
+        ).toBe(true);
+        expect(detour('exploreRepo', { target: 'acme/analytics' })).toBe(false);
+        expect(detour('loadMcpTools', {})).toBe(true);
+        expect(detour('mcp_lightdash_docs__search_lightdash', {})).toBe(true);
+        expect(detour('grepFields', {})).toBe(false);
     });
 
     it('counts no composer nodes for other tools', () => {

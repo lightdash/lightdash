@@ -55,6 +55,7 @@ export const aiAgentToolCallCompletedPropertiesSchema = z
         composerExternalNodes: nodeCount,
         composerApiNodes: nodeCount,
         filterOperators: z.array(z.enum(FilterOperator)),
+        detour: z.boolean(),
     })
     .strict();
 
@@ -234,6 +235,8 @@ const toolInputShapeSchema = z
                 .object({ sourceType: z.unknown(), filters: z.unknown() })
                 .partial(),
         ),
+        target: z.unknown(),
+        command: z.unknown(),
     })
     .partial();
 
@@ -242,6 +245,29 @@ const getExpressionOperators = (expression: string): FilterOperator[] => {
     return result.success
         ? result.expression.rules.map((rule) => rule.operator.value)
         : [];
+};
+
+const LIGHTDASH_REPO = 'lightdash/lightdash';
+
+/** Calls that leave the user's data to read our own code, docs or tool catalog. */
+const isDetour = (
+    toolName: string,
+    input: z.infer<typeof toolInputShapeSchema>,
+): boolean => {
+    if (toolName === 'loadMcpTools') return true;
+    if (toolName === 'exploreRepo')
+        return (
+            (typeof input.target === 'string' &&
+                input.target.toLowerCase() === LIGHTDASH_REPO) ||
+            (typeof input.command === 'string' &&
+                input.command.toLowerCase().includes(`/${LIGHTDASH_REPO}`))
+        );
+    const name = toolName.toLowerCase();
+    return (
+        name.startsWith('mcp_') &&
+        name.includes('doc') &&
+        name.includes('search')
+    );
 };
 
 const getFilterOperators = (filters: unknown): FilterOperator[] => {
@@ -267,6 +293,7 @@ type InputSummary = Pick<
     | 'composerExternalNodes'
     | 'composerApiNodes'
     | 'filterOperators'
+    | 'detour'
 >;
 
 /** Counts node source types and filter operator enums; field names, values and code are never read out. */
@@ -275,9 +302,8 @@ export const summarizeToolCallInput = (
     input: unknown,
 ): InputSummary => {
     const parsed = toolInputShapeSchema.safeParse(input);
-    const { filters, queryConfig, queries } = parsed.success
-        ? parsed.data
-        : { filters: undefined, queryConfig: undefined, queries: undefined };
+    const shape = parsed.success ? parsed.data : {};
+    const { filters, queryConfig, queries } = shape;
     const nodes = isComposerQueryToolName(toolName) ? (queries ?? []) : null;
     const countNodes = (sourceType: QuerySourceType) =>
         nodes === null
@@ -296,6 +322,7 @@ export const summarizeToolCallInput = (
         composerExternalNodes: countNodes(QuerySourceType.EXTERNAL),
         composerApiNodes: countNodes(QuerySourceType.API),
         filterOperators: [...operators].sort(),
+        detour: isDetour(toolName, shape),
     };
 };
 

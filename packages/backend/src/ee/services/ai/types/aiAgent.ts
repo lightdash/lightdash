@@ -69,6 +69,7 @@ import {
     GetSavedChartFn,
     GetSqlChartFn,
     GetThreadComposerNodeColumnsFn,
+    GetThreadToolErrorCodesFn,
     GetVerifiedFieldUsageFn,
     IsPromptInterruptedFn,
     IsThreadSqlAutoApprovedFn,
@@ -447,6 +448,7 @@ export type AiAgentDependencies = {
     storeLoadout: StoreLoadoutFn;
     isPromptInterrupted: IsPromptInterruptedFn;
     consumePromptSteers: ConsumePromptSteersFn;
+    getThreadToolErrorCodes: GetThreadToolErrorCodesFn;
     searchFieldValues: SearchFieldValuesFn;
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;

@@ -100,6 +100,7 @@ import {
     NotImplementedError,
     ParameterError,
     parseAiArtifactChartConfig,
+    parseAiToolErrorCode,
     ProjectType,
     PullRequestProvider,
     QuerySourceType,
@@ -119,6 +120,7 @@ import {
     type AiAgentJevDecision,
     type AiChartRuntimeOverrides,
     type AiDashboardRuntimeOverrides,
+    type AiToolErrorCode,
     type ComposerNodeColumn,
     type ServedSkillMetadata,
     type ThreadComposerQueryNode,
@@ -6441,6 +6443,36 @@ export class AiAgentModel {
         }
 
         return row;
+    }
+
+    /** Error codes classified on this thread's earlier tool results. */
+    async getThreadToolErrorCodes(args: {
+        threadUuid: string;
+        excludePromptUuid: string;
+    }): Promise<AiToolErrorCode[]> {
+        const rows = await this.database(AiAgentToolResultTableName)
+            .join(
+                AiPromptTableName,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                `${AiAgentToolResultTableName}.ai_prompt_uuid`,
+            )
+            .where(`${AiPromptTableName}.ai_thread_uuid`, args.threadUuid)
+            .whereNot(
+                `${AiPromptTableName}.ai_prompt_uuid`,
+                args.excludePromptUuid,
+            )
+            .whereRaw(
+                `${AiAgentToolResultTableName}.metadata -> 'toolError' ->> 'code' is not null`,
+            )
+            .select<Array<{ code: string }>>(
+                this.database.raw(
+                    `${AiAgentToolResultTableName}.metadata -> 'toolError' ->> 'code' as code`,
+                ),
+            );
+        return rows.flatMap(({ code }) => {
+            const parsed = parseAiToolErrorCode(code);
+            return parsed === null ? [] : [parsed];
+        });
     }
 
     async hasAiPromptInterrupt(promptUuid: string): Promise<boolean> {

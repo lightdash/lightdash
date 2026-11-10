@@ -96,6 +96,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import { type ExternalConnectionEvent } from '../ee/analytics';
 import { type SuggestionFallbackReason } from '../ee/services/ai/agents/suggestionErrors';
+import type { AiAgentPromptOutcomeProperties } from '../ee/services/ai/analytics/promptOutcomeEvent';
 import type { AiAgentToolCallCompletedProperties } from '../ee/services/ai/analytics/toolCallEvent';
 import Logger from '../logging/logger';
 import type { ExecutionContextInfo } from '../logging/winston';
@@ -3990,6 +3991,13 @@ export type AiAgentToolCallCompletedEvent = BaseTrack & {
     properties: AiAgentToolCallCompletedProperties;
 };
 
+/** One per prompt at turn end: how its tool calls went. Feedback joins on `promptId`. */
+export type AiAgentPromptOutcomeEvent = BaseTrack & {
+    event: 'ai_agent.prompt_outcome';
+    userId: string;
+    properties: AiAgentPromptOutcomeProperties;
+};
+
 // A tool returned an error to the model. Most of these are the model's own
 // mistakes that it retries, so they are tracked here as a rate rather than
 // reported to Sentry.
@@ -5154,6 +5162,7 @@ type TypedEvent =
     | McpToolCallEvent
     | AiAgentToolCallEvent
     | AiAgentToolCallCompletedEvent
+    | AiAgentPromptOutcomeEvent
     | AiAgentToolCallFailedEvent
     | AiAgentStepCompletedEvent
     | AiAgentArtifactVizQueryEvent

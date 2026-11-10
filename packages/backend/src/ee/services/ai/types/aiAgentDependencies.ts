@@ -58,12 +58,14 @@ import {
     WarehouseExecutionStats,
     WarehouseTablesCatalog,
     WarehouseTypes,
+    type AiToolErrorCode,
     type AiToolErrorDetails,
     type QueryErrorDetails,
     type SqlApprovalToolName,
 } from '@lightdash/common';
 import {
     AiAgentFindContentCoverageEvent,
+    AiAgentPromptOutcomeEvent,
     AiAgentResponseStreamed,
     AiAgentSqlApprovalDecidedEvent,
     AiAgentStepCompletedEvent,
@@ -665,8 +667,14 @@ export type ConsumePromptSteersFn = (args: {
     stepNumber: number;
 }) => Promise<AiPromptSteer[]>;
 
+export type GetThreadToolErrorCodesFn = (args: {
+    threadUuid: string;
+    excludePromptUuid: string;
+}) => Promise<AiToolErrorCode[]>;
+
 export type TrackEventFn = (
     event:
+        | AiAgentPromptOutcomeEvent
         | AiAgentResponseStreamed
         | AiAgentStepCompletedEvent
         | AiAgentToolCallEvent

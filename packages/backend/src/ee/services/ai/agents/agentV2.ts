@@ -46,6 +46,10 @@ import {
     isDeepResearchWarehouseMcpTool,
 } from '../../AiDeepResearchService/toolClassification';
 import { MCP_UNTRUSTED_OUTPUT_NOTICE } from '../AiAgentMcpRuntimeClient';
+import {
+    buildPromptOutcomeProperties,
+    summarizePromptOutcome,
+} from '../analytics/promptOutcomeEvent';
 import { createToolCallEventTracker } from '../analytics/toolCallEvent';
 import { Compaction } from '../compaction';
 import {
@@ -382,26 +386,68 @@ const trackAgentStep = (
 
 const createTurnToolCallEvents = (
     args: AiAgentArgs,
-    dependencies: Pick<AiAgentDependencies, 'trackEvent'>,
+    dependencies: Pick<
+        AiAgentDependencies,
+        'trackEvent' | 'getThreadToolErrorCodes'
+    >,
 ) => {
     const logContext = getAgentLogContext(args);
-    return createToolCallEventTracker(
-        {
-            organizationId: logContext.organizationUuid,
-            projectId: logContext.projectUuid,
-            aiAgentId: logContext.agentUuid,
-            threadId: logContext.threadUuid,
-            promptId: logContext.promptUuid,
-            model: logContext.model,
-            serverVersion: logContext.serverVersion,
-        },
-        (properties) =>
-            dependencies.trackEvent({
-                event: 'ai_agent.tool_call_completed',
-                userId: args.userId,
-                properties,
-            }),
+    const context = {
+        organizationId: logContext.organizationUuid,
+        projectId: logContext.projectUuid,
+        aiAgentId: logContext.agentUuid,
+        threadId: logContext.threadUuid,
+        promptId: logContext.promptUuid,
+        model: logContext.model,
+        serverVersion: logContext.serverVersion,
+    };
+    const tracker = createToolCallEventTracker(context, (properties) =>
+        dependencies.trackEvent({
+            event: 'ai_agent.tool_call_completed',
+            userId: args.userId,
+            properties,
+        }),
     );
+    let turnEnded = false;
+    /** Fire-and-forget at turn end; a turn emits at most one outcome. */
+    const trackPromptOutcome = () => {
+        if (turnEnded) return;
+        turnEnded = true;
+        void Promise.resolve()
+            .then(() =>
+                dependencies.getThreadToolErrorCodes({
+                    threadUuid: args.threadUuid,
+                    excludePromptUuid: args.promptUuid,
+                }),
+            )
+            .catch((error) => {
+                Logger.warn(
+                    `[AiAgent] Prompt outcome without thread history: ${getErrorMessage(error)}`,
+                );
+                return [];
+            })
+            .then((priorThreadErrorCodes) => {
+                const properties = buildPromptOutcomeProperties(
+                    context,
+                    summarizePromptOutcome(
+                        tracker.calls(),
+                        priorThreadErrorCodes,
+                    ),
+                );
+                if (properties === null) return;
+                dependencies.trackEvent({
+                    event: 'ai_agent.prompt_outcome',
+                    userId: args.userId,
+                    properties,
+                });
+            })
+            .catch((error) => {
+                Logger.warn(
+                    `[AiAgent] Failed to track prompt outcome: ${getErrorMessage(error)}`,
+                );
+            });
+    };
+    return { ...tracker, trackPromptOutcome };
 };
 
 export const DEFAULT_AGENT_MAX_STEPS = 40;
@@ -3449,6 +3495,7 @@ const runGenerateAgentResponse = async ({
 
         throw error;
     } finally {
+        toolCallEvents.trackPromptOutcome();
         await mcpToolSetup.closeMcpClients();
     }
 };
@@ -4059,6 +4106,7 @@ const runStreamAgentResponse = async ({
                 dependencies.perf.measureStreamResponseTime(
                     Date.now() - startTime,
                 );
+                toolCallEvents.trackPromptOutcome();
 
                 await cleanupMcpClients();
             },
@@ -4072,6 +4120,7 @@ const runStreamAgentResponse = async ({
                       chunking: 'word',
                   }),
             onError: async ({ error }) => {
+                toolCallEvents.trackPromptOutcome();
                 console.error(error);
                 const errorMessage =
                     error instanceof Error ? error.message : 'Unknown error';
@@ -4104,6 +4153,7 @@ const runStreamAgentResponse = async ({
         logger('Stream Agent Response', 'Returning stream result.');
         return result;
     } catch (error) {
+        toolCallEvents.trackPromptOutcome();
         const errorMessage =
             error instanceof Error ? error.message : 'Unknown error';
 

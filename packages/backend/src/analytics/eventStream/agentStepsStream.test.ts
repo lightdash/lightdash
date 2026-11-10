@@ -86,6 +86,7 @@ const toolCallEvent: AiAgentToolCallCompletedEvent = {
         composerExternalNodes: null,
         composerApiNodes: null,
         filterOperators: [],
+        detour: false,
     }),
 };
 
