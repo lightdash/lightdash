@@ -1298,6 +1298,7 @@ export const SPACE_TREE_2: TreeCreateSpace[] = [
 export * from './compiler/compileLightdashModels';
 
 export * from './lightdash/LightdashModelEditor';
+export * from './lightdash/applyModelFragment';
 export * from './lightdash/convertCustomMetricToLightdash';
 export * from './types/analyticsProject';
 export * from './types/recentContent';
