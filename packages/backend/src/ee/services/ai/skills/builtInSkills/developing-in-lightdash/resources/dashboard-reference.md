@@ -644,7 +644,7 @@ When dashboard controls are enabled, `config.controlOrder` sets the order of con
 - Reorder by moving entries. Unknown or repeated slugs are rejected, and the error lists the valid ones.
 - A section's members come from each control's `sectionSlug`, not from the list. Members follow their entries inside the section.
 - The list wins over each kind's own array: to swap two filters, swap their entries; `filters.dimensions`, `parameterControls` and `controlSections` order doesn't change the bar.
-- `newLine: true` starts a new bar line; without it, an entry shares the line of the entry before it. Section members never start a line: on a section member it passes to the next entry in the list outside a section, and is dropped if there is none. Once `controlOrder` is present, line placement comes from `newLine` and `controlSections[].inline` is ignored.
+- `newLine: true` starts a new bar line; without it, an entry shares the line of the entry before it. Section members never start a line: on a section member it passes to the next entry in the list outside a section, and is dropped if there is none. Line placement comes only from `newLine`.
 - Controls missing from the list go to the end of their section, or of the bar, inline. To place a new control, add its entry; when you remove a control, remove its entry too.
 - A file without `controlOrder`, or with an empty one, resets the bar to the default order: filters, then parameter controls, then sections.
 - Date zoom can't be ordered yet.

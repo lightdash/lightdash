@@ -190,9 +190,26 @@ Each one has broken before or would break silently.
   (`FeatureFlagService.getForAccount`).
 - **Saved section keys survive every rewrite**: `sectionId` is carried in
   `applyDimensionOverrides` / `applyMetricOverrides`, `adoptPlaceholder` and
-  the emptied placeholder; `buildDashboardConfig` carries
-  `parameterSections` forward. See `docs/sections.md`.
+  the emptied placeholder. See `docs/sections.md`.
 - **`data-tour-*` anchors** on the bar are the shipped bar's; keep them.
+
+## Dashboard files (as code)
+
+New control kinds (date zoom next) follow these rules:
+
+1. Every control in a dashboard file is identified by `slug` only. Download
+   derives it from the control's name; upload matches it to the saved control
+   to keep the saved id. Ids and uuids never appear in the file.
+2. Section membership is `sectionSlug` on the control. No maps on `config`,
+   no `sectionId`.
+3. Order and line breaks live only in `controlOrder`, as
+   `{ kind, slug, newLine }`. No per-kind order fields, no per-control or
+   per-section line flags.
+4. Tiles are referenced by tile slug.
+5. While the flag is experimental, a changed shape replaces the old field; no
+   legacy fields "accepted on upload".
+6. A removed field is rejected by lint and upload with a message that names
+   its replacement: add it to `getRemovedDashboardControlFieldMessages`.
 
 ## Strings
 

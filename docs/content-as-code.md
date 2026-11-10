@@ -746,8 +746,8 @@ must still prove that portable fields download, compare, and upload correctly.
 
 When `dashboard-controls` is enabled, `config.controlSections` downloads each
 section with a readable `slug`. Filters, parameter controls and date zoom
-controls refer to it with `sectionSlug`. Dashboard parameter section assignments
-use `config.parameterSectionSlugs`.
+controls refer to it with `sectionSlug`. A section written without a `slug`
+takes the slug of its name. Files never hold section or control ids.
 
 Section slugs come from the name on every download and are never saved, like
 tab slugs; repeated names are all suffixed `-1`, `-2` in list order. A slug in
@@ -757,8 +757,8 @@ saved section's internal UUID only when no other section shares its slug base
 gets a new UUID v4. Duplicate section slugs and unknown `sectionSlug` references are
 rejected.
 
-With the flag off, downloads retain section IDs and their legacy references,
-including previously saved sections, and omit parameter controls. Uploads
+With the flag off, downloads keep saved sections without their IDs, drop
+section references and omit parameter controls. Uploads
 resolve section slugs with either flag state, without enabling parameter
 controls or replacing their saved values while the flag is off. With the flag
 off, uploads match saved sections by their saved slug (or the slug of their
@@ -772,7 +772,14 @@ When dashboard controls are enabled, dashboard files can save controls under
 Downloads derive the slug from the label, else the first parameter key, and
 never save it; repeats are all suffixed `-1`, `-2`. An upload keeps a saved
 control's internal ID only when no other control shares its slug base on the
-saved dashboard or in the file; a relabelled or repeated control gets a new ID. Legacy `id` fields are accepted; duplicate slugs are rejected.
+saved dashboard or in the file; a relabelled or repeated control gets a new ID. Duplicate slugs are rejected.
+
+Fields removed from dashboard files fail `lightdash lint` and upload with a
+message naming their replacement: `config.parameterSections` and
+`config.parameterSectionSlugs` (use `sectionSlug` on each parameter control),
+`id` on a parameter control or section (use `slug`), `sectionId` on a filter,
+parameter control or date zoom control (use `sectionSlug`), and `inline` on a
+section (use `newLine` on its `controlOrder` entry).
 
 Each parameter rule is `all`, `{ only: [tile-slug] }`, or
 `{ except: [tile-slug] }`. A key has at most one default (`all` or `except`),
