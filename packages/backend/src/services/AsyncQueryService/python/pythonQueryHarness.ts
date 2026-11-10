@@ -396,9 +396,14 @@ def main():
 
     result = result.reset_index(drop=True)
     names = [str(column) for column in result.columns]
-    for name in names:
-        if not COLUMN_NAME.match(name):
-            fail(f"Column name {name!r} is not a valid identifier")
+    invalid = [name for name in names if not COLUMN_NAME.match(name)]
+    if invalid:
+        fail(
+            f"Invalid column names: {', '.join(repr(name) for name in invalid)}. "
+            f"Column names must match {COLUMN_NAME.pattern}. "
+            "Rename them to snake_case (e.g. 'Live loans' -> live_loans); "
+            "set display labels in the visualization config instead."
+        )
     if len(set(names)) != len(names):
         fail("Returned DataFrame has duplicate column names")
     result.columns = names
