@@ -56,7 +56,6 @@ const dashboardAsCode: DashboardAsCode = {
         ],
         metrics: [
             {
-                id: 'metric-filter-1',
                 label: 'Totale omzet',
                 target: { fieldId: 'orders_total', tableName: 'orders' },
                 operator: FilterOperator.GREATER_THAN,
@@ -175,8 +174,8 @@ describe('DashboardAsCodeInternalization', () => {
             });
             expect(merged.filters?.dimensions?.[1]?.label).toBeUndefined();
             expect(merged.filters?.metrics?.[0]).toMatchObject({
-                id: 'metric-filter-1',
                 label: "Chiffre d'affaires",
+                operator: FilterOperator.GREATER_THAN,
             });
         });
 
