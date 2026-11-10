@@ -50,6 +50,14 @@ export enum FeatureFlags {
     DashboardControls = 'dashboard-controls',
 
     /**
+     * Dashboard edit ergonomics: editing uses a grid twice as fine (72
+     * columns, half-height rows), so tiles can land on half-steps, saved as
+     * fractional positions. Rolled out per organization. Temporary: remove
+     * once it is the default.
+     */
+    DashboardEditErgonomics = 'dashboard-edit-ergonomics',
+
+    /**
      * Enable data apps feature. Disabled by default. Self-hosted
      * deployments can force it on with APPS_RUNTIME_ENABLED=true, which
      * the config parser translates into the enable allowlist. Does not gate

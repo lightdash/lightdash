@@ -1,11 +1,10 @@
 import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import {
-    DEFAULT_ROW_HEIGHT,
     GRID_BREAKPOINTS,
-    GRID_COLS,
     GRID_CONTAINER_PADDING,
     GRID_MARGIN,
+    type ResponsiveGridLayoutProps,
 } from './gridUtils';
 
 const sortedBreakpoints = (
@@ -15,18 +14,26 @@ const sortedBreakpoints = (
     ][]
 ).sort(([, a], [, b]) => a - b);
 
-const getColsForWidth = (width: number): number => {
+const getColsForWidth = (
+    width: number,
+    cols: ResponsiveGridLayoutProps['cols'],
+): number => {
     let bp: keyof typeof GRID_BREAKPOINTS = sortedBreakpoints[0][0];
     for (const [name, minWidth] of sortedBreakpoints) {
         if (width >= minWidth) bp = name;
     }
-    return GRID_COLS[bp];
+    return cols[bp];
 };
 
 export const useGridStyles = ({
     ref,
+    cols,
+    rowHeight,
 }: {
     ref: React.RefObject<HTMLDivElement | null>;
+    cols: ResponsiveGridLayoutProps['cols'];
+    /** One row plus the gap below it, as the grid steps (gridProps.rowHeight) */
+    rowHeight: number;
 }) => {
     const [observedWidth, setObservedWidth] = useState(0);
 
@@ -45,19 +52,19 @@ export const useGridStyles = ({
 
     return useMemo(() => {
         if (observedWidth <= 0) return undefined;
-        const cols = getColsForWidth(observedWidth);
+        const colCount = getColsForWidth(observedWidth, cols);
         const colWidth =
             (observedWidth -
-                GRID_MARGIN[0] * (cols - 1) -
+                GRID_MARGIN[0] * (colCount - 1) -
                 GRID_CONTAINER_PADDING[0] * 2) /
-            cols;
+            colCount;
         return {
             '--grid-cell-w': `${colWidth + GRID_MARGIN[0]}px`,
-            '--grid-cell-h': `${DEFAULT_ROW_HEIGHT + GRID_MARGIN[1]}px`,
+            '--grid-cell-h': `${rowHeight}px`,
             '--grid-col-w': `${colWidth}px`,
-            '--grid-row-h': `${DEFAULT_ROW_HEIGHT}px`,
+            '--grid-row-h': `${rowHeight - GRID_MARGIN[1]}px`,
             '--grid-pad-x': `${GRID_CONTAINER_PADDING[0]}px`,
             '--grid-pad-y': `${GRID_CONTAINER_PADDING[1]}px`,
         } as React.CSSProperties;
-    }, [observedWidth]);
+    }, [observedWidth, cols, rowHeight]);
 };

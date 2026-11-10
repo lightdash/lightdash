@@ -3,7 +3,9 @@ import {
     AUTO_FIT_MAX_SCALE,
     AUTO_FIT_MIN_SCALE,
     canFitGridToScreen,
+    convertLayoutToBaseCoordinates,
     DEFAULT_ROW_HEIGHT,
+    FINE_GRID_SCALE,
     FIT_TO_SCREEN_MIN_ROW_HEIGHT,
     getAutoFitRowHeight,
     getBreakpointForWidth,
@@ -14,6 +16,8 @@ import {
     getDashboardLayouts,
     getMobileGridLayout,
     getResponsiveGridLayoutProps,
+    getRowHeightForScale,
+    GRID_MARGIN,
 } from './gridUtils';
 
 const chart = (uuid: string, x: number, y: number, h = 6): DashboardTile => ({
@@ -92,13 +96,11 @@ describe('mobile dashboard layout', () => {
             w: 1,
             isDraggable: false,
         });
-        const props = getResponsiveGridLayoutProps({ isEditMode: true });
-        const editor = getDashboardLayouts(tiles, true, props.cols);
-        expect(props.cols.xs).toBe(18);
+        const editor = getDashboardLayouts(tiles, true);
         expect(editor.xs[0]).toMatchObject({
-            x: 6,
+            x: 12,
             y: 5,
-            w: 6,
+            w: 12,
             h: 9,
             isDraggable: true,
             isResizable: true,
@@ -238,12 +240,118 @@ describe('fit to screen', () => {
         });
     });
 
-    it('passes the row height to the grid', () => {
+    it('steps the grid by one row plus the gap below it', () => {
         expect(getResponsiveGridLayoutProps().rowHeight).toBe(
-            DEFAULT_ROW_HEIGHT,
+            DEFAULT_ROW_HEIGHT + GRID_MARGIN[1],
         );
         expect(getResponsiveGridLayoutProps({ rowHeight: 80 }).rowHeight).toBe(
-            80,
+            80 + GRID_MARGIN[1],
         );
+    });
+});
+
+describe('fine edit grid', () => {
+    const fineProps = getResponsiveGridLayoutProps({
+        isEditMode: true,
+        gridScale: FINE_GRID_SCALE,
+    });
+
+    it('draws every saved dashboard at the same size and place', () => {
+        const rowHeight = getRowHeightForScale(FINE_GRID_SCALE);
+        const pixelHeight = (rows: number, height: number) =>
+            rows * height + (rows - 1) * GRID_MARGIN[1];
+        const [fine] = getDashboardLayouts(
+            [chart('a', 14, 3, 6)],
+            true,
+            FINE_GRID_SCALE,
+        ).lg;
+        expect(pixelHeight(fine.h, rowHeight)).toBe(
+            pixelHeight(6, DEFAULT_ROW_HEIGHT),
+        );
+        expect(fine.x / fineProps.cols.lg).toBe(14 / 36);
+    });
+
+    it('saves untouched tiles exactly as they were', () => {
+        const tiles = [chart('a', 14, 3, 6), chart('b', 21, 0, 2)];
+        const layout = getDashboardLayouts(tiles, true, FINE_GRID_SCALE).lg;
+        const saved = convertLayoutToBaseCoordinates(layout, FINE_GRID_SCALE);
+        expect(saved.map(({ x, y, w, h }) => ({ x, y, w, h }))).toEqual(
+            tiles.map(({ x, y, w, h }) => ({ x, y, w, h })),
+        );
+    });
+
+    it('keeps a half-step move instead of rounding it away', () => {
+        const [saved] = convertLayoutToBaseCoordinates(
+            [{ i: 'a', x: 29, y: 7, w: 13, h: 9 }],
+            FINE_GRID_SCALE,
+        );
+        expect(saved).toMatchObject({ x: 14.5, y: 3.5, w: 6.5, h: 4.5 });
+    });
+});
+
+describe('same grid at every window width', () => {
+    const props = getResponsiveGridLayoutProps({ isEditMode: true });
+    const row = [
+        chart('a', 0, 0, 4),
+        chart('b', 14, 0, 4),
+        chart('c', 21, 0, 4),
+        chart('d', 28, 0, 4),
+    ].map((tile, index) => ({ ...tile, w: [14, 7, 7, 8][index] }));
+
+    it('keeps a row of 14, 7, 7 and 8 wide tiles inside the grid on medium windows', () => {
+        const medium = getDashboardLayouts(row, false).md;
+        const ends = medium.map(({ x, w }) => x + w);
+        expect(ends).toEqual([14, 21, 28, 36]);
+        expect(Math.max(...ends)).toBeLessThanOrEqual(props.cols.md);
+    });
+
+    it('saves the width of a tile that was only made taller on a narrow window', () => {
+        const narrow = getDashboardLayouts(
+            [{ ...chart('a', 0, 0, 4), w: 7 }],
+            true,
+        ).sm;
+        const [saved] = convertLayoutToBaseCoordinates([
+            { ...narrow[0], h: narrow[0].h + 1 },
+        ]);
+        expect(saved).toMatchObject({ w: 7, h: 5 });
+    });
+
+    it('lets a narrow window resize a tile down to 4 columns, as a wide one does', () => {
+        const layouts = getDashboardLayouts([chart('a', 0, 0)], true);
+        expect(layouts.sm[0].minW).toBe(layouts.lg[0].minW);
+        expect(layouts.lg[0].minW).toBe(4);
+    });
+
+    it('draws tiles on the same pixels as a grid with a 10px margin', () => {
+        const width = 1280;
+        const pad = 10;
+        const legacyColumn = (width - 2 * pad - 35 * GRID_MARGIN[0]) / 36;
+        const legacyLeft = (x: number) =>
+            pad + x * (legacyColumn + GRID_MARGIN[0]);
+        const legacyWidth = (w: number) =>
+            w * legacyColumn + (w - 1) * GRID_MARGIN[0];
+
+        const [padX] = props.containerPadding;
+        const column = (width - 2 * padX) / props.cols.lg;
+        const gutter = GRID_MARGIN[0] / 2;
+        const visibleLeft = (x: number) => padX + x * column + gutter;
+        const visibleWidth = (w: number) => w * column - 2 * gutter;
+
+        expect(visibleLeft(14)).toBeCloseTo(legacyLeft(14), 9);
+        expect(visibleWidth(7)).toBeCloseTo(legacyWidth(7), 9);
+    });
+});
+
+describe('saving after a drag or resize', () => {
+    it('can rely on one column count, because every editable width uses the same one', () => {
+        [1, FINE_GRID_SCALE].forEach((gridScale) => {
+            const { cols } = getResponsiveGridLayoutProps({
+                isEditMode: true,
+                gridScale,
+            });
+            expect(new Set([cols.lg, cols.md, cols.sm, cols.xs])).toEqual(
+                new Set([36 * gridScale]),
+            );
+        });
     });
 });
