@@ -200,7 +200,7 @@ describe('AddControl', () => {
             tableCalculations: [],
         };
         renderWithProviders(<AddControl />);
-        expect(add().querySelector('svg')).toBeNull();
+        expect(add().querySelector('.tabler-icon-plus')).not.toBeNull();
         expect(
             screen.queryByRole('button', {
                 name: 'Toggle filter visibility for viewers',

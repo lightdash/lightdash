@@ -241,11 +241,7 @@ export const AddControl: FC<Props> = ({
                         label={
                             hasChoice ? getUiString('controls.add') : undefined
                         }
-                        leadingIcon={
-                            hasChoice ? (
-                                <MantineIcon icon={IconPlus} size={14} />
-                            ) : undefined
-                        }
+                        leadingIcon={<MantineIcon icon={IconPlus} size={14} />}
                         isMenuOpen={hasChoice ? step === 'choose' : undefined}
                         activeTabUuid={undefined}
                         openPopoverId={undefined}
