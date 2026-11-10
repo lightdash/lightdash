@@ -781,7 +781,6 @@ export const LiveActivityCard: FC<Props> = ({
             : null;
     const summary =
         latest === null ? getActivityTitle(toolGroups, toolResults) : null;
-    // Every finished turn counts its steps.
     const getHeaderMeta = () => {
         if (
             composerProgress &&
@@ -849,7 +848,6 @@ export const LiveActivityCard: FC<Props> = ({
                         ) : latest ? (
                             <LatestRow
                                 group={latest}
-                                // Present tense until the turn ends.
                                 isLive={isActive}
                                 awaitingApproval={latestAwaitingApproval}
                                 mcpServers={mcpServers}
