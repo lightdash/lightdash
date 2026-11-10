@@ -80,6 +80,8 @@ export type { DashboardEditState } from './dashboardEditReducer';
 export {
     selectActiveTab,
     selectActiveTabUuid,
+    selectCanRedoTileLayout,
+    selectCanUndoTileLayout,
     selectControlOrder,
     selectControlSections,
     selectDashboardCustomMetrics,

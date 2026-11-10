@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import { type ComponentProps } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { type PendingChange } from '../../../features/dashboard/pendingChanges/getPendingChanges';
 import { renderWithProviders } from '../../../testing/testUtils';
 import DashboardHeader from './DashboardHeader';
 
@@ -42,11 +43,20 @@ vi.mock('../../DashboardTiles/AddTileButton', () => ({ default: () => null }));
 vi.mock('./DashboardRefreshButton', () => ({
     DashboardRefreshButton: () => null,
 }));
+vi.mock('./PendingChangesButton', () => ({
+    PendingChangesButton: () => <span>No unsaved changes</span>,
+}));
+vi.mock('./TileLayoutHistoryButtons', () => ({
+    TileLayoutHistoryButtons: () => null,
+}));
 vi.mock('./DashboardPerformanceWarning', () => ({
     DashboardPerformanceWarning: () => null,
 }));
 
-const renderHeader = (isEditMode: boolean) =>
+const renderHeader = (
+    isEditMode: boolean,
+    pendingSettingsChanges: PendingChange[] | null = null,
+) =>
     renderWithProviders(
         <MemoryRouter>
             <DashboardHeader
@@ -66,6 +76,8 @@ const renderHeader = (isEditMode: boolean) =>
                     isMovingDashboardToSpace: false,
                     isFitToScreen: false,
                     isFitToScreenAvailable: false,
+                    editFiltersVisibility: null,
+                    pendingSettingsChanges,
                 } as ComponentProps<typeof DashboardHeader>)}
             />
         </MemoryRouter>,
@@ -89,6 +101,12 @@ describe('DashboardHeader editing badge', () => {
         mocks.flagEnabled = false;
         renderHeader(true);
         expect(screen.queryByText('Editing')).not.toBeInTheDocument();
+    });
+
+    it('replaces the badge with the unsaved changes status', () => {
+        renderHeader(true, []);
+        expect(screen.queryByText('Editing')).not.toBeInTheDocument();
+        expect(screen.getByText('No unsaved changes')).toBeInTheDocument();
     });
 
     it('hides the badge in view mode', () => {
