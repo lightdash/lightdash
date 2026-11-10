@@ -13,6 +13,7 @@ import {
     getGridHeight,
     getGridTotalRows,
     getViewModeActiveTabTiles,
+    hasGridItemMoved,
     getDashboardLayouts,
     getMobileGridLayout,
     getResponsiveGridLayoutProps,
@@ -287,6 +288,21 @@ describe('fine edit grid', () => {
         );
         expect(saved).toMatchObject({ x: 14.5, y: 3.5, w: 6.5, h: 4.5 });
     });
+});
+
+describe('a drag or resize that ends', () => {
+    const item = { i: 'a', x: 4, y: 2, w: 12, h: 6 };
+
+    it('moved nothing when the tile was only clicked', () => {
+        expect(hasGridItemMoved(item, { ...item })).toBe(false);
+    });
+
+    it.each([{ x: 5 }, { y: 3 }, { w: 13 }, { h: 7 }])(
+        'moved the tile when it ends at %o',
+        (change) => {
+            expect(hasGridItemMoved(item, { ...item, ...change })).toBe(true);
+        },
+    );
 });
 
 describe('same grid at every window width', () => {
