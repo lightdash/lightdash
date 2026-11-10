@@ -245,7 +245,7 @@ const ParameterPill: FC<{
         PARAMETER_PILL_SELECTOR,
     );
     const name = getParameterEntryName(entry);
-    // Hidden from viewers: its value still applies; editors see it muted
+    // Hidden from viewers: its value still applies; editors see the eye-off icon
     const isHidden = control.hidden === true;
     // As a filter added while editing: dashed until the dashboard is saved
     const isUnsaved = useDashboardSelector(
@@ -274,8 +274,9 @@ const ParameterPill: FC<{
     const os = useOs();
     // As a filter pill's: why it looks so first, then the description, then
     // the select hint
+    const unsavedNote = isUnsaved ? 'Not saved yet' : null;
     const tooltipLines = [
-        isUnsaved ? 'Not saved yet' : null,
+        unsavedNote,
         isHidden ? 'Hidden from viewers' : null,
         isNotSet ? getUiString('controls.parameter.notSetTooltip') : null,
         description ?? null,
@@ -284,7 +285,16 @@ const ParameterPill: FC<{
             : null,
     ].filter((line) => line !== null && line !== '');
     const tooltipLabel = isOrphaned ? (
-        getOrphanedTooltip(PARAMETER_ORPHANED_STRINGS)
+        unsavedNote === null ? (
+            getOrphanedTooltip(PARAMETER_ORPHANED_STRINGS)
+        ) : (
+            <>
+                <Text fz="xs">{unsavedNote}</Text>
+                <Text fz="xs">
+                    {getOrphanedTooltip(PARAMETER_ORPHANED_STRINGS)}
+                </Text>
+            </>
+        )
     ) : tooltipLines.length > 0 ? (
         <>
             {tooltipLines.map((line) => (
@@ -321,7 +331,7 @@ const ParameterPill: FC<{
         <ParameterEditorPopover isOpen={isOpen} entry={entry} bar={bar}>
             <Tooltip
                 fz="xs"
-                maw={300}
+                maw={350}
                 multiline
                 openDelay={isOrphaned ? 0 : 500}
                 label={tooltipLabel}

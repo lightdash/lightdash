@@ -648,7 +648,7 @@ describe('ParameterPills', () => {
     });
 
     describe('the safety net', () => {
-        it('raises a pill for a tile a control leaves out, and the control is not amber', async () => {
+        it('raises a pill for a tile a control leaves out, and the control is not marked missing', async () => {
             const { store, user } = setup({
                 controls: [
                     control('currency', {
@@ -1173,6 +1173,32 @@ describe('ParameterPills', () => {
             });
             expect(pill('currency')).toHaveAttribute('data-temporary');
             expect(pill('region')).not.toHaveAttribute('data-temporary');
+        });
+
+        it('keeps "Not saved yet" above the orphaned tooltip', async () => {
+            const { store, user } = setup({ controls: [control('region')] });
+            act(() => {
+                store.dispatch(
+                    dashboardParametersActions.setParameterControls([
+                        control('region'),
+                        control('orphan', {
+                            label: 'Orphan',
+                            parameters: { region: { only: [] } },
+                        }),
+                    ]),
+                );
+            });
+            await user.hover(pill('orphan'));
+            expect(
+                await screen.findByText('Not saved yet'),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByText(
+                    DEFAULT_UI_STRINGS[
+                        'controls.parameter.notAppliedToAnyTiles'
+                    ],
+                ),
+            ).toBeInTheDocument();
         });
     });
 
