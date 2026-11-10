@@ -11,6 +11,7 @@ const context = {
     threadUuid: 'thread-uuid',
     promptUuid: 'prompt-uuid',
     toolCallId: 'tool-call-id',
+    toolName: 'runQuery',
     model: 'claude-sonnet-5-5',
     serverVersion: '1.2.3',
     threadUrl:

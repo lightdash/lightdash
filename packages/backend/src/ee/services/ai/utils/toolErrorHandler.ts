@@ -1,50 +1,18 @@
 import {
     AiAccessRefusedError,
-    BigqueryTokenError,
-    DatabricksTokenError,
     getAgentPermissionRefusalDetails,
     getErrorMessage,
-    GoogleChatError,
-    LightdashError,
-    MissingWarehouseCredentialsError,
-    MsTeamsError,
-    RedshiftIamTokenError,
-    SlackError,
-    SlackFileUploadError,
     SnowflakeTokenError,
-    SshTunnelError,
-    UnexpectedGoogleSheetsError,
-    WarehouseConnectionError,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import Logger from '../../../../logging/logger';
+import {
+    getAiAgentSentryContext,
+    isAgentRecoverableError,
+    isAlreadyReported,
+} from '../../../../sentry/aiAgentErrors';
 import { serializeData } from './serializeData';
 import type { ExecuteToolErrorResult } from './structuredToolResult';
-
-// Reported as 4xx to API callers, but nothing the model can fix by rephrasing
-// its request: the warehouse or an integration is down or misconfigured.
-const infrastructureErrors = [
-    WarehouseConnectionError,
-    MissingWarehouseCredentialsError,
-    SshTunnelError,
-    SnowflakeTokenError,
-    DatabricksTokenError,
-    BigqueryTokenError,
-    RedshiftIamTokenError,
-    SlackError,
-    SlackFileUploadError,
-    MsTeamsError,
-    GoogleChatError,
-    UnexpectedGoogleSheetsError,
-];
-
-// Mirrors the HTTP error handler: a LightdashError below 500 is a request the
-// caller can fix (here, the model on its next attempt), so it is agent feedback
-// rather than an incident. Anything else is unexpected and should page.
-export const isAgentRecoverableError = (error: unknown): boolean =>
-    error instanceof LightdashError &&
-    error.statusCode < 500 &&
-    !infrastructureErrors.some((errorClass) => error instanceof errorClass);
 
 const errorName = (error: unknown): string =>
     error instanceof Error ? error.name : 'UnknownError';
@@ -60,8 +28,15 @@ export const toolErrorHandler = (
     options: { captureToSentry?: boolean } = {},
 ) => {
     const captureToSentry =
-        options.captureToSentry ?? !isAgentRecoverableError(error);
-    if (captureToSentry) {
+        options.captureToSentry ??
+        (isAlreadyReported(error) ? false : undefined);
+    if (captureToSentry === undefined && isAgentRecoverableError(error)) {
+        // Expected: the model can fix it, so a warning grouped by throw site rather than an incident
+        Sentry.captureException(error, {
+            level: 'warning',
+            ...getAiAgentSentryContext(),
+        });
+    } else if (captureToSentry !== false) {
         Sentry.captureException(error);
     } else {
         // Keep the model's failed attempts visible on whatever incident fires

@@ -381,6 +381,8 @@ describe('visualize', () => {
         runComposerQueries.mockResolvedValueOnce({
             status: 'failure',
             error: 'warehouse down',
+            cause: null,
+            reportedAtSource: false,
             nodeStatuses: [],
         });
 

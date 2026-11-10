@@ -15,12 +15,10 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { runWithAiAgentLogContext } from '../../../../logging/aiAgentLogContext';
 import Logger from '../../../../logging/logger';
-import {
-    isAgentRecoverableError,
-    toolErrorHandler,
-    toolErrorOutput,
-} from './toolErrorHandler';
+import { isAgentRecoverableError } from '../../../../sentry/aiAgentErrors';
+import { toolErrorHandler, toolErrorOutput } from './toolErrorHandler';
 
 vi.mock('@sentry/node', () => ({
     captureException: vi.fn(),
@@ -82,13 +80,54 @@ describe('toolErrorHandler', () => {
         expect(result).toContain('Try again');
     });
 
-    it('does not page Sentry for an error the model can recover from', () => {
-        toolErrorHandler(
-            new WarehouseQueryError('Conversion Error: bad cast'),
-            'Error running SQL query.',
+    it('reports an error the model can recover from as a tagged warning', () => {
+        const error = new WarehouseQueryError('Conversion Error: bad cast');
+        runWithAiAgentLogContext(
+            {
+                organizationUuid: 'org-uuid',
+                projectUuid: 'project-uuid',
+                agentUuid: 'agent-uuid',
+                threadUuid: 'thread-uuid',
+                promptUuid: 'prompt-uuid',
+                toolCallId: 'call-1',
+                toolName: 'runSql',
+                model: 'claude-sonnet-5-5',
+                serverVersion: '1.2.3',
+                threadUrl: 'http://localhost/thread',
+            },
+            () => toolErrorHandler(error, 'Error running SQL query.'),
         );
 
-        expect(captureException).not.toHaveBeenCalled();
+        expect(captureException).toHaveBeenCalledExactlyOnceWith(error, {
+            level: 'warning',
+            tags: {
+                aiAgent: 'true',
+                tool: 'runSql',
+                threadUuid: 'thread-uuid',
+                promptUuid: 'prompt-uuid',
+                agentUuid: 'agent-uuid',
+                organizationUuid: 'org-uuid',
+                model: 'claude-sonnet-5-5',
+                serverVersion: '1.2.3',
+            },
+            contexts: {
+                aiAgent: {
+                    threadUrl: 'http://localhost/thread',
+                    projectUuid: 'project-uuid',
+                    toolCallId: 'call-1',
+                },
+            },
+        });
+    });
+
+    it('reports a recoverable error outside an agent turn without tags', () => {
+        const error = new WarehouseQueryError('bad cast');
+        toolErrorHandler(error, 'Error running SQL query.');
+        expect(captureException).toHaveBeenCalledExactlyOnceWith(error, {
+            level: 'warning',
+            tags: { aiAgent: 'true' },
+            contexts: {},
+        });
     });
 
     it('pages Sentry for an incident', () => {

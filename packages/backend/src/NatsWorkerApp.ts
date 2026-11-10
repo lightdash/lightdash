@@ -32,7 +32,8 @@ import {
     shouldSelfRegisterHttpInstrumentation,
 } from './prometheus/otelHttpMetrics';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
-import { errorsOnlyIntegrations, IGNORE_ERRORS } from './sentry';
+import { errorsOnlyIntegrations } from './sentry';
+import { dropIgnoredErrors } from './sentry/ignoredErrors';
 import { createOrganizationNameResolver } from './sentry/organizationNameResolver';
 import {
     OperationContext,
@@ -231,7 +232,7 @@ export default class NatsWorkerApp {
             // OTel mode owns traces; strip Sentry's span-emitting default
             // integrations (postgres etc.) so the worker is errors-only.
             integrations: otelTracingEnabled() ? errorsOnlyIntegrations : [],
-            ignoreErrors: IGNORE_ERRORS,
+            beforeSend: dropIgnoredErrors,
             ...(otelTracingEnabled()
                 ? {}
                 : {

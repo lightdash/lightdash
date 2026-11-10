@@ -9,13 +9,14 @@ const turnContext = {
     threadUuid: 'thread-uuid',
     promptUuid: 'prompt-uuid',
     toolCallId: null,
+    toolName: null,
     model: 'claude-sonnet-5-5',
     serverVersion: '1.2.3',
     threadUrl: 'http://localhost/thread',
 };
 
 describe('withToolCallLogContext', () => {
-    it('runs each tool with the turn context and its own tool call id', async () => {
+    it('runs each tool with the turn context and its own tool call', async () => {
         const tools = withToolCallLogContext(
             {
                 runQuery: {
@@ -37,8 +38,8 @@ describe('withToolCallLogContext', () => {
         );
 
         expect(seen).toEqual([
-            { ...turnContext, toolCallId: 'call-1' },
-            { ...turnContext, toolCallId: 'call-2' },
+            { ...turnContext, toolCallId: 'call-1', toolName: 'runQuery' },
+            { ...turnContext, toolCallId: 'call-2', toolName: 'runQuery' },
         ]);
     });
 });
