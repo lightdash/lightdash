@@ -201,11 +201,11 @@ export const getDashboardWithSectionIds = (
     const resolved = sections.map(({ slug, ...section }, index) => {
         if (slug !== undefined && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))
             throw new ParameterError(
-                `Invalid dashboard section slug "${slug}"; use lowercase letters, digits and single hyphens`,
+                `Invalid dashboard section slug "${slug}"; use lowercase letters and digits, with single hyphens between them`,
             );
         if (idBySlug.has(slugs[index]))
             throw new ParameterError(
-                `Dashboard section slug "${slugs[index]}" is used by sections "${sections[slugs.indexOf(slugs[index])].name}" and "${section.name}"; give each a unique slug`,
+                `Dashboard section slug "${slugs[index]}" is used by sections ${slugs.indexOf(slugs[index]) + 1} ("${sections[slugs.indexOf(slugs[index])].name}") and ${index + 1} ("${section.name}") in config.controlSections; give each a unique slug`,
             );
         const id = controlsEnabled
             ? stableIds[index]

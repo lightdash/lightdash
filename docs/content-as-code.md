@@ -754,9 +754,11 @@ tab slugs; repeated names are all suffixed `-1`, `-2` in list order. A slug in
 an uploaded file only resolves references inside that file. An upload keeps a
 saved section's internal UUID only when no other section shares its slug base
 (the name) on the saved dashboard or in the file; a renamed or repeated section
-gets a new UUID v4. Duplicate section slugs are rejected with the sections
-that share them, and unknown `sectionSlug` references with the valid slugs
-listed.
+gets a new UUID v4. Invalid section slugs are rejected with the allowed
+characters, duplicate section slugs with the positions and names of the
+sections that share them, and unknown `sectionSlug` references with the valid
+slugs listed (or a hint to add `config.controlSections` when the file has
+none).
 
 With the flag off, downloads keep saved sections without their IDs, write
 `sectionSlug` references and omit parameter controls. Uploads resolve section

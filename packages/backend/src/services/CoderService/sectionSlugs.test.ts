@@ -347,7 +347,7 @@ describe('dashboard section slugs', () => {
                 true,
             ),
         ).toThrow(
-            'Dashboard section slug "currency-comparison" is used by sections "Currency comparison" and "Currency comparison"; give each a unique slug',
+            'Dashboard section slug "currency-comparison" is used by sections 1 ("Currency comparison") and 2 ("Currency comparison") in config.controlSections; give each a unique slug',
         );
         expect(() =>
             getDashboardWithSectionIds(
@@ -362,7 +362,7 @@ describe('dashboard section slugs', () => {
                 true,
             ),
         ).toThrow(
-            'Invalid dashboard section slug "BAD"; use lowercase letters, digits and single hyphens',
+            'Invalid dashboard section slug "BAD"; use lowercase letters and digits, with single hyphens between them',
         );
         portable.config!.parameterControls![0].sectionSlug = 'unknown';
         expect(() =>
