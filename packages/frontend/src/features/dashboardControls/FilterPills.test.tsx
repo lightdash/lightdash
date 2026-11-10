@@ -1782,7 +1782,7 @@ describe('FilterPills', () => {
         });
     });
 
-    it('keeps the standard border on a pill not in effect', () => {
+    it('dashes the border of a pill not in effect, with no inset ring when open', () => {
         const css = fs.readFileSync(
             path.resolve(
                 __dirname,
@@ -1794,6 +1794,10 @@ describe('FilterPills', () => {
             /\.plain:hover:not\(\[data-in-effect\], :disabled\) \{([^}]*)\}/,
         );
         expect(muted?.[1]).toContain('color: var(--mantine-color-dimmed)');
-        expect(muted?.[1]).not.toContain('border');
+        expect(muted?.[1]).toContain('border-style: dashed');
+        const openDashed = css.match(
+            /\[data-open\]:is\(\s*:not\(\[data-in-effect\]\),\s*\[data-temporary\]\s*\):not\(:disabled\) \{([^}]*)\}/,
+        );
+        expect(openDashed?.[1]).toContain('box-shadow: none');
     });
 });
