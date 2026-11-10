@@ -1,3 +1,15 @@
+# [3.197.0](https://github.com/lightdash/lightdash/compare/3.196.0...3.197.0) (2026-11-10)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** bar follow-ups for sections, Add filter and pill borders ([#32308](https://github.com/lightdash/lightdash/issues/32308)) ([185464d](https://github.com/lightdash/lightdash/commit/185464dc8523d16d5d25c4e3ffd0fc72f7458ba1))
+
+
+### Features
+
+* enable query history for everyone ([#32310](https://github.com/lightdash/lightdash/issues/32310)) ([8213fe3](https://github.com/lightdash/lightdash/commit/8213fe34a69f56e87dc985f562bae952b14a50cd))
+
 # [3.196.0](https://github.com/lightdash/lightdash/compare/3.195.2...3.196.0) (2026-11-10)
 
 
