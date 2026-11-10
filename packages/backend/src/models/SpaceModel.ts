@@ -2660,19 +2660,20 @@ export class SpaceModel {
 
         await tx.raw(
             `
+                -- UNION ALL: ltree is not hashable before Postgres 17; visited guards cycles.
                 WITH RECURSIVE moved AS (
-                    -- COALESCE handles moving to the root (where p.path is NULL).
-                    SELECT m.space_uuid, COALESCE(p.path, ''::ltree) || subpath(m.path, -1) AS new_path
+                    SELECT m.space_uuid, COALESCE(p.path, ''::ltree) || subpath(m.path, -1) AS new_path, ARRAY[m.space_uuid] AS visited
                     FROM ${SpaceTableName} AS m
                     LEFT JOIN ${SpaceTableName} AS p
                         ON p.space_uuid = ? AND p.project_id = m.project_id
                     WHERE m.space_uuid = ?
                         AND m.project_id = ?
                         AND ((?::uuid) IS NULL OR p.space_uuid IS NOT NULL)
-                    UNION
-                    SELECT c.space_uuid, moved.new_path || subpath(c.path, -1)
+                    UNION ALL
+                    SELECT c.space_uuid, moved.new_path || subpath(c.path, -1), moved.visited || c.space_uuid
                     FROM ${SpaceTableName} AS c
                     JOIN moved ON c.parent_space_uuid = moved.space_uuid
+                    WHERE c.space_uuid <> ALL(moved.visited)
                 )
                 UPDATE ${SpaceTableName} AS s
                 SET

@@ -219,4 +219,26 @@ describe('SpaceModel.moveToSpace (PostgreSQL)', () => {
             parent_space_uuid: null,
         });
     });
+
+    it('terminates when descendants have a parent cycle', async () => {
+        const root = await createSpace('Root', 'root', null);
+        const a = await createSpace('A', 'a', null);
+        const b = await createSpace('B', 'a.b', a);
+        await migrated.database.raw(
+            `UPDATE ${SpaceTableName} SET parent_space_uuid = ? WHERE space_uuid = ?`,
+            [b, a],
+        );
+
+        await model.moveToSpace({
+            projectUuid,
+            itemUuid: a,
+            targetSpaceUuid: root,
+        });
+
+        expect(await getSpace(a)).toMatchObject({
+            path: 'root.a',
+            parent_space_uuid: root,
+        });
+        expect(await getSpace(b)).toMatchObject({ path: 'root.a.b' });
+    });
 });
