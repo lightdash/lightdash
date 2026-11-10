@@ -1,3 +1,10 @@
+## [3.195.1](https://github.com/lightdash/lightdash/compare/3.195.0...3.195.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* accept single-character organization email domains ([#32285](https://github.com/lightdash/lightdash/issues/32285)) ([6e7bae8](https://github.com/lightdash/lightdash/commit/6e7bae8f6dc77cdef899b5a48a86fc40f2f1a2e7))
+
 # [3.195.0](https://github.com/lightdash/lightdash/compare/3.194.3...3.195.0) (2026-11-10)
 
 
