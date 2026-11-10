@@ -82,6 +82,7 @@ Cartesian charts support:
     - Works only when `xField` is a date dimension truncated to a time interval (`_day`, `_week`, `_month`, `_quarter`, `_year`, `_hour`, `_minute`). On any other x field the setting is ignored.
     - New charts get `true` unless you set it. An existing chart without the key keeps it off, so add it when editing.
     - SQL charts cannot mark incomplete periods; see `sql-chart-reference`.
+- **`connectNulls`**: Line and area series join across missing values unless this is `false`. Set `false` when the user wants the line to break at gaps; set `true` (or remove a `false`) when they ask to join the gaps.
 
 ### `eChartsConfig`
 
@@ -97,9 +98,13 @@ Cartesian charts support:
 
 `xAxis[0]` is the x axis; `yAxis[0]` is the left y axis and `yAxis[1]` the right one.
 
+- **`min`** / **`max`** (`xAxis[]` / `yAxis[]`): Axis range, as strings: `"0"`, `"100"`, or `"dataMin"`/`"dataMax"`. "Start the y axis at 0" is `yAxis[0].min: "0"`.
 - **`minInterval`** (`xAxis[]` / `yAxis[]`): Minimum gap between ticks on a numeric axis. Set `1` when the user wants whole-number ticks only (counts showing as 0.5, 1.5).
+- **`inverse`** (`xAxis[]` / `yAxis[]`): `true` reverses the axis direction. On the x axis it also flips `sortType` to descending.
+- **`sortType`** (`xAxis[0]`): Orders a category x axis. `"bar_totals"` sorts by each category's (stacked) total, ascending; add `inverse: true` for largest first. `"category"` sorts alphabetically; `"default"` keeps the query's order. "Sort bars by total, biggest first" is `{ "sortType": "bar_totals", "inverse": true }`.
+- **`rotate`** (`xAxis[0]`): Label rotation in degrees, e.g. `45`, when long x labels overlap or get hidden.
 - **`treatAsCategory`** (`xAxis[0]`): `true` draws a numeric x axis as discrete categories, when years or IDs show as 2,023.5 or bars sit off-centre at the axis edges. Ignored when `layout.flipAxes` is `true`.
-- **`dataZoomAnchor`** / **`dataZoomItemCount`** (`xAxis[0]`): Set the initial window of a scrollable chart, which needs `enableDataZoom: true` on `xAxis[0]`. `dataZoomAnchor: "end"` opens on the latest values (default `"start"`); `dataZoomItemCount` is how many x values show at once (default 10). "Show the last 12 weeks and let me scroll back" is `{ "enableDataZoom": true, "dataZoomAnchor": "end", "dataZoomItemCount": 12 }`.
+- **`enableDataZoom`** (`xAxis[0]`): `true` adds a scroll slider under the chart, when there are too many x values to read at once. `dataZoomAnchor: "end"` opens it on the latest values (default `"start"`); `dataZoomItemCount` is how many x values show at once (default 10). "Show the last 12 weeks and let me scroll back" is `{ "enableDataZoom": true, "dataZoomAnchor": "end", "dataZoomItemCount": 12 }`.
 
 ### Series Configuration
 
@@ -117,7 +122,12 @@ Optional properties:
 - **`smooth`**: Smooth curves for line/area
 - **`areaStyle`**: Presence indicates area chart
 - **`markLine`**: Reference line configuration
-- **`label.color`**: Hex color for the series' data labels, when the user asks to recolor the values shown on bars or points. It applies only while `label.show` is `true`.
+- **`label`**: Data labels, when the user asks to show values on the bars or points: `{ "show": true, "position": "top" }`.
+    - `position`: `"top"`, `"bottom"`, `"left"`, `"right"`, or `"inside"`.
+    - What each label shows: the value (`showValue`, default `true`), the pivot value (`showLabel`), the metric name (`showSeriesName`).
+    - `showOverlappingLabels: true` keeps labels that collide; by default they are hidden.
+    - `color`: hex color for the labels.
+- **`stackLabel`**: `{ "show": true }` on the series of a stack adds a total above each stacked bar, when the user asks for totals on stacked bars.
 
 ### Limiting Displayed Rows
 
