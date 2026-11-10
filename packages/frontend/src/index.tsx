@@ -33,6 +33,7 @@ if (typeof Node !== 'undefined' && Node.prototype) {
     };
 }
 
+import './features/mobile/stripMobileSignInFragment';
 import '@mantine/core/styles.css';
 import '@mantine/dates/styles.css';
 import '@mantine/code-highlight/styles.css';

@@ -193,6 +193,7 @@ import { AgentConnectionApprovalRequestModel } from '../models/AgentConnectionAp
 import { AiUsageLedgerModel } from '../models/AiUsageLedgerModel';
 import type { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { MobileAppLinkModel } from '../models/MobileAppLinkModel';
+import { MobileSignInCodeModel } from '../models/MobileSignInCodeModel';
 import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
 import { WarehouseConnectCodeModel } from '../models/WarehouseConnectCodeModel';
 import {
@@ -306,6 +307,7 @@ export type SchedulerTaskArguments = {
     emailWhitelabelService: EmailWhitelabelService;
     mobileAppLinkModel: MobileAppLinkModel;
     warehouseConnectCodeModel: WarehouseConnectCodeModel;
+    mobileSignInCodeModel: MobileSignInCodeModel;
     agentConnectionApprovalRequestModel: AgentConnectionApprovalRequestModel;
     aiUsageLedgerModel: AiUsageLedgerModel;
     learnSandboxService: LearnSandboxService;
@@ -608,6 +610,8 @@ export default class SchedulerTask {
 
     protected readonly warehouseConnectCodeModel: WarehouseConnectCodeModel;
 
+    protected readonly mobileSignInCodeModel: MobileSignInCodeModel;
+
     protected readonly agentConnectionApprovalRequestModel: AgentConnectionApprovalRequestModel;
 
     protected readonly aiUsageLedgerModel: AiUsageLedgerModel;
@@ -651,6 +655,7 @@ export default class SchedulerTask {
         this.emailWhitelabelService = args.emailWhitelabelService;
         this.mobileAppLinkModel = args.mobileAppLinkModel;
         this.warehouseConnectCodeModel = args.warehouseConnectCodeModel;
+        this.mobileSignInCodeModel = args.mobileSignInCodeModel;
         this.agentConnectionApprovalRequestModel =
             args.agentConnectionApprovalRequestModel;
         this.aiUsageLedgerModel = args.aiUsageLedgerModel;

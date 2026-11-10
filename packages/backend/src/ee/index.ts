@@ -256,6 +256,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     getManagedSignInService: () =>
                         repository.getManagedSignInService(),
+                    getMobileSignInService: () =>
+                        repository.getMobileSignInService(),
                     onGrantRevoked: ({ userId, clientId }) =>
                         models
                             .getMobilePushNotificationModel<MobilePushNotificationModel>()
@@ -1884,6 +1886,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 mobileAppLinkModel: context.models.getMobileAppLinkModel(),
                 warehouseConnectCodeModel:
                     context.models.getWarehouseConnectCodeModel(),
+                mobileSignInCodeModel:
+                    context.models.getMobileSignInCodeModel(),
                 agentConnectionApprovalRequestModel:
                     context.models.getAgentConnectionApprovalRequestModel(),
                 aiUsageLedgerModel: context.models.getAiUsageLedgerModel(),

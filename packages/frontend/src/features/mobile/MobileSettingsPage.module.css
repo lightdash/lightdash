@@ -56,3 +56,33 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+.digit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 64px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    font-size: 36px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.confirmRows {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+}
+
+.confirmRow {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: var(--mantine-spacing-sm);
+}
+
+.confirmRow dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}

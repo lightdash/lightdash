@@ -25,6 +25,7 @@ const UNIVERSAL_LINK_PATHS = [
     '/projects/*/dashboards/*/view',
     '/projects/*/spaces/*',
     '/projects/*/ai-agents/*/threads/*',
+    '/m/sign-in',
 ];
 
 export const buildAppleAppSiteAssociation = (

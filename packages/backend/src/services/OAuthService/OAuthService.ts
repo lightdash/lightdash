@@ -22,6 +22,7 @@ import { OAuth2Model } from '../../models/OAuth2Model';
 import { isAllowedStrictRedirectUri } from '../../models/oauthStrictRedirectUri';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
+import type { MobileSignInService } from '../MobileSignInService/MobileSignInService';
 import { isClientIdMetadataDocumentUrl } from './clientIdMetadataDocument';
 import { InvalidClientMetadataError } from './InvalidClientMetadataError';
 import { InvalidRedirectUriError } from './InvalidRedirectUriError';
@@ -48,6 +49,7 @@ type OAuthServiceArguments = {
     lightdashConfig: LightdashConfig;
     onGrantRevoked?: OAuthGrantRevokedHandler;
     getManagedSignInService?: () => ManagedSignInService;
+    getMobileSignInService?: () => MobileSignInService;
 };
 
 const isDatabaseErrorWithCode = (
@@ -68,12 +70,15 @@ export class OAuthService extends BaseService {
 
     private getManagedSignInService: (() => ManagedSignInService) | undefined;
 
+    private getMobileSignInService: (() => MobileSignInService) | undefined;
+
     constructor({
         userModel,
         oauthModel,
         lightdashConfig,
         onGrantRevoked,
         getManagedSignInService,
+        getMobileSignInService,
     }: OAuthServiceArguments) {
         super();
         this.userModel = userModel;
@@ -81,11 +86,12 @@ export class OAuthService extends BaseService {
         this.lightdashConfig = lightdashConfig;
         this.onGrantRevoked = onGrantRevoked;
         this.getManagedSignInService = getManagedSignInService;
+        this.getMobileSignInService = getMobileSignInService;
         this.initializeOAuthServer();
     }
 
     private initializeOAuthServer(): void {
-        const { getManagedSignInService } = this;
+        const { getManagedSignInService, getMobileSignInService } = this;
         this.oauthServer = new OAuth2Server({
             model: this.oauthModel,
             extendedGrantTypes: {
@@ -117,6 +123,7 @@ export class OAuthService extends BaseService {
                                           user as UserWithOrganizationUuid,
                                       ),
                                   this.getSiteUrl(),
+                                  getMobileSignInService,
                               ),
                       }
                     : {}),

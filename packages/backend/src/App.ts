@@ -189,6 +189,7 @@ const schedulerWorkerFactory = (context: {
         mobileAppLinkModel: context.models.getMobileAppLinkModel(),
         warehouseConnectCodeModel:
             context.models.getWarehouseConnectCodeModel(),
+        mobileSignInCodeModel: context.models.getMobileSignInCodeModel(),
         agentConnectionApprovalRequestModel:
             context.models.getAgentConnectionApprovalRequestModel(),
         aiUsageLedgerModel: context.models.getAiUsageLedgerModel(),

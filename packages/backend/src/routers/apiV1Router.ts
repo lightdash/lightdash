@@ -946,9 +946,27 @@ apiV1Router.get('/logout', (req, res, next) => {
                         });
                     }
                 }
-                res.json({
-                    status: 'ok',
-                });
+                const deleteMobileSignInCodes = userBeforeLogout?.userUuid
+                    ? req.services
+                          .getMobileSignInService()
+                          .deleteUnredeemedForUser(userBeforeLogout.userUuid)
+                          .catch((cleanupErr: unknown) => {
+                              Logger.warn(
+                                  'Failed to delete mobile sign-in codes at logout',
+                                  {
+                                      error:
+                                          cleanupErr instanceof Error
+                                              ? cleanupErr.message
+                                              : String(cleanupErr),
+                                  },
+                              );
+                          })
+                    : Promise.resolve();
+                void deleteMobileSignInCodes.then(() =>
+                    res.json({
+                        status: 'ok',
+                    }),
+                );
             }
         });
     });
