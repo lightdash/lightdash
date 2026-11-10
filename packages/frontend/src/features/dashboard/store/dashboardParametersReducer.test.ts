@@ -489,6 +489,85 @@ describe('dashboardParametersReducer', () => {
         });
     });
 
+    describe('listed saved values', () => {
+        const listing = (
+            chartSavedValues: Record<string, Record<string, string>>,
+            source = 'chart-1',
+        ) =>
+            actions.addDiscoveredParameterReferences({
+                references: { 'tile-1': ['region'] },
+                definitions: {},
+                sources: { 'tile-1': source },
+                chartSavedValues,
+                virtualViewSavedValues: { 'tile-1': { week: 'listed' } },
+            });
+        const tileReport = [
+            actions.setTileChartSavedParameters({
+                tileUuid: 'tile-1',
+                values: { region: 'own' },
+            }),
+            actions.setTileVirtualViewSavedParameters({
+                tileUuid: 'tile-1',
+                values: { week: 'own' },
+            }),
+        ];
+
+        it('seeds the saved values of tiles that have not reported', () => {
+            const next = reducer(
+                stateWith(),
+                listing({ 'tile-1': { region: 'listed' } }),
+            );
+            expect(next.tileChartSavedParameters).toEqual({
+                'tile-1': { region: 'listed' },
+            });
+            expect(next.tileVirtualViewSavedParameters).toEqual({
+                'tile-1': { week: 'listed' },
+            });
+        });
+
+        it.each([
+            ['the listing first', true],
+            ['the tile first', false],
+        ])("keeps the tile's own values with %s", (_order, listingFirst) => {
+            const listed = listing({ 'tile-1': { region: 'listed' } });
+            const next = (
+                listingFirst ? [listed, ...tileReport] : [...tileReport, listed]
+            ).reduce(reducer, stateWith());
+            expect(next.tileChartSavedParameters['tile-1']).toEqual({
+                region: 'own',
+            });
+            expect(next.tileVirtualViewSavedParameters['tile-1']).toEqual({
+                week: 'own',
+            });
+        });
+
+        it('replaces the values when the tile points at another chart', () => {
+            const next = [
+                listing({ 'tile-1': { region: 'listed' } }),
+                ...tileReport,
+                listing({ 'tile-1': { region: 'other' } }, 'chart-2'),
+            ].reduce(reducer, stateWith());
+            expect(next.tileChartSavedParameters['tile-1']).toEqual({
+                region: 'other',
+            });
+        });
+
+        it('seeds nothing for a tile left out of the listing', () => {
+            const next = reducer(
+                stateWith(),
+                actions.addDiscoveredParameterReferences({
+                    references: {},
+                    definitions: {},
+                    sources: {},
+                    chartSavedValues: {},
+                    virtualViewSavedValues: {},
+                }),
+            );
+            expect(next.tileChartSavedParameters).toEqual({});
+            expect(next.tileVirtualViewSavedParameters).toEqual({});
+        });
+    });
+
     describe('parameter controls', () => {
         const control = (key: string, id: string) => ({
             id,

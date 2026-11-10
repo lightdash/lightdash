@@ -1,4 +1,8 @@
-import { DashboardTileTypes, type DashboardTile } from '@lightdash/common';
+import {
+    DashboardTileTypes,
+    type DashboardTab,
+    type DashboardTile,
+} from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
@@ -60,13 +64,20 @@ const listingOf = (body: string, parameterReferences: string[]) => ({
     ),
 });
 
+const dashboardTabs: DashboardTab[] = [
+    { uuid: 'tab-1', name: 'One', order: 0 },
+    { uuid: 'tab-2', name: 'Two', order: 1 },
+];
+
 const setup = (
     embedApi?: LightdashApi,
     dashboardTiles = tiles,
     isEditMode = true,
+    tabs: DashboardTab[] = [],
 ) => {
     const store = createDashboardTestStore();
     store.dispatch(dashboardEditActions.setTiles(dashboardTiles));
+    store.dispatch(dashboardEditActions.setTabs(tabs));
     const queryClient = new QueryClient({
         defaultOptions: { queries: { retry: false } },
     });
@@ -227,12 +238,65 @@ describe('useDashboardTileParameterReferences', () => {
         expect(mockApi).not.toHaveBeenCalled();
     });
 
-    it('makes no request in view mode', async () => {
-        const store = setup(undefined, tiles, false);
+    it('makes no request in view mode without tabs', async () => {
+        const store = setup(undefined, tiles, false, [dashboardTabs[0]]);
 
         await new Promise((resolve) => setTimeout(resolve, 0));
         expect(mockApi).not.toHaveBeenCalled();
         expect(store.getState().parameters.tileParameterReferences).toEqual({});
+    });
+
+    it('lists tiles and their saved values in view mode with tabs', async () => {
+        mockApi.mockResolvedValue({
+            parameterDefinitions: {},
+            tiles: [
+                {
+                    ...listedTile('tile-unopened', ['orders.region']),
+                    chartSavedValues: { 'orders.region': 'EU' },
+                    virtualViewSavedValues: { 'orders.week': 'W1' },
+                },
+            ],
+        });
+
+        const store = setup(undefined, tiles, false, dashboardTabs);
+
+        await waitFor(() =>
+            expect(
+                store.getState().parameters.tileChartSavedParameters,
+            ).toEqual({ 'tile-unopened': { 'orders.region': 'EU' } }),
+        );
+        expect(
+            store.getState().parameters.tileVirtualViewSavedParameters,
+        ).toEqual({ 'tile-unopened': { 'orders.week': 'W1' } });
+    });
+
+    it('merges the definitions of every batch', async () => {
+        const manyTiles = Array.from({ length: 250 }, (_, index) =>
+            tile(
+                `tile-${index}`,
+                'tab-1',
+                DashboardTileTypes.SAVED_CHART,
+                `chart-${index}`,
+            ),
+        );
+        mockApi.mockImplementation(async ({ body }: { body: string }) => {
+            const listing = listingOf(body, ['orders.region']);
+            return {
+                ...listing,
+                parameterDefinitions: {
+                    [listing.tiles[0].tileUuid]: { label: 'Batch' },
+                },
+            };
+        });
+
+        const store = setup(undefined, manyTiles);
+
+        await waitFor(() =>
+            expect(store.getState().parameters.parameterDefinitions).toEqual({
+                'tile-0': { label: 'Batch' },
+                'tile-200': { label: 'Batch' },
+            }),
+        );
     });
 
     it('requests again when the tile set changes in edit mode', async () => {

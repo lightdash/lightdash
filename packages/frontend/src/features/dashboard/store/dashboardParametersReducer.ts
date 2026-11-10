@@ -138,10 +138,13 @@ export const dashboardParametersActions = {
     addListedParameterReferencesByTile: createAction<Record<string, string[]>>(
         'dashboardParameters/addListedParameterReferencesByTile',
     ),
+    /** Listed saved values fill only tiles that haven't reported their own */
     addDiscoveredParameterReferences: createAction<{
         references: Record<string, string[]>;
         definitions: ParameterDefinitions;
         sources: Record<string, string>;
+        chartSavedValues: Record<string, ParametersValuesMap>;
+        virtualViewSavedValues: Record<string, ParametersValuesMap>;
     }>('dashboardParameters/addDiscoveredParameterReferences'),
     setTileChartSavedParameters: createAction<{
         tileUuid: string;
@@ -490,19 +493,45 @@ export const dashboardParametersReducer = (
             action,
         )
     ) {
-        const { references, definitions, sources } = action.payload;
+        const {
+            references,
+            definitions,
+            sources,
+            chartSavedValues,
+            virtualViewSavedValues,
+        } = action.payload;
         const tileQueryParameterReferences = {
             ...state.tileQueryParameterReferences,
+        };
+        const tileChartSavedParameters = { ...state.tileChartSavedParameters };
+        const tileVirtualViewSavedParameters = {
+            ...state.tileVirtualViewSavedParameters,
         };
         Object.entries(sources).forEach(([tileUuid, source]) => {
             const previousSource = state.tileListedParameterSources[tileUuid];
             if (previousSource !== undefined && previousSource !== source) {
                 delete tileQueryParameterReferences[tileUuid];
+                delete tileChartSavedParameters[tileUuid];
+                delete tileVirtualViewSavedParameters[tileUuid];
             }
         });
+        const seed = (
+            target: Record<string, ParametersValuesMap>,
+            listed: Record<string, ParametersValuesMap>,
+        ) =>
+            Object.entries(listed).forEach(([tileUuid, values]) => {
+                if (!Object.hasOwn(target, tileUuid)) target[tileUuid] = values;
+            });
+        seed(tileChartSavedParameters, chartSavedValues);
+        seed(tileVirtualViewSavedParameters, virtualViewSavedValues);
         return {
             ...withListedReferences(
-                { ...state, tileQueryParameterReferences },
+                {
+                    ...state,
+                    tileQueryParameterReferences,
+                    tileChartSavedParameters,
+                    tileVirtualViewSavedParameters,
+                },
                 references,
             ),
             parameterDefinitions: {

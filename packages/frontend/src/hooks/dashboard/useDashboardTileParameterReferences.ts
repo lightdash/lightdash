@@ -9,6 +9,7 @@ import { chunk } from 'es-toolkit/compat';
 import { useEffect, useSyncExternalStore } from 'react';
 import {
     dashboardParametersActions,
+    selectDashboardTabs,
     selectTileQuerySources,
     selectTileQuerySourcesKey,
     type DashboardStore,
@@ -19,9 +20,9 @@ import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 const TILES_PER_REQUEST = 200;
 
 /**
- * While editing, registers the parameters every tile uses, on every tab,
- * before any tile runs. In view mode tiles report them from their own query.
- * In embeds the API client sends the embed token.
+ * Registers the parameters and saved values of every tile, on every tab,
+ * before any tile runs: while editing, and in view mode when tiles sit on
+ * tabs that may never open. In embeds the API client sends the embed token.
  */
 export const useDashboardTileParameterReferences = ({
     store,
@@ -39,8 +40,12 @@ export const useDashboardTileParameterReferences = ({
     const tilesKey = useSyncExternalStore(store.subscribe, () =>
         selectTileQuerySourcesKey(store.getState()),
     );
+    const hasTabs = useSyncExternalStore(
+        store.subscribe,
+        () => (selectDashboardTabs(store.getState())?.length ?? 0) > 1,
+    );
     const isEnabled =
-        isEditMode &&
+        (isEditMode || hasTabs) &&
         dashboardControlsFlag?.enabled === true &&
         !!projectUuid &&
         tilesKey !== '';
@@ -111,6 +116,18 @@ export const useDashboardTileParameterReferences = ({
                     ]),
                 ),
                 definitions: data.parameterDefinitions,
+                chartSavedValues: Object.fromEntries(
+                    complete.map((result) => [
+                        result.tileUuid,
+                        result.chartSavedValues,
+                    ]),
+                ),
+                virtualViewSavedValues: Object.fromEntries(
+                    complete.map((result) => [
+                        result.tileUuid,
+                        result.virtualViewSavedValues,
+                    ]),
+                ),
                 sources: Object.fromEntries(
                     complete.map((result) => [
                         result.tileUuid,
