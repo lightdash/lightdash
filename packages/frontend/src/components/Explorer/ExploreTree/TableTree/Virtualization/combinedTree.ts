@@ -8,6 +8,7 @@ import {
     type Explore,
     type GroupType,
 } from '@lightdash/common';
+import Fuse from 'fuse.js';
 import { LD_FIELD_COLORS } from '../../../../../theme';
 import { isGroupNode, type NodeItem, type NodeMap } from '../Tree/types';
 import { getNodeMapFromItemsMap } from '../Tree/utils';
@@ -18,7 +19,28 @@ export type CombinedFieldTree = {
     sections: SectionInfo[];
     nodeMaps: Map<string, NodeMap>;
     itemsMap: Record<string, NodeItem>;
+    sourceLabels: ReadonlyMap<string, string>;
+    searchItems: {
+        id: string;
+        label: string;
+        name: string;
+        groups: string[];
+        table: string;
+        sourceLabel: string;
+    }[];
 };
+
+export const searchCombinedFieldTree = (
+    tree: CombinedFieldTree,
+    query: string,
+): string[] =>
+    new Fuse(tree.searchItems, {
+        keys: ['label', 'name', 'groups', 'table', 'sourceLabel'],
+        ignoreLocation: true,
+        threshold: 0.3,
+    })
+        .search(query)
+        .map(({ item }) => item.id);
 
 export const buildCombinedFieldTree = (
     explore: Explore,
@@ -122,6 +144,7 @@ export const buildCombinedFieldTree = (
         },
     ];
     const nodeMaps = new Map<string, NodeMap>();
+    const searchItems: CombinedFieldTree['searchItems'] = [];
     const itemsMap: Record<string, NodeItem> = {};
     sections.forEach((section) => {
         Object.assign(itemsMap, section.itemsMap);
@@ -141,13 +164,42 @@ export const buildCombinedFieldTree = (
         const fieldOrder = new Map(
             orderedItems.map(([id], index) => [id, index]),
         );
+        const intervalGroupSources = new Map<string, string>();
+        const presentationGroupDetails = { ...groupDetails };
+        const presentationItems = orderedItems.map(([id, item]) => {
+            if (
+                !isDimension(item) ||
+                !item.timeInterval ||
+                !item.timeIntervalBaseDimensionName ||
+                !item.groups?.length
+            ) {
+                return [id, item] as const;
+            }
+            // The compiler appends the date's display label as the final group.
+            const group = JSON.stringify([
+                'time-interval',
+                item.table,
+                item.timeIntervalBaseDimensionName,
+            ]);
+            presentationGroupDetails[group] = {
+                label: item.groups[item.groups.length - 1],
+            };
+            intervalGroupSources.set(
+                JSON.stringify(['group', group]),
+                item.table,
+            );
+            return [
+                id,
+                { ...item, groups: [...item.groups.slice(0, -1), group] },
+            ] as const;
+        });
         const nodeMap = getNodeMapFromItemsMap(
-            Object.fromEntries(orderedItems),
-            groupDetails,
+            Object.fromEntries(presentationItems),
+            presentationGroupDetails,
             orderFieldsBy,
             { groupByKey: true, fieldOrder },
         );
-        const addSources = (nodes: NodeMap) => {
+        const addSources = (nodes: NodeMap, parentLabels: string[] = []) => {
             const siblings = Object.values(nodes);
             const labelCounts = new Map<string, number>();
             siblings.forEach((node) =>
@@ -158,11 +210,19 @@ export const buildCombinedFieldTree = (
             );
             Object.values(nodes).forEach((node) => {
                 if (isGroupNode(node)) {
-                    addSources(node.children);
+                    addSources(node.children, [...parentLabels, node.label]);
                     const firstChild = Object.values(node.children)[0];
                     const firstItem =
                         firstChild && section.itemsMap[firstChild.key];
-                    if (
+                    const intervalTable = intervalGroupSources.get(node.key);
+                    if (intervalTable) {
+                        node.source = {
+                            label:
+                                sourceLabels.get(intervalTable) ??
+                                intervalTable,
+                            showInline: (labelCounts.get(node.label) ?? 0) > 1,
+                        };
+                    } else if (
                         isDimension(firstItem) &&
                         firstItem.group &&
                         node.key ===
@@ -185,11 +245,26 @@ export const buildCombinedFieldTree = (
                         label: sourceLabels.get(item.table) ?? item.table,
                         showInline: (labelCounts.get(node.label) ?? 0) > 1,
                     };
+                    searchItems.push({
+                        id: node.key,
+                        label: node.label,
+                        name: item.name,
+                        groups: parentLabels,
+                        table: item.table,
+                        sourceLabel: node.source.label,
+                    });
                 }
             });
         };
         addSources(nodeMap);
         nodeMaps.set(`${explore.name}-${section.type}`, nodeMap);
     });
-    return { name: explore.name, sections, nodeMaps, itemsMap };
+    return {
+        name: explore.name,
+        sections,
+        nodeMaps,
+        itemsMap,
+        sourceLabels,
+        searchItems,
+    };
 };

@@ -1,4 +1,10 @@
 import {
+    convertExplores,
+    DEFAULT_SPOTLIGHT_CONFIG,
+    isExploreError,
+    type DbtModelNode,
+    type DbtModelLightdashConfig,
+    type DbtColumnLightdashConfig,
     CustomDimensionType,
     DimensionType,
     FieldType,
@@ -12,9 +18,16 @@ import {
     type CustomDimension,
     type Explore,
 } from '@lightdash/common';
+import { load } from 'js-yaml';
+import demoYaml from '../../../../../../../../examples/full-jaffle-shop-demo/dbt/models/combined_fields_demo.yml?raw';
+import { warehouseClientMock } from '../../../../../../../common/src/compiler/exploreCompiler.mock';
+import { model as dbtModel } from '../../../../../../../common/src/compiler/translator.mock';
 import { isGroupNode, type NodeMap } from '../Tree/types';
 import { getSearchResults } from '../Tree/utils';
-import { buildCombinedFieldTree } from './combinedTree';
+import {
+    buildCombinedFieldTree,
+    searchCombinedFieldTree,
+} from './combinedTree';
 import { flattenTreeForVirtualization } from './flattenTree';
 import { TreeSection, type FlattenTreeOptions } from './types';
 
@@ -369,5 +382,125 @@ describe('combined tree virtualization', () => {
                 .filter((item) => item.type === 'tree-node')
                 .map((item) => item.data.node.key),
         ).toEqual(['users_id']);
+    });
+});
+
+describe('compiled demo combined fields', () => {
+    it('keeps date groups from the real demo separate and searchable', async () => {
+        const demo = load(demoYaml) as {
+            models: {
+                name: string;
+                config: { meta: DbtModelLightdashConfig };
+                columns: {
+                    name: string;
+                    config: { meta: DbtColumnLightdashConfig };
+                }[];
+            }[];
+        };
+        const models: DbtModelNode[] = demo.models.map((entry) => ({
+            ...dbtModel,
+            name: entry.name,
+            unique_id: `model.jaffle.${entry.name}`,
+            package_name: 'jaffle',
+            meta: entry.config.meta,
+            columns: Object.fromEntries(
+                entry.columns.map((column) => [
+                    column.name,
+                    {
+                        name: column.name,
+                        meta: column.config.meta,
+                        data_type:
+                            column.config.meta.dimension?.type ??
+                            DimensionType.STRING,
+                    },
+                ]),
+            ),
+        }));
+        const results = await convertExplores(
+            models,
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        );
+        const compiled = results.find(
+            (result) => result.name === 'combined_fields_orders',
+        )!;
+        if (isExploreError(compiled))
+            throw new Error(JSON.stringify(compiled.errors));
+        const original = structuredClone(compiled);
+        const tree = build(compiled);
+        const dimensions = tree.nodeMaps.get(`${compiled.name}-dimensions`)!;
+        const sales = Object.values(dimensions).find(
+            (node) => node.label === 'Sales',
+        )!;
+        const dates = Object.values(sales.children!).filter(
+            (node) => node.label === 'Date',
+        );
+        expect(dates).toHaveLength(2);
+        expect(dates.map((node) => node.source)).toEqual([
+            { label: 'Combined fields demo', showInline: true },
+            { label: 'Customers', showInline: true },
+        ]);
+        expect(dates.map((node) => leaves(node.children!))).toEqual([
+            [
+                'combined_fields_orders_order_date_day',
+                'combined_fields_orders_order_date_month',
+                'combined_fields_orders_order_date_year',
+            ],
+            [
+                'combined_fields_customers_first_order_day',
+                'combined_fields_customers_first_order_month',
+                'combined_fields_customers_first_order_year',
+            ],
+        ]);
+        expect(compiled).toEqual(original);
+        expect(searchCombinedFieldTree(tree, 'Date')).toContain(
+            'combined_fields_customers_first_order_day',
+        );
+    });
+
+    it('searches displayed nested group names and source aliases, excluding hidden fields', () => {
+        const base = table('users', [
+            dimension('users', 'id', { groups: ['sales', 'totals'] }),
+        ]);
+        base.groupDetails = {
+            sales: { label: 'Commercial KPIs' },
+            totals: { label: 'Summary figures' },
+        };
+        const buyer = {
+            ...table('buyer', [
+                dimension('buyer', 'id', { groups: ['sales', 'totals'] }),
+                dimension('buyer', 'secret', { hidden: true }),
+            ]),
+            label: 'People',
+        };
+        const seller = {
+            ...table('seller', [dimension('seller', 'id')]),
+            label: 'People',
+        };
+        const tree = build(explore([base, buyer, seller]));
+        expect(searchCombinedFieldTree(tree, 'Commercial KPIs')).toEqual([
+            'users_id',
+            'buyer_id',
+        ]);
+        expect(searchCombinedFieldTree(tree, 'Summary figures')).toEqual([
+            'users_id',
+            'buyer_id',
+        ]);
+        expect(searchCombinedFieldTree(tree, 'buyer')).toEqual(['buyer_id']);
+        expect(searchCombinedFieldTree(tree, 'secret')).toEqual([]);
+        const flattened = flattenTreeForVirtualization({
+            ...options(tree),
+            isSearching: true,
+            searchResultsMap: {
+                [tree.name]: searchCombinedFieldTree(tree, 'Commercial KPIs'),
+            },
+        });
+        expect(
+            flattened.items
+                .filter((item) => item.type === 'tree-node')
+                .map((item) => item.data.node.label),
+        ).toEqual(['Commercial KPIs', 'Summary figures', 'id', 'id']);
     });
 });

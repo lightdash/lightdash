@@ -39,7 +39,10 @@ import SelectedFieldsSection, {
 } from './SelectedFieldsSection';
 import { type NodeItem } from './TableTree/Tree/types';
 import { getSearchResults } from './TableTree/Tree/utils';
-import { buildCombinedFieldTree } from './TableTree/Virtualization/combinedTree';
+import {
+    buildCombinedFieldTree,
+    searchCombinedFieldTree,
+} from './TableTree/Virtualization/combinedTree';
 import {
     flattenTreeForVirtualization,
     getNodeMapsForVirtualization,
@@ -202,16 +205,9 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
             if (!isSearching) return;
             if (combinedTree) {
                 setSearchResultsMap({
-                    [combinedTree.name]: getSearchResults(
-                        combinedTree.itemsMap,
+                    [combinedTree.name]: searchCombinedFieldTree(
+                        combinedTree,
                         debouncedSearch,
-                        [
-                            '1.label',
-                            '1.name',
-                            '1.groupLabel',
-                            '1.groups',
-                            '1.tableLabel',
-                        ],
                     ),
                 });
                 return;
@@ -391,6 +387,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
             {!hideSelectedFields && (
                 <SelectedFieldsSection
                     fields={selectedFieldsOverride ?? selectedFields}
+                    combinedSourceLabels={combinedTree?.sourceLabels}
                     onDeselect={onSelectedFieldChange}
                 />
             )}
