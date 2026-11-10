@@ -31,6 +31,9 @@ export type SchedulerCsvOptions = {
     asAttachment?: boolean;
     exportPivotedData?: boolean;
     xlsxFileLayout?: 'zip' | 'workbook';
+    // XLSX dashboard exports: CHART_IMAGE renders non-table chart tiles as
+    // pictures; table tiles and SQL charts always export rows.
+    xlsxContent?: XlsxExportContent;
 };
 
 export type SchedulerImageOptions = {
