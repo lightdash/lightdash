@@ -146,19 +146,6 @@ describe('LauncherAnalysisPanel unavailable states', () => {
         await userLoaded();
         expect(screen.queryByRole('link')).toBeNull();
     });
-
-    it('offers nothing to fix when the org is not rolled out', async () => {
-        renderPanel(unavailable('not_rolled_out'), buildController(), [
-            { action: 'manage', subject: 'Organization' },
-        ]);
-        expect(
-            await screen.findByText(
-                'AI analysis is not available for this organization yet.',
-            ),
-        ).toBeInTheDocument();
-        await userLoaded();
-        expect(screen.queryByRole('link')).toBeNull();
-    });
 });
 
 describe('LauncherAnalysisPanel without agent access', () => {

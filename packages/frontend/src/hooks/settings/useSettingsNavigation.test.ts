@@ -36,8 +36,6 @@ const settingsContext = (
     hasAnyAiAgentAccess: true,
     isAiOrganizationSettingsLoading: false,
     dataAppsFlag: undefined,
-    dataAppAnalysisFlag: undefined,
-    dashboardAnalysisFlag: undefined,
     isDataAppsFlagLoading: false,
     isApiQuerySourcesEnabled: false,
     isChartStudioAvailable: false,
@@ -222,6 +220,10 @@ describe('Data apps settings navigation', () => {
             { label: 'General', to: '/generalSettings/dataApps/general' },
             { label: 'Themes', to: '/generalSettings/dataApps/themes' },
             { label: 'Activity', to: '/generalSettings/dataApps/activity' },
+            {
+                label: 'AI analysis',
+                to: '/generalSettings/dataApps/aiAnalysis',
+            },
         ]);
     });
 
@@ -294,7 +296,7 @@ describe('Themes settings navigation with Chart Studio', () => {
             items
                 ?.find((item) => item.label === 'Data apps')
                 ?.children.map(({ label }) => label),
-        ).toEqual(['General', 'Themes', 'Activity']);
+        ).toEqual(['General', 'Themes', 'Activity', 'AI analysis']);
     });
 
     it('shows no Themes entry without Chart Studio or data apps', () => {
@@ -620,4 +622,28 @@ describe('My agent connections navigation', () => {
             }
         },
     );
+});
+
+describe('AI analysis settings navigation without data apps', () => {
+    const aiAnalysisItem = (overrides: Partial<SettingsContext> = {}) =>
+        organizationNavigation({
+            user: {
+                ability: new Ability([
+                    { action: 'manage', subject: 'Organization' },
+                ]),
+            } as unknown as SettingsContext['user'],
+            ...overrides,
+        })?.find((item) => item.label === 'AI analysis');
+
+    it('shows AI analysis wherever AI is available', () => {
+        expect(aiAnalysisItem()?.to).toBe(
+            '/generalSettings/dataApps/aiAnalysis',
+        );
+    });
+
+    it('hides AI analysis without AI', () => {
+        expect(
+            aiAnalysisItem({ isAiCopilotEnabledOrTrial: false }),
+        ).toBeUndefined();
+    });
 });
