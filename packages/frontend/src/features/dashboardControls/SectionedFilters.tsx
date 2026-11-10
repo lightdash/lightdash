@@ -1056,11 +1056,15 @@ export const SectionedFilters: FC<Props> = ({
                                       section.id,
                                   ),
                               );
-                              if (rules.length === 0) return;
-                              setDashboardFilters((filters) =>
-                                  removeSectionFromRules(filters, section.id),
-                              );
-                              setHaveFiltersChanged(true);
+                              if (rules.length > 0) {
+                                  setDashboardFilters((filters) =>
+                                      removeSectionFromRules(
+                                          filters,
+                                          section.id,
+                                      ),
+                                  );
+                                  setHaveFiltersChanged(true);
+                              }
                               orderSectionChanges(before);
                           },
                       }

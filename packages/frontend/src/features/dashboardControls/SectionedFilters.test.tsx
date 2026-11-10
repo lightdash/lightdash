@@ -3418,6 +3418,29 @@ describe('SectionedFilters', () => {
             ).toBeEnabled();
         });
 
+        it("keeps a parameter-only section's controls where the section was when removed", async () => {
+            const store = renderWithParameters(
+                [parameterControl('week', 'b')],
+                [],
+                [
+                    { id: 'a', name: 'Dates' },
+                    { id: 'b', name: 'Regions' },
+                    { id: 'c', name: 'Empty' },
+                ],
+            );
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Regions menu' }),
+            );
+            await userEvent.click(
+                await screen.findByRole('menuitem', {
+                    name: 'Remove section, keep controls',
+                }),
+            );
+            expect(
+                selectOrderedControls(store.getState()).map(({ id }) => id),
+            ).toEqual(['a', 'week', 'c']);
+        });
+
         it('shows a viewer a section that holds only a parameter control', () => {
             mockSidebar.current = { isViewer: true, isSidebarOpen: false };
             renderWithParameters([parameterControl('week', 'b')], []);
