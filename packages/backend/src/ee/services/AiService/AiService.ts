@@ -524,6 +524,8 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
             filters: payload.filters,
             fieldsContext: payload.fieldsContext,
             chartConfigJson: payload.chartConfigJson,
+            style: payload.style,
+            styleReferenceTitle: payload.styleReferenceTitle,
         });
 
         this.analytics.track<GenerateChartMetadataGenerated>({
@@ -533,6 +535,7 @@ Use plain text only, with no HTML, markdown, or links. Return fewer entries if t
                 organizationId: user.organizationUuid!,
                 projectId: projectUuid,
                 chartType: payload.chartType,
+                style: payload.style,
             },
         });
 

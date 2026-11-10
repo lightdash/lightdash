@@ -98,6 +98,10 @@ export const SaveChartButton: FC<Props> = ({
                     onClose={() => setIsSaveChartModalOpen(false)}
                     onConfirm={() => setIsSaveChartModalOpen(false)}
                     chartMetadata={generatedMetadata ?? undefined}
+                    // The automatic suggestion is question style
+                    chartMetadataStyle={
+                        generatedMetadata ? 'question' : undefined
+                    }
                     restrictedSpaces={
                         embedToken
                             ? embedWriteContext?.writableSpaces

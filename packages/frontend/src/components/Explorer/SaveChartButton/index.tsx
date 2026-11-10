@@ -349,6 +349,10 @@ const SaveChartButton: FC<{
                     }}
                     defaultSpaceUuid={spaceUuid ?? undefined}
                     chartMetadata={generatedMetadata ?? defaultMetadata}
+                    // The automatic suggestion is question style
+                    chartMetadataStyle={
+                        generatedMetadata ? 'question' : undefined
+                    }
                     forceSpaceOrDashboardChoice={isSaveAsModal}
                     isSaveAs={isSaveAsModal}
                     redirectOnSuccess={!suppressNavigation}

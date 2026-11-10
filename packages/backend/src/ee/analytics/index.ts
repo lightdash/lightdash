@@ -1,4 +1,7 @@
-import { DashboardFilterInteractivityOptions } from '@lightdash/common';
+import {
+    ChartMetadataStyle,
+    DashboardFilterInteractivityOptions,
+} from '@lightdash/common';
 import { Track as AnalyticsTrack } from '@rudderstack/rudder-sdk-node';
 
 type BaseTrack = Omit<AnalyticsTrack, 'context'>;
@@ -44,6 +47,8 @@ export type GenerateChartMetadataGenerated = BaseTrack & {
         organizationId: string;
         projectId: string;
         chartType: string;
+        /** Requested naming style; unset for the automatic first suggestion. */
+        style?: ChartMetadataStyle;
     };
 };
 
