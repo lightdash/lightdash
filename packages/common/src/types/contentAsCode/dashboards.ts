@@ -220,8 +220,8 @@ export type DashboardAsCode = {
     downloadedAt?: Date;
     filters?: {
         dimensions?: Omit<DashboardFilterRuleAsCode, 'id'>[];
-        metrics?: Omit<DashboardFilterRuleAsCode, 'id'>[];
-        tableCalculations?: Omit<DashboardFilterRuleAsCode, 'id'>[];
+        metrics?: DashboardFilterRuleAsCode[];
+        tableCalculations?: DashboardFilterRuleAsCode[];
     };
     /**
      * Declarative dashboard owner, referenced by email so it is portable across projects.

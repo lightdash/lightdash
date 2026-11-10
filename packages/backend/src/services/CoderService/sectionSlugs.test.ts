@@ -63,6 +63,7 @@ const dashboard = (): DashboardWithSectionIds => ({
         ],
         metrics: [
             {
+                id: 'metric',
                 target: { fieldId: 'orders_total', tableName: 'orders' },
                 operator: FilterOperator.EQUALS,
                 label: 'Example',
@@ -72,6 +73,7 @@ const dashboard = (): DashboardWithSectionIds => ({
         ],
         tableCalculations: [
             {
+                id: 'calc',
                 target: { fieldId: 'calculation', tableName: 'orders' },
                 operator: FilterOperator.EQUALS,
                 label: 'Example',

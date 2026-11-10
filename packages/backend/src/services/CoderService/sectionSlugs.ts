@@ -24,10 +24,8 @@ type DashboardWithSections<Section> = Omit<
         dimensions?: WithSectionReference<
             Omit<DashboardFilterRuleAsCode, 'id'>
         >[];
-        metrics?: WithSectionReference<Omit<DashboardFilterRuleAsCode, 'id'>>[];
-        tableCalculations?: WithSectionReference<
-            Omit<DashboardFilterRuleAsCode, 'id'>
-        >[];
+        metrics?: WithSectionReference<DashboardFilterRuleAsCode>[];
+        tableCalculations?: WithSectionReference<DashboardFilterRuleAsCode>[];
     };
     config?: Omit<
         DashboardConfigAsCode,

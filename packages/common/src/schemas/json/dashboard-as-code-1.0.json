@@ -616,6 +616,61 @@
             "required": ["tableName", "fieldId"],
             "type": "object"
         },
+        "DashboardFilterRule": {
+            "allOf": [
+                {
+                    "$ref": "#/$defs/FilterRule_FilterOperator.DashboardFieldTarget.AnyType.AnyType_"
+                },
+                {
+                    "properties": {
+                        "label": {
+                            "type": "string"
+                        },
+                        "lockedTabUuids": {
+                            "description": "Tab UUIDs where this filter is locked. When the active tab is in this\nlist, viewers see the filter but cannot change it, and URL / embed\nfilter overrides targeting the same field are ignored on that tab.\nEmpty or omitted means the filter is not locked anywhere.",
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        },
+                        "requiredGroupId": {
+                            "description": "Dashboard filters sharing a requiredGroupId form an \"any-one required\"\ngroup: the dashboard is locked until at least one member has a value.",
+                            "type": "string"
+                        },
+                        "sectionId": {
+                            "description": "Id of a DashboardConfig.controlSections entry; unsectioned if absent or dangling.",
+                            "type": "string"
+                        },
+                        "singleValue": {
+                            "type": "boolean"
+                        },
+                        "tileTargets": {
+                            "$ref": "#/$defs/DashboardTileTargets"
+                        }
+                    },
+                    "type": "object"
+                }
+            ]
+        },
+        "DashboardFilterRuleAsCode": {
+            "allOf": [
+                {
+                    "$ref": "#/$defs/DashboardFilterRule"
+                },
+                {
+                    "properties": {
+                        "sectionSlug": {
+                            "type": "string"
+                        },
+                        "slug": {
+                            "description": "Resolves `controlOrder` refs in this file; derived on download, never stored",
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                }
+            ]
+        },
         "DashboardHeadingTileAsCode": {
             "additionalProperties": false,
             "properties": {
@@ -1204,6 +1259,52 @@
             ],
             "type": "string"
         },
+        "FilterRule_FilterOperator.DashboardFieldTarget.AnyType.AnyType_": {
+            "additionalProperties": true,
+            "properties": {
+                "caseSensitive": {
+                    "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting.",
+                    "type": "boolean"
+                },
+                "disabled": {
+                    "description": "Whether this filter is disabled",
+                    "type": "boolean"
+                },
+                "id": {
+                    "description": "Unique identifier for the filter",
+                    "type": "string"
+                },
+                "includeNull": {
+                    "description": "For the `equals` operator on string fields, also match rows where the\nfield is null (compiles to `field IN (...) OR field IS NULL`). Lets users\ncombine null with selected values in a single \"is\" rule.",
+                    "type": "boolean"
+                },
+                "operator": {
+                    "$ref": "#/$defs/FilterOperator",
+                    "description": "Filter operator"
+                },
+                "required": {
+                    "description": "Whether this filter is required",
+                    "type": "boolean"
+                },
+                "settings": {
+                    "$ref": "#/$defs/AnyType",
+                    "description": "Additional settings for date/time filters"
+                },
+                "target": {
+                    "$ref": "#/$defs/DashboardFieldTarget",
+                    "description": "Target field for the filter"
+                },
+                "values": {
+                    "description": "Values to filter by",
+                    "items": {
+                        "$ref": "#/$defs/AnyType"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": ["operator", "id", "target"],
+            "type": "object"
+        },
         "Format": {
             "enum": [
                 "km",
@@ -1551,13 +1652,13 @@
                 },
                 "metrics": {
                     "items": {
-                        "$ref": "#/$defs/Omit_DashboardFilterRuleAsCode.id_"
+                        "$ref": "#/$defs/DashboardFilterRuleAsCode"
                     },
                     "type": "array"
                 },
                 "tableCalculations": {
                     "items": {
-                        "$ref": "#/$defs/Omit_DashboardFilterRuleAsCode.id_"
+                        "$ref": "#/$defs/DashboardFilterRuleAsCode"
                     },
                     "type": "array"
                 }

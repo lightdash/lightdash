@@ -104,13 +104,14 @@ export const getFiltersWithTileSlugs = (
         ),
         // Stored filters can predate the metric and table calculation lists
         ...(dashboard.filters.metrics && {
-            metrics: dashboard.filters.metrics.map((filter, index) =>
-                toAsCode(filter, filterSlugs?.[dimensionCount + index]),
-            ),
+            metrics: dashboard.filters.metrics.map((filter, index) => ({
+                id: filter.id,
+                ...toAsCode(filter, filterSlugs?.[dimensionCount + index]),
+            })),
         }),
         ...(dashboard.filters.tableCalculations && {
             tableCalculations: dashboard.filters.tableCalculations.map(
-                (filter) => toAsCode(filter, undefined),
+                (filter) => ({ id: filter.id, ...toAsCode(filter, undefined) }),
             ),
         }),
     };

@@ -710,10 +710,11 @@ describe('CoderService', () => {
             ],
         } as AnyType;
 
-        it('downloads without ids and with tile slugs', () => {
+        it('downloads ids as saved and tile targets as slugs', () => {
             const result = CoderService.getFiltersWithTileSlugs(savedDashboard);
             expect(result.metrics).toStrictEqual([
                 {
+                    id: 'metric-id',
                     target,
                     operator: 'greaterThan',
                     values: [1],
@@ -724,6 +725,7 @@ describe('CoderService', () => {
             ]);
             expect(result.tableCalculations).toStrictEqual([
                 {
+                    id: 'calc-id',
                     target: { fieldId: 'calc', tableName: '' },
                     operator: 'greaterThan',
                     values: [1],
