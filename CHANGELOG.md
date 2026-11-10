@@ -1,3 +1,10 @@
+## [3.205.1](https://github.com/lightdash/lightdash/compare/3.205.0...3.205.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** match parameter pill cues to filter pills ([#32355](https://github.com/lightdash/lightdash/issues/32355)) ([53c625e](https://github.com/lightdash/lightdash/commit/53c625eb860a491387d48c61932d9c680f4a08ec))
+
 # [3.205.0](https://github.com/lightdash/lightdash/compare/3.204.1...3.205.0) (2026-11-10)
 
 
