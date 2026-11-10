@@ -8,6 +8,7 @@ export default defineConfig({
             'src/models/ProjectModel/ProjectModel.membershipOrdering.integration.test.ts',
             'src/models/UsageQueryHistoryModel.integration.test.ts',
             'src/models/MobileSignInCodeModel.integration.test.ts',
+            'src/models/SpaceModel.moveToSpace.integration.test.ts',
             'src/models/QueryHistoryModel/QueryHistoryModel.resultsCacheStats.integration.test.ts',
         ],
         environment: 'node',

@@ -4,15 +4,46 @@ import { type NestableItem } from './types';
 import useFuzzyTreeSearch from './useFuzzyTreeSearch';
 
 const items: NestableItem[] = [
-    { uuid: '1', name: 'Finance', path: 'finance' },
-    { uuid: '2', name: 'Reports', path: 'finance.reports' },
-    { uuid: '3', name: 'Marketing weekly', path: 'finance.reports.weekly' },
-    { uuid: '4', name: 'Archive', path: 'finance.archive' },
-    { uuid: '5', name: 'Marketing', path: 'marketing' },
-    { uuid: '6', name: 'Drafts', path: 'marketing.drafts' },
+    { uuid: '1', name: 'Finance', path: 'finance', parentSpaceUuid: null },
+    {
+        uuid: '2',
+        name: 'Reports',
+        path: 'finance.reports',
+        parentSpaceUuid: '1',
+    },
+    {
+        uuid: '3',
+        name: 'Marketing weekly',
+        path: 'finance.reports.weekly',
+        parentSpaceUuid: '2',
+    },
+    {
+        uuid: '4',
+        name: 'Archive',
+        path: 'finance.archive',
+        parentSpaceUuid: '1',
+    },
+    { uuid: '5', name: 'Marketing', path: 'marketing', parentSpaceUuid: null },
+    {
+        uuid: '6',
+        name: 'Drafts',
+        path: 'marketing.drafts',
+        parentSpaceUuid: '5',
+    },
     // Path shares a string prefix with "marketing" but is not its descendant
-    { uuid: '7', name: 'Marketing ops', path: 'marketingops' },
-    { uuid: '8', name: 'Old', path: 'marketingops.old', restricted: true },
+    {
+        uuid: '7',
+        name: 'Marketing ops',
+        path: 'marketingops',
+        parentSpaceUuid: null,
+    },
+    {
+        uuid: '8',
+        name: 'Old',
+        path: 'marketingops.old',
+        parentSpaceUuid: '7',
+        restricted: true,
+    },
 ];
 
 const search = (query: string) =>
@@ -66,6 +97,37 @@ describe('useFuzzyTreeSearch', () => {
         expect(result?.map((item) => item.path)).toEqual([
             'marketing',
             'marketing.drafts',
+        ]);
+    });
+
+    it('keeps only the matched space when another space shares its path', () => {
+        const sharedPath: NestableItem[] = [
+            {
+                uuid: 'product',
+                name: 'Product',
+                path: 'product',
+                parentSpaceUuid: null,
+            },
+            {
+                uuid: 'charts-a',
+                name: 'Sales charts',
+                path: 'product.charts',
+                parentSpaceUuid: 'product',
+            },
+            {
+                uuid: 'charts-b',
+                name: 'Finance charts',
+                path: 'product.charts',
+                parentSpaceUuid: 'product',
+            },
+        ];
+        const { result } = renderHook(() =>
+            useFuzzyTreeSearch(sharedPath, 'sales'),
+        );
+
+        expect(result.current?.map((item) => item.uuid)).toEqual([
+            'product',
+            'charts-a',
         ]);
     });
 });
