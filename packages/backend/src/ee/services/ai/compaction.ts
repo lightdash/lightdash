@@ -230,6 +230,8 @@ export class Compaction {
                     evidence ? `; evidence: ${evidence}` : ''
                 }`;
             }
+            case 'semantic_model':
+                return `semantic model ${item.modelName}${item.fieldName ? `, field ${item.fieldName}` : ''}`;
             case 'preview_environment':
                 return `preview environment${
                     item.projectName ? ` (${item.projectName})` : ''

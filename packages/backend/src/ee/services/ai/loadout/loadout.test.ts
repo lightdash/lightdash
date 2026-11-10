@@ -75,6 +75,7 @@ const fullInput: LoadoutInput = {
     enableAiWriteback: true,
     enableRepoDiscovery: true,
     enableEditProjectContext: true,
+    isSemanticStudioThread: false,
     enableReadAttachments: true,
     customSkills: [],
     projectContextEnabled: true,
@@ -106,6 +107,7 @@ const minimalInput: LoadoutInput = {
     enableAiWriteback: false,
     enableRepoDiscovery: false,
     enableEditProjectContext: false,
+    isSemanticStudioThread: false,
     enableReadAttachments: false,
     customSkills: [],
     projectContextEnabled: false,
@@ -141,6 +143,7 @@ const deepResearch = (
 
 const inputs: Record<LoadoutBase, LoadoutInput> = {
     classic: fullInput,
+    semantic_studio: { ...fullInput, isSemanticStudioThread: true },
     composer: { ...fullInput, enableComposerQueries: true },
     no_data_access: {
         ...fullInput,

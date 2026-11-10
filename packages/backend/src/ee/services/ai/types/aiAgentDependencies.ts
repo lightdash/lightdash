@@ -44,6 +44,7 @@ import {
     ResultColumns,
     SavedChart,
     SchedulerAndTargets,
+    SemanticLayerDraftModelInput,
     SlackPrompt,
     SourceQuery,
     SourceQuerySubmission,
@@ -73,6 +74,7 @@ import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
 import type { DbAiPromptTurnDecision } from '../../../database/entities/ai';
 import type { DataAppRead } from '../../AiAgentToolsService/dataAppRead';
 import type { DataAppBuildStatusSource } from '../../AppGenerateService/AppGenerateService';
+import type { SemanticLayerDraftProposal } from '../../SemanticStudioService/SemanticStudioService';
 import { AiAgentSkill } from '../skills/types';
 import type {
     ApproveSqlFn,
@@ -975,6 +977,18 @@ export type GetDataAppBuildStatusFn = (args: {
 export type EditProjectContextFn = (
     entry: AiAgentJudgeProjectContextEntry,
 ) => Promise<{ prUrl: string; prAction: 'opened' | 'updated' }>;
+
+/** Checks a change on top of the person's draft and adds what passes to it. */
+export type ProposeSemanticLayerChangeFn = (
+    models: SemanticLayerDraftModelInput[],
+) => Promise<SemanticLayerDraftProposal>;
+
+/** The YAML of one model as the person's draft leaves it, and every model's name so a wrong name can be corrected. */
+export type ReadSemanticModelFn = (name: string) => Promise<{
+    content: string | null;
+    inDraft: boolean;
+    modelNames: string[];
+}>;
 
 /**
  * Run one read-only shell command (ls/cat/find/grep/head/wc) against a repo

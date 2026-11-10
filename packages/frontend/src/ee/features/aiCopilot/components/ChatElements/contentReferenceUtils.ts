@@ -71,6 +71,8 @@ export const getPromptContextItemKey = (
             return `review_finding:${item.fingerprint}`;
         case 'preview_environment':
             return `preview_environment:${item.previewProjectUuid}`;
+        case 'semantic_model':
+            return `semantic_model:${item.modelName}:${item.fieldName ?? ''}`;
         case 'data_app_element':
             return dataAppElementContextKey(item);
         case 'composer_node':
@@ -141,6 +143,10 @@ const getPromptContextItemLabel = (item: InlineReferenceItem) => {
             return item.title;
         case 'preview_environment':
             return item.projectName ?? 'Preview environment';
+        case 'semantic_model':
+            return item.fieldName
+                ? `${item.modelName}.${item.fieldName}`
+                : item.modelName;
         case 'data_app':
             return getDataAppContextItemName(item);
         case 'document':
@@ -200,6 +206,9 @@ export const getPromptContextItemHref = (
             );
         // A theme is an organization setting with no in-thread destination.
         case 'design':
+            return null;
+        // The sidebar already sits on the model's page.
+        case 'semantic_model':
             return null;
         // A skill invocation is shown as a chip, not a link.
         case 'skill':

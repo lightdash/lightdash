@@ -16,7 +16,9 @@ export const isAnalysisInvestigationThread = (
 /** Deep research builds its own tool set (raw SQL, trusted MCP), so it never runs on such a thread. */
 export const canStartDeepResearch = (
     threadCreatedFrom: AiThreadCreatedFrom,
-): boolean => !isAnalysisInvestigationThread(threadCreatedFrom);
+): boolean =>
+    !isAnalysisInvestigationThread(threadCreatedFrom) &&
+    threadCreatedFrom !== 'semantic_studio';
 
 export const resolveStandardToolAllowlist = (
     threadCreatedFrom: AiThreadCreatedFrom,

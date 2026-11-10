@@ -575,7 +575,9 @@ import {
     GetPromptFn,
     GetPullRequestDiffFn,
     ListWorkstreamsFn,
+    ProposeSemanticLayerChangeFn,
     ReadAttachmentsFn,
+    ReadSemanticModelFn,
     RecordMcpToolCallFn,
     RecordPromptDecisionFn,
     SendFileFn,
@@ -686,6 +688,7 @@ import { type ExternalConnectionService } from '../ExternalConnectionService/Ext
 import { type MobilePushNotificationService } from '../MobilePushNotificationService/MobilePushNotificationService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import { createReviewRemediationAgentWorkGuard } from '../reviewRemediationAgentWork';
+import { type SemanticStudioService } from '../SemanticStudioService/SemanticStudioService';
 import {
     parseAgentSelectionValue,
     resolveAgentSelectionPrompt,
@@ -1027,6 +1030,7 @@ type AiAgentServiceDependencies = {
     aiAgentContentValidation: AiAgentContentValidation;
     aiWritebackService: AiWritebackService;
     projectContextService: ProjectContextService;
+    semanticStudioService: SemanticStudioService;
     writebackPreviewService: WritebackPreviewService;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     githubAppService: GithubAppService;
@@ -1414,6 +1418,8 @@ export class AiAgentService extends BaseService {
 
     private readonly projectContextService: ProjectContextService;
 
+    private readonly semanticStudioService: SemanticStudioService;
+
     private readonly writebackPreviewService: WritebackPreviewService;
 
     private readonly aiAgentToolsService: AiAgentToolsService;
@@ -1596,6 +1602,9 @@ export class AiAgentService extends BaseService {
                     break;
                 case 'preview_environment':
                     key = `preview_environment:${item.previewProjectUuid}`;
+                    break;
+                case 'semantic_model':
+                    key = `semantic_model:${item.modelName}:${item.fieldName ?? ''}`;
                     break;
                 case 'data_app_element':
                     key = dataAppElementContextKey(item);
@@ -1879,7 +1888,8 @@ export class AiAgentService extends BaseService {
                 // beyond the agent's project membership the request already has.
                 if (
                     item.type === 'pull_request' ||
-                    item.type === 'preview_environment'
+                    item.type === 'preview_environment' ||
+                    item.type === 'semantic_model'
                 ) {
                     return;
                 }
@@ -2074,6 +2084,7 @@ export class AiAgentService extends BaseService {
         this.aiAgentContentValidation = dependencies.aiAgentContentValidation;
         this.aiWritebackService = dependencies.aiWritebackService;
         this.projectContextService = dependencies.projectContextService;
+        this.semanticStudioService = dependencies.semanticStudioService;
         this.writebackPreviewService = dependencies.writebackPreviewService;
         this.githubAppInstallationsModel =
             dependencies.githubAppInstallationsModel;
@@ -5394,6 +5405,25 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        if (body.createdFrom === 'semantic_studio') {
+            // Only the app starts these; an embed or scheduler keeps its own origin.
+            if (createdFrom !== 'web_app') {
+                throw new ParameterError(
+                    'A Semantic Studio thread can only be started from the app',
+                );
+            }
+            if (
+                !(await this.semanticStudioService.canEditModels(
+                    user,
+                    agent.projectUuid,
+                ))
+            ) {
+                throw new ForbiddenError(
+                    'You cannot change the semantic layer of this project',
+                );
+            }
+        }
+
         const context = body.prompt
             ? await this.validatePromptContextAccess(
                   user,
@@ -5444,7 +5474,7 @@ export class AiAgentService extends BaseService {
             organizationUuid,
             projectUuid: agent.projectUuid,
             userUuid: user.userUuid,
-            createdFrom,
+            createdFrom: body.createdFrom ?? createdFrom,
             agentUuid,
             embedSpaceUuids: runtimeOptions?.writeSpaceUuids,
             embedExternalUserId: runtimeOptions?.externalUserId ?? null,
@@ -12642,6 +12672,10 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                         : '';
                     return `- Review finding: "${item.title}" (${item.rootCause}, seen ${item.findingCount}×).${evidenceText}`;
                 }
+                case 'semantic_model':
+                    return item.fieldName
+                        ? `- The person has field "${item.fieldName}" of model "${item.modelName}" open.`
+                        : `- The person has model "${item.modelName}" open.`;
                 case 'preview_environment': {
                     const name = item.projectName
                         ? ` (${item.projectName})`
@@ -14780,6 +14814,23 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
 
         const discoverRepos: DiscoverReposFn = listAuthorizedRepos;
 
+        const proposeSemanticLayerChange: ProposeSemanticLayerChangeFn = (
+            models,
+        ) =>
+            this.semanticStudioService.proposeDraftChange(
+                user,
+                projectUuid,
+                models,
+                prompt.promptUuid,
+            );
+
+        const readSemanticModel: ReadSemanticModelFn = (name) =>
+            this.semanticStudioService.readDraftedModel(
+                user,
+                projectUuid,
+                name,
+            );
+
         // Deterministic project_context.yml writeback (no sandbox). Only wired
         // into review-remediation work threads; the source thread is linked
         // from the PR body so a reviewer can trace the entry.
@@ -14904,6 +14955,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             searchFieldValues: toolsRuntime.searchFieldValues,
             editDbtProject,
             editProjectContext,
+            proposeSemanticLayerChange,
+            readSemanticModel,
             exploreRepo,
             readAttachments,
             discoverRepos,
@@ -16520,9 +16573,13 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 const decisionUsage = decisionClient
                     ? { inputTokens: 0, outputTokens: 0, serviceMs: null }
                     : undefined;
-                const decisions = decisionUsage
-                    ? decisionClient?.withUsage(decisionUsage)
-                    : undefined;
+                const isSemanticStudioThread =
+                    prompt.threadCreatedFrom === 'semantic_studio';
+                // Fast decisions route analytics turns; this thread only edits models.
+                const decisions =
+                    decisionUsage && !isSemanticStudioThread
+                        ? decisionClient?.withUsage(decisionUsage)
+                        : undefined;
                 // The decision client is the master gate; battle mode and Fast mode can only disable it.
                 const fastExperienceEnabled = decisions !== undefined;
                 let forceChartMutationRouting = false;
@@ -17223,6 +17280,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     searchFieldValues,
                     editDbtProject,
                     editProjectContext,
+                    proposeSemanticLayerChange,
+                    readSemanticModel,
                     exploreRepo,
                     readAttachments,
                     discoverRepos,
@@ -17518,6 +17577,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     enableGenerateDataApp,
                     enableAiWriteback: aiWritebackEnabled,
                     enableEditProjectContext: isReviewRemediationWorkThread,
+                    isSemanticStudioThread,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,
@@ -17531,7 +17591,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     canCreateScheduledDeliveries,
                     autoApproveSql:
                         (options.autoApproveSql ?? false) ||
-                        agentSettings.enableSqlAutoApproval,
+                        agentSettings.enableSqlAutoApproval ||
+                        isSemanticStudioThread,
                     autoApproveSqlUserUuid: options.autoApproveSql
                         ? user.userUuid
                         : null,
@@ -17730,6 +17791,8 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     searchFieldValues,
                     editDbtProject,
                     editProjectContext,
+                    proposeSemanticLayerChange,
+                    readSemanticModel,
                     exploreRepo,
                     readAttachments,
                     discoverRepos,
@@ -19604,6 +19667,10 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 case 'getPullRequestDiff':
                 case 'listWorkstreams':
                     return 'Inspecting the project files...';
+                case 'proposeSemanticLayerChange':
+                    return 'Checking the change...';
+                case 'readSemanticModel':
+                    return 'Reading the model...';
                 case 'closePullRequest':
                 case 'editContent':
                 case 'createContent':

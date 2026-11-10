@@ -53,6 +53,7 @@ const loadoutBaseNames: Record<AiAgentLoadoutBase, string> = {
     no_data_access: 'No data access',
     deep_research_worker: 'Deep research',
     deep_research_coordinator: 'Deep research',
+    semantic_studio: 'Semantic Studio',
 };
 
 // The ticker and stream updates stay here so they never re-render the chat.

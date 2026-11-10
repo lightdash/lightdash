@@ -22,6 +22,7 @@ export * from './toolListDataAppConnectionsArgs';
 export * from './toolCreateCustomChartTypeArgs';
 export * from './toolIterateCustomChartTypeArgs';
 export * from './toolEditProjectContextArgs';
+export * from './toolSemanticStudioArgs';
 export * from './toolEditRepoArgs';
 export * from './toolSyncDbtProjectArgs';
 export * from './toolExploreRepoArgs';

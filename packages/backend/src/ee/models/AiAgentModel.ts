@@ -8013,6 +8013,16 @@ export class AiAgentModel {
                         } satisfies AiPromptSkillSnapshot,
                     };
                 }
+                case 'semantic_model':
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type:
+                            'semantic_model' as AiPromptContextEntityType,
+                        entity_uuid: null,
+                        entity_ref: ctx.modelName,
+                        // The field's name, kept here because the row has no column of its own for it.
+                        display_name: ctx.fieldName,
+                    };
                 case 'design':
                     return {
                         ai_prompt_uuid: promptUuid,
@@ -8551,6 +8561,17 @@ export class AiAgentModel {
                     isPersonal: app !== undefined && app.spaceUuid === null,
                 };
             }
+            case 'semantic_model':
+                if (row.entity_ref === null) {
+                    throw new Error(
+                        `ai_prompt_context row ${row.ai_prompt_context_uuid} of type 'semantic_model' is missing entity_ref`,
+                    );
+                }
+                return {
+                    type: 'semantic_model',
+                    modelName: row.entity_ref,
+                    fieldName: row.display_name,
+                };
             case 'design': {
                 const designUuid = requireEntityUuid();
                 const design = designDataByUuid.get(designUuid);

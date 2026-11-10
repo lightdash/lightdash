@@ -25750,6 +25750,8 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "listDataAppConnections",
   "editDbtProject",
   "editProjectContext",
+  "proposeSemanticLayerChange",
+  "readSemanticModel",
   "syncDbtProject",
   "exploreRepo",
   "discoverRepos",

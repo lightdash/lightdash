@@ -73,6 +73,8 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
             listDataAppConnections: IconPlugConnected,
             editDbtProject: IconPencil,
             editProjectContext: IconVocabulary,
+            proposeSemanticLayerChange: IconPencil,
+            readSemanticModel: IconTerminal2,
             editRepo: IconPencil,
             updateUserName: IconUserEdit,
             syncDbtProject: IconRefresh,
