@@ -24,7 +24,7 @@ import {
     IconCode,
     IconEye,
     IconFileCode,
-    IconLayoutSidebarLeftExpand,
+    IconLayoutSidebarRightExpand,
     IconSearch,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -1015,30 +1015,13 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                 gap="sm"
                             >
                                 {chat.isAvailable ? (
-                                    <Group gap={4} wrap="nowrap" flex="none">
-                                        {isChatOpen ? null : (
-                                            <Tooltip label="Show chat">
-                                                <ActionIcon
-                                                    aria-label="Show chat"
-                                                    onClick={() =>
-                                                        setIsChatOpen(true)
-                                                    }
-                                                >
-                                                    <MantineIcon
-                                                        icon={
-                                                            IconLayoutSidebarLeftExpand
-                                                        }
-                                                    />
-                                                </ActionIcon>
-                                            </Tooltip>
-                                        )}
-                                        <SegmentedControl
-                                            size="xs"
-                                            value={isCode ? 'code' : 'preview'}
-                                            onChange={switchView}
-                                            data={VIEW_OPTIONS}
-                                        />
-                                    </Group>
+                                    <SegmentedControl
+                                        size="xs"
+                                        flex="none"
+                                        value={isCode ? 'code' : 'preview'}
+                                        onChange={switchView}
+                                        data={VIEW_OPTIONS}
+                                    />
                                 ) : null}
                                 <Group gap="xs" wrap="nowrap" miw={0} ml="auto">
                                     {isBuildingFirstModel ? null : (
@@ -1049,6 +1032,22 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                     {pane === 'review' ? null : (
                                         <AddSourceButton view={view} />
                                     )}
+                                    {chat.isAvailable && !isChatOpen ? (
+                                        <Tooltip label="Show chat">
+                                            <ActionIcon
+                                                aria-label="Show chat"
+                                                onClick={() =>
+                                                    setIsChatOpen(true)
+                                                }
+                                            >
+                                                <MantineIcon
+                                                    icon={
+                                                        IconLayoutSidebarRightExpand
+                                                    }
+                                                />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                    ) : null}
                                 </Group>
                             </Group>
                         )}
