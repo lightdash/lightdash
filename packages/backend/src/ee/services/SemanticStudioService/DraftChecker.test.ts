@@ -1,7 +1,9 @@
 import {
     DimensionType,
     isExploreError,
+    WarehouseTableType,
     WarehouseTypes,
+    type WarehouseTablesCatalog,
 } from '@lightdash/common';
 import { user } from '../../../services/ProjectService/ProjectService.mock';
 import { DraftChecker, usesAnyModel } from './DraftChecker';
@@ -41,7 +43,10 @@ const warehouse: {
     keyRow: Record<string, number>;
     /** Set to make every key check fail, as a budget or a timeout would. */
     keyError: string | null;
-} = { queries: [], keyRow: {}, keyError: null };
+    /** What the warehouse's metadata says a table holds; null when it has no answer. */
+    rowCount: number | null;
+    catalog: WarehouseTablesCatalog;
+} = { queries: [], keyRow: {}, keyError: null, rowCount: null, catalog: {} };
 
 const checker = () =>
     new DraftChecker({
@@ -53,6 +58,14 @@ const checker = () =>
         }),
         runSqlQuery: async (_user, _projectUuid, sql) => {
             warehouse.queries.push(sql);
+            if (sql.includes('row_count')) {
+                return {
+                    fields: {},
+                    rows: warehouse.rowCount
+                        ? [{ row_count: warehouse.rowCount }]
+                        : [],
+                };
+            }
             if (warehouse.keyError && sql.includes('duplicate_keys')) {
                 throw new Error(warehouse.keyError);
             }
@@ -61,6 +74,7 @@ const checker = () =>
                 rows: sql.includes('duplicate_keys') ? [warehouse.keyRow] : [],
             };
         },
+        getWarehouseTables: async () => warehouse.catalog,
         compileQuery: async () => ({ query: '', compilationErrors: [] }),
     });
 
@@ -71,6 +85,8 @@ describe('DraftChecker.compile', () => {
         warehouse.queries = [];
         warehouse.keyRow = {};
         warehouse.keyError = null;
+        warehouse.rowCount = null;
+        warehouse.catalog = {};
     });
 
     test('the same documents compile once, and each caller gets its own copy', async () => {
@@ -257,8 +273,52 @@ describe('DraftChecker.compile', () => {
             expect(rejected.size).toBe(0);
             expect(writes.get('orders')).not.toContain('relationship:');
             expect(notes.get('orders')).toEqual([
-                'The join to customers could not be measured on the warehouse, so its relationship is not set. Set it yourself before applying. The warehouse said: Query exceeded limit for bytes billed',
+                'The join to customers was not measured on the warehouse, so its relationship is not set. Set it yourself before applying. The warehouse said: Query exceeded limit for bytes billed',
             ]);
+        });
+
+        test('are skipped for a table the warehouse says is over the cap', async () => {
+            const table = { tableType: WarehouseTableType.TABLE };
+            warehouse.catalog = {
+                shop: { public: { orders: table, customers: table } },
+            };
+            warehouse.rowCount = 5_000_000;
+            const { rejected, notes, writes } = await checker().check(
+                user,
+                'project',
+                new Map(),
+                proposed(),
+            );
+            expect(rejected.size).toBe(0);
+            expect(keyChecks()).toHaveLength(0);
+            expect(writes.get('orders')).not.toContain('relationship:');
+            expect(notes.get('orders')?.[0]).toContain(
+                'has about 5,000,000 rows, more than a check reads.',
+            );
+        });
+
+        test('set many-to-one without reading a large model whose joined table is unique', async () => {
+            const table = { tableType: WarehouseTableType.TABLE };
+            // Only orders is in the catalog, so only orders is known to be large.
+            warehouse.catalog = { shop: { public: { orders: table } } };
+            warehouse.rowCount = 5_000_000;
+            const { notes, writes } = await checker().check(
+                user,
+                'project',
+                new Map(),
+                proposed(),
+            );
+            expect(keyChecks()).toHaveLength(1);
+            expect(writes.get('orders')).toContain('relationship: many-to-one');
+            expect(notes.get('orders')?.[0]).toContain(
+                "is set as many-to-one because customers is unique on its key; this model's side was not read.",
+            );
+        });
+
+        test('still read a table the catalog does not know', async () => {
+            warehouse.rowCount = 5_000_000;
+            await checker().check(user, 'project', new Map(), proposed());
+            expect(keyChecks()).toHaveLength(2);
         });
 
         test('are not repeated when the same draft is checked again', async () => {

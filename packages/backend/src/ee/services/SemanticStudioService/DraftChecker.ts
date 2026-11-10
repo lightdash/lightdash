@@ -23,10 +23,15 @@ import { type ProjectService } from '../../../services/ProjectService/ProjectSer
 import { type WarehouseSqlBuilderSettings } from '../../../services/ProjectService/warehouseSqlBuilderSettings';
 import { toModelPath, withWrites } from './draftFold';
 import { findChangedFields } from './draftLint';
+import {
+    findCatalogTable,
+    getRowCountSql,
+    parseTableReference,
+} from './tableSize';
 
 export type DraftCheckerProjectService = Pick<
     ProjectService,
-    'getWarehouseSqlBuilderSettings' | 'runSqlQuery'
+    'getWarehouseSqlBuilderSettings' | 'runSqlQuery' | 'getWarehouseTables'
 > & {
     compileQuery: (args: {
         account: Account;
@@ -51,11 +56,14 @@ export type DraftCheck = {
 };
 
 /** How unique a key is, as far as the rows that were read say. */
-type KeyCheck = {
+type KeyRead = {
     duplicates: number;
     /** False when the table has more rows than were read, so no duplicates is an estimate. */
     isWholeTable: boolean;
 };
+
+/** A key that was read, or the size of a table known to be too large to read. */
+type KeyCheck = KeyRead | { tooLargeRows: number };
 
 // Computed over the result set, so they cannot be selected on their own.
 const POST_CALCULATION_METRICS = new Set<MetricType>([
@@ -336,15 +344,85 @@ export class DraftChecker {
         const memoKey = [projectUuid, table.sqlTable, ...keys].join('|');
         const kept = this.keyChecks.get(memoKey);
         if (kept && Date.now() - kept.at < KEY_CHECK_TTL_MS) return kept.check;
+        const check = this.findRowCount(user, projectUuid, table.sqlTable).then(
+            (rowCount): Promise<KeyCheck> | KeyCheck =>
+                rowCount !== null && rowCount > MAX_KEY_CHECK_ROWS
+                    ? { tooLargeRows: rowCount }
+                    : this.readKey(user, projectUuid, table.sqlTable, {
+                          alias: `${quote}${tableName}${quote}`,
+                          keys,
+                      }),
+        );
+        this.keyChecks.set(memoKey, { at: Date.now(), check });
+        if (this.keyChecks.size > MAX_KEPT_KEY_CHECKS) {
+            const [oldest] = this.keyChecks.keys();
+            this.keyChecks.delete(oldest);
+        }
+        check.catch(() => this.keyChecks.delete(memoKey));
+        return check;
+    }
+
+    /** A table's approximate row count from the warehouse's own metadata, which scans nothing; null when it is not known. */
+    private async findRowCount(
+        user: SessionUser,
+        projectUuid: string,
+        sqlTable: string,
+    ): Promise<number | null> {
+        try {
+            const reference = parseTableReference(sqlTable);
+            if (!reference) return null;
+            const table = findCatalogTable(
+                await this.projectService.getWarehouseTables(user, projectUuid),
+                reference,
+            );
+            if (!table) return null;
+            const settings =
+                await this.projectService.getWarehouseSqlBuilderSettings(
+                    projectUuid,
+                    { kind: 'original' },
+                );
+            const builder = warehouseSqlBuilderFromType(
+                settings.type,
+                settings.startOfWeek,
+            );
+            const stringQuote = builder.getStringQuoteChar();
+            const sql = getRowCountSql(
+                settings.type,
+                table,
+                (value) =>
+                    `${stringQuote}${builder.escapeString(value)}${stringQuote}`,
+            );
+            if (!sql) return null;
+            const { rows } = await this.projectService.runSqlQuery(
+                user,
+                projectUuid,
+                sql,
+                { kind: 'original' },
+            );
+            const [value] = Object.values(rows[0] ?? {});
+            const rowCount = Number(value);
+            // Zero or less is what a warehouse reports for a view or a table it has no statistics for.
+            return Number.isFinite(rowCount) && rowCount > 0 ? rowCount : null;
+        } catch {
+            return null;
+        }
+    }
+
+    private async readKey(
+        user: SessionUser,
+        projectUuid: string,
+        sqlTable: string,
+        { alias, keys }: { alias: string; keys: string[] },
+    ): Promise<KeyRead> {
         const aliases = keys.map((_key, index) => `k${index}`);
-        const check = this.projectService
+        return this.projectService
             .runSqlQuery(
                 user,
                 projectUuid,
                 `SELECT COALESCE(SUM(CASE WHEN key_rows > 1 THEN 1 ELSE 0 END), 0) AS duplicate_keys, COALESCE(SUM(key_rows), 0) AS checked_rows FROM (
 SELECT COUNT(*) AS key_rows FROM (
 SELECT ${keys.map((key, index) => `${key} AS ${aliases[index]}`).join(', ')}
-FROM ${table.sqlTable} AS ${quote}${tableName}${quote}
+FROM ${sqlTable} AS ${alias}
 WHERE ${keys.map((key) => `${key} IS NOT NULL`).join(' AND ')}
 LIMIT ${MAX_KEY_CHECK_ROWS}
 ) AS read_rows
@@ -352,7 +430,7 @@ GROUP BY ${aliases.join(', ')}
 ) AS counted`,
                 { kind: 'original' },
             )
-            .then(({ rows }): KeyCheck => {
+            .then(({ rows }): KeyRead => {
                 // Some warehouses fold an unquoted alias to upper case.
                 const row = new Map(
                     Object.entries(rows[0] ?? {}).map(([column, value]) => [
@@ -366,13 +444,6 @@ GROUP BY ${aliases.join(', ')}
                         (row.get('checked_rows') ?? 0) < MAX_KEY_CHECK_ROWS,
                 };
             });
-        this.keyChecks.set(memoKey, { at: Date.now(), check });
-        if (this.keyChecks.size > MAX_KEPT_KEY_CHECKS) {
-            const [oldest] = this.keyChecks.keys();
-            this.keyChecks.delete(oldest);
-        }
-        check.catch(() => this.keyChecks.delete(memoKey));
-        return check;
     }
 
     /** Checks a model's new primary key on the warehouse, and measures what each new join does to row counts. */
@@ -389,21 +460,21 @@ GROUP BY ${aliases.join(', ')}
     > {
         const relationships = new Map<string, JoinRelationship>();
         const notes: string[] = [];
-        const isEstimate = ({ duplicates, isWholeTable }: KeyCheck) =>
+        const isEstimate = ({ duplicates, isWholeTable }: KeyRead) =>
             duplicates === 0 && !isWholeTable;
         const model = parseModelDocument(contents, toModelPath(explore.name));
         const stored =
             storedContents === null
                 ? null
                 : parseModelDocument(storedContents, toModelPath(explore.name));
-        // The model already ran on the warehouse, so a key check that fails here hit a budget, a timeout or a type that cannot be grouped: not a reason to refuse the model.
-        const failures: string[] = [];
+        // The model already ran on the warehouse, so a key that goes unread is too large to read, or hit a budget, a timeout or a type that cannot be grouped: not a reason to refuse the model.
+        const unread: string[] = [];
         const checkKey = async (
             table: string,
             dimensions: string[],
-        ): Promise<KeyCheck | null> => {
+        ): Promise<KeyRead | null> => {
             try {
-                return await this.checkKey(
+                const check = await this.checkKey(
                     user,
                     projectUuid,
                     explore,
@@ -411,15 +482,18 @@ GROUP BY ${aliases.join(', ')}
                     dimensions,
                     quote,
                 );
+                if (!('tooLargeRows' in check)) return check;
+                unread.push(
+                    `${table} has about ${check.tooLargeRows.toLocaleString('en-US')} rows, more than a check reads.`,
+                );
             } catch (error) {
-                failures.push(getErrorMessage(error));
-                return null;
+                unread.push(
+                    `The warehouse said: ${getErrorMessage(error).slice(0, 200)}`,
+                );
             }
+            return null;
         };
-        const whyUnchecked = () =>
-            failures[0]
-                ? ` The warehouse said: ${failures[0].slice(0, 200)}`
-                : '';
+        const whyUnread = () => (unread[0] ? ` ${unread[0]}` : '');
         const measureJoin = async ({
             alias,
             join,
@@ -434,6 +508,7 @@ GROUP BY ${aliases.join(', ')}
             error: string | null;
             isEstimate: boolean;
             isUnchecked: boolean;
+            isAssumed: boolean;
         } | null> => {
             const on = SIMPLE_JOIN.exec(sqlOn);
             if (!on) return null;
@@ -459,16 +534,19 @@ GROUP BY ${aliases.join(', ')}
                 checkKey(local.table, [local.field]),
                 checkKey(other.table, [other.field]),
             ]);
-            if (!localKey || !otherKey) {
+            // A joined table that is unique on its key cannot multiply this model's rows, whatever this model holds, so many-to-one is safe to assume without reading it.
+            const isAssumed = !localKey && otherKey?.duplicates === 0;
+            if (!otherKey || (!localKey && !isAssumed)) {
                 return {
                     joined,
                     relationship: null,
                     error: null,
                     isEstimate: false,
                     isUnchecked: true,
+                    isAssumed: false,
                 };
             }
-            const localIsUnique = localKey.duplicates === 0;
+            const localIsUnique = localKey?.duplicates === 0;
             const otherIsUnique = otherKey.duplicates === 0;
             if (!localIsUnique && !otherIsUnique) {
                 return {
@@ -476,6 +554,7 @@ GROUP BY ${aliases.join(', ')}
                     relationship: null,
                     isEstimate: false,
                     isUnchecked: false,
+                    isAssumed: false,
                     error: `The join to ${joined} is many-to-many on ${local.field} and ${other.field}, so it would multiply rows on both sides. Leave it out, or join through a table where one side is unique.`,
                 };
             }
@@ -489,6 +568,7 @@ GROUP BY ${aliases.join(', ')}
                     relationship: null,
                     isEstimate: false,
                     isUnchecked: false,
+                    isAssumed: false,
                     error: `The join to ${joined} is one-to-many, so it multiplies rows of ${local.table}, and its metrics are only protected from that with a primary_key. Set primary_key on ${local.table}, or define this from ${joined} instead.`,
                 };
             }
@@ -497,8 +577,11 @@ GROUP BY ${aliases.join(', ')}
                 relationship: toRelationship(localIsUnique, otherIsUnique),
                 error: null,
                 // A duplicate that was found is certain; none found in part of a table is not.
-                isEstimate: isEstimate(localKey) || isEstimate(otherKey),
+                isEstimate:
+                    (localKey !== null && isEstimate(localKey)) ||
+                    isEstimate(otherKey),
                 isUnchecked: false,
+                isAssumed,
             };
         };
         try {
@@ -510,7 +593,7 @@ GROUP BY ${aliases.join(', ')}
                 const key = await checkKey(explore.baseTable, primaryKey);
                 if (!key) {
                     notes.push(
-                        `primary_key ${primaryKey.join(', ')} could not be checked on the warehouse, so confirm it identifies one row.${whyUnchecked()}`,
+                        `primary_key ${primaryKey.join(', ')} was not checked on the warehouse, so confirm it identifies one row.${whyUnread()}`,
                     );
                 } else if (key.duplicates > 0) {
                     return {
@@ -545,11 +628,16 @@ GROUP BY ${aliases.join(', ')}
             measured.forEach((join) => {
                 if (join?.isUnchecked) {
                     notes.push(
-                        `The join to ${join.joined} could not be measured on the warehouse, so its relationship is not set. Set it yourself before applying.${whyUnchecked()}`,
+                        `The join to ${join.joined} was not measured on the warehouse, so its relationship is not set. Set it yourself before applying.${whyUnread()}`,
                     );
                 }
                 if (!join?.relationship) return;
                 relationships.set(join.joined, join.relationship);
+                if (join.isAssumed) {
+                    notes.push(
+                        `The join to ${join.joined} is set as ${join.relationship} because ${join.joined} is unique on its key; this model's side was not read.${whyUnread()}`,
+                    );
+                }
                 if (join.isEstimate) {
                     notes.push(
                         `The join to ${join.joined} was measured on the first ${MAX_KEY_CHECK_ROWS.toLocaleString('en-US')} rows only, so its ${join.relationship} relationship is an estimate. Confirm it before applying.`,

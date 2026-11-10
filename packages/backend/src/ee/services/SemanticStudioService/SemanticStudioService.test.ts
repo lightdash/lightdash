@@ -303,6 +303,7 @@ const setup = ({
                 columnTimezone: 'UTC',
                 dataTimezone: null,
             }),
+            getWarehouseTables: async () => ({}),
             compileQuery,
             runSqlQuery,
             setExplores,
