@@ -1,4 +1,4 @@
-import { SEMANTIC_STUDIO_MODEL_TIERS } from '../../SemanticStudioService/modelPreference';
+import { SEMANTIC_STUDIO_MODEL_TIER } from '../../SemanticStudioService/modelPreference';
 import { findPreferredPreset, getOrgModelCatalogue } from './index';
 import { MODEL_PRESETS } from './presets';
 
@@ -17,12 +17,12 @@ describe('findPreferredPreset', () => {
         ...MODEL_PRESETS.google,
     ]);
     const prefer = (provider: string) =>
-        findPreferredPreset(everything, provider, SEMANTIC_STUDIO_MODEL_TIERS);
+        findPreferredPreset(everything, provider, SEMANTIC_STUDIO_MODEL_TIER);
 
-    it('prefers the tier Semantic Studio asks for on each provider it has a view on', () => {
-        expect(prefer('anthropic')?.tier).toBe('frontier');
-        expect(prefer('bedrock')?.tier).toBe('frontier');
-        expect(prefer('openai')?.tier).toBe('balanced');
+    it('prefers the frontier preset of each provider that has one', () => {
+        expect(prefer('anthropic')?.name).toBe('claude-opus-5-5');
+        expect(prefer('bedrock')?.name).toBe('claude-opus-5-5');
+        expect(prefer('openai')?.name).toBe('gpt-6.1-sol');
     });
 
     it('never prefers a deprecated preset', () => {
@@ -33,16 +33,16 @@ describe('findPreferredPreset', () => {
 
     it('takes the first preset of a tier, which is the latest', () => {
         const [older] = MODEL_PRESETS.openai.filter(
-            ({ tier }) => tier === 'balanced',
+            ({ tier }) => tier === 'frontier',
         );
-        const newer = { ...older, name: 'a-newer-balanced-model' };
+        const newer = { ...older, name: 'a-newer-frontier-model' };
         expect(
             findPreferredPreset(
                 catalogueOf([newer, older]),
                 'openai',
-                SEMANTIC_STUDIO_MODEL_TIERS,
+                SEMANTIC_STUDIO_MODEL_TIER,
             )?.name,
-        ).toBe('a-newer-balanced-model');
+        ).toBe('a-newer-frontier-model');
     });
 
     it('has no preference for a provider without one, or when the org is not offered the preset', () => {
@@ -52,7 +52,7 @@ describe('findPreferredPreset', () => {
             findPreferredPreset(
                 catalogueOf(MODEL_PRESETS.google),
                 'anthropic',
-                SEMANTIC_STUDIO_MODEL_TIERS,
+                SEMANTIC_STUDIO_MODEL_TIER,
             ),
         ).toBeNull();
     });

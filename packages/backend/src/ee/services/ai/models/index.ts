@@ -396,23 +396,18 @@ export const reconcileInheritedModelConfig = (
     };
 };
 
-/** The latest preset of the tier wanted for a provider, among those the org is offered; null when the provider has no such preset. */
+/** A provider's latest preset of a tier, among those the org is offered; null when it has none. */
 export const findPreferredPreset = (
     catalogue: ModelCatalogue,
     provider: string,
-    tiers: Partial<Record<string, ModelTier>>,
-): ModelPreset<SelectableModelProvider> | null => {
-    const tier = tiers[provider];
-    if (!tier) return null;
-    return (
-        catalogue.offeredPresets.find(
-            (preset) =>
-                preset.provider === provider &&
-                preset.tier === tier &&
-                !preset.deprecated,
-        ) ?? null
-    );
-};
+    tier: ModelTier,
+): ModelPreset<SelectableModelProvider> | null =>
+    catalogue.offeredPresets.find(
+        (preset) =>
+            preset.provider === provider &&
+            preset.tier === tier &&
+            !preset.deprecated,
+    ) ?? null;
 
 // The returned config is what gets recorded on the prompt, so the swap must
 // happen before the prompt is stored.

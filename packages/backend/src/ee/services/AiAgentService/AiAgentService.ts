@@ -690,7 +690,7 @@ import { type ExternalConnectionService } from '../ExternalConnectionService/Ext
 import { type MobilePushNotificationService } from '../MobilePushNotificationService/MobilePushNotificationService';
 import { ProjectContextService } from '../ProjectContextService/ProjectContextService';
 import { createReviewRemediationAgentWorkGuard } from '../reviewRemediationAgentWork';
-import { SEMANTIC_STUDIO_MODEL_TIERS } from '../SemanticStudioService/modelPreference';
+import { SEMANTIC_STUDIO_MODEL_TIER } from '../SemanticStudioService/modelPreference';
 import { type SemanticStudioService } from '../SemanticStudioService/SemanticStudioService';
 import {
     parseAgentSelectionValue,
@@ -1474,7 +1474,7 @@ export class AiAgentService extends BaseService {
         threadModelConfig,
         agentModelConfig,
         requestedModelConfig,
-        preferredTiers,
+        preferredTier,
     }: {
         organizationUuid: string;
         projectUuid: string;
@@ -1482,8 +1482,8 @@ export class AiAgentService extends BaseService {
         threadModelConfig: AiAgentModelConfig | null;
         agentModelConfig: AiAgentModelConfig | null;
         requestedModelConfig: AiAgentModelConfig | null;
-        /** Which tier to prefer per provider when nobody chose a model; null to take the default. */
-        preferredTiers: Partial<Record<string, ModelTier>> | null;
+        /** The tier to prefer when nobody chose a model; null to take the default. */
+        preferredTier: ModelTier | null;
     }): Promise<AiAgentModelConfig | null> {
         if (threadModelConfig) return threadModelConfig;
         const pickedModelConfig = requestedModelConfig ?? agentModelConfig;
@@ -1492,7 +1492,7 @@ export class AiAgentService extends BaseService {
             (await this.aiOrganizationSettingsService.getDefaultModelConfig(
                 organizationUuid,
             ));
-        if (!modelConfig && !preferredTiers) return null;
+        if (!modelConfig && !preferredTier) return null;
         const { catalogue, copilotConfig } =
             await this.orgAiCopilotConfigResolver.getOrgModelCatalogue({
                 organizationUuid,
@@ -1514,8 +1514,8 @@ export class AiAgentService extends BaseService {
             inherited?.modelProvider ??
             getDefaultModel(copilotConfig)?.provider;
         const preferred =
-            preferredTiers && provider
-                ? findPreferredPreset(catalogue, provider, preferredTiers)
+            preferredTier && provider
+                ? findPreferredPreset(catalogue, provider, preferredTier)
                 : null;
         if (!preferred) return inherited;
         this.logger.info(
@@ -5516,9 +5516,9 @@ export class AiAgentService extends BaseService {
             threadModelConfig: null,
             agentModelConfig: agent.modelConfig,
             requestedModelConfig: body.modelConfig ?? null,
-            preferredTiers:
+            preferredTier:
                 body.createdFrom === 'semantic_studio'
-                    ? SEMANTIC_STUDIO_MODEL_TIERS
+                    ? SEMANTIC_STUDIO_MODEL_TIER
                     : null,
         });
 
@@ -5746,9 +5746,9 @@ export class AiAgentService extends BaseService {
                 await this.aiAgentModel.findThreadModelConfig(threadUuid),
             agentModelConfig: agent.modelConfig,
             requestedModelConfig: body.modelConfig ?? null,
-            preferredTiers:
+            preferredTier:
                 thread.createdFrom === 'semantic_studio'
-                    ? SEMANTIC_STUDIO_MODEL_TIERS
+                    ? SEMANTIC_STUDIO_MODEL_TIER
                     : null,
         });
 
@@ -18451,7 +18451,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 : null,
             agentModelConfig: agent?.modelConfig ?? null,
             requestedModelConfig: data.modelConfig ?? null,
-            preferredTiers: null,
+            preferredTier: null,
         });
 
         if (!threadUuid) {
