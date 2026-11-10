@@ -79,7 +79,7 @@ const tileTypeName = (type: DashboardTileTypes): string => {
     }
 };
 
-export const getTileLabel = (tile: Tile): string => {
+const getTileLabel = (tile: Tile): string => {
     const { properties } = tile;
     if (properties.title) return properties.title;
     if ('chartName' in properties && properties.chartName) {
