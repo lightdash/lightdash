@@ -439,34 +439,10 @@ describe('LiveActivityCard step status', () => {
         },
     ];
 
-    it('flags failed steps in the finished summary header', () => {
+    it('counts a failed step like any other in the finished summary header', () => {
         renderWithProviders(
             <LiveActivityCard
                 isLive={false}
-                toolGroups={sqlGroup({})}
-                toolResults={[
-                    {
-                        uuid: 'result-1',
-                        promptUuid: 'prompt-1',
-                        createdAt: new Date(),
-                        toolCallId: 'sql-call',
-                        toolType: 'built-in',
-                        toolName: 'runSql',
-                        result: 'Bad SQL',
-                        metadata: { status: 'error' },
-                    },
-                ]}
-            />,
-        );
-        expect(screen.getByText('1 step failed')).toBeInTheDocument();
-        expect(screen.queryByText('1 step')).not.toBeInTheDocument();
-    });
-
-    it('leaves the failure to the summary below when one carries the error', () => {
-        renderWithProviders(
-            <LiveActivityCard
-                isLive={false}
-                isFailureSummarized
                 toolGroups={sqlGroup({})}
                 toolResults={[
                     {
@@ -484,6 +460,23 @@ describe('LiveActivityCard step status', () => {
         );
         expect(screen.queryByText('1 step failed')).not.toBeInTheDocument();
         expect(screen.getByText('1 step')).toBeInTheDocument();
+    });
+
+    it('keeps working on a failed latest step while the agent recovers', () => {
+        renderWithProviders(
+            <LiveActivityCard
+                isLive
+                toolGroups={sqlGroup({
+                    toolOutput: {
+                        result: 'Bad SQL',
+                        metadata: { status: 'error' },
+                    },
+                    isPreliminary: false,
+                })}
+            />,
+        );
+        expect(screen.getByText('Running SQL query')).toBeInTheDocument();
+        expect(screen.queryByText('Failed')).not.toBeInTheDocument();
     });
 
     it('counts a single finished step like any other turn', () => {

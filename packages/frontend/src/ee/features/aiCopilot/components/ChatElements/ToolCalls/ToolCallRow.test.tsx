@@ -71,7 +71,7 @@ describe.each([
     });
 
     it('keeps the pipeline card when the run failed', () => {
-        renderRow({ status: 'error', toolResults: [result('error')] });
+        renderRow({ status: 'done', toolResults: [result('error')] });
         expect(screen.getByRole('button', { expanded: false })).toBeVisible();
     });
 
@@ -105,7 +105,7 @@ describe.each([
 });
 
 describe('ToolCallRow failure', () => {
-    it('shows the failed status and error message for a failed SQL run', () => {
+    it('reads a failed step like a finished one, since the agent recovers', () => {
         renderWithProviders(
             <ToolCallRow
                 toolName="runSql"
@@ -131,10 +131,13 @@ describe('ToolCallRow failure', () => {
             />,
         );
 
-        expect(screen.getByRole('button', { name: /failed/i })).toBeVisible();
         expect(
-            screen.getByText('relation "marketing.ad_spend" does not exist'),
+            screen.getByRole('button', { name: /ran sql query/i }),
         ).toBeVisible();
+        expect(screen.queryByText(/failed/i)).not.toBeInTheDocument();
+        expect(
+            screen.queryByText('relation "marketing.ad_spend" does not exist'),
+        ).not.toBeInTheDocument();
     });
 });
 

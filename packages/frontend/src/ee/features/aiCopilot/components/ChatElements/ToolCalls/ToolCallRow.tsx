@@ -1,5 +1,4 @@
 import {
-    interpolateUiString,
     type AiAgentToolResult,
     type AiAgentToolName,
     type AiMcpServer,
@@ -14,10 +13,9 @@ import {
     Tooltip,
     UnstyledButton,
 } from '@mantine/core';
-import { IconAlertCircle, IconChevronRight } from '@tabler/icons-react';
+import { IconChevronRight } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { ToolCallChip } from './ToolCallChip';
 import styles from './ToolCallRow.module.css';
@@ -29,7 +27,6 @@ import {
     getMcpToolDisplayMetadata,
     getMcpToolDisplayName,
 } from './utils/mcpToolDisplay';
-import { getStepListFailures } from './utils/toolCallFailure';
 import { type ToolCallGroupDisplay } from './utils/toolCallGrouping';
 import { isToolWithoutDescription } from './utils/toolsWithoutDescription';
 import { type ToolCallSummary } from './utils/types';
@@ -37,7 +34,7 @@ import { type ToolCallSummary } from './utils/types';
 // Max chips shown inline when collapsed before "+N more".
 const MAX_CHIPS_COLLAPSED = 3;
 
-export type ToolCallRowStatus = 'running' | 'done' | 'error';
+export type ToolCallRowStatus = 'running' | 'done';
 
 type Props = {
     toolName: AiAgentToolName;
@@ -63,7 +60,6 @@ export const ToolCallRow: FC<Props> = ({
     toolResults,
     display,
 }) => {
-    const getUiString = useUiStrings();
     const builtInToolName = isToolName(toolName) ? toolName : null;
     const linkedMcpServer =
         toolCalls.find((toolCall) => toolCall.mcpServer)?.mcpServer ??
@@ -82,7 +78,7 @@ export const ToolCallRow: FC<Props> = ({
               toolName: builtInToolName,
               calls: toolCalls,
               display,
-              status: status === 'running' ? 'running' : 'done',
+              status,
           })
         : null;
     const hasCallDescription = (toolCall: ToolCallSummary) =>
@@ -92,15 +88,6 @@ export const ToolCallRow: FC<Props> = ({
         toolCalls.some(hasCallDescription) || Boolean(extraBody);
     const isGrouped = toolCalls.length > 1;
     const [expanded, setExpanded] = useState(false);
-    const failures = getStepListFailures(toolCalls, toolResults);
-    const effectiveStatus: ToolCallRowStatus =
-        failures.length > 0 ? 'error' : status;
-    const failureLabel = isGrouped
-        ? interpolateUiString(getUiString('aiAgent.activity.partlyFailed'), {
-              failed: failures.length,
-              total: toolCalls.length,
-          })
-        : getUiString('aiAgent.activity.failed');
 
     const chipLabels: (string | null)[] = toolCalls.map((tc) =>
         isToolName(tc.toolName)
@@ -140,26 +127,15 @@ export const ToolCallRow: FC<Props> = ({
 
     const head = (
         <Group gap={8} align="center" wrap="nowrap" className={styles.head}>
-            {effectiveStatus === 'error' ? (
-                <MantineIcon
-                    icon={IconAlertCircle}
-                    size={13}
-                    stroke={1.6}
-                    className={styles.icon}
-                    data-status="error"
-                    aria-hidden
-                />
-            ) : (
-                <ToolCallRowIcon
-                    toolName={toolName}
-                    toolCalls={toolCalls}
-                    size={13}
-                    stroke={1.6}
-                    className={styles.icon}
-                    mcpServer={mcpServer}
-                    data-status={effectiveStatus}
-                />
-            )}
+            <ToolCallRowIcon
+                toolName={toolName}
+                toolCalls={toolCalls}
+                size={13}
+                stroke={1.6}
+                className={styles.icon}
+                mcpServer={mcpServer}
+                data-status={status}
+            />
             {label ? (
                 <Text size="xs" className={styles.label}>
                     {label}
@@ -180,11 +156,6 @@ export const ToolCallRow: FC<Props> = ({
             {isGrouped && (
                 <Box className={styles.countBadge}>{toolCalls.length}</Box>
             )}
-            {failures.length > 0 && (
-                <Text size="xs" className={styles.failedLabel}>
-                    {failureLabel}
-                </Text>
-            )}
             {!expanded && (
                 <Box className={styles.previewSlot}>
                     {renderInlinePreview()}
@@ -201,30 +172,10 @@ export const ToolCallRow: FC<Props> = ({
         </Group>
     );
 
-    const failureDetails = failures.filter((failure) => failure.message !== '');
-    const failureMessages =
-        failureDetails.length > 0 ? (
-            <Stack gap={2} className={styles.failureMessages}>
-                {failureDetails.map((failure) => (
-                    <Text
-                        key={failure.toolCallId}
-                        size="xs"
-                        ff="monospace"
-                        lineClamp={2}
-                        className={styles.failureMessage}
-                        title={failure.message}
-                    >
-                        {failure.message}
-                    </Text>
-                ))}
-            </Stack>
-        ) : null;
-
     if (!isClickable) {
         return (
-            <Box className={styles.row} data-status={effectiveStatus}>
+            <Box className={styles.row} data-status={status}>
                 {head}
-                {failureMessages}
             </Box>
         );
     }
@@ -233,7 +184,7 @@ export const ToolCallRow: FC<Props> = ({
         <Box
             className={styles.row}
             data-expanded={expanded}
-            data-status={effectiveStatus}
+            data-status={status}
         >
             <UnstyledButton
                 onClick={() => setExpanded((prev) => !prev)}
@@ -243,7 +194,6 @@ export const ToolCallRow: FC<Props> = ({
             >
                 {head}
             </UnstyledButton>
-            {failureMessages}
             <Collapse
                 expanded={expanded}
                 transitionDuration={240}

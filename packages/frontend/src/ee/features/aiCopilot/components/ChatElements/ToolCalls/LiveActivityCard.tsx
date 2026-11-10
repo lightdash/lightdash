@@ -17,7 +17,6 @@ import {
     UnstyledButton,
 } from '@mantine/core';
 import {
-    IconAlertCircle,
     IconChevronRight,
     IconNotes,
     type Icon as TablerIconType,
@@ -53,7 +52,6 @@ import {
     getMcpToolDisplayName,
 } from './utils/mcpToolDisplay';
 import { stripMarkdown } from './utils/stripMarkdown';
-import { getStepListFailures } from './utils/toolCallFailure';
 import { type ToolCallGroupDisplay } from './utils/toolCallGrouping';
 import { type ToolCallSummary } from './utils/types';
 
@@ -93,8 +91,6 @@ type Props = {
     };
     /** Rendered as the first item of the card body. */
     reasoning?: { texts: string[]; isLive: boolean };
-    /** A failure summary below the card carries the error, so the header stays quiet. */
-    isFailureSummarized?: boolean;
 };
 
 const REASONING_PREVIEW_LENGTH = 140;
@@ -270,7 +266,6 @@ const LatestRow: FC<{
     isLive: boolean;
     awaitingApproval: boolean;
     mcpServers?: AiMcpServer[];
-    failedCount: number;
     showCount: boolean;
     /** The open card already lists the step's targets. */
     hideTarget: boolean;
@@ -279,11 +274,9 @@ const LatestRow: FC<{
     isLive,
     awaitingApproval,
     mcpServers,
-    failedCount,
     showCount,
     hideTarget,
 }) => {
-    const getUiString = useUiStrings();
     const builtInToolName = isToolName(group.toolName) ? group.toolName : null;
     const linkedMcpServer =
         group.calls.find((toolCall) => toolCall.mcpServer)?.mcpServer ??
@@ -328,7 +321,7 @@ const LatestRow: FC<{
         chipLabel &&
         !TOOLS_WITHOUT_PREVIEW.has(lastBuiltInToolName ?? '');
     // Live turns lead with "Working"; the step reads as its current activity.
-    const showWorking = isLive && !awaitingApproval && failedCount === 0;
+    const showWorking = isLive && !awaitingApproval;
 
     if (showWorking && label) {
         return (
@@ -374,24 +367,13 @@ const LatestRow: FC<{
                 <WorkingLabel />
             ) : (
                 <Box className={styles.iconSwap} key={`icon-${group.toolName}`}>
-                    {failedCount > 0 ? (
-                        <MantineIcon
-                            icon={IconAlertCircle}
-                            size={13}
-                            stroke={1.7}
-                            className={styles.latestIcon}
-                            data-status="error"
-                            aria-hidden
-                        />
-                    ) : (
-                        <ToolCallIcon
-                            toolName={group.toolName}
-                            size={13}
-                            stroke={1.7}
-                            className={styles.latestIcon}
-                            mcpServer={mcpServer}
-                        />
-                    )}
+                    <ToolCallIcon
+                        toolName={group.toolName}
+                        size={13}
+                        stroke={1.7}
+                        className={styles.latestIcon}
+                        mcpServer={mcpServer}
+                    />
                 </Box>
             )}
             {label ? (
@@ -434,19 +416,6 @@ const LatestRow: FC<{
                 >
                     {group.calls.length}
                 </Box>
-            )}
-            {failedCount > 0 && (
-                <Text size="xs" className={styles.failedLabel}>
-                    {isGrouped
-                        ? interpolateUiString(
-                              getUiString('aiAgent.activity.partlyFailed'),
-                              {
-                                  failed: failedCount,
-                                  total: group.calls.length,
-                              },
-                          )
-                        : getUiString('aiAgent.activity.failed')}
-                </Text>
             )}
             {awaitingApproval ? (
                 <Text size="xs" className={styles.awaitingApproval}>
@@ -717,7 +686,6 @@ export const LiveActivityCard: FC<Props> = ({
     stepProgressMessages = [],
     approval,
     reasoning,
-    isFailureSummarized = false,
 }) => {
     const getUiString = useUiStrings();
     const latestGroup =
@@ -788,14 +756,6 @@ export const LiveActivityCard: FC<Props> = ({
         (sum, group) => sum + group.calls.length,
         0,
     );
-    const latestFailedCount = latest
-        ? getStepListFailures(latest.calls, toolResults).length
-        : 0;
-    const failedStepCount = toolGroups.reduce(
-        (sum, group) =>
-            sum + getStepListFailures(group.calls, toolResults).length,
-        0,
-    );
     const olderGroups = latest ? toolGroups.slice(0, -1) : toolGroups;
     const olderCount = latest ? totalCalls - latest.calls.length : totalCalls;
     const hasExpandableBody = olderCount > 0 || hasReasoning;
@@ -811,12 +771,8 @@ export const LiveActivityCard: FC<Props> = ({
     // While a step runs, earlier steps show only once the user opens the card.
     const earlierOpen = latest === null || userExpanded === true;
     const stepLabels = getActivityStepLabels({ totalCalls }, getUiString);
-    // A failed run reads "Failed", not as partial progress.
     const composerProgress =
-        latest &&
-        isActive &&
-        latestFailedCount === 0 &&
-        isComposerQueryToolName(latest.toolName)
+        latest && isActive && isComposerQueryToolName(latest.toolName)
             ? getComposerProgress(
                   latest.calls,
                   stepProgressMessages,
@@ -825,7 +781,7 @@ export const LiveActivityCard: FC<Props> = ({
             : null;
     const summary =
         latest === null ? getActivityTitle(toolGroups, toolResults) : null;
-    // Every finished turn counts its steps, unless the failure label already does.
+    // Every finished turn counts its steps.
     const getHeaderMeta = () => {
         if (
             composerProgress &&
@@ -838,14 +794,9 @@ export const LiveActivityCard: FC<Props> = ({
         }
         // "Working" already marks a live step; the step number adds noise.
         if (latest) {
-            return isActive &&
-                latestFailedCount === 0 &&
-                !latestAwaitingApproval
+            return isActive && !latestAwaitingApproval
                 ? null
                 : stepLabels.running;
-        }
-        if (failedStepCount === totalCalls && !isFailureSummarized) {
-            return null;
         }
         return stepLabels.finished;
     };
@@ -892,38 +843,16 @@ export const LiveActivityCard: FC<Props> = ({
                                             toolGroups={toolGroups}
                                             mcpServers={mcpServers}
                                         />
-                                        {failedStepCount > 0 &&
-                                            !isFailureSummarized && (
-                                                <Text
-                                                    size="xs"
-                                                    className={
-                                                        styles.failedLabel
-                                                    }
-                                                >
-                                                    {interpolateUiString(
-                                                        getUiString(
-                                                            failedStepCount ===
-                                                                1
-                                                                ? 'aiAgent.activity.failedSteps.singular'
-                                                                : 'aiAgent.activity.failedSteps.plural',
-                                                        ),
-                                                        {
-                                                            count: failedStepCount,
-                                                        },
-                                                    )}
-                                                </Text>
-                                            )}
                                     </Group>
                                 );
                             })()
                         ) : latest ? (
                             <LatestRow
                                 group={latest}
-                                // Present tense until the turn ends; only a failed step reads as past.
-                                isLive={isActive && latestFailedCount === 0}
+                                // Present tense until the turn ends.
+                                isLive={isActive}
                                 awaitingApproval={latestAwaitingApproval}
                                 mcpServers={mcpServers}
-                                failedCount={latestFailedCount}
                                 showCount={composerProgress === null}
                                 hideTarget={showBody}
                             />
