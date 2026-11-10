@@ -317,7 +317,10 @@ describe('listWarehouseTables tool', () => {
             { limit: 100 },
         );
 
-        expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.metadata).toEqual({
+            status: 'error',
+            toolError: { code: 'unknown', pythonExceptionType: null },
+        });
         expect(output.result).toContain('Error listing warehouse tables.');
         expect(output.result).toContain('warehouse unreachable');
         expect(output.structuredContent).toEqual({

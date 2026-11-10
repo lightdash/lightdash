@@ -68,6 +68,10 @@ import type {
 import { AgentContext } from '../utils/AgentContext';
 import { AiAgentUnknownFieldsError } from '../utils/AiAgentUnknownFieldsError';
 import {
+    getAiToolErrorDetails,
+    getFilterExpressionErrorCode,
+} from '../utils/aiToolErrorCode';
+import {
     getAppliedParameters,
     summarizeAppliedParameters,
 } from '../utils/appliedParameters';
@@ -573,7 +577,15 @@ export const getRunQuery = ({
                             fieldAdvice;
                         return {
                             result,
-                            metadata: { status: 'error' as const },
+                            metadata: {
+                                status: 'error' as const,
+                                toolError: {
+                                    code: getFilterExpressionErrorCode(
+                                        resolution.error.code,
+                                    ),
+                                    pythonExceptionType: null,
+                                },
+                            },
                             structuredContent: { error: result },
                         };
                     }
@@ -1201,7 +1213,10 @@ export const getRunQuery = ({
                     ) + fieldAdvice;
                 return {
                     result,
-                    metadata: { status: 'error' },
+                    metadata: {
+                        status: 'error',
+                        toolError: getAiToolErrorDetails(e),
+                    },
                     structuredContent: { error: result },
                 };
             }

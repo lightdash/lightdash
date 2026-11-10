@@ -381,6 +381,7 @@ describe('visualize', () => {
         runComposerQueries.mockResolvedValueOnce({
             status: 'failure',
             error: 'warehouse down',
+            errorDetails: { code: 'unknown', pythonExceptionType: null },
             nodeStatuses: [],
         });
 

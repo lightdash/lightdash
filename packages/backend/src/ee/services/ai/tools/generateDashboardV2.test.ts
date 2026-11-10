@@ -419,7 +419,10 @@ describe('getGenerateDashboardV2 structured output', () => {
         expect(toolDashboardV2OutputSchema.safeParse(output).success).toBe(
             true,
         );
-        expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.metadata).toEqual({
+            status: 'error',
+            toolError: { code: 'unknown', pythonExceptionType: null },
+        });
         expect(output.result).toContain('Error generating dashboard.');
         expect(output.result).toContain('prompt is gone');
         expect(output.structuredContent).toEqual({

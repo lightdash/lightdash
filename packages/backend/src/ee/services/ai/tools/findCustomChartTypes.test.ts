@@ -200,7 +200,10 @@ describe('getFindCustomChartTypes execute', () => {
         expect(
             toolFindCustomChartTypesOutputSchema.safeParse(output).success,
         ).toBe(true);
-        expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.metadata).toEqual({
+            status: 'error',
+            toolError: { code: 'unknown', pythonExceptionType: null },
+        });
         expect(output.structuredContent).toEqual({
             error: output.result,
         });

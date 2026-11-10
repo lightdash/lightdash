@@ -901,7 +901,10 @@ describe('getFindContent', () => {
             expect(toolFindContentOutputSchema.safeParse(output).success).toBe(
                 true,
             );
-            expect(output.metadata).toEqual({ status: 'error' });
+            expect(output.metadata).toEqual({
+                status: 'error',
+                toolError: { code: 'unknown', pythonExceptionType: null },
+            });
             expect(output.result).toContain(
                 'Error finding content for search queries: revenue',
             );

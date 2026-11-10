@@ -9,6 +9,7 @@ import type {
     PivotValuesColumn,
     PreAggregateExecutionEngine,
     PreAggregateFallbackReason,
+    QueryErrorDetails,
     QueryExecutionContext,
     QueryHistory,
     QueryHistoryStatus,
@@ -42,6 +43,7 @@ export type DbQueryHistory = {
     total_row_count: number | null;
     warehouse_execution_time_ms: number | null;
     error: string | null;
+    error_details: QueryErrorDetails | null;
     errored_at: Date | null;
     status: QueryHistoryStatus;
     cache_key: string;
@@ -91,6 +93,7 @@ export type DbQueryHistoryUpdate = Partial<
         DbQueryHistory,
         | 'status'
         | 'error'
+        | 'error_details'
         | 'errored_at'
         | 'compiled_sql'
         | 'fields'

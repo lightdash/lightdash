@@ -366,6 +366,7 @@ export type {
     WarehouseLocation,
 } from './types/projects';
 export * from './types/promotion';
+export * from './types/queryErrorDetails';
 export * from './types/queryHistory';
 export * from './types/queryHistoryList';
 export * from './types/querySources';

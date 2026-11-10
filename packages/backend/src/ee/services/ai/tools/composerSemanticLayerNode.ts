@@ -12,6 +12,7 @@ import {
     MetricType,
     QuerySourceType,
     type AdditionalMetric,
+    type AiToolErrorCode,
     type Explore,
     type Filters,
     type MetricFilterRule,
@@ -21,6 +22,7 @@ import {
     type ToolComposerQueryNode,
     type ToolComposerSemanticLayerNode,
 } from '@lightdash/common';
+import { getFilterExpressionErrorCode } from '../utils/aiToolErrorCode';
 import {
     formatFilterExpressionError,
     resolveExploreFilterExpressions,
@@ -291,18 +293,20 @@ const resolveFilters = (
     node: ToolComposerSemanticLayerNode,
     explore: Explore,
     additionalMetrics: AdditionalMetric[],
-): Resolved<Filters | null> => {
-    if (node.filters === null) return { value: null, errors: [] };
+): Resolved<Filters | null> & { errorCode: AiToolErrorCode | null } => {
+    if (node.filters === null)
+        return { value: null, errors: [], errorCode: null };
     const result = resolveExploreFilterExpressions({
         filters: node.filters,
         explore,
         additionalMetrics,
     });
     return result.success
-        ? { value: result.data, errors: [] }
+        ? { value: result.data, errors: [], errorCode: null }
         : {
               value: null,
               errors: [formatFilterExpressionError(result.error)],
+              errorCode: getFilterExpressionErrorCode(result.error.code),
           };
 };
 
@@ -348,7 +352,14 @@ const resolveSemanticLayerNode = (
         ),
         ...describeErrors(node, 'filters', filters.errors),
     ];
-    if (errors.length > 0) throw new AiAgentValidatorError(errors.join('\n'));
+    if (errors.length > 0) {
+        let { errorCode } = filters;
+        if (customMetricDefinitions.errors.length > 0)
+            errorCode = 'custom_metric_invalid';
+        else if (periodComparisonMetrics.errors.length > 0)
+            errorCode = 'period_comparison_invalid';
+        throw new AiAgentValidatorError(errors.join('\n'), { errorCode });
+    }
     return {
         ...rest,
         metrics: expandMetricsWithPopAdditionalMetrics(

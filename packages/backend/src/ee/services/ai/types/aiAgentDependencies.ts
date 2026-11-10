@@ -58,6 +58,8 @@ import {
     WarehouseExecutionStats,
     WarehouseTablesCatalog,
     WarehouseTypes,
+    type AiToolErrorDetails,
+    type QueryErrorDetails,
     type SqlApprovalToolName,
 } from '@lightdash/common';
 import {
@@ -763,6 +765,8 @@ export type ComposerNodeStatus = {
     nodeId: string;
     state: QueryHistoryStatus;
     error: string | null;
+    /** Why the node failed, classified where it was thrown; null unless it errored. */
+    errorDetails: QueryErrorDetails | null;
     /** Null until the node's query is ready. */
     rowCount: number | null;
     /** Result columns; null until the node's query is ready. */
@@ -788,6 +792,8 @@ export type ComposerRunOutcome =
     | {
           status: 'failure';
           error: string;
+          /** The first failed node's classification, else why the run itself failed. */
+          errorDetails: AiToolErrorDetails;
           nodeStatuses: ComposerNodeStatus[];
       };
 

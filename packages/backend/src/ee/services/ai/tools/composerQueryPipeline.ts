@@ -10,6 +10,7 @@ import {
     QuerySourceType,
     toComposerNodeColumns,
     toolComposerQueryNodeToSourceQuery,
+    type AiToolErrorCode,
     type AnyType,
     type ComposerNodeScopeName,
     type ComposerPipelineNode,
@@ -53,12 +54,14 @@ export const resolveResultNodes = (
             `A call returns the rows of at most ${COMPOSER_QUERY_MAX_UNREAD_NODES} nodes, and no node reads ${unread.join(
                 ', ',
             )}. Combine some of them in one duckdb node (UNION ALL or JOIN), or submit them in separate calls; a later call can read any node from an earlier call by node id.`,
+            { errorCode: 'unread_node_cap' },
         );
     }
     const terminal = terminalNodeId ?? unread.at(-1);
     if (terminal === undefined) {
         throw new ParameterError(
             'Every node is read by another node, so the pipeline has a cycle. Remove the cycle.',
+            { errorCode: 'pipeline_cycle' },
         );
     }
     if (
@@ -67,6 +70,7 @@ export const resolveResultNodes = (
     ) {
         throw new ParameterError(
             `terminalNodeId "${terminalNodeId}" does not name a node in this pipeline`,
+            { errorCode: 'unknown_terminal_node' },
         );
     }
     return {
@@ -111,19 +115,25 @@ export const buildComposerQueryPipeline = ({
     enablePythonNodes: boolean;
     canRunSql: boolean;
     sqlDisabledMessage: string;
-}): { pipeline: ComposerQueryPipeline } | { error: string } => {
+}):
+    | { pipeline: ComposerQueryPipeline }
+    | { error: string; errorCode: AiToolErrorCode } => {
     const duplicates = queryNodes
         .map((node) => node.nodeId)
         .filter((nodeId, index, nodeIds) => nodeIds.indexOf(nodeId) !== index);
     if (duplicates.length > 0) {
         return {
             error: `Duplicate node id(s) in submission: ${duplicates.join(', ')}. Give every node a unique nodeId.`,
+            errorCode: 'duplicate_node_id',
         };
     }
 
     const getExplore = (exploreName: string): Explore => {
         const explore = explores.find(({ name }) => name === exploreName);
-        if (!explore) throw new Error(`Explore '${exploreName}' not found`);
+        if (!explore)
+            throw new ParameterError(`Explore '${exploreName}' not found`, {
+                errorCode: 'unknown_explore',
+            });
         return explore;
     };
 
@@ -173,6 +183,7 @@ export const buildComposerQueryPipeline = ({
     ) {
         return {
             error: 'This pipeline contains "python" nodes but python queries are not enabled. Rebuild the pipeline with duckdb nodes instead.',
+            errorCode: 'python_nodes_disabled',
         };
     }
 
@@ -182,6 +193,7 @@ export const buildComposerQueryPipeline = ({
     if (apiNode) {
         return {
             error: `Node "${apiNode.nodeId}" is an "api" node, which is no longer supported. Query a live data source with a semanticLayer node on its explore.`,
+            errorCode: 'api_node_unsupported',
         };
     }
 
@@ -189,7 +201,7 @@ export const buildComposerQueryPipeline = ({
         (node) => node.sourceType === QuerySourceType.SQL,
     );
     if (sqlNodes.length > 0 && !canRunSql) {
-        return { error: sqlDisabledMessage };
+        return { error: sqlDisabledMessage, errorCode: 'sql_disabled' };
     }
     sqlNodes.forEach((node) => validateSelectOnly(node.sql));
 

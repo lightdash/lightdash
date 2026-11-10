@@ -5,6 +5,7 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import { readEmbeddedBundle } from './duckdbEmbeddedBundle';
+import { getDuckdbErrorPhase } from './duckdbErrorPhase';
 import { DuckdbWarehouseClient } from './DuckdbWarehouseClient';
 
 describe.sequential('DuckdbWarehouseClient embedded credentials', () => {
@@ -85,6 +86,31 @@ describe.sequential('DuckdbWarehouseClient embedded credentials', () => {
         ).resolves.toMatchObject({
             rows: [{ value: 1 }],
         });
+    });
+
+    it.each([
+        ['SELEC value FROM sample', 'parse'],
+        ['SELECT missing_column FROM sample', 'bind'],
+        ["SELECT CAST('x' AS INTEGER) FROM sample", 'runtime'],
+    ])('tags the failing phase of %s', async (sql, phase) => {
+        await createEmbeddedDatabase('sample');
+        const client = new DuckdbWarehouseClient(embeddedCredentials('sample'));
+
+        const error = await client.runQuery(sql).catch((e: unknown) => e);
+
+        expect(getDuckdbErrorPhase(error)).toBe(phase);
+    });
+
+    it.each([
+        ['CREATE TABLE t AS SELEC 1', 'parse'],
+        ['CREATE TABLE t AS SELECT missing_column FROM range(1)', 'bind'],
+        ["CREATE TABLE t AS SELECT CAST('x' AS INTEGER)", 'runtime'],
+    ])('tags the failing phase of internal %s', async (sql, phase) => {
+        const client = new DuckdbWarehouseClient();
+
+        const error = await client.runSql(sql).catch((e: unknown) => e);
+
+        expect(getDuckdbErrorPhase(error)).toBe(phase);
     });
 
     it('opens the database of the pinned bundle version', async () => {

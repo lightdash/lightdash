@@ -297,6 +297,7 @@ export class QuerySourceService extends BaseService {
         if (queries.length > MAX_SOURCE_QUERIES_PER_SUBMISSION) {
             throw new ParameterError(
                 `A submission supports at most ${MAX_SOURCE_QUERIES_PER_SUBMISSION} queries`,
+                { errorCode: 'too_many_queries' },
             );
         }
 
@@ -311,6 +312,7 @@ export class QuerySourceService extends BaseService {
             if (nodeIds.has(query.nodeId)) {
                 throw new ParameterError(
                     `Duplicate node id "${query.nodeId}" in submission`,
+                    { errorCode: 'duplicate_node_id' },
                 );
             }
             nodeIds.add(query.nodeId);
@@ -651,6 +653,7 @@ export class QuerySourceService extends BaseService {
                         error: queryHistory.error,
                         projectModel: this.projectModel,
                     }),
+                    errorDetails: queryHistory.errorDetails,
                     totalRowCount: queryHistory.totalRowCount,
                     warehouseExecutionTimeMs:
                         queryHistory.warehouseExecutionTimeMs,

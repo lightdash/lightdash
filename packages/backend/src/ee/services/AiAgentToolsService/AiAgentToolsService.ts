@@ -64,6 +64,7 @@ import {
     type AgentToolName,
     type AiAgentDocumentSummary,
     type AiThreadBinding,
+    type AiToolErrorCode,
     type AppChartReference,
     type AppDashboardReference,
     type AppExternalConnectionLink,
@@ -207,6 +208,7 @@ import {
     assertAgentKeepsDocumentMerges,
 } from '../ai/utils/agentMergeGuard';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
+import { getAiToolErrorDetails } from '../ai/utils/aiToolErrorCode';
 import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
@@ -4736,8 +4738,22 @@ export class AiAgentToolsService extends BaseService {
             }
 
             if (queryResults.status === QueryHistoryStatus.ERROR) {
+                const errorDetails =
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.asyncQueryService.getQueryErrorDetails({
+                        account: context.account,
+                        projectUuid: context.projectUuid,
+                        queryUuid,
+                    });
                 throw new WarehouseQueryError(
                     `SQL query failed: ${queryResults.error ?? 'Unknown error'}`,
+                    errorDetails
+                        ? {
+                              errorCode: errorDetails.code,
+                              pythonExceptionType:
+                                  errorDetails.pythonExceptionType,
+                          }
+                        : {},
                 );
             }
 
@@ -4980,6 +4996,7 @@ export class AiAgentToolsService extends BaseService {
                             context,
                             submissions,
                             timeoutMessage,
+                            'composer_timeout',
                         );
                     } else {
                         outcome = polled;
@@ -4990,6 +5007,7 @@ export class AiAgentToolsService extends BaseService {
                         context,
                         submissions,
                         getErrorMessage(error),
+                        getAiToolErrorDetails(error).code,
                     );
                 }
                 outcome.nodeStatuses.forEach(({ nodeId, state, error }) => {
@@ -5204,6 +5222,7 @@ export class AiAgentToolsService extends BaseService {
                     context,
                     submissions,
                     'Composer query failed.',
+                    'unknown',
                 );
                 // Node statuses carry each node's error; the terminal's is the fallback.
                 return failed.nodeStatuses.some(({ error }) => error !== null)
@@ -5222,6 +5241,7 @@ export class AiAgentToolsService extends BaseService {
                     context,
                     submissions,
                     'Composer query was cancelled.',
+                    'query_cancelled',
                 );
             }
 
@@ -5245,14 +5265,25 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         submissions: SourceQuerySubmission[],
         error: string,
+        fallbackCode: AiToolErrorCode,
     ): Promise<Extract<ComposerRunOutcome, { status: 'failure' }>> {
+        const nodeStatuses = await this.readComposerNodeStatuses(
+            context,
+            submissions,
+        ).catch(() => []);
+        // Statuses follow dependency order, so the first failure is the root cause.
+        const failedNode = nodeStatuses.find(
+            ({ errorDetails }) =>
+                errorDetails !== null && errorDetails.code !== 'unknown',
+        );
         return {
             status: 'failure',
             error,
-            nodeStatuses: await this.readComposerNodeStatuses(
-                context,
-                submissions,
-            ).catch(() => []),
+            errorDetails: failedNode?.errorDetails ?? {
+                code: fallbackCode,
+                pythonExceptionType: null,
+            },
+            nodeStatuses,
         };
     }
 
@@ -5282,6 +5313,7 @@ export class AiAgentToolsService extends BaseService {
                                   status.error,
                                   COMPOSER_NODE_ERROR_MAX_CHARS,
                               ),
+                    errorDetails: status.errorDetails,
                     rowCount: status.totalRowCount,
                     columns: status.columns,
                     sample: null,

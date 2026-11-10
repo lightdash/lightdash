@@ -31,6 +31,7 @@ import {
     sleep,
     SQL_LANGUAGE_REQUEST_PARAMETER_KEYS,
     type AgentConnectionGrantRef,
+    type QueryErrorDetails,
 } from '@lightdash/common';
 import crypto from 'crypto';
 import { Knex } from 'knex';
@@ -94,6 +95,7 @@ function convertDbQueryHistoryToQueryHistory(
         totalRowCount: queryHistory.total_row_count,
         warehouseExecutionTimeMs: queryHistory.warehouse_execution_time_ms,
         error: queryHistory.error,
+        errorDetails: queryHistory.error_details ?? null,
         erroredAt: queryHistory.errored_at,
         cacheKey: queryHistory.cache_key,
         pivotConfiguration: queryHistory.pivot_configuration,
@@ -223,6 +225,7 @@ export class QueryHistoryModel {
             | 'warehouseExecutionStats'
             | 'warehouseExecutionTimeMs'
             | 'error'
+            | 'errorDetails'
             | 'erroredAt'
             | 'pivotValuesColumns'
             | 'pivotTotalColumnCount'
@@ -273,6 +276,7 @@ export class QueryHistoryModel {
                 warehouse_query_metadata: null,
                 warehouse_execution_stats: null,
                 error: null,
+                error_details: null,
                 errored_at: null,
                 cache_key: queryHistory.cacheKey,
                 cache_generation: this.database.raw(
@@ -532,6 +536,7 @@ export class QueryHistoryModel {
         account: Pick<Account, 'isRegisteredUser'> & {
             user: Pick<Account['user'], 'id'>;
         },
+        errorDetails: QueryErrorDetails | null = null,
     ) {
         return this.update(
             queryUuid,
@@ -539,6 +544,7 @@ export class QueryHistoryModel {
             {
                 status: QueryHistoryStatus.ERROR,
                 error,
+                error_details: errorDetails,
                 errored_at: new Date(),
             },
             account,

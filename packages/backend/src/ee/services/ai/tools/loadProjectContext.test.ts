@@ -316,7 +316,10 @@ describe('loadProjectContext tool', () => {
             },
         });
 
-        expect(res.metadata).toEqual({ status: 'error' });
+        expect(res.metadata).toEqual({
+            status: 'error',
+            toolError: { code: 'unknown', pythonExceptionType: null },
+        });
         expect(res.result).toContain('Error loading project context');
         expect(res.result).toContain('context file unreadable');
         expect(res.structuredContent).toEqual({

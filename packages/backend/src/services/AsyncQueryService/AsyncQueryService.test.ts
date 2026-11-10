@@ -8511,6 +8511,7 @@ describe('AsyncQueryService', () => {
             projectUuid,
             status: QueryHistoryStatus.PENDING,
             error: null,
+            errorDetails: null,
             erroredAt: null,
             metricQuery: metricQueryMock,
             context: QueryExecutionContext.AI,
@@ -8650,6 +8651,7 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 status,
                 error,
+                errorDetails: null,
                 erroredAt: null,
                 metricQuery: metricQueryMock,
                 context: QueryExecutionContext.EXPLORE,
@@ -8896,6 +8898,7 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 status: QueryHistoryStatus.READY,
                 error: null,
+                errorDetails: null,
                 erroredAt: null,
                 metricQuery: metricQueryMock,
                 context: QueryExecutionContext.EXPLORE,
@@ -9020,6 +9023,7 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 status: QueryHistoryStatus.READY,
                 error: null,
+                errorDetails: null,
                 erroredAt: null,
                 // Compose rows persist the placeholder SqlQueryComposer
                 // metric query and an empty fields map
@@ -9114,6 +9118,7 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 status: QueryHistoryStatus.READY,
                 error: null,
+                errorDetails: null,
                 erroredAt: null,
                 metricQuery: metricQueryMock,
                 context: QueryExecutionContext.SQL_RUNNER,
@@ -9199,6 +9204,7 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 status: QueryHistoryStatus.READY,
                 error: null,
+                errorDetails: null,
                 erroredAt: null,
                 metricQuery: metricQueryMock,
                 context: QueryExecutionContext.EXPLORE,
@@ -9498,6 +9504,7 @@ describe('AsyncQueryService', () => {
                 expect.objectContaining({
                     user: { id: sessionAccount.user.id },
                 }),
+                { code: 'unknown', pythonExceptionType: null },
             );
             expect(
                 service.queryHistoryModel.updateStatusToError,
@@ -9505,6 +9512,7 @@ describe('AsyncQueryService', () => {
                 'test-query-uuid',
                 projectUuid,
                 expect.stringContaining('HTTP 404: missing parquet'),
+                expect.anything(),
                 expect.anything(),
             );
             expect(mockStrategy.recordExecutionFallback).not.toHaveBeenCalled();
@@ -9602,6 +9610,7 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 status: QueryHistoryStatus.READY,
                 error: null,
+                errorDetails: null,
                 erroredAt: null,
                 metricQuery: metricQueryMock,
                 context: QueryExecutionContext.EXPLORE,
@@ -10314,6 +10323,7 @@ describe('AsyncQueryService', () => {
                     warehouseExecutionTimeMs: null,
                     usedParameters: null,
                     error: null,
+                    errorDetails: null,
                     erroredAt: null,
                     cacheKey: 'analytics-export',
                     pivotConfiguration: null,
@@ -10568,6 +10578,7 @@ describe('AsyncQueryService', () => {
             projectUuid,
             status,
             error: null,
+            errorDetails: null,
             erroredAt: null,
             metricQuery: metricQueryMock,
             context: QueryExecutionContext.MCP_RUN_SQL,
@@ -10747,6 +10758,7 @@ describe('AsyncQueryService', () => {
         projectUuid,
         status,
         error: null,
+        errorDetails: null,
         erroredAt: null,
         metricQuery: metricQueryMock,
         context: QueryExecutionContext.EXPLORE,
@@ -12313,6 +12325,7 @@ describe('AsyncQueryService', () => {
                 projectUuid,
                 'Access to analytics storage was denied.',
                 expect.any(Object),
+                { code: 'warehouse_other', pythonExceptionType: null },
             );
             expect(log).toHaveBeenCalledWith(
                 `Query ${args.queryUuid} execution error: Access to analytics storage was denied.`,
@@ -16910,6 +16923,7 @@ describe('saved chart query result access', () => {
             usedParameters: null,
             warehouseExecutionTimeMs: null,
             error: null,
+            errorDetails: null,
             erroredAt: null,
             cacheKey: 'cache-key',
             pivotConfiguration: null,
@@ -19806,6 +19820,7 @@ describe('executeAsyncMergeQuery over a result source', () => {
         projectUuid,
         status: QueryHistoryStatus.READY,
         error: null,
+        errorDetails: null,
         erroredAt: null,
         metricQuery: {
             ...metricQueryMock,
@@ -20642,6 +20657,7 @@ describe('chart embed token query history access', () => {
             usedParameters: null,
             warehouseExecutionTimeMs: null,
             error: null,
+            errorDetails: null,
             erroredAt: null,
             cacheKey: 'cache-key',
             pivotConfiguration: null,
@@ -20841,6 +20857,7 @@ describe('embedded AI agent result downloads', () => {
             usedParameters: null,
             warehouseExecutionTimeMs: null,
             error: null,
+            errorDetails: null,
             erroredAt: null,
             cacheKey: 'cache-key',
             pivotConfiguration: null,
@@ -30853,6 +30870,7 @@ describe('late query status writes', () => {
                 queryCreatedAt: new Date(),
                 queryUsage: undefined,
                 errorMessage: 'canceling statement due to user request',
+                errorDetails: { code: 'unknown', pythonExceptionType: null },
                 executionSource: 'warehouse',
                 warehouseType: null,
                 inheritedFromProjectUuid: null,

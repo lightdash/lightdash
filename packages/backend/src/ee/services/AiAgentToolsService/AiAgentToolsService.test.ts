@@ -64,6 +64,7 @@ import { SavedSqlService } from '../../../services/SavedSqlService/SavedSqlServi
 import { getDescribeWarehouseTable } from '../ai/tools/describeWarehouseTable';
 import { getRunContentQuery } from '../ai/tools/runContentQuery';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
+import { getAiToolErrorDetails } from '../ai/utils/aiToolErrorCode';
 import type { DataAppReadSource } from '../AppGenerateService/AppGenerateService';
 import {
     AiAgentToolsService,
@@ -347,6 +348,33 @@ describe('AiAgentToolsService', () => {
             QueryExecutionContext.MCP_RUN_METRIC_QUERY,
             QuerySurface.MCP,
         );
+    });
+
+    it('carries the stored error code when an agent SQL query fails', async () => {
+        const service = makeService({
+            asyncQueryService: {
+                executeAsyncSqlQuery: vi
+                    .fn()
+                    .mockResolvedValue({ queryUuid: 'sql' }),
+                getAsyncQueryResults: vi.fn().mockResolvedValue({
+                    status: QueryHistoryStatus.ERROR,
+                    queryUuid: 'sql',
+                    error: 'Query exceeded limit for bytes billed',
+                }),
+                getQueryErrorDetails: vi.fn().mockResolvedValue({
+                    code: 'bigquery_bytes_billed_limit',
+                    pythonExceptionType: null,
+                }),
+            },
+        });
+        const error = await service
+            .createRuntime(makeRuntimeContext())
+            .runSqlJob({ sql: 'select 1', limit: 10 })
+            .catch((e: unknown) => e);
+        expect(getAiToolErrorDetails(error)).toEqual({
+            code: 'bigquery_bytes_billed_limit',
+            pythonExceptionType: null,
+        });
     });
 
     it.each([QuerySurface.SLACK, QuerySurface.API])(
@@ -978,7 +1006,13 @@ describe('AiAgentToolsService', () => {
                     error: refusal.message,
                     refusal: refusal.refusal,
                 },
-                metadata: { status: 'error' },
+                metadata: {
+                    status: 'error',
+                    toolError: {
+                        code: 'access_refused',
+                        pythonExceptionType: null,
+                    },
+                },
             });
             expect(describeWarehouseTable).toHaveBeenCalledOnce();
         });
@@ -3941,6 +3975,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             queryUuid,
             status: QueryHistoryStatus.READY,
             error: null,
+            errorDetails: null,
             totalRowCount: 1,
             warehouseExecutionTimeMs: null,
             columns: readyResults.columns,
@@ -4019,6 +4054,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                     queryUuid: 'query-1',
                     status: QueryHistoryStatus.READY,
                     error: null,
+                    errorDetails: null,
                     totalRowCount: 500,
                     warehouseExecutionTimeMs: 12,
                     columns: ordersColumns,
@@ -4027,6 +4063,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                     queryUuid: 'query-2',
                     status: QueryHistoryStatus.READY,
                     error: null,
+                    errorDetails: null,
                     totalRowCount: 1,
                     warehouseExecutionTimeMs: 3,
                     columns: readyResults.columns,
@@ -4060,6 +4097,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 nodeId: 'orders',
                 state: QueryHistoryStatus.READY,
                 error: null,
+                errorDetails: null,
                 rowCount: 500,
                 columns: ordersColumns,
                 sample: null,
@@ -4068,6 +4106,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                 nodeId: 'joined',
                 state: QueryHistoryStatus.READY,
                 error: null,
+                errorDetails: null,
                 rowCount: 1,
                 columns: readyResults.columns,
                 sample: null,
@@ -4088,6 +4127,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                             queryUuid: 'query-1',
                             status: QueryHistoryStatus.EXECUTING,
                             error: null,
+                            errorDetails: null,
                             totalRowCount: null,
                             warehouseExecutionTimeMs: null,
                             columns: null,
@@ -4096,6 +4136,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                             queryUuid: 'query-2',
                             status: QueryHistoryStatus.READY,
                             error: null,
+                            errorDetails: null,
                             totalRowCount: 1,
                             warehouseExecutionTimeMs: 3,
                             columns: readyResults.columns,
@@ -4122,6 +4163,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
             nodeId: 'orders',
             state: QueryHistoryStatus.EXECUTING,
             error: null,
+            errorDetails: null,
             rowCount: null,
             columns: null,
             sample: null,
@@ -4174,6 +4216,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                     nodeId: 'orders',
                     state: QueryHistoryStatus.READY,
                     error: null,
+                    errorDetails: null,
                     rowCount: 1,
                     columns: readyResults.columns,
                     sample: null,
@@ -4182,6 +4225,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                     nodeId: 'joined',
                     state: QueryHistoryStatus.EXECUTING,
                     error: null,
+                    errorDetails: null,
                     rowCount: null,
                     columns: null,
                     sample: null,
@@ -4245,11 +4289,13 @@ describe('AiAgentToolsService runComposerQueries', () => {
                             queryUuid: 'query-1',
                             status: QueryHistoryStatus.READY,
                             error: null,
+                            errorDetails: null,
                         },
                         {
                             queryUuid: 'query-2',
                             status: QueryHistoryStatus.EXECUTING,
                             error: null,
+                            errorDetails: null,
                         },
                     ],
                 })
@@ -4408,11 +4454,13 @@ describe('AiAgentToolsService runComposerQueries', () => {
                     queryUuid: 'query-1',
                     status: QueryHistoryStatus.ERROR,
                     error: 'relation does not exist',
+                    errorDetails: null,
                 },
                 {
                     queryUuid: 'query-2',
                     status: QueryHistoryStatus.ERROR,
                     error: 'referenced query failed',
+                    errorDetails: null,
                 },
             ],
         });
@@ -4486,6 +4534,7 @@ describe('AiAgentToolsService runComposerQueries', () => {
                     queryUuid: 'query-1',
                     status: QueryHistoryStatus.READY,
                     error: null,
+                    errorDetails: null,
                     totalRowCount: 12,
                     warehouseExecutionTimeMs: 5,
                     columns: ordersColumns,
@@ -4494,6 +4543,10 @@ describe('AiAgentToolsService runComposerQueries', () => {
                     queryUuid: 'query-2',
                     status: QueryHistoryStatus.ERROR,
                     error: 'column "missing" does not exist',
+                    errorDetails: {
+                        code: 'duckdb_bind',
+                        pythonExceptionType: null,
+                    },
                     totalRowCount: null,
                     warehouseExecutionTimeMs: null,
                     columns: null,
@@ -4527,11 +4580,13 @@ describe('AiAgentToolsService runComposerQueries', () => {
         expect(result).toEqual({
             status: 'failure',
             error: 'Composer query failed.',
+            errorDetails: { code: 'duckdb_bind', pythonExceptionType: null },
             nodeStatuses: [
                 {
                     nodeId: 'orders',
                     state: QueryHistoryStatus.READY,
                     error: null,
+                    errorDetails: null,
                     rowCount: 12,
                     columns: ordersColumns,
                     sample: null,
@@ -4540,6 +4595,10 @@ describe('AiAgentToolsService runComposerQueries', () => {
                     nodeId: 'joined',
                     state: QueryHistoryStatus.ERROR,
                     error: 'column "missing" does not exist',
+                    errorDetails: {
+                        code: 'duckdb_bind',
+                        pythonExceptionType: null,
+                    },
                     rowCount: null,
                     columns: null,
                     sample: null,
@@ -4924,6 +4983,7 @@ describe('AiAgentToolsService runComposerQueries python failures', () => {
                             queryUuid: 'query-1',
                             status: QueryHistoryStatus.ERROR,
                             error: traceback,
+                            errorDetails: null,
                         },
                     ],
                 }),

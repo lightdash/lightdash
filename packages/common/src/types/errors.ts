@@ -926,12 +926,12 @@ export class AiAgentNotFoundError extends LightdashError {
 }
 
 export class AiAgentValidatorError extends LightdashError {
-    constructor(message: string) {
+    constructor(message: string, data: { [key: string]: AnyType } = {}) {
         super({
             message,
             name: 'AiAgentValidatorError',
             statusCode: 400,
-            data: {},
+            data,
         });
     }
 }

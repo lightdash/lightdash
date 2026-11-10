@@ -18,6 +18,8 @@ export const PYTHON_INPUT_META_PATH = `${PYTHON_INPUT_DIR}/meta.json`;
 export const PYTHON_OUTPUT_DIR = `${PYTHON_WORK_DIR}/out`;
 export const PYTHON_OUTPUT_RESULT_PATH = `${PYTHON_OUTPUT_DIR}/result.jsonl`;
 export const PYTHON_OUTPUT_META_PATH = `${PYTHON_OUTPUT_DIR}/meta.json`;
+/** Written by the harness when it fails: the stage and exception class, never the message. */
+export const PYTHON_OUTPUT_ERROR_PATH = `${PYTHON_OUTPUT_DIR}/error.json`;
 
 /** Largest python source accepted, in bytes. */
 export const PYTHON_MAX_CODE_BYTES = 64 * 1024;
@@ -283,9 +285,25 @@ WORK = "${PYTHON_WORK_DIR}"
 IN_DIR = f"{WORK}/in"
 OUT_DIR = f"{WORK}/out"
 COLUMN_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,62}$")
+STAGE = "load"
 
 
-def fail(message):
+def write_error(exception):
+    try:
+        with open(f"{OUT_DIR}/error.json", "w", encoding="utf-8") as handle:
+            json.dump(
+                {
+                    "stage": STAGE,
+                    "exceptionType": None if exception is None else type(exception).__name__,
+                },
+                handle,
+            )
+    except OSError:
+        pass
+
+
+def fail(message, exception=None):
+    write_error(exception)
     sys.stderr.write(message + "\\n")
     sys.exit(1)
 
@@ -355,6 +373,7 @@ def timed(name, started):
 
 
 def main():
+    global STAGE
     started = time.perf_counter()
     with open(f"{IN_DIR}/meta.json", encoding="utf-8") as handle:
         meta = json.load(handle)
@@ -367,8 +386,8 @@ def main():
     module = importlib.util.module_from_spec(spec)
     try:
         spec.loader.exec_module(module)
-    except Exception:
-        fail("Python code failed to load:\\n" + traceback.format_exc())
+    except Exception as error:
+        fail("Python code failed to load:\\n" + traceback.format_exc(), error)
 
     run = getattr(module, "run", None)
     if not callable(run):
@@ -380,13 +399,15 @@ def main():
 
     timed("loadCodeMs", started)
 
+    STAGE = "run"
     started = time.perf_counter()
     try:
         result = run(inputs) if arity == 1 else run(inputs, meta.get("params", {}))
-    except Exception:
-        fail("run() raised:\\n" + traceback.format_exc())
+    except Exception as error:
+        fail("run() raised:\\n" + traceback.format_exc(), error)
     timed("runMs", started)
 
+    STAGE = "output"
     started = time.perf_counter()
 
     if not isinstance(result, pd.DataFrame):
@@ -440,5 +461,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as error:
+        write_error(error)
+        raise
 `;

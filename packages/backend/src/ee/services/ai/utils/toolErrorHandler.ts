@@ -18,6 +18,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import Logger from '../../../../logging/logger';
+import { getAiToolErrorDetails } from './aiToolErrorCode';
 import { serializeData } from './serializeData';
 import type { ExecuteToolErrorResult } from './structuredToolResult';
 
@@ -123,6 +124,7 @@ export const toolErrorOutput = (
         result,
         metadata: {
             status: 'error',
+            toolError: getAiToolErrorDetails(error),
             ...(isPersonalSnowflakeTokenError(error)
                 ? { requiresSnowflakeReauthentication: true as const }
                 : {}),

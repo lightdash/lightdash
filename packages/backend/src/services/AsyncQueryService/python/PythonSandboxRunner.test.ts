@@ -119,6 +119,7 @@ describe('PythonSandboxRunner output limits', () => {
             ).rejects.toEqual(
                 new PythonExecutionError(
                     `Sandbox output exceeds ${maxBytes} bytes`,
+                    { stage: 'output', exceptionType: null },
                 ),
             );
             expect(cancel).toHaveBeenCalledOnce();

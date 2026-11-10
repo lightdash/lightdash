@@ -2,8 +2,11 @@ import {
     assertUnreachable,
     getErrorMessage,
     MissingConfigError,
+    toPythonExceptionType,
+    type PythonExceptionType,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
+import { z } from 'zod';
 import { type LightdashConfig } from '../../../config/parseConfig';
 import {
     createSandboxProvider,
@@ -30,6 +33,7 @@ import {
     PYTHON_MAIN_PATH,
     PYTHON_MAX_RESULT_BYTES,
     PYTHON_OUTPUT_DIR,
+    PYTHON_OUTPUT_ERROR_PATH,
     PYTHON_OUTPUT_META_PATH,
     PYTHON_OUTPUT_RESULT_PATH,
     PYTHON_RUNNER_PATH,
@@ -57,13 +61,69 @@ export type PythonSandboxRunResult = {
     stdout: string;
 };
 
+export type PythonErrorStage =
+    | 'compile'
+    | 'load'
+    | 'run'
+    | 'output'
+    | 'timeout';
+
 /** Raised when the user's python fails to compile or run; the message is safe to show. */
 export class PythonExecutionError extends Error {
-    constructor(message: string) {
+    readonly stage: PythonErrorStage;
+
+    readonly exceptionType: PythonExceptionType | null;
+
+    constructor(
+        message: string,
+        {
+            stage,
+            exceptionType,
+        }: {
+            stage: PythonErrorStage;
+            exceptionType: PythonExceptionType | null;
+        },
+    ) {
         super(message);
         this.name = 'PythonExecutionError';
+        this.stage = stage;
+        this.exceptionType = exceptionType;
     }
 }
+
+const harnessErrorSchema = z.object({
+    stage: z.enum(['load', 'run', 'output']),
+    exceptionType: z.string().nullable(),
+});
+
+/** The harness's own record of where it failed; a run killed before writing it counts as run. */
+const readHarnessError = async (
+    handle: SandboxHandle,
+): Promise<{
+    stage: PythonErrorStage;
+    exceptionType: PythonExceptionType | null;
+}> => {
+    try {
+        const parsed = harnessErrorSchema.safeParse(
+            JSON.parse(
+                await handle.files.read(PYTHON_OUTPUT_ERROR_PATH, {
+                    maxBytes: 4096,
+                }),
+            ),
+        );
+        if (parsed.success)
+            return {
+                stage: parsed.data.stage,
+                exceptionType:
+                    parsed.data.exceptionType === null
+                        ? null
+                        : toPythonExceptionType(parsed.data.exceptionType),
+            };
+    } catch {
+        // missing or unreadable: fall through
+    }
+    return { stage: 'run', exceptionType: null };
+};
 
 const COMPILE_TIMEOUT_MS = 30_000;
 const SANDBOX_IDLE_MARGIN_MS = 60_000;
@@ -326,7 +386,10 @@ export class PythonSandboxRunner {
             return { resultJsonl, resultMeta, stdout };
         } catch (error) {
             if (error instanceof SandboxOutputLimitError) {
-                throw new PythonExecutionError(error.message);
+                throw new PythonExecutionError(error.message, {
+                    stage: 'output',
+                    exceptionType: null,
+                });
             }
             throw error;
         } finally {
@@ -409,6 +472,7 @@ export class PythonSandboxRunner {
             if (e instanceof SandboxCommandError) {
                 throw new PythonExecutionError(
                     `Python code does not compile:\n${e.stderr.trim()}`,
+                    { stage: 'compile', exceptionType: 'SyntaxError' },
                 );
             }
             throw e;
@@ -463,11 +527,13 @@ export class PythonSandboxRunner {
             if (e instanceof SandboxCommandError) {
                 throw new PythonExecutionError(
                     e.stderr.trim() || `Python exited with code ${e.exitCode}`,
+                    await readHarnessError(handle),
                 );
             }
             if (e instanceof SandboxTimeoutError) {
                 throw new PythonExecutionError(
                     `Python run exceeded ${Math.round(timeoutMs / 1000)}s`,
+                    { stage: 'timeout', exceptionType: null },
                 );
             }
             throw e;

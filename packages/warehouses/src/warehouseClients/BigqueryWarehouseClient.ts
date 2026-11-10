@@ -1112,7 +1112,18 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         return catalog;
     }
 
+    /** Keeps BigQuery's structured `reason` in the error data for classification. */
     parseError(error: bigquery.IErrorProto, query: string = '') {
+        const parsed = this.parseErrorMessage(error, query);
+        return error?.reason
+            ? new WarehouseQueryError(parsed.message, {
+                  ...parsed.data,
+                  bigqueryReason: error.reason,
+              })
+            : parsed;
+    }
+
+    private parseErrorMessage(error: bigquery.IErrorProto, query: string) {
         // if the error has no reason, return a generic error
         if (!error?.reason) {
             return new WarehouseQueryError(getErrorMessage(error));

@@ -3,6 +3,7 @@ import {
     createToolRunSqlArgsSchema,
     getRunSqlDefaultLimit,
     isSlackPrompt,
+    ParameterError,
     RUN_SQL_PREVIEW_ROW_LIMIT,
     runSqlToolDefinition,
     type AiSqlChartArtifactConfig,
@@ -122,21 +123,26 @@ const RUN_SQL_APPROVAL_COPY: SqlApprovalCopy = {
 export const validateSelectOnly = (sql: string) => {
     const stripped = stripCommentsAndStrings(sql);
     if (!STARTS_WITH_SELECT_OR_WITH.test(stripped)) {
-        throw new Error('Only SELECT or WITH queries are allowed.');
+        throw new ParameterError('Only SELECT or WITH queries are allowed.', {
+            errorCode: 'sql_not_select',
+        });
     }
     if (FORBIDDEN_STATEMENTS.test(stripped)) {
-        throw new Error(
+        throw new ParameterError(
             'SQL contains forbidden statements (INSERT/UPDATE/DELETE/DDL). Only SELECT queries are allowed.',
+            { errorCode: 'sql_not_select' },
         );
     }
     if (FORBIDDEN_FUNCTIONS.test(stripped)) {
-        throw new Error(
+        throw new ParameterError(
             'SQL contains forbidden functions. Only direct SELECT queries are allowed.',
+            { errorCode: 'sql_not_select' },
         );
     }
     if (INFORMATION_SCHEMA.test(stripped)) {
-        throw new Error(
+        throw new ParameterError(
             'Querying information_schema is forbidden. Use describeWarehouseTable for column discovery on a raw table, or listWarehouseTables to find table names. If neither returns what you need, ask the user — do not introspect via SQL.',
+            { errorCode: 'sql_not_select' },
         );
     }
 };

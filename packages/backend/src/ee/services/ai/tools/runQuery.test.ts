@@ -929,7 +929,13 @@ describe('getRunQuery', () => {
             result: expect.stringContaining(
                 '[FILTER_EXPRESSION_UNKNOWN_FIELD]',
             ),
-            metadata: { status: 'error' },
+            metadata: {
+                status: 'error',
+                toolError: {
+                    code: 'filter_expression_unknown_field',
+                    pythonExceptionType: null,
+                },
+            },
         });
         expect(output.result).toContain('Problem:');
         expect(output.result).toContain('How to fix:');
@@ -998,7 +1004,13 @@ describe('getRunQuery', () => {
             result: expect.stringContaining(
                 '[FILTER_EXPRESSION_CUSTOM_METRIC_WRONG_CATEGORY]',
             ),
-            metadata: { status: 'error' },
+            metadata: {
+                status: 'error',
+                toolError: {
+                    code: 'filter_expression_custom_metric_wrong_category',
+                    pythonExceptionType: null,
+                },
+            },
         });
         expect(output.result).toContain('dimension field ID');
         expect(output.result).not.toContain('parserMessage');
@@ -1116,7 +1128,10 @@ describe('getRunQuery', () => {
                 ) as RunAsyncQueryFn,
         );
 
-        expect(output.metadata).toMatchObject({ status: 'error' });
+        expect(output.metadata).toMatchObject({
+            status: 'error',
+            toolError: { code: 'unknown', pythonExceptionType: null },
+        });
         expect(output.result).toContain('warehouse unavailable');
         expect(output.structuredContent).toEqual({ error: output.result });
         expect(toolRunQueryOutputSchema.safeParse(output).success).toBe(true);

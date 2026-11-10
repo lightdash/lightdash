@@ -191,6 +191,10 @@ describe('getSearchFieldValues', () => {
           {
             "metadata": {
               "status": "error",
+              "toolError": {
+                "code": "filter_expression_search_field_values_or",
+                "pythonExceptionType": null,
+              },
             },
             "result": "[FILTER_EXPRESSION_SEARCH_FIELD_VALUES_OR]
           Invalid dimension filter expression.
@@ -233,7 +237,10 @@ describe('getSearchFieldValues', () => {
             filters: null,
         });
 
-        expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.metadata).toEqual({
+            status: 'error',
+            toolError: { code: 'unknown', pythonExceptionType: null },
+        });
         expect(output.result).toContain('Error searching field values.');
         expect(output.result).toContain('warehouse unavailable');
         expect(output.structuredContent).toEqual({

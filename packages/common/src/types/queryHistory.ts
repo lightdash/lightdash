@@ -9,6 +9,7 @@ import type { ItemsMap } from './field';
 import type { MetricQuery } from './metricQuery';
 import type { ParametersValuesMap } from './parameters';
 import type { WarehouseTypes } from './projects';
+import type { QueryErrorDetails } from './queryErrorDetails';
 import type { WarehouseExecutionStats } from './warehouse';
 
 export interface IWarehouseQueryMetadata {
@@ -164,6 +165,7 @@ export type QueryHistory = {
     totalRowCount: number | null;
     warehouseExecutionTimeMs: number | null;
     error: string | null;
+    errorDetails: QueryErrorDetails | null;
     erroredAt: Date | null;
     cacheKey: string;
     pivotConfiguration: PivotConfiguration | null;

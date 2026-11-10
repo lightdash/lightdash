@@ -237,6 +237,7 @@ const readyNode = (
     nodeId,
     state: QueryHistoryStatus.READY,
     error: null,
+    errorDetails: null,
     rowCount,
     columns,
     sample: null,
@@ -246,7 +247,15 @@ const unsettledNode = (
     nodeId: string,
     state: QueryHistoryStatus,
     error: string | null = null,
-) => ({ nodeId, state, error, rowCount: null, columns: null, sample: null });
+) => ({
+    nodeId,
+    state,
+    error,
+    errorDetails: null,
+    rowCount: null,
+    columns: null,
+    sample: null,
+});
 
 const revenueColumns: ResultColumns = {
     payments_month: { reference: 'payments_month', type: DimensionType.DATE },
@@ -882,6 +891,41 @@ describe('getRunComposerQueries', () => {
         },
     );
 
+    it('reports the failed node classification as the tool error', async () => {
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        dependencies.runComposerQueries.mockResolvedValueOnce({
+            status: 'failure',
+            error: 'Composer query failed.',
+            errorDetails: {
+                code: 'python_run',
+                pythonExceptionType: 'KeyError',
+            },
+            nodeStatuses: [],
+        });
+
+        const failed = await executeTool(tool, makeArgs());
+
+        expect(failed.metadata).toMatchObject({
+            status: 'error',
+            toolError: { code: 'python_run', pythonExceptionType: 'KeyError' },
+        });
+    });
+
+    it('reports a pipeline the builder refuses with its code', async () => {
+        const { tool } = makeTool({ autoApproveSql: true });
+        const args = makeArgs();
+
+        const failed = await executeTool(tool, {
+            ...args,
+            queries: [...args.queries, args.queries[0]],
+        });
+
+        expect(failed.metadata).toEqual({
+            status: 'error',
+            toolError: { code: 'duplicate_node_id', pythonExceptionType: null },
+        });
+    });
+
     it('keeps the successful nodes of a failed run, so the next call reads them and resubmits the failed node corrected', async () => {
         const { tool, dependencies, registry } = makeTool({
             autoApproveSql: true,
@@ -889,6 +933,7 @@ describe('getRunComposerQueries', () => {
         dependencies.runComposerQueries.mockResolvedValueOnce({
             status: 'failure',
             error: 'Composer query failed.',
+            errorDetails: { code: 'unknown', pythonExceptionType: null },
             nodeStatuses: [
                 readyNode('revenue', 12, revenueColumns),
                 unsettledNode(
@@ -985,6 +1030,7 @@ describe('getRunComposerQueries', () => {
         dependencies.runComposerQueries.mockResolvedValueOnce({
             status: 'failure',
             error: 'Composer query timed out after 5 minutes.',
+            errorDetails: { code: 'unknown', pythonExceptionType: null },
             nodeStatuses: [
                 readyNode('revenue', 12),
                 unsettledNode('signups', QueryHistoryStatus.EXECUTING),
@@ -1226,6 +1272,7 @@ describe('getRunComposerQueries', () => {
             async ({ sampleNodeIds }: { sampleNodeIds: string[] }) => ({
                 status: 'failure',
                 error: 'Composer query failed.',
+                errorDetails: { code: 'unknown', pythonExceptionType: null },
                 nodeStatuses: withRequestedSamples(
                     [
                         readyNode('revenue', 12, revenueColumns),
@@ -1388,6 +1435,7 @@ describe('composer artifact with reused nodes', () => {
         dependencies.runComposerQueries.mockResolvedValueOnce({
             status: 'failure',
             error: 'Composer query failed.',
+            errorDetails: { code: 'unknown', pythonExceptionType: null },
             nodeStatuses: [
                 unsettledNode('orders', QueryHistoryStatus.ERROR, 'boom'),
                 unsettledNode(
@@ -1534,6 +1582,10 @@ describe('composer artifact with reused nodes', () => {
                     : {
                           status: 'failure',
                           error: 'Composer query failed.',
+                          errorDetails: {
+                              code: 'unknown',
+                              pythonExceptionType: null,
+                          },
                           nodeStatuses,
                       },
             );
@@ -1788,6 +1840,7 @@ describe('python composer nodes', () => {
         dependencies.runComposerQueries.mockResolvedValue({
             status: 'failure',
             error: 'Composer query failed.',
+            errorDetails: { code: 'unknown', pythonExceptionType: null },
             nodeStatuses: [
                 readyNode('revenue', 12),
                 {

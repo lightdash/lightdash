@@ -14,6 +14,7 @@ import type {
     GetExploreFn,
     SearchFieldValuesFn,
 } from '../types/aiAgentDependencies';
+import { getFilterExpressionErrorCode } from '../utils/aiToolErrorCode';
 import {
     formatFilterExpressionError,
     resolveSearchFieldValuesFilterExpression,
@@ -96,7 +97,15 @@ export const getSearchFieldValues = ({
                             );
                             return {
                                 result,
-                                metadata: { status: 'error' },
+                                metadata: {
+                                    status: 'error',
+                                    toolError: {
+                                        code: getFilterExpressionErrorCode(
+                                            resolution.error.code,
+                                        ),
+                                        pythonExceptionType: null,
+                                    },
+                                },
                                 structuredContent: {
                                     error: result,
                                 },

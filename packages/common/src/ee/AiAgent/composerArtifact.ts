@@ -247,6 +247,7 @@ export const buildComposerArtifactPipeline = ({
         if (existing && !isSameComposerNodeDefinition(existing, node)) {
             throw new ParameterError(
                 getComposerNodeConflictMessage(existing, scopeName),
+                { errorCode: 'node_id_conflict' },
             );
         }
     });
@@ -259,6 +260,7 @@ export const buildComposerArtifactPipeline = ({
                 ) {
                     throw new ParameterError(
                         `Node "${node.nodeId}" reads "${reference}", which is not a node of this submission or of an earlier call in this ${scopeName}. ${describeNodes(threadNodeList, scopeName)}`,
+                        { errorCode: 'unknown_node_reference' },
                     );
                 }
             },

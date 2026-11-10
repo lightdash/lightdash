@@ -7,6 +7,8 @@ import {
     queryToolDefinition,
     toComposerNodeColumns,
     WarehouseQueryError,
+    type AiToolErrorCode,
+    type AiToolErrorDetails,
     type ParameterDefinitions,
     type SemanticLayerSourceQuery,
     type SourceQuery,
@@ -114,14 +116,18 @@ type ComposerQueriesOutput =
           ToolComposerQueriesStructuredContent,
           ToolComposerQueriesSuccessMetadata
       >
-    | ExecuteToolErrorResult<{ status: 'error' | 'rejected' | 'timeout' }>;
+    | ExecuteToolErrorResult<{
+          status: 'error' | 'rejected' | 'timeout';
+          toolError?: AiToolErrorDetails;
+      }>;
 
 const failure = (
     result: string,
     status: 'error' | 'rejected' | 'timeout',
+    code: AiToolErrorCode,
 ): ComposerQueriesOutput => ({
     result,
-    metadata: { status },
+    metadata: { status, toolError: { code, pythonExceptionType: null } },
     structuredContent: { error: result },
 });
 
@@ -263,7 +269,7 @@ export const getRunComposerQueries = ({
                 });
                 if ('error' in built) {
                     return await persistIfResumed(
-                        failure(built.error, 'error'),
+                        failure(built.error, 'error', built.errorCode),
                     );
                 }
                 const {
@@ -286,7 +292,13 @@ export const getRunComposerQueries = ({
                     } catch (e) {
                         if (e instanceof SqlNotApprovedError) {
                             return await persistIfResumed(
-                                failure(e.message, e.outcome),
+                                failure(
+                                    e.message,
+                                    e.outcome,
+                                    e.outcome === 'rejected'
+                                        ? 'sql_rejected'
+                                        : 'sql_approval_timeout',
+                                ),
                             );
                         }
                         throw e;
@@ -370,6 +382,11 @@ export const getRunComposerQueries = ({
                     });
                     throw new WarehouseQueryError(
                         `${run.error}\nNodes in this pipeline, failed nodes first. A later call can read any node with rows by node id:\n${nodeListing}`,
+                        {
+                            errorCode: run.errorDetails.code,
+                            pythonExceptionType:
+                                run.errorDetails.pythonExceptionType,
+                        },
                     );
                 }
                 const { terminal } = run;

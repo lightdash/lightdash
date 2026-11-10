@@ -396,7 +396,10 @@ describe('grepFields output envelope', () => {
         });
 
         expect(toolGrepFieldsOutputSchema.safeParse(output).success).toBe(true);
-        expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.metadata).toEqual({
+            status: 'error',
+            toolError: { code: 'unknown', pythonExceptionType: null },
+        });
         expect(output.result).toContain('Error grepping fields');
         expect(output.result).toContain('logger down');
         expect(output.structuredContent).toEqual({

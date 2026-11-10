@@ -43,6 +43,7 @@ import {
     getEmbeddedDatabaseFileName,
     resolveEmbeddedBundleDatabasePath,
 } from './duckdbEmbeddedBundle';
+import { withDuckdbErrorPhase } from './duckdbErrorPhase';
 import { classifyMotherduckError } from './MotherduckErrorClassifier';
 import * as MotherduckInstanceCache from './MotherduckInstanceCache';
 import WarehouseBaseClient from './WarehouseBaseClient';
@@ -3097,7 +3098,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         db: DuckdbConnection,
         sql: string,
     ): Promise<void> {
-        const extracted = await db.extractStatements(sql);
+        const extracted = await withDuckdbErrorPhase('parse', () =>
+            db.extractStatements(sql),
+        );
 
         if (extracted.count === 0) {
             throw new Error('SQL validation error: empty SQL statement');
@@ -3109,7 +3112,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             );
         }
 
-        const stmt = await extracted.prepare(0);
+        const stmt = await withDuckdbErrorPhase('bind', () =>
+            extracted.prepare(0),
+        );
         try {
             if (!ALLOWED_STATEMENT_TYPES_USER_SQL.has(stmt.statementType)) {
                 throw new Error(
@@ -3168,7 +3173,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         db: DuckdbConnection,
         sql: string,
     ): Promise<void> {
-        const extracted = await db.extractStatements(sql);
+        const extracted = await withDuckdbErrorPhase('parse', () =>
+            db.extractStatements(sql),
+        );
 
         if (extracted.count === 0) {
             throw new Error('SQL validation error: empty SQL statement');
@@ -3176,7 +3183,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
 
         for (let i = 0; i < extracted.count; i += 1) {
             // eslint-disable-next-line no-await-in-loop
-            const stmt = await extracted.prepare(i);
+            const stmt = await withDuckdbErrorPhase('bind', () =>
+                extracted.prepare(i),
+            );
             try {
                 if (
                     BLOCKED_STATEMENT_TYPES_INTERNAL_SQL.has(stmt.statementType)
@@ -3262,23 +3271,27 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
                 reportPhase?.('session', performance.now() - sessionStart);
 
                 const queryStart = performance.now();
-                const result = await db.stream(
-                    this.getSQLWithMetadata(sql, options?.tags),
-                    this.getBindValues(options),
-                );
-                const fields =
-                    DuckdbWarehouseClient.getFieldsFromStreamResult(result);
-
                 let fetchStart: number | undefined;
-                // eslint-disable-next-line no-restricted-syntax
-                for await (const rows of result.yieldRowObjectJson()) {
-                    if (fetchStart === undefined) {
-                        reportPhase?.('query', performance.now() - queryStart);
-                        fetchStart = performance.now();
+                await withDuckdbErrorPhase('runtime', async () => {
+                    const result = await db.stream(
+                        this.getSQLWithMetadata(sql, options?.tags),
+                        this.getBindValues(options),
+                    );
+                    const fields =
+                        DuckdbWarehouseClient.getFieldsFromStreamResult(result);
+                    // eslint-disable-next-line no-restricted-syntax
+                    for await (const rows of result.yieldRowObjectJson()) {
+                        if (fetchStart === undefined) {
+                            reportPhase?.(
+                                'query',
+                                performance.now() - queryStart,
+                            );
+                            fetchStart = performance.now();
+                        }
+                        hasEmittedRows = true;
+                        await streamCallback({ fields, rows });
                     }
-                    hasEmittedRows = true;
-                    await streamCallback({ fields, rows });
-                }
+                });
                 if (fetchStart === undefined) {
                     reportPhase?.('query', performance.now() - queryStart);
                     reportPhase?.('fetch', 0);
@@ -3337,7 +3350,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     async runSql(sql: string): Promise<void> {
         await this.withSession(async (db) => {
             await this.validateInternalSql(db, sql);
-            await db.run(sql);
+            await withDuckdbErrorPhase('runtime', () => db.run(sql));
         });
     }
 
@@ -3354,7 +3367,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             await this.validateInternalSql(db, sql);
             bootstrapMs = performance.now() - totalStart;
             const queryStart = performance.now();
-            await db.run(sql);
+            await withDuckdbErrorPhase('runtime', () => db.run(sql));
             queryMs = performance.now() - queryStart;
         });
 

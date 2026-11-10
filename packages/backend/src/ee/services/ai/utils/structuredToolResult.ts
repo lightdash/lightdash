@@ -1,5 +1,6 @@
 import type {
     AiAccessRefusal,
+    AiToolErrorDetails,
     ToolErrorStructuredContent,
 } from '@lightdash/common';
 
@@ -27,6 +28,8 @@ interface ToolErrorMetadata extends Record<string, unknown> {
     status: 'error';
     requiresSnowflakeReauthentication?: true;
     refusal?: AiAccessRefusal;
+    /** Classified failure for telemetry; never shown to the model. */
+    toolError?: AiToolErrorDetails;
 }
 
 export interface ExecuteToolErrorResult<TMetadata = ToolErrorMetadata> {

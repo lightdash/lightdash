@@ -1209,6 +1209,21 @@ describe('BigqueryWarehouseClient Google OAuth token errors', () => {
         );
     });
 
+    it('keeps the BigQuery reason in the error data', async () => {
+        const warehouse = createWarehouseRejectingQueries(userCredentials, {
+            errors: [
+                {
+                    reason: 'bytesBilledLimitExceeded',
+                    message: 'Query exceeded limit for bytes billed',
+                },
+            ],
+        });
+
+        await expect(executeAsyncQuery(warehouse)).rejects.toMatchObject({
+            data: { bigqueryReason: 'bytesBilledLimitExceeded' },
+        });
+    });
+
     it('translates an invalid_grant rejection raised while fetching table metadata', async () => {
         const warehouse = new BigqueryWarehouseClient(userCredentials);
         const getMetadata = vi.fn<() => Promise<never>>();

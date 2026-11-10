@@ -87,6 +87,38 @@ const runHarness = ({ columns, rows, code }: HarnessRun) => {
     }
 };
 
+/** Runs code expected to fail and returns the harness's error record. */
+const runFailingHarness = (code: string) => {
+    const workDir = mkdtempSync(path.join(tmpdir(), 'python-query-harness-'));
+    try {
+        mkdirSync(path.join(workDir, 'in'));
+        mkdirSync(path.join(workDir, 'out'));
+        writeFileSync(
+            path.join(workDir, 'runner.py'),
+            PYTHON_RUNNER_SOURCE.replace(PYTHON_WORK_DIR, workDir),
+        );
+        writeFileSync(path.join(workDir, 'main.py'), code);
+        writeFileSync(
+            path.join(workDir, 'in', 'meta.json'),
+            JSON.stringify({
+                inputs: { orders: { columns: { n: 'number' } } },
+                params: {},
+                limit: 10,
+            }),
+        );
+        writeFileSync(path.join(workDir, 'in', 'orders.jsonl'), '{"n": 1}');
+        const run = spawnSync('python3', [path.join(workDir, 'runner.py')], {
+            timeout: 10_000,
+        });
+        expect(run.status).not.toBe(0);
+        return JSON.parse(
+            readFileSync(path.join(workDir, 'out', 'error.json'), 'utf8'),
+        );
+    } finally {
+        rmSync(workDir, { recursive: true, force: true });
+    }
+};
+
 const expectedTimings = {
     importMs: expect.any(Number),
     loadInputsMs: expect.any(Number),
@@ -307,6 +339,31 @@ describe.skipIf(!hasPythonDependencies)(
         });
     },
 );
+
+describe.skipIf(!hasPythonDependencies)('Python harness error record', () => {
+    it.each([
+        {
+            stage: 'load',
+            exceptionType: 'NameError',
+            code: 'undefined_name\n\ndef run(inputs, params):\n    return inputs["orders"]\n',
+        },
+        {
+            stage: 'run',
+            exceptionType: 'KeyError',
+            code: 'def run(inputs, params):\n    return inputs["missing"]\n',
+        },
+        {
+            stage: 'output',
+            exceptionType: null,
+            code: 'def run(inputs, params):\n    return 1\n',
+        },
+    ])('records the $stage stage and exception class', (expected) => {
+        expect(runFailingHarness(expected.code)).toEqual({
+            stage: expected.stage,
+            exceptionType: expected.exceptionType,
+        });
+    });
+});
 
 const timings = {
     importMs: 120,

@@ -14,8 +14,10 @@ import {
     WarehouseQueryError,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
+import { InvalidToolInputError } from 'ai';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Logger from '../../../../logging/logger';
+import { validateSelectOnly } from '../tools/runSql';
 import {
     isAgentRecoverableError,
     toolErrorHandler,
@@ -124,7 +126,10 @@ describe('toolErrorOutput', () => {
             error: error.message,
             refusal: error.refusal,
         });
-        expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.metadata).toEqual({
+            status: 'error',
+            toolError: { code: 'access_refused', pythonExceptionType: null },
+        });
     });
     it('mirrors the model-facing text as structured content', () => {
         const output = toolErrorOutput(
@@ -132,7 +137,10 @@ describe('toolErrorOutput', () => {
             'Error running SQL query.',
         );
 
-        expect(output.metadata).toEqual({ status: 'error' });
+        expect(output.metadata).toEqual({
+            status: 'error',
+            toolError: { code: 'warehouse_other', pythonExceptionType: null },
+        });
         expect(output.structuredContent).toStrictEqual({
             error: output.result,
         });
@@ -161,7 +169,16 @@ test('retains policy refusal in the metadata stored by the agent', () => {
     );
     const output = toolErrorOutput(error, 'Access refused');
     expect(output.metadata).toMatchObject({ refusal: error.refusal });
-    expect(toolRunSqlOutputSchema.parse(output)).toEqual(output);
+    // toolError is telemetry the output schema leaves out
+    const { toolError, ...metadata } = output.metadata;
+    expect(toolError).toEqual({
+        code: 'access_refused',
+        pythonExceptionType: null,
+    });
+    expect(toolRunSqlOutputSchema.parse(output)).toEqual({
+        ...output,
+        metadata,
+    });
     expect(
         toolErrorStructuredContentSchema.parse(output.structuredContent),
     ).toEqual(output.structuredContent);
@@ -247,7 +264,10 @@ test('does not offer personal reauthentication for an expired shared project sig
         },
     });
     const output = toolErrorOutput(error, 'Error running query.');
-    expect(output.metadata).toEqual({ status: 'error' });
+    expect(output.metadata).toEqual({
+        status: 'error',
+        toolError: { code: 'unknown', pythonExceptionType: null },
+    });
     expect(output.result).toContain(error.message);
     expect(output.result).not.toContain('your own Snowflake account');
 });
@@ -257,7 +277,38 @@ test('keeps unattributed Snowflake token errors unchanged', () => {
         new SnowflakeTokenError('Expired token'),
         'Error running query.',
     );
-    expect(output.metadata).toEqual({ status: 'error' });
+    expect(output.metadata).toEqual({
+        status: 'error',
+        toolError: { code: 'unknown', pythonExceptionType: null },
+    });
     expect(output.result).toContain('Expired token');
     expect(output.result).not.toContain('your own Snowflake account');
+});
+
+test('codes rejected agent SQL as sql_not_select', () => {
+    const error = (() => {
+        try {
+            validateSelectOnly('DELETE FROM orders');
+        } catch (e) {
+            return e;
+        }
+        throw new Error('Expected validation to fail');
+    })();
+    expect(toolErrorOutput(error, 'Error running SQL query.').metadata).toEqual(
+        {
+            status: 'error',
+            toolError: { code: 'sql_not_select', pythonExceptionType: null },
+        },
+    );
+});
+
+test('codes tool input the SDK rejected as invalid_input', () => {
+    const error = new InvalidToolInputError({
+        toolName: 'runSql',
+        toolInput: '{}',
+        cause: new Error('sql is required'),
+    });
+    expect(toolErrorOutput(error, 'Invalid input.').metadata).toMatchObject({
+        toolError: { code: 'invalid_input', pythonExceptionType: null },
+    });
 });

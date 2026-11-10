@@ -187,6 +187,7 @@ import {
     type PreAggregateFallbackReason,
     type Project,
     type QueryCostEstimate,
+    type QueryErrorDetails,
     type QueryHistory,
     type QueryResultProducer,
     type QueryResultReader,
@@ -495,6 +496,7 @@ import {
     assertAgentQueryWithinEstimateLimit,
     QueryEstimateCache,
 } from './queryCostEstimate';
+import { getQueryErrorDetails } from './queryErrorDetails';
 import { canReuseApiResult, canReuseQueryResult } from './queryResultReuse';
 import { queryUsageProperties, queryWorkloadOrigin } from './queryUsage';
 import {
@@ -1065,6 +1067,7 @@ export class AsyncQueryService extends ProjectService {
                     error: sanitizeDuckdbError(
                         personaliseSharedSignInError(e, null),
                     ),
+                    error_details: getQueryErrorDetails(e),
                     errored_at: new Date(),
                 },
                 account,
@@ -4457,6 +4460,7 @@ export class AsyncQueryService extends ProjectService {
                     errorMessage: `Pre-aggregate execution failed, and execution fallback is disabled for this project ('pre_aggregate_execution_fallback' under 'defaults' in lightdash.config.yml).\nCause: ${getErrorMessage(
                         personaliseSharedSignInError(preAggregateError, null),
                     )}`,
+                    errorDetails: getQueryErrorDetails(preAggregateError),
                     executionSource:
                         preAggregateExecution === 'duckdb'
                             ? 'pre_aggregate_duckdb'
@@ -4638,6 +4642,7 @@ export class AsyncQueryService extends ProjectService {
         queryCreatedAt,
         queryUsage,
         errorMessage,
+        errorDetails,
         executionSource,
         warehouseType,
         warehouseConnectionUuid,
@@ -4659,6 +4664,7 @@ export class AsyncQueryService extends ProjectService {
     > & {
         inheritedFromProjectUuid: string | null;
         errorMessage: string;
+        errorDetails: QueryErrorDetails;
         executionSource: WarehouseExecutionSource | 'pre_aggregate_warehouse';
         warehouseType: WarehouseTypes | null;
         warehouseConnectionUuid?: string | null;
@@ -4695,6 +4701,7 @@ export class AsyncQueryService extends ProjectService {
                 isRegisteredUser: () => isRegisteredUser,
                 user: { id: userUuid },
             },
+            errorDetails,
         );
         this.analytics.track({
             ...analyticsIdentity,
@@ -5818,6 +5825,7 @@ export class AsyncQueryService extends ProjectService {
                         : getErrorMessage(
                               personaliseSharedSignInError(e, null),
                           ),
+                errorDetails: getQueryErrorDetails(e),
                 executionSource,
                 warehouseType: warehouseCredentialsType ?? null,
                 warehouseConnectionUuid,
@@ -11873,17 +11881,24 @@ export class AsyncQueryService extends ProjectService {
                             },
                         },
                         async () => {
-                            const parsedMeta = parsePythonResultMeta(
-                                run.resultMeta,
-                            );
-                            return {
-                                meta: parsedMeta,
-                                rows: validatePythonResultRows(
-                                    run.resultJsonl,
-                                    parsedMeta,
-                                    limit,
-                                ),
-                            };
+                            try {
+                                const parsedMeta = parsePythonResultMeta(
+                                    run.resultMeta,
+                                );
+                                return {
+                                    meta: parsedMeta,
+                                    rows: validatePythonResultRows(
+                                        run.resultJsonl,
+                                        parsedMeta,
+                                        limit,
+                                    ),
+                                };
+                            } catch (e) {
+                                throw new PythonExecutionError(
+                                    getErrorMessage(e),
+                                    { stage: 'output', exceptionType: null },
+                                );
+                            }
                         },
                     );
                     span.setAttributes({
@@ -11984,6 +11999,7 @@ export class AsyncQueryService extends ProjectService {
                         projectUuid,
                         message,
                         account,
+                        getQueryErrorDetails(e),
                     );
                     this.prometheusMetrics?.trackQueryStateTransition(
                         QueryHistoryStatus.PENDING,
@@ -14163,6 +14179,7 @@ export class AsyncQueryService extends ProjectService {
                     error: getErrorMessage(
                         personaliseSharedSignInError(e, null),
                     ),
+                    error_details: getQueryErrorDetails(e),
                     errored_at: new Date(),
                 },
                 account,
@@ -14673,9 +14690,11 @@ export class AsyncQueryService extends ProjectService {
             );
             setPhaseTimingAttributes(trace.getActiveSpan(), phaseTimings);
         } catch (e) {
-            // The DuckDB client throws raw errors (validation + engine)
+            // The DuckDB client throws raw errors (validation + engine); keep it as cause for classification
             if (e instanceof LightdashError) throw e;
-            throw new WarehouseQueryError(getErrorMessage(e));
+            throw Object.assign(new WarehouseQueryError(getErrorMessage(e)), {
+                cause: e,
+            });
         }
         return Object.values(
             Object.fromEntries(columns.map((column) => [column.name, column])),
@@ -16067,6 +16086,23 @@ export class AsyncQueryService extends ProjectService {
             account,
         );
         return queryHistory.warehouseExecutionStats;
+    }
+
+    async getQueryErrorDetails({
+        account,
+        projectUuid,
+        queryUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+    }): Promise<QueryErrorDetails | null> {
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
+        return queryHistory.errorDetails;
     }
 
     async extendQueryResultsExpiration({

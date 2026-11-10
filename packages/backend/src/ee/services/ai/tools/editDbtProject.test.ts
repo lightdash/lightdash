@@ -119,6 +119,7 @@ describe('getEditDbtProject', () => {
         expect(output.metadata).toEqual({
             status: 'error',
             errorCode: 'unknown',
+            toolError: { code: 'unknown', pythonExceptionType: null },
         });
         expect(output.result).toContain(
             'Error starting AI writeback. No pull request was opened.',

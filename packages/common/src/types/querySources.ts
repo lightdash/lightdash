@@ -17,6 +17,7 @@ import {
 } from './metricQuery';
 import { type ParametersValuesMap } from './parameters';
 import { type PivotConfiguration } from './pivot';
+import { type QueryErrorDetails } from './queryErrorDetails';
 import { type QueryHistoryStatus } from './queryHistory';
 import { type ResultColumns } from './results';
 
@@ -371,6 +372,8 @@ export type SourceQueryStatus = {
     queryUuid: UUID;
     status: QueryHistoryStatus;
     error: string | null;
+    /** Why the query failed, classified where it was thrown; null unless it errored. */
+    errorDetails: QueryErrorDetails | null;
     /** Rows the query returned; null while unknown, e.g. before it finishes. */
     totalRowCount: number | null;
     /** Warehouse run time; null while unknown or not recorded. */
