@@ -68,8 +68,8 @@ type Props = Omit<
     triggerClassName?: string;
     /** Shown in place of the field icon (default: the field's icon). */
     fieldIconOverride?: ReactNode;
-    /** One default pill: muted and dashed when not in effect, a bold value
-     * when in effect, dashed when temporary, an asterisk on the left when required
+    /** One default pill: muted when not in effect, a bold value when in
+     * effect, dashed when temporary, an asterisk on the left when required
      * with no value (default false). */
     isPlain?: boolean;
     onClick: (event: MouseEvent<HTMLButtonElement>) => void;

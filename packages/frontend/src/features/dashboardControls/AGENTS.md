@@ -238,10 +238,10 @@ Every flag-on pill is the default white pill; only these change it, all in
 `ActiveFilters/Filter.module.css` under `.plain`:
 
 - Not in effect (no value, or it reaches no tile): text and icons muted,
-  a dashed border, "is any value". In effect (`data-in-effect`): the value bold.
+  the standard border, "is any value". In effect (`data-in-effect`): the value bold.
 - Open (`data-open`, the filter in the editor): a 1.5px
-  ink border, the extra 0.5px inset so the box keeps its size; a dashed
-  pill keeps its 1px dashed border, with no inset.
+  ink border, the extra 0.5px inset so the box keeps its size; a temporary
+  (dashed) pill keeps its 1px dashed border, with no inset.
 - Not saved for everyone (`data-temporary`: a viewer's own filter, or an
   editor's filter not in the saved dashboard, or a temporary pill): dashed.
   "Only you see this filter" (`controls.onlyYouSeeFilter`) or "Not saved
