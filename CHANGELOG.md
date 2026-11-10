@@ -1,3 +1,14 @@
+## [3.194.3](https://github.com/lightdash/lightdash/compare/3.194.2...3.194.3) (2026-11-10)
+
+
+### Bug Fixes
+
+* **ai-agent:** no failed state on tool calls the agent recovers from ([#32287](https://github.com/lightdash/lightdash/issues/32287)) ([590e707](https://github.com/lightdash/lightdash/commit/590e707ba688e658f9de8eecf5271f174a3d020e))
+* **ai:** tell agents to quote every filter string value ([#32299](https://github.com/lightdash/lightdash/issues/32299)) ([fe94899](https://github.com/lightdash/lightdash/commit/fe94899f4d8a2cba94acd5a0f3ea1d82d44d2982))
+* **dashboards:** allow editors to preview unsaved dashboard tiles ([#32204](https://github.com/lightdash/lightdash/issues/32204)) ([1412c71](https://github.com/lightdash/lightdash/commit/1412c71204adf08264b93f152c93909d137463da))
+* **rainbow:** clear turbo cache and old bundle before frontend-build ([#32293](https://github.com/lightdash/lightdash/issues/32293)) ([ad1c8d9](https://github.com/lightdash/lightdash/commit/ad1c8d96a46deeeb3ecd0f090331aa758d3e87b5))
+* **rainbow:** re-seed preview databases when a branch changes dev seeds ([#32302](https://github.com/lightdash/lightdash/issues/32302)) ([2485d91](https://github.com/lightdash/lightdash/commit/2485d91457a9c836c371672c876ba0dbdccc52c9))
+
 ## [3.194.2](https://github.com/lightdash/lightdash/compare/3.194.1...3.194.2) (2026-11-10)
 
 
