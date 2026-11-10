@@ -11109,7 +11109,7 @@ def run(inputs, params):
     df = inputs["orders"]                           # one DataFrame per reference, columns already typed
     cutoff = pd.Timestamp("2026-01-01")             # all datetimes are tz-naive UTC wall clock; never tz_localize/tz_convert
     out = df[df["created_at"] >= cutoff].groupby("customer_id", as_index=False)["revenue"].sum()
-    return out                                      # unique [A-Za-z_][A-Za-z0-9_]* column names, index dropped
+    return out                                      # unique snake_case column names, letter first, max 63 chars (revenue_2024, not "Revenue 2024" or 2024); flatten pivot/unstack columns; index dropped
 
 Imports aside, all code inside run(). Read columns as df["col"], never df.col. Check df.dtypes before sum/astype.
 Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, polars 1.44. No network, no installs.",
