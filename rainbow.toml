@@ -164,7 +164,6 @@ PGWIRE_SSL_MODE = "disabled"
 # set, so it is enabled here and made real by the Anthropic key in [secrets];
 # with no key stored it stays off.
 AI_COPILOT_ENABLED = "true"
-AI_COPILOT_REQUIRES_FEATURE_FLAG = "true"
 AI_DEFAULT_PROVIDER = "anthropic"
 # The Snowflake AI test loop: the backend accepts only this exact account
 # origin and dials it itself, so it is the stub service above.

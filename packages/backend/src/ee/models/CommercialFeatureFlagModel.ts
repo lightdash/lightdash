@@ -2,6 +2,7 @@ import {
     CommercialFeatureFlags,
     FeatureFlag,
     FeatureFlags,
+    getAiCreditContractWindow,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { isAppRuntimeConfigured } from '../../config/appRuntimeAvailability';
@@ -13,6 +14,7 @@ import {
     FeatureFlagModel,
     FeatureFlagQueryOptions,
 } from '../../models/FeatureFlagModel/FeatureFlagModel';
+import { AiCreditContractsTableName } from '../database/entities/aiCredits';
 import { ExternalConnectionsTableName } from '../database/entities/externalConnections';
 import { isCreatedInAiTrial } from '../services/ai/aiTrial';
 
@@ -110,27 +112,39 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
         };
     }
 
-    private async getAiCopilotFlag({
-        featureFlagId,
-        user,
-    }: FeatureFlagLogicArgs) {
-        const { enabled: copilotConfigEnabled, requiresFeatureFlag } =
-            this.lightdashConfig.ai.copilot;
-
-        // Dedicated instances (per the AI Copilot tenant docs) bypass the
-        // flag system entirely. Shared tenants (app/eu1) set
-        // requiresFeatureFlag=true and gate per-org via DB-backed overrides.
-        if (!copilotConfigEnabled || !requiresFeatureFlag) {
-            return { id: featureFlagId, enabled: copilotConfigEnabled };
-        }
-
-        // The endpoint allows anonymous callers, so fail closed like the
-        // other commercial flags instead of erroring.
-        if (!user) {
+    // Self-hosted: on for every org when AI_COPILOT_ENABLED=true.
+    // Lightdash Cloud: on for orgs with an AI credit contract in force,
+    // which Lightdash Console manages. Overrides are ignored.
+    private async getAiCopilotFlag(
+        { featureFlagId, user }: FeatureFlagLogicArgs,
+        options: FeatureFlagQueryOptions = {},
+    ): Promise<FeatureFlag> {
+        if (!this.lightdashConfig.ai.copilot.enabled) {
             return { id: featureFlagId, enabled: false };
         }
-
-        const dbResult = await this.tryGetFromDatabase({ user, featureFlagId });
-        return dbResult ?? { id: featureFlagId, enabled: false };
+        if (this.lightdashConfig.lightdashCloudInstance === undefined) {
+            return { id: featureFlagId, enabled: true };
+        }
+        // The endpoint allows anonymous callers, so fail closed.
+        const organizationUuid = user?.organizationUuid;
+        if (!organizationUuid) {
+            return { id: featureFlagId, enabled: false };
+        }
+        const db = options.trx ?? this.database;
+        const contract = await db(AiCreditContractsTableName)
+            .where('organization_uuid', organizationUuid)
+            .first('starts_at', 'ends_at', 'reset_interval_months')
+            .catch(() => undefined);
+        const enabled =
+            !!contract &&
+            getAiCreditContractWindow(
+                {
+                    startsAt: contract.starts_at,
+                    endsAt: contract.ends_at,
+                    resetIntervalMonths: contract.reset_interval_months,
+                },
+                new Date(),
+            ) !== null;
+        return { id: featureFlagId, enabled };
     }
 }

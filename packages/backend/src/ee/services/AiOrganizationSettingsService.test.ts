@@ -159,7 +159,6 @@ describe('normalizeAnalysisDefaultInstructions', () => {
 describe('findBaseUrlRemovalsBlockedByInstanceGateway', () => {
     const { providers } = aiCopilotConfigSchema.parse({
         enabled: true,
-        requiresFeatureFlag: false,
         telemetryEnabled: false,
         threadDumpEnabled: false,
         debugLoggingEnabled: false,

@@ -17,20 +17,35 @@ const createModel = (config: Partial<typeof lightdashConfigMock> = {}) =>
         },
     });
 
-const createGatedCopilotModel = () =>
-    createModel({
-        ai: {
-            ...lightdashConfigMock.ai,
-            copilot: {
-                ...lightdashConfigMock.ai.copilot,
-                enabled: true,
-                requiresFeatureFlag: true,
-            },
-        },
-    });
+const cloudCopilot = {
+    ...lightdashConfigMock.ai,
+    copilot: { ...lightdashConfigMock.ai.copilot, enabled: true },
+};
+
+const respondWithContract = (
+    tracker: Tracker,
+    contract: {
+        starts_at: Date;
+        ends_at: Date | null;
+        reset_interval_months: number;
+    } | null,
+) => {
+    tracker.on.select('ai_credit_contracts').response(contract ?? undefined);
+};
 
 describe('CommercialFeatureFlagModel ai copilot', () => {
     let tracker: Tracker;
+    const user = {
+        userUuid: 'user-uuid',
+        organizationUuid: 'organization-uuid',
+    };
+    const getCopilot = (
+        config: Partial<typeof lightdashConfigMock> = {},
+        args: { user?: typeof user } = { user },
+    ) =>
+        createModel({ ai: cloudCopilot, ...config })
+            .get({ featureFlagId: CommercialFeatureFlags.AiCopilot, ...args })
+            .then(({ enabled }) => enabled);
 
     beforeAll(() => {
         tracker = getTracker();
@@ -40,42 +55,57 @@ describe('CommercialFeatureFlagModel ai copilot', () => {
         tracker.reset();
     });
 
-    it('fails closed without a user and issues no flag queries', async () => {
+    it('is off when the instance has no AI, without querying', async () => {
         await expect(
-            createGatedCopilotModel().get({
-                featureFlagId: CommercialFeatureFlags.AiCopilot,
+            getCopilot({
+                ai: {
+                    ...cloudCopilot,
+                    copilot: { ...cloudCopilot.copilot, enabled: false },
+                },
             }),
-        ).resolves.toEqual({
-            id: CommercialFeatureFlags.AiCopilot,
-            enabled: false,
-        });
+        ).resolves.toBe(false);
         expect(tracker.history.select).toHaveLength(0);
     });
 
-    it('resolves through the database when a user is present', async () => {
-        tracker.on.select('feature_flags').responseOnce({
-            flag_id: CommercialFeatureFlags.AiCopilot,
-            default_enabled: null,
-        });
-        tracker.on.select('feature_flag_overrides').responseOnce({
-            flag_id: CommercialFeatureFlags.AiCopilot,
-            organization_uuid: 'organization-uuid',
-            user_uuid: null,
-            enabled: true,
-        });
-
+    it('is on for every org on self-hosted instances, without querying', async () => {
         await expect(
-            createGatedCopilotModel().get({
-                featureFlagId: CommercialFeatureFlags.AiCopilot,
-                user: {
-                    userUuid: 'user-uuid',
-                    organizationUuid: 'organization-uuid',
-                },
-            }),
-        ).resolves.toEqual({
-            id: CommercialFeatureFlags.AiCopilot,
-            enabled: true,
+            getCopilot({ lightdashCloudInstance: undefined }, {}),
+        ).resolves.toBe(true);
+        expect(tracker.history.select).toHaveLength(0);
+    });
+
+    it('fails closed on cloud without a user', async () => {
+        await expect(getCopilot({}, {})).resolves.toBe(false);
+        expect(tracker.history.select).toHaveLength(0);
+    });
+
+    it('is on on cloud for an org with a contract in force', async () => {
+        respondWithContract(tracker, {
+            starts_at: new Date('2024-01-01T00:00:00Z'),
+            ends_at: null,
+            reset_interval_months: 1,
         });
+        await expect(getCopilot()).resolves.toBe(true);
+    });
+
+    it('is off on cloud for an org without a contract', async () => {
+        respondWithContract(tracker, null);
+        await expect(getCopilot()).resolves.toBe(false);
+    });
+
+    it('is off on cloud once the contract has ended', async () => {
+        respondWithContract(tracker, {
+            starts_at: new Date('2024-01-01T00:00:00Z'),
+            ends_at: new Date('2025-01-01T00:00:00Z'),
+            reset_interval_months: 1,
+        });
+        await expect(getCopilot()).resolves.toBe(false);
+    });
+
+    it('ignores an ai-copilot override', async () => {
+        respondWithContract(tracker, null);
+        tracker.on.select('feature_flag_overrides').response({ enabled: true });
+        await expect(getCopilot()).resolves.toBe(false);
     });
 });
 
@@ -175,23 +205,28 @@ describe('CommercialFeatureFlagModel data apps', () => {
         sandboxProvider: 'e2b' as const,
         e2bApiKey: 'e2b-key',
     };
-    const gatedCopilot = {
-        ...lightdashConfigMock.ai,
-        copilot: {
-            ...lightdashConfigMock.ai.copilot,
-            enabled: true,
-            requiresFeatureFlag: true,
-        },
-    };
+    const gatedCopilot = cloudCopilot;
 
     // Overrides are keyed by `${flag_id}:${user_uuid or organization_uuid}`
     const respond = ({
         overrides = {},
         organizationCreatedAt = '2024-01-01T00:00:00Z',
+        hasContract = false,
     }: {
         overrides?: Record<string, boolean>;
         organizationCreatedAt?: string;
+        hasContract?: boolean;
     }) => {
+        respondWithContract(
+            tracker,
+            hasContract
+                ? {
+                      starts_at: new Date('2024-01-01T00:00:00Z'),
+                      ends_at: null,
+                      reset_interval_months: 1,
+                  }
+                : null,
+        );
         tracker.on.select('feature_flag_overrides').response((query) => {
             const enabled =
                 overrides[`${query.bindings[0]}:${query.bindings[1]}`];
@@ -216,11 +251,7 @@ describe('CommercialFeatureFlagModel data apps', () => {
     });
 
     it('is off without a sandbox runtime, without querying anything', async () => {
-        respond({
-            overrides: {
-                [`${CommercialFeatureFlags.AiCopilot}:${organizationUuid}`]: true,
-            },
-        });
+        respond({ hasContract: true });
         await expect(
             getDataApps({
                 appRuntime: { ...runtime, e2bApiKey: null },
@@ -229,12 +260,8 @@ describe('CommercialFeatureFlagModel data apps', () => {
         expect(tracker.history.select).toHaveLength(0);
     });
 
-    it('is on for orgs with the AI copilot flag', async () => {
-        respond({
-            overrides: {
-                [`${CommercialFeatureFlags.AiCopilot}:${organizationUuid}`]: true,
-            },
-        });
+    it('is on for orgs with AI copilot', async () => {
+        respond({ hasContract: true });
         await expect(getDataApps()).resolves.toBe(true);
     });
 
@@ -262,18 +289,10 @@ describe('CommercialFeatureFlagModel data apps', () => {
         ).resolves.toBe(false);
     });
 
-    it('is on for every org on dedicated instances with AI', async () => {
+    it('is on for every org on self-hosted instances with AI', async () => {
         respond({});
         await expect(
-            getDataApps({
-                ai: {
-                    ...gatedCopilot,
-                    copilot: {
-                        ...gatedCopilot.copilot,
-                        requiresFeatureFlag: false,
-                    },
-                },
-            }),
+            getDataApps({ lightdashCloudInstance: undefined }),
         ).resolves.toBe(true);
     });
 });
