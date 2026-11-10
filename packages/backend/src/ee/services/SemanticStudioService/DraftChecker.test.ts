@@ -120,6 +120,17 @@ describe('DraftChecker.compile', () => {
                 new Map([['orders', contents]]),
             );
 
+        test('a rewrite that drops who can see a field is rejected', async () => {
+            const guarded = `${model('orders')}    required_attributes:\n      team: hr\n`;
+            const { rejected } = await check(
+                new Map([['orders', guarded]]),
+                model('orders'),
+            );
+            expect(rejected.get('orders')).toBe(
+                'This would change who can see dimensions.id, which cannot be changed here.',
+            );
+        });
+
         test('a number metric that aggregates in its own sql is rejected', async () => {
             const { rejected } = await check(new Map(), withMetrics(RATIO));
             expect(rejected.get('orders')).toContain(

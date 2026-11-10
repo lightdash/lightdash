@@ -6,6 +6,7 @@ import { DimensionType, MetricType } from '../types/field';
 import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
 import {
     applyModelFragment,
+    findAccessLoss,
     parseModelFragment,
     removeModelParts,
     setModelJoinRelationships,
@@ -482,5 +483,47 @@ describe('parseModelFragment', () => {
                 { path: 'dimensions.status.sql', reason: 'not_found' },
             ]);
         });
+    });
+});
+
+describe('findAccessLoss', () => {
+    const guarded = `type: model
+name: people
+sql_from: public.people
+sql_filter: \${TABLE}.org = 1
+dimensions:
+  - name: ssn
+    type: string
+    sql: \${TABLE}.ssn
+    required_attributes:
+      team: hr
+  - name: id
+    type: number
+    sql: \${TABLE}.id
+    hidden: true
+`;
+
+    it('names each part whose access a rewrite drops, however it got there', () => {
+        const stripped = guarded
+            .replace('sql_filter: ${TABLE}.org = 1\n', '')
+            .replace('    required_attributes:\n      team: hr\n', '')
+            .replace('    hidden: true\n', '');
+        expect(findAccessLoss(guarded, stripped)).toEqual([
+            'the model',
+            'dimensions.ssn',
+            'dimensions.id',
+        ]);
+    });
+
+    it('lets a part go, hide, or stay as it is', () => {
+        const withoutSsn = guarded.replace(
+            / {2}- name: ssn[\s\S]*?team: hr\n/,
+            '',
+        );
+        expect(findAccessLoss(guarded, withoutSsn)).toEqual([]);
+        expect(findAccessLoss(guarded, guarded)).toEqual([]);
+        expect(
+            findAccessLoss(guarded.replace('    hidden: true\n', ''), guarded),
+        ).toEqual([]);
     });
 });

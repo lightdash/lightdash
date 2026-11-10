@@ -845,7 +845,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     // With nothing live, what the draft adds is the page.
     const isBuildingFirstModel = isEmpty && hasDraft;
     const isReviewingDraft =
-        isBuildingFirstModel || searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW;
+        isBuildingFirstModel ||
+        (hasDraft && searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW);
     const openExplore =
         view.selected?.type === 'explore' || view.selected?.type === 'field'
             ? view.selected.exploreId
@@ -1008,22 +1009,20 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         />
                     )}
                     <Box className={classes.workspace}>
-                        {pane === 'intro' ? null : (
+                        {pane === 'intro' || !chat.isAvailable ? null : (
                             <Group
                                 className={classes.toolbar}
                                 justify="space-between"
                                 wrap="nowrap"
                                 gap="sm"
                             >
-                                {chat.isAvailable ? (
-                                    <SegmentedControl
-                                        size="xs"
-                                        flex="none"
-                                        value={isCode ? 'code' : 'preview'}
-                                        onChange={switchView}
-                                        data={VIEW_OPTIONS}
-                                    />
-                                ) : null}
+                                <SegmentedControl
+                                    size="xs"
+                                    flex="none"
+                                    value={isCode ? 'code' : 'preview'}
+                                    onChange={switchView}
+                                    data={VIEW_OPTIONS}
+                                />
                                 <Group gap="xs" wrap="nowrap" miw={0} ml="auto">
                                     {isBuildingFirstModel ? null : (
                                         <DraftBar

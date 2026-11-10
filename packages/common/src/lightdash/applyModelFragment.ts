@@ -185,6 +185,53 @@ const hasAccessKey = (value: unknown): boolean => {
     );
 };
 
+type AccessKeys = Map<string, YamlObject>;
+
+/** The access keys each part of a model carries, by the path changes are reported under. */
+const collectAccess = (value: unknown, path: string, into: AccessKeys) => {
+    if (Array.isArray(value)) {
+        value.forEach((item) => {
+            const id = isObject(item) ? (item.name ?? item.join) : undefined;
+            if (typeof id === 'string') {
+                collectAccess(item, `${path}.${id}`, into);
+            }
+        });
+        return;
+    }
+    if (!isObject(value)) return;
+    const isAccess = (key: string) => ACCESS_KEYS.has(key) || key === 'hidden';
+    into.set(
+        path,
+        Object.fromEntries(
+            Object.entries(value).filter(([key]) => isAccess(key)),
+        ),
+    );
+    Object.entries(value).forEach(([key, child]) => {
+        if (!isAccess(key)) {
+            collectAccess(child, path ? `${path}.${key}` : key, into);
+        }
+    });
+};
+
+/** The parts of a model whose access a rewrite changes: removing a part and adding it back without its keys is the way a merge alone would miss. */
+export const findAccessLoss = (before: string, after: string): string[] => {
+    const was: AccessKeys = new Map();
+    const is: AccessKeys = new Map();
+    collectAccess(parseDocument(before).toJS(), '', was);
+    collectAccess(parseDocument(after).toJS(), '', is);
+    return [...was].flatMap(([path, keys]) => {
+        const now = is.get(path);
+        // A part that is gone shows nobody anything.
+        if (!now) return [];
+        const changed = Object.entries(keys).some(([key, value]) =>
+            key === 'hidden'
+                ? value === true && now.hidden !== true
+                : !isEqual(now[key], value),
+        );
+        return changed ? [path || 'the model'] : [];
+    });
+};
+
 const FILTER_KEYS = new Set(['filters', 'required_filters', 'default_filters']);
 
 // The compiler silently drops a filter that is not one `field: value` pair.
@@ -254,7 +301,7 @@ const findPartPath = (model: LightdashModel, path: string): YamlPath | null => {
         : null;
 };
 
-/** Removes fields and joins by the paths changes are reported under, such as dimensions.amount.metrics.revenue. */
+/** Removes fields and joins by the paths changes are reported under, such as dimensions.<name>.metrics.<name>. */
 export const removeModelParts = ({
     contents,
     filename,

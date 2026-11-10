@@ -1,6 +1,7 @@
 import {
     compileLightdashModels,
     DEFAULT_SPOTLIGHT_CONFIG,
+    findAccessLoss,
     getErrorMessage,
     getItemId,
     isExploreError,
@@ -540,6 +541,17 @@ HAVING COUNT(*) > 1
         );
         changed.forEach(({ metricError }, name) => {
             if (metricError) reject(name, metricError);
+        });
+        [...writes].forEach(([name, contents]) => {
+            const stored = live.get(name);
+            if (contents === null || stored === undefined) return;
+            const lost = findAccessLoss(stored, contents);
+            if (lost.length > 0) {
+                reject(
+                    name,
+                    `This would change who can see ${lost.join(', ')}, which cannot be changed here.`,
+                );
+            }
         });
 
         const afterCompile = await compile();
