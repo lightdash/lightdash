@@ -70070,14 +70070,6 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                dataAppAutomaticThumbnailsEnabled: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'boolean' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
                 corsAllowedDomains: {
                     dataType: 'union',
                     subSchemas: [
@@ -70304,14 +70296,6 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'array', array: { dataType: 'string' } },
-                        { dataType: 'enum', enums: [null] },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                dataAppAutomaticThumbnailsEnabled: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'boolean' },
                         { dataType: 'enum', enums: [null] },
                         { dataType: 'undefined' },
                     ],

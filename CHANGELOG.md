@@ -1,3 +1,10 @@
+# [3.203.0](https://github.com/lightdash/lightdash/compare/3.202.0...3.203.0) (2026-11-10)
+
+
+### Features
+
+* **data-apps:** remove automatic data app thumbnails ([#32338](https://github.com/lightdash/lightdash/issues/32338)) ([f066384](https://github.com/lightdash/lightdash/commit/f066384558cf86d40878e81c3b5ccecd0dc01641))
+
 # [3.202.0](https://github.com/lightdash/lightdash/compare/3.201.0...3.202.0) (2026-11-10)
 
 
