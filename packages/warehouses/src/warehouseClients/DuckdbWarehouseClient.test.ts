@@ -2131,6 +2131,72 @@ describe('DuckdbWarehouseClient', () => {
         expect(createInstanceMock).toHaveBeenCalledTimes(1);
     });
 
+    it('widens a shared instance S3 secret with a large installed scope', async () => {
+        const runMock = vi.fn();
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(
+                vi.fn(async () =>
+                    getMockStreamResult(
+                        [[{ val: 1 }]],
+                        [DUCKDB_TYPE_IDS.INTEGER],
+                    ),
+                ),
+                runMock,
+            ),
+        );
+        const makeClient = (scope: string[]) =>
+            DuckdbWarehouseClient.createForPreAggregate(
+                {
+                    type: 'duckdb_s3',
+                    s3Config: {
+                        endpoint: 'localhost:9000',
+                        region: 'us-east-1',
+                        accessKey: 'key',
+                        secretKey: 'secret',
+                        forcePathStyle: true,
+                        useSsl: false,
+                        scope,
+                    },
+                },
+                { instanceCacheKey: 'pre-aggregate-query-instance:project-a' },
+            );
+        const secretScopes = () =>
+            runMock.mock.calls
+                .map(([sql]) => sql as string)
+                .filter((sql) =>
+                    sql.includes('CREATE OR REPLACE SECRET __lightdash_s3'),
+                )
+                .map((sql) =>
+                    sql
+                        .match(/SCOPE \(([^)]*)\)/)?.[1]
+                        .split(', ')
+                        .map((uri) => uri.slice(1, -1)),
+                );
+        const installed = Array.from(
+            { length: 40_000 },
+            (_, index) => `s3://bucket/materializations/${index}.parquet`,
+        );
+        const added = Array.from(
+            { length: 5 },
+            (_, index) => `s3://bucket/materializations/new-${index}.parquet`,
+        );
+
+        await makeClient(installed).runQuery('SELECT 1');
+        const started = performance.now();
+        await makeClient(installed).runQuery('SELECT 1');
+        await Promise.all(
+            Array.from({ length: 3 }, () =>
+                makeClient([...added, ...installed]).runQuery('SELECT 1'),
+            ),
+        );
+        await makeClient(installed).runQuery('SELECT 1');
+        const elapsedMs = performance.now() - started;
+
+        expect(secretScopes()).toEqual([installed, [...installed, ...added]]);
+        expect(createInstanceMock).toHaveBeenCalledTimes(1);
+        expect(elapsedMs).toBeLessThan(10_000);
+    }, 120_000);
+
     it('restricts an object-storage session to its bucket after loading extensions', async () => {
         const runMock = vi.fn();
         const streamMock = vi.fn(async () =>
