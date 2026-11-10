@@ -376,6 +376,7 @@ export * from './types/roadmap';
 export * from './types/roles';
 export * from './types/savedCharts';
 export * from './types/scheduler';
+export * from './types/semanticStudio';
 export * from './types/schedulerLog';
 export * from './types/schedulerTaskList';
 export * from './types/scopes';

@@ -392,6 +392,20 @@ import {
     ProjectMembershipsTableName,
 } from '../database/entities/projectMemberships';
 import {
+    ProjectModelChangeSetsTable,
+    ProjectModelChangeSetsTableName,
+    ProjectModelRevisionsTable,
+    ProjectModelRevisionsTableName,
+} from '../database/entities/projectModelChangeSets';
+import {
+    ProjectModelDocumentsTable,
+    ProjectModelDocumentsTableName,
+} from '../database/entities/projectModelDocuments';
+import {
+    ProjectModelDraftChangesTable,
+    ProjectModelDraftChangesTableName,
+} from '../database/entities/projectModelDraftChanges';
+import {
     ProjectParametersTable,
     ProjectParametersTableName,
 } from '../database/entities/projectParameters';
@@ -971,6 +985,10 @@ declare module 'knex/types/tables' {
         [AiAgentLiveActivitiesTableName]: AiAgentLiveActivityTable;
         [AiAgentLiveActivityStartAttemptsTableName]: AiAgentLiveActivityStartAttemptTable;
         [HomepageRecommendedActionSkipsTableName]: HomepageRecommendedActionSkipsTable;
+        [ProjectModelDocumentsTableName]: ProjectModelDocumentsTable;
+        [ProjectModelChangeSetsTableName]: ProjectModelChangeSetsTable;
+        [ProjectModelRevisionsTableName]: ProjectModelRevisionsTable;
+        [ProjectModelDraftChangesTableName]: ProjectModelDraftChangesTable;
         [AiAgentTableName]: AiAgentTable;
         [AiAgentDocumentTableName]: AiAgentDocumentTable;
         [AiAgentDocumentAccessTableName]: AiAgentDocumentAccessTable;

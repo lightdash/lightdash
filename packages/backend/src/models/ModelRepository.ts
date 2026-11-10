@@ -240,6 +240,7 @@ export type ModelManifest = {
     aiAgentMemoryModel: unknown;
     aiAgentModel: unknown;
     homepageRecommendedActionSkipsModel: unknown;
+    projectModelDocumentModel: unknown;
     projectHomepageModel: unknown;
     aiAgentDocumentModel: unknown;
     aiThreadFileModel: unknown;
@@ -1289,6 +1290,10 @@ export class ModelRepository
 
     public getHomepageRecommendedActionSkipsModel<ModelImplT>(): ModelImplT {
         return this.getModel('homepageRecommendedActionSkipsModel');
+    }
+
+    public getProjectModelDocumentModel<ModelImplT>(): ModelImplT {
+        return this.getModel('projectModelDocumentModel');
     }
 
     public getMcpToolCallModel<ModelImplT>(): ModelImplT {
