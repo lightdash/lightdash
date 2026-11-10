@@ -7,29 +7,28 @@ import {
     Box,
     Group,
     Paper,
-    Stack,
     Text,
     ThemeIcon,
     Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
+    IconAlertTriangle,
     IconArrowsDiagonal,
     IconArrowsDiagonalMinimize2,
     IconArrowUpRight,
+    IconInfoCircle,
+    IconMinus,
     IconTable,
     IconTrash,
+    type Icon,
 } from '@tabler/icons-react';
 import { useEffect, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
 import { ChangeDiff } from './ChangeDiff';
-import {
-    describeModelChange,
-    refusalText,
-    summarizeModelChanges,
-} from './modelCode';
+import { describeModelChange, summarizeModelChanges } from './modelCode';
 import classes from './SemanticLayerProposalCard.module.css';
 import { getSemanticStudioUrl } from './urls';
 import {
@@ -136,6 +135,50 @@ const ModelSection: FC<{
     );
 };
 
+const ISSUE_KINDS = {
+    failed: { icon: IconAlertTriangle, color: 'red', label: 'Not added' },
+    skipped: { icon: IconMinus, color: 'gray', label: 'Left out' },
+    note: { icon: IconInfoCircle, color: 'orange', label: 'Confirm' },
+} satisfies Record<string, { icon: Icon; color: string; label: string }>;
+
+type Issue = {
+    kind: keyof typeof ISSUE_KINDS;
+    model: string;
+    detail: string;
+};
+
+/** One thing about a proposal that did not go as asked, under the model it is about. */
+const IssueRow: FC<{ issue: Issue }> = ({ issue: { kind, model, detail } }) => {
+    const { icon, color, label } = ISSUE_KINDS[kind];
+    return (
+        <Box className={classes.section}>
+            <Group
+                className={classes.header}
+                gap="xs"
+                wrap="nowrap"
+                align="flex-start"
+            >
+                <ThemeIcon variant="light" color={color} size={24} radius="sm">
+                    <MantineIcon icon={icon} size={14} />
+                </ThemeIcon>
+                <Box flex={1} miw={0}>
+                    <Group justify="space-between" gap="xs" wrap="nowrap">
+                        <Text fz="xs" fw={500} truncate title={model}>
+                            {model}
+                        </Text>
+                        <Text fz="xs" c="dimmed" flex="none">
+                            {label}
+                        </Text>
+                    </Group>
+                    <Text fz="xs" c="dimmed" className={classes.issueDetail}>
+                        {detail}
+                    </Text>
+                </Box>
+            </Group>
+        </Box>
+    );
+};
+
 const STATUS_LABELS = {
     applied: 'Applied',
     undone: 'Undone',
@@ -162,14 +205,25 @@ export const SemanticLayerProposalCard: FC<{
     useEffect(() => {
         if (isUnknown) void refresh();
     }, [isUnknown, refresh]);
-    const passed = proposal.models.filter(({ status }) => status !== 'failed');
-    const failures = proposal.models.filter(
-        ({ status }) => status === 'failed',
+    // A model the proposal changes nothing on has no section of its own; what was left out says why.
+    const passed = proposal.models.filter(({ status }) => status === 'ready');
+    const issues: Issue[] = proposal.models.flatMap(
+        ({ model, error, refusals, notes }) => [
+            ...(error
+                ? [{ kind: 'failed' as const, model, detail: error }]
+                : []),
+            ...refusals.map(({ path, reason }) => ({
+                kind: 'skipped' as const,
+                model,
+                detail: `${path}: ${reason.replaceAll('_', ' ')}`,
+            })),
+            ...(notes ?? []).map((detail) => ({
+                kind: 'note' as const,
+                model,
+                detail,
+            })),
+        ],
     );
-    const refusals = proposal.models.flatMap(({ model, refusals: refused }) =>
-        refused.map((refusal) => refusalText(model, refusal)),
-    );
-    const notes = proposal.models.flatMap(({ notes: noted }) => noted ?? []);
     const status = settled
         ? STATUS_LABELS[settled]
         : inDraft
@@ -221,25 +275,12 @@ export const SemanticLayerProposalCard: FC<{
                     actions={index === 0 ? getActions(model) : null}
                 />
             ))}
-            {failures.length > 0 || refusals.length > 0 || notes.length > 0 ? (
-                <Stack gap={2} p="xs">
-                    {notes.map((text) => (
-                        <Text key={text} fz="xs" c="orange">
-                            {text}
-                        </Text>
-                    ))}
-                    {failures.map(({ model, error }) => (
-                        <Text key={model} fz="xs" c="red">
-                            {model}: {error}
-                        </Text>
-                    ))}
-                    {refusals.map((text) => (
-                        <Text key={text} fz="xs" c="dimmed">
-                            {text}
-                        </Text>
-                    ))}
-                </Stack>
-            ) : null}
+            {issues.map((issue) => (
+                <IssueRow
+                    key={`${issue.kind}|${issue.model}|${issue.detail}`}
+                    issue={issue}
+                />
+            ))}
         </Paper>
     );
 };
