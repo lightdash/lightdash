@@ -4986,6 +4986,61 @@ describe('CoderService dashboard control order as code', () => {
         );
     });
 
+    it('round trips a dashboard saved with two metric filters sharing an id', async () => {
+        const base = savedDashboard();
+        const [metric] = base.filters.metrics;
+        const saved = {
+            ...base,
+            filters: {
+                ...base.filters,
+                metrics: [
+                    metric,
+                    {
+                        ...metric,
+                        target: {
+                            fieldId: 'orders_count',
+                            tableName: 'orders',
+                        },
+                    },
+                ],
+            },
+            config: {
+                ...base.config,
+                controlOrder: [
+                    ...savedOrder,
+                    { kind: 'filter', id: 'metric-id' },
+                ],
+            },
+        } as DashboardDAO;
+        const result = await upload(download(saved, true), { saved });
+        const ids = result.filters.metrics.map(({ id }) => id);
+        expect(new Set(ids).size).toBe(2);
+        const next = { ...saved, ...result } as DashboardDAO;
+        await upload(download(next, true), { saved: next });
+    });
+
+    it('round trips a dashboard saved with a metric filter sharing a dimension filter id', async () => {
+        const base = savedDashboard();
+        const saved = {
+            ...base,
+            filters: {
+                ...base.filters,
+                metrics: [{ ...base.filters.metrics[0], id: 'first-id' }],
+            },
+            config: {
+                ...base.config,
+                controlOrder: savedOrder.map((ref) =>
+                    ref.id === 'metric-id' ? { ...ref, id: 'first-id' } : ref,
+                ),
+            },
+        } as DashboardDAO;
+        const result = await upload(download(saved, true), { saved });
+        expect(result.filters.dimensions[0].id).toBe('first-id');
+        expect(result.filters.metrics[0].id).not.toBe('first-id');
+        const next = { ...saved, ...result } as DashboardDAO;
+        await upload(download(next, true), { saved: next });
+    });
+
     it('ignores the order and filter slugs in the file with the flag off', async () => {
         const file = download(savedDashboard(), true);
         const [first, second] = file.filters!.dimensions!;

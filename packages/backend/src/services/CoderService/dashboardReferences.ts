@@ -139,10 +139,10 @@ export const getStableIds = <U, S extends { id: string }>(
     uploaded: U[],
     saved: S[],
     keyOf: (control: U | S) => string,
+    usedIds = new Set<string>(),
 ): string[] => {
     const uploadedCounts = countBy(uploaded, keyOf);
     const savedCounts = countBy(saved, keyOf);
-    const usedIds = new Set<string>();
     return uploaded.map((control) => {
         const key = keyOf(control);
         const match =
@@ -173,11 +173,12 @@ export const getFiltersWithTileUuids = (
             );
         return tileUuid;
     };
+    const usedIds = new Set<string>();
     const fromAsCode = (
         filters: Omit<DashboardFilterRuleAsCode, 'id'>[],
         saved: DashboardFilterRule[] = [],
     ): DashboardFilterRule[] => {
-        const ids = getStableDimensionFilterIds(filters, saved);
+        const ids = getStableIds(filters, saved, getFilterFieldKey, usedIds);
         // A file's slugs only resolve refs inside it; main's request validation dropped them
         return filters.map(({ slug: _slug, ...filter }, index) => ({
             ...filter,
@@ -187,6 +188,14 @@ export const getFiltersWithTileUuids = (
             }),
         }));
     };
+    // Filter ids are unique across lists; dimensions claim theirs first since deliveries and embeds key on them
+    const dimensions = fromAsCode(
+        (dashboard.filters?.dimensions ?? []).map((filter) => ({
+            ...filter,
+            tileTargets: filter.tileTargets ?? {},
+        })),
+        savedFilters?.dimensions,
+    );
     return {
         metrics: fromAsCode(
             dashboard.filters?.metrics ?? [],
@@ -196,13 +205,7 @@ export const getFiltersWithTileUuids = (
             dashboard.filters?.tableCalculations ?? [],
             savedFilters?.tableCalculations,
         ),
-        dimensions: fromAsCode(
-            (dashboard.filters?.dimensions ?? []).map((filter) => ({
-                ...filter,
-                tileTargets: filter.tileTargets ?? {},
-            })),
-            savedFilters?.dimensions,
-        ),
+        dimensions,
     };
 };
 
