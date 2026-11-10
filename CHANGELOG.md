@@ -1,3 +1,10 @@
+# [3.194.0](https://github.com/lightdash/lightdash/compare/3.193.0...3.194.0) (2026-11-10)
+
+
+### Features
+
+* sign in the mobile app with a QR code from the Mobile page (SPK-2951) ([#32246](https://github.com/lightdash/lightdash/issues/32246)) ([1095663](https://github.com/lightdash/lightdash/commit/1095663be283c577b257eeffcf47b6a72df6587d))
+
 # [3.193.0](https://github.com/lightdash/lightdash/compare/3.192.0...3.193.0) (2026-11-10)
 
 

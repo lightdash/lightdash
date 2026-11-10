@@ -1,14 +1,30 @@
 {
   "schemaVersion": "2",
-  "version": "3.193.0",
-  "previousVersion": "3.192.0",
-  "releaseDate": "2026-11-10T09:14:52.794Z",
+  "version": "3.194.0",
+  "previousVersion": "3.193.0",
+  "releaseDate": "2026-11-10T09:29:44.724Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261109130000_create_mobile_sign_in_codes.ts",
+        "edition": "core",
+        "tables": [
+          "mobile_sign_in_codes",
+          "oauth2_clients",
+          "organizations",
+          "users"
+        ],
+        "heaviness": {
+          "locksTable": true,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,
