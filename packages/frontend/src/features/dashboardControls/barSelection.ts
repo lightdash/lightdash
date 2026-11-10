@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import { type ControlPlacement } from './sections';
 
 /** The pills picked on an editor's sectioned bar, to move or remove together */
 export type BarSelection = {
@@ -12,6 +13,29 @@ export type BarSelection = {
 export const BarSelectionContext = createContext<BarSelection | null>(null);
 
 export const useBarSelection = () => useContext(BarSelectionContext);
+
+/** Alt with an arrow on a pill of an editor's sectioned bar: moves it along the bar or between lines */
+export type BarMove = (
+    id: string,
+    direction: 'left' | 'right' | 'up' | 'down',
+) => void;
+
+// Null outside an editor's sectioned bar
+export const BarMoveContext = createContext<BarMove | null>(null);
+
+export const useBarMove = () => useContext(BarMoveContext);
+
+/** Where the sectioned bar's drag would land now, for the one drop line */
+export const BarDropContext = createContext<ControlPlacement | null>(null);
+
+export const MOVE_KEYS: Partial<
+    Record<string, 'left' | 'right' | 'up' | 'down'>
+> = {
+    ArrowLeft: 'left',
+    ArrowRight: 'right',
+    ArrowUp: 'up',
+    ArrowDown: 'down',
+};
 
 const countOf = (count: number, one: string, many: string) =>
     `${count} ${count === 1 ? one : many}`;

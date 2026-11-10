@@ -1,5 +1,9 @@
-import { type DashboardParameters } from '@lightdash/common';
+import {
+    DashboardControlRefKind,
+    type DashboardParameters,
+} from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
+import { dashboardEditActions } from './dashboardEditReducer';
 import {
     dashboardParametersActions as actions,
     dashboardParametersReducer as reducer,
@@ -538,6 +542,44 @@ describe('dashboardParametersReducer', () => {
                     }),
                 ),
             ).toBe(refilled);
+        });
+
+        it('keeps never saved controls once the bar is reordered, until the save', () => {
+            const filled = reducer(
+                stateWith(),
+                actions.syncParameterControls({
+                    controls: filledList({ region: 'a' }),
+                    isSaved: false,
+                }),
+            );
+            const arranged = reducer(
+                filled,
+                dashboardEditActions.arrangeControls([
+                    { kind: DashboardControlRefKind.PARAMETER, id: 'a' },
+                ]),
+            );
+            expect(arranged.haveParameterControlsChanged).toBe(true);
+            // A refill from the tiles no longer replaces the listed ids
+            expect(
+                reducer(
+                    arranged,
+                    actions.syncParameterControls({
+                        controls: [control('region', 'z')],
+                        isSaved: false,
+                    }),
+                ),
+            ).toBe(arranged);
+            // Saved ones already keep their ids: nothing to mark
+            const saved = reducer(
+                stateWith(),
+                actions.syncParameterControls({
+                    controls: filledList({ region: 'a' }),
+                    isSaved: true,
+                }),
+            );
+            expect(
+                reducer(saved, dashboardEditActions.arrangeControls([])),
+            ).toBe(saved);
         });
 
         it('marks updates and removals as changed, and stops seeding until reset', () => {

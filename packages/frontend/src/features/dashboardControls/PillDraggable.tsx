@@ -1,7 +1,8 @@
-import { useDraggable } from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { Box } from '@mantine/core';
-import { type FC, type PointerEvent, type ReactNode } from 'react';
+import { useContext, type FC, type PointerEvent, type ReactNode } from 'react';
 import dndClasses from '../../components/common/DndHelpers.module.css';
+import { BarDropContext } from './barSelection';
 import classes from './FilterPills.module.css';
 
 // A pill's drag: the pill itself, by pointer only, so Enter or Space on it
@@ -12,7 +13,6 @@ export const PillDraggable: FC<{
     id: string;
     isInBarContext: boolean;
     isDisabled: boolean;
-    looseEnd: string | undefined;
     /** What the drag carries (default none: a filter pill). */
     data?: Record<string, unknown>;
     /** The pill button inside (default a filter pill's). */
@@ -22,7 +22,6 @@ export const PillDraggable: FC<{
     id,
     isInBarContext,
     isDisabled,
-    looseEnd,
     data,
     pillSelector = '[data-controls-pill]',
     children,
@@ -50,7 +49,6 @@ export const PillDraggable: FC<{
             data-dragging={
                 (isInBarContext ? isDragging : !!transform) || undefined
             }
-            data-loose-end={looseEnd}
             onPointerDown={isDisabled ? undefined : handlePointerDown}
             style={{
                 '--drag-x':
@@ -64,6 +62,38 @@ export const PillDraggable: FC<{
             }}
         >
             {children}
+        </Box>
+    );
+};
+
+/** Every drop line between controls: one look, whatever is dragged or its target */
+export const DropLine: FC<{
+    side: 'before' | 'after';
+    /** From its box's top, for a capsule's row nearest the pointer (default its first row) */
+    top?: number | null;
+}> = ({ side, top = null }) => (
+    <Box
+        className={classes.dropLine}
+        data-drop-line={side}
+        aria-hidden
+        style={{ '--drop-line-top': top === null ? undefined : `${top}px` }}
+    />
+);
+
+// A pill as a keyboard drag's target on the sectioned bar; its line shows
+// wherever the drag would land beside it
+export const BarDroppable: FC<{ id: string; children: ReactNode }> = ({
+    id,
+    children,
+}) => {
+    const { setNodeRef } = useDroppable({ id });
+    const drop = useContext(BarDropContext);
+    return (
+        <Box ref={setNodeRef} className={classes.barDroppable}>
+            {children}
+            {drop !== null && 'overId' in drop && drop.overId === id && (
+                <DropLine side={drop.side} />
+            )}
         </Box>
     );
 };

@@ -2,6 +2,7 @@ import { Box } from '@mantine/core';
 import { type ComponentProps, type FC, type ReactNode } from 'react';
 import {
     selectControlSections,
+    selectHasStoredControlOrder,
     selectParameterControls,
     useDashboardSelector,
 } from '../dashboard/store';
@@ -28,8 +29,11 @@ type Props = Omit<
 export const ControlsBar: FC<Props> = (props) => {
     const controls = useDashboardSelector(selectParameterControls);
     const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
+    // Sections or a stored order need the sectioned bar; else a viewer's is flat
     const hasSections = useDashboardSelector(
-        (state) => selectControlSections(state).length > 0,
+        (state) =>
+            selectControlSections(state).length > 0 ||
+            selectHasStoredControlOrder(state),
     );
     const filterRow = (
         <DashboardFiltersBar

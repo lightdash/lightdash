@@ -65,3 +65,32 @@
 .pillDrag[data-dragging] [data-controls-pill] {
     cursor: grabbing;
 }
+
+/* Every drop line between controls on the sectioned bar, whatever is dragged
+   and whatever the target: 2px, a pill's height (`--controls-pill-height`),
+   centred on the bar line, 4px into the gap. A capsule moves it onto its
+   first row and outside its border (`--drop-line-top`, `--drop-line-inset`) */
+.dropLine {
+    position: absolute;
+    top: var(--drop-line-top, calc(50% - var(--controls-pill-height) / 2));
+    width: 2px;
+    height: var(--controls-pill-height);
+    border-radius: 1px;
+    background-color: var(--mantine-color-blue-4);
+    pointer-events: none;
+}
+
+.dropLine[data-drop-line='before'] {
+    left: calc(-4px - var(--drop-line-inset, 0px));
+}
+
+.dropLine[data-drop-line='after'] {
+    right: calc(-4px - var(--drop-line-inset, 0px));
+}
+
+/* A pill in a capsule draws its line on its own row */
+.barDroppable {
+    --drop-line-top: initial;
+    --drop-line-inset: initial;
+    position: relative;
+}

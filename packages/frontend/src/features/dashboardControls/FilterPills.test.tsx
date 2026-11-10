@@ -512,21 +512,6 @@ describe('FilterPills', () => {
         expect(pill(/^Status/).className).toBe(openClassName);
     });
 
-    it("marks the loose pass's landing pill for the bar's leave line", () => {
-        renderWithProviders(
-            <FilterPills
-                activeTabUuid={undefined}
-                sectionId={null}
-                looseEnds={{ saved: 'dimensions metrics' }}
-            />,
-        );
-        expect(pill(/^Status/).closest('[data-loose-end]')).toHaveAttribute(
-            'data-loose-end',
-            'dimensions metrics',
-        );
-        expect(pill(/^Region/).closest('[data-loose-end]')).toBeNull();
-    });
-
     describe('drag from the pill itself', () => {
         it.each([
             ['flat', undefined],
