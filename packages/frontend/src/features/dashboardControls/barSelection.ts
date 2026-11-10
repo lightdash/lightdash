@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import { type ControlPlacement } from './sections';
+import { type ControlPlacement } from './controlOrder';
 
 /** The pills picked on an editor's sectioned bar, to move or remove together */
 export type BarSelection = {

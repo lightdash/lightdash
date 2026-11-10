@@ -1782,7 +1782,7 @@ describe('FilterPills', () => {
         });
     });
 
-    it('keeps the standard border on a pill not in effect', () => {
+    it('keeps the standard border on a pill not in effect, and one dashed border on an open temporary pill', () => {
         const css = fs.readFileSync(
             path.resolve(
                 __dirname,
@@ -1795,5 +1795,9 @@ describe('FilterPills', () => {
         );
         expect(muted?.[1]).toContain('color: var(--mantine-color-dimmed)');
         expect(muted?.[1]).not.toContain('border');
+        const openDashed = css.match(
+            /\[data-open\]\[data-temporary\]:not\(:disabled\) \{([^}]*)\}/,
+        );
+        expect(openDashed?.[1]).toContain('box-shadow: none');
     });
 });

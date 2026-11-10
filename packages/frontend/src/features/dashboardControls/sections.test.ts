@@ -13,6 +13,8 @@ import {
     placeSectionChanges,
     getEffectiveControlOrder,
     removeSectionKeepingLines,
+} from './controlOrder';
+import {
     countSectionChanges,
     getMoveNeighbours,
     groupRulesBySection,

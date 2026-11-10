@@ -22,7 +22,7 @@ import {
 import {
     followOrder,
     toControlRefs,
-} from '../features/dashboardControls/sections';
+} from '../features/dashboardControls/controlOrder';
 
 type BuildDashboardConfigArgs = {
     existingConfig: DashboardConfig | undefined;

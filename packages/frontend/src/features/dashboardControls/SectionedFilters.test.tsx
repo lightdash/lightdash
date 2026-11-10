@@ -492,12 +492,13 @@ describe('SectionedFilters', () => {
         expect(sections).toContainElement(
             screen.getByRole('button', { name: 'New section' }),
         );
-        // In a line of its own on a narrow bar, as the capsules are
-        expect(
-            screen
-                .getByRole('button', { name: 'New section' })
-                .closest('[class*="sections"] > *')?.className,
-        ).toMatch(/line/);
+        // At the end of the last section line, inline with its capsules
+        const sectionLines = document.querySelectorAll(
+            '[class*="sectionLine"]',
+        );
+        expect(sectionLines[sectionLines.length - 1]).toContainElement(
+            screen.getByRole('button', { name: 'New section' }),
+        );
         expect(
             screen.queryByRole('button', { name: 'Filter rules' }),
         ).not.toBeInTheDocument();
@@ -1480,7 +1481,7 @@ describe('SectionedFilters', () => {
             },
             { loose: 3, moved: 2, saved: [] },
         ])(
-            'names a section on a line of its own below the filters ($loose loose, $moved moved)',
+            "names a section below the filters, on the last section's line ($loose loose, $moved moved)",
             async ({ loose, moved, saved }) => {
                 const ids = Array.from({ length: loose }, (_, i) => `p${i}`);
                 const { store } = renderSectioned(
@@ -1510,8 +1511,10 @@ describe('SectionedFilters', () => {
                 expect(input.closest('[class*="sections"]')).toHaveAttribute(
                     'data-own-line',
                 );
-                expect(input.closest('[data-own-line]')).not.toBe(
-                    input.closest('[class*="sections"]'),
+                // A first section is named on the sections' line; a later one
+                // at the end of the last section line
+                expect(input.closest('[class*="sectionLine"]') !== null).toBe(
+                    saved.length > 0,
                 );
                 await userEvent.keyboard('Misc{Enter}');
                 // Moving pills in is a reorder: the bar follows the stored order
@@ -1524,7 +1527,11 @@ describe('SectionedFilters', () => {
                             group.parentElement?.closest('[role="group"]') ===
                             null,
                     ),
-                ).toEqual([capsuleOf('Misc')]);
+                ).toEqual(
+                    saved.length > 0
+                        ? [capsuleOf('Empty'), capsuleOf('Misc')]
+                        : [capsuleOf('Misc')],
+                );
                 expect(
                     selectControlOrder(store.getState())?.find(
                         ({ id }) => id === 'p0',
@@ -2265,6 +2272,53 @@ describe('SectionedFilters', () => {
                     }),
                 }),
             );
+        });
+
+        it('adds a section after the first on the line of the one before it', async () => {
+            const user = userEvent.setup();
+            const { store } = renderSectioned(twoLoose(), 'tab-1', []);
+            await user.click(ghost() as HTMLElement);
+            await user.keyboard('First{Enter}');
+            await user.click(ghost() as HTMLElement);
+            await user.keyboard('Second{Enter}');
+            expect(
+                sectionsOf(store).map(({ name, inline }) => [name, inline]),
+            ).toEqual([
+                ['First', undefined],
+                ['Second', true],
+            ]);
+            expect(capsuleOf('Second').parentElement).toBe(
+                capsuleOf('First').parentElement,
+            );
+        });
+
+        it('adds a section to the last line of a stored order', async () => {
+            const user = userEvent.setup();
+            const { store } = renderSectioned(twoLoose(), 'tab-1', []);
+            act(() => {
+                store.dispatch(
+                    dashboardEditActions.syncControlOrder([
+                        { kind: DashboardControlRefKind.FILTER, id: 'one' },
+                        {
+                            kind: DashboardControlRefKind.FILTER,
+                            id: 'two',
+                            newLine: true,
+                        },
+                    ]),
+                );
+            });
+            await user.click(ghost() as HTMLElement);
+            await user.keyboard('Late{Enter}');
+            const added = sectionsOf(store)[0];
+            expect(
+                selectOrderedControls(store.getState()).map(
+                    ({ id, newLine }) => [id, newLine],
+                ),
+            ).toEqual([
+                ['one', false],
+                ['two', true],
+                [added.id, false],
+            ]);
         });
 
         it('takes a dropped pill into a new section named in its place', async () => {

@@ -125,6 +125,7 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `TabCounts.tsx`, `usePortalTargets.ts`, `useTileHover.ts`, `useScrollToHighlightedTile.ts` | Tab counts, portal targets and sibling locking, pill hover marks, scroll to tile |
 | `LinkPrompts.tsx`, `linkCandidates.ts` | Link prompts on tiles added while editing |
 | `SectionedFilters.tsx`, `SectionMenu.tsx`, `SectionNameInput.tsx`, `sections.ts`, `nameFocus.ts` | Sections bar, drag and drop, naming (focus after naming, shared with the editor's name); pure section helpers |
+| `controlOrder.ts` | Pure bar order and section line helpers, free of dnd-kit: the store and `utils/dashboardConfig.ts` import them |
 | `SelectionBar.tsx`, `SelectionActions.tsx`, `barSelection.ts` | Multi-select on the sectioned bar |
 | `sectionVersionChanges.ts` | Section rows for the version comparison page |
 | `DashboardHeaderGuard.tsx` | Wraps the shipped header; inert while an editor's filter is edited |
@@ -239,7 +240,8 @@ Every flag-on pill is the default white pill; only these change it, all in
 - Not in effect (no value, or it reaches no tile): text and icons muted,
   the standard border, "is any value". In effect (`data-in-effect`): the value bold.
 - Open (`data-open`, the filter in the editor): a 1.5px
-  ink border, the extra 0.5px inset so the box keeps its size.
+  ink border, the extra 0.5px inset so the box keeps its size; a temporary
+  (dashed) pill keeps its 1px dashed border, with no inset.
 - Not saved for everyone (`data-temporary`: a viewer's own filter, or an
   editor's filter not in the saved dashboard, or a temporary pill): dashed.
   "Only you see this filter" (`controls.onlyYouSeeFilter`) or "Not saved

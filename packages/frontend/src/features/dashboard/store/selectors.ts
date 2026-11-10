@@ -12,7 +12,7 @@ import {
 import { createSelector } from '@reduxjs/toolkit';
 import { type DashboardStoreState } from '.';
 import { applyParameterLabelOverrides } from '../../../providers/Dashboard/parameterLabelOverrides';
-import { getEffectiveControlOrder } from '../../dashboardControls/sections';
+import { getEffectiveControlOrder } from '../../dashboardControls/controlOrder';
 import {
     selectControlOrder,
     selectControlSections,

@@ -11,7 +11,7 @@ import {
 } from '@lightdash/common';
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
 import { isEqual, sortBy } from 'es-toolkit/compat';
-import { removeSectionKeepingLines } from '../../dashboardControls/sections';
+import { removeSectionKeepingLines } from '../../dashboardControls/controlOrder';
 
 /**
  * An unsaved edit of a saved setting. It applies only while the saved value
@@ -328,10 +328,15 @@ export const dashboardEditReducer = (
     if (dashboardEditActions.setHaveControlSectionsChanged.match(action)) {
         return set(state, 'haveControlSectionsChanged', action.payload);
     }
+    // A new section joins the line of the one before it; the first starts
+    // one. A stored order ignores `inline`: it ends the last line there
     if (dashboardEditActions.addControlSection.match(action)) {
+        const isInline =
+            state.controlSections.length > 0 &&
+            (state.controlOrder?.length ?? 0) === 0;
         return withControlSections(state, [
             ...state.controlSections,
-            action.payload,
+            isInline ? { ...action.payload, inline: true } : action.payload,
         ]);
     }
     if (dashboardEditActions.renameControlSection.match(action)) {

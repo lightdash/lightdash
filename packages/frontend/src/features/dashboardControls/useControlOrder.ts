@@ -5,7 +5,7 @@ import {
     useDashboardStore,
     type DashboardStoreState,
 } from '../dashboard/store';
-import { placeSectionChanges, toControlRefs } from './sections';
+import { placeSectionChanges, toControlRefs } from './controlOrder';
 
 /**
  * After a write that may change sections, from the store state before it:
