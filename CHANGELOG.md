@@ -1,3 +1,10 @@
+## [3.195.2](https://github.com/lightdash/lightdash/compare/3.195.1...3.195.2) (2026-11-10)
+
+
+### Bug Fixes
+
+* **analytics:** show clearer query errors ([#32301](https://github.com/lightdash/lightdash/issues/32301)) ([db443f2](https://github.com/lightdash/lightdash/commit/db443f2b11fa0f49a999e33d60747a85add421ff))
+
 ## [3.195.1](https://github.com/lightdash/lightdash/compare/3.195.0...3.195.1) (2026-11-10)
 
 
