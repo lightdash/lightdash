@@ -7,7 +7,7 @@ import {
 } from '../../../../types/filter';
 import { type AiFilterExample } from '../filters/filterExamples';
 import {
-    FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE,
+    FILTER_EXPRESSION_STRING_VALUES_EXAMPLE,
     formatFilterExpressionExample,
     getFilterExpressionExamples,
 } from './examples';
@@ -54,23 +54,38 @@ describe('filter expression examples', () => {
         }
     });
 
-    it('generates a parseable canonical punctuated-string example', () => {
-        expect(FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE).toBe(
-            'orders_product_name equals="Coffee Filters (100pk)"',
+    it('generates a parseable canonical string-values example', () => {
+        expect(FILTER_EXPRESSION_STRING_VALUES_EXAMPLE).toBe(
+            'orders_product_name equals="Coffee Filters (100pk)","Paper Cups"',
         );
         expect(
-            parseFilterExpression(FILTER_EXPRESSION_PUNCTUATED_STRING_EXAMPLE),
+            parseFilterExpression(FILTER_EXPRESSION_STRING_VALUES_EXAMPLE),
         ).toMatchObject({
             success: true,
             expression: {
                 rules: [
                     {
                         field: { value: 'orders_product_name' },
-                        arguments: [{ value: 'Coffee Filters (100pk)' }],
+                        arguments: [
+                            { kind: 'quoted', value: 'Coffee Filters (100pk)' },
+                            { kind: 'quoted', value: 'Paper Cups' },
+                        ],
                     },
                 ],
             },
         });
+    });
+
+    it('quotes every string-field value, even single words', () => {
+        expect(
+            formatFilterExpressionExample({
+                fieldId: 'orders_status',
+                fieldType: DimensionType.STRING,
+                fieldFilterType: FilterType.STRING,
+                operator: FilterOperator.EQUALS,
+                values: ['completed', 'shipped'],
+            }),
+        ).toBe('orders_status equals="completed","shipped"');
     });
 
     it.each([
