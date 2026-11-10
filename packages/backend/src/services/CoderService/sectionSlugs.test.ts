@@ -380,6 +380,31 @@ describe('dashboard section slugs', () => {
             );
         });
 
+        it('keeps a section id when its stored slug differs from its name', () => {
+            const saved: DashboardConfig = {
+                isDateZoomDisabled: false,
+                controlSections: [
+                    { id: 'old-id', slug: 'revenue', name: 'Sales' },
+                ],
+            };
+            const file = getDashboardWithSectionSlugs({
+                name: 'Dashboard',
+                slug: 'dashboard',
+                spaceSlug: 'space',
+                version: 1,
+                tiles: [],
+                tabs: [],
+                config: {
+                    isDateZoomDisabled: false,
+                    controlSections: saved.controlSections,
+                },
+            });
+            expect(
+                getDashboardWithSectionIds(file, saved, false).config
+                    ?.controlSections?.[0].id,
+            ).toBe('old-id');
+        });
+
         it('matches saved sections by stored slug and persists the slug through a rename', () => {
             const original = dashboard();
             const portable = getDashboardWithSectionSlugs(original);

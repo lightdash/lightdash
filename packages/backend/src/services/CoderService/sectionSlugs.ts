@@ -162,14 +162,19 @@ export const getDashboardWithSectionIds = (
     const stableIds = controlsEnabled
         ? getStableIds(sections, existingSections, sectionBase)
         : [];
-    // Flag off keeps the legacy match on stored slugs and persists the slug
-    const existingSlugs = sectionSlugs(existingSections);
-    const existingBySlug = new Map(
-        existingSections.map((section, index) => [
-            existingSlugs[index],
-            section.id,
-        ]),
+    // Flag off matches stored slugs, then the name-derived slugs downloads write
+    const storedSlugs = sectionSlugs(existingSections);
+    const nameSlugs = sectionSlugs(
+        existingSections.map(({ name }) => ({ name })),
     );
+    const existingBySlug = new Map([
+        ...existingSections.map(
+            ({ id }, index) => [nameSlugs[index], id] as const,
+        ),
+        ...existingSections.map(
+            ({ id }, index) => [storedSlugs[index], id] as const,
+        ),
+    ]);
     const slugs = sectionSlugs(sections);
     const idBySlug = new Map<string, string>();
     const resolved = sections.map(({ slug, ...section }, index) => {

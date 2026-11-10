@@ -807,7 +807,7 @@ section. An entry with `newLine: true` starts a new bar line, and
 every other entry shares the line of the entry before it. A line start on a
 section member passes to the next entry in the list outside a section; it is
 dropped if there is none. Without a saved
-order, lines follow each section's `inline`. Controls left out of
+order, every section starts its own line. Controls left out of
 `controlOrder` go to the end of their container, inline; to place a new
 control, add its entry. With dashboard controls enabled, AI agent reads match
 downloads but always include filter slugs, so an agent can write a list. An
