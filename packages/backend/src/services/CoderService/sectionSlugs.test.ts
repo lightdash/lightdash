@@ -501,6 +501,45 @@ describe('dashboard section slugs', () => {
             },
         );
 
+        it.each([false, true])(
+            'gives a saved section to the file section named after it (file order reversed: %s)',
+            (reversed) => {
+                const file = getDashboardWithSectionSlugs({
+                    name: 'Dashboard',
+                    slug: 'dashboard',
+                    spaceSlug: 'space',
+                    version: 1,
+                    tiles: [],
+                    tabs: [],
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlSections: [
+                            { id: 'x', slug: 'revenue', name: 'New' },
+                            { id: 'y', name: 'Sales' },
+                        ],
+                    },
+                });
+                file.config!.controlSections![0].slug = 'revenue';
+                if (reversed) file.config!.controlSections!.reverse();
+                const sections = getDashboardWithSectionIds(
+                    file,
+                    {
+                        isDateZoomDisabled: false,
+                        controlSections: [
+                            { id: 'a', slug: 'revenue', name: 'Sales' },
+                        ],
+                    },
+                    false,
+                ).config!.controlSections!;
+                expect(sections.find(({ name }) => name === 'Sales')?.id).toBe(
+                    'a',
+                );
+                expect(
+                    sections.find(({ name }) => name === 'New')?.id,
+                ).not.toBe('a');
+            },
+        );
+
         it('matches a saved section by its stored slug, not its name', () => {
             const portable = getDashboardWithSectionSlugs(dashboard());
             const [section] = getDashboardWithSectionIds(

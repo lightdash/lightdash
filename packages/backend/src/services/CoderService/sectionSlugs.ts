@@ -162,7 +162,6 @@ export const getDashboardWithSectionIds = (
     const stableIds = controlsEnabled
         ? getStableIds(sections, existingSections, sectionBase)
         : [];
-    // Flag off matches a stored slug, then the name-derived slug downloads write; each saved id once
     const storedSlugs = sectionSlugs(existingSections);
     const nameSlugs = sectionSlugs(
         existingSections.map(({ name }) => ({ name })),
@@ -173,17 +172,31 @@ export const getDashboardWithSectionIds = (
     const byNameSlug = new Map(
         existingSections.map(({ id }, index) => [nameSlugs[index], id]),
     );
-    const claimed = new Set<string>();
     const slugs = sectionSlugs(sections);
-    // A stored slug yields to a saved section another file section names, so file order never decides
+    // Flag off: stored slugs, then name slugs, each saved id once; whole-file passes so file order never decides
     const namedIds = new Set(slugs.map((fileSlug) => byNameSlug.get(fileSlug)));
-    const matchesOf = (fileSlug: string) => {
-        const stored = byStoredSlug.get(fileSlug);
-        const named = byNameSlug.get(fileSlug);
-        return stored !== named && namedIds.has(stored)
-            ? [named, stored]
-            : [stored, named];
-    };
+    const matched = new Map<string, string>();
+    const claim = (matchOf: (fileSlug: string) => string | undefined) =>
+        slugs.forEach((fileSlug) => {
+            const id = matchOf(fileSlug);
+            if (
+                matched.has(fileSlug) ||
+                id === undefined ||
+                [...matched.values()].includes(id)
+            )
+                return;
+            matched.set(fileSlug, id);
+        });
+    if (!controlsEnabled) {
+        claim((fileSlug) => {
+            const stored = byStoredSlug.get(fileSlug);
+            return stored === byNameSlug.get(fileSlug) || !namedIds.has(stored)
+                ? stored
+                : undefined;
+        });
+        claim((fileSlug) => byNameSlug.get(fileSlug));
+        claim((fileSlug) => byStoredSlug.get(fileSlug));
+    }
     const idBySlug = new Map<string, string>();
     const resolved = sections.map(({ slug, ...section }, index) => {
         if (slug !== undefined && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))
@@ -196,10 +209,7 @@ export const getDashboardWithSectionIds = (
             );
         const id = controlsEnabled
             ? stableIds[index]
-            : (matchesOf(slugs[index]).find(
-                  (match) => match !== undefined && !claimed.has(match),
-              ) ?? uuidv4());
-        claimed.add(id);
+            : (matched.get(slugs[index]) ?? uuidv4());
         idBySlug.set(slugs[index], id);
         const kept = { ...pick(section, ['name', 'collapsed']), id };
         if (controlsEnabled) return kept;
