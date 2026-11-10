@@ -38,10 +38,10 @@ max_memory = "16gb"                # headroom the migrate rung and the pnpm inst
 
 # node comes from .nvmrc and pnpm from package.json's packageManager. The first
 # build step bakes common and warehouses dist into the image so the backend can
-# import them — through turbo, so the `frontend-build` rung below (which bakes
-# formula, visualization and the bundle the same way, before the migrate rung
-# imports them) finds common in the cache; these steps run before the ladder's
-# first run rung. From then on the `pnpm dev` watchers keep them current. The
+# import them; the `frontend-build` rung below bakes formula, visualization and
+# the bundle the same way, before the migrate rung imports them. These steps
+# run before the ladder's first run rung. From then on the `pnpm dev` watchers
+# keep them current. The
 # second is the dbt venv the seed's project compile shells out to (`dbt1.12`).
 # Its adapters match the release image's dbt1.12 venv: the API and app tests
 # compile Snowflake, BigQuery, Databricks and Trino projects with it too.
@@ -218,9 +218,10 @@ preset = "pnpm"                    # lockfile globs; egress and memory headroom 
 
 # The production bundle the backend serves. turbo builds formula, common
 # and visualization first — vite
-# resolves them from `dist` outside development mode — and skips whatever
-# its local cache (.turbo, gitignored, so a fork inherits the parent's)
-# already holds, so a frontend-only push rebuilds only the bundle. The
+# resolves them from `dist` outside development mode. Both leftovers go
+# first, or the disk fills: vite keeps every old hashed chunk
+# (emptyOutDir: false), turbo archives all of `build` on each run and never
+# evicts, and a fork inherits both from the parent. The
 # same rung bakes the dist that `migrate` and `tsoa` import, which the
 # old formula-build and common-build rungs did by hand (2026-09-08: both
 # died reading a watcher's half-written barrel; a run rung executes with
@@ -229,7 +230,7 @@ preset = "pnpm"                    # lockfile globs; egress and memory headroom 
 [[tier]]
 name = "frontend-build"
 files = ["packages/frontend/**", "packages/common/**", "packages/visualization/**", "packages/formula/**"]
-run = "pnpm turbo run build --filter=@lightdash/frontend"
+run = "rm -rf .turbo/cache packages/frontend/build && pnpm turbo run build --filter=@lightdash/frontend"
 env = { NODE_ENV = "production", TURBO_TELEMETRY_DISABLED = "1", TURBO_NO_UPDATE_NOTIFIER = "1" }
 memory = "12gb"                    # the common barrel is large; the same headroom migrate takes
 
