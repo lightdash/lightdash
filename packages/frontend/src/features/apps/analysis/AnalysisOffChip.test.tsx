@@ -6,7 +6,7 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import AnalysisOffChip from './AnalysisOffChip';
 
 const render = (
-    reason: 'org_setting_off' | 'copilot_off' | 'not_rolled_out',
+    reason: 'org_setting_off' | 'copilot_off',
     abilityRules: LightdashUserWithAbilityRules['abilityRules'] = [],
 ) =>
     renderWithProviders(

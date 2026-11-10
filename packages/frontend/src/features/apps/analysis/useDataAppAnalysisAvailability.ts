@@ -1,9 +1,6 @@
-import { FeatureFlags, type AnalysisTarget } from '@lightdash/common';
 import { useAiOrganizationSettings } from '../../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 
 export type DataAppAnalysisUnavailableReason =
-    | 'not_rolled_out'
     | 'org_setting_off'
     | 'copilot_off';
 
@@ -22,7 +19,6 @@ export const UNAVAILABLE_COPY: Record<
     DataAppAnalysisUnavailableReason,
     string
 > = {
-    not_rolled_out: 'AI analysis is not available for this organization yet.',
     copilot_off: 'AI is not enabled for this organization.',
     org_setting_off: 'AI analysis is turned off for this organization.',
 };
@@ -32,33 +28,21 @@ export const UNAVAILABLE_SETTINGS_PATH: Record<
     DataAppAnalysisUnavailableReason,
     string | null
 > = {
-    not_rolled_out: null,
     copilot_off: '/generalSettings/ai/general',
     org_setting_off: '/generalSettings/dataApps/aiAnalysis',
-};
-
-const ROLLOUT_FLAG: Record<AnalysisTarget, FeatureFlags> = {
-    app: FeatureFlags.EnableDataAppAnalysis,
-    dashboard: FeatureFlags.EnableDashboardAnalysis,
 };
 
 /**
  * Mirrors the backend gates so the entry point can explain a disabled state
  * instead of failing a request. The backend re-checks everything. Consent
- * (org setting) and AI entitlement are shared across targets; the rollout
- * flag is per target.
+ * (org setting) and AI entitlement are shared across targets; data-app
+ * analysis is only offered inside data apps, which have their own gate.
  */
-export const useAnalysisAvailability = (
-    target: AnalysisTarget,
-): DataAppAnalysisAvailability => {
-    const rolloutFlag = useServerFeatureFlag(ROLLOUT_FLAG[target]);
+export const useAnalysisAvailability = (): DataAppAnalysisAvailability => {
     const { data: aiSettings, isInitialLoading } = useAiOrganizationSettings();
 
-    if (rolloutFlag.isInitialLoading || isInitialLoading) {
+    if (isInitialLoading) {
         return { status: 'loading' };
-    }
-    if (!rolloutFlag.data?.enabled) {
-        return { status: 'unavailable', reason: 'not_rolled_out' };
     }
     if (!aiSettings?.isCopilotEnabled && !aiSettings?.isTrial) {
         return { status: 'unavailable', reason: 'copilot_off' };
@@ -73,4 +57,4 @@ export const useAnalysisAvailability = (
 };
 
 export const useDataAppAnalysisAvailability = (): DataAppAnalysisAvailability =>
-    useAnalysisAvailability('app');
+    useAnalysisAvailability();

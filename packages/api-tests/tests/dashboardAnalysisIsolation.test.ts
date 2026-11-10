@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     SEED_PROJECT,
     type CreateEmbedJwt,
     type DecodedEmbed,
@@ -39,7 +38,6 @@ const openQuery = {
 };
 
 type AiSettings = Body<{ dataAppRuntimeAiEnabled?: boolean }>;
-type FeatureFlag = Body<{ enabled: boolean }>;
 type ErrorBody = {
     status: 'error';
     error: { statusCode: number; name: string; data: { code?: string } };
@@ -81,7 +79,6 @@ describe('Dashboard analysis isolation', () => {
     let viewerAQueryUuid: string;
     let dashboardUuid: string;
     let originalRuntimeAi: boolean | null = null;
-    let flagsToClear: string[] = [];
     // Copilot (and so AI analysis) is not enabled on every environment.
     let available = true;
 
@@ -99,21 +96,6 @@ describe('Dashboard analysis isolation', () => {
         originalRuntimeAi =
             settings.body.results.dataAppRuntimeAiEnabled ?? false;
         await admin.patch(aiSettingsUrl, { dataAppRuntimeAiEnabled: true });
-
-        // Leave flags that are already on alone: deleting an override falls
-        // back to the environment default, which may be off. The data-apps
-        // flags are deliberately not touched: dashboards have their own gate.
-        for (const flag of [FeatureFlags.EnableDashboardAnalysis]) {
-            const current = await admin.get<FeatureFlag>(
-                `/api/v2/feature-flag/${flag}`,
-            );
-            if (!current.body.results.enabled) {
-                await admin.post(`/api/v2/feature-flag/${flag}`, {
-                    enabled: true,
-                });
-                flagsToClear.push(flag);
-            }
-        }
 
         const dashboards = await admin.get<
             Body<Array<{ uuid: string; spaceUuid: string }>>
@@ -148,12 +130,6 @@ describe('Dashboard analysis isolation', () => {
 
     afterAll(async () => {
         if (!available) return;
-        for (const flag of flagsToClear) {
-            await admin.delete(`/api/v2/feature-flag/${flag}`, {
-                failOnStatusCode: false,
-            });
-        }
-        flagsToClear = [];
         await admin.patch(aiSettingsUrl, {
             dataAppRuntimeAiEnabled: originalRuntimeAi ?? false,
         });

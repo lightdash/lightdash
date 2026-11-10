@@ -186,8 +186,6 @@ const Settings: FC = () => {
         project,
         isScimTokenManagementEnabled,
         dataAppsFlag,
-        dataAppAnalysisFlag,
-        dashboardAnalysisFlag,
         isDataAppsFlagLoading,
         isChartStudioAvailable,
         isAiCopilotEnabledOrTrial,
@@ -539,16 +537,13 @@ const Settings: FC = () => {
             });
         }
 
-        // The AI-analysis page hosts the shared consent toggle; dashboard
-        // analysis shares it, so a dashboard-only rollout must still reach it.
+        // The AI-analysis page hosts the consent toggle that data-app and
+        // dashboard analysis share, so it opens wherever AI is available.
         {
             const canManageOrganization =
                 user?.ability.can('manage', 'Organization') ?? false;
             const canManageAiAnalysis =
-                canManageOrganization &&
-                ((dataAppsFlag?.enabled === true &&
-                    dataAppAnalysisFlag?.enabled === true) ||
-                    dashboardAnalysisFlag?.enabled === true);
+                canManageOrganization && isAiCopilotEnabledOrTrial;
             if (canManageAiAnalysis) {
                 allowedRoutes.push({
                     path: '/dataApps/aiAnalysis',
@@ -901,8 +896,6 @@ const Settings: FC = () => {
         health?.hasGitlab,
         health?.auth.google.enabled,
         dataAppsFlag?.enabled,
-        dataAppAnalysisFlag?.enabled,
-        dashboardAnalysisFlag?.enabled,
         isChartStudioAvailable,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,

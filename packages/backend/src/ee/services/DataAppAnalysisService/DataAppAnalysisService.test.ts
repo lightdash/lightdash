@@ -3,7 +3,6 @@ import {
     AiAccessRefusedError,
     DATA_APP_ANALYSIS_DEFAULT_LIMITS,
     DimensionType,
-    FeatureFlags,
     FieldType,
     ForbiddenError,
     MetricType,
@@ -88,8 +87,6 @@ function buildService(
         orgSettingEnabled?: boolean;
         copilotEnabled?: boolean;
         dataAppsEnabled?: boolean;
-        analysisEnabled?: boolean;
-        dashboardAnalysisEnabled?: boolean;
         canViewDashboard?: boolean;
         queryContext?: QueryExecutionContext;
         orgDefaultInstructions?: string | null;
@@ -209,17 +206,10 @@ function buildService(
             }),
         },
         featureFlagModel: {
-            get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => {
-                if (featureFlagId === FeatureFlags.EnableDataAppAnalysis) {
-                    return { enabled: overrides.analysisEnabled ?? true };
-                }
-                if (featureFlagId === FeatureFlags.EnableDashboardAnalysis) {
-                    return {
-                        enabled: overrides.dashboardAnalysisEnabled ?? true,
-                    };
-                }
-                return { enabled: overrides.dataAppsEnabled ?? true };
-            }),
+            // Data apps is the only flag analysis still reads.
+            get: vi.fn(async () => ({
+                enabled: overrides.dataAppsEnabled ?? true,
+            })),
         },
         spacePermissionService: {
             resolveAccess: vi.fn().mockResolvedValue({}),
@@ -392,7 +382,6 @@ describe('DataAppAnalysisService.detect', () => {
     it.each([
         ['copilot', { copilotEnabled: false }, 'copilot_disabled'],
         ['data apps flag', { dataAppsEnabled: false }, 'data_apps_disabled'],
-        ['analysis flag', { analysisEnabled: false }, 'analysis_disabled'],
     ])('rejects when %s is off', async (_label, overrides, code) => {
         const { service } = buildService(overrides);
         await expect(
@@ -1325,7 +1314,7 @@ describe('DataAppAnalysisService.prompt', () => {
 
     it('applies the same gates as detect', async () => {
         const { service, aiService } = buildService({
-            analysisEnabled: false,
+            dataAppsEnabled: false,
         });
         await expect(
             service.prompt(
@@ -1334,7 +1323,7 @@ describe('DataAppAnalysisService.prompt', () => {
                 'app-1',
                 { prompt: 'x', sources: request.sources },
             ),
-        ).rejects.toMatchObject({ data: { code: 'analysis_disabled' } });
+        ).rejects.toMatchObject({ data: { code: 'data_apps_disabled' } });
         expect(aiService.answerDataAppPrompt).not.toHaveBeenCalled();
     });
 
@@ -2338,22 +2327,13 @@ describe('DataAppAnalysisService dashboard target', () => {
         });
     });
 
-    it('is gated by its own flag, not the data-apps flags', async () => {
-        const { service } = buildService({
-            dataAppsEnabled: false,
-            analysisEnabled: false,
-        });
+    it('does not need data apps', async () => {
+        const { service } = buildService({ dataAppsEnabled: false });
         await expect(
             service.detect(buildAccount(), 'proj-1', dashboardLocator, request),
         ).resolves.toMatchObject({
             target: { kind: 'dashboard', dashboardUuid: 'dash-1' },
         });
-        const { service: gated } = buildService({
-            dashboardAnalysisEnabled: false,
-        });
-        await expect(
-            gated.detect(buildAccount(), 'proj-1', dashboardLocator, request),
-        ).rejects.toMatchObject({ data: { code: 'analysis_disabled' } });
     });
 
     it('refuses a viewer without dashboard access', async () => {

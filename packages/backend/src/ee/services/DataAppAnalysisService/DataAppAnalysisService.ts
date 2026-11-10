@@ -252,7 +252,6 @@ export class DataAppAnalysisUnavailableError extends ForbiddenError {
             | 'org_setting_disabled'
             | 'copilot_disabled'
             | 'data_apps_disabled'
-            | 'analysis_disabled'
             | 'unsupported_context'
             | 'agent_unavailable'
             | 'budget_exhausted',
@@ -407,10 +406,9 @@ export class DataAppAnalysisService extends BaseService {
 
     /**
      * Fails closed in order: customer consent (org setting), AI entitlement,
-     * then the target's rollout flags. Consent and entitlement are shared
-     * across targets; each target has its own rollout flag so apps and
-     * dashboards roll out independently. Each failure has its own code so
-     * the surface can explain which.
+     * then, for apps, data apps availability. Consent and entitlement are
+     * shared across targets. Each failure has its own code so the surface can
+     * explain which.
      */
     private async assertRuntimeAiAllowed(
         user: SessionUser,
@@ -447,31 +445,10 @@ export class DataAppAnalysisService extends BaseService {
                         'data_apps_disabled',
                     );
                 }
-                const analysisFlag = await this.featureFlagModel.get({
-                    user,
-                    featureFlagId: FeatureFlags.EnableDataAppAnalysis,
-                });
-                if (!analysisFlag.enabled) {
-                    throw new DataAppAnalysisUnavailableError(
-                        'AI analysis is not enabled for this organization',
-                        'analysis_disabled',
-                    );
-                }
                 return;
             }
-            case 'dashboard': {
-                const analysisFlag = await this.featureFlagModel.get({
-                    user,
-                    featureFlagId: FeatureFlags.EnableDashboardAnalysis,
-                });
-                if (!analysisFlag.enabled) {
-                    throw new DataAppAnalysisUnavailableError(
-                        'AI analysis is not enabled for this organization',
-                        'analysis_disabled',
-                    );
-                }
+            case 'dashboard':
                 return;
-            }
             default:
                 assertUnreachable(target, 'Unknown analysis target');
         }

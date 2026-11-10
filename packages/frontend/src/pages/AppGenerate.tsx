@@ -1213,10 +1213,7 @@ const AppGenerate: FC = () => {
         onSourcesExpired: reloadPreviewForExpiredSources,
         openThread: openAnalysisThread,
     });
-    const showAnalysisInPreview =
-        analysisAvailability.status === 'available' ||
-        (analysisAvailability.status === 'unavailable' &&
-            analysisAvailability.reason !== 'not_rolled_out');
+    const showAnalysisInPreview = analysisAvailability.status !== 'loading';
     // The rendered bundle told us it subscribes to analysis. Scoped to the
     // previewed version so a rebuild that drops it clears the note.
     const previewScope = previewApp
