@@ -89,7 +89,43 @@ Every `config` has `metadata: { "version": 1 }` and `type` equal to `chartKind`.
 - `fieldConfig.y`: one entry per series, `{ "reference": "<column>", "aggregation": "sum" | "count" | "avg" | "min" | "max" | "any" }`. Use `any` when the SQL already aggregated the value.
 - `fieldConfig.groupBy`: `[{ "reference": "<column>" }]` to split into series, or `[]`.
 - Optional `fieldConfig.sortBy`: `[{ "reference": "<column>", "direction": "ASC" | "DESC" }]`.
-- Optional `display`: `xAxis` (`label`, `type`), `yAxis` (`[{ "label", "position" }]`), `series` keyed by series reference (`label`, `color`, `type: "bar" | "line"`), `stack` (`true`, `"stack"`, or `"stack100"`), `legend` (`{ "position", "align" }`).
+- Optional `display`, every key optional:
+
+```json
+{
+    "series": {
+        "order_count_sum": {
+            "color": "#4C6EF5",
+            "format": "si",
+            "label": "Orders",
+            "type": "bar",
+            "valueLabelColor": "#212529",
+            "valueLabelPosition": "top",
+            "whichYAxis": 0
+        }
+    },
+    "seriesOrder": ["order_count_sum"],
+    "stack": "stack",
+    "xAxis": { "dateFormat": "MMM YYYY", "label": "Month", "type": "time" },
+    "yAxis": [{ "format": "si", "label": "Orders", "position": "left" }]
+}
+```
+
+| Key                                   | Use when the user asks to                    | Values                                                                                                                                                                         |
+| ------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `xAxis.label` / `yAxis[i].label`      | rename an axis                               | String. `yAxis[0]` is the left axis, `yAxis[1]` the right.                                                                                                                     |
+| `xAxis.dateFormat`                    | show dates as days, weeks, months, years     | Day.js pattern for a `time` x axis: `"MMM D, YYYY"` (default), `"ddd, MMM D"`, `"MMM YYYY"`, `"[Q]Q YYYY"`, `"YYYY"`.                                                          |
+| `yAxis[i].format` / `series.*.format` | show values as percentages or compact (1.5K) | `"percent"` (0.25 shows as 25%) or `"si"`. Other `format` values render unformatted. The axis format sets tick labels and is the fallback for its series' tooltips and labels. |
+| `series.*.label`                      | rename a series in the legend and tooltip    | String. On a single-series chart `yAxis[0].label` wins; change that instead.                                                                                                   |
+| `series.*.color`                      | recolor a series                             | Hex color.                                                                                                                                                                     |
+| `series.*.type`                       | mix bars and lines                           | `"bar"` or `"line"`.                                                                                                                                                           |
+| `series.*.valueLabelPosition`         | show values on the bars or points            | `"top"`, `"bottom"`, `"left"`, `"right"`, `"inside"`; `"hidden"` removes them.                                                                                                 |
+| `series.*.valueLabelColor`            | recolor those value labels                   | Hex color; applies while `valueLabelPosition` shows labels.                                                                                                                    |
+| `series.*.whichYAxis`                 | put a series on a second (right) axis        | `1` for right, `0` for left (default). Label and format the right axis in `yAxis[1]`.                                                                                          |
+| `seriesOrder`                         | reorder series or stacked segments           | Series keys, drawn first to last; the first sits at the bottom of a stack.                                                                                                     |
+| `stack`                               | stack bars                                   | `true`, `"stack"`, or `"stack100"`.                                                                                                                                            |
+
+Key `series` and `seriesOrder` by series column: `<reference>_<aggregation>` (`order_count_sum`), or with `groupBy` one per group value, `<reference>_<aggregation>_<value>` (`order_count_sum_completed`). A `series` entry keyed by the bare y `reference` covers every series from that column that has no exact entry. `readContent` shows the keys an existing chart uses.
 
 ### Pie
 
@@ -119,6 +155,13 @@ Every `config` has `metadata: { "version": 1 }` and `type` equal to `chartKind`.
 }
 ```
 
+Optional `display` keys:
+
+- `label` and `showLabel`: the caption under the value; `showLabel: false` hides it.
+- `style`: compact notation, `"K"`, `"M"`, `"B"`, or `"T"`.
+- `showComparison: true` compares the value with a second `fieldConfig.y` entry, when the user asks for change against a target or previous value. `comparisonFormat` is `"raw"` (difference) or `"percentage"`; `comparisonLabel` captions it; `flipColors: true` shows an increase red and a decrease green.
+- `conditionalFormatting`: color the value by threshold, first matching rule wins: `[{ "operator": "lessThan", "value": 100, "color": "#E03131" }]`. Operators: `equals`, `notEquals`, `lessThan`, `lessThanOrEqual`, `greaterThan`, `greaterThanOrEqual`. Optional `darkColor` for dark mode.
+
 ### Table
 
 ```json
@@ -142,6 +185,25 @@ Every `config` has `metadata: { "version": 1 }` and `type` equal to `chartKind`.
     "type": "table"
 }
 ```
+
+Each column needs `label`, `reference`, `visible`, and `frozen`.
+
+## Explore-only settings
+
+SQL chart config has no key for these; they exist only on charts built from an explore. When the user asks for one on a SQL chart, answer from this list: tell them SQL charts don't support it, and offer to rebuild the chart from an explore (`type: "chart"`, see `cartesian-chart-reference`) when an explore covers the same data.
+
+- **Incomplete-period marking** (`showIncompletePeriod`): it needs the x dimension's time interval, and SQL columns carry none.
+- **Reference lines** (`markLine`).
+- **Color by category** (`colorByCategory`, `categoryColorOverrides`).
+- **Display row trimming** (`rowLimit`). The SQL chart's `limit` only caps the rows it loads.
+- **Horizontal bars** (`flipAxes`): bars are vertical only.
+- **Area and scatter series**: `series.*.type` is `bar` or `line`.
+- **Scrollable x axis** (data zoom).
+- **Gaps in lines** (`connectNulls`): SQL line charts always join across missing values.
+- **Axis ranges, tick intervals, and stack totals** (`min`/`max`, `minInterval`, `stackLabel`).
+- **Conditional formatting**, except on `big_number` (`display.conditionalFormatting` above).
+- **In-cell bars in tables** (`displayStyle: "bar"`): SQL tables render plain values.
+- **Legend position**: SQL charts place the legend at the top whenever there is more than one series.
 
 ## Reading
 
