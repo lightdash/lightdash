@@ -7,6 +7,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { type LightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useLightdashApi } from '../../../providers/LightdashApi/useLightdashApi';
+import { invalidateSavedConnection } from './invalidateSavedConnection';
 
 type UpdateParams = {
     projectUuid: string;
@@ -31,10 +32,12 @@ export const useUpdateExternalConnection = () => {
     return useMutation<ExternalConnection, ApiError, UpdateParams>({
         mutationFn: (args: UpdateParams) =>
             updateExternalConnection(lightdashApi, args),
-        onSuccess: async (_data, variables) => {
-            await queryClient.invalidateQueries({
-                queryKey: ['external-connections', variables.projectUuid],
-            });
+        onSuccess: async (connection, variables) => {
+            await invalidateSavedConnection(
+                queryClient,
+                variables.projectUuid,
+                connection,
+            );
             showToastSuccess({ title: 'Connection updated' });
         },
         onError: ({ error }) => {
