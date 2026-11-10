@@ -32471,12 +32471,6 @@ describe('getQueryHistoryList hides composer node SQL without SQL runner access'
     };
     const buildService = () =>
         getMockedAsyncQueryService(lightdashConfigMock, {
-            featureFlagModel: {
-                get: vi.fn(async ({ featureFlagId }: AnyType) => ({
-                    id: featureFlagId,
-                    enabled: featureFlagId === FeatureFlags.QueryHistory,
-                })),
-            } as unknown as FeatureFlagModel,
             queryHistoryModel: {
                 findUserHistory: vi.fn(async () => ({
                     data: rows,
