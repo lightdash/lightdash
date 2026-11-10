@@ -1,3 +1,10 @@
+# [3.206.0](https://github.com/lightdash/lightdash/compare/3.205.2...3.206.0) (2026-11-10)
+
+
+### Features
+
+* **mobile:** publish the Play App Signing fingerprint in assetlinks.json by default ([#32360](https://github.com/lightdash/lightdash/issues/32360)) ([b6ccdd6](https://github.com/lightdash/lightdash/commit/b6ccdd61e7f776f8b8e8b206f58268f17354363c))
+
 ## [3.205.2](https://github.com/lightdash/lightdash/compare/3.205.1...3.205.2) (2026-11-10)
 
 
