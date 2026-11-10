@@ -788,6 +788,10 @@ export type ComposerRunOutcome =
     | {
           status: 'failure';
           error: string;
+          /** The in-process error behind the failure; null when it only came back as a stored query error. */
+          cause: Error | null;
+          /** True when the failure is a stored query error, which AsyncQueryService reports where it is thrown. */
+          reportedAtSource: boolean;
           nodeStatuses: ComposerNodeStatus[];
       };
 

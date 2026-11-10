@@ -17,6 +17,7 @@ export const getAgentLogContext = (args: AiAgentArgs): AiAgentLogContext => {
         threadUuid: args.threadUuid,
         promptUuid: args.promptUuid,
         toolCallId: null,
+        toolName: null,
         model: getAiAgentModelName(args.model),
         serverVersion: VERSION,
         threadUrl: `${args.siteUrl}/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${args.threadUuid}`,
@@ -41,6 +42,7 @@ export const withToolCallLogContext = (
                             {
                                 ...context,
                                 toolCallId: options?.toolCallId ?? null,
+                                toolName,
                             },
                             () => execute(input, options),
                         ),

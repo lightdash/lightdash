@@ -8,6 +8,7 @@ export type AiAgentLogContext = {
     threadUuid: string;
     promptUuid: string;
     toolCallId: string | null;
+    toolName: string | null;
     model: string;
     serverVersion: string;
     threadUrl: string;

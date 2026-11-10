@@ -1,12 +1,20 @@
 import {
     toolRunSqlOutputSchema,
+    WarehouseQueryError,
     type AiWebAppPrompt,
     type SlackPrompt,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import { asSchema } from 'ai';
+import { markAlreadyReported } from '../../../../sentry/aiAgentErrors';
 import { EMPTY_QUERY_GUIDANCE } from '../decisions/queryReview';
 import type { QueryReviewer } from '../decisions/queryReview';
 import { getRunSql } from './runSql';
+
+vi.mock('@sentry/node', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@sentry/node')>()),
+    captureException: vi.fn(),
+}));
 
 type RunSqlTool = ReturnType<typeof getRunSql>;
 type MakeToolOptions = {
@@ -484,6 +492,22 @@ describe('getRunSql', () => {
         expect(output.metadata?.status).toBe('error');
         expect(output.result).toContain('relation "missing" does not exist');
         expect(output.structuredContent).toEqual({ error: output.result });
+    });
+
+    it('sends a failed query to Sentry once: where it was thrown, not again from the tool', async () => {
+        const captureException = vi.mocked(Sentry.captureException);
+        captureException.mockClear();
+        const { tool, dependencies } = makeTool({ autoApproveSql: true });
+        dependencies.runSqlJob.mockRejectedValueOnce(
+            markAlreadyReported(
+                new WarehouseQueryError('SQL query failed: bad column'),
+            ),
+        );
+
+        const output = await executeRunSql(tool);
+
+        expect(output.metadata?.status).toBe('error');
+        expect(captureException).not.toHaveBeenCalled();
     });
 
     it('mirrors a rejected approval in the structured content', async () => {

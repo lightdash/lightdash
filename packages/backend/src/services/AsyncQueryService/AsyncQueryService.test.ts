@@ -101,6 +101,7 @@ import {
 } from '@lightdash/common';
 import type { SshTunnel } from '@lightdash/warehouses';
 import * as warehouses from '@lightdash/warehouses';
+import * as Sentry from '@sentry/node';
 import { createHash } from 'crypto';
 import type express from 'express';
 import knex from 'knex';
@@ -343,6 +344,11 @@ const mockSshTunnel = {
     connect: vi.fn(() => warehouseClientMock.credentials),
     disconnect: vi.fn(),
 } as unknown as SshTunnel<CreateWarehouseCredentials>;
+
+vi.mock('@sentry/node', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@sentry/node')>()),
+    captureException: vi.fn(),
+}));
 
 vi.mock('@lightdash/warehouses', async () => ({
     ...(await vi.importActual<typeof import('@lightdash/warehouses')>(
@@ -18119,6 +18125,45 @@ describe('runDuckdbQuery', () => {
                 error: 'Query A ("a") did not complete: permission denied for table orders',
             }),
             expect.anything(),
+        );
+    });
+
+    const agentArgs = {
+        queryTags: { query_context: QueryExecutionContext.AI },
+        context: QueryExecutionContext.AI,
+    };
+
+    it('leaves an agent query that fails on a failed reference to the reference', async () => {
+        const captureException = vi.mocked(Sentry.captureException);
+        captureException.mockClear();
+        const { run, pollForQueryCompletion } = buildService();
+        pollForQueryCompletion.mockRejectedValueOnce(
+            new Error('permission denied for table orders'),
+        );
+        await run(
+            baseArgs({
+                ...agentArgs,
+                references: {
+                    kind: 'queries',
+                    references: { merge_source_0: 'leg-uuid' },
+                    guard: null,
+                    labelByTable: { merge_source_0: 'Query A ("a")' },
+                },
+            }),
+        );
+        expect(captureException).not.toHaveBeenCalled();
+    });
+
+    it("reports an agent query's own failure as a warning", async () => {
+        const captureException = vi.mocked(Sentry.captureException);
+        captureException.mockClear();
+        const { run, runWarehouseQuery } = buildService();
+        const queryError = new WarehouseQueryError('Binder Error');
+        runWarehouseQuery.mockRejectedValueOnce(queryError);
+        await run(baseArgs(agentArgs));
+        expect(captureException).toHaveBeenCalledExactlyOnceWith(
+            queryError,
+            expect.objectContaining({ level: 'warning' }),
         );
     });
 
