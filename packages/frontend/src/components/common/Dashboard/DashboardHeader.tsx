@@ -135,6 +135,13 @@ import { DashboardRefreshButton } from './DashboardRefreshButton';
 import { PreAggregateAuditDrawer } from './PreAggregateAuditIndicator';
 import { useDashboardManageAccess } from './useDashboardManageAccess';
 
+// The dashboard controls' floating bars sit this far from the bottom too
+const EDIT_BAR_POSITION = {
+    bottom: 'md',
+    left: 0,
+    right: 0,
+};
+
 type DashboardHeaderProps = {
     dashboard: Dashboard;
     organizationUuid?: string;
@@ -739,6 +746,8 @@ const DashboardHeader = memo(
                                 opened
                                 shadow="md"
                                 aria-label="Dashboard editing tools"
+                                position={EDIT_BAR_POSITION}
+                                className={headerClasses.editBar}
                             >
                                 <AddTileButton
                                     onAddTiles={onAddTiles}
