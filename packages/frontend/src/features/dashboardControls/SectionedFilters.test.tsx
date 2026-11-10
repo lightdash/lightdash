@@ -492,12 +492,13 @@ describe('SectionedFilters', () => {
         expect(sections).toContainElement(
             screen.getByRole('button', { name: 'New section' }),
         );
-        // In a line of its own on a narrow bar, as the capsules are
-        expect(
-            screen
-                .getByRole('button', { name: 'New section' })
-                .closest('[class*="sections"] > *')?.className,
-        ).toMatch(/line/);
+        // At the end of the last section line, inline with its capsules
+        const sectionLines = document.querySelectorAll(
+            '[class*="sectionLine"]',
+        );
+        expect(sectionLines[sectionLines.length - 1]).toContainElement(
+            screen.getByRole('button', { name: 'New section' }),
+        );
         expect(
             screen.queryByRole('button', { name: 'Filter rules' }),
         ).not.toBeInTheDocument();
@@ -1510,8 +1511,10 @@ describe('SectionedFilters', () => {
                 expect(input.closest('[class*="sections"]')).toHaveAttribute(
                     'data-own-line',
                 );
-                expect(input.closest('[data-own-line]')).not.toBe(
-                    input.closest('[class*="sections"]'),
+                // A first section is named on the sections' line; a later one
+                // at the end of the last section line
+                expect(input.closest('[class*="sectionLine"]') !== null).toBe(
+                    saved.length > 0,
                 );
                 await userEvent.keyboard('Misc{Enter}');
                 // Moving pills in is a reorder: the bar follows the stored order

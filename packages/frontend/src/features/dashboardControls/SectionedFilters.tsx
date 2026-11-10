@@ -1077,24 +1077,31 @@ export const SectionedFilters: FC<Props> = ({
         drop !== null &&
         'lineStartId' in drop &&
         drop.lineStartId === lineStartId;
-    const sectionLines = lines.map((line, index) => (
-        <Box key={line[0].id} className={classes.sectionLine}>
-            {!isViewer && (
-                <LineGap
-                    lineStartId={line[0].id}
-                    isEnd={false}
-                    isShown={isGapShown(line[0].id)}
-                />
-            )}
-            {line.map(({ id }) => {
-                const group = groupById.get(id);
-                return group ? capsuleFor(group, null) : null;
-            })}
-            {!isViewer && index === lines.length - 1 && (
-                <LineGap lineStartId={null} isEnd isShown={isGapShown(null)} />
-            )}
-        </Box>
-    ));
+    // The bar's end ("New section" or its name input) closes the last line
+    const renderSectionLines = (end: ReactNode) =>
+        lines.map((line, index) => (
+            <Box key={line[0].id} className={classes.sectionLine}>
+                {!isViewer && (
+                    <LineGap
+                        lineStartId={line[0].id}
+                        isEnd={false}
+                        isShown={isGapShown(line[0].id)}
+                    />
+                )}
+                {line.map(({ id }) => {
+                    const group = groupById.get(id);
+                    return group ? capsuleFor(group, null) : null;
+                })}
+                {index === lines.length - 1 && end}
+                {!isViewer && index === lines.length - 1 && (
+                    <LineGap
+                        lineStartId={null}
+                        isEnd
+                        isShown={isGapShown(null)}
+                    />
+                )}
+            </Box>
+        ));
     const pills = (
         <>
             <FilterPills
@@ -1192,7 +1199,7 @@ export const SectionedFilters: FC<Props> = ({
         .filter(({ isNeedsValue }) => isNeedsValue)
         .map(({ control }) => control.id);
     const barLines = getShownBarLines(ordered, () => true);
-    const renderOrderLines = (firstItem: ReactNode) =>
+    const renderOrderLines = (firstItem: ReactNode, lastItem: ReactNode) =>
         orderLines.map((line, index) => {
             // A line's own first control, though it may be hidden on this tab
             const lineStartId =
@@ -1232,6 +1239,7 @@ export const SectionedFilters: FC<Props> = ({
                             )}
                         </>
                     )}
+                    {isLast && lastItem}
                     {!isViewer && isLast && (
                         <LineGap
                             lineStartId={null}
@@ -1249,7 +1257,7 @@ export const SectionedFilters: FC<Props> = ({
     // Named last, in the entry's place at the bar's end, wherever it was
     // started, so nothing before it moves
     const newSection = naming !== null && (
-        <Box className={classes.line} data-own-line>
+        <Box className={classes.line}>
             <NewSection
                 onAdd={(name, exit) => {
                     const section = { id: uuidv4(), name };
@@ -1304,7 +1312,7 @@ export const SectionedFilters: FC<Props> = ({
                 className={classes.flow}
                 data-sectioned={orderLines.length > 1 || undefined}
             >
-                {renderOrderLines(viewerActions)}
+                {renderOrderLines(viewerActions, null)}
             </Box>
         );
     }
@@ -1320,7 +1328,7 @@ export const SectionedFilters: FC<Props> = ({
                     className={classes.sections}
                     data-own-line={isSectionsOwnLine || undefined}
                 >
-                    {sectionLines}
+                    {renderSectionLines(null)}
                 </Box>
             </Box>
         );
@@ -1782,12 +1790,7 @@ export const SectionedFilters: FC<Props> = ({
     const barEnd = (
         <>
             {naming === null && isGhostShown && (
-                <Box
-                    className={classes.line}
-                    data-own-line={
-                        lines.length > 0 || hasStoredOrder || undefined
-                    }
-                >
+                <Box className={classes.line}>
                     <InertWhileEditing>
                         <NewSectionGhost
                             isDisabled={isEditing}
@@ -1843,8 +1846,8 @@ export const SectionedFilters: FC<Props> = ({
                                         <UnsectionTarget>
                                             <AddControl />
                                         </UnsectionTarget>,
+                                        barEnd,
                                     )}
-                                    {barEnd}
                                 </>
                             ) : (
                                 <>
@@ -1867,8 +1870,9 @@ export const SectionedFilters: FC<Props> = ({
                                             isSectionsOwnLine || undefined
                                         }
                                     >
-                                        {sectionLines}
-                                        {barEnd}
+                                        {lines.length === 0
+                                            ? barEnd
+                                            : renderSectionLines(barEnd)}
                                     </Box>
                                 </>
                             )}
