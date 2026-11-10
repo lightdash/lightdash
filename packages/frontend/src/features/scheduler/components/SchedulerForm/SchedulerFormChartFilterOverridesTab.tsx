@@ -1,5 +1,6 @@
 import {
     getFieldsFromMetricQuery,
+    getItemMap,
     type FilterRule,
     type Filters,
     type ItemsMap,
@@ -42,6 +43,8 @@ type Props = {
     filtersWithUnmetRequirements: FilterRule[];
     /** The user cannot replace the chart's filters: show them, seed nothing. */
     readOnly?: boolean;
+    /** Inherit each saved rule until the sync explicitly overrides its value. */
+    inheritDefaults?: boolean;
 };
 
 export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
@@ -53,6 +56,7 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
     onChange,
     filtersWithUnmetRequirements,
     readOnly = false,
+    inheritDefaults = false,
 }) => {
     const { data: project, isInitialLoading: isLoadingProject } = useProject(
         savedChart.projectUuid,
@@ -66,23 +70,39 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
         savedChart.tableName,
         savedChart.projectUuid,
     );
-    const fieldsMap = useMemo<ItemsMap | undefined>(
-        () =>
-            itemsMap ??
-            (explore
-                ? getFieldsFromMetricQuery(savedChart.metricQuery, explore)
-                : undefined),
-        [itemsMap, explore, savedChart.metricQuery],
-    );
+    const fieldsMap = useMemo<ItemsMap | undefined>(() => {
+        if (itemsMap || !explore) return itemsMap;
+        const { metricQuery } = savedChart;
+        return inheritDefaults
+            ? getItemMap(
+                  explore,
+                  metricQuery.additionalMetrics,
+                  metricQuery.tableCalculations,
+                  metricQuery.customDimensions,
+              )
+            : getFieldsFromMetricQuery(metricQuery, explore);
+    }, [itemsMap, explore, savedChart.metricQuery, inheritDefaults]);
     const chartFilters = savedChart.metricQuery.filters;
 
     // Seed the form with the chart's saved rules exactly once (undefined =
     // never seeded). An empty object means the user removed every override.
     useEffect(() => {
-        if (!readOnly && !isEditMode && draftFilters === undefined) {
+        if (
+            !inheritDefaults &&
+            !readOnly &&
+            !isEditMode &&
+            draftFilters === undefined
+        ) {
             onChange(getChartFilterOverridesSeed(chartFilters));
         }
-    }, [chartFilters, draftFilters, isEditMode, onChange, readOnly]);
+    }, [
+        chartFilters,
+        draftFilters,
+        inheritDefaults,
+        isEditMode,
+        onChange,
+        readOnly,
+    ]);
 
     const handleUpdateFilter = useCallback(
         (
@@ -216,7 +236,7 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
                                     (rule) => rule.id === chartRule.id,
                                 );
 
-                                if (!draftRule) {
+                                if (!draftRule && !inheritDefaults) {
                                     return (
                                         <RemovedSchedulerFilterItem
                                             key={chartRule.id}
@@ -234,51 +254,92 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
 
                                 const originalFilter = isEditMode
                                     ? (savedOverrides.find(
-                                          (rule) => rule.id === draftRule.id,
+                                          (rule) => rule.id === chartRule.id,
                                       ) ?? chartRule)
                                     : chartRule;
 
                                 return (
                                     <SchedulerFilterItem
-                                        key={draftRule.id}
-                                        savedFilter={originalFilter}
+                                        key={chartRule.id}
+                                        savedFilter={
+                                            inheritDefaults
+                                                ? chartRule
+                                                : originalFilter
+                                        }
+                                        valuesOnly={inheritDefaults}
                                         schedulerFilter={draftRule}
                                         isMissingRequiredValue={unmetFilterIds.has(
                                             chartRule.id,
                                         )}
-                                        onChange={(updatedFilter) =>
-                                            handleUpdateFilter(
-                                                section,
-                                                updatedFilter,
-                                                originalFilter,
-                                            )
-                                        }
-                                        onRevert={() =>
-                                            handleUpdateFilter(
-                                                section,
-                                                originalFilter,
-                                                originalFilter,
-                                            )
-                                        }
+                                        onChange={(updatedFilter) => {
+                                            if (
+                                                inheritDefaults &&
+                                                !hasSchedulerFilterChanged(
+                                                    updatedFilter,
+                                                    chartRule,
+                                                )
+                                            ) {
+                                                handleRemoveFilter(
+                                                    section,
+                                                    chartRule.id,
+                                                );
+                                            } else {
+                                                handleUpdateFilter(
+                                                    section,
+                                                    updatedFilter,
+                                                    originalFilter,
+                                                );
+                                            }
+                                        }}
+                                        onRevert={() => {
+                                            if (
+                                                inheritDefaults &&
+                                                originalFilter === chartRule
+                                            ) {
+                                                handleRemoveFilter(
+                                                    section,
+                                                    chartRule.id,
+                                                );
+                                            } else if (!draftRule) {
+                                                handleRestoreFilter(
+                                                    section,
+                                                    originalFilter,
+                                                );
+                                            } else {
+                                                handleUpdateFilter(
+                                                    section,
+                                                    originalFilter,
+                                                    originalFilter,
+                                                );
+                                            }
+                                        }}
                                         hasChanged={hasSchedulerFilterChanged(
-                                            draftRule,
+                                            draftRule ?? chartRule,
                                             originalFilter,
                                         )}
-                                        onRemove={() =>
-                                            handleRemoveFilter(
-                                                section,
-                                                draftRule.id,
-                                            )
+                                        onRemove={
+                                            draftRule
+                                                ? () =>
+                                                      handleRemoveFilter(
+                                                          section,
+                                                          chartRule.id,
+                                                      )
+                                                : undefined
                                         }
-                                        removeTooltip="Remove filter — the delivery will use the chart default"
+                                        removeTooltip={
+                                            inheritDefaults
+                                                ? 'Use chart default'
+                                                : 'Remove filter — the delivery will use the chart default'
+                                        }
                                     />
                                 );
                             }),
                     )}
                     {hasOrphans && (
                         <Text fz="xs" c="dimmed" mt="xs">
-                            The following filters are applied to this scheduled
-                            delivery but no longer exist in the chart
+                            {inheritDefaults
+                                ? 'These filters still apply to this sync but are no longer saved on the chart.'
+                                : 'The following filters are applied to this scheduled delivery but no longer exist in the chart'}
                         </Text>
                     )}
                     {sections.map(({ section, orphanOverrides, draftRules }) =>
@@ -292,6 +353,7 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
                                 <SchedulerFilterItem
                                     key={orphanRule.id}
                                     savedFilter={orphanRule}
+                                    readOnly={inheritDefaults}
                                     schedulerFilter={draftRule}
                                     isMissingRequiredValue={false}
                                     onChange={(updatedFilter) =>

@@ -10,6 +10,7 @@ import { useSyncModalForm } from '../hooks/useSyncModalForm';
 import { SyncModalAction } from '../providers/types';
 import { useSyncModal } from '../providers/useSyncModal';
 import { type SyncResource } from '../types';
+import { SyncChartFilterOverrides } from './SyncChartFilterOverrides';
 import { SyncModalForm } from './SyncModalForm';
 import { SyncModalFormProvider } from './syncModalFormContext';
 
@@ -29,6 +30,8 @@ export const SyncModalCreateOrEdit: FC<Props> = ({
         isLoading,
         isEditing,
         isLoadingSchedulerData,
+        savedFilters,
+        filtersWithUnmetRequirements,
         isSchedulerError,
         schedulerError,
     } = useSyncModalForm(resource);
@@ -73,6 +76,18 @@ export const SyncModalCreateOrEdit: FC<Props> = ({
                     onSubmit={handleSubmit}
                     isApp={resource.type === 'app'}
                     supportsFilters={resource.type !== 'sqlChart'}
+                    filterOverrides={
+                        resource.type === 'chart' && (
+                            <SyncChartFilterOverrides
+                                chart={resource.chart}
+                                savedFilters={savedFilters}
+                                isEditing={isEditing}
+                                filtersWithUnmetRequirements={
+                                    filtersWithUnmetRequirements
+                                }
+                            />
+                        )
+                    }
                 />
             </MantineModal>
         </SyncModalFormProvider>

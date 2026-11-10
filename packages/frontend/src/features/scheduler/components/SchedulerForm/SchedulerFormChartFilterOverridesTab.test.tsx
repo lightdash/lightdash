@@ -96,11 +96,13 @@ const Harness = ({
     isEditMode = false,
     savedFilters,
     onDraftChange,
+    inheritDefaults = false,
 }: {
     initialFilters: Filters | undefined;
     isEditMode?: boolean;
     savedFilters?: Filters;
     onDraftChange?: (filters: Filters) => void;
+    inheritDefaults?: boolean;
 }) => {
     const [draftFilters, setDraftFilters] = useState(initialFilters);
     return (
@@ -115,6 +117,7 @@ const Harness = ({
                 onDraftChange?.(filters);
             }}
             filtersWithUnmetRequirements={[]}
+            inheritDefaults={inheritDefaults}
         />
     );
 };
@@ -140,6 +143,37 @@ describe('SchedulerFormChartFilterOverridesTab', () => {
         ]);
         expect(screen.getByText('Status')).toBeInTheDocument();
         expect(screen.getByText('Payment method')).toBeInTheDocument();
+    });
+
+    it('inherits untouched filters and resets an override to the chart value', async () => {
+        const overrides: Filters = {
+            dimensions: {
+                id: 'sync',
+                and: [{ ...statusFilter, values: ['refunded'] }],
+            },
+        };
+        const onDraftChange = vi.fn();
+        renderWithProviders(
+            <Harness
+                initialFilters={overrides}
+                savedFilters={overrides}
+                isEditMode
+                inheritDefaults
+                onDraftChange={onDraftChange}
+            />,
+        );
+
+        expect(onDraftChange).not.toHaveBeenCalled();
+        expect(screen.getByText('refunded')).toBeInTheDocument();
+        expect(screen.getByText('credit_card')).toBeInTheDocument();
+
+        await userEvent.click(
+            screen.getByRole('button', { name: 'Use chart default' }),
+        );
+
+        expect(onDraftChange).toHaveBeenLastCalledWith({});
+        expect(screen.getByText('completed')).toBeInTheDocument();
+        expect(screen.getByText('credit_card')).toBeInTheDocument();
     });
 
     it('keeps a removed filter visible as "uses chart default"', async () => {
