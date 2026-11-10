@@ -34,10 +34,12 @@ export const SyncChartFilterOverrides: FC<Props> = ({
         }),
     );
 
+    const hasSavedOverrides =
+        !!savedFilters && getTotalFilterRules(savedFilters).length > 0;
     if (
-        !canAdjustFilters ||
-        (getTotalFilterRules(chart.metricQuery.filters).length === 0 &&
-            (!savedFilters || getTotalFilterRules(savedFilters).length === 0))
+        !hasSavedOverrides &&
+        (!canAdjustFilters ||
+            getTotalFilterRules(chart.metricQuery.filters).length === 0)
     ) {
         return null;
     }
@@ -46,12 +48,16 @@ export const SyncChartFilterOverrides: FC<Props> = ({
         <Stack gap="xs">
             <Switch
                 label="Customize filters for this sync"
-                description="By default, this sync uses the chart’s saved filters."
+                description={
+                    canAdjustFilters
+                        ? 'By default, this sync uses the chart’s saved filters.'
+                        : 'Changing these values requires Explore access. Turn this off to use the chart’s saved filters.'
+                }
                 {...form.getInputProps('customizeFilters', {
                     type: 'checkbox',
                 })}
             />
-            {form.values.customizeFilters && (
+            {canAdjustFilters && form.values.customizeFilters && (
                 <SchedulerFormChartFilterOverridesTab
                     savedChart={chart}
                     itemsMap={undefined}

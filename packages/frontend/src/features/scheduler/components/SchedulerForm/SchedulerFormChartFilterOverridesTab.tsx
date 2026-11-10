@@ -1,4 +1,5 @@
 import {
+    getChartFilterRuleOverrideMatches,
     getFieldsFromMetricQuery,
     getItemMap,
     type FilterRule,
@@ -104,6 +105,30 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
         readOnly,
     ]);
 
+    const getOverrideRules = useCallback(
+        (filters: Filters | undefined, section: ChartFilterSection) => {
+            const rules = getChartFilterSectionRules(filters, section);
+            if (!inheritDefaults || rules.length === 0) return rules;
+
+            const { overrideBySavedRuleId } = getChartFilterRuleOverrideMatches(
+                getChartFilterSectionRules(chartFilters, section),
+                rules,
+            );
+            // Keep the scheduler's match stable when an edit rewrites this section.
+            const chartIdByOverrideId = new Map(
+                Array.from(overrideBySavedRuleId, ([chartId, rule]) => [
+                    rule.id,
+                    chartId,
+                ]),
+            );
+            return rules.map((rule) => {
+                const id = chartIdByOverrideId.get(rule.id);
+                return id && id !== rule.id ? { ...rule, id } : rule;
+            });
+        },
+        [chartFilters, inheritDefaults],
+    );
+
     const handleUpdateFilter = useCallback(
         (
             section: ChartFilterSection,
@@ -113,7 +138,7 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
             const updatedRules = updateChartFilterSectionRules(
                 updatedFilter,
                 originalFilter,
-                getChartFilterSectionRules(draftFilters, section),
+                getOverrideRules(draftFilters, section),
             );
             if (updatedRules) {
                 onChange(
@@ -125,7 +150,7 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
                 );
             }
         },
-        [draftFilters, onChange],
+        [draftFilters, getOverrideRules, onChange],
     );
 
     const handleRemoveFilter = useCallback(
@@ -134,25 +159,25 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
                 setChartFilterSectionRules(
                     draftFilters,
                     section,
-                    getChartFilterSectionRules(draftFilters, section).filter(
+                    getOverrideRules(draftFilters, section).filter(
                         (f) => f.id !== filterId,
                     ),
                 ),
             );
         },
-        [draftFilters, onChange],
+        [draftFilters, getOverrideRules, onChange],
     );
 
     const handleRestoreFilter = useCallback(
         (section: ChartFilterSection, chartFilter: FilterRule) => {
             onChange(
                 setChartFilterSectionRules(draftFilters, section, [
-                    ...getChartFilterSectionRules(draftFilters, section),
+                    ...getOverrideRules(draftFilters, section),
                     chartFilter,
                 ]),
             );
         },
-        [draftFilters, onChange],
+        [draftFilters, getOverrideRules, onChange],
     );
 
     if (isLoadingProject || isLoadingExplore || !project || !fieldsMap) {
@@ -170,10 +195,7 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
     const sections = CHART_FILTER_SECTIONS.map((section) => {
         const chartRules = getChartFilterSectionRules(chartFilters, section);
         const chartRuleIds = new Set(chartRules.map((rule) => rule.id));
-        const savedOverrides = getChartFilterSectionRules(
-            savedFilters,
-            section,
-        );
+        const savedOverrides = getOverrideRules(savedFilters, section);
         return {
             section,
             chartRules,
@@ -182,7 +204,7 @@ export const SchedulerFormChartFilterOverridesTab: FC<Props> = ({
             orphanOverrides: savedOverrides.filter(
                 (rule) => !chartRuleIds.has(rule.id),
             ),
-            draftRules: getChartFilterSectionRules(draftFilters, section),
+            draftRules: getOverrideRules(draftFilters, section),
         };
     });
     const hasRules = sections.some(
