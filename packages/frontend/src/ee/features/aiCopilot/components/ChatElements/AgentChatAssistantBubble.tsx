@@ -4,9 +4,12 @@ import {
     type AiAgentMessageUser,
     type AiMcpServer,
     isToolEditDbtProjectResult,
+    isToolProposeSemanticLayerChangeResult,
     isToolEditRepoResult,
     isToolDataAppBuildResult,
+    type SemanticLayerProposal,
     type ToolEditDbtProjectOutput,
+    type ToolProposeSemanticLayerChangeOutput,
     type ToolEditRepoOutput,
     type ToolGenerateDataAppOutput,
     hasNodeCitations,
@@ -51,6 +54,7 @@ import { type CustomRendererProps, type StreamdownProps } from 'streamdown';
 import { AiMarkdown } from '../../../../../components/common/AiMarkdown';
 import { CopyActionIcon } from '../../../../../components/common/CopyActionIcon';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { SemanticLayerProposalCard } from '../../../../../features/semanticStudio/SemanticLayerProposalCard';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
 import useApp from '../../../../../providers/App/useApp';
@@ -535,6 +539,28 @@ const AssistantBubbleContent: FC<{
         return { metadata: liveOutput.metadata };
     })();
 
+    // Persisted once the turn is saved; until then the stream carries them.
+    const persistedProposals: SemanticLayerProposal[] = message.toolResults
+        .filter(isToolProposeSemanticLayerChangeResult)
+        .map(({ metadata }) => metadata);
+    const semanticLayerProposals: SemanticLayerProposal[] =
+        persistedProposals.length > 0
+            ? persistedProposals
+            : (streamingState?.parts ?? []).flatMap((part) => {
+                  if (
+                      part.type !== 'toolCall' ||
+                      part.toolName !== 'proposeSemanticLayerChange' ||
+                      part.isPreliminary === true
+                  ) {
+                      return [];
+                  }
+                  const output =
+                      part.toolResult as ToolProposeSemanticLayerChangeOutput | null;
+                  return output?.metadata?.status === 'success'
+                      ? [output.metadata]
+                      : [];
+              });
+
     // General coding-agent (editRepo) PR card metadata — resolved the same way
     // as editDbtProject (persisted result, then live streaming part), but kept
     // separate since it has no preview / post-merge migration.
@@ -937,6 +963,13 @@ const AssistantBubbleContent: FC<{
                 message={message}
                 streamParts={streamingState?.parts}
             />
+            {semanticLayerProposals.map((proposal, index) => (
+                <SemanticLayerProposalCard
+                    key={index}
+                    projectUuid={projectUuid}
+                    proposal={proposal}
+                />
+            ))}
             {editDbtProjectResult && (
                 <AiEditDbtProjectToolCall
                     metadata={editDbtProjectResult.metadata}

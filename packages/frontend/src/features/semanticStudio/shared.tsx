@@ -3,6 +3,7 @@
  * search results and the small controls around them.
  */
 import {
+    DbtProjectType,
     DimensionType,
     FieldType,
     MetricType,
@@ -10,7 +11,6 @@ import {
     type WarehouseTypes,
 } from '@lightdash/common';
 import {
-    Anchor,
     Autocomplete,
     Box,
     Button,
@@ -67,8 +67,11 @@ import MantineIcon from '../../components/common/MantineIcon';
 import { ItemDetailMarkdown } from '../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
 import dbtLogo from '../../components/ProjectConnection/ProjectConnectFlow/Assets/dbt.svg';
 import { WarehouseTypeLabels } from '../../components/ProjectConnection/ProjectConnectFlow/utils';
+import { WarehouseLogoStack } from '../../components/ProjectConnection/ProjectConnectFlow/WarehouseLogoStack';
+import { useDefaultAiAgent } from '../../ee/features/aiCopilot/components/Launcher/useDefaultAiAgent';
 import { getLiveSource } from '../../features/externalConnections/liveSources/liveSourceCatalog';
 import useHealth from '../../hooks/health/useHealth';
+import { useProject } from '../../hooks/useProject';
 import googleSheetsLogo from '../../svgs/google-sheets.svg';
 import { useUpdateLiveSourceFields } from '../externalConnections/hooks/useLiveSourceFields';
 import { useExternalSourceActions } from './externalSources/externalSourceActions';
@@ -89,7 +92,10 @@ import {
     type SearchResult,
     type Source,
 } from './model';
+import { CHANGE_KIND_LABELS } from './modelCode';
+import { SemanticLayerPreview } from './SemanticLayerPreview';
 import classes from './shared.module.css';
+import { useCanEditSemanticLayer } from './useSemanticLayerModel';
 import {
     type FieldDraft,
     type FieldFilter,
@@ -258,6 +264,8 @@ export const NodeIcon: FC<{
 
 const FIELD_ROW_HEIGHT = 36;
 
+const WAREHOUSE_OPTION = 'warehouse';
+
 const ADD_OPTIONS: {
     key: string;
     kind: Kind;
@@ -273,10 +281,10 @@ const ADD_OPTIONS: {
     inSettings?: boolean;
 }[] = [
     {
-        key: 'dbt',
+        key: WAREHOUSE_OPTION,
         kind: 'modelled',
         label: 'Warehouse',
-        description: 'Connect a dbt project',
+        description: 'Connect your warehouse',
         path: '/generalSettings/projectManagement/:projectUuid/settings',
         inSettings: true,
         icon: <KindIcon kind="modelled" size={18} />,
@@ -329,9 +337,10 @@ const useAddSource = (view: ViewModel, kind?: Kind) => {
                 return true;
         }
     };
-    const hasWarehouse = view.project.sources.some(
-        (source) => source.kind === 'modelled',
-    );
+    const { data: project } = useProject(view.project.id);
+    const hasWarehouse =
+        !!project?.warehouseConnection ||
+        view.project.sources.some((source) => source.kind === 'modelled');
     const allowed = ADD_OPTIONS.filter(
         (option) =>
             (!kind || option.kind === kind) &&
@@ -340,13 +349,13 @@ const useAddSource = (view: ViewModel, kind?: Kind) => {
             view.canManage(option.kind),
     );
     // One warehouse per project: once it has one, the menu still lists it,
-    // greyed out, so people see where their dbt project comes from.
+    // greyed out, so people see where their models read from.
     const options = allowed.filter(
-        (option) => option.key !== 'dbt' || !hasWarehouse,
+        (option) => option.key !== WAREHOUSE_OPTION || !hasWarehouse,
     );
     const menuOptions = allowed.map((option) => ({
         option,
-        disabled: option.key === 'dbt' && hasWarehouse,
+        disabled: option.key === WAREHOUSE_OPTION && hasWarehouse,
     }));
     const pathOf = (option: AddOption) =>
         option.path ? addPath(view, option.path) : null;
@@ -509,7 +518,7 @@ const FieldRow = memo<{
             <Box
                 className={classes.fieldRow}
                 data-selected={selected}
-                data-off={!field.inUse}
+                data-off={!field.inUse || field.draftState === 'removed'}
                 data-field-index={index}
                 data-field-id={field.id}
                 role="row"
@@ -535,6 +544,11 @@ const FieldRow = memo<{
                     ) : null}
                     {unsaved ? (
                         <Text className={classes.fieldUnsaved}>Unsaved</Text>
+                    ) : null}
+                    {field.draftState ? (
+                        <Text className={classes.fieldUnsaved}>
+                            {CHANGE_KIND_LABELS[field.draftState]}
+                        </Text>
                     ) : null}
                     {field.visibleTo ? (
                         <Tooltip
@@ -1090,7 +1104,9 @@ export const FieldDetailModal: FC<{
     /** The explore's groups, offered when moving the field to another. */
     groups: string[];
     onClose: () => void;
-}> = ({ view, explore, field, groups, onClose }) => {
+    /** Opens the YAML that defines it; null when there is none to show. */
+    onViewCode: (() => void) | null;
+}> = ({ view, explore, field, groups, onClose, onViewCode }) => {
     const source = getSource(view.project, explore.sourceId);
     const saved = toFieldDraft(field);
     // Drafts live in the view, so closing without saving keeps them.
@@ -1130,6 +1146,16 @@ export const FieldDetailModal: FC<{
                     Only project admins can edit live data source fields
                 </Text>
             </Group>
+        ) : onViewCode ? (
+            <Button
+                size="xs"
+                variant="subtle"
+                color="gray"
+                className={classes.pressable}
+                onClick={onViewCode}
+            >
+                View code
+            </Button>
         ) : null;
 
     return (
@@ -1481,58 +1507,229 @@ export const SearchResultsList: FC<{
 // ---------------------------------------------------------------------------
 // Empty project
 
-export const EmptyProject: FC<{ view: ViewModel }> = ({ view }) => {
+const STARTER_MODEL = [
+    { key: 'type:', value: 'model', indent: 0 },
+    { key: 'name:', value: 'your_table', indent: 0 },
+    { key: 'metrics:', value: null, indent: 0 },
+    { key: 'total_revenue:', value: null, indent: 1 },
+    { key: 'type:', value: 'sum', indent: 2 },
+];
+
+const StarterModelCode: FC<{ showWarehouses: boolean }> = ({
+    showWarehouses,
+}) => (
+    <Box className={classes.starterWindow} aria-hidden>
+        <Group gap={5} className={classes.starterBar}>
+            <Box className={classes.starterDot} />
+            <Box className={classes.starterDot} />
+            <Box className={classes.starterDot} />
+        </Group>
+        <Box className={classes.starterCode}>
+            {STARTER_MODEL.map(({ key, value, indent }, index) => (
+                <Box
+                    key={`${key}${index}`}
+                    className={classes.starterLine}
+                    pl={indent * 14}
+                >
+                    <Text span inherit className={classes.starterKey}>
+                        {key}
+                    </Text>{' '}
+                    {value}
+                    {index === STARTER_MODEL.length - 1 ? (
+                        <Box
+                            component="span"
+                            className={classes.starterCursor}
+                        />
+                    ) : null}
+                </Box>
+            ))}
+        </Box>
+        {showWarehouses ? (
+            <Box className={classes.starterLogos}>
+                <WarehouseLogoStack size="md" monochrome={false} />
+            </Box>
+        ) : null}
+    </Box>
+);
+
+/** Other ways in, for anyone who would rather not start from the warehouse. */
+const StartFromSources: FC<{ view: ViewModel }> = ({ view }) => {
     const { options, pathOf, addInPlace } = useAddSource(view);
+    const others = options.filter(({ key }) => key !== WAREHOUSE_OPTION);
+    if (others.length === 0) return null;
     return (
-        <Paper variant="dotted" p="xl" maw={560} mx="auto" mt="xl">
-            <Stack gap="md" align="center">
-                <Title order={4}>No data sources yet</Title>
-                <Text fz="sm" c="dimmed" ta="center">
-                    Everything people can query shows up here: your dbt project,
-                    virtual views, external sources and live data sources.
+        <Stack gap={6} align="center">
+            <Text fz="xs" c="dimmed">
+                Or start from
+            </Text>
+            <Group gap="xs" justify="center">
+                {others.map((option) => {
+                    const path = pathOf(option);
+                    const button = {
+                        size: 'xs',
+                        variant: 'default',
+                        leftSection: option.icon,
+                        children: option.label,
+                    } as const;
+                    return (
+                        <Tooltip key={option.key} label={option.description}>
+                            {path ? (
+                                <Button
+                                    {...button}
+                                    component={Link}
+                                    to={path}
+                                />
+                            ) : (
+                                <Button
+                                    {...button}
+                                    onClick={() => addInPlace(option)}
+                                />
+                            )}
+                        </Tooltip>
+                    );
+                })}
+            </Group>
+        </Stack>
+    );
+};
+
+/** For projects with views or live sources but no models: what a model adds. */
+export const SemanticLayerNudge: FC<{ onBuild: () => void }> = ({
+    onBuild,
+}) => (
+    <Paper className={classes.nudge}>
+        <Group gap="sm" wrap="nowrap" miw={0}>
+            <Box className={classes.nudgeIcon}>
+                <MantineIcon icon={IconTable} />
+            </Box>
+            <Box miw={0}>
+                <Text fz="sm" fw={500}>
+                    Give your team shared metrics
                 </Text>
-                {options.length > 0 ? (
-                    <Stack gap="xs" w="100%">
-                        {options.map((option) => (
-                            <Paper key={option.key} p="sm">
-                                <Group gap="sm" wrap="nowrap">
-                                    {option.icon}
-                                    <Box flex={1}>
-                                        <Text fz="sm" fw={500}>
-                                            {option.label}
-                                        </Text>
-                                        <Text fz="xs" c="dimmed">
-                                            {option.description}
-                                        </Text>
-                                    </Box>
-                                    {pathOf(option) ? (
-                                        <Anchor
-                                            fz="sm"
-                                            component={Link}
-                                            to={pathOf(option) ?? ''}
-                                        >
-                                            Set up
-                                        </Anchor>
-                                    ) : (
-                                        <Anchor
-                                            fz="sm"
-                                            component="button"
-                                            type="button"
-                                            onClick={() => addInPlace(option)}
-                                        >
-                                            Set up
-                                        </Anchor>
-                                    )}
-                                </Group>
-                            </Paper>
-                        ))}
-                    </Stack>
-                ) : (
-                    <Text fz="sm" c="dimmed" ta="center">
-                        Ask a project admin to add one.
+                <Text fz="xs" c="dimmed">
+                    Views and live sources answer one question at a time. Models
+                    give everyone the same definitions.
+                </Text>
+            </Box>
+        </Group>
+        <Button size="xs" variant="default" flex="none" onClick={onBuild}>
+            Build one with the agent
+        </Button>
+    </Paper>
+);
+
+const StartFromLiveSource: FC<{ view: ViewModel }> = ({ view }) => {
+    const { options, addInPlace } = useAddSource(view, 'live');
+    const [live] = options;
+    if (!live) return null;
+    return (
+        <Button
+            size="xs"
+            variant="subtle"
+            color="gray"
+            className={classes.pressable}
+            leftSection={live.icon}
+            onClick={() => addInPlace(live)}
+        >
+            Or start from a live data source
+        </Button>
+    );
+};
+
+/** A warehouse with nothing modelled yet: what a semantic layer is, and the way in. */
+export const BuildFirstModel: FC<{
+    view: ViewModel;
+    /** Left out while the chat is already open beside this. */
+    onGetStarted: (() => void) | null;
+}> = ({ view, onGetStarted }) => {
+    const { data: project } = useProject(view.project.id);
+    return (
+        <Box className={classes.starter}>
+            <Stack align="center" gap="lg" w="100%" maw={640}>
+                <Box w="100%">
+                    <SemanticLayerPreview
+                        warehouseType={
+                            project?.warehouseConnection?.type ?? null
+                        }
+                    />
+                </Box>
+                <Stack gap="xs" align="center" ta="center" maw={480}>
+                    <Title order={3}>Build your semantic layer</Title>
+                    <Text c="dimmed" fz="sm">
+                        Define your metrics once, and every chart, dashboard and
+                        answer calculates them the same way.
                     </Text>
-                )}
+                </Stack>
+                {onGetStarted ? (
+                    <Button onClick={onGetStarted}>Get started</Button>
+                ) : null}
+                <StartFromLiveSource view={view} />
             </Stack>
-        </Paper>
+        </Box>
+    );
+};
+
+export const EmptyProject: FC<{ view: ViewModel }> = ({ view }) => {
+    const { options, pathOf } = useAddSource(view);
+    const { data: project } = useProject(view.project.id);
+    const canEdit = useCanEditSemanticLayer(view.project.id);
+    const { agents } = useDefaultAiAgent(view.project.id);
+    if (!project) return null;
+
+    const hasWarehouse = !!project.warehouseConnection;
+    const connect = options.find(({ key }) => key === WAREHOUSE_OPTION);
+    const hasAgent = canEdit && agents.length > 0;
+    const hasConnectedProject =
+        project.dbtConnection.type !== DbtProjectType.NONE;
+    const getCopy = () => {
+        if (!hasWarehouse) {
+            return {
+                title: 'Connect a warehouse to start',
+                description: `Your metrics are built from the data in your warehouse. ${connect ? 'Add its credentials in project settings.' : 'Ask a project admin to connect one.'}`,
+            };
+        }
+        if (hasConnectedProject) {
+            return {
+                title: 'No models yet',
+                description:
+                    'Your tables and metrics come from the connected project. They show up here after it refreshes.',
+            };
+        }
+        return {
+            title: 'Build your semantic layer',
+            description:
+                'Define your tables and metrics in YAML files, then deploy them with the CLI.',
+        };
+    };
+    const { title, description } = getCopy();
+    return (
+        <Box className={classes.starter}>
+            <Stack align="center" gap="xl" w="100%" maw={460} ta="center">
+                <StarterModelCode showWarehouses={!hasWarehouse} />
+                <Stack gap="xs" align="center">
+                    <Title order={3}>{title}</Title>
+                    <Text c="dimmed" fz="sm">
+                        {description}
+                    </Text>
+                </Stack>
+                {connect ? (
+                    <Button component={Link} to={pathOf(connect) ?? ''}>
+                        Connect a warehouse
+                    </Button>
+                ) : null}
+                {hasWarehouse &&
+                !hasConnectedProject &&
+                !hasAgent &&
+                canEdit ? (
+                    <Button
+                        component={Link}
+                        to={`/projects/${view.project.id}/ai-agents/new`}
+                    >
+                        Create an agent
+                    </Button>
+                ) : null}
+                <StartFromSources view={view} />
+            </Stack>
+        </Box>
     );
 };

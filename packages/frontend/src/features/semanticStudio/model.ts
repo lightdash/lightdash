@@ -4,6 +4,7 @@
  * explores in realProject.ts; fields load per explore in useExploreFields.ts.
  */
 import { getItemId, type ApiConnectorType } from '@lightdash/common';
+import { type ChangeKind } from './modelCode';
 
 export type Kind = 'modelled' | 'sqlViews' | 'files' | 'live';
 
@@ -107,6 +108,8 @@ export type Field = {
     /** Charts using it; only live data sources report it. */
     chartUsage: number | null;
     lastEdit: { by: string; at: string } | null;
+    /** What this person's draft does to it; null when it leaves it alone. */
+    draftState: ChangeKind | null;
 };
 
 export type Project = {

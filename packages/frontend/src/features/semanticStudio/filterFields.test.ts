@@ -20,6 +20,7 @@ const field = (name: string, overrides: Partial<Field> = {}): Field => ({
     isRequired: false,
     chartUsage: null,
     lastEdit: null,
+    draftState: null,
     ...overrides,
 });
 

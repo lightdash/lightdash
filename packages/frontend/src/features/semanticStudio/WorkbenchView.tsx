@@ -4,18 +4,29 @@
  * an explore and its fields. Breadcrumbs lead back up; fields open in a
  * modal.
  */
+import { assertUnreachable } from '@lightdash/common';
 import {
+    ActionIcon,
     Anchor,
     Box,
     Breadcrumbs,
     Center,
     Group,
     Loader,
+    SegmentedControl,
     Text,
     TextInput,
     Title,
+    Tooltip,
 } from '@mantine/core';
-import { IconChevronRight, IconSearch } from '@tabler/icons-react';
+import {
+    IconChevronRight,
+    IconCode,
+    IconEye,
+    IconFileCode,
+    IconLayoutSidebarLeftExpand,
+    IconSearch,
+} from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
     useCallback,
@@ -26,7 +37,14 @@ import {
     type FC,
     type KeyboardEvent,
 } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
+import { SemanticStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/SemanticStudioAgent';
+import {
+    useChatOpen,
+    useSemanticStudioChat,
+} from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
+import { useProject } from '../../hooks/useProject';
 import { LiveSourceBetaBadge } from '../externalConnections/liveSources/LiveSourceBetaBadge';
 import { useExternalSourceActions } from './externalSources/externalSourceActions';
 import { ExternalSourceManager } from './externalSources/ExternalSourceManager';
@@ -61,16 +79,36 @@ import {
     type TreeNode,
 } from './model';
 import {
+    DRAFT_PARAM,
+    DRAFT_REVIEW,
+    FIELD_PARAM,
+    getModelCodeSearch,
+    VIEW_PARAM,
+} from './modelCode';
+import { ModelCodeView, ModelTabs } from './ModelTabs';
+import {
+    DraftBar,
+    DraftReview,
+    DraftReviewHeading,
+} from './SemanticLayerDraft';
+import {
     AddSourceButton,
+    BuildFirstModel,
     EmptyProject,
     FieldDetailModal,
     FieldList,
     FieldListToolbar,
     NodeIcon,
     SearchResultsList,
+    SemanticLayerNudge,
     SettingsLink,
 } from './shared';
+import { getSemanticStudioUrl } from './urls';
 import { useExploreFields } from './useExploreFields';
+import {
+    useSemanticLayerDraft,
+    useSemanticLayerModel,
+} from './useSemanticLayerModel';
 import {
     useFieldListState,
     useProjectSearch,
@@ -82,12 +120,17 @@ import classes from './WorkbenchView.module.css';
 
 const ROW_HEIGHT = 28;
 
+/** What the workspace shows beside the rail. */
+type Pane = 'code' | 'review' | 'browse' | 'intro' | 'buildFirst' | 'empty';
+
 const Tree: FC<{
     view: ViewModel;
     expanded: Set<string>;
+    /** Models this person's draft touches. */
+    drafted: Set<string>;
     onToggle: (key: string) => void;
     onSelect: (node: TreeNode) => void;
-}> = ({ view, expanded, onToggle, onSelect }) => {
+}> = ({ view, expanded, drafted, onToggle, onSelect }) => {
     const parentRef = useRef<HTMLDivElement>(null);
     const rows = useMemo(
         () => flattenTree(view.tree.nodes, expanded),
@@ -105,7 +148,6 @@ const Tree: FC<{
     const selectedIndex = rows.findIndex(
         ({ node }) => node.key === selectedTreeKey,
     );
-
     const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
         const current = rows[selectedIndex];
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
@@ -176,6 +218,12 @@ const Tree: FC<{
                             <Text truncate className={classes.treeLabel}>
                                 {node.label}
                             </Text>
+                            {node.ref.type === 'explore' &&
+                            drafted.has(node.ref.exploreId) ? (
+                                <Tooltip label="In your draft">
+                                    <Box className={classes.draftDot} />
+                                </Tooltip>
+                            ) : null}
                         </Box>
                     );
                 })}
@@ -286,6 +334,7 @@ const ExploreBody: FC<{
 }> = ({ view, exploreId, openFieldId }) => {
     const explore = getExplore(view.project, exploreId);
     const source = getSource(view.project, explore.sourceId);
+    const { data: draft } = useSemanticLayerDraft(view.project.id);
     const {
         fields: loaded,
         isLoading,
@@ -295,6 +344,7 @@ const ExploreBody: FC<{
         explore,
         source,
         canManageLive: view.permissions.live,
+        draft: draft?.models.find(({ model }) => model === exploreId) ?? null,
     });
     const allFields = useMemo(() => loaded ?? [], [loaded]);
     const groups = useMemo(() => fieldGroups(allFields), [allFields]);
@@ -305,6 +355,21 @@ const ExploreBody: FC<{
         : undefined;
     const closeField = () =>
         view.select({ type: 'explore', exploreId }, { replace: true });
+    const navigate = useNavigate();
+    const { data: model } = useSemanticLayerModel(view.project.id, exploreId);
+    // A joined field is defined in its own model, which has its own page.
+    const viewFieldCode =
+        model &&
+        openField &&
+        view.project.explores.some(({ id }) => id === openField.table)
+            ? () =>
+                  void navigate({
+                      pathname: getSemanticStudioUrl(view.project.id, {
+                          ref: { type: 'explore', exploreId: openField.table },
+                      }),
+                      search: getModelCodeSearch(openField.name),
+                  })
+            : null;
     // A link to a field this explore doesn't have opens the explore.
     const missingField = loaded !== undefined && openFieldId && !openField;
     useEffect(() => {
@@ -354,6 +419,7 @@ const ExploreBody: FC<{
                     field={openField}
                     groups={groups}
                     onClose={closeField}
+                    onViewCode={viewFieldCode}
                 />
             ) : null}
         </>
@@ -396,7 +462,8 @@ const MainPane: FC<{
     view: ViewModel;
     onOpen: (ref: NodeRef | null) => void;
     onOpenNode: (node: TreeNode) => void;
-}> = ({ view, onOpen, onOpenNode }) => {
+    onBuildModel: (() => void) | null;
+}> = ({ view, onOpen, onOpenNode, onBuildModel }) => {
     const selected = view.selected;
     const ref = selected ? containerOf(selected) : null;
     const node = ref ? findNode(view.tree.nodes, nodeKey(ref)) : undefined;
@@ -508,6 +575,9 @@ const MainPane: FC<{
                 </Group>
             </Box>
             <Box className={classes.mainBody}>
+                {onBuildModel && !ref ? (
+                    <SemanticLayerNudge onBuild={onBuildModel} />
+                ) : null}
                 {liveConnection ? (
                     <LiveSourceSummary
                         projectUuid={view.project.id}
@@ -532,11 +602,17 @@ const MainPane: FC<{
                         }
                     />
                 ) : explore ? (
-                    <ExploreBody
+                    <ModelTabs
                         key={explore.id}
-                        view={view}
-                        exploreId={explore.id}
-                        openFieldId={openFieldId}
+                        projectUuid={view.project.id}
+                        modelName={explore.id}
+                        fields={
+                            <ExploreBody
+                                view={view}
+                                exploreId={explore.id}
+                                openFieldId={openFieldId}
+                            />
+                        }
                     />
                 ) : nodes.length > 0 ? (
                     <ChildrenList
@@ -551,16 +627,17 @@ const MainPane: FC<{
 };
 
 /**
- * The left rail: title, search and the tree. The search lives here, so
+ * The left rail: search, add and the tree. The search lives here, so
  * typing re-renders only the rail, never the page beside it. The search box
  * drives the results: arrows move, Enter opens, Esc clears.
  */
 const Rail: FC<{
     view: ViewModel;
     expanded: Set<string>;
+    drafted: Set<string>;
     onToggle: (key: string) => void;
     onOpen: (ref: NodeRef) => void;
-}> = ({ view, expanded, onToggle, onOpen }) => {
+}> = ({ view, expanded, drafted, onToggle, onOpen }) => {
     const search = useProjectSearch(view.project, view.tree);
     const [activeResult, setActiveResult] = useState(0);
     const { results } = search.results;
@@ -598,24 +675,10 @@ const Rail: FC<{
 
     return (
         <Box className={classes.rail}>
-            <Group
-                className={classes.railHeader}
-                justify="space-between"
-                wrap="nowrap"
-            >
-                <Box
-                    component="button"
-                    className={classes.railTitle}
-                    onClick={() => view.select(null)}
-                >
-                    Semantic Layer
-                </Box>
-                <AddSourceButton view={view} />
-            </Group>
-            <Box className={classes.railSearch}>
+            <Box className={classes.railHeader}>
                 <TextInput
                     size="xs"
-                    placeholder="Search explores and fields"
+                    placeholder="Search"
                     aria-label="Search explores and fields"
                     leftSection={<MantineIcon icon={IconSearch} size={14} />}
                     value={search.search}
@@ -645,6 +708,7 @@ const Rail: FC<{
                 <Tree
                     view={view}
                     expanded={expanded}
+                    drafted={drafted}
                     onToggle={onToggle}
                     onSelect={(node) => view.select(node.ref)}
                 />
@@ -652,6 +716,67 @@ const Rail: FC<{
         </Box>
     );
 };
+
+/**
+ * The Code view's rail: every model with YAML behind it, and any the draft adds.
+ * ponytail: not virtualised; only native YAML projects get here, so add it if one reaches thousands of models.
+ */
+const CodeRail: FC<{
+    files: string[];
+    selected: string | null;
+    drafted: Set<string>;
+    onOpen: (file: string) => void;
+}> = ({ files, selected, drafted, onOpen }) => (
+    <Box className={classes.rail}>
+        <Box className={classes.treeScroll}>
+            {files.map((file) => (
+                <Box
+                    key={file}
+                    component="button"
+                    className={classes.fileRow}
+                    data-selected={file === selected}
+                    onClick={() => onOpen(file)}
+                >
+                    <MantineIcon icon={IconFileCode} size={14} color="dimmed" />
+                    <Text truncate className={classes.treeLabel} title={file}>
+                        {file}.yml
+                    </Text>
+                    {drafted.has(file) ? (
+                        <Tooltip label="In your draft">
+                            <Box className={classes.draftDot} />
+                        </Tooltip>
+                    ) : null}
+                </Box>
+            ))}
+        </Box>
+    </Box>
+);
+
+const FILE_PARAM = 'file';
+
+const VIEW_OPTIONS = [
+    {
+        value: 'preview',
+        label: (
+            <Group gap={6} wrap="nowrap">
+                <MantineIcon icon={IconEye} size={14} />
+                Preview
+            </Group>
+        ),
+    },
+    {
+        value: 'code',
+        label: (
+            <Group gap={6} wrap="nowrap">
+                <MantineIcon icon={IconCode} size={14} />
+                Code
+            </Group>
+        ),
+    },
+];
+
+const BUILD_MODEL_PROMPT =
+    'Look through my warehouse and suggest the first model and metrics to add.';
 
 export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const view = useSemanticStudio(props);
@@ -708,6 +833,145 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     };
 
     const isEmpty = view.project.explores.length === 0;
+    const [searchParams, setSearchParams] = useSearchParams();
+    const { data: draft } = useSemanticLayerDraft(view.project.id);
+    const { data: project } = useProject(view.project.id);
+    const chat = useSemanticStudioChat(view.project.id);
+    const [isChatOpen, setIsChatOpen] = useChatOpen();
+    const [askedPrompt, setAskedPrompt] = useState<string | null>(null);
+    const [hasStarted, setHasStarted] = useState(false);
+    const hasDraft = (draft?.changes.length ?? 0) > 0;
+    // With nothing live, what the draft adds is the page.
+    const isBuildingFirstModel = isEmpty && hasDraft;
+    const isReviewingDraft =
+        isBuildingFirstModel || searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW;
+    const openExplore =
+        view.selected?.type === 'explore' || view.selected?.type === 'field'
+            ? view.selected.exploreId
+            : null;
+
+    const modelled = useMemo(
+        () =>
+            view.project.explores
+                .filter(
+                    ({ sourceId }) =>
+                        getSource(view.project, sourceId).kind === 'modelled',
+                )
+                .map(({ id }) => id),
+        [view.project],
+    );
+    const drafted = useMemo(
+        () => new Set(draft?.models.map(({ model }) => model)),
+        [draft],
+    );
+    const files = useMemo(
+        () => [...new Set([...drafted, ...modelled])].sort(),
+        [drafted, modelled],
+    );
+    const isCode = chat.isAvailable && searchParams.get(VIEW_PARAM) === 'code';
+    const requestedFile = searchParams.get(FILE_PARAM);
+    const file =
+        files.find((name) => name === requestedFile) ??
+        files.find((name) => name === openExplore) ??
+        files.at(0) ??
+        null;
+    const switchView = (next: string) => {
+        if (next === 'code') {
+            setSearchParams({ [VIEW_PARAM]: 'code' });
+        } else if (requestedFile && modelled.includes(requestedFile)) {
+            view.select({ type: 'explore', exploreId: requestedFile });
+        } else {
+            setSearchParams({});
+        }
+    };
+
+    const hasWarehouse = !!project?.warehouseConnection;
+    const canBuildFirstModel = isEmpty && hasWarehouse && chat.isAvailable;
+    const canNudge = chat.isAvailable && hasWarehouse && modelled.length === 0;
+    const pane = ((): Pane => {
+        if (isCode) return 'code';
+        if (isReviewingDraft) return 'review';
+        if (!isEmpty) return 'browse';
+        if (!canBuildFirstModel) return 'empty';
+        return chat.hasThread || hasStarted ? 'buildFirst' : 'intro';
+    })();
+    // What the chat is told the person has open: in the code view that is the file, not the page behind it.
+    const openModel = isCode
+        ? { modelName: file, fieldName: searchParams.get(FIELD_PARAM) }
+        : {
+              modelName: openExplore,
+              fieldName:
+                  view.selected?.type === 'field'
+                      ? view.selected.fieldId
+                      : null,
+          };
+    const openChat = () => {
+        setHasStarted(true);
+        setIsChatOpen(true);
+    };
+
+    const renderPane = () => {
+        switch (pane) {
+            case 'code':
+                return file ? (
+                    <ModelCodeView
+                        key={file}
+                        projectUuid={view.project.id}
+                        modelName={file}
+                        fieldName={searchParams.get(FIELD_PARAM)}
+                    />
+                ) : (
+                    <Text fz="sm" c="dimmed" ta="center" py="xl">
+                        No models yet. Ask the agent to build one and its YAML
+                        shows up here.
+                    </Text>
+                );
+            case 'review':
+                return draft ? (
+                    <>
+                        <DraftReviewHeading
+                            projectUuid={view.project.id}
+                            draft={draft}
+                        />
+                        <Box className={classes.mainBody}>
+                            <DraftReview
+                                projectUuid={view.project.id}
+                                draft={draft}
+                            />
+                        </Box>
+                    </>
+                ) : null;
+            case 'browse':
+                return (
+                    <MainPane
+                        view={view}
+                        onOpen={(ref) => (ref ? open(ref) : view.select(null))}
+                        onOpenNode={openNode}
+                        onBuildModel={
+                            canNudge
+                                ? () => {
+                                      setIsChatOpen(true);
+                                      setAskedPrompt(BUILD_MODEL_PROMPT);
+                                  }
+                                : null
+                        }
+                    />
+                );
+            case 'intro':
+                return <BuildFirstModel view={view} onGetStarted={openChat} />;
+            case 'buildFirst':
+                return (
+                    <BuildFirstModel
+                        view={view}
+                        onGetStarted={isChatOpen ? null : openChat}
+                    />
+                );
+            case 'empty':
+                return <EmptyProject view={view} />;
+            default:
+                return assertUnreachable(pane, 'Unknown pane');
+        }
+    };
 
     return (
         <LiveSourceManager
@@ -727,26 +991,104 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                     )
                 }
             >
-                <Box className={classes.shell}>
-                    <Rail
-                        view={view}
-                        expanded={expanded}
-                        onToggle={toggle}
-                        onOpen={open}
-                    />
-                    {isEmpty ? (
-                        <Box className={classes.main}>
-                            <EmptyProject view={view} />
-                        </Box>
-                    ) : (
-                        <MainPane
-                            view={view}
-                            onOpen={(ref) =>
-                                ref ? open(ref) : view.select(null)
-                            }
-                            onOpenNode={openNode}
+                <Box
+                    className={classes.shell}
+                    data-no-chat={
+                        !chat.isAvailable || !isChatOpen || pane === 'intro'
+                    }
+                >
+                    {pane === 'intro' ? null : (
+                        <SemanticStudioAgent
+                            projectUuid={view.project.id}
+                            {...openModel}
+                            prompt={askedPrompt}
+                            onPromptTaken={() => setAskedPrompt(null)}
+                            showStarters={canBuildFirstModel}
                         />
                     )}
+                    <Box className={classes.workspace}>
+                        {pane === 'intro' ? null : (
+                            <Group
+                                className={classes.toolbar}
+                                justify="space-between"
+                                wrap="nowrap"
+                                gap="sm"
+                            >
+                                {chat.isAvailable ? (
+                                    <Group gap={4} wrap="nowrap" flex="none">
+                                        {isChatOpen ? null : (
+                                            <Tooltip label="Show chat">
+                                                <ActionIcon
+                                                    aria-label="Show chat"
+                                                    onClick={() =>
+                                                        setIsChatOpen(true)
+                                                    }
+                                                >
+                                                    <MantineIcon
+                                                        icon={
+                                                            IconLayoutSidebarLeftExpand
+                                                        }
+                                                    />
+                                                </ActionIcon>
+                                            </Tooltip>
+                                        )}
+                                        <SegmentedControl
+                                            size="xs"
+                                            value={isCode ? 'code' : 'preview'}
+                                            onChange={switchView}
+                                            data={VIEW_OPTIONS}
+                                        />
+                                    </Group>
+                                ) : null}
+                                <Group gap="xs" wrap="nowrap" miw={0} ml="auto">
+                                    {isBuildingFirstModel ? null : (
+                                        <DraftBar
+                                            projectUuid={view.project.id}
+                                        />
+                                    )}
+                                    {pane === 'review' ? null : (
+                                        <AddSourceButton view={view} />
+                                    )}
+                                </Group>
+                            </Group>
+                        )}
+                        <Box
+                            className={classes.workspaceBody}
+                            data-no-rail={pane !== 'code' && isEmpty}
+                        >
+                            {pane === 'code' ? (
+                                <CodeRail
+                                    files={files}
+                                    selected={file}
+                                    drafted={drafted}
+                                    onOpen={(next) =>
+                                        setSearchParams({
+                                            [VIEW_PARAM]: 'code',
+                                            [FILE_PARAM]: next,
+                                        })
+                                    }
+                                />
+                            ) : isEmpty ? null : (
+                                <Rail
+                                    view={view}
+                                    expanded={expanded}
+                                    drafted={drafted}
+                                    onToggle={toggle}
+                                    onOpen={open}
+                                />
+                            )}
+                            {pane === 'browse' ? (
+                                renderPane()
+                            ) : (
+                                <Box
+                                    className={classes.main}
+                                    data-full={pane === 'code'}
+                                >
+                                    {renderPane()}
+                                </Box>
+                            )}
+                        </Box>
+                    </Box>
                 </Box>
             </ExternalSourceManager>
         </LiveSourceManager>
