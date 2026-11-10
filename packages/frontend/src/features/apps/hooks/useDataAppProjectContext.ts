@@ -19,7 +19,9 @@ export const useDataAppProjectContext = (
     projectUuid: string | undefined,
 ): DataAppProjectContext => {
     const { user } = useApp();
-    const { data: project } = useProject(projectUuid);
+    // Permission probe only: a failed lookup just denies preview-only grants,
+    // so don't raise the global error toast/page for it.
+    const { data: project } = useProject(projectUuid, { onError: () => {} });
     const organizationUuid = user.data?.organizationUuid;
 
     return useMemo(
