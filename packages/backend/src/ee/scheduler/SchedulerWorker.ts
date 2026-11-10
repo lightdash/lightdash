@@ -967,13 +967,13 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     );
                 }
 
-                const aiAutopilotEnabled =
-                    await this.managedAgentService.isAiAutopilotEnabledForProject(
+                const autopilotAvailable =
+                    await this.managedAgentService.isAutopilotAvailableForProject(
                         settings,
                     );
-                if (!aiAutopilotEnabled) {
+                if (!autopilotAvailable) {
                     Logger.info(
-                        `AI autopilot feature flag disabled for project ${projectUuid}, skipping managed agent heartbeat`,
+                        `AI is not enabled for the organization of project ${projectUuid}, skipping managed agent heartbeat`,
                     );
                     return;
                 }
