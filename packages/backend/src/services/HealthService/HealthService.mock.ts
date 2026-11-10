@@ -153,9 +153,6 @@ export const BaseResponse: HealthState = {
     echarts6: {
         enabled: false,
     },
-    funnelBuilder: {
-        enabled: false,
-    },
     softDelete: {
         enabled: false,
         retentionDays: 30,

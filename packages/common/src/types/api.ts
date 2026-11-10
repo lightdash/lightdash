@@ -284,6 +284,7 @@ import {
 } from './field';
 import { type FieldValueSearchResult } from './fieldMatch';
 import { type DashboardFilters } from './filter';
+import { type FunnelQueryResult } from './funnel';
 import {
     type ApiGitFileContent,
     type ApiPullRequestsResponse,
@@ -435,6 +436,7 @@ import {
     type ApiResultsCacheStatusResponse,
     type ApiResultsCacheTtlProjectionsResponse,
 } from './resultsCacheProjectSettings';
+import { type RetentionQueryResult } from './retention';
 import {
     type ApiRoadmapFollowProjectResponse,
     type ApiRoadmapProjectResponse,
@@ -894,9 +896,6 @@ export type HealthState = {
         fastDecisionsEnabled: boolean;
     };
     echarts6: {
-        enabled: boolean;
-    };
-    funnelBuilder: {
         enabled: boolean;
     };
     softDelete: {
@@ -1487,6 +1486,8 @@ type ApiResults =
     | ApiMobileSignInDecisionResponse['results']
     | ApiQueryResults
     | ApiSqlQueryResults
+    | FunnelQueryResult
+    | RetentionQueryResult
     | ApiCompiledQueryResults
     | ApiCompiledMergeQueryResults
     | ApiExecuteAsyncMergeQueryResults

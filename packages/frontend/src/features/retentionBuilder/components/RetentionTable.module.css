@@ -1,0 +1,26 @@
+.retentionTable {
+    white-space: nowrap;
+}
+
+.header {
+    background-color: var(--mantine-color-gray-0);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    color: var(--mantine-color-gray-6);
+}
+
+.averageRow {
+    font-weight: 600;
+    border-bottom: 2px solid var(--mantine-color-gray-3);
+}
+
+.cell {
+    text-align: right;
+    font-family: var(--mantine-font-family-monospace);
+    min-width: 72px;
+}
+
+.incomplete {
+    color: var(--mantine-color-gray-5);
+    font-style: italic;
+}

@@ -56,9 +56,9 @@ import { DirectAccessService } from './DirectAccess/DirectAccessService';
 import { DocumentService } from './DocumentService/DocumentService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
 import { EmailWhitelabelService } from './EmailWhitelabelService/EmailWhitelabelService';
+import { EventAnalyticsService } from './EventAnalytics/EventAnalyticsService';
 import { FavoritesService } from './FavoritesService/FavoritesService';
 import { FeatureFlagService } from './FeatureFlag/FeatureFlagService';
-import { FunnelService } from './FunnelService/FunnelService';
 import { GdriveService } from './GdriveService/GdriveService';
 import { GithubAppService } from './GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService/GitIntegrationService';
@@ -208,7 +208,7 @@ interface ServiceManifest {
     coderService: CoderService;
     contentAsCodeWritebackService: ContentAsCodeWritebackService;
     featureFlagService: FeatureFlagService;
-    funnelService: FunnelService;
+    eventAnalyticsService: EventAnalyticsService;
     spotlightService: SpotlightService;
     lightdashAnalyticsService: LightdashAnalyticsService;
     asyncQueryService: AsyncQueryService;
@@ -2095,13 +2095,13 @@ export class ServiceRepository
         );
     }
 
-    public getFunnelService(): FunnelService {
+    public getEventAnalyticsService(): EventAnalyticsService {
         return this.getService(
-            'funnelService',
+            'eventAnalyticsService',
             () =>
-                new FunnelService({
+                new EventAnalyticsService({
                     analytics: this.context.lightdashAnalytics,
-                    lightdashConfig: this.context.lightdashConfig,
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                     projectModel: this.models.getProjectModel(),
                     projectService: this.getProjectService(),
                 }),

@@ -1,6 +1,8 @@
 import {
     type ApiErrorDetail,
-    type FunnelDatePreset,
+    type EventAnalyticsDatePreset,
+    type Filters,
+    type FunnelConversionWindowUnit,
     type FunnelQueryResult,
     type FunnelStep,
 } from '@lightdash/common';
@@ -17,33 +19,33 @@ export interface FunnelBuilderState {
     projectUuid: string;
     activeTab: SidebarTab;
 
-    // Field mapping
+    // Event stream mapping (shared with the retention builder)
     exploreName: string | null;
     timestampFieldId: string | null;
     userIdFieldId: string | null;
     eventNameFieldId: string | null;
     breakdownDimensionId: string | null;
 
-    // Funnel steps
     steps: FunnelStep[];
 
-    // Date range
-    dateRangePreset: FunnelDatePreset;
-    customDateRange: [string | null, string | null]; // ISO strings for serialization
+    dateRangePreset: EventAnalyticsDatePreset;
+    customDateRange: [string | null, string | null];
 
-    // Conversion window
+    // Dimension filters, same payload as the semantic layer
+    filters: Filters;
+
     conversionWindowValue: number;
-    conversionWindowUnit: 'hours' | 'days' | 'weeks';
+    conversionWindowUnit: FunnelConversionWindowUnit;
 
-    // Event names (fetched when eventNameFieldId is set)
     eventNames: string[];
     eventNamesLoading: boolean;
     eventNamesError: ApiErrorDetail | SerializedError | null;
 
-    // Query results
     results: FunnelQueryResult | null;
     queryLoading: boolean;
     queryError: ApiErrorDetail | SerializedError | null;
+    /** The id of the most recent query, so stale responses are ignored */
+    latestQueryRequestId: string | null;
 }
 
 const initialState: FunnelBuilderState = {
@@ -57,6 +59,7 @@ const initialState: FunnelBuilderState = {
     steps: [{ stepOrder: 1, eventName: '' }],
     dateRangePreset: 'last_30_days',
     customDateRange: [null, null],
+    filters: {},
     conversionWindowValue: 7,
     conversionWindowUnit: 'days',
     eventNames: [],
@@ -65,6 +68,7 @@ const initialState: FunnelBuilderState = {
     results: null,
     queryLoading: false,
     queryError: null,
+    latestQueryRequestId: null,
 };
 
 export const funnelBuilderSlice = createSlice({
@@ -80,6 +84,7 @@ export const funnelBuilderSlice = createSlice({
         selectSteps: (state) => state.steps,
         selectDateRangePreset: (state) => state.dateRangePreset,
         selectCustomDateRange: (state) => state.customDateRange,
+        selectFilters: (state) => state.filters,
         selectConversionWindowValue: (state) => state.conversionWindowValue,
         selectConversionWindowUnit: (state) => state.conversionWindowUnit,
         selectEventNames: (state) => state.eventNames,
@@ -99,11 +104,11 @@ export const funnelBuilderSlice = createSlice({
         },
         setExploreName: (state, action: PayloadAction<string | null>) => {
             state.exploreName = action.payload;
-            // Clear dependent fields when explore changes
             state.timestampFieldId = null;
             state.userIdFieldId = null;
             state.eventNameFieldId = null;
             state.breakdownDimensionId = null;
+            state.filters = {};
         },
         setTimestampFieldId: (state, action: PayloadAction<string | null>) => {
             state.timestampFieldId = action.payload;
@@ -148,7 +153,7 @@ export const funnelBuilderSlice = createSlice({
         },
         setDateRangePreset: (
             state,
-            action: PayloadAction<FunnelDatePreset>,
+            action: PayloadAction<EventAnalyticsDatePreset>,
         ) => {
             state.dateRangePreset = action.payload;
         },
@@ -158,12 +163,15 @@ export const funnelBuilderSlice = createSlice({
         ) => {
             state.customDateRange = action.payload;
         },
+        setFilters: (state, action: PayloadAction<Filters>) => {
+            state.filters = action.payload;
+        },
         setConversionWindowValue: (state, action: PayloadAction<number>) => {
             state.conversionWindowValue = action.payload;
         },
         setConversionWindowUnit: (
             state,
-            action: PayloadAction<'hours' | 'days' | 'weeks'>,
+            action: PayloadAction<FunnelConversionWindowUnit>,
         ) => {
             state.conversionWindowUnit = action.payload;
         },
@@ -174,7 +182,6 @@ export const funnelBuilderSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
-            // Fetch event names
             .addCase(fetchEventNames.pending, (state) => {
                 state.eventNamesLoading = true;
                 state.eventNamesError = null;
@@ -187,16 +194,20 @@ export const funnelBuilderSlice = createSlice({
                 state.eventNamesLoading = false;
                 state.eventNamesError = action.payload ?? action.error;
             })
-            // Run funnel query
-            .addCase(runFunnelQuery.pending, (state) => {
+            .addCase(runFunnelQuery.pending, (state, action) => {
                 state.queryLoading = true;
                 state.queryError = null;
+                state.latestQueryRequestId = action.meta.requestId;
             })
             .addCase(runFunnelQuery.fulfilled, (state, action) => {
+                if (action.meta.requestId !== state.latestQueryRequestId)
+                    return;
                 state.queryLoading = false;
                 state.results = action.payload;
             })
             .addCase(runFunnelQuery.rejected, (state, action) => {
+                if (action.meta.requestId !== state.latestQueryRequestId)
+                    return;
                 state.queryLoading = false;
                 state.queryError = action.payload ?? action.error;
             });
@@ -219,6 +230,7 @@ export const {
     resetSteps,
     setDateRangePreset,
     setCustomDateRange,
+    setFilters,
     setConversionWindowValue,
     setConversionWindowUnit,
     clearResults,
@@ -234,6 +246,7 @@ export const {
     selectSteps,
     selectDateRangePreset,
     selectCustomDateRange,
+    selectFilters,
     selectConversionWindowValue,
     selectConversionWindowUnit,
     selectEventNames,

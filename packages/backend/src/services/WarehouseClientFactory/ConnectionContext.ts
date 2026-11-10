@@ -148,6 +148,7 @@ export const surfaceFromQueryContext = (
         case QueryExecutionContext.CHART_HISTORY:
         case QueryExecutionContext.SQL_CHART:
         case QueryExecutionContext.SQL_RUNNER:
+        case QueryExecutionContext.EVENT_ANALYTICS:
         case QueryExecutionContext.VIEW_UNDERLYING_DATA:
         case QueryExecutionContext.CSV:
         case QueryExecutionContext.GSHEETS:

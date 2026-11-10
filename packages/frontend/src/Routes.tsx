@@ -814,6 +814,24 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
             };
         },
     },
+    {
+        path: 'retention-builder',
+        handle: { hideAILauncher: true },
+        lazy: async () => {
+            const RetentionBuilder = await loadLazyRouteDefault(
+                './features/retentionBuilder/RetentionBuilderPage',
+                () =>
+                    import('./features/retentionBuilder/RetentionBuilderPage'),
+            );
+            return {
+                Component: () => (
+                    <TrackPage name={PageName.RETENTION_BUILDER}>
+                        <RetentionBuilder />
+                    </TrackPage>
+                ),
+            };
+        },
+    },
 ];
 
 const APP_ROUTES: RouteObject[] = [

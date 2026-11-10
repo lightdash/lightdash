@@ -2022,9 +2022,6 @@ export type LightdashConfig = {
     };
     analyticsEmbedSecret?: string;
 
-    funnelBuilder: {
-        enabled: boolean;
-    };
     softDelete: {
         enabled: boolean;
         retentionDays: number;
@@ -4184,11 +4181,6 @@ export const parseConfig = (): LightdashConfig => {
             enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',
         },
         analyticsEmbedSecret: process.env.ANALYTICS_EMBED_SECRET,
-        funnelBuilder: {
-            enabled:
-                process.env.FUNNEL_BUILDER_ENABLED === 'true' ||
-                lightdashMode === LightdashMode.PR,
-        },
         dashboardComments: {
             enabled: process.env.DISABLE_DASHBOARD_COMMENTS !== 'true',
         },

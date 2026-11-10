@@ -1,4 +1,10 @@
-import { type FunnelDatePreset, type FunnelStep } from '@lightdash/common';
+import {
+    EVENT_ANALYTICS_DATE_PRESETS,
+    type EventAnalyticsDatePreset,
+    type Filters,
+    type FunnelConversionWindowUnit,
+    type FunnelStep,
+} from '@lightdash/common';
 import { useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router';
 import { useAppDispatch, useAppSelector } from '../store';
@@ -10,6 +16,7 @@ import {
     selectDateRangePreset,
     selectEventNameFieldId,
     selectExploreName,
+    selectFilters,
     selectSteps,
     selectTimestampFieldId,
     selectUserIdFieldId,
@@ -20,6 +27,7 @@ import {
     setDateRangePreset,
     setEventNameFieldId,
     setExploreName,
+    setFilters,
     setSteps,
     setTimestampFieldId,
     setUserIdFieldId,
@@ -37,21 +45,21 @@ const PARAM_DATE_START = 'dateStart';
 const PARAM_DATE_END = 'dateEnd';
 const PARAM_WINDOW_VALUE = 'windowValue';
 const PARAM_WINDOW_UNIT = 'windowUnit';
+const PARAM_FILTERS = 'filters';
 
-const VALID_DATE_PRESETS: FunnelDatePreset[] = [
-    'last_7_days',
-    'last_14_days',
-    'last_30_days',
-    'last_90_days',
-    'custom',
+const VALID_WINDOW_UNITS: FunnelConversionWindowUnit[] = [
+    'hours',
+    'days',
+    'weeks',
 ];
 
-const VALID_WINDOW_UNITS = ['hours', 'days', 'weeks'] as const;
+const isDatePreset = (value: string): value is EventAnalyticsDatePreset =>
+    EVENT_ANALYTICS_DATE_PRESETS.some((p) => p.value === value);
 
-/**
- * Hook to sync funnel builder state with URL search params.
- * This enables sharing URLs and preserving state across page refreshes.
- */
+const isWindowUnit = (value: string): value is FunnelConversionWindowUnit =>
+    VALID_WINDOW_UNITS.some((u) => u === value);
+
+/** Keeps funnel builder state in the URL so funnels can be shared. */
 export function useFunnelUrlSync() {
     const dispatch = useAppDispatch();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -69,6 +77,7 @@ export function useFunnelUrlSync() {
     const customDateRange = useAppSelector(selectCustomDateRange);
     const conversionWindowValue = useAppSelector(selectConversionWindowValue);
     const conversionWindowUnit = useAppSelector(selectConversionWindowUnit);
+    const filters = useAppSelector(selectFilters);
 
     // Parse steps from URL param (comma-separated event names)
     const parseSteps = useCallback(
@@ -131,10 +140,8 @@ export function useFunnelUrlSync() {
         dispatch(setSteps(parsedSteps));
 
         // Restore date range
-        const urlDatePreset = searchParams.get(
-            PARAM_DATE_PRESET,
-        ) as FunnelDatePreset | null;
-        if (urlDatePreset && VALID_DATE_PRESETS.includes(urlDatePreset)) {
+        const urlDatePreset = searchParams.get(PARAM_DATE_PRESET);
+        if (urlDatePreset && isDatePreset(urlDatePreset)) {
             dispatch(setDateRangePreset(urlDatePreset));
         }
 
@@ -153,11 +160,18 @@ export function useFunnelUrlSync() {
             }
         }
 
-        const urlWindowUnit = searchParams.get(PARAM_WINDOW_UNIT) as
-            | (typeof VALID_WINDOW_UNITS)[number]
-            | null;
-        if (urlWindowUnit && VALID_WINDOW_UNITS.includes(urlWindowUnit)) {
+        const urlWindowUnit = searchParams.get(PARAM_WINDOW_UNIT);
+        if (urlWindowUnit && isWindowUnit(urlWindowUnit)) {
             dispatch(setConversionWindowUnit(urlWindowUnit));
+        }
+
+        const urlFilters = searchParams.get(PARAM_FILTERS);
+        if (urlFilters) {
+            try {
+                dispatch(setFilters(JSON.parse(urlFilters) as Filters));
+            } catch {
+                // Ignore malformed filters in the URL
+            }
         }
 
         // Allow a tick for state to settle before enabling URL updates
@@ -203,6 +217,10 @@ export function useFunnelUrlSync() {
 
             newParams.set(PARAM_WINDOW_VALUE, String(conversionWindowValue));
             newParams.set(PARAM_WINDOW_UNIT, conversionWindowUnit);
+
+            if (filters.dimensions) {
+                newParams.set(PARAM_FILTERS, JSON.stringify(filters));
+            }
         }
 
         // Use replace to avoid polluting browser history
@@ -218,6 +236,7 @@ export function useFunnelUrlSync() {
         customDateRange,
         conversionWindowValue,
         conversionWindowUnit,
+        filters,
         serializeSteps,
         setSearchParams,
     ]);

@@ -1,143 +1,90 @@
-import { type ApiErrorDetail } from '@lightdash/common';
-import { Badge, Group, Title } from '@mantine/core';
-import { IconFlask2Filled } from '@tabler/icons-react';
-import { useEffect, useMemo, useRef, type FC } from 'react';
-import { Provider } from 'react-redux';
-import { Navigate } from 'react-router';
-import Page from '../../components/common/Page/Page';
-import useHealth from '../../hooks/health/useHealth';
-import useToaster from '../../hooks/toaster/useToaster';
+import { useEffect, useMemo, type FC } from 'react';
 import { useProjectUuid } from '../../hooks/useProjectUuid';
-import { store } from '../sqlRunner/store';
-import { FunnelBuilderSidebar } from './components/FunnelBuilderSidebar';
+import {
+    EventAnalyticsPage,
+    EventAnalyticsRoute,
+} from '../eventAnalytics/components/EventAnalyticsPage';
+import { EventAnalyticsSidebar } from '../eventAnalytics/components/EventAnalyticsSidebar';
+import { useQueryErrorToasts } from '../eventAnalytics/hooks/useQueryErrorToasts';
+import { FunnelFieldsTab } from './components/FunnelFieldsTab';
 import { FunnelMainContent } from './components/FunnelMainContent';
+import { FunnelStepsTab } from './components/FunnelStepsTab';
 import { useFunnelUrlSync } from './hooks/useFunnelUrlSync';
 import { useAppDispatch, useAppSelector } from './store';
 import {
     resetState,
+    selectActiveTab,
     selectEventNamesError,
     selectQueryError,
+    setActiveTab,
     setProjectUuid,
 } from './store/funnelBuilderSlice';
 
-const isApiErrorDetail = (
-    error: ApiErrorDetail | { message?: string } | null,
-): error is ApiErrorDetail => {
-    return error !== null && 'statusCode' in error;
-};
+const TITLE = 'Funnel builder';
 
-const FunnelBuilder: FC = () => {
-    const projectUuid = useProjectUuid();
+const FunnelBuilder: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     const dispatch = useAppDispatch();
-    const { showToastApiError, showToastError } = useToaster();
-
-    // Error states from Redux
+    const activeTab = useAppSelector(selectActiveTab);
     const queryError = useAppSelector(selectQueryError);
     const eventNamesError = useAppSelector(selectEventNamesError);
 
-    // Track shown errors to prevent duplicate toasts
-    const shownQueryError = useRef<typeof queryError>(null);
-    const shownEventNamesError = useRef<typeof eventNamesError>(null);
-
-    // Sync funnel state with URL for sharing and persistence
-    useFunnelUrlSync();
-
+    // Set the project before the URL restore so listeners can query it
     useEffect(() => {
-        if (projectUuid) {
-            dispatch(setProjectUuid(projectUuid));
-        }
+        dispatch(setProjectUuid(projectUuid));
         return () => {
             dispatch(resetState());
         };
     }, [projectUuid, dispatch]);
 
-    // Show toast when funnel query fails
-    useEffect(() => {
-        if (queryError && queryError !== shownQueryError.current) {
-            shownQueryError.current = queryError;
-            if (isApiErrorDetail(queryError)) {
-                showToastApiError({
-                    title: 'Failed to run funnel query',
-                    apiError: queryError,
-                });
-            } else {
-                showToastError({
-                    title: 'Failed to run funnel query',
-                    subtitle:
-                        queryError.message ?? 'An unexpected error occurred',
-                });
-            }
-        }
-    }, [queryError, showToastApiError, showToastError]);
+    useFunnelUrlSync();
 
-    // Show toast when fetching event names fails
-    useEffect(() => {
-        if (
-            eventNamesError &&
-            eventNamesError !== shownEventNamesError.current
-        ) {
-            shownEventNamesError.current = eventNamesError;
-            if (isApiErrorDetail(eventNamesError)) {
-                showToastApiError({
-                    title: 'Failed to load event names',
-                    apiError: eventNamesError,
-                });
-            } else {
-                showToastError({
-                    title: 'Failed to load event names',
-                    subtitle:
-                        eventNamesError.message ??
-                        'An unexpected error occurred',
-                });
-            }
-        }
-    }, [eventNamesError, showToastApiError, showToastError]);
-
-    const sidebar = useMemo(
-        () =>
-            projectUuid ? (
-                <FunnelBuilderSidebar projectUuid={projectUuid} />
-            ) : null,
-        [projectUuid],
+    useQueryErrorToasts(
+        useMemo(
+            () => [
+                { title: "Couldn't run the funnel query", error: queryError },
+                { title: "Couldn't load event names", error: eventNamesError },
+            ],
+            [queryError, eventNamesError],
+        ),
     );
 
-    if (!projectUuid) return null;
-
     return (
-        <Page
-            title="Funnel Builder"
-            sidebar={sidebar}
-            withFullHeight
-            withPaddedContent
+        <EventAnalyticsPage
+            title={TITLE}
+            sidebar={
+                <EventAnalyticsSidebar
+                    title={TITLE}
+                    activeTab={activeTab}
+                    onTabChange={(tab) => dispatch(setActiveTab(tab))}
+                    tabs={[
+                        {
+                            value: 'fields',
+                            label: 'Fields',
+                            content: (
+                                <FunnelFieldsTab projectUuid={projectUuid} />
+                            ),
+                        },
+                        {
+                            value: 'steps',
+                            label: 'Steps',
+                            content: <FunnelStepsTab />,
+                        },
+                    ]}
+                />
+            }
         >
-            <Group gap="sm" mb="md">
-                <Title order={4}>Funnel Builder</Title>
-                <Badge
-                    color="violet"
-                    size="sm"
-                    leftSection={<IconFlask2Filled size={12} />}
-                >
-                    Experimental
-                </Badge>
-            </Group>
-            <FunnelMainContent />
-        </Page>
+            <FunnelMainContent projectUuid={projectUuid} />
+        </EventAnalyticsPage>
     );
 };
 
 const FunnelBuilderPage: FC = () => {
     const projectUuid = useProjectUuid();
-    const health = useHealth();
-
-    // Redirect to home if feature is disabled
-    if (health.data && !health.data.funnelBuilder.enabled) {
-        return <Navigate to={`/projects/${projectUuid}/home`} replace />;
-    }
-
+    if (!projectUuid) return null;
     return (
-        <Provider store={store}>
-            <FunnelBuilder />
-        </Provider>
+        <EventAnalyticsRoute>
+            <FunnelBuilder projectUuid={projectUuid} />
+        </EventAnalyticsRoute>
     );
 };
 

@@ -174,6 +174,7 @@ export enum QueryExecutionContext {
     MULTI_SOURCE_QUERY = 'multiSourceQuery',
     DATA_APP_SAMPLE = 'dataAppSample',
     DESKTOP = 'desktop',
+    EVENT_ANALYTICS = 'eventAnalytics',
 }
 
 export type AiAccessQueryContext =

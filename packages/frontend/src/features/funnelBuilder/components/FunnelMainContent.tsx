@@ -1,80 +1,35 @@
-import { Group, Loader, Stack, Text } from '@mantine/core';
-import { useEffect, useRef, useState, type FC } from 'react';
+import { type FC } from 'react';
+import { EventAnalyticsContent } from '../../eventAnalytics/components/EventAnalyticsContent';
 import { useAppSelector } from '../store';
 import { selectQueryLoading, selectResults } from '../store/funnelBuilderSlice';
 import { FunnelBarChart } from './FunnelBarChart';
-import { FunnelDateFilter } from './FunnelDateFilter';
-import { FunnelDebugSql } from './FunnelDebugSql';
-import styles from './FunnelMainContent.module.css';
+import { FunnelFilters } from './FunnelFilters';
 import { FunnelResultsTable } from './FunnelResultsTable';
 
-const LOADING_DEBOUNCE_MS = 200;
+type Props = {
+    projectUuid: string;
+};
 
-export const FunnelMainContent: FC = () => {
+export const FunnelMainContent: FC<Props> = ({ projectUuid }) => {
     const results = useAppSelector(selectResults);
     const isLoading = useAppSelector(selectQueryLoading);
 
-    // Debounced loading state to avoid quick UI flashes
-    const [showLoading, setShowLoading] = useState(false);
-    const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    useEffect(() => {
-        if (isLoading) {
-            // Delay showing loading indicator
-            timerRef.current = setTimeout(() => {
-                setShowLoading(true);
-            }, LOADING_DEBOUNCE_MS);
-        } else {
-            // Immediately hide loading when done
-            if (timerRef.current) {
-                clearTimeout(timerRef.current);
-                timerRef.current = null;
-            }
-            setShowLoading(false);
-        }
-
-        return () => {
-            if (timerRef.current) {
-                clearTimeout(timerRef.current);
-            }
-        };
-    }, [isLoading]);
-
     return (
-        <div className={styles.mainContent}>
-            <div className={styles.dateFilters}>
-                <FunnelDateFilter />
-            </div>
-
-            {showLoading && (
-                <Group justify="center" p="xl">
-                    <Loader />
-                </Group>
-            )}
-
-            {results && !showLoading && (
+        <EventAnalyticsContent
+            filters={<FunnelFilters projectUuid={projectUuid} />}
+            isLoading={isLoading}
+            hasResults={results !== null}
+            sql={results?.sql ?? null}
+            durationMs={results?.durationMs ?? null}
+            emptyMessage={
                 <>
-                    <div className={styles.chartContainer}>
-                        <FunnelBarChart />
-                    </div>
-
-                    <div className={styles.tableContainer}>
-                        <FunnelResultsTable />
-                    </div>
-
-                    <FunnelDebugSql />
+                    Choose an explore and at least 2 steps
+                    <br />
+                    to see your funnel
                 </>
-            )}
-
-            {!results && !isLoading && (
-                <Stack align="center" justify="center" h="100%" gap="md">
-                    <Text c="dimmed" ta="center">
-                        Configure your funnel in the sidebar
-                        <br />
-                        Select fields and add at least 2 steps to see results
-                    </Text>
-                </Stack>
-            )}
-        </div>
+            }
+            chart={<FunnelBarChart />}
+            table={<FunnelResultsTable />}
+        />
     );
 };
