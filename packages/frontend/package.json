@@ -106,6 +106,7 @@
         "polished": "4.2.2",
         "postcss-preset-mantine": "1.18.0",
         "postcss-simple-vars": "7.0.1",
+        "qrcode.react": "4.2.0",
         "react": "19.3.0",
         "react-ace": "9.5.0",
         "react-countdown": "2.3.5",

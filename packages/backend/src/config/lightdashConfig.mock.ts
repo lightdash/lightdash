@@ -100,6 +100,10 @@ export const lightdashConfigMock: LightdashConfig = {
         },
     },
     lightdashCloudInstance: 'test-instance',
+    mobileAppStores: {
+        appStoreUrl: 'https://apps.apple.com/app/id0',
+        googlePlayUrl: 'https://play.google.com/store/apps/details?id=test',
+    },
     mobileAppAssociation: {
         appleTeamId: 'TEAMID',
         appleBundleId: 'com.lightdash.mobile',

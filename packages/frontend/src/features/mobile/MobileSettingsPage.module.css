@@ -1,35 +1,58 @@
-.storeBadge {
+.stepBadge {
     display: inline-flex;
+    flex: none;
     align-items: center;
-    gap: 8px;
-    padding: 6px 14px 6px 10px;
-    border-radius: 8px;
-    border: 1px solid var(--mantine-color-gray-6);
-    background: var(--mantine-color-black);
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--mantine-color-default-hover);
+    border: 1px solid var(--mantine-color-default-border);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.stepBadge[data-state='done'] {
+    background: var(--mantine-color-green-filled);
+    border-color: transparent;
     color: var(--mantine-color-white);
-    text-decoration: none;
-    line-height: 1.1;
 }
 
-.storeBadge:hover {
-    background: var(--mantine-color-dark-7);
+.stepBadge[data-state='upcoming'] {
+    background: transparent;
+    color: var(--mantine-color-dimmed);
 }
 
-.storeBadge:focus-visible {
+.stepTitle:focus {
+    outline: none;
+}
+
+.stepTitle:focus-visible {
     outline: 2px solid var(--mantine-primary-color-filled);
     outline-offset: 2px;
 }
 
-.storeBadgeText {
+.qrFrame {
     display: flex;
-    flex-direction: column;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 160px;
+    height: 160px;
+    padding: 12px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background: var(--mantine-color-white);
 }
 
-.storeBadgeCaption {
-    font-size: 10px;
+.details {
+    flex: 1;
+    min-width: 200px;
 }
 
-.storeBadgeName {
-    font-size: 15px;
-    font-weight: 600;
+.host {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }

@@ -31,6 +31,7 @@ import {
     LiveSourceUpstreamErrorCode,
     MergeJoinType,
     MergeQueryErrorKind,
+    MobileAppPlatform,
     OpenIdIdentityIssuerType,
     OrganizationMemberRole,
     PinnedItem,
@@ -334,6 +335,27 @@ type UserWarehouseCredentialsDeleteEvent = BaseTrack & {
     event: 'user_warehouse_credentials.deleted';
     properties: {
         credentialsId: string;
+    };
+};
+
+type MobileAppLinkCreatedEvent = BaseTrack & {
+    event: 'mobile_app_link.created';
+    properties: {
+        userId: string;
+        organizationId: string;
+        linkUuid: string;
+    };
+};
+
+type MobileAppLinkOpenedEvent = BaseTrack & {
+    event: 'mobile_app_link.opened';
+    properties: {
+        userId: string;
+        organizationId: string;
+        linkUuid: string;
+        platform: MobileAppPlatform;
+        secondsSinceCreated: number;
+        isFirstScan: boolean;
     };
 };
 
@@ -5000,6 +5022,8 @@ type TypedEvent =
     | EmailWhitelabelDomainCreatedEvent
     | UserWarehouseCredentialsEvent
     | UserWarehouseCredentialsDeleteEvent
+    | MobileAppLinkCreatedEvent
+    | MobileAppLinkOpenedEvent
     | WarehouseConnectEvent
     | WarehouseConnectionTestedEvent
     | WarehouseConnectionChangedEvent

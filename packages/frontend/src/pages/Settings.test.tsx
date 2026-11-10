@@ -609,6 +609,28 @@ describe('Agent identity settings routes', () => {
     });
 });
 
+describe('Mobile settings route', () => {
+    let viewport: ReturnType<typeof mockViewport>;
+    beforeEach(() => {
+        localStorage.clear();
+        viewport = mockViewport(1280);
+    });
+    afterEach(() => viewport.restore());
+
+    it('does not open the Mobile page when mobile-settings is off', async () => {
+        renderSettings('', [viewProject], true, '/generalSettings/mobile');
+        expect(
+            await screen.findByRole('heading', { name: 'Profile' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('heading', { name: 'Mobile' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('link', { name: 'Mobile' }),
+        ).not.toBeInTheDocument();
+    });
+});
+
 describe('Themes settings with Chart Studio', () => {
     let viewport: ReturnType<typeof mockViewport>;
     beforeEach(() => {

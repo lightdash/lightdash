@@ -96,6 +96,7 @@ import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { apiV1Router } from './routers/apiV1Router';
 import { createAppPreviewRouter } from './routers/appPreviewRouter';
+import { createMobileAppRedirectHandler } from './routers/mobileApp';
 import {
     createAndroidAssetLinksHandler,
     createAppleAppSiteAssociationHandler,
@@ -185,6 +186,7 @@ const schedulerWorkerFactory = (context: {
             context.models.getOrganizationSettingsModel(),
         emailWhitelabelService:
             context.serviceRepository.getEmailWhitelabelService(),
+        mobileAppLinkModel: context.models.getMobileAppLinkModel(),
         warehouseConnectCodeModel:
             context.models.getWarehouseConnectCodeModel(),
         agentConnectionApprovalRequestModel:
@@ -970,6 +972,15 @@ export default class App {
             '/.well-known/assetlinks.json',
             createAndroidAssetLinksHandler(
                 this.lightdashConfig.mobileAppAssociation,
+            ),
+        );
+        // Outside the app-link paths so a scan always reaches the server.
+        expressApp.get(
+            '/m/app/:scanId',
+            createMobileAppRedirectHandler(
+                this.serviceRepository.getMobileAppService(),
+                this.lightdashConfig.mobileAppStores,
+                this.lightdashConfig.trustProxy,
             ),
         );
 

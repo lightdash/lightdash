@@ -1,13 +1,27 @@
 // The mobile apps reuse these strings, so keep every user-facing string for
-// the Mobile settings page here.
+// the Mobile settings page and the /m/app landing page here.
 export const MOBILE_STRINGS = {
     navLabel: 'Mobile',
     pageTitle: 'Mobile',
     getAppTitle: 'Get the app',
+    signInTitle: 'Sign in on your phone',
     signInTo: 'Sign in to',
+    waitingForScan: 'Waiting for scan',
+    openedOnPhone: 'Opened on a phone',
+    alreadyHaveApp: 'I already have the app',
+    showCode: 'Show code',
+    copyLink: 'Copy link',
+    copyHost: 'Copy host',
+    copied: 'Copied',
+    couldNotCreateCode: "Couldn't create the code",
+    tryAgain: 'Try again',
+    creatingCode: 'Creating the code',
+    qrCodeLabel: 'QR code to install the Lightdash app',
     storeLinksLabel: 'Store links',
     appStoreCaption: 'Download on the',
     appStoreName: 'App Store',
     googlePlayCaption: 'Get it on',
     googlePlayName: 'Google Play',
+    landingTitle: 'Get the Lightdash app',
+    landingHint: 'Open this link on your phone.',
 } as const;

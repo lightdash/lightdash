@@ -330,6 +330,10 @@ import type {
     ApiMetricsExplorerTotalResults,
 } from './metricsExplorer';
 import {
+    type ApiMobileAppLinkResponse,
+    type ApiMobileAppLinkStatusResponse,
+} from './mobileAppLink';
+import {
     type CreateOAuthClientResponse,
     type OAuthClientSummary,
 } from './oauth';
@@ -1471,6 +1475,8 @@ type ApiResults =
     | CreateTrainingPreviewResults
     | ApiWarehouseConnectCodeResponse['results']
     | ApiWarehouseConnectCodeClaimResponse['results']
+    | ApiMobileAppLinkResponse['results']
+    | ApiMobileAppLinkStatusResponse['results']
     | ApiQueryResults
     | ApiSqlQueryResults
     | ApiCompiledQueryResults
