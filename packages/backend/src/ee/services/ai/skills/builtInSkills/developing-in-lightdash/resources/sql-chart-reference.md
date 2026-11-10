@@ -117,7 +117,7 @@ Every `config` has `metadata: { "version": 1 }` and `type` equal to `chartKind`.
 | `xAxis.label` / `yAxis[i].label`      | rename an axis                               | String. `yAxis[0]` is the left axis, `yAxis[1]` the right.                                                                                                                     |
 | `xAxis.dateFormat`                    | show dates as days, weeks, months, years     | Day.js pattern for a `time` x axis: `"MMM D, YYYY"` (default), `"ddd, MMM D"`, `"MMM YYYY"`, `"[Q]Q YYYY"`, `"YYYY"`.                                                          |
 | `yAxis[i].format` / `series.*.format` | show values as percentages or compact (1.5K) | `"percent"` (0.25 shows as 25%) or `"si"`. Other `format` values render unformatted. The axis format sets tick labels and is the fallback for its series' tooltips and labels. |
-| `series.*.label`                      | rename a series in the legend and tooltip    | String.                                                                                                                                                                        |
+| `series.*.label`                      | rename a series in the legend and tooltip    | String. On a single-series chart `yAxis[0].label` wins; change that instead.                                                                                                   |
 | `series.*.color`                      | recolor a series                             | Hex color.                                                                                                                                                                     |
 | `series.*.type`                       | mix bars and lines                           | `"bar"` or `"line"`.                                                                                                                                                           |
 | `series.*.valueLabelPosition`         | show values on the bars or points            | `"top"`, `"bottom"`, `"left"`, `"right"`, `"inside"`; `"hidden"` removes them.                                                                                                 |
@@ -188,7 +188,7 @@ Optional `display` keys:
 }
 ```
 
-Each column needs `label`, `reference`, `visible`, and `frozen`. For in-cell bars on a numeric column, add `"displayStyle": "bar"` and optionally `"barConfig": { "color": "#4C6EF5", "min": 0, "max": 100 }` (min and max default to the column's range).
+Each column needs `label`, `reference`, `visible`, and `frozen`.
 
 ## Explore-only settings
 
@@ -204,6 +204,7 @@ SQL chart config has no key for these; they exist only on charts built from an e
 - **Gaps in lines** (`connectNulls`): SQL line charts always join across missing values.
 - **Axis ranges, tick intervals, and stack totals** (`min`/`max`, `minInterval`, `stackLabel`).
 - **Conditional formatting**, except on `big_number` (`display.conditionalFormatting` above).
+- **In-cell bars in tables** (`displayStyle: "bar"`): SQL tables render plain values.
 
 ## Reading
 
