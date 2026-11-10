@@ -65,6 +65,7 @@ import { McpToolCallModel } from './models/McpToolCallModel';
 import { MobilePushNotificationModel } from './models/MobilePushNotificationModel';
 import { ProjectContextModel } from './models/ProjectContextModel';
 import { ProjectHomepageModel } from './models/ProjectHomepageModel';
+import { ProjectModelDocumentModel } from './models/ProjectModelDocumentModel';
 import { ReleaseHighlightsModel } from './models/ReleaseHighlightsModel';
 import { SandboxRegistryModel } from './models/SandboxRegistryModel';
 import { SchedulerAiAugmentationModel } from './models/SchedulerAiAugmentationModel';
@@ -1720,6 +1721,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new ProjectHomepageModel({ database }),
             homepageRecommendedActionSkipsModel: ({ database }) =>
                 new HomepageRecommendedActionSkipsModel({ database }),
+            projectModelDocumentModel: ({ database }) =>
+                new ProjectModelDocumentModel({ database }),
             aiAgentModel: ({ database, utils }) =>
                 new AiAgentModel({
                     database,
