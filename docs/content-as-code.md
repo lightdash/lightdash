@@ -774,13 +774,6 @@ never save it; repeats are all suffixed `-1`, `-2`. An upload keeps a saved
 control's internal ID only when no other control shares its slug base on the
 saved dashboard or in the file; a relabelled or repeated control gets a new ID. Duplicate slugs are rejected.
 
-Fields removed from dashboard files fail `lightdash lint` and upload with a
-message naming their replacement: `config.parameterSections` and
-`config.parameterSectionSlugs` (use `sectionSlug` on each parameter control),
-`id` on a parameter control or section (use `slug`), `sectionId` on a filter,
-parameter control or date zoom control (use `sectionSlug`), and `inline` on a
-section (use `newLine` on its `controlOrder` entry).
-
 Each parameter rule is `all`, `{ only: [tile-slug] }`, or
 `{ except: [tile-slug] }`. A key has at most one default (`all` or `except`),
 and explicit assignments cannot overlap another assignment. `only: []` assigns

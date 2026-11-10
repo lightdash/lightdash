@@ -61,7 +61,6 @@ import {
     getLtreePathFromContentAsCodePath,
     getParameterMirror,
     getParameterReferences,
-    getRemovedDashboardControlFieldMessages,
     hasChartsInDashboard,
     isChartScheduler,
     isDashboardChartTileType,
@@ -5763,10 +5762,6 @@ export class CoderService extends BaseService {
         dashboardAsCode: DashboardAsCode,
         options: UpsertContentAsCodeOptions = {},
     ): Promise<DashboardAsCodeUpsertResult> {
-        const removedFields =
-            getRemovedDashboardControlFieldMessages(dashboardAsCode);
-        if (removedFields.length > 0)
-            throw new ParameterError(removedFields.join('. '));
         await this.assertAgentUploadAllowed(
             options.account ?? null,
             user,

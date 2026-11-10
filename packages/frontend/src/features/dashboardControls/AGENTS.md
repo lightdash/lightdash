@@ -206,10 +206,6 @@ New control kinds (date zoom next) follow these rules:
    `{ kind, slug, newLine }`. No per-kind order fields, no per-control or
    per-section line flags.
 4. Tiles are referenced by tile slug.
-5. While the flag is experimental, a changed shape replaces the old field; no
-   legacy fields "accepted on upload".
-6. A removed field is rejected by lint and upload with a message that names
-   its replacement: add it to `getRemovedDashboardControlFieldMessages`.
 
 ## Strings
 

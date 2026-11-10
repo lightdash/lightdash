@@ -3675,134 +3675,112 @@ describe.each([true, false])(
 );
 
 describe('CoderService section uploads with the flag disabled', () => {
-    it.each(['portable', 'legacy'] as const)(
-        'prepares a portable reupload without replacing saved parameter controls, and rejects a %s one',
-        async (format) => {
-            const service = buildService();
-            const savedConfig: NonNullable<DashboardDAO['config']> = {
-                isDateZoomDisabled: false,
-                controlSections: [
-                    { id: 'saved-section', name: 'Saved section' },
-                ],
-                parameterControls: [
+    it('prepares a reupload without replacing saved parameter controls', async () => {
+        const service = buildService();
+        const savedConfig: NonNullable<DashboardDAO['config']> = {
+            isDateZoomDisabled: false,
+            controlSections: [{ id: 'saved-section', name: 'Saved section' }],
+            parameterControls: [
+                {
+                    id: 'saved-control',
+                    label: 'Currency',
+                    value: 'USD',
+                    valueType: { type: 'string', multiple: false },
+                    parameters: {},
+                    sectionId: 'saved-section',
+                },
+            ],
+        };
+        const existing: DashboardDAO = {
+            ...dashboardMock,
+            uuid: 'dashboard-uuid',
+            slug: 'dashboard',
+            spaceUuid: SPACE_UUID,
+            tabs: [],
+            tiles: [],
+            config: savedConfig,
+        };
+        vi.mocked(service.dashboardModel.find).mockResolvedValue([existing]);
+        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue(
+            existing,
+        );
+        vi.mocked(
+            service.dashboardService.areDashboardControlsEnabled,
+        ).mockResolvedValue(false);
+        vi.mocked(
+            service.promoteService.getPromotedDashboard,
+        ).mockRejectedValue(new Error('captured upload'));
+        const sectionName = 'Saved section';
+        const uploaded = {
+            ...dashboardAsCode,
+            filters: {
+                dimensions: [
                     {
-                        id: 'saved-control',
-                        label: 'Currency',
-                        value: 'USD',
-                        valueType: { type: 'string', multiple: false },
-                        parameters: {},
-                        sectionId: 'saved-section',
+                        target: {
+                            fieldId: 'orders_status',
+                            tableName: 'orders',
+                        },
+                        operator: FilterOperator.EQUALS,
+                        label: undefined,
+                        sectionSlug: 'saved-section',
                     },
                 ],
-            };
-            const existing: DashboardDAO = {
-                ...dashboardMock,
-                uuid: 'dashboard-uuid',
-                slug: 'dashboard',
-                spaceUuid: SPACE_UUID,
-                tabs: [],
-                tiles: [],
-                config: savedConfig,
-            };
-            vi.mocked(service.dashboardModel.find).mockResolvedValue([
-                existing,
-            ]);
-            vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue(
-                existing,
-            );
-            vi.mocked(
-                service.dashboardService.areDashboardControlsEnabled,
-            ).mockResolvedValue(false);
-            vi.mocked(
-                service.promoteService.getPromotedDashboard,
-            ).mockRejectedValue(new Error('captured upload'));
-            const sectionReference =
-                format === 'legacy'
-                    ? { sectionId: 'saved-section' }
-                    : { sectionSlug: 'saved-section' };
-            const sectionName = 'Saved section';
-            const uploaded = {
-                ...dashboardAsCode,
-                filters: {
-                    dimensions: [
-                        {
-                            target: {
-                                fieldId: 'orders_status',
-                                tableName: 'orders',
-                            },
-                            operator: FilterOperator.EQUALS,
-                            label: undefined,
-                            ...sectionReference,
-                        },
-                    ],
-                },
-                config: {
-                    isDateZoomDisabled: false,
+            },
+            config: {
+                isDateZoomDisabled: false,
+                controlSections: [
+                    {
+                        slug: 'saved-section',
+                        name: sectionName,
+                    },
+                ],
+                // Disabled incoming controls must be ignored before resolving their references.
+                parameterControls: [
+                    {
+                        sectionSlug: 'unknown-section',
+                        label: 'Incoming',
+                        value: 'EUR',
+                        valueType: { type: 'string', multiple: false },
+                        parameters: {},
+                    },
+                ],
+            },
+        } as DashboardAsCode;
+        const upload = service.upsertDashboard(
+            makeSessionUser([
+                { subject: 'ContentAsCode', action: 'create' },
+                { subject: 'Dashboard', action: 'update' },
+            ]),
+            PROJECT_UUID,
+            'dashboard',
+            uploaded,
+        );
+        await expect(upload).rejects.toThrow('captured upload');
+        expect(
+            service.promoteService.getPromotedDashboard,
+        ).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                config: expect.objectContaining({
                     controlSections: [
-                        {
-                            ...(format === 'legacy'
-                                ? { id: 'saved-section' }
-                                : { slug: 'saved-section' }),
+                        expect.objectContaining({
+                            id: 'saved-section',
                             name: sectionName,
-                        },
+                        }),
                     ],
-                    // Disabled incoming controls must be ignored before resolving their references.
-                    parameterControls: [
-                        {
-                            sectionSlug: 'unknown-section',
-                            label: 'Incoming',
-                            value: 'EUR',
-                            valueType: { type: 'string', multiple: false },
-                            parameters: {},
-                        },
-                    ],
-                },
-            } as DashboardAsCode;
-            const upload = service.upsertDashboard(
-                makeSessionUser([
-                    { subject: 'ContentAsCode', action: 'create' },
-                    { subject: 'Dashboard', action: 'update' },
-                ]),
-                PROJECT_UUID,
-                'dashboard',
-                uploaded,
-            );
-            if (format === 'legacy') {
-                await expect(upload).rejects.toThrow(
-                    '`id` on section "Saved section" was removed: use `slug`. `sectionId` on dimension filter "orders_status" was removed: use `sectionSlug`',
-                );
-                expect(
-                    service.promoteService.getPromotedDashboard,
-                ).not.toHaveBeenCalled();
-                return;
-            }
-            await expect(upload).rejects.toThrow('captured upload');
-            expect(
-                service.promoteService.getPromotedDashboard,
-            ).toHaveBeenCalledWith(
-                expect.anything(),
-                expect.objectContaining({
-                    config: expect.objectContaining({
-                        controlSections: [
-                            expect.objectContaining({
-                                id: 'saved-section',
-                                name: sectionName,
-                            }),
-                        ],
-                        parameterControls: savedConfig.parameterControls,
-                    }),
-                    filters: expect.objectContaining({
-                        dimensions: [
-                            expect.objectContaining({
-                                sectionId: 'saved-section',
-                            }),
-                        ],
-                    }),
+                    parameterControls: savedConfig.parameterControls,
                 }),
-                PROJECT_UUID,
-            );
-        },
-    );
+                filters: expect.objectContaining({
+                    dimensions: [
+                        expect.objectContaining({
+                            sectionId: 'saved-section',
+                        }),
+                    ],
+                }),
+            }),
+            PROJECT_UUID,
+        );
+    });
 });
 
 describe('CoderService dashboard control order as code', () => {
