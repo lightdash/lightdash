@@ -51,7 +51,9 @@ export const getPreAggregateQueryInstanceCacheKey = (
 
 type PreAggregateModelDependency = Pick<
     PreAggregateModel,
-    'getActiveMaterialization' | 'findMaterializationUrisForProject'
+    | 'getActiveMaterialization'
+    | 'findMaterializationUrisForProject'
+    | 'getMaterializationScopeVersion'
 >;
 
 type PreAggregationDuckDbClientArgs = {
@@ -104,6 +106,7 @@ export enum PreAggregationDuckDbResolveReason {
 }
 
 type ProjectWarehouseClient = {
+    scopeVersion: string;
     scope: string[];
     warehouseClient: WarehouseClient;
 };
@@ -161,11 +164,13 @@ export class PreAggregationDuckDbClient {
 
     /**
      * The project's warm serve instance, with storage credentials scoped to
-     * exactly the materialization files the project owns. The scope is read
-     * from the database on every call because the query may execute in a
-     * different process from the one that resolved it; the client object is
-     * only rebuilt when that set of files changes, and the warm instance
-     * then widens its secret in place.
+     * the project's active materialization files and the files superseded
+     * within the grace window. The query may execute in a different process
+     * from the one that resolved it, so every call checks a cheap version of
+     * the project's files in the database; the file list is only re-read when
+     * that version moved. The client is only rebuilt when the new list holds
+     * a file the cached one lacks: files ageing out of the window never
+     * narrow a warm instance, whose secret only widens.
      */
     async createPreAggregateWarehouseClient(
         projectUuid: string,
@@ -180,9 +185,28 @@ export class PreAggregationDuckDbClient {
             );
         }
 
+        const scopeVersion =
+            await this.preAggregateModel.getMaterializationScopeVersion(
+                projectUuid,
+            );
+        const cached = this.warehouseClientsByProject.get(projectUuid);
+        if (cached && cached.scopeVersion === scopeVersion) {
+            return cached.warehouseClient;
+        }
+
         const scope =
             await this.preAggregateModel.findMaterializationUrisForProject(
                 projectUuid,
+                {
+                    retainedSince: new Date(
+                        Date.now() -
+                            this.lightdashConfig.preAggregates
+                                .scopeGracePeriodHours *
+                                60 *
+                                60 *
+                                1000,
+                    ),
+                },
             );
         if (scope.length === 0) {
             throw new MissingConfigError(
@@ -190,13 +214,15 @@ export class PreAggregationDuckDbClient {
             );
         }
 
-        const cached = this.warehouseClientsByProject.get(projectUuid);
-        if (
-            cached &&
-            cached.scope.length === scope.length &&
-            cached.scope.every((uri, index) => uri === scope[index])
-        ) {
-            return cached.warehouseClient;
+        if (cached) {
+            const cachedScope = new Set(cached.scope);
+            if (scope.every((uri) => cachedScope.has(uri))) {
+                this.warehouseClientsByProject.set(projectUuid, {
+                    ...cached,
+                    scopeVersion,
+                });
+                return cached.warehouseClient;
+            }
         }
 
         const warehouseClient = this.createDuckdbWarehouseClient({
@@ -205,6 +231,7 @@ export class PreAggregationDuckDbClient {
             instanceCacheKey: getPreAggregateQueryInstanceCacheKey(projectUuid),
         });
         this.warehouseClientsByProject.set(projectUuid, {
+            scopeVersion,
             scope,
             warehouseClient,
         });

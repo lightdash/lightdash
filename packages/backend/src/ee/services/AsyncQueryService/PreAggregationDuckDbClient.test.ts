@@ -70,6 +70,7 @@ describe('PreAggregationDuckDbClient', () => {
                         ? [activeMaterialization.materializationUri]
                         : [],
                 ),
+            getMaterializationScopeVersion: vi.fn().mockResolvedValue('1:1'),
         };
         const projectModel = {
             getExploreFromCache: vi.fn().mockResolvedValue(preAggregateExplore),
@@ -210,6 +211,9 @@ describe('PreAggregationDuckDbClient', () => {
                         's3://mock_preagg_bucket/abc123.parquet',
                         's3://mock_preagg_bucket/def456.parquet',
                     ]),
+                getMaterializationScopeVersion: vi
+                    .fn()
+                    .mockResolvedValue('2:1'),
             },
             projectModel: {
                 getExploreFromCache: vi.fn(),
@@ -267,7 +271,7 @@ describe('PreAggregationDuckDbClient', () => {
         );
     });
 
-    test('reuses the project client while its files are unchanged and rebuilds it when they change', async () => {
+    test('checks only the scope version while the project files are unchanged', async () => {
         const { client, preAggregateModel, createDuckdbWarehouseClient } =
             getClient();
 
@@ -275,27 +279,105 @@ describe('PreAggregationDuckDbClient', () => {
             await client.createPreAggregateWarehouseClient('project-a');
         const second =
             await client.createPreAggregateWarehouseClient('project-a');
-        expect(second).toBe(first);
-        expect(createDuckdbWarehouseClient).toHaveBeenCalledTimes(1);
+        const third =
+            await client.createPreAggregateWarehouseClient('project-a');
 
+        expect(second).toBe(first);
+        expect(third).toBe(first);
+        expect(
+            preAggregateModel.getMaterializationScopeVersion,
+        ).toHaveBeenCalledTimes(3);
+        expect(
+            preAggregateModel.findMaterializationUrisForProject,
+        ).toHaveBeenCalledTimes(1);
+        expect(createDuckdbWarehouseClient).toHaveBeenCalledTimes(1);
+    });
+
+    test('re-reads the scope when a refresh promotes a new file, so the file is in scope before it is served', async () => {
+        const { client, preAggregateModel, createDuckdbWarehouseClient } =
+            getClient();
+        await client.createPreAggregateWarehouseClient('project-a');
+
+        // A refresh in another process promotes new789 and supersedes abc123
+        preAggregateModel.getMaterializationScopeVersion.mockResolvedValue(
+            '2:2',
+        );
         preAggregateModel.findMaterializationUrisForProject.mockResolvedValue([
-            's3://mock_preagg_bucket/new789.parquet',
             's3://mock_preagg_bucket/abc123.jsonl',
+            's3://mock_preagg_bucket/new789.parquet',
         ]);
         await client.createPreAggregateWarehouseClient('project-a');
 
+        expect(
+            preAggregateModel.findMaterializationUrisForProject,
+        ).toHaveBeenCalledTimes(2);
         expect(createDuckdbWarehouseClient).toHaveBeenCalledTimes(2);
         expect(createDuckdbWarehouseClient).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 s3Config: expect.objectContaining({
                     scope: [
-                        's3://mock_preagg_bucket/new789.parquet',
                         's3://mock_preagg_bucket/abc123.jsonl',
+                        's3://mock_preagg_bucket/new789.parquet',
                     ],
                 }),
                 instanceCacheKey: 'pre-aggregate-query-instance:project-a',
             }),
         );
+    });
+
+    test('keeps the client when files age out of the grace window', async () => {
+        const { client, preAggregateModel, createDuckdbWarehouseClient } =
+            getClient();
+        preAggregateModel.findMaterializationUrisForProject.mockResolvedValue([
+            's3://mock_preagg_bucket/abc123.jsonl',
+            's3://mock_preagg_bucket/new789.parquet',
+        ]);
+        const first =
+            await client.createPreAggregateWarehouseClient('project-a');
+
+        preAggregateModel.getMaterializationScopeVersion.mockResolvedValue(
+            '2:3',
+        );
+        preAggregateModel.findMaterializationUrisForProject.mockResolvedValue([
+            's3://mock_preagg_bucket/new789.parquet',
+        ]);
+        const afterShrink =
+            await client.createPreAggregateWarehouseClient('project-a');
+        const again =
+            await client.createPreAggregateWarehouseClient('project-a');
+
+        expect(afterShrink).toBe(first);
+        expect(again).toBe(first);
+        expect(createDuckdbWarehouseClient).toHaveBeenCalledTimes(1);
+        expect(
+            preAggregateModel.findMaterializationUrisForProject,
+        ).toHaveBeenCalledTimes(2);
+    });
+
+    test('reads the scope with the configured grace window', async () => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date('2026-11-10T12:00:00.000Z'));
+        try {
+            const { client, preAggregateModel } = getClient({
+                lightdashConfig: {
+                    ...lightdashConfigMock,
+                    preAggregates: {
+                        ...lightdashConfigMock.preAggregates,
+                        scopeGracePeriodHours: 6,
+                    },
+                },
+            });
+
+            await client.createPreAggregateWarehouseClient('project-a');
+
+            expect(
+                preAggregateModel.findMaterializationUrisForProject,
+            ).toHaveBeenCalledWith('project-a', {
+                retainedSince: new Date('2026-11-10T06:00:00.000Z'),
+            });
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     test('refuses to build a serve client for a project with no materialization files', async () => {
