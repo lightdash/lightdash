@@ -1,5 +1,4 @@
 import { subject } from '@casl/ability';
-import { getTotalFilterRules } from '@lightdash/common';
 import { Button, Tabs } from '@mantine/core';
 import { type FC } from 'react';
 import ErrorState from '../../../components/common/ErrorState';
@@ -60,11 +59,6 @@ export const SyncModalCreateOrEdit: FC<Props> = ({
                 projectUuid: chart.projectUuid,
             }),
         );
-    const showFiltersTab =
-        !!chart &&
-        ((savedFilters && getTotalFilterRules(savedFilters).length > 0) ||
-            (canAdjustFilters &&
-                getTotalFilterRules(chart.metricQuery.filters).length > 0));
     const formId = 'api-sync-form';
     const setup = (
         <SyncModalForm
@@ -98,7 +92,7 @@ export const SyncModalCreateOrEdit: FC<Props> = ({
                     </Button>
                 }
             >
-                {chart && showFiltersTab ? (
+                {chart ? (
                     <Tabs defaultValue="setup">
                         <Tabs.List aria-label="Sync settings">
                             <Tabs.Tab value="setup">Setup</Tabs.Tab>

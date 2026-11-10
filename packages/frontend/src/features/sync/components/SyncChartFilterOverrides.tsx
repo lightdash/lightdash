@@ -1,5 +1,9 @@
-import { type FilterRule, type Filters } from '@lightdash/common';
-import { Stack, Switch } from '@mantine/core';
+import {
+    getTotalFilterRules,
+    type FilterRule,
+    type Filters,
+} from '@lightdash/common';
+import { Stack, Switch, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { SchedulerFormChartFilterOverridesTab } from '../../scheduler/components/SchedulerForm/SchedulerFormChartFilterOverridesTab';
 import { type SyncResource } from '../types';
@@ -21,6 +25,29 @@ export const SyncChartFilterOverrides: FC<Props> = ({
     filtersWithUnmetRequirements,
 }) => {
     const form = useSyncModalFormContext();
+    const hasSavedOverrides =
+        !!savedFilters && getTotalFilterRules(savedFilters).length > 0;
+
+    if (!hasSavedOverrides && !canAdjustFilters) {
+        return (
+            <Text size="sm" c="dimmed">
+                You need Explore access to customize filters for this sync.
+            </Text>
+        );
+    }
+
+    if (
+        !hasSavedOverrides &&
+        getTotalFilterRules(chart.metricQuery.filters).length === 0
+    ) {
+        return (
+            <Text size="sm" c="dimmed">
+                This chart has no saved filters. Add a filter in the chart
+                editor, save the chart, then reopen this sync to customize the
+                filter value.
+            </Text>
+        );
+    }
 
     return (
         <Stack gap="xs">
