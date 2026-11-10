@@ -6,13 +6,8 @@ import os from 'os';
 import path from 'path';
 import {
     DuckdbWarehouseClient,
-    type DuckdbLogger,
     type DuckdbParquetSource,
 } from './DuckdbWarehouseClient';
-
-const queryUuid = 'b941ad84-5bb9-4b94-849a-aa5b1e5336ca';
-const publicError =
-    'Internal analytics query failed. Check storage access and query permissions.';
 
 describe('private query staging of cached Parquet', () => {
     let directory: string;
@@ -49,14 +44,11 @@ describe('private query staging of cached Parquet', () => {
             fileBuffers: new Map([[url, bytes]]),
         };
     };
-    const reader = (manifest: DuckdbParquetSource, logger?: DuckdbLogger) =>
-        new DuckdbWarehouseClient(
-            {
-                type: 'duckdb_parquet',
-                resolveSource: async () => manifest,
-            },
-            { logger },
-        );
+    const reader = (manifest: DuckdbParquetSource) =>
+        new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: async () => manifest,
+        });
     const bufferedSource = () => {
         const manifest = source('buffered');
         const url = manifest.tables[0].urls[0].split('?')[0];
@@ -85,92 +77,23 @@ describe('private query staging of cached Parquet', () => {
     });
 
     it.each([
-        ['SELECT value + FROM query_events', 'sql_parser_error'],
-        ['SELECT private_column FROM query_events', 'sql_binder_error'],
-    ])(
-        'logs a safe reason for invalid Analytics SQL (%s)',
-        async (sql, reason) => {
-            const logger = { info: vi.fn(), warn: vi.fn() };
-            await expect(
-                reader(bufferedSource(), logger).runQuery(sql, {
-                    query_uuid: queryUuid,
-                    user_attribute_sensitive: 'private-tag-value',
-                }),
-            ).rejects.toMatchObject({ message: publicError });
-            expect(logger.warn).toHaveBeenCalledExactlyOnceWith(
-                'Usage analytics query failed',
-                { queryUuid, stage: 'sql_validation', reason },
-            );
-        },
-    );
-
-    it('logs a failed Parquet read without its signed URL or response body', async () => {
-        const requestReceived = vi.fn();
-        const server = createServer((request, response) => {
-            requestReceived(request.url);
-            response.writeHead(403).end('private-response');
-        });
-        await new Promise<void>((resolve) => {
-            server.listen(0, '127.0.0.1', resolve);
-        });
-        try {
-            const { port } = server.address() as AddressInfo;
-            const scope = `http://127.0.0.1:${port}/events/compacted/`;
-            const objectPath =
-                'private-object.parquet?X-Amz-Signature=private-signature';
-            const logger = { info: vi.fn(), warn: vi.fn() };
-            const client = reader(
-                {
-                    scope,
-                    signedUrls: true,
-                    tables: [
-                        { name: 'query_events', urls: [scope + objectPath] },
-                    ],
-                },
-                logger,
-            );
-            await expect(
-                client.runQuery('SELECT value FROM query_events', {
-                    query_uuid: queryUuid,
-                }),
-            ).rejects.toMatchObject({ message: publicError });
-            expect(requestReceived).toHaveBeenCalledWith(
-                `/events/compacted/${objectPath}`,
-            );
-            expect(logger.warn).toHaveBeenCalledExactlyOnceWith(
-                'Usage analytics query failed',
-                {
-                    queryUuid,
-                    stage: 'bootstrap',
-                    reason: expect.stringMatching(
-                        /^storage_(access_denied|http_error)$/,
-                    ),
-                },
-            );
-        } finally {
-            server.closeAllConnections();
-            await new Promise<void>((resolve, reject) => {
-                server.close((error) => (error ? reject(error) : resolve()));
-            });
-        }
-    });
-
-    it('reports a result callback failure without logging the exception or invalid query tag', async () => {
-        const logger = { info: vi.fn(), warn: vi.fn() };
-        const client = reader(bufferedSource(), logger);
+        [
+            'SELECT value + FROM query_events',
+            'sql_parser_error',
+            'The analytics query contains malformed SQL. Check any custom column expressions.',
+        ],
+        [
+            'SELECT private_column FROM query_events',
+            'unknown_field',
+            'The analytics query references an unknown field. Check the fields in your custom columns.',
+        ],
+    ])('reports invalid SQL safely (%s)', async (sql, code, message) => {
         await expect(
-            client.streamQuery(
-                'SELECT value FROM query_events',
-                () => {
-                    throw new Error('private callback failure');
-                },
-                { tags: { query_uuid: 'private-tag-value' } },
-            ),
-        ).rejects.toMatchObject({ message: publicError });
-        expect(logger.warn).toHaveBeenCalledExactlyOnceWith(
-            'Usage analytics query failed',
-            { queryUuid: null, stage: 'result_stream', reason: 'unknown' },
-        );
+            reader(bufferedSource()).runQuery(sql),
+        ).rejects.toMatchObject({
+            message,
+            code,
+        });
     });
 
     it('signs only unsigned objects and reads the whole table remotely after a staging failure', async () => {

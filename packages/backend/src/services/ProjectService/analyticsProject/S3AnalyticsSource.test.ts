@@ -60,20 +60,16 @@ describe('signed analytics file manifests', () => {
     const destroy = vi.fn();
     const noDataMessage =
         'No analytics data is available yet. Newly captured events become available after daily processing. Try again after the next daily update.';
-    const publicError =
-        /^Internal analytics query failed\. Check storage access and query permissions\.$/;
+    const storageReadMessage =
+        'Could not read analytics data from storage. Try again or contact your administrator.';
     const connection = { run: vi.fn(), closeSync: vi.fn() };
     const closeInstance = vi.fn();
-    const logger = { info: vi.fn(), warn: vi.fn() };
 
     const testConnection = () =>
-        new DuckdbWarehouseClient(
-            {
-                type: 'duckdb_parquet',
-                resolveSource: createS3AnalyticsSourceResolver(config),
-            },
-            { logger },
-        ).test();
+        new DuckdbWarehouseClient({
+            type: 'duckdb_parquet',
+            resolveSource: createS3AnalyticsSourceResolver(config),
+        }).test();
 
     beforeEach(() => {
         vi.resetAllMocks();
@@ -219,7 +215,7 @@ describe('signed analytics file manifests', () => {
                 ...config,
                 allowEmpty: true,
             })(),
-        ).rejects.toThrow('Analytics storage access failed');
+        ).rejects.toThrow(storageReadMessage);
     });
 
     it('signs only requested tables while preserving every retained date', async () => {
@@ -317,7 +313,7 @@ describe('signed analytics file manifests', () => {
         expect(destroy).toHaveBeenCalledTimes(2);
         await expect(
             source.getSignedUrls!([url.replace('buffered', 'other')]),
-        ).rejects.toThrow('Analytics storage access failed');
+        ).rejects.toThrow(storageReadMessage);
         expect(getSignedUrl).toHaveBeenCalledOnce();
     });
 
@@ -371,9 +367,7 @@ describe('signed analytics file manifests', () => {
         }
         expect(getSignedUrl).toHaveBeenCalledTimes(5);
         send.mockRejectedValue(new Error('AccessDenied secret'));
-        await expect(resolve()).rejects.toThrow(
-            'Analytics storage access failed',
-        );
+        await expect(resolve()).rejects.toThrow(storageReadMessage);
         expect(getSignedUrl).toHaveBeenCalledTimes(5);
     });
 
@@ -601,12 +595,7 @@ describe('signed analytics file manifests', () => {
         await vi.waitFor(() => expect(getSignedUrl).toHaveBeenCalledTimes(8));
         expect(destroy).not.toHaveBeenCalled();
         release();
-        expect(await resolution).toMatchObject({
-            message:
-                'Analytics storage access failed. Check bucket credentials, organization and compacted data availability.',
-            stage: 'storage_sign',
-            reason: 'unknown',
-        });
+        expect(await resolution).toMatchObject({ message: storageReadMessage });
         expect(getSignedUrl).toHaveBeenCalledTimes(8);
         expect(destroy).toHaveBeenCalledOnce();
     });
@@ -653,7 +642,7 @@ describe('signed analytics file manifests', () => {
             ],
         });
         await expect(createS3AnalyticsSourceResolver(config)()).rejects.toThrow(
-            'Analytics storage access failed',
+            storageReadMessage,
         );
         expect(getSignedUrl).not.toHaveBeenCalled();
         expect(destroy).toHaveBeenCalledOnce();
@@ -827,14 +816,8 @@ describe('signed analytics file manifests', () => {
             IsTruncated: true,
             NextContinuationToken: 'next',
         });
-        await expect(testConnection()).rejects.toThrow(publicError);
-        expect(logger.warn).toHaveBeenCalledExactlyOnceWith(
-            'Usage analytics query failed',
-            {
-                queryUuid: null,
-                stage: 'storage_list',
-                reason: 'file_limit_exceeded',
-            },
+        await expect(createS3AnalyticsSourceResolver(config)()).rejects.toThrow(
+            'The analytics query exceeds the data file limit.',
         );
         expect(getSignedUrl).not.toHaveBeenCalled();
         expect(destroy).toHaveBeenCalledOnce();
@@ -873,7 +856,7 @@ describe('signed analytics file manifests', () => {
     ])('fails closed on invalid or incomplete manifests', async (response) => {
         send.mockResolvedValue(response);
         await expect(createS3AnalyticsSourceResolver(config)()).rejects.toThrow(
-            'Analytics storage access failed',
+            storageReadMessage,
         );
         expect(getSignedUrl).not.toHaveBeenCalled();
         expect(destroy).toHaveBeenCalledOnce();
@@ -891,7 +874,6 @@ describe('signed analytics file manifests', () => {
             await expect(testConnection()).rejects.toEqual(
                 new ParameterError(noDataMessage),
             );
-            expect(logger.warn).not.toHaveBeenCalled();
             expect(getSignedUrl).not.toHaveBeenCalled();
             expect(destroy).toHaveBeenCalledOnce();
             // The dependency parser and query session are both disposed.
@@ -913,28 +895,11 @@ describe('signed analytics file manifests', () => {
         expect(send.mock.calls[1][0].input.ContinuationToken).toBe('next');
     });
 
-    it.each([
-        ['storage failure', { reason: 'unknown' }],
-        [
-            'storage permission',
-            { reason: 'storage_access_denied', providerStatus: 403 },
-        ],
-        ['incomplete pagination', { reason: 'listing_incomplete' }],
-        ['later page failure', { reason: 'storage_network_error' }],
-    ] as const)(
+    it.each(['storage failure', 'incomplete pagination', 'later page failure'])(
         'keeps %s sanitized through the project connection test',
-        async (failure, diagnostic) => {
+        async (failure) => {
             if (failure === 'storage failure') {
                 send.mockRejectedValue(new ParameterError('writer-secret'));
-            } else if (failure === 'storage permission') {
-                send.mockRejectedValue(
-                    new S3ServiceException({
-                        name: 'AccessDenied',
-                        message: 'writer-secret and X-Amz-Signature=secret',
-                        $fault: 'client',
-                        $metadata: { httpStatusCode: 403 },
-                    }),
-                );
             } else if (failure === 'incomplete pagination') {
                 send.mockResolvedValue({ Contents: [], IsTruncated: true });
             } else {
@@ -942,50 +907,52 @@ describe('signed analytics file manifests', () => {
                     Contents: [],
                     IsTruncated: true,
                     NextContinuationToken: 'next',
-                }).mockRejectedValueOnce(
-                    Object.assign(new Error('writer-secret'), {
-                        code: 'ECONNRESET',
-                    }),
-                );
+                }).mockRejectedValueOnce(new Error('writer-secret'));
             }
-            await expect(testConnection()).rejects.toThrow(publicError);
-            expect(logger.warn).toHaveBeenCalledExactlyOnceWith(
-                'Usage analytics query failed',
-                { queryUuid: null, stage: 'storage_list', ...diagnostic },
-            );
+            await expect(testConnection()).rejects.toMatchObject({
+                message: storageReadMessage,
+                code: 'storage_read_failed',
+            });
             expect(getSignedUrl).not.toHaveBeenCalled();
             expect(destroy).toHaveBeenCalledOnce();
         },
     );
 
-    it('reports signing failures with no raw SDK data or invalid HTTP status', async () => {
-        vi.mocked(getSignedUrl).mockRejectedValue(
-            Object.assign(
-                new S3ServiceException({
-                    name: 'private-provider-name',
-                    message: 'writer-secret and X-Amz-Signature=secret',
-                    $fault: 'client',
-                    $metadata: { httpStatusCode: 999 },
-                }),
-                { code: 'private-provider-code' },
-            ),
-        );
-
-        await expect(testConnection()).rejects.toThrow(publicError);
-        expect(logger.warn).toHaveBeenCalledExactlyOnceWith(
-            'Usage analytics query failed',
-            { queryUuid: null, stage: 'storage_sign', reason: 'unknown' },
-        );
-        expect(destroy).toHaveBeenCalledOnce();
+    it.each([
+        {
+            error: new S3ServiceException({
+                name: 'AccessDenied',
+                message: 'writer-secret and X-Amz-Signature=secret',
+                $fault: 'client',
+                $metadata: { httpStatusCode: 403 },
+            }),
+            message: 'Access to analytics storage was denied.',
+            code: 'storage_access_denied',
+            storageStatus: 403,
+        },
+        {
+            error: Object.assign(new Error('private endpoint'), {
+                code: 'ECONNRESET',
+            }),
+            message:
+                'A network error interrupted access to analytics storage. Try again.',
+            code: 'storage_network_error',
+            storageStatus: null,
+        },
+    ])('returns a safe message for $code', async ({ error, ...expected }) => {
+        send.mockRejectedValue(error);
+        await expect(testConnection()).rejects.toMatchObject(expected);
     });
 
     it('sanitizes SDK errors without falling back to bucket credentials', async () => {
         send.mockRejectedValue(
             new Error('writer-secret and X-Amz-Signature=secret'),
         );
-        await expect(createS3AnalyticsSourceResolver(config)()).rejects.toThrow(
-            /^Analytics storage access failed\. Check bucket credentials, organization and compacted data availability\.$/,
-        );
+        await expect(
+            createS3AnalyticsSourceResolver(config)(),
+        ).rejects.toMatchObject({
+            message: storageReadMessage,
+        });
         expect(getSignedUrl).not.toHaveBeenCalled();
         expect(destroy).toHaveBeenCalledOnce();
     });

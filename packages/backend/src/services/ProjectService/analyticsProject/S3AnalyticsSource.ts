@@ -5,7 +5,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { ParameterError } from '@lightdash/common';
 import {
-    AnalyticsSourceError,
+    AnalyticsQueryError,
     type DuckdbParquetSource,
 } from '@lightdash/warehouses';
 import { createHash } from 'crypto';
@@ -71,62 +71,41 @@ const mapFiles = async <T>(
     return values;
 };
 
-const accessDeniedNames = new Set([
-    'AccessDenied',
-    'CredentialsProviderError',
-    'ExpiredToken',
-    'Forbidden',
-    'InvalidAccessKeyId',
-    'InvalidToken',
-    'SignatureDoesNotMatch',
-]);
-const notFoundNames = new Set(['NoSuchBucket', 'NoSuchKey', 'NotFound']);
-const networkErrorCodes = new Set([
-    'EAI_AGAIN',
-    'ECONNREFUSED',
-    'ECONNRESET',
-    'ENOTFOUND',
-    'ETIMEDOUT',
-]);
-
-const storageError = (
-    stage: AnalyticsSourceError['stage'],
-    error: unknown,
-): AnalyticsSourceError => {
-    if (error instanceof AnalyticsSourceError) return error;
+const storageError = (error: unknown): AnalyticsQueryError => {
+    if (error instanceof AnalyticsQueryError) return error;
 
     const status =
         error instanceof S3ServiceException
-            ? error.$metadata?.httpStatusCode
+            ? error.$metadata.httpStatusCode
             : undefined;
-    const providerStatus =
-        typeof status === 'number' &&
-        Number.isInteger(status) &&
-        status >= 400 &&
-        status <= 599
-            ? status
-            : undefined;
-    const name = error instanceof Error ? error.name : '';
-    let reason: AnalyticsSourceError['reason'] = 'unknown';
     if (
-        providerStatus === 401 ||
-        providerStatus === 403 ||
-        accessDeniedNames.has(name)
-    ) {
-        reason = 'storage_access_denied';
-    } else if (providerStatus === 404 || notFoundNames.has(name)) {
-        reason = 'storage_not_found';
-    } else if (
-        name === 'AbortError' ||
-        name === 'TimeoutError' ||
+        status === 401 ||
+        status === 403 ||
         (error instanceof Error &&
-            'code' in error &&
-            typeof error.code === 'string' &&
-            networkErrorCodes.has(error.code))
+            [
+                'AccessDenied',
+                'CredentialsProviderError',
+                'ExpiredToken',
+            ].includes(error.name))
     ) {
-        reason = 'storage_network_error';
+        return new AnalyticsQueryError('storage_access_denied', status);
     }
-    return new AnalyticsSourceError(stage, reason, providerStatus);
+    if (
+        error instanceof Error &&
+        (['AbortError', 'TimeoutError'].includes(error.name) ||
+            ('code' in error &&
+                typeof error.code === 'string' &&
+                [
+                    'EAI_AGAIN',
+                    'ECONNREFUSED',
+                    'ECONNRESET',
+                    'ENOTFOUND',
+                    'ETIMEDOUT',
+                ].includes(error.code)))
+    ) {
+        return new AnalyticsQueryError('storage_network_error', status);
+    }
+    return new AnalyticsQueryError('storage_read_failed', status);
 };
 
 /** Server-only: the caller must authorize the persisted project org first. */
@@ -240,7 +219,6 @@ export const createS3AnalyticsSourceResolver = ({
         };
         const objectUrl = (key: string) =>
             `${endpoint.origin}/${bucket}/${key.split('/').map(encodeURIComponent).join('/')}`;
-        let stage: AnalyticsSourceError['stage'] = 'storage_list';
         try {
             let continuationToken: string | undefined;
             let pages = 0;
@@ -302,8 +280,7 @@ export const createS3AnalyticsSourceResolver = ({
                         if (!requested || requested.has(tableName)) {
                             fileCount += 1;
                             if (fileCount > MAX_FILES)
-                                throw new AnalyticsSourceError(
-                                    'storage_list',
+                                throw new AnalyticsQueryError(
                                     'file_limit_exceeded',
                                 );
                             const files = filesByTable.get(tableName) ?? [];
@@ -317,15 +294,10 @@ export const createS3AnalyticsSourceResolver = ({
                     ? page.NextContinuationToken
                     : undefined;
                 if (page.IsTruncated && (!continuationToken || pages >= 100))
-                    throw new AnalyticsSourceError(
-                        'storage_list',
-                        'listing_incomplete',
-                    );
+                    throw new Error('Analytics listing cannot be completed');
             } while (continuationToken);
             listingMs = performance.now() - started;
-            stage = 'storage_sign';
             const signing = await signingContext(client);
-            stage = 'storage_prepare';
             for (const [tableName, files] of filesByTable) {
                 // DuckDB stages whole tables to preserve Hive partition paths.
                 // Avoid downloading a partial table that can only be read remotely.
@@ -373,10 +345,8 @@ export const createS3AnalyticsSourceResolver = ({
                     );
                 } else {
                     const signStart = performance.now();
-                    stage = 'storage_sign';
                     // eslint-disable-next-line no-await-in-loop
                     tables.set(tableName, await mapFiles(files, signing.sign));
-                    stage = 'storage_prepare';
                     signingMs += performance.now() - signStart;
                 }
             }
@@ -395,7 +365,7 @@ export const createS3AnalyticsSourceResolver = ({
             });
         } catch (error) {
             // SDK errors may contain credentials, signatures, or object contents.
-            throw storageError(stage, error);
+            throw storageError(error);
         } finally {
             client.destroy();
         }
@@ -452,7 +422,7 @@ export const createS3AnalyticsSourceResolver = ({
                                   await signingContext(fallbackClient);
                               return await mapFiles(files, signing.sign);
                           } catch (error) {
-                              throw storageError('storage_sign', error);
+                              throw storageError(error);
                           } finally {
                               fallbackClient.destroy();
                               Logger.info('Analytics source staging fallback', {

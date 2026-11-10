@@ -357,7 +357,7 @@ describe('internal Parquet projects', () => {
                 client['withSession'](async () => {
                     throw new Error('query failed');
                 }),
-            ).rejects.toThrow('Internal analytics query failed');
+            ).rejects.toThrow('The analytics query failed.');
             expect(vi.getTimerCount()).toBe(0);
         } finally {
             vi.useRealTimers();
@@ -620,7 +620,7 @@ describe('internal Parquet projects', () => {
         });
         await expect(
             client.runQuery('SELECT count(*) FROM query_events'),
-        ).rejects.toThrow(/Internal analytics query failed/);
+        ).rejects.toThrow('The analytics query failed.');
         const instance = await createInstanceMock.mock.results[0].value;
         expect(instance.closeSync).toHaveBeenCalledTimes(1);
     });
@@ -670,7 +670,9 @@ describe('internal Parquet projects', () => {
         });
         await expect(
             client.runQuery(`SELECT * FROM read_parquet('${url}')`),
-        ).rejects.toThrow(/query permissions/);
+        ).rejects.toThrow(
+            'The analytics query contains SQL that is not allowed.',
+        );
     });
 
     it.each(['X-Amz', 'X-Goog'])(
@@ -727,7 +729,7 @@ describe('internal Parquet projects', () => {
         await expect(
             client.runQuery('SELECT count(*) FROM query_events'),
         ).rejects.toThrow(
-            /^Internal analytics query failed\. Check storage access and query permissions\.$/,
+            /^The analytics query failed\. Ask your administrator to check the server logs\.$/,
         );
     });
 

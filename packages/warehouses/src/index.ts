@@ -6,7 +6,7 @@ export * from './warehouseClients/AthenaWarehouseClient';
 export * from './warehouseClients/BigqueryWarehouseClient';
 export * from './warehouseClients/DatabricksWarehouseClient';
 export * from './warehouseClients/DuckdbWarehouseClient';
-export { AnalyticsSourceError } from './warehouseClients/AnalyticsQueryFailure';
+export { AnalyticsQueryError } from './warehouseClients/AnalyticsQueryError';
 export * from './warehouseClients/duckdbEmbeddedBundle';
 export { MotherduckInstanceCache } from './warehouseClients/MotherduckInstanceCache';
 export type { MotherduckCacheEvent } from './warehouseClients/MotherduckInstanceCache';
