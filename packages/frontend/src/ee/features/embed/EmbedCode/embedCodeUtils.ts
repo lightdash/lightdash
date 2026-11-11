@@ -15,6 +15,7 @@ export type EmbedCodeAvailability =
     | 'loading'
     | 'featureUnavailable'
     | 'notConfigured'
+    | 'loadError'
     | 'targetNotAllowed'
     | 'ready';
 
@@ -43,17 +44,21 @@ export const isTargetAllowed = (
 
 export const getEmbedCodeAvailability = ({
     isLoading,
+    hasError,
     errorStatusCode,
     config,
     target,
 }: {
     isLoading: boolean;
+    hasError: boolean;
     errorStatusCode: number | undefined;
     config: DecodedEmbed | undefined;
     target: EmbedCodeTarget;
 }): EmbedCodeAvailability => {
     if (isLoading) return 'loading';
     if (errorStatusCode === 403) return 'featureUnavailable';
+    if (errorStatusCode === 404) return 'notConfigured';
+    if (hasError) return 'loadError';
     if (!config) return 'notConfigured';
     if (!isTargetAllowed(config, target)) return 'targetNotAllowed';
     return 'ready';

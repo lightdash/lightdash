@@ -340,6 +340,7 @@ const EmbedCodeModal: FC<Props> = ({ projectUuid, target, onClose }) => {
     const embedConfig = useEmbedConfig(projectUuid);
     const availability = getEmbedCodeAvailability({
         isLoading: embedConfig.isInitialLoading,
+        hasError: embedConfig.isError,
         errorStatusCode: embedConfig.error?.error.statusCode,
         config: embedConfig.data,
         target,
@@ -393,6 +394,27 @@ const EmbedCodeModal: FC<Props> = ({ projectUuid, target, onClose }) => {
                             Settings → Embed
                         </Anchor>{' '}
                         before generating a test URL.
+                    </Callout>
+                );
+            case 'loadError':
+                return (
+                    <Callout
+                        variant="warning"
+                        title="Could not load the embedding configuration"
+                    >
+                        <Stack gap="xs" align="flex-start">
+                            <Text fz="sm">
+                                Try again before generating a test URL or
+                                changing the allow list.
+                            </Text>
+                            <Button
+                                size="xs"
+                                variant="default"
+                                onClick={() => void embedConfig.refetch()}
+                            >
+                                Try again
+                            </Button>
+                        </Stack>
                     </Callout>
                 );
             case 'targetNotAllowed': {

@@ -71,6 +71,7 @@ describe('embed code availability', () => {
             name: 'loading while the configuration is being fetched',
             input: {
                 isLoading: true,
+                hasError: false,
                 errorStatusCode: undefined,
                 config: undefined,
             },
@@ -80,6 +81,7 @@ describe('embed code availability', () => {
             name: 'unavailable when the backend rejects the feature',
             input: {
                 isLoading: false,
+                hasError: true,
                 errorStatusCode: 403,
                 config: undefined,
             },
@@ -89,15 +91,27 @@ describe('embed code availability', () => {
             name: 'not configured when there is no embed secret',
             input: {
                 isLoading: false,
+                hasError: true,
                 errorStatusCode: 404,
                 config: undefined,
             },
             expected: 'notConfigured',
         },
         {
+            name: 'retryable when loading the configuration fails',
+            input: {
+                isLoading: false,
+                hasError: true,
+                errorStatusCode: 500,
+                config: undefined,
+            },
+            expected: 'loadError',
+        },
+        {
             name: 'blocked when the selected content is not allowlisted',
             input: {
                 isLoading: false,
+                hasError: false,
                 errorStatusCode: undefined,
                 config,
             },
@@ -107,6 +121,7 @@ describe('embed code availability', () => {
             name: 'ready when configured and allowlisted',
             input: {
                 isLoading: false,
+                hasError: false,
                 errorStatusCode: undefined,
                 config,
             },
