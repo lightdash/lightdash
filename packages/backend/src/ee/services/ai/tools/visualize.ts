@@ -86,6 +86,9 @@ const unknownNodeMessage = (
               .map((node) => `${node.nodeId} ("${node.title ?? node.nodeId}")`)
               .join(', ')}.`;
 
+const describeColumns = (columns: ComposerNodeColumn[]): string =>
+    columns.map(({ reference, type }) => `${reference} (${type})`).join(', ');
+
 // Points a chart without an x column to the nodes it reads that have one, from stored columns only.
 const getBreakdownPointers = async ({
     threadUuid,
@@ -101,20 +104,17 @@ const getBreakdownPointers = async ({
     ];
     const pointers = await Promise.all(
         upstreamNodeIds.map(async (upstreamNodeId) => {
+            // A failed lookup drops only the pointer, never the x error.
             const columns = await getThreadComposerNodeColumns({
                 threadUuid,
                 nodeId: upstreamNodeId,
-            });
+            }).catch(() => null);
             const categories = (columns ?? []).filter(
                 ({ type }) => type !== DimensionType.NUMBER,
             );
             return categories.length === 0
                 ? null
-                : `Node "${upstreamNodeId}" has ${categories
-                      .map(({ reference, type }) => `${reference} (${type})`)
-                      .join(
-                          ', ',
-                      )}: visualize it directly, no new query needed.`;
+                : `Node "${upstreamNodeId}" has ${describeColumns(categories)}: visualize it directly, no new query needed.`;
         }),
     );
     return pointers.filter((pointer): pointer is string => pointer !== null);
@@ -151,9 +151,7 @@ const assertVizConfigReferences = async ({
         : [];
     throw new ParameterError(
         [
-            `vizConfig does not match node "${nodeId}": ${errors.join('; ')}. Columns of node "${nodeId}": ${columns
-                .map(({ reference, type }) => `${reference} (${type})`)
-                .join(', ')}.`,
+            `vizConfig does not match node "${nodeId}": ${errors.join('; ')}. Columns of node "${nodeId}": ${describeColumns(columns)}.`,
             ...pointers,
         ].join('\n'),
     );
