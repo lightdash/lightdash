@@ -21,6 +21,7 @@ import {
     type SemanticLayerDraftImpact,
     type SemanticLayerDraftItemResult,
     type SemanticLayerDraftModelInput,
+    type SemanticLayerDraftMoveDirection,
     type SemanticLayerDraftUsage,
     type SemanticLayerModelCode,
     type SemanticLayerStatus,
@@ -84,6 +85,7 @@ export type SemanticStudioServiceArguments = {
         | 'findModelHistory'
         | 'findDraftChanges'
         | 'findOtherDrafters'
+        | 'swapDraftChanges'
         | 'findPublishedSince'
         | 'findSettledDraftChanges'
         | 'createDraftChange'
@@ -968,6 +970,35 @@ export class SemanticStudioService extends BaseService {
         if (discarded === 0 && target.kind !== 'all') {
             throw new NotFoundError('Nothing in the draft matches');
         }
+        await this.queueDraftImpactCheckAfterChange(user, projectUuid);
+    }
+
+    /** Moves one change one place earlier or later in this person's draft; each change builds on the ones before it, so the order decides what a later one sees. */
+    async moveDraftChange(
+        user: SessionUser,
+        projectUuid: string,
+        draftChangeUuid: string,
+        direction: SemanticLayerDraftMoveDirection,
+    ): Promise<void> {
+        await this.assertCanEditModels(user, projectUuid);
+        const owner = { projectUuid, userUuid: user.userUuid };
+        const order = (
+            await this.projectModelDocumentModel.findDraftChanges(
+                projectUuid,
+                user.userUuid,
+            )
+        ).map((change) => change.draftChangeUuid);
+        const index = order.indexOf(draftChangeUuid);
+        const neighbour = order[index + (direction === 'earlier' ? -1 : 1)];
+        if (index === -1) {
+            throw new NotFoundError('Nothing in the draft matches');
+        }
+        // Already first or last: there is nowhere further to go.
+        if (neighbour === undefined) return;
+        await this.projectModelDocumentModel.swapDraftChanges(owner, [
+            draftChangeUuid,
+            neighbour,
+        ]);
         await this.queueDraftImpactCheckAfterChange(user, projectUuid);
     }
 

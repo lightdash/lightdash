@@ -180,3 +180,10 @@ export type SemanticLayerDraftUsage = {
 
 export type ApiSemanticLayerDraftUsageResponse =
     ApiSuccess<SemanticLayerDraftUsage>;
+
+/** Which way a change moves in a draft's order. */
+export type SemanticLayerDraftMoveDirection = 'earlier' | 'later';
+
+export type ApiSemanticLayerDraftMoveRequest = {
+    direction: SemanticLayerDraftMoveDirection;
+};

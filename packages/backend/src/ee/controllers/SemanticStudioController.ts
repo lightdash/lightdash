@@ -3,6 +3,7 @@ import {
     type ApiErrorPayload,
     type ApiSemanticLayerDraftApplyResponse,
     type ApiSemanticLayerDraftImpactResponse,
+    type ApiSemanticLayerDraftMoveRequest,
     type ApiSemanticLayerDraftResponse,
     type ApiSemanticLayerDraftUsageResponse,
     type ApiSemanticLayerModelResponse,
@@ -264,6 +265,30 @@ export class SemanticStudioController extends BaseController {
             toSessionUser(req.account),
             projectUuid,
             { kind: 'all' },
+        );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Moves one change one place earlier or later in this person's draft.
+     * @summary Reorder a change in my semantic layer draft
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/draft/changes/{draftChangeUuid}/move')
+    @OperationId('moveSemanticLayerDraftChange')
+    async moveDraftChange(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() draftChangeUuid: UUID,
+        @Body() body: ApiSemanticLayerDraftMoveRequest,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().moveDraftChange(
+            toSessionUser(req.account),
+            projectUuid,
+            draftChangeUuid,
+            body.direction,
         );
         return { status: 'ok', results: undefined };
     }

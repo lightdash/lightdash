@@ -316,6 +316,15 @@ const setup = ({
             findModelHistory,
             findDraftChanges: async () => drafts,
             findOtherDrafters: async () => otherDrafters,
+            swapDraftChanges: async (_owner, [first, second]) => {
+                const a = drafts.findIndex(
+                    (change) => change.draftChangeUuid === first,
+                );
+                const b = drafts.findIndex(
+                    (change) => change.draftChangeUuid === second,
+                );
+                [drafts[a], drafts[b]] = [drafts[b], drafts[a]];
+            },
             findPublishedSince: async () => publishedSince,
             findSettledDraftChanges: async () => [],
             createDraftChange: async ({ promptUuid, models }) => {
@@ -871,6 +880,57 @@ describe('SemanticStudioService', () => {
                     PROJECT_UUID,
                 ),
             ).toBeNull();
+        });
+    });
+
+    describe('the order of a draft', () => {
+        it('moves a change one place, and stays put at either end', async () => {
+            const context = setup();
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+            );
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel('label: Orders\n')],
+                null,
+            );
+            const order = () =>
+                context.drafts.map((change) => change.draftChangeUuid);
+            expect(order()).toEqual(['draft-1', 'draft-2']);
+            await context.service.moveDraftChange(
+                deployer,
+                PROJECT_UUID,
+                'draft-2',
+                'earlier',
+            );
+            expect(order()).toEqual(['draft-2', 'draft-1']);
+            await context.service.moveDraftChange(
+                deployer,
+                PROJECT_UUID,
+                'draft-2',
+                'earlier',
+            );
+            expect(order()).toEqual(['draft-2', 'draft-1']);
+            await expect(
+                context.service.moveDraftChange(
+                    deployer,
+                    PROJECT_UUID,
+                    'missing',
+                    'later',
+                ),
+            ).rejects.toThrow(NotFoundError);
+            await expect(
+                context.service.moveDraftChange(
+                    viewer,
+                    PROJECT_UUID,
+                    'draft-1',
+                    'later',
+                ),
+            ).rejects.toThrow(ForbiddenError);
         });
     });
 

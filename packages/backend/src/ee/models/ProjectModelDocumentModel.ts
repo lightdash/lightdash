@@ -1,4 +1,5 @@
 import {
+    NotFoundError,
     type SemanticLayerDraftModelInput,
     type SemanticLayerModelChange,
     type SemanticLayerModelCode,
@@ -228,6 +229,39 @@ export class ProjectModelDocumentModel {
                 models: `${ProjectModelDraftChangesTableName}.models`,
             })
             .orderBy(`${ProjectModelDraftChangesTableName}.created_at`, 'asc');
+    }
+
+    /**
+     * Swaps the place of two of a person's draft changes. A draft has no order of
+     * its own beyond when each change was made, so the two trade times.
+     */
+    async swapDraftChanges(
+        owner: DraftOwner,
+        [first, second]: [string, string],
+    ): Promise<void> {
+        const table = ProjectModelDraftChangesTableName;
+        await this.database.transaction(async (trx) => {
+            const timeOf = (uuid: string) =>
+                trx(table)
+                    .select('created_at')
+                    .where('project_model_draft_change_uuid', uuid);
+            // One statement, so each side reads the other's time as it was, at the precision the database keeps.
+            const swapped = await ProjectModelDocumentModel.openDraftChanges(
+                trx,
+                owner,
+            )
+                .whereIn('project_model_draft_change_uuid', [first, second])
+                .update({
+                    created_at: trx.raw(
+                        'coalesce(case project_model_draft_change_uuid when ? then (?) else (?) end, created_at)',
+                        [first, timeOf(second), timeOf(first)],
+                    ),
+                });
+            // Rolls back a swap that found only one of the two.
+            if (swapped !== 2) {
+                throw new NotFoundError('Nothing in the draft matches');
+            }
+        });
     }
 
     /** The models other people have unpublished changes to, with who; never what the changes are. */

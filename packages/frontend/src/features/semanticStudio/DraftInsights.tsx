@@ -8,6 +8,7 @@ import {
     type SemanticLayerDraftModel,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Anchor,
     Box,
     Button,
@@ -22,6 +23,8 @@ import {
     IconCircleCheck,
     IconCircleDashed,
     IconAlertTriangle,
+    IconArrowDown,
+    IconArrowUp,
     IconGitMerge,
     IconTrash,
     IconUsers,
@@ -38,6 +41,7 @@ import classes from './DraftInsights.module.css';
 import { describeShift, pickComparedMetrics } from './metricComparison';
 import {
     useDiscardDraftChange,
+    useMoveDraftChange,
     useSemanticLayerDraftUsage,
 } from './useSemanticLayerModel';
 
@@ -81,10 +85,13 @@ export const ModelNotices: FC<{ model: SemanticLayerDraftModel }> = ({
 const ChangeRow: FC<{
     projectUuid: string;
     index: number;
+    /** How many changes the draft has, to know which way this one can move. */
+    count: number;
     change: SemanticLayerDraft['changes'][number];
     onAskAgent: (prompt: string) => void;
-}> = ({ projectUuid, index, change, onAskAgent }) => {
+}> = ({ projectUuid, index, count, change, onAskAgent }) => {
     const discard = useDiscardDraftChange(projectUuid);
+    const move = useMoveDraftChange(projectUuid);
     const ago = useTimeAgo(change.createdAt);
     const failed = change.models.filter(({ error }) => error !== null);
     return (
@@ -103,19 +110,72 @@ const ChangeRow: FC<{
                 </Text>
             </Box>
             {failed.length > 0 ? (
-                <Button
-                    size="compact-xs"
-                    variant="default"
-                    onClick={() =>
-                        onAskAgent(
-                            `One of my changes no longer applies. ${failed
-                                .map(({ model, error }) => `${model}: ${error}`)
-                                .join(' ')} Propose a change that fixes it.`,
-                        )
-                    }
-                >
-                    Fix it
-                </Button>
+                <Tooltip label="Discards this change and has the agent redo it on the model as it is now.">
+                    <Button
+                        size="compact-xs"
+                        variant="default"
+                        loading={discard.isLoading}
+                        onClick={() =>
+                            // The agent adds changes and cannot repair a stored one, so the stale one goes first.
+                            discard.mutate(change.draftChangeUuid, {
+                                onSuccess: () =>
+                                    onAskAgent(
+                                        [
+                                            'A change in development stopped applying, so I discarded it.',
+                                            change.question
+                                                ? `It was asked for with: "${change.question}"`
+                                                : null,
+                                            `It failed with: ${failed
+                                                .map(
+                                                    ({ model, error }) =>
+                                                        `${model}: ${error}`,
+                                                )
+                                                .join(' ')}`,
+                                            'Read the model as it is now and propose that change again so it applies.',
+                                        ]
+                                            .filter(Boolean)
+                                            .join(' '),
+                                    ),
+                            })
+                        }
+                    >
+                        Fix it
+                    </Button>
+                </Tooltip>
+            ) : null}
+            {count > 1 ? (
+                <Group gap={0} wrap="nowrap" flex="none">
+                    <Tooltip label="Apply earlier">
+                        <ActionIcon
+                            size="sm"
+                            aria-label="Apply earlier"
+                            disabled={index === 0 || move.isLoading}
+                            onClick={() =>
+                                move.mutate({
+                                    draftChangeUuid: change.draftChangeUuid,
+                                    direction: 'earlier',
+                                })
+                            }
+                        >
+                            <MantineIcon icon={IconArrowUp} />
+                        </ActionIcon>
+                    </Tooltip>
+                    <Tooltip label="Apply later">
+                        <ActionIcon
+                            size="sm"
+                            aria-label="Apply later"
+                            disabled={index === count - 1 || move.isLoading}
+                            onClick={() =>
+                                move.mutate({
+                                    draftChangeUuid: change.draftChangeUuid,
+                                    direction: 'later',
+                                })
+                            }
+                        >
+                            <MantineIcon icon={IconArrowDown} />
+                        </ActionIcon>
+                    </Tooltip>
+                </Group>
             ) : null}
             <ConfirmDeleteButton
                 size="sm"
@@ -145,6 +205,7 @@ export const ChangeQueue: FC<{
                 key={change.draftChangeUuid}
                 projectUuid={projectUuid}
                 index={index}
+                count={draft.changes.length}
                 change={change}
                 onAskAgent={onAskAgent}
             />

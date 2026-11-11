@@ -5,6 +5,7 @@ import {
     type SemanticLayerDraft,
     type SemanticLayerDraftApplyResult,
     type SemanticLayerDraftImpact,
+    type SemanticLayerDraftMoveDirection,
     type SemanticLayerDraftUsage,
     type SemanticLayerModelCode,
     type SemanticLayerStatus,
@@ -85,12 +86,15 @@ export const useSemanticLayerModel = (projectUuid: string, modelName: string) =>
     );
 
 /** This person's draft, replayed on what is live; empty for someone who cannot change the project. */
-export const useSemanticLayerDraft = (projectUuid: string) =>
+export const useSemanticLayerDraft = (
+    projectUuid: string,
+    enabled: boolean = true,
+) =>
     useGet<SemanticLayerDraft>(
         [DRAFT_KEY, projectUuid],
         projectUuid,
         '/draft',
-        true,
+        enabled,
         undefined,
         // A draft is replayed on what is live at each read, so reading again is how a person learns that live moved.
         DRAFT_POLL_MS,
@@ -222,6 +226,22 @@ export const useDiscardDraftChange = (projectUuid: string) =>
             body: undefined,
         }),
         errorTitle: 'Could not discard',
+        changesLive: false,
+    });
+
+/** Moves one change one place earlier or later in the draft. */
+export const useMoveDraftChange = (projectUuid: string) =>
+    useWrite<
+        undefined,
+        { draftChangeUuid: string; direction: SemanticLayerDraftMoveDirection }
+    >({
+        projectUuid,
+        request: ({ draftChangeUuid, direction }) => ({
+            path: `/draft/changes/${draftChangeUuid}/move`,
+            method: 'POST',
+            body: JSON.stringify({ direction }),
+        }),
+        errorTitle: 'Could not move',
         changesLive: false,
     });
 

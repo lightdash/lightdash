@@ -366,6 +366,23 @@ describe('Project model documents on PostgreSQL', () => {
         ).toBe(0);
     });
 
+    test('two draft changes trade places', async () => {
+        const first = await draft(['orders']);
+        const second = await draft(['customers']);
+        expect(await draftedModels()).toEqual([['orders'], ['customers']]);
+        await model.swapDraftChanges({ projectUuid, userUuid }, [
+            first,
+            second,
+        ]);
+        expect(await draftedModels()).toEqual([['customers'], ['orders']]);
+        await expect(
+            model.swapDraftChanges({ projectUuid, userUuid }, [
+                first,
+                '00000000-0000-0000-0000-000000000000',
+            ]),
+        ).rejects.toThrow('Nothing in the draft matches');
+    });
+
     test('a draft applied as a pull request keeps the link', async () => {
         const drafts = { changeUuids: [await draft(['orders'])], model: null };
         await model.updateDraftChangeStatus({
