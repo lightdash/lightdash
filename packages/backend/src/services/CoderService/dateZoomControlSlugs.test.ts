@@ -37,6 +37,23 @@ describe('getDateZoomConfigWithIds', () => {
         expect(controls[2].uuid).not.toMatch(/^(kept|week-uuid|month-uuid)$/);
     });
 
+    it('keeps an explicit file uuid over a name or slug match', () => {
+        const { controls } = getDateZoomConfigWithIds(
+            {
+                controls: [
+                    {
+                        uuid: 'explicit',
+                        slug: 'week',
+                        name: 'Week',
+                        granularity: 'WEEK',
+                    },
+                ],
+            },
+            saved,
+        );
+        expect(controls[0].uuid).toBe('explicit');
+    });
+
     it('never reuses a saved uuid another control in the file keeps', () => {
         const { controls } = getDateZoomConfigWithIds(
             {
@@ -79,7 +96,7 @@ describe('getDateZoomConfigWithIds', () => {
         expect(tileTargets.c).toBe(legacy);
     });
 
-    it('matches a uuid-less control by its file slug before its name', () => {
+    it('gives a renamed uuid-less control a new uuid, as parameters: its slug follows the old name', () => {
         const { controls } = getDateZoomConfigWithIds(
             {
                 controls: [
@@ -88,7 +105,23 @@ describe('getDateZoomConfigWithIds', () => {
             },
             saved,
         );
-        expect(controls[0].uuid).toBe('week-uuid');
+        expect(controls[0].uuid).not.toMatch(/^(week|month)-uuid$/);
+    });
+
+    it('keeps the same uuids on every upload of the same uuid-less file, slugs swapped across names', () => {
+        const file = {
+            controls: [
+                { slug: 'week', name: 'Month', granularity: 'MONTH' },
+                { slug: 'month', name: 'Week', granularity: 'WEEK' },
+            ],
+        };
+        const first = getDateZoomConfigWithIds(file, saved).controls;
+        const second = getDateZoomConfigWithIds(file, first).controls;
+        expect(first.map(({ uuid }) => uuid)).toEqual([
+            'month-uuid',
+            'week-uuid',
+        ]);
+        expect(second).toEqual(first);
     });
 
     it('matches same-named controls by the slugs a download derives', () => {
@@ -110,6 +143,28 @@ describe('getDateZoomConfigWithIds', () => {
             'second-uuid',
             'first-uuid',
         ]);
+    });
+
+    it('keeps same-named controls on their uuids on the first and second upload of a downloaded file', () => {
+        const twins: DateZoomControl[] = [
+            { uuid: 'first-uuid', name: 'Zoom', granularity: 'WEEK' },
+            { uuid: 'second-uuid', name: 'Zoom', granularity: 'MONTH' },
+        ];
+        const [first, second] = dateZoomSlugs(twins);
+        // As a download writes it, without the uuids
+        const file = {
+            controls: [
+                { slug: first, name: 'Zoom', granularity: 'WEEK' },
+                { slug: second, name: 'Zoom', granularity: 'MONTH' },
+            ],
+        };
+        const once = getDateZoomConfigWithIds(file, twins).controls;
+        const twice = getDateZoomConfigWithIds(file, once).controls;
+        expect(once.map(({ uuid }) => uuid)).toEqual([
+            'first-uuid',
+            'second-uuid',
+        ]);
+        expect(twice).toEqual(once);
     });
 
     it('never takes by slug a saved uuid another control in the file keeps', () => {

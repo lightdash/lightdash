@@ -22,7 +22,7 @@ export const dateZoomSlugs = (
 type UploadedControl = Pick<DateZoomControlUploadAsCode, 'uuid' | 'slug'> &
     Pick<DateZoomControl, 'name'>;
 
-/** Controls keep a file uuid, else the saved uuid their slug or name matches, else a new one; targets resolve `controlSlug` */
+/** Controls keep a file uuid, else the saved uuid their name matches (the slug picks among same-named), else a new one; targets resolve `controlSlug` */
 export const getDateZoomConfigWithIds = <C extends UploadedControl>(
     config: {
         controls?: C[];
@@ -52,11 +52,16 @@ export const getDateZoomConfigWithIds = <C extends UploadedControl>(
     const usedUuids = new Set(
         fileControls.flatMap(({ uuid }) => (uuid === undefined ? [] : [uuid])),
     );
-    // A file slug first matches the slug a download derives for a saved control
+    // Identity follows the name, as parameters; a file slug only picks among
+    // saved controls of that same name (twins download as `zoom`, `zoom-1`)
     const savedSlugs = dateZoomSlugs(existing.map(({ name }) => ({ name })));
-    const slugMatches = fileControls.map(({ uuid, slug }) => {
+    const slugMatches = fileControls.map(({ uuid, slug, name }) => {
         if (uuid !== undefined || slug === undefined) return undefined;
-        const match = existing[savedSlugs.indexOf(slug)]?.uuid;
+        const index = savedSlugs.indexOf(slug);
+        const match =
+            index !== -1 && baseSlug(existing[index]) === baseSlug({ name })
+                ? existing[index].uuid
+                : undefined;
         if (match === undefined || usedUuids.has(match)) return undefined;
         usedUuids.add(match);
         return match;
