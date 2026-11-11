@@ -39,10 +39,12 @@ import {
 import { useNavigate, useSearchParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SemanticStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/SemanticStudioAgent';
+import { StudioDevelopmentBar } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/StudioDevelopmentBar';
 import {
     useChatOpen,
     useSemanticStudioChat,
 } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
+import { useStudioPullRequest } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
 import { useProject } from '../../hooks/useProject';
 import { LiveSourceBetaBadge } from '../externalConnections/liveSources/LiveSourceBetaBadge';
 import { useExternalSourceActions } from './externalSources/externalSourceActions';
@@ -873,6 +875,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     );
     // A dbt project has no draft and no model code here: its files are in its repository.
     const keepsDraft = useKeepsSemanticLayerDraft(view.project.id);
+    const pullRequest = useStudioPullRequest(view.project.id);
+    const development = !keepsDraft && pullRequest?.isOpen ? pullRequest : null;
     const isCode =
         chat.isAvailable &&
         keepsDraft &&
@@ -1017,7 +1021,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         />
                     )}
                     <Box className={classes.workspace}>
-                        {pane === 'intro' || !chat.isAvailable ? null : (
+                        {pane === 'intro' ||
+                        !chat.isAvailable ||
+                        // A dbt project has nothing to put here until its conversation has a pull request.
+                        (!keepsDraft && !development && isChatOpen) ? null : (
                             <Group
                                 className={classes.toolbar}
                                 justify="space-between"
@@ -1031,6 +1038,12 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         value={isCode ? 'code' : 'preview'}
                                         onChange={switchView}
                                         data={VIEW_OPTIONS}
+                                    />
+                                ) : null}
+                                {development ? (
+                                    <StudioDevelopmentBar
+                                        projectUuid={view.project.id}
+                                        pullRequest={development}
                                     />
                                 ) : null}
                                 <Group gap="xs" wrap="nowrap" miw={0} ml="auto">

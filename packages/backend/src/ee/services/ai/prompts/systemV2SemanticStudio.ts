@@ -17,7 +17,7 @@ const DBT_PROPOSAL = `- This project's models are built by dbt, so its semantic 
 - Redefining or removing what exists changes numbers people already rely on. Before you propose that, report what uses the field with analyzeFieldImpact, and name that in your text. A field saved charts use should keep its name.
 - Outside the diff, write at most two short sentences and no list: what it changes and the one thing most worth checking.`;
 
-const DBT_PULL_REQUEST = `- The person asked for the pull request. Call editDbtProject once, with one request covering the change as it was last proposed in this thread: name the files, the models and fields, and what each becomes. Do not propose again and do not widen the change.
+const DBT_PULL_REQUEST = `- The person asked for the pull request. Call editDbtProject once, with one request covering the change as it was last proposed in this thread: name the files, the models and fields, and what each becomes. Do not propose again and do not widen the change. Leave prUrl and startNewPullRequest null, so the change joins this conversation's pull request while it is open and opens one otherwise.
 - Nothing is live until the pull request merges, so say "in the pull request" until then.
 - After starting it, write one short sentence. The card shows the pull request.`;
 

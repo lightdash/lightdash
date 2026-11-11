@@ -42,6 +42,7 @@ import {
     useStudioAgent,
     type StoredThread,
 } from './useSemanticStudioChat';
+import { useStudioPullRequest } from './useStudioPullRequest';
 
 type OpenModel = { modelName: string | null; fieldName: string | null };
 
@@ -246,6 +247,7 @@ const ExistingThread: FC<
             }),
     );
     const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
+    const pullRequest = useStudioPullRequest(projectUuid);
     if (isLoading || !thread) {
         return (
             <Center flex={1}>
@@ -274,13 +276,17 @@ const ExistingThread: FC<
                     onClick={() =>
                         void sendMessage({
                             enableSqlMode: sqlMode,
-                            prompt: 'Open the pull request.',
+                            prompt: pullRequest?.isOpen
+                                ? 'Save this to the pull request.'
+                                : 'Open the pull request.',
                             // The pull request tools only join a turn that carries this hint.
                             toolHints: ['editDbtProject'],
                         })
                     }
                 >
-                    Open pull request
+                    {pullRequest?.isOpen
+                        ? 'Save to pull request'
+                        : 'Open pull request'}
                 </Button>
             ) : null}
             <AgentChatInput
