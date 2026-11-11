@@ -134,7 +134,7 @@ import {
 import { validateNativeSandbox } from './nativeValidation';
 import { BitbucketProvider } from './providers/BitbucketProvider';
 import { GithubProvider } from './providers/GithubProvider';
-import { GitlabProvider } from './providers/GitlabProvider';
+import { assertSameHost, GitlabProvider } from './providers/GitlabProvider';
 import type { GitProvider } from './providers/GitProvider';
 import { readStagedChanges } from './providers/sandboxGit';
 import { buildGatherRepoContextScript } from './scripts';
@@ -1017,6 +1017,7 @@ export class AiWritebackService extends BaseService {
                 );
             }
             const connection = parseGitlabConnection(dbtConnection);
+            assertSameHost(connection, installation);
             // parseGitlabConnection omits the branch; read it from the typed
             // connection (GitLab dbt config always carries a branch).
             return {
@@ -1198,7 +1199,12 @@ export class AiWritebackService extends BaseService {
             );
         }
         const { token } = installation;
-        const { hostDomain } = parseGitlabConnection(project.dbtConnection);
+        const connection = parseGitlabConnection(project.dbtConnection);
+        // The org app-install token only authenticates against the GitLab
+        // instance it was issued by — never a dbt-connection host, which
+        // project developers control (same guard as the writeback clone path).
+        assertSameHost(connection, installation);
+        const { hostDomain } = connection;
         // The GitLab client is split on host format: makeGitlabRequest-based
         // reads (createGitlabRepoSource) take a BARE domain and prepend https,
         // while getGitlabProjects takes a FULL instance URL. Derive both from

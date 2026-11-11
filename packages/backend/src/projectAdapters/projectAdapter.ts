@@ -27,7 +27,10 @@ import {
     ManifestInput,
 } from './dbtManifestProjectAdapter';
 import { DbtNoneCredentialsProjectAdapter } from './dbtNoneCredentialsProjectAdapter';
-import { getGithubToken } from './githubAuthorization';
+import {
+    getGithubCloneHostDomain,
+    getGithubToken,
+} from './githubAuthorization';
 import { NativeGitProjectAdapter } from './nativeGitProjectAdapter';
 
 export const projectAdapterFromConfig = async (
@@ -136,7 +139,7 @@ export const projectAdapterFromConfig = async (
                     repository: config.repository,
                     branch: config.branch,
                     projectSubPath: config.project_sub_path,
-                    hostDomain: config.host_domain,
+                    hostDomain: getGithubCloneHostDomain(config),
                 });
             }
             return new DbtGithubProjectAdapter({
@@ -151,7 +154,7 @@ export const projectAdapterFromConfig = async (
                 githubRepository: config.repository,
                 githubBranch: config.branch,
                 projectDirectorySubPath: config.project_sub_path,
-                hostDomain: config.host_domain,
+                hostDomain: getGithubCloneHostDomain(config),
                 ...resolveTarget(),
                 targetName: config.target,
                 environment: config.environment,
