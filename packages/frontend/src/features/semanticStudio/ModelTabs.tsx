@@ -30,6 +30,8 @@ import { getLightdashMonacoTheme } from '../sqlRunner/utils/monaco';
 import { ChangeDiff } from './ChangeDiff';
 import {
     CHANGE_KIND_VERBS,
+    DRAFT_PARAM,
+    DRAFT_REVIEW,
     getChangeKind,
     changeTitle,
     findFieldLine,
@@ -159,10 +161,13 @@ const HistoryPane: FC<{
     history: SemanticLayerModelChange[];
 }> = ({ projectUuid, modelName, history }) => {
     const undo = useUndoSemanticLayerChanges(projectUuid);
+    const { data: draft } = useSemanticLayerDraft(projectUuid);
+    const [, setSearchParams] = useSearchParams();
+    const unpublished = draft?.models.find(({ model }) => model === modelName);
     const [open, setOpen] = useState<string | null>(
         history[0]?.changeSetUuid ?? null,
     );
-    if (history.length === 0) {
+    if (history.length === 0 && !unpublished) {
         return (
             <Paper variant="dotted" p="md">
                 <Text fz="sm" c="dimmed">
@@ -177,6 +182,29 @@ const HistoryPane: FC<{
             poolOptions={PIERRE_POOL_OPTIONS}
             highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
         >
+            {unpublished ? (
+                <Paper variant="dotted" p="sm" mb="sm">
+                    <Group gap="sm" justify="space-between" wrap="nowrap">
+                        <Box miw={0}>
+                            <Text fz="sm">Your changes in development</Text>
+                            <Text fz="xs" c="dimmed">
+                                Not live. Only you see them until you publish;
+                                everything below is live.
+                            </Text>
+                        </Box>
+                        <Button
+                            size="compact-xs"
+                            variant="default"
+                            flex="none"
+                            onClick={() =>
+                                setSearchParams({ [DRAFT_PARAM]: DRAFT_REVIEW })
+                            }
+                        >
+                            Review
+                        </Button>
+                    </Group>
+                </Paper>
+            ) : null}
             <Accordion variant="contained" value={open} onChange={setOpen}>
                 {history.map((change) => (
                     <Accordion.Item

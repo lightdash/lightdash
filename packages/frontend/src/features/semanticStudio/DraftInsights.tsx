@@ -11,6 +11,7 @@ import {
 import {
     ActionIcon,
     Anchor,
+    Badge,
     Box,
     Button,
     Group,
@@ -27,11 +28,12 @@ import {
     IconArrowDown,
     IconArrowUp,
     IconGitMerge,
+    IconTable,
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { useState, type FC } from 'react';
+import { useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -43,6 +45,12 @@ import {
 } from './developmentView';
 import classes from './DraftInsights.module.css';
 import { describeShift, pickComparedMetrics } from './metricComparison';
+import {
+    CHANGE_KIND_LABELS,
+    describeModelChange,
+    getChangeKind,
+    summarizeModelChanges,
+} from './modelCode';
 import {
     useDiscardDraftChange,
     useKeepDraftModel,
@@ -592,14 +600,23 @@ export const MetricComparison: FC<{
     );
 };
 
-type CheckState = 'ok' | 'attention' | 'unknown';
+type CheckState = 'ok' | 'attention' | 'unknown' | 'note';
 
 const CHECK_ICONS = {
     ok: IconCircleCheck,
     attention: IconAlertTriangle,
     unknown: IconCircleDashed,
+    note: IconUsers,
 };
-const CHECK_COLORS = { ok: 'green', attention: 'orange', unknown: 'dimmed' };
+const CHECK_COLORS = {
+    ok: 'green',
+    attention: 'orange',
+    unknown: 'dimmed',
+    note: 'dimmed',
+};
+
+const labelOf = (entry: SemanticLayerDraftModel): string =>
+    describeModelChange(entry.model, entry).title;
 
 /** What is worth knowing at the moment of publishing, each as one line. */
 export const PublishChecklist: FC<{
@@ -607,9 +624,7 @@ export const PublishChecklist: FC<{
     model: string | null;
     /** Saved content the draft breaks; null while that is not known. */
     breaks: number | null;
-    /** Saved charts that read a field the draft defines differently; null while that is not known. */
-    chartsThatChange: number | null;
-}> = ({ draft, model, breaks, chartsThatChange }) => {
+}> = ({ draft, model, breaks }) => {
     const models = draft.models.filter(
         (entry) => model === null || entry.model === model,
     );
@@ -646,27 +661,19 @@ export const PublishChecklist: FC<{
         breaks === null
             ? {
                   state: 'unknown',
-                  text: 'Saved charts and dashboards are not checked yet',
+                  text: 'Saved charts and dashboards have not been checked for breaks yet',
               }
             : breaks > 0
               ? {
                     state: 'attention',
-                    text: `${breaks} saved ${breaks === 1 ? 'item' : 'items'} would break`,
+                    text: `${breaks} saved ${breaks === 1 ? 'chart or dashboard stops' : 'charts or dashboards stop'} working`,
                 }
               : { state: 'ok', text: 'No saved chart or dashboard breaks' },
-        ...(chartsThatChange !== null && chartsThatChange > 0
-            ? [
-                  {
-                      state: 'attention' as const,
-                      text: `${chartsThatChange} saved ${chartsThatChange === 1 ? 'chart reads' : 'charts read'} a field you defined differently`,
-                  },
-              ]
-            : []),
         ...(conflicted.length > 0
             ? [
                   {
                       state: 'attention' as const,
-                      text: `${listNames(conflicted.map((entry) => entry.model))} changed live in parts you changed too. Keep yours or combine them to publish`,
+                      text: `${listNames(conflicted.map(labelOf))} changed live in parts you changed too. Choose which to keep in the review`,
                   },
               ]
             : []),
@@ -679,7 +686,7 @@ export const PublishChecklist: FC<{
                       )
                           ? ('ok' as const)
                           : ('attention' as const),
-                      text: `${listNames(movedUnder.map((entry) => entry.model))} changed live after you started, outside what you changed`,
+                      text: `${listNames(movedUnder.map(labelOf))} changed live after you started, outside what you changed. Yours goes on top`,
                   },
               ]
             : []),
@@ -694,35 +701,152 @@ export const PublishChecklist: FC<{
         ...(others.length > 0
             ? [
                   {
-                      state: 'attention' as const,
-                      text: `${listNames(others)} ${others.length === 1 ? 'has' : 'have'} changes in development on the same models`,
+                      state: 'note' as const,
+                      text: `${listNames(others)} ${others.length === 1 ? 'has' : 'have'} unpublished changes to the same models. Publishing leaves theirs as they are`,
                   },
               ]
             : []),
     ];
+    const passed = checks.filter(({ state }) => state === 'ok');
+    const shown = checks.filter(({ state }) => state !== 'ok');
     return (
         <Stack gap={6}>
-            {checks.map(({ state, text }) => (
-                <Group key={text} gap={8} wrap="nowrap">
-                    <Tooltip
-                        label={
-                            state === 'ok'
-                                ? 'Fine'
-                                : state === 'attention'
-                                  ? 'Worth a look before publishing'
-                                  : 'Not known yet'
-                        }
-                    >
+            {shown.map(({ state, text }) => (
+                <Group key={text} gap={8} wrap="nowrap" align="flex-start">
+                    <Box flex="none" display="flex" mt={2}>
                         <MantineIcon
                             icon={CHECK_ICONS[state]}
                             size={16}
                             color={CHECK_COLORS[state]}
                         />
-                    </Tooltip>
+                    </Box>
                     <Text fz="sm">{text}</Text>
                 </Group>
             ))}
+            {passed.length > 0 ? (
+                <Group gap={8} wrap="nowrap" align="flex-start">
+                    <Box flex="none" display="flex" mt={2}>
+                        <MantineIcon
+                            icon={CHECK_ICONS.ok}
+                            size={16}
+                            color={CHECK_COLORS.ok}
+                        />
+                    </Box>
+                    <Text fz="sm" c="dimmed">
+                        {passed.map(({ text }) => text).join('. ')}.
+                    </Text>
+                </Group>
+            ) : null}
         </Stack>
+    );
+};
+
+const Section: FC<{ title: string; children: ReactNode }> = ({
+    title,
+    children,
+}) => (
+    <Stack gap={6}>
+        <Text fz="xs" fw={500} c="dimmed">
+            {title}
+        </Text>
+        {children}
+    </Stack>
+);
+
+/** What a publish carries, in the words of the models and charts it touches. */
+export const PublishSummary: FC<{
+    projectUuid: string;
+    draft: SemanticLayerDraft;
+    model: string | null;
+}> = ({ projectUuid, draft, model }) => {
+    const { data: usage } = useSemanticLayerDraftUsage(projectUuid);
+    const inScope = (name: string) => model === null || name === model;
+    const models = draft.models.filter((entry) => inScope(entry.model));
+    const read = (usage?.fields ?? []).filter((field) => inScope(field.model));
+    return (
+        <>
+            <Section title="Going live">
+                {models.map((entry) => (
+                    <Group
+                        key={entry.model}
+                        gap="sm"
+                        wrap="nowrap"
+                        align="flex-start"
+                    >
+                        <MantineIcon
+                            icon={IconTable}
+                            size={16}
+                            color="dimmed"
+                        />
+                        <Box miw={0} flex={1}>
+                            <Group gap={6} wrap="nowrap">
+                                <Text fz="sm" fw={500} truncate>
+                                    {labelOf(entry)}
+                                </Text>
+                                <Badge size="xs">
+                                    {CHANGE_KIND_LABELS[getChangeKind(entry)]}
+                                </Badge>
+                            </Group>
+                            <Text fz="xs" c="dimmed">
+                                {summarizeModelChanges(entry.model, [
+                                    // A part changed twice reads once, as its last change.
+                                    ...new Map(
+                                        draft.changes
+                                            .flatMap((change) => change.models)
+                                            .filter(
+                                                (item) =>
+                                                    item.model === entry.model,
+                                            )
+                                            .flatMap(({ changes }) => changes)
+                                            .map((change) => [
+                                                change.path,
+                                                change,
+                                            ]),
+                                    ).values(),
+                                ]).join('. ')}
+                            </Text>
+                        </Box>
+                    </Group>
+                ))}
+            </Section>
+            <Section title="What people will notice">
+                {read.length === 0 ? (
+                    <Text fz="sm" c="dimmed">
+                        {usage
+                            ? 'No saved chart reads what you changed.'
+                            : 'Looking for saved charts that read what you changed.'}
+                    </Text>
+                ) : (
+                    read.map((field) => (
+                        <Box key={field.fieldId}>
+                            <Text fz="sm">
+                                <Text span fw={500}>
+                                    {field.label}
+                                </Text>{' '}
+                                {field.kind === 'removed'
+                                    ? 'is removed'
+                                    : 'is defined differently'}
+                            </Text>
+                            <Text fz="xs" c="dimmed">
+                                {[
+                                    field.charts.length > 0
+                                        ? `${listNames(field.charts.map(({ name }) => name))} ${field.kind === 'removed' ? (field.charts.length === 1 ? 'stops working' : 'stop working') : field.charts.length === 1 ? 'shows a different number' : 'show different numbers'}`
+                                        : null,
+                                    field.dashboards > 0
+                                        ? `on ${field.dashboards} ${field.dashboards === 1 ? 'dashboard' : 'dashboards'}`
+                                        : null,
+                                    field.scheduledDeliveries > 0
+                                        ? `in ${field.scheduledDeliveries} scheduled ${field.scheduledDeliveries === 1 ? 'delivery' : 'deliveries'}`
+                                        : null,
+                                ]
+                                    .filter(Boolean)
+                                    .join(', ')}
+                            </Text>
+                        </Box>
+                    ))
+                )}
+            </Section>
+        </>
     );
 };
 

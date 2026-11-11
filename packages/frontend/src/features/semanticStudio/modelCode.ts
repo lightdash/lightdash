@@ -1,5 +1,6 @@
 import {
     assertUnreachable,
+    diffModelDocuments,
     type ModelFragmentChange,
     type ModelFragmentRefusal,
     type SemanticLayerModelChange,
@@ -39,13 +40,43 @@ export const findFieldLine = (
     return index === -1 ? null : index + 1;
 };
 
+/** A changed part in plain words: the key and what it is on, or the name of a whole field or join. */
+const describePart = (path: string): string => {
+    const segments = path.split('.');
+    const isKey = segments.length % 2 === 1 && segments.length > 1;
+    return isKey
+        ? `${segments.at(-1)} of ${segments.at(-2)}`
+        : (segments.at(-1) ?? path);
+};
+
+/** What a published change did, for one with no question to name it. */
+const describePublished = (
+    before: string | null,
+    after: string | null,
+): string => {
+    if (before === null) return 'Published a new model';
+    if (after === null) return 'Removed the model';
+    const parts = diffModelDocuments(before, after).map(({ path }) =>
+        describePart(path),
+    );
+    if (parts.length === 0) return 'Published with no change to this model';
+    return `Changed ${parts.slice(0, 2).join(' and ')}${
+        parts.length > 2 ? ` and ${parts.length - 2} more` : ''
+    }`;
+};
+
 export const changeTitle = ({
     source,
     question,
-}: Pick<SemanticLayerModelChange, 'source' | 'question'>): string => {
+    contentBefore,
+    contentAfter,
+}: Pick<
+    SemanticLayerModelChange,
+    'source' | 'question' | 'contentBefore' | 'contentAfter'
+>): string => {
     switch (source) {
         case 'draft':
-            return question ?? 'Applied a draft';
+            return question ?? describePublished(contentBefore, contentAfter);
         case 'undo':
             return 'Undid an earlier change';
         default:

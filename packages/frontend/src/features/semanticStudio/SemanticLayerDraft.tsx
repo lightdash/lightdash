@@ -18,7 +18,9 @@ import {
     IconExternalLink,
     IconEye,
     IconEyeOff,
+    IconGitPullRequest,
     IconTable,
+    IconWorldUpload,
 } from '@tabler/icons-react';
 import { countBy, uniqBy } from 'es-toolkit/compat';
 import { useEffect, useRef, useState, type FC } from 'react';
@@ -42,6 +44,7 @@ import {
     DraftExplainer,
     PublishChecklist,
     PublishEffect,
+    PublishSummary,
 } from './DraftInsights';
 import {
     CHANGE_KIND_LABELS,
@@ -61,7 +64,6 @@ import {
     useDiscardSemanticLayerDraft,
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
-    useSemanticLayerDraftUsage,
 } from './useSemanticLayerModel';
 
 const KIND_NOUNS: [ChangeKind, string][] = [
@@ -192,11 +194,12 @@ const ApplyModal: FC<{
     onClose: () => void;
 }> = ({ projectUuid, draft, model, onClose }) => {
     const impact = useSemanticLayerDraftImpact(projectUuid, model);
-    const usage = useSemanticLayerDraftUsage(projectUuid);
     const apply = useApplySemanticLayerDraft(projectUuid);
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const { showToastSuccess } = useToaster();
-    const models = model ?? draft.models.map((m) => m.model).join(', ');
+    const scoped = draft.models.filter(
+        (entry) => model === null || entry.model === model,
+    );
     const confirmLabel = asPullRequest ? 'Open pull request' : 'Publish';
     // Applying never waits for the check: an unchecked draft is applied knowingly, like one that breaks something.
     const isRisky =
@@ -205,13 +208,19 @@ const ApplyModal: FC<{
         <MantineModal
             opened
             onClose={onClose}
-            title={model === null ? 'Publish your changes' : `Publish ${model}`}
+            icon={asPullRequest ? IconGitPullRequest : IconWorldUpload}
+            title={
+                asPullRequest ? 'Open a pull request' : 'Publish to everyone'
+            }
+            subtitle={
+                asPullRequest
+                    ? `${scoped.length} ${scoped.length === 1 ? 'model goes' : 'models go'} to your repository. Nothing is live until it merges.`
+                    : `${scoped.length} ${scoped.length === 1 ? 'model goes' : 'models go'} live for everyone on this project.`
+            }
             confirmLabel={isRisky ? `${confirmLabel} anyway` : confirmLabel}
             confirmLoading={apply.isLoading}
-            confirmDisabled={draft.models.some(
-                (entry) =>
-                    (model === null || entry.model === model) &&
-                    entry.reconciliation?.state === 'conflict',
+            confirmDisabled={scoped.some(
+                (entry) => entry.reconciliation?.state === 'conflict',
             )}
             onConfirm={() =>
                 apply.mutate(model, {
@@ -237,36 +246,31 @@ const ApplyModal: FC<{
                 })
             }
         >
-            <Stack gap="sm">
-                <Text fz="sm">
-                    {asPullRequest
-                        ? `Your changes to ${models} go to the project's repository as a pull request. They go live once it merges and the project refreshes.`
-                        : `Your changes to ${models} go live for everyone on this project. Undo is on each model's History tab.`}
-                </Text>
-                <PublishChecklist
+            <Stack gap="md">
+                <PublishSummary
+                    projectUuid={projectUuid}
                     draft={draft}
                     model={model}
-                    breaks={
-                        impact.data?.status === 'done'
-                            ? impact.data.breaks.length
-                            : null
-                    }
-                    chartsThatChange={
-                        usage.data
-                            ? new Set(
-                                  usage.data.fields
-                                      .filter(
-                                          (field) =>
-                                              model === null ||
-                                              field.model === model,
-                                      )
-                                      .flatMap(({ charts }) =>
-                                          charts.map(({ uuid }) => uuid),
-                                      ),
-                              ).size
-                            : null
-                    }
                 />
+                <Stack gap={6}>
+                    <Text fz="xs" fw={500} c="dimmed">
+                        Checks
+                    </Text>
+                    <PublishChecklist
+                        draft={draft}
+                        model={model}
+                        breaks={
+                            impact.data?.status === 'done'
+                                ? impact.data.breaks.length
+                                : null
+                        }
+                    />
+                </Stack>
+                {asPullRequest ? null : (
+                    <Text fz="xs" c="dimmed">
+                        You can undo this from each model's History tab.
+                    </Text>
+                )}
                 <DraftImpact projectUuid={projectUuid} model={model} />
                 <MessageList
                     variant="danger"
