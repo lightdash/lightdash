@@ -2180,6 +2180,7 @@ export class CoderService extends BaseService {
                       },
                       parameterControls: config?.parameterControls ?? [],
                       sections: config?.controlSections ?? [],
+                      dateZoomControls: config?.dateZoomConfig?.controls ?? [],
                   }
                 : undefined;
         const dashboardAsCode: DashboardWithSectionIds = {
@@ -5965,6 +5966,8 @@ export class CoderService extends BaseService {
                 filters: dashboardFilters,
                 parameterControls: dashboardConfig?.parameterControls ?? [],
                 sections: dashboardConfig?.controlSections ?? [],
+                dateZoomControls:
+                    dashboardConfig?.dateZoomConfig?.controls ?? [],
             };
             // An empty list renders like no list, so it isn't stored
             controlOrder =
@@ -5986,6 +5989,9 @@ export class CoderService extends BaseService {
                                   sections:
                                       dashboardWithDefaults.config
                                           ?.controlSections ?? [],
+                                  dateZoomControls:
+                                      dashboardWithResolvedTabs.config
+                                          ?.dateZoomConfig?.controls ?? [],
                               },
                               sources,
                           ),

@@ -11,7 +11,9 @@ import {
     type DashboardFilterRule,
     type DashboardFilterRuleAsCode,
     type DashboardParameterControlAsCode,
+    type DateZoomControlUploadAsCode,
 } from '@lightdash/common';
+import { dateZoomSlugs } from './dateZoomControlSlugs';
 import { controlSlugs } from './parameterControlSlugs';
 import { sectionSlugs } from './sectionSlugs';
 
@@ -20,6 +22,7 @@ type OrderedControls = Omit<DashboardControlSources, 'controlOrder'>;
 const ORDERABLE_KINDS = [
     DashboardControlRefKind.FILTER,
     DashboardControlRefKind.PARAMETER,
+    DashboardControlRefKind.DATE_ZOOM,
     DashboardControlRefKind.SECTION,
 ] as const;
 
@@ -36,6 +39,9 @@ type ControlSlugs = Record<OrderableKind, { id: string; slug: string }[]>;
 
 const withIds = (controls: { id: string }[], slugs: string[]) =>
     controls.map(({ id }, index) => ({ id, slug: slugs[index] }));
+
+const getDateZoomIds = ({ dateZoomControls }: OrderedControls) =>
+    (dateZoomControls ?? []).map(({ uuid }) => ({ id: uuid }));
 
 /** Each dimension then metric filter's slug, derived as a download writes them */
 export const getFilterSlugsAsCode = (controls: OrderedControls): string[] =>
@@ -56,6 +62,12 @@ const getDerivedControlSlugs = (controls: OrderedControls): ControlSlugs => ({
                 label,
                 parameters,
             })),
+        ),
+    ),
+    [DashboardControlRefKind.DATE_ZOOM]: withIds(
+        getDateZoomIds(controls),
+        dateZoomSlugs(
+            (controls.dateZoomControls ?? []).map(({ name }) => ({ name })),
         ),
     ),
     [DashboardControlRefKind.SECTION]: withIds(
@@ -90,6 +102,7 @@ export const getUploadedControlSlugs = (
         filters: Pick<DashboardFilterRuleAsCode, 'target' | 'slug'>[];
         parameterControls: DashboardParameterControlAsCode[];
         sections: Pick<DashboardControlSectionAsCode, 'name' | 'slug'>[];
+        dateZoomControls: Pick<DateZoomControlUploadAsCode, 'name' | 'slug'>[];
     },
     uploaded: OrderedControls,
 ): ControlSlugs => ({
@@ -100,6 +113,10 @@ export const getUploadedControlSlugs = (
     [DashboardControlRefKind.PARAMETER]: withIds(
         uploaded.parameterControls,
         controlSlugs(file.parameterControls),
+    ),
+    [DashboardControlRefKind.DATE_ZOOM]: withIds(
+        getDateZoomIds(uploaded),
+        dateZoomSlugs(file.dateZoomControls),
     ),
     [DashboardControlRefKind.SECTION]: withIds(
         uploaded.sections,
@@ -121,6 +138,7 @@ export const getControlOrderAsCode = (
             switch (control.kind) {
                 case DashboardControlRefKind.FILTER:
                 case DashboardControlRefKind.PARAMETER:
+                case DashboardControlRefKind.DATE_ZOOM:
                 case DashboardControlRefKind.SECTION: {
                     const slug = slugOf(control.kind, control.id);
                     const key = `${control.kind}:${slug}`;
@@ -134,8 +152,6 @@ export const getControlOrderAsCode = (
                         },
                     ];
                 }
-                case DashboardControlRefKind.DATE_ZOOM:
-                    return [];
                 default:
                     return assertUnreachable(
                         control,
@@ -169,8 +185,6 @@ export const getControlOrderWithIds = (
         if (typeof ref !== 'object' || ref === null)
             return reject(`Invalid entry ${JSON.stringify(ref)}`);
         const { kind, slug, newLine } = ref as Record<string, unknown>;
-        if (kind === DashboardControlRefKind.DATE_ZOOM)
-            return reject('Date zoom controls cannot be ordered yet');
         if (!isOrderableKind(kind) || typeof slug !== 'string')
             return reject(`Invalid entry ${JSON.stringify(ref)}`);
         if (newLine !== undefined && typeof newLine !== 'boolean')

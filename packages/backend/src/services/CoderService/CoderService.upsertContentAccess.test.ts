@@ -3948,7 +3948,7 @@ describe('CoderService dashboard control order as code', () => {
         return { ...file, config: { ...file.config!, controlOrder } };
     };
     const validSlugs =
-        'Valid slugs are filter: orders-status, orders-city, orders-total; parameter: region; section: calendar';
+        'Valid slugs are filter: orders-status, orders-city, orders-total; parameter: region; dateZoom: none; section: calendar';
     // The list for the bar a never-reordered dashboard renders
     const defaultList = [
         { kind: DashboardControlRefKind.FILTER, slug: 'orders-status' },
@@ -4808,9 +4808,9 @@ describe('CoderService dashboard control order as code', () => {
             'The section "calendar" appears more than once',
         ],
         [
-            'a date zoom ref',
+            'an unknown date zoom slug',
             [{ kind: 'dateZoom', slug: 'zoom' }],
-            'Date zoom controls cannot be ordered yet',
+            'Unknown dateZoom slug "zoom"',
         ],
         [
             'a non-boolean newLine',
@@ -4835,7 +4835,7 @@ describe('CoderService dashboard control order as code', () => {
         const file = withOrder([{ kind: 'parameter', slug: 'region' }]);
         const { parameterControls: _controls, ...config } = file.config;
         expect(await rejection({ ...file, config })).toBe(
-            'Unknown parameter slug "region" in controlOrder. Valid slugs are filter: orders-status, orders-city, orders-total; parameter: none; section: calendar',
+            'Unknown parameter slug "region" in controlOrder. Valid slugs are filter: orders-status, orders-city, orders-total; parameter: none; dateZoom: none; section: calendar',
         );
     });
 
@@ -5412,6 +5412,79 @@ describe('CoderService dashboard control order as code', () => {
                 saved: dashboard,
             });
             expect(zoomsOf(saved)).toEqual(savedZooms);
+        });
+
+        const zoomOrder = [
+            { kind: 'dateZoom', id: 'week-uuid' },
+            { kind: 'section', id: 'section-id', newLine: true },
+            { kind: 'dateZoom', id: 'month-uuid' },
+            { kind: 'filter', id: 'second-id' },
+            { kind: 'parameter', id: 'region-id' },
+            { kind: 'filter', id: 'first-id' },
+            { kind: 'filter', id: 'metric-id' },
+        ];
+
+        it('downloads zoom refs in the order and round-trips every uuid', async () => {
+            const dashboard = zoomDashboard({ controlOrder: zoomOrder });
+            const file = download(dashboard, true);
+            expect(file.config?.controlOrder).toEqual([
+                { kind: 'dateZoom', slug: 'week' },
+                { kind: 'section', slug: 'calendar', newLine: true },
+                { kind: 'dateZoom', slug: 'month' },
+                { kind: 'filter', slug: 'orders-city' },
+                { kind: 'parameter', slug: 'region' },
+                { kind: 'filter', slug: 'orders-status' },
+                { kind: 'filter', slug: 'orders-total' },
+            ]);
+            const saved = await upload(file, { saved: dashboard });
+            expect(zoomsOf(saved)).toEqual(savedZooms);
+            expect(saved.config?.controlOrder).toEqual(zoomOrder);
+            const again = await upload(download(saved, true), { saved });
+            expect(again.config?.controlOrder).toEqual(
+                saved.config?.controlOrder,
+            );
+        });
+
+        it('orders hand-written zooms without uuids and keeps them on re-upload', async () => {
+            const dashboard = zoomDashboard();
+            const saved = await upload(
+                handWritten([
+                    { kind: 'section', slug: 'calendar' },
+                    { kind: 'dateZoom', slug: 'month' },
+                    { kind: 'dateZoom', slug: 'weekly', newLine: true },
+                ]),
+                { saved: dashboard },
+            );
+            expect(zoomsOf(saved)).toEqual(savedZooms);
+            expect(saved.config?.controlOrder).toEqual([
+                { kind: 'section', id: 'section-id' },
+                { kind: 'dateZoom', id: 'month-uuid' },
+                { kind: 'dateZoom', id: 'week-uuid', newLine: true },
+            ]);
+            const again = await upload(download(saved, true), { saved });
+            expect(zoomsOf(again)).toEqual(savedZooms);
+        });
+
+        it('ignores zoom refs in the order with the flag off', async () => {
+            const dashboard = zoomDashboard();
+            const saved = await upload(
+                handWritten([{ kind: 'dateZoom', slug: 'unknown' }]),
+                { enabled: false, saved: dashboard },
+            );
+            expect(saved.config?.controlOrder).toEqual(savedOrder);
+            expect(zoomsOf(saved)).toEqual(savedZooms);
+        });
+
+        it('rejects an unknown zoom slug in the order with the valid slugs', async () => {
+            expect(
+                await rejection(
+                    handWritten([
+                        { kind: 'dateZoom', slug: 'week' },
+                    ]) as AnyType,
+                ),
+            ).toBe(
+                'Unknown dateZoom slug "week" in controlOrder. Valid slugs are filter: orders-status, orders-city, orders-total; parameter: region; dateZoom: weekly, month; section: calendar',
+            );
         });
 
         it('rejects a target whose controlSlug matches no zoom', async () => {
