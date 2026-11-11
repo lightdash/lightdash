@@ -1,0 +1,15 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`getLiveSourcesSection > names each source's explores, target and hint, keeping the sources apart 1`] = `
+"## Live data sources
+
+- A live data source's explore reads its integration live, one request per query. Query it like any other explore: by its fields, with a date filter for the period asked about.
+- It answers metrics broken down by dimensions. Funnels, retention and user paths are not available on live data sources yet: say so plainly, and never approximate them from event counts.
+- Its explore has only the fields in use, and those are the only fields you can see or query. When a question needs a field the explore lacks, say so and that an admin can add fields from the source's Fields page in project settings. Never guess at fields beyond the explore.
+- When several sources could answer, choose by each source's \`target\` and \`hint\`. If nothing tells them apart, ask which one the user means.
+
+<live_data_sources>
+  <live_data_source name="Search Console" integration="Search Console" explores="search_console_performance" target="Search Console site https://example.de/" hint="German storefront"/>
+  <live_data_source name="Search Console 2" integration="Search Console" explores="search_console_2_performance" target="Search Console site https://example.fr/"/>
+</live_data_sources>"
+`;

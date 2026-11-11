@@ -127,6 +127,12 @@ export type AgentLiveSource = {
     connectionUuid: string;
     name: string;
     connector: ApiConnectorType;
+    /** The explores this source answers with, as the agent queries them. */
+    exploreNames: string[];
+    /** What the source reads, such as its site or property. */
+    target: string;
+    /** What an admin says this source is for. */
+    hint: string | null;
 };
 
 export type AiAgentMcpServer = AiMcpServer & {

@@ -34,6 +34,8 @@ export const linkedInAdsIntegration: ApiSourceIntegration<ApiConnectorType.LINKE
             connector: z.literal(ApiConnectorType.LINKEDIN_ADS),
             adAccountId: z.string(),
         }),
+        describeTarget: ({ apiSource: { adAccountId } }) =>
+            `LinkedIn Ads account ${adAccountId}`,
         baseLayer: {
             baseVersion: LINKEDIN_ADS_SEMANTIC_LAYER_VERSION,
             capabilities: LINKEDIN_ADS_CAPABILITIES,

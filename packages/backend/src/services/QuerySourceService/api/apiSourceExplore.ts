@@ -83,6 +83,7 @@ export const buildApiSourceExplore = ({
     definitionHash,
     capabilities,
     warehouseSqlBuilder,
+    aiHint,
 }: {
     definition: ApiSourceExploreDefinition;
     exploreName: string;
@@ -93,6 +94,7 @@ export const buildApiSourceExplore = ({
     definitionHash?: string;
     capabilities: ApiConnectorCapabilities;
     warehouseSqlBuilder: WarehouseSqlBuilder;
+    aiHint?: string[];
 }): Explore => {
     const quote = warehouseSqlBuilder.getFieldQuoteChar();
     const base = {
@@ -184,6 +186,7 @@ export const buildApiSourceExplore = ({
         },
         targetDatabase: warehouseSqlBuilder.getAdapterType(),
         meta: {},
+        aiHint,
     });
     return {
         ...explore,

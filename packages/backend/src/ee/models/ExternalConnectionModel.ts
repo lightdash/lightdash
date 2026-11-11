@@ -117,11 +117,18 @@ const SERVER_OWNED_API_SOURCE_KEYS = [
     'sourceName',
     'lastScan',
     'fields',
+    'aiHint',
+    'targetLabel',
 ] as const;
 
 const readSourceName = (value: unknown): string | null => {
     const parsed = z.object({ sourceName: z.string() }).safeParse(value);
     return parsed.success ? parsed.data.sourceName : null;
+};
+
+const readSourceDetails = (value: unknown) => {
+    const { aiHint, targetLabel } = parseLiveSourceFieldState(value);
+    return { aiHint, targetLabel };
 };
 
 /** Connector settings only: drops any server-owned key a caller sent. */
@@ -140,6 +147,8 @@ export type DeletedLiveSource = {
     sourceName: string | null;
     /** Null when the source was deleted before fields could be curated. */
     fieldEdits: LiveSourceFieldEdits | null;
+    aiHint: string | null;
+    targetLabel: string | null;
 };
 
 const kindOf = (
@@ -204,6 +213,7 @@ export class ExternalConnectionModel {
             kind: row.connection_kind,
             apiSource: parseApiSource(row.api_source),
             liveSourceName: readSourceName(row.api_source),
+            ...readSourceDetails(row.api_source),
             hasSecret,
             createdByUserUuid: row.created_by_user_uuid,
             updatedByUserUuid: row.updated_by_user_uuid,
@@ -893,6 +903,21 @@ export class ExternalConnectionModel {
                 .where('external_connection_uuid', uuid)
                 .update(updatePayload);
 
+            if (data.aiHint !== undefined) {
+                await trx(ExternalConnectionsTableName)
+                    .where('external_connection_uuid', uuid)
+                    .update({
+                        api_source: (data.aiHint
+                            ? trx.raw(
+                                  `api_source || jsonb_build_object('aiHint', ?::text)`,
+                                  [data.aiHint],
+                              )
+                            : trx.raw(
+                                  `api_source - 'aiHint'`,
+                              )) as unknown as string,
+                    });
+            }
+
             // Secret tri-state: `null` clears it, a non-empty string sets it,
             // and undefined/blank leaves it unchanged unless the credential's
             // auth type or credential destination changes.
@@ -988,6 +1013,36 @@ export class ExternalConnectionModel {
             }
             return sourceName;
         });
+    }
+
+    /** Stores the name the connection picker showed for the source's target. */
+    async saveLiveSourceTargetLabel(
+        uuid: string,
+        targetLabel: string,
+    ): Promise<void> {
+        await this.database(ExternalConnectionsTableName)
+            .where('external_connection_uuid', uuid)
+            .update({
+                api_source: this.database.raw(
+                    `api_source || jsonb_build_object('targetLabel', ?::text)`,
+                    [targetLabel],
+                ) as unknown as string,
+            });
+    }
+
+    /** Gives a source a deleted twin's details, keeping any it already has. */
+    async restoreLiveSourceDetails(
+        uuid: string,
+        details: { aiHint: string | null; targetLabel: string | null },
+    ): Promise<void> {
+        await this.database(ExternalConnectionsTableName)
+            .where('external_connection_uuid', uuid)
+            .update({
+                api_source: this.database.raw(
+                    `jsonb_strip_nulls(jsonb_build_object('aiHint', ?::text, 'targetLabel', ?::text)) || api_source`,
+                    [details.aiHint, details.targetLabel],
+                ) as unknown as string,
+            });
     }
 
     /** Every active live source, in any project. */
@@ -1130,6 +1185,7 @@ export class ExternalConnectionModel {
                           sourceName: readSourceName(row.api_source),
                           fieldEdits: parseLiveSourceFieldState(row.api_source)
                               .fields,
+                          ...readSourceDetails(row.api_source),
                       },
                   ]
                 : [];

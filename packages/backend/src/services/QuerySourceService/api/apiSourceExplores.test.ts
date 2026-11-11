@@ -11,6 +11,7 @@ import {
 import {
     buildApiSourceExplores,
     compileApiSourceMetricQuery,
+    describeApiSourceTarget,
     getApiSourceDefinitionHashes,
     getApiSourceExploreNames,
     getLegacyLiveSourceName,
@@ -506,6 +507,113 @@ describe('definition hashes', () => {
         });
         expect(edited.apiSource?.definitionHash).toBe(
             plain.apiSource?.definitionHash,
+        );
+    });
+});
+
+describe('explore AI hints', () => {
+    it.each([
+        [
+            {
+                connector: ApiConnectorType.SEARCH_CONSOLE,
+                siteUrl: 'https://example.com/',
+            } as const,
+            'https://searchconsole.googleapis.com',
+            null,
+            'Search Console site https://example.com/',
+        ],
+        [
+            { connector: ApiConnectorType.GA4, propertyId: '123' } as const,
+            'https://analyticsdata.googleapis.com',
+            'Marketing site',
+            'Google Analytics property "Marketing site" (ID 123)',
+        ],
+        [
+            { connector: ApiConnectorType.GA4, propertyId: '123' } as const,
+            'https://analyticsdata.googleapis.com',
+            null,
+            'Google Analytics property 123',
+        ],
+        [
+            {
+                connector: ApiConnectorType.POSTHOG,
+                projectId: '303731',
+            } as const,
+            'https://eu.posthog.com',
+            null,
+            'PostHog project 303731, EU region',
+        ],
+        [
+            {
+                connector: ApiConnectorType.GOOGLE_ADS,
+                customerId: '123',
+                loginCustomerId: null,
+            } as const,
+            'https://googleads.googleapis.com',
+            'Brand account',
+            'Google Ads account "Brand account" (ID 123)',
+        ],
+        [
+            {
+                connector: ApiConnectorType.YOUTUBE_ANALYTICS,
+                channelId: 'UC123',
+            } as const,
+            'https://youtubeanalytics.googleapis.com',
+            null,
+            'YouTube channel UC123',
+        ],
+        [
+            {
+                connector: ApiConnectorType.LINKEDIN_ADS,
+                adAccountId: '456',
+            } as const,
+            'https://api.linkedin.com',
+            null,
+            'LinkedIn Ads account 456',
+        ],
+        [
+            {
+                connector: ApiConnectorType.META_ADS,
+                adAccountId: '789',
+            } as const,
+            'https://graph.facebook.com',
+            null,
+            'Meta Ads account 789',
+        ],
+    ])('describes the target of %j', (apiSource, origin, label, expected) => {
+        expect(describeApiSourceTarget(apiSource, origin, label)).toBe(
+            expected,
+        );
+    });
+
+    it('stores the target first, then the admin text, and keeps the hash', () => {
+        const apiSource = {
+            connector: ApiConnectorType.SEARCH_CONSOLE,
+            siteUrl: 'https://example.com/',
+        } as const;
+        const args = {
+            connectionUuid: CONNECTION_UUID,
+            sourceName: 'site',
+            name: 'Site',
+            apiSource,
+            scannedFields: [],
+            edits: {},
+        };
+        const [hinted] = buildApiSourceExplores({
+            ...args,
+            aiHint: ['Search Console site https://example.com/', 'EU store'],
+        });
+        const [plain] = buildApiSourceExplores(args);
+        expect(hinted.aiHint).toEqual([
+            'Search Console site https://example.com/',
+            'EU store',
+        ]);
+        expect(hinted.apiSource?.definitionHash).toBe(
+            plain.apiSource?.definitionHash,
+        );
+        // A source hint must not leak onto the fields
+        Object.values(hinted.tables.site_performance.dimensions).forEach(
+            (dimension) => expect(dimension.aiHint).toBeUndefined(),
         );
     });
 });

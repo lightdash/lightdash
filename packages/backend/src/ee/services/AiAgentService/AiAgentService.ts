@@ -367,6 +367,11 @@ import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagSer
 import { GithubAppService } from '../../../services/GithubAppService/GithubAppService';
 import { PersistentDownloadFileService } from '../../../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import {
+    describeApiSourceTarget,
+    getApiSourceExploreNames,
+    getLegacyLiveSourceName,
+} from '../../../services/QuerySourceService/api/apiSourceExplores';
 import { type QuerySourceService } from '../../../services/QuerySourceService/QuerySourceService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import { SearchService } from '../../../services/SearchService/SearchService';
@@ -11948,13 +11953,35 @@ export class AiAgentService extends BaseService {
                 projectUuid,
             );
         return connections.flatMap(
-            ({ externalConnectionUuid, name, apiSource }) =>
+            ({
+                externalConnectionUuid,
+                name,
+                apiSource,
+                origin,
+                liveSourceName,
+                aiHint,
+                targetLabel,
+            }) =>
                 apiSource
                     ? [
                           {
                               connectionUuid: externalConnectionUuid,
                               name,
                               connector: apiSource.connector,
+                              exploreNames: getApiSourceExploreNames(
+                                  apiSource.connector,
+                                  liveSourceName ??
+                                      getLegacyLiveSourceName(
+                                          apiSource.connector,
+                                          externalConnectionUuid,
+                                      ),
+                              ),
+                              target: describeApiSourceTarget(
+                                  apiSource,
+                                  origin,
+                                  targetLabel ?? null,
+                              ),
+                              hint: aiHint ?? null,
                           },
                       ]
                     : [],
