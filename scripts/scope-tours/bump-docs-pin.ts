@@ -59,7 +59,12 @@ const git = (
 
 const argValue = (name: string): string | undefined => {
     const index = process.argv.indexOf(name);
-    return index === -1 ? undefined : process.argv[index + 1];
+    if (index === -1) return undefined;
+    const value = process.argv[index + 1];
+    if (value === undefined || value.startsWith('--')) {
+        throw new Error(`${name} needs a value: ${name} <sha>`);
+    }
+    return value;
 };
 
 const isAncestor = (ancestor: string, descendant: string): boolean => {

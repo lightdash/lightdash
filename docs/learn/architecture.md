@@ -204,7 +204,7 @@ browser, because the learner walks straight to the new field and a cached list w
   at the top of `scripts/scope-tours/generate.ts`. The first step's marker sits on the result the walkthrough
   proves.
 - **Generation.** `scripts/scope-tours/generate.ts` reads the markers and the docs repository
-  (`LIGHTDASH_DOCS_DIR`, at the commit pinned in `scripts/scope-tours/docs-pin.txt`) and writes `packages/frontend/src/features/scopeTours/generated.ts`: one tour per scope,
+  (`LIGHTDASH_DOCS_DIR`) and writes `packages/frontend/src/features/scopeTours/generated.ts`: one tour per scope,
   step text taken from cited docs sentences, links allowlisted to the docs site. A lesson that teaches several
   scopes with the same controls (`data-tour-covers`) is still one lesson: the generated entry for the scope it was
   declared on lists what it `covers`, the copies under the covered scopes point back with `coveredBy`, the library
