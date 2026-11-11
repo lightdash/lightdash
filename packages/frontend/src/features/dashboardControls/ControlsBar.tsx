@@ -3,7 +3,6 @@ import { type ComponentProps, type FC, type ReactNode } from 'react';
 import {
     selectControlSections,
     selectHasStoredControlOrder,
-    selectParameterControls,
     useDashboardSelector,
 } from '../dashboard/store';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
@@ -27,7 +26,6 @@ type Props = Omit<
 
 // The shipped bar with its filter area swapped, in edit and view mode alike
 export const ControlsBar: FC<Props> = (props) => {
-    const controls = useDashboardSelector(selectParameterControls);
     const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
     // Sections or a stored order need the sectioned bar; else a viewer's is flat
     const hasSections = useDashboardSelector(
@@ -38,8 +36,8 @@ export const ControlsBar: FC<Props> = (props) => {
     const filterRow = (
         <DashboardFiltersBar
             {...props}
-            // Parameters are controls on this bar, after the filters
-            parameters={controls === null ? props.parameters : NO_PARAMETERS}
+            // Parameters are controls on this bar, after the filters; none until they are built
+            parameters={NO_PARAMETERS}
             // The rail is on the page: a drawer over it would hide it
             isCompactDrawerSuppressed={isSidebarOpen}
             // The flat bar's items share each line's centre with the

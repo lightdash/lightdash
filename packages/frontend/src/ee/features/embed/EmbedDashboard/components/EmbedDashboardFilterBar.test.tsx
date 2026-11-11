@@ -305,20 +305,23 @@ describe('EmbedDashboardFilterBar', () => {
             );
         };
 
-        it('keeps legacy parameter pills while the list is unavailable', () => {
-            renderParameters({
-                isControlsEnabled: true,
-                areParametersEnabled: true,
-                shouldShowFilters: true,
-                hasControls: false,
-            });
-            expect(
-                screen.getByTestId('shipped-parameters'),
-            ).toBeInTheDocument();
-            expect(
-                screen.queryByTestId('parameter-pills'),
-            ).not.toBeInTheDocument();
-        });
+        it.each([true, false])(
+            'renders no parameters while the list is not built (filters shown: %s)',
+            (shouldShowFilters) => {
+                renderParameters({
+                    isControlsEnabled: true,
+                    areParametersEnabled: true,
+                    shouldShowFilters,
+                    hasControls: false,
+                });
+                expect(
+                    screen.queryByTestId('shipped-parameters'),
+                ).not.toBeInTheDocument();
+                expect(
+                    screen.queryByTestId('parameter-pills'),
+                ).not.toBeInTheDocument();
+            },
+        );
 
         it('renders parameter pills after the filters with the controls on', () => {
             renderParameters({
