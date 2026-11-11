@@ -40,7 +40,6 @@ type DbLinearAppInstallationUpdate = Partial<
         | 'encrypted_refresh_token'
         | 'oauth_client_id'
         | 'encrypted_linear_client_secret'
-        | 'encrypted_linear_client_secret'
         | 'linear_organization_name'
         | 'linear_organization_url_key'
         | 'updated_by_user_uuid'

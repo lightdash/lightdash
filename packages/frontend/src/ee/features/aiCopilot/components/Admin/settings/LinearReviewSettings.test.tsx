@@ -171,6 +171,40 @@ describe('LinearReviewSettings', () => {
         ).toBeInTheDocument();
     });
 
+    it('lets a connected install replace its saved credentials', async () => {
+        const user = userEvent.setup();
+        mocks.hasLinear = true;
+        renderSettings();
+
+        expect(
+            screen.queryByLabelText('Client secret'),
+        ).not.toBeInTheDocument();
+        await user.click(
+            screen.getByRole('button', { name: 'Update credentials' }),
+        );
+        await user.type(screen.getByLabelText('Client ID'), 'client-2');
+        await user.type(screen.getByLabelText('Client secret'), 'secret-2');
+        await user.click(
+            screen.getByRole('button', { name: 'Reconnect Linear' }),
+        );
+        expect(mocks.installLinear).toHaveBeenCalledWith({
+            clientId: 'client-2',
+            clientSecret: 'secret-2',
+        });
+    });
+
+    it('opens the credential form when Linear rejected the saved credentials', () => {
+        mocks.hasLinear = true;
+        renderSettings(
+            '/generalSettings/ai/general?linearError=invalid_client',
+        );
+
+        expect(
+            screen.getByText('Update the client credentials'),
+        ).toBeInTheDocument();
+        expect(screen.getByLabelText('Client secret')).toBeInTheDocument();
+    });
+
     it('explains a failed connection and lets the user dismiss it', async () => {
         const user = userEvent.setup();
         renderSettings(

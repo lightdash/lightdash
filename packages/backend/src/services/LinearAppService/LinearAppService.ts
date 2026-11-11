@@ -190,6 +190,23 @@ export class LinearAppService extends BaseService {
         return url.href;
     }
 
+    private failInstall(
+        user: SessionUser & LightdashUserWithOrg,
+        reason: LinearConnectError,
+        detail: string,
+    ): string {
+        this.logger.warn(`Linear install failed (${reason}): ${detail}`);
+        this.analytics.track({
+            event: 'linear_install.error',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid,
+                error: reason,
+            },
+        });
+        return this.getSettingsUrl(reason);
+    }
+
     async installCallback(
         user: SessionUser,
         oauth: SessionData['oauth'] | undefined,
@@ -203,10 +220,28 @@ export class LinearAppService extends BaseService {
                 params.state !== oauth?.state ||
                 !oauth.linear
             ) {
-                return this.getSettingsUrl(LinearConnectError.SESSION_EXPIRED);
+                return this.failInstall(
+                    user,
+                    LinearConnectError.SESSION_EXPIRED,
+                    'OAuth state does not match the session',
+                );
             }
-            if (params.error || !params.code) {
-                return this.getSettingsUrl(LinearConnectError.CANCELLED);
+            if (params.error) {
+                const linearError = params.error.slice(0, 100);
+                return this.failInstall(
+                    user,
+                    linearError === 'access_denied'
+                        ? LinearConnectError.CANCELLED
+                        : LinearConnectError.UNKNOWN,
+                    `Linear returned ${linearError}`,
+                );
+            }
+            if (!params.code) {
+                return this.failInstall(
+                    user,
+                    LinearConnectError.UNKNOWN,
+                    'Linear returned no authorization code',
+                );
             }
 
             const {
@@ -261,22 +296,13 @@ export class LinearAppService extends BaseService {
 
             return new URL(oauth.returnTo ?? this.getSettingsUrl()).href;
         } catch (error) {
-            const reason =
+            return this.failInstall(
+                user,
                 error instanceof LinearTokenRequestError
                     ? error.reason
-                    : LinearConnectError.UNKNOWN;
-            this.logger.warn(
-                `Linear install failed (${reason}): ${getErrorMessage(error)}`,
+                    : LinearConnectError.UNKNOWN,
+                getErrorMessage(error),
             );
-            this.analytics.track({
-                event: 'linear_install.error',
-                userId: user.userUuid,
-                properties: {
-                    organizationId: user.organizationUuid,
-                    error: reason,
-                },
-            });
-            return this.getSettingsUrl(reason);
         }
     }
 

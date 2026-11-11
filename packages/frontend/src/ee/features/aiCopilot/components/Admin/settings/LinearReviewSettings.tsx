@@ -1,9 +1,9 @@
 import {
     isLinearConnectError,
     LINEAR_CONNECT_ERROR_PARAM,
+    LinearConnectError,
 } from '@lightdash/common';
 import {
-    Alert,
     Badge,
     Button,
     Checkbox,
@@ -19,13 +19,10 @@ import {
     Text,
     TextInput,
 } from '@mantine/core';
-import {
-    IconAlertCircle,
-    IconExternalLink,
-    IconTrash,
-} from '@tabler/icons-react';
+import { IconExternalLink, IconTrash } from '@tabler/icons-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router';
+import Callout from '../../../../../../components/common/Callout';
 import {
     useDeleteLinearInstallationMutation,
     useInstallLinear,
@@ -84,6 +81,9 @@ export const LinearReviewSettings = () => {
     const connectError = isLinearConnectError(connectErrorParam)
         ? connectErrorParam
         : null;
+    const [isEditingCredentials, setIsEditingCredentials] = useState(
+        connectError === LinearConnectError.INVALID_CLIENT,
+    );
     const dismissConnectError = () => {
         setSearchParams(
             (params) => {
@@ -220,9 +220,7 @@ export const LinearReviewSettings = () => {
                     disabled={!canEdit || isUpdating || !canConnect}
                     loading={installLinear.isLoading}
                 >
-                    {requiresReconnect || requiresClientSecret
-                        ? 'Reconnect Linear'
-                        : 'Connect Linear'}
+                    {hasLinear ? 'Reconnect Linear' : 'Connect Linear'}
                 </Button>
             </Group>
         </form>
@@ -289,9 +287,8 @@ export const LinearReviewSettings = () => {
             </SettingRow>
 
             {connectError && (
-                <Alert
-                    icon={<MantineIcon icon={IconAlertCircle} />}
-                    color="red"
+                <Callout
+                    variant="danger"
                     title="Couldn't connect Linear"
                     withCloseButton
                     closeButtonLabel="Dismiss"
@@ -300,7 +297,7 @@ export const LinearReviewSettings = () => {
                     <Text size="xs">
                         {getLinearConnectErrorMessage(connectError)}
                     </Text>
-                </Alert>
+                </Callout>
             )}
 
             {!hasLinear && !installationLoading && (
@@ -402,6 +399,25 @@ export const LinearReviewSettings = () => {
                     </Stack>
                 </Paper>
             )}
+
+            {hasLinear &&
+                !requiresReconnect &&
+                !requiresClientSecret &&
+                isEditingCredentials && (
+                    <Paper variant="dotted" p="md" radius="md">
+                        <Stack gap="xs">
+                            <Text fw={600} fz="sm">
+                                Update the client credentials
+                            </Text>
+                            <Text c="dimmed" fz="xs">
+                                Paste the client ID and client secret of your
+                                Linear app. Team and project settings are kept
+                                when you reconnect to the same Linear workspace.
+                            </Text>
+                            {connectForm}
+                        </Stack>
+                    </Paper>
+                )}
 
             {hasLinear && !requiresReconnect && routing && (
                 <Stack gap="sm">
@@ -514,15 +530,32 @@ export const LinearReviewSettings = () => {
                             </Button>
                         )}
                         {!requiresClientSecret && (
-                            <Button
-                                size="xs"
-                                variant="default"
-                                component="a"
-                                href="/api/v1/linear/install"
-                                disabled={!canEdit || isUpdating}
-                            >
-                                Reconnect
-                            </Button>
+                            <>
+                                <Button
+                                    size="xs"
+                                    variant="default"
+                                    component="a"
+                                    href="/api/v1/linear/install"
+                                    disabled={!canEdit || isUpdating}
+                                >
+                                    Reconnect
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="xs"
+                                    variant="default"
+                                    disabled={!canEdit || isUpdating}
+                                    onClick={() =>
+                                        setIsEditingCredentials(
+                                            (editing) => !editing,
+                                        )
+                                    }
+                                >
+                                    {isEditingCredentials
+                                        ? 'Hide credentials'
+                                        : 'Update credentials'}
+                                </Button>
+                            </>
                         )}
                         <Button
                             type="button"

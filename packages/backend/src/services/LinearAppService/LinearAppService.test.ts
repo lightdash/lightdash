@@ -264,20 +264,43 @@ describe('LinearAppService', () => {
             );
         });
 
-        it('reports a cancelled consent without calling Linear', async () => {
+        it.each([
+            ['access_denied', LinearConnectError.CANCELLED],
+            ['invalid_scope', LinearConnectError.UNKNOWN],
+            ['server_error', LinearConnectError.UNKNOWN],
+        ])(
+            'maps a %s callback without calling Linear and tracks it',
+            async (error, reason) => {
+                const { service, analytics } = makeService();
+
+                await expect(
+                    service.installCallback(makeUser(true), oauth, {
+                        state: 'state-1',
+                        error,
+                    }),
+                ).resolves.toBe(settingsUrlWith(reason));
+                expect(exchangeLinearCodeForToken).not.toHaveBeenCalled();
+                expect(analytics.track).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        event: 'linear_install.error',
+                        properties: expect.objectContaining({ error: reason }),
+                    }),
+                );
+            },
+        );
+
+        it('reports a callback without a code as unknown', async () => {
             const { service } = makeService();
 
             await expect(
                 service.installCallback(makeUser(true), oauth, {
                     state: 'state-1',
-                    error: 'access_denied',
                 }),
-            ).resolves.toBe(settingsUrlWith(LinearConnectError.CANCELLED));
-            expect(exchangeLinearCodeForToken).not.toHaveBeenCalled();
+            ).resolves.toBe(settingsUrlWith(LinearConnectError.UNKNOWN));
         });
 
         it('reports an expired session when the state does not match', async () => {
-            const { service } = makeService();
+            const { service, analytics } = makeService();
 
             await expect(
                 service.installCallback(makeUser(true), oauth, {
@@ -288,6 +311,9 @@ describe('LinearAppService', () => {
                 settingsUrlWith(LinearConnectError.SESSION_EXPIRED),
             );
             expect(exchangeLinearCodeForToken).not.toHaveBeenCalled();
+            expect(analytics.track).toHaveBeenCalledWith(
+                expect.objectContaining({ event: 'linear_install.error' }),
+            );
         });
 
         it('reports an unknown error when a later step fails', async () => {
