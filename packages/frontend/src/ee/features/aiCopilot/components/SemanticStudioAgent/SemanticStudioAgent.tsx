@@ -18,6 +18,7 @@ import { IconLayoutSidebarRightCollapse, IconPlus } from '@tabler/icons-react';
 import { useEffect, useEffectEvent, useRef, type FC } from 'react';
 import { Provider } from 'react-redux';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useKeepsSemanticLayerDraft } from '../../../../../features/semanticStudio/useSemanticLayerModel';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
 import {
@@ -149,12 +150,14 @@ const NewThread: FC<
         fieldName,
     });
     useAskedPrompt({ prompt, onPromptTaken }, (message) => start({ message }));
+    const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
     return (
         <>
             <Stack flex={1} justify="center" align="center" px="md">
                 <Text fz="xs" c="dimmed" ta="center">
-                    Ask for a model, a metric or a join. Changes collect in your
-                    draft, and nothing goes live until you apply it.
+                    {keepsDraft
+                        ? 'Ask for a model, a metric or a join. Changes collect in your draft, and nothing goes live until you apply it.'
+                        : 'Ask for a model, a metric or a join. Changes go to your repository as a pull request, and nothing goes live until it merges.'}
                 </Text>
                 {showStarters ? (
                     <Group gap="xs" justify="center">
