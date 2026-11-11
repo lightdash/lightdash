@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     getItemId,
     getItemLabelWithoutTableName,
     MapChartLocation,
@@ -27,7 +26,6 @@ import {
     useGeoJsonProperties,
 } from '../../../hooks/useGeoJsonProperties';
 import { useMapEditorActions } from '../../../hooks/useMapChartConfig';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import FieldSelect from '../../common/FieldSelect';
 import {
     useVisualizationInputs,
@@ -131,9 +129,6 @@ export const Layout: FC = memo(() => {
         setGeoJsonPropertyKey,
         autoFillAreaLocation,
     } = useMapEditorActions();
-
-    const hexbinFlag = useServerFeatureFlag(FeatureFlags.HexbinMap);
-    const isHexbinEnabled = hexbinFlag.data?.enabled ?? false;
 
     // Build proxied URL for custom GeoJSON (for fetching properties)
     const proxiedGeoJsonUrl = useMemo(() => {
@@ -248,24 +243,11 @@ export const Layout: FC = memo(() => {
 
     const locationType = storedLocationType || MapChartType.SCATTER;
 
-    // Show the Hexbin option whenever either: the feature flag is enabled, the
-    // flag is still loading (hides the flag fetch from the user — otherwise
-    // the segmented control briefly renders with 3 items then 4, which makes
-    // the active indicator slide mid-mount), or the chart already has hexbin
-    // selected (so saved charts always have a matching option even if the
-    // flag is off, instead of showing an empty selection).
-    const showHexbinOption =
-        isHexbinEnabled ||
-        hexbinFlag.isLoading ||
-        locationType === MapChartType.HEXBIN;
-
     const locationTypeOptions = [
         { value: MapChartType.SCATTER, label: 'Scatter' },
         { value: MapChartType.AREA, label: 'Area' },
         { value: MapChartType.HEATMAP, label: 'Heatmap' },
-        ...(showHexbinOption
-            ? [{ value: MapChartType.HEXBIN, label: 'Hexbin' }]
-            : []),
+        { value: MapChartType.HEXBIN, label: 'Hexbin' },
     ];
     const isCustomMap = mapType === MapChartLocation.CUSTOM;
 

@@ -83,13 +83,6 @@ export enum FeatureFlags {
     EnableDataAppState = 'enable-data-app-state',
 
     /**
-     * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.
-     * Gates the option in the Map Type segmented control. Existing charts
-     * already saved with the hexbin layer continue to render either way.
-     */
-    HexbinMap = 'hexbin-map',
-
-    /**
      * Show the per-organization Single Sign-On settings panel (Azure AD and
      * future SSO providers). Off by default while the domain-claim trust
      * model is hardened — see security review notes. Enable per-org for
