@@ -28,6 +28,7 @@ import {
     getChartKind,
     getChartType,
     getItemId,
+    getStoredMergeQueryExploreNames,
     isCustomBinDimension,
     isCustomSqlDimension,
     isFormulaTableCalculation,
@@ -3376,9 +3377,21 @@ export class SavedChartModel {
             'uuid' | 'name' | 'tableName' | 'dashboardUuid'
         > &
             Pick<Project, 'projectUuid'> &
-            Pick<Organization, 'organizationUuid'>)[]
+            Pick<Organization, 'organizationUuid'> & {
+                /** Every explore the chart queries: its own, then a merge's other queries'. */
+                exploreNames: string[];
+            })[]
     > {
-        const charts = await this.database(SavedChartsTableName)
+        const charts: (Pick<
+            SavedChartDAO,
+            'uuid' | 'name' | 'tableName' | 'dashboardUuid'
+        > & {
+            spaceUuid: Space['uuid'];
+            projectUuid: Project['projectUuid'];
+            organizationUuid: Organization['organizationUuid'];
+            mergeSchemaVersion: number | null;
+            merge: unknown;
+        })[] = await this.database(SavedChartsTableName)
             .whereIn(
                 `${SavedChartsTableName}.saved_query_uuid`,
                 savedChartUuids,
@@ -3391,6 +3404,9 @@ export class SavedChartModel {
                 tableName: `${SavedChartVersionsTableName}.explore_name`,
                 projectUuid: `${SavedChartsTableName}.project_uuid`,
                 organizationUuid: 'organizations.organization_uuid',
+                mergeSchemaVersion:
+                    'saved_queries_version_merges.schema_version',
+                merge: 'saved_queries_version_merges.merge',
             })
             .leftJoin(
                 DashboardsTableName,
@@ -3410,7 +3426,7 @@ export class SavedChartModel {
             })
             .joinRaw(
                 `inner join lateral (
-                    select sqv.explore_name
+                    select sqv.explore_name, sqv.saved_queries_version_id
                     from ?? as sqv
                     where sqv.saved_query_id = ??.saved_query_id
                     order by sqv.saved_queries_version_id desc
@@ -3421,6 +3437,11 @@ export class SavedChartModel {
                     SavedChartsTableName,
                     SavedChartVersionsTableName,
                 ],
+            )
+            .leftJoin(
+                'saved_queries_version_merges',
+                'saved_queries_version_merges.saved_queries_version_id',
+                `${SavedChartVersionsTableName}.saved_queries_version_id`,
             )
             .leftJoin(
                 'projects',
@@ -3438,7 +3459,20 @@ export class SavedChartModel {
         if (charts.length === 0) {
             throw new NotFoundError('Saved queries not found');
         }
-        return charts;
+        return charts.map(({ mergeSchemaVersion, merge, ...chart }) => ({
+            ...chart,
+            exploreNames: [
+                ...new Set([
+                    chart.tableName,
+                    ...(mergeSchemaVersion === null
+                        ? []
+                        : getStoredMergeQueryExploreNames({
+                              schemaVersion: mergeSchemaVersion,
+                              value: merge,
+                          })),
+                ]),
+            ],
+        }));
     }
 
     async findInfoForDbtExposures(

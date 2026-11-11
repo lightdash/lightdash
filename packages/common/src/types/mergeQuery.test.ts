@@ -6,6 +6,7 @@ import {
     buildSavedMergeDefinition,
     getMergeCompiledSqlText,
     getMergeSourceTableLabels,
+    getStoredMergeQueryExploreNames,
     getUnaccountedDimensions,
     getWarehouseDefaultNullsFirst,
     MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
@@ -17,6 +18,7 @@ import {
     parseStoredMergeDefinition,
     placeMergeSortNulls,
     resolveMergeSorts,
+    SAVED_MERGE_QUERY_SCHEMA_VERSION,
     SAVED_MERGE_QUERY_SCHEMA_VERSION_V2,
     toMergedSorts,
     upgradeSavedMergeQuery,
@@ -875,6 +877,33 @@ describe('saved merge schemas', () => {
             }),
         ).toBeNull();
         expect(parseSavedMergeDefinition(valid)).toEqual(valid);
+    });
+
+    it('reads the explores of the other queries from either stored version', () => {
+        expect(
+            getStoredMergeQueryExploreNames({
+                schemaVersion: SAVED_MERGE_QUERY_SCHEMA_VERSION_V2,
+                value: savedV2,
+            }),
+        ).toEqual(['payments']);
+        expect(
+            getStoredMergeQueryExploreNames({
+                schemaVersion: SAVED_MERGE_QUERY_SCHEMA_VERSION,
+                value: upgradeSavedMergeQuery(savedV2, chart),
+            }),
+        ).toEqual(['payments']);
+        expect(
+            getStoredMergeQueryExploreNames({
+                schemaVersion: 99,
+                value: savedV2,
+            }),
+        ).toEqual([]);
+        expect(
+            getStoredMergeQueryExploreNames({
+                schemaVersion: SAVED_MERGE_QUERY_SCHEMA_VERSION,
+                value: { queries: 'not a merge' },
+            }),
+        ).toEqual([]);
     });
 
     it('leaves a chart without its merge on an unknown schema version', () => {

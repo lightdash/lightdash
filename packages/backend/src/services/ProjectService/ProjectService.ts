@@ -331,7 +331,7 @@ import {
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { createHmac, timingSafeEqual } from 'crypto';
-import { isEqual, uniq } from 'es-toolkit/compat';
+import { isEqual, uniq, uniqBy } from 'es-toolkit/compat';
 import * as fs from 'fs';
 import { GoogleAuth } from 'google-auth-library';
 import * as yaml from 'js-yaml';
@@ -16322,8 +16322,8 @@ export class ProjectService
                     this.findExplores({
                         account,
                         projectUuid: savedCharts[0].projectUuid, // TODO: route should be updated to be project/dashboard specific. For now we pick it from first chart as they all should be from the same project
-                        exploreNames: savedCharts.map(
-                            (chart) => chart.tableName,
+                        exploreNames: uniq(
+                            savedCharts.flatMap((chart) => chart.exploreNames),
                         ),
                         organizationUuid: account.organization.organizationUuid,
                     }),
@@ -16383,40 +16383,60 @@ export class ProjectService
                             };
                         }
 
-                        const cachedExplore = exploresMap[savedChart.tableName];
-                        const explore =
-                            shouldRedactSql &&
-                            cachedExplore &&
-                            !isExploreError(cachedExplore)
-                                ? redactExploreSql(cachedExplore)
-                                : cachedExplore;
-
-                        let filters: FilterableDimension[] = [];
-                        let metricFilters: Metric[] = [];
-                        let hiddenFieldIds: string[] = [];
-                        if (explore && !isExploreError(explore)) {
-                            const filtersPromise =
-                                filtersByExplore.get(savedChart.tableName) ??
-                                this.getFilterableDimensionsForExplore(
-                                    savedChart.projectUuid,
-                                    explore,
+                        // A merged chart filters on the fields of every query it merges
+                        const explores = savedChart.exploreNames.flatMap(
+                            (exploreName) => {
+                                const cachedExplore = exploresMap[exploreName];
+                                if (
+                                    !cachedExplore ||
+                                    isExploreError(cachedExplore)
+                                ) {
+                                    return [];
+                                }
+                                return [
+                                    {
+                                        exploreName,
+                                        explore: shouldRedactSql
+                                            ? redactExploreSql(cachedExplore)
+                                            : cachedExplore,
+                                    },
+                                ];
+                            },
+                        );
+                        const filters = await Promise.all(
+                            explores.map(({ exploreName, explore }) => {
+                                const filtersPromise =
+                                    filtersByExplore.get(exploreName) ??
+                                    this.getFilterableDimensionsForExplore(
+                                        savedChart.projectUuid,
+                                        explore,
+                                    );
+                                filtersByExplore.set(
+                                    exploreName,
+                                    filtersPromise,
                                 );
-                            filtersByExplore.set(
-                                savedChart.tableName,
-                                filtersPromise,
-                            );
-                            filters = await filtersPromise;
-                            metricFilters = getMetrics(explore).filter(
+                                return filtersPromise;
+                            }),
+                        );
+                        const metricFilters = explores.flatMap(({ explore }) =>
+                            getMetrics(explore).filter(
                                 (field) => !field.hidden,
-                            );
-                            hiddenFieldIds =
-                                getHiddenFilterableFieldIds(explore);
-                        }
+                            ),
+                        );
+                        const hiddenFieldIds = explores.flatMap(({ explore }) =>
+                            getHiddenFilterableFieldIds(explore),
+                        );
 
                         return {
                             uuid: savedChart.uuid,
-                            filters,
-                            metricFilters,
+                            filters: uniqBy(
+                                filters.flat(),
+                                getDashboardFilterableFieldKey,
+                            ),
+                            metricFilters: uniqBy(
+                                metricFilters,
+                                getDashboardFilterableFieldKey,
+                            ),
                             hiddenFieldIds,
                         };
                     }),
