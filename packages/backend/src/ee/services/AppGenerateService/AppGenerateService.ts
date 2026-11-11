@@ -10425,7 +10425,7 @@ export class AppGenerateService extends BaseService {
             latestReadyVersionConsumerAccess:
                 showConsumerAccess && latestReady
                     ? getDataAppConsumerAccess(
-                          latestReady.consumer_data_references,
+                          latestReady.consumer_data_references ?? null,
                       )
                     : null,
             addAnalysisDismissed: addAnalysisDismissedAt !== null,
