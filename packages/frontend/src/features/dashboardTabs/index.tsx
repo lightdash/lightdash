@@ -64,6 +64,7 @@ import {
     useDashboardUnmetFilterRequirements,
 } from '../dashboard/store';
 import { ControlsBar } from '../dashboardControls/ControlsBar';
+import { useParameterBarControls } from '../dashboardControls/useParameterBarControls';
 import addFilterClasses from '../dashboardFilters/AddFilterButton.module.css';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
@@ -675,7 +676,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const totalFiltersCount =
         dashboardFilters.dimensions.length +
         dashboardTemporaryFilters.dimensions.length;
-    const totalParametersCount = Object.keys(activeTabParameters).length;
+    const parameterBar = useParameterBarControls();
+    // With the controls, the pills the bar shows
+    const totalParametersCount = isDashboardControlsEnabled
+        ? parameterBar.entries.filter(({ control }) => !control.hidden).length
+        : Object.keys(activeTabParameters).length;
 
     const currentTabHasTiles = !!dashboardTiles?.some((tile) =>
         isActiveTile(tile),
