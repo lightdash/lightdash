@@ -161,7 +161,7 @@ export const getStableDimensionFilterIds = (
 ): string[] => getStableIds(uploadedFilters, savedFilters, getFilterFieldKey);
 
 export const getFiltersWithTileUuids = (
-    dashboard: DashboardAsCode,
+    dashboard: Pick<DashboardAsCode, 'filters'>,
     tiles: DashboardTileWithSlug[],
     savedFilters: Partial<DashboardDAO['filters']> | undefined,
 ): DashboardDAO['filters'] => {

@@ -11,6 +11,7 @@ import {
     DirectAccessResourceType,
     PromotionAction,
     SpaceMemberRole,
+    type DashboardAsCode,
     type DashboardParameterControl,
 } from '@lightdash/common';
 import { defaultSessionUser } from '../../auth/account/account.mock';
@@ -2302,11 +2303,12 @@ describe('CoderService', () => {
             expect(exported.config.parameterControls[0].sectionSlug).toBe(
                 'currency-comparison',
             );
-            const restoredSections = getDashboardWithSectionIds(
-                exported,
-                dashboard.config as unknown as DashboardDAO['config'],
-                true,
-            );
+            const restoredSections =
+                getDashboardWithSectionIds<DashboardAsCode>(
+                    exported,
+                    dashboard.config as unknown as DashboardDAO['config'],
+                    true,
+                );
             const importedTiles = exported.tiles.map(
                 (tile: AnyType, index: number) => ({
                     ...tile,

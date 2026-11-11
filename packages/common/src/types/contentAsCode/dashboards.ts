@@ -17,6 +17,7 @@ import type {
     DashboardTile,
     DashboardTileTypes,
     DateZoomControl,
+    DateZoomTileTarget,
 } from '../dashboard';
 import type { DashboardFilterRule } from '../filter';
 import type { PromotionChanges } from '../promotion';
@@ -151,10 +152,39 @@ export type DashboardFilterRuleAsCode = DashboardFilterRule & {
 
 export type DateZoomControlAsCode = {
     uuid: DateZoomControl['uuid'];
+    /** Resolves `controlSlug` and `controlOrder` refs in this file; derived on download, never stored */
+    slug?: string;
     name: DateZoomControl['name'];
     granularity: DateZoomControl['granularity'];
     hidden?: DateZoomControl['hidden'];
     sectionSlug?: string;
+};
+
+export type DateZoomTileTargetAsCode = {
+    controlUuid: DateZoomTileTarget['controlUuid'];
+    /** Slug of a date zoom control in this file */
+    controlSlug?: string;
+    fieldId: DateZoomTileTarget['fieldId'];
+    tableName: DateZoomTileTarget['tableName'];
+};
+
+/** A date zoom control as uploaded: without a uuid, it keeps the saved control its slug matches */
+export type DateZoomControlUploadAsCode = {
+    uuid?: DateZoomControl['uuid'];
+    /** Resolves `controlSlug` and `controlOrder` refs in this file; absent, derived from the name */
+    slug?: string;
+    name: DateZoomControl['name'];
+    granularity: DateZoomControl['granularity'];
+    hidden?: DateZoomControl['hidden'];
+    sectionSlug?: string;
+};
+
+/** Points at its control by `controlSlug` or `controlUuid` */
+export type DateZoomTileTargetUploadAsCode = {
+    controlUuid?: DateZoomTileTarget['controlUuid'];
+    controlSlug?: string;
+    fieldId: DateZoomTileTarget['fieldId'];
+    tableName: DateZoomTileTarget['tableName'];
 };
 
 export type DashboardParameterControlAsCode = {
@@ -186,16 +216,24 @@ export type DashboardConfigAsCode = {
     defaultDateZoomGranularity?: DashboardConfig['defaultDateZoomGranularity'];
     dateZoomConfig?: {
         controls: DateZoomControlAsCode[];
-        tileTargets: NonNullable<
-            DashboardConfig['dateZoomConfig']
-        >['tileTargets'];
+        tileTargets: Record<string, DateZoomTileTargetAsCode>;
     };
     requiredFiltersNote?: DashboardConfig['requiredFiltersNote'];
     customMetrics?: DashboardConfig['customMetrics'];
     controlSections?: DashboardControlSectionAsCode[];
     parameterControls?: DashboardParameterControlAsCode[];
-    /** The order of filters, parameter controls and sections on the bar. Absent: the default order. */
+    /** The order of filters, parameter controls, date zoom controls and sections on the bar. Absent: the default order. */
     controlOrder?: DashboardControlRefAsCode[];
+};
+
+export type DashboardConfigUploadAsCode = Omit<
+    DashboardConfigAsCode,
+    'dateZoomConfig'
+> & {
+    dateZoomConfig?: {
+        controls: DateZoomControlUploadAsCode[];
+        tileTargets: Record<string, DateZoomTileTargetUploadAsCode>;
+    };
 };
 
 export type DashboardAsCode = {
@@ -240,6 +278,11 @@ export type DashboardAsCode = {
     verification?: ContentVerificationInfo | null;
     /** Direct user/group grants. Omission leaves the existing policy unchanged on upload. */
     access?: ContentAsCodeDirectAccess;
+};
+
+/** A dashboard file as uploaded */
+export type DashboardUploadAsCode = Omit<DashboardAsCode, 'config'> & {
+    config?: DashboardConfigUploadAsCode;
 };
 
 export type ApiDashboardAsCodeListResponse = {

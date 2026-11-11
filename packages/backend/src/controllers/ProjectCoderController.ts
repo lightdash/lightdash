@@ -49,7 +49,7 @@ import {
     type ContentAsCodeSnapshotPrune,
     type ContentDraftRebaseRequest,
     type ContentSlugRenameRequest,
-    type DashboardAsCode,
+    type DashboardUploadAsCode,
     type DocumentAsCode,
     type ExternalConnectionAsCode,
     type GoogleSheetsSyncAsCode,
@@ -1131,7 +1131,7 @@ export class ProjectCoderController extends BaseController {
         @Path() projectUuid: string,
         @Path() slug: string,
         @Body()
-        dashboard: Omit<DashboardAsCode, 'tiles' | 'description'> & {
+        dashboard: Omit<DashboardUploadAsCode, 'tiles' | 'description'> & {
             skipSpaceCreate?: boolean;
             publicSpaceCreate?: boolean;
             force?: boolean;
@@ -1583,7 +1583,7 @@ export class ProjectCoderController extends BaseController {
         @Path() projectUuid: string,
         @Path() slug: string,
         @Body()
-        dashboard: Omit<DashboardAsCode, 'tiles' | 'description'> & {
+        dashboard: Omit<DashboardUploadAsCode, 'tiles' | 'description'> & {
             skipSpaceCreate?: boolean;
             publicSpaceCreate?: boolean;
             force?: boolean;

@@ -65,6 +65,37 @@ describe('generateDashboardAsCodeSchema', () => {
         ).toBe(false);
     });
 
+    test('date zooms upload by slug without a uuid', () => {
+        const ajv = new Ajv({ strict: false, validateFormats: false });
+        const validate = ajv.compile(dashboardAsCodeSchema);
+        const withZoom = (dateZoomConfig: unknown) =>
+            validate({
+                name: 'Dashboard',
+                slug: 'dashboard',
+                spaceSlug: 'space',
+                version: 1,
+                tiles: [],
+                tabs: [],
+                config: { isDateZoomDisabled: false, dateZoomConfig },
+            });
+        const target = { fieldId: 'orders_date', tableName: 'orders' };
+        expect(
+            withZoom({
+                controls: [{ slug: 'week', name: 'Week', granularity: 'WEEK' }],
+                tileTargets: { orders: { controlSlug: 'week', ...target } },
+            }),
+        ).toBe(true);
+        expect(
+            withZoom({
+                controls: [{ uuid: 'week', name: 'Week', granularity: 'WEEK' }],
+                tileTargets: { orders: { controlUuid: 'week', ...target } },
+            }),
+        ).toBe(true);
+        expect(
+            withZoom({ controls: [{ slug: 'week' }], tileTargets: {} }),
+        ).toBe(false);
+    });
+
     test('generated schema accepts portable tab slugs and legacy tab UUIDs', () => {
         const ajv = new Ajv({ strict: false, validateFormats: false });
         const validate = ajv.compile(dashboardAsCodeSchema);

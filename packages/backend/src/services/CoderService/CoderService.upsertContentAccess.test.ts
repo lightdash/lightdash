@@ -25,6 +25,7 @@ import {
     SessionUser,
     SpaceMemberRole,
     SqlChartAsCode,
+    type DashboardUploadAsCode,
 } from '@lightdash/common';
 import { type Request } from 'express';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -3873,7 +3874,7 @@ describe('CoderService dashboard control order as code', () => {
         return file as DashboardAsCode;
     };
     const upload = async (
-        file: DashboardAsCode,
+        file: DashboardUploadAsCode,
         {
             enabled = true,
             saved = savedDashboard(),
@@ -5219,6 +5220,148 @@ describe('CoderService dashboard control order as code', () => {
             );
             expect(file.config?.controlSections?.[0].slug).toBe('calendar');
             expect(file.config?.parameterControls?.[0].slug).toBe('region');
+        });
+    });
+
+    describe('date zoom controls', () => {
+        const zoomTarget = { fieldId: 'orders_date', tableName: 'orders' };
+        const chartTile = (uuid: string, chartSlug: string) => ({
+            uuid,
+            type: DashboardTileTypes.SAVED_CHART,
+            x: 0,
+            y: 0,
+            w: 6,
+            h: 5,
+            tabUuid: null,
+            properties: { savedChartUuid: `${chartSlug}-uuid`, chartSlug },
+        });
+        const zoomConfig = {
+            controls: [
+                { uuid: 'week-uuid', name: 'Week', granularity: 'WEEK' },
+                {
+                    uuid: 'month-uuid',
+                    name: 'Month',
+                    granularity: 'MONTH',
+                    sectionId: 'section-id',
+                },
+            ],
+            tileTargets: {
+                'tile-a': { controlUuid: 'week-uuid', ...zoomTarget },
+                'tile-b': { controlUuid: 'month-uuid', ...zoomTarget },
+            },
+        };
+        const zoomDashboard = (config: AnyType = {}) =>
+            ({
+                ...savedDashboard({ dateZoomConfig: zoomConfig, ...config }),
+                tiles: [
+                    chartTile('tile-a', 'orders'),
+                    chartTile('tile-b', 'customers'),
+                ],
+            }) as DashboardDAO;
+        // Tile uuids are minted on upload here: compare targets by tile order
+        const zoomsOf = (dashboard: DashboardDAO) => ({
+            controls: dashboard.config?.dateZoomConfig?.controls,
+            targets: Object.values(
+                dashboard.config?.dateZoomConfig?.tileTargets ?? {},
+            ),
+        });
+        const savedZooms = zoomsOf(zoomDashboard());
+        const handWritten = (controlOrder?: AnyType): DashboardUploadAsCode => {
+            const file = download(zoomDashboard(), true);
+            return {
+                ...file,
+                config: {
+                    ...file.config!,
+                    dateZoomConfig: {
+                        controls: [
+                            {
+                                slug: 'weekly',
+                                name: 'Week',
+                                granularity: 'WEEK',
+                            },
+                            {
+                                name: 'Month',
+                                granularity: 'MONTH',
+                                sectionSlug: 'calendar',
+                            },
+                        ],
+                        tileTargets: {
+                            orders: { controlSlug: 'weekly', ...zoomTarget },
+                            customers: { controlSlug: 'month', ...zoomTarget },
+                        },
+                    },
+                    controlOrder,
+                },
+            };
+        };
+
+        it.each([true, false])(
+            'uploads zooms without a uuid by slug, keeping saved uuids (flag %s)',
+            async (enabled) => {
+                const saved = await upload(handWritten(), {
+                    enabled,
+                    saved: zoomDashboard(),
+                });
+                expect(zoomsOf(saved)).toEqual(savedZooms);
+            },
+        );
+
+        it('uploads an old-format file unchanged with the flag off', async () => {
+            const dashboard = zoomDashboard();
+            const saved = await upload(download(dashboard, false), {
+                enabled: false,
+                saved: dashboard,
+            });
+            expect(zoomsOf(saved)).toEqual(savedZooms);
+        });
+
+        it('mints a uuid for a uuid-less zoom that matches no saved control', async () => {
+            const file = handWritten();
+            const saved = await upload(
+                {
+                    ...file,
+                    config: {
+                        ...file.config!,
+                        dateZoomConfig: {
+                            ...file.config!.dateZoomConfig!,
+                            controls: [
+                                {
+                                    slug: 'weekly',
+                                    name: 'Weekly',
+                                    granularity: 'WEEK',
+                                },
+                                ...file.config!.dateZoomConfig!.controls.slice(
+                                    1,
+                                ),
+                            ],
+                        },
+                    },
+                },
+                { saved: zoomDashboard() },
+            );
+            const [weekly] = saved.config!.dateZoomConfig!.controls;
+            expect(weekly.uuid).toMatch(/^[0-9a-f-]{36}$/);
+            expect(zoomsOf(saved).targets[0].controlUuid).toBe(weekly.uuid);
+        });
+
+        it('rejects a target whose controlSlug matches no zoom', async () => {
+            const file = handWritten();
+            expect(
+                await rejection({
+                    ...file,
+                    config: {
+                        ...file.config!,
+                        dateZoomConfig: {
+                            ...file.config!.dateZoomConfig!,
+                            tileTargets: {
+                                orders: { controlSlug: 'daily', ...zoomTarget },
+                            },
+                        },
+                    },
+                } as AnyType),
+            ).toBe(
+                'Unknown date zoom control slug "daily" on tile "orders". Valid date zoom control slugs are weekly, month',
+            );
         });
     });
 });

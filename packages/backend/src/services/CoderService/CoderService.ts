@@ -47,6 +47,7 @@ import {
     DashboardTileChartQuery,
     DashboardTileTarget,
     DashboardTileTypes,
+    DashboardUploadAsCode,
     DimensionType,
     DirectAccessPrincipalType,
     DirectAccessResourceType,
@@ -212,6 +213,7 @@ import {
 } from './dashboardReferences';
 import { preserveDashboardTileUuids } from './dashboardTileIdentity';
 import { resolveDataAppVizBinding } from './dataAppVizBinding';
+import { getDateZoomConfigWithIds } from './dateZoomControlSlugs';
 import { normalizeFilterIds, stripFilterIds } from './filterIds';
 import {
     getContentConnectionName,
@@ -5759,7 +5761,7 @@ export class CoderService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         slug: string,
-        dashboardAsCode: DashboardAsCode,
+        dashboardAsCode: DashboardUploadAsCode,
         options: UpsertContentAsCodeOptions = {},
     ): Promise<DashboardAsCodeUpsertResult> {
         await this.assertAgentUploadAllowed(
@@ -5909,12 +5911,23 @@ export class CoderService extends BaseService {
         );
         let dashboardConfig: DashboardConfig | undefined;
         if (dashboardWithResolvedTabs.config) {
+            const { dateZoomConfig: portableDateZoom, ...portableConfig } =
+                dashboardWithResolvedTabs.config;
             const {
                 parameterControls: portableControls,
                 controlOrder: _portableOrder,
                 ...config
             } = CoderService.getConfigWithDateZoomTileUuids(
-                dashboardWithResolvedTabs.config,
+                {
+                    ...portableConfig,
+                    ...(portableDateZoom && {
+                        dateZoomConfig: getDateZoomConfigWithIds(
+                            portableDateZoom,
+                            existingDashboard?.config?.dateZoomConfig
+                                ?.controls ?? [],
+                        ),
+                    }),
+                },
                 tilesWithUuids,
             );
             const existingControls =
