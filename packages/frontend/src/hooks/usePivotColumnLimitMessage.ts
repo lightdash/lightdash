@@ -1,4 +1,4 @@
-import { isOtherPivotValue, type PivotValuesColumn } from '@lightdash/common';
+import { type PivotValuesColumn } from '@lightdash/common';
 import useApp from '../providers/App/useApp';
 
 type PivotColumnLimitDetails =
@@ -16,11 +16,7 @@ type PivotColumnLimitDetails =
 export const hasOtherPivotGroup = (
     valuesColumns: PivotValuesColumn[] | undefined,
 ): boolean =>
-    (valuesColumns ?? []).some((column) =>
-        column.pivotValues.some((pivotValue) =>
-            isOtherPivotValue(pivotValue.value),
-        ),
-    );
+    (valuesColumns ?? []).some((column) => column.isOtherGroup === true);
 
 /**
  * Grouped (pivoted) queries return at most `maxColumnLimit` columns. Unless

@@ -3,6 +3,7 @@ import {
     DimensionType,
     FieldType,
     MetricType,
+    OTHER_PIVOT_KEY,
     type ApiExploreResults,
     type CompiledDimension,
     type CompiledMetric,
@@ -129,6 +130,48 @@ describe('getDashboardTileContextMenuOptions', () => {
             'orders_status',
             'orders_priority',
         ]);
+    });
+
+    describe('on a chart grouped by a dimension', () => {
+        const pivotedChart = {
+            ...chart,
+            pivotConfig: { columns: ['orders_priority'] },
+        } as unknown as Pick<SavedChart, 'metricQuery' | 'pivotConfig'>;
+        const seriesFor = (value: unknown) => [
+            {
+                type: 'bar',
+                encode: { x: 'orders_status', y: 'orders_count', tooltip: [] },
+                pivotReference: {
+                    field: 'orders_count',
+                    pivotValues: [{ field: 'orders_priority', value }],
+                },
+            } as unknown as EChartsSeries,
+        ];
+        const clickEvent = {
+            ...baseClickEvent,
+            value: 12,
+            data: { orders_status: 'completed', orders_count: 12 },
+        };
+        const filteredFields = (value: unknown) =>
+            getDashboardTileContextMenuOptions({
+                clickEvent,
+                series: seriesFor(value),
+                explore,
+                chart: pivotedChart,
+            }).dashboardTileFilterOptions.map(
+                (filter) => filter.target.fieldId,
+            );
+
+        it('offers a filter on the clicked group', () => {
+            expect(filteredFields('high')).toEqual([
+                'orders_status',
+                'orders_priority',
+            ]);
+        });
+
+        it('offers no group filter on the "Other" group', () => {
+            expect(filteredFields(OTHER_PIVOT_KEY)).toEqual(['orders_status']);
+        });
     });
 
     it('creates filters for dimensions restored from a tuple dataset row', () => {

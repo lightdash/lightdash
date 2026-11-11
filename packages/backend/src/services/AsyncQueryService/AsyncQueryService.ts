@@ -4168,6 +4168,7 @@ export class AsyncQueryService extends ProjectService {
                               aggregation: col.aggregation,
                               pivotValues,
                               columnIndex: row.column_index,
+                              ...(isOtherGroup && { isOtherGroup: true }),
                           });
 
                           currentTransformedRow = currentTransformedRow ?? {};

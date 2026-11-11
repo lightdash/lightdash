@@ -30,6 +30,18 @@ export const isOtherPivotValue = (value: unknown): boolean =>
     value === OTHER_PIVOT_KEY;
 
 /**
+ * True for a series that stands for the "Other" group. It has no single value
+ * of the group-by field, so actions that filter by that value (underlying
+ * data, drill, dashboard filters) must not be offered on it.
+ */
+export const isOtherPivotReference = (
+    pivotReference: { pivotValues?: { value: unknown }[] } | undefined,
+): boolean =>
+    (pivotReference?.pivotValues ?? []).some((pivotValue) =>
+        isOtherPivotValue(pivotValue.value),
+    );
+
+/**
  * Name of a value column before the group-by suffix — also the alias the pivot
  * query gives the aggregated column, so the transform can read it back.
  */

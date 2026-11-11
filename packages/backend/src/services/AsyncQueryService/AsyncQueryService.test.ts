@@ -16573,7 +16573,12 @@ describe('AsyncQueryService', () => {
                     },
                 ],
                 columnIndex: 3,
+                isOtherGroup: true,
             });
+            // Ordinary columns are not flagged
+            expect(
+                pivotDetails?.valuesColumns.get('metric_x_any_p1'),
+            ).not.toHaveProperty('isOtherGroup');
             // The folded group's own value must not become a column
             expect(pivotDetails?.valuesColumns.has('metric_x_any_p3')).toBe(
                 false,

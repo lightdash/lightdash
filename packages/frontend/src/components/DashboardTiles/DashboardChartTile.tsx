@@ -12,6 +12,7 @@ import {
     DashboardTileTypes,
     type EChartsSeries,
     type Field,
+    isOtherPivotValue,
     type FilterDashboardToRule,
     getChartKind,
     getConditionalFormattingsFromChartConfig,
@@ -1023,8 +1024,13 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     }
                 }
 
+                // "Other" is not a value of the pivot field, so it cannot be
+                // used as a dashboard filter
                 const pivotOptions =
-                    pivot && pivotField && pivotValue
+                    pivot &&
+                    pivotField &&
+                    pivotValue &&
+                    !isOtherPivotValue(pivotValue)
                         ? [
                               createDashboardFilterRuleFromField({
                                   field: pivotField,
@@ -1925,6 +1931,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                         onViewUnderlyingData={
                                             handleViewUnderlyingData
                                         }
+                                        pivotReference={
+                                            viewUnderlyingDataOptions?.pivotReference
+                                        }
                                     />
                                 )}
 
@@ -2365,6 +2374,9 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                                     metricQuery={metricQuery}
                                     onViewUnderlyingData={
                                         handleViewUnderlyingData
+                                    }
+                                    pivotReference={
+                                        viewUnderlyingDataOptions?.pivotReference
                                     }
                                 />
                             </Menu.Dropdown>

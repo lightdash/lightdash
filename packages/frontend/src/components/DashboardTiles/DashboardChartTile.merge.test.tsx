@@ -520,6 +520,7 @@ describe('DashboardChartTile pivot column limit', () => {
                             formatted: 'Other',
                         },
                     ],
+                    isOtherGroup: true,
                 },
             ]),
         ],

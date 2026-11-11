@@ -152,6 +152,7 @@ describe('VisualizationWarning', () => {
                                 formatted: OTHER_PIVOT_LABEL,
                             },
                         ],
+                        isOtherGroup: true,
                     },
                 ],
                 groupByColumns: [{ reference: 'orders_status' }],
