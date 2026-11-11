@@ -70,7 +70,7 @@ describe('maskEmail', () => {
 });
 
 describe('MobileSignInStep', () => {
-    it('hides the code behind Show sign-in code', async () => {
+    it('offers Show sign-in code when the code is hidden', async () => {
         const signIn = mockSignIn({});
         renderStep();
         expect(
@@ -82,6 +82,15 @@ describe('MobileSignInStep', () => {
             screen.getByRole('button', { name: 'Show sign-in code' }),
         );
         expect(signIn.show).toHaveBeenCalledOnce();
+    });
+
+    it('shows a loader instead of the button while the code is created', () => {
+        mockSignIn({ isMinting: true });
+        renderStep();
+        expect(screen.getByLabelText('Creating the code')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Show sign-in code' }),
+        ).not.toBeInTheDocument();
     });
 
     it('shows the QR code and Hide code without a timer', async () => {

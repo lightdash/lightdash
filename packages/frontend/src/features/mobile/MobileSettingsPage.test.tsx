@@ -1,10 +1,12 @@
 import {
     MOBILE_APP_STORE_URL,
     MOBILE_GOOGLE_PLAY_URL,
+    MobileSignInCodeStatus,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import MobileAppLandingPage from './MobileAppLandingPage';
 import { MobileSettingsPage } from './MobileSettingsPage';
@@ -14,6 +16,7 @@ vi.mock('../../hooks/health/useHealth', () => ({
     default: () => ({ data: { siteUrl: 'https://app.example.com' } }),
 }));
 vi.mock('./useMobileAppLink', () => ({ useMobileAppLink: vi.fn() }));
+vi.mock('../../api');
 const qrSignIn = vi.hoisted(() => ({ enabled: false }));
 vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
     useServerFeatureFlag: () => ({
@@ -23,6 +26,14 @@ vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
 
 const SCAN_URL = 'https://app.example.com/m/app/scan-id';
 const QR_NAME = 'QR code to install the Lightdash app';
+const SIGN_IN_QR_NAME = 'Sign-in QR code';
+
+const signInCalls = (method: string) =>
+    mockedLightdashApi.mock.calls.filter(
+        ([call]) =>
+            call.method === method &&
+            call.url.startsWith('/user/mobile/sign-in-codes'),
+    );
 
 const mockLink = (overrides: Partial<ReturnType<typeof useMobileAppLink>>) =>
     vi.mocked(useMobileAppLink).mockReturnValue({
@@ -41,6 +52,28 @@ const mockLink = (overrides: Partial<ReturnType<typeof useMobileAppLink>>) =>
 beforeEach(() => {
     vi.mocked(useMobileAppLink).mockReset();
     qrSignIn.enabled = false;
+    mockedLightdashApi.mockReset();
+    mockedLightdashApi.mockImplementation(
+        async ({ method }: { method: string }) => {
+            if (method === 'POST') {
+                return {
+                    codeUuid: 'code-1',
+                    signInUrl: 'https://app.example.com/m/sign-in#c=code-1',
+                    approvalNonce: 'nonce-1',
+                    expiresAt: '2026-11-09T12:02:00.000Z',
+                    expiresInSeconds: 120,
+                };
+            }
+            if (method === 'DELETE') return undefined;
+            return {
+                codeUuid: 'code-1',
+                status: MobileSignInCodeStatus.PENDING,
+                expiresAt: '2026-11-09T12:02:00.000Z',
+                matchNumber: null,
+                device: null,
+            };
+        },
+    );
 });
 
 describe('MobileSettingsPage with mobile-qr-sign-in off', () => {
@@ -123,9 +156,10 @@ describe('MobileSettingsPage with mobile-qr-sign-in on', () => {
         expect(
             screen.queryByRole('button', { name: 'Show sign-in code' }),
         ).not.toBeInTheDocument();
+        expect(signInCalls('POST')).toHaveLength(0);
     });
 
-    it('moves to the sign-in step and back when the user already has the app', async () => {
+    it('shows the sign-in code without a click and cancels it on the way back', async () => {
         mockLink({});
         renderWithProviders(<MobileSettingsPage />);
 
@@ -139,15 +173,17 @@ describe('MobileSettingsPage with mobile-qr-sign-in on', () => {
             screen.queryByRole('img', { name: QR_NAME }),
         ).not.toBeInTheDocument();
         expect(
-            screen.getByRole('heading', { name: 'Sign in on your phone' }),
-        ).toHaveFocus();
+            await screen.findByRole('img', { name: SIGN_IN_QR_NAME }),
+        ).toBeInTheDocument();
         expect(
-            screen.getByRole('button', { name: 'Show sign-in code' }),
-        ).toBeVisible();
+            screen.queryByRole('button', { name: 'Show sign-in code' }),
+        ).not.toBeInTheDocument();
+        expect(signInCalls('POST')).toHaveLength(1);
 
         await userEvent.click(
             screen.getByRole('button', { name: 'Show code' }),
         );
+        await waitFor(() => expect(signInCalls('DELETE')).toHaveLength(1));
 
         expect(
             await screen.findByRole('img', { name: QR_NAME }),
@@ -176,7 +212,7 @@ describe('MobileSettingsPage with mobile-qr-sign-in on', () => {
         expect(useMobileAppLink).toHaveBeenLastCalledWith({ isPaused: false });
     });
 
-    it('announces a scan and opens the sign-in step', () => {
+    it('announces a scan and opens the sign-in step with its code', async () => {
         mockLink({ isScanned: true });
         renderWithProviders(<MobileSettingsPage />);
 
@@ -185,8 +221,9 @@ describe('MobileSettingsPage with mobile-qr-sign-in on', () => {
         );
         expect(screen.getByText('app.example.com')).toBeVisible();
         expect(
-            screen.getByRole('button', { name: 'Show sign-in code' }),
-        ).toBeVisible();
+            await screen.findByRole('img', { name: SIGN_IN_QR_NAME }),
+        ).toBeInTheDocument();
+        expect(signInCalls('POST')).toHaveLength(1);
         expect(
             screen.queryByRole('img', { name: QR_NAME }),
         ).not.toBeInTheDocument();
