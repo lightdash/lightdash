@@ -13380,6 +13380,12 @@ export class AppGenerateService extends BaseService {
         const app = await this.appModel.findApp(appUuid, projectUuid);
         if (!app || app.project_uuid !== projectUuid)
             throw new ForbiddenError();
+        // Abilities can be cached for a short time; the flag is read fresh so
+        // turning it off also stops stored results and reruns.
+        await this.assertConsumerAccessEnabled(
+            account.user.id,
+            app.organization_uuid,
+        );
         const [accessContext, projectContext] = await Promise.all([
             this.spacePermissionService.resolveAccess(account.user.id, {
                 type: 'app',
@@ -13404,6 +13410,17 @@ export class AppGenerateService extends BaseService {
             throw new ForbiddenError('You do not have access to this data app');
         if (version !== undefined)
             await this.assertLatestReadyVersion(appUuid, version);
+    }
+
+    private async assertConsumerAccessEnabled(
+        userUuid: string,
+        organizationUuid: string,
+    ): Promise<void> {
+        const { enabled } = await this.featureFlagModel.get({
+            user: { organizationUuid, userUuid },
+            featureFlagId: FeatureFlags.DataAppConsumerAccess,
+        });
+        if (!enabled) throw new ForbiddenError();
     }
 
     private async assertLatestReadyVersion(appUuid: string, version: number) {
@@ -13432,11 +13449,10 @@ export class AppGenerateService extends BaseService {
         previewToken: string;
     }): Promise<{ appUuid: string; version: number }> {
         if (!account.isRegisteredUser()) throw new ForbiddenError();
-        const { enabled } = await this.featureFlagModel.get({
-            user: { organizationUuid, userUuid: account.user.id },
-            featureFlagId: FeatureFlags.DataAppConsumerAccess,
-        });
-        if (!enabled) throw new ForbiddenError();
+        await this.assertConsumerAccessEnabled(
+            account.user.id,
+            organizationUuid,
+        );
         const verified = verifyPreviewTokenClaims(
             previewToken,
             this.lightdashConfig.lightdashSecrets,

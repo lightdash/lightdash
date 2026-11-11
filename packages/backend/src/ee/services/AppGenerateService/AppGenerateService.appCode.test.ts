@@ -3155,6 +3155,15 @@ describe('AppGenerateService.authorizeConsumerQuery', () => {
             ).resolves.toBeUndefined();
         });
 
+        it('denies reads and reruns once the flag is off, even with a cached ability', async () => {
+            // The mocked ability still allows view:DataApp, as a cached
+            // session would right after the flag is turned off.
+            const { service } = setup({ consumerAccessEnabled: false });
+            await expect(
+                service.assertCanViewQuerySource({ ...source, version: 2 }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
         it('denies reads and reruns recorded on an older version', async () => {
             const { service } = setup();
             await expect(
