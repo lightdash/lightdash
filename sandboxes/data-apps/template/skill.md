@@ -789,8 +789,8 @@ const [period, setPeriod] = useAppState('period', 'last_month', { scope: 'url' }
   mirroring a remembered view control into the link). Without that prompt line,
   `{ scope: 'url' }` is the only option to pass — no other scope, no `url: true`:
   anything else would only live in memory for the session.
-- `useUrlState(key, default)` and `useSharedAppState(key, default)` are aliases for the
-  `url` and `shared` scopes; prefer the unified hook in new code.
+- Always write the unified `useAppState(key, default, { scope })` form; older apps may
+  still carry alias hooks, but never introduce them in new code.
 
 ### External APIs
 
