@@ -1,7 +1,7 @@
 import { DateGranularity } from '@lightdash/common';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { type ComponentProps } from 'react';
-import { expect, fn, waitFor, within } from 'storybook/test';
+import { expect, fn, within } from 'storybook/test';
 import { withStoryFrame } from './decorators';
 import {
     createDateZoomControl,
@@ -48,9 +48,7 @@ const defaultZoom = {
         defaultGranularity: DateGranularity.MONTH,
         isViewer: false,
         tileCount: 4,
-        namedZooms: [],
         viewerGranularity: null,
-        initialView: 'value',
         onApply: fn(),
         onViewerApply: fn(),
         onCancel: fn(),
@@ -306,9 +304,10 @@ export const Default: DefaultStory = {
         await expect(
             canvas.queryByRole('button', { name: 'Rename' }),
         ).toBeNull();
+        // The grains viewers can pick live in the bar's "..." menu
         await expect(
-            canvas.getByRole('button', { name: 'Settings: 5 grains' }),
-        ).toBeVisible();
+            canvas.queryByRole('button', { name: /^Settings/ }),
+        ).toBeNull();
         await expect(
             canvas.getByText('If cleared, tiles keep their own grain.'),
         ).toBeVisible();
@@ -317,7 +316,6 @@ export const Default: DefaultStory = {
         );
         await userEvent.click(canvas.getByRole('button', { name: 'Apply' }));
         await expect(args.onApply).toHaveBeenCalledWith({
-            enabledGranularities,
             defaultGranularity: null,
         });
     },
@@ -333,122 +331,6 @@ export const DefaultNone: DefaultStory = {
         await expect(grain).toHaveValue('');
         await expect(grain).toHaveAttribute('placeholder', 'None');
         await expect(canvas.queryByText(/^If cleared,/)).toBeNull();
-    },
-};
-
-/** Settings lists every standard grain, then the dashboard's custom ones, for every zoom; checking one adds it. */
-export const DefaultSettings: DefaultStory = {
-    ...defaultZoom,
-    name: 'Default zoom, settings, custom grain',
-    args: {
-        ...defaultZoom.args,
-        enabledGranularities: [...enabledGranularities, 'fiscal_quarter'],
-        initialView: 'settings',
-    },
-    play: async ({ canvas, userEvent }) => {
-        await expect(canvas.getByText('Grains viewers can pick')).toBeVisible();
-        await expect(
-            canvas.getByText('For every date zoom on this dashboard.'),
-        ).toBeVisible();
-        await expect(
-            canvas.getByRole('checkbox', { name: 'Second' }),
-        ).not.toBeChecked();
-        await expect(
-            canvas.getByRole('checkbox', { name: 'Fiscal quarter' }),
-        ).toBeChecked();
-        const retail = canvas.getByRole('checkbox', { name: 'Retail week' });
-        await expect(retail).not.toBeChecked();
-        await userEvent.click(retail);
-        await userEvent.click(canvas.getByRole('button', { name: 'Back' }));
-        await expect(
-            canvas.getByRole('button', { name: 'Settings: 7 grains' }),
-        ).toHaveFocus();
-    },
-};
-
-/** Grains named zooms are at stay checked, saying which zoom or how many use them. */
-export const DefaultSettingsInUse: DefaultStory = {
-    ...defaultZoom,
-    name: 'Default zoom, settings, grains in use',
-    args: {
-        ...defaultZoom.args,
-        initialView: 'settings',
-        namedZooms: [
-            createDateZoomControl(),
-            createDateZoomControl({ uuid: 'zoom-orders', name: 'Orders zoom' }),
-            createDateZoomControl({
-                uuid: 'zoom-payments',
-                name: 'Payments zoom',
-                granularity: DateGranularity.MONTH,
-            }),
-        ],
-    },
-    play: async ({ canvas, canvasElement, userEvent }) => {
-        await expect(
-            canvas.getByText('For every date zoom on this dashboard.'),
-        ).toBeVisible();
-        await expect(
-            canvas.getByRole('checkbox', { name: 'Day' }),
-        ).toBeEnabled();
-        for (const [grain, reason] of [
-            ['Week', 'Used by 2 date zooms'],
-            ['Month', 'Used by Payments zoom'],
-        ]) {
-            const box = canvas.getByRole('checkbox', { name: grain });
-            await expect(box).toBeChecked();
-            await expect(box).toBeDisabled();
-            await userEvent.hover(canvas.getByText(grain));
-            // The tooltip fades in
-            const tooltip = await onPage(canvasElement).findByRole('tooltip', {
-                name: reason,
-            });
-            await waitFor(() => expect(tooltip).toBeVisible());
-            await userEvent.unhover(canvas.getByText(grain));
-        }
-    },
-};
-
-/** One grain left: viewers need it, so it cannot be unchecked. */
-export const DefaultSettingsLocked: DefaultStory = {
-    ...defaultZoom,
-    name: 'Default zoom, settings, one grain',
-    args: {
-        ...defaultZoom.args,
-        enabledGranularities: [DateGranularity.MONTH],
-        initialView: 'settings',
-    },
-    play: async ({ canvas, canvasElement, userEvent }) => {
-        const month = canvas.getByRole('checkbox', { name: 'Month' });
-        await expect(month).toBeChecked();
-        await expect(month).toBeDisabled();
-        await userEvent.hover(canvas.getByText('Month'));
-        await expect(
-            await onPage(canvasElement).findByRole('tooltip'),
-        ).toHaveTextContent('Viewers need at least one grain');
-    },
-};
-
-/** Unchecking the default grain clears the default, as the shipped menu did. */
-export const DefaultUncheckClears: DefaultStory = {
-    ...defaultZoom,
-    name: 'Default zoom, unchecking the default clears it',
-    args: { ...defaultZoom.args, initialView: 'settings' },
-    play: async ({ canvas, userEvent, args }) => {
-        await userEvent.click(canvas.getByRole('checkbox', { name: 'Month' }));
-        await userEvent.click(canvas.getByRole('button', { name: 'Back' }));
-        await expect(
-            canvas.getByRole('combobox', { name: 'Default zoom' }),
-        ).toHaveValue('');
-        await userEvent.click(canvas.getByRole('button', { name: 'Apply' }));
-        await expect(args.onApply).toHaveBeenCalledWith({
-            enabledGranularities: [
-                DateGranularity.DAY,
-                DateGranularity.WEEK,
-                DateGranularity.QUARTER,
-                DateGranularity.YEAR,
-            ],
-            defaultGranularity: null,
-        });
     },
 };
 

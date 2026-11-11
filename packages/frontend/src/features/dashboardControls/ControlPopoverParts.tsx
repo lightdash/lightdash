@@ -24,7 +24,7 @@ import { focusOnMount } from './mappingFocus';
 // The parameter popover's pieces, shared by the controls built like it
 
 /** A setting's line and its caption, at the gap the filter's Required uses. */
-export const CaptionedSetting: FC<{
+const CaptionedSetting: FC<{
     caption: string;
     captionId?: string;
     children: ReactNode;

@@ -1,10 +1,9 @@
-import { DateGranularity, type DateZoomControl } from '@lightdash/common';
+import { DateGranularity } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import { DefaultZoomPopover } from './DefaultZoomPopover';
-import { type EditorView } from './FilterPopover';
 
 const customLabels = {
     retail_week: 'Retail week',
@@ -12,25 +11,14 @@ const customLabels = {
 };
 const enabled = [DateGranularity.WEEK, DateGranularity.MONTH, 'fiscal_quarter'];
 
-const renderEditor = ({
-    enabledGranularities = enabled,
-    defaultGranularity = DateGranularity.MONTH as string | null,
-    initialView = 'value' as EditorView,
-    namedZooms = [] as Pick<DateZoomControl, 'uuid' | 'name' | 'granularity'>[],
-} = {}) => {
+const renderEditor = () => {
     const onApply = vi.fn();
     renderWithProviders(
         <DefaultZoomPopover
-            enabledGranularities={enabledGranularities}
-            defaultGranularity={defaultGranularity}
+            enabledGranularities={enabled}
+            defaultGranularity={DateGranularity.MONTH}
             customLabels={customLabels}
-            mode={{
-                kind: 'editor',
-                tileCount: 3,
-                namedZooms,
-                initialView,
-                onApply,
-            }}
+            mode={{ kind: 'editor', tileCount: 3, onApply }}
             onCancel={vi.fn()}
         />,
     );
@@ -66,113 +54,22 @@ describe('DefaultZoomPopover', () => {
         );
         expect(grain).toHaveAttribute('placeholder', 'None');
         await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
-        expect(onApply).toHaveBeenCalledWith({
-            enabledGranularities: enabled,
-            defaultGranularity: null,
-        });
+        expect(onApply).toHaveBeenCalledWith({ defaultGranularity: null });
     });
 
-    it('lists standard grains, then custom ones, and adds a checked one in order', async () => {
-        const { onApply } = renderEditor({ initialView: 'settings' });
-        const labels = screen
-            .getAllByRole('checkbox')
-            .map((box) => box.closest('.mantine-Checkbox-root')?.textContent);
-        expect(labels).toEqual([
-            'Second',
-            'Minute',
-            'Hour',
-            'Day',
-            'Week',
-            'Month',
-            'Quarter',
-            'Year',
-            'Fiscal quarter',
-            'Retail week',
-        ]);
-        await userEvent.click(screen.getByRole('checkbox', { name: 'Day' }));
+    it('offers only the enabled grains, with no Settings', async () => {
+        renderEditor();
+        expect(
+            screen.queryByRole('button', { name: /^Settings/ }),
+        ).not.toBeInTheDocument();
         await userEvent.click(
-            screen.getByRole('checkbox', { name: 'Retail week' }),
+            screen.getByRole('combobox', { name: 'Default zoom' }),
         );
-        await userEvent.click(screen.getByRole('button', { name: 'Back' }));
         expect(
-            screen.getByRole('button', { name: 'Settings: 5 grains' }),
-        ).toHaveFocus();
-        await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
-        expect(onApply).toHaveBeenCalledWith({
-            enabledGranularities: [
-                DateGranularity.DAY,
-                DateGranularity.WEEK,
-                DateGranularity.MONTH,
-                'fiscal_quarter',
-                'retail_week',
-            ],
-            defaultGranularity: DateGranularity.MONTH,
-        });
-    });
-
-    it('clears the default when its grain is unchecked', async () => {
-        const { onApply } = renderEditor({ initialView: 'settings' });
-        await userEvent.click(screen.getByRole('checkbox', { name: 'Month' }));
-        await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
-        expect(onApply).toHaveBeenCalledWith({
-            enabledGranularities: [DateGranularity.WEEK, 'fiscal_quarter'],
-            defaultGranularity: null,
-        });
-    });
-
-    it('keeps the last enabled grain checked', () => {
-        renderEditor({
-            enabledGranularities: [DateGranularity.WEEK],
-            defaultGranularity: null,
-            initialView: 'settings',
-        });
-        expect(screen.getByRole('checkbox', { name: 'Week' })).toBeDisabled();
-        expect(screen.getByRole('checkbox', { name: 'Day' })).toBeEnabled();
-    });
-
-    it('says the grains are for every date zoom', () => {
-        renderEditor({ initialView: 'settings' });
-        expect(
-            screen.getByText('For every date zoom on this dashboard.'),
-        ).toBeInTheDocument();
-    });
-
-    it.each([
-        [['Revenue zoom'], 'Used by Revenue zoom'],
-        [['Revenue zoom', 'Orders zoom'], 'Used by 2 date zooms'],
-        [
-            ['Revenue zoom', 'Orders zoom', 'Payments zoom'],
-            'Used by 3 date zooms',
-        ],
-    ])('locks a grain in use by %j, saying who', async (names, reason) => {
-        renderEditor({
-            initialView: 'settings',
-            namedZooms: names.map((name, index) => ({
-                uuid: `z${index}`,
-                name,
-                granularity: DateGranularity.WEEK,
-            })),
-        });
-        const week = screen.getByRole('checkbox', { name: 'Week' });
-        expect(week).toBeDisabled();
-        expect(screen.getByRole('checkbox', { name: 'Month' })).toBeEnabled();
-        await userEvent.hover(screen.getByText('Week'));
-        expect(await screen.findByRole('tooltip')).toHaveTextContent(reason);
-    });
-
-    it('names the zoom over the last-grain reason when both apply', async () => {
-        renderEditor({
-            enabledGranularities: [DateGranularity.WEEK],
-            defaultGranularity: null,
-            initialView: 'settings',
-            namedZooms: [
-                { uuid: 'z1', name: 'Revenue zoom', granularity: 'Week' },
-            ],
-        });
-        await userEvent.hover(screen.getByText('Week'));
-        expect(await screen.findByRole('tooltip')).toHaveTextContent(
-            'Used by Revenue zoom',
-        );
+            (await screen.findAllByRole('option')).map(
+                (option) => option.textContent,
+            ),
+        ).toEqual(['Week', 'Month', 'Fiscal quarter']);
     });
 
     it("tells a viewer that clearing goes back to the dashboard's default", async () => {
