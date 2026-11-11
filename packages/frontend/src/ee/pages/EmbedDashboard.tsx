@@ -17,12 +17,15 @@ const EmbedDashboardPage: FC<{
     isEditMode?: boolean;
     onEditModeChange?: (isEditMode: boolean) => void;
     chartSaveDestinations?: ChartSaveDestination[];
+    // Off where the dashboard replaces the agent conversation it would feed
+    sharesViewWithAiAgent?: boolean;
 }> = ({
     containerStyles,
     initialDashboard,
     isEditMode,
     onEditModeChange,
     chartSaveDestinations,
+    sharesViewWithAiAgent = true,
 }) => {
     const projectUuidFromParams = useProjectUuid();
     const { health } = useApp();
@@ -65,6 +68,7 @@ const EmbedDashboardPage: FC<{
                     isEditMode={isEditMode}
                     onEditModeChange={onEditModeChange}
                     chartSaveDestinations={chartSaveDestinations}
+                    sharesViewWithAiAgent={sharesViewWithAiAgent}
                 />
             </TileQueryQueueProvider>
         </DashboardProvider>

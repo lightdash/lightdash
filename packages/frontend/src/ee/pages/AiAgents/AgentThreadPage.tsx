@@ -29,6 +29,7 @@ import {
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useAiAgentThreadArtifact } from '../../features/aiCopilot/hooks/useAiAgentThreadArtifact';
+import { useDashboardPageContextCuration } from '../../features/aiCopilot/hooks/useDashboardPageContextCuration';
 import {
     useStartDeepResearchMutation,
     useTrackDeepResearchFollowUp,
@@ -222,15 +223,16 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const activeDisabledReason = disabledReasons.find((r) => r.when);
     const inputDisabled = !!activeDisabledReason;
     const inputDisabledReason = activeDisabledReason?.message;
-    const threadMentionItems = useMemo(
+    const threadContext = useMemo(
         () =>
-            contextItemsToContentMentionSuggestions(
-                thread?.messages.flatMap((message) =>
-                    message.role === 'user' ? message.context : [],
-                ) ?? [],
-                'thread',
-            ),
+            thread?.messages.flatMap((message) =>
+                message.role === 'user' ? message.context : [],
+            ) ?? [],
         [thread?.messages],
+    );
+    const threadMentionItems = useMemo(
+        () => contextItemsToContentMentionSuggestions(threadContext, 'thread'),
+        [threadContext],
     );
 
     const boundDashboardUuid =
@@ -282,6 +284,30 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         [threadMentionItems, pinnedDashboardTileItems, pageContentMentionItems],
     );
 
+    // A bound thread carries the view state of its dashboard when it is on the same page.
+    const { curateContext, recordSubmittedContext } =
+        useDashboardPageContextCuration({
+            previousContext: threadContext,
+            projectUuid: projectUuid!,
+            threadId: threadUuid,
+            boundDashboardUuid,
+        });
+    const getPromptContext = (
+        context?: Parameters<typeof createAgentThreadMessage>[0]['context'],
+        optimisticContext?: Parameters<
+            typeof createAgentThreadMessage
+        >[0]['optimisticContext'],
+    ) => {
+        const merged = {
+            context: mergeAiPromptContextInput(pageContextInput, context),
+            optimisticContext: mergeAiPromptContextItems(
+                pagePreviewItems,
+                optimisticContext,
+            ),
+        };
+        return boundDashboardUuid ? curateContext(merged) : merged;
+    };
+
     const handleSubmit = ({
         message,
         toolHints,
@@ -295,16 +321,16 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             typeof createAgentThreadMessage
         >[0]['optimisticContext'];
     }) => {
+        const promptContext = getPromptContext(context, optimisticContext);
         void createAgentThreadMessage({
             prompt: message,
-            context: mergeAiPromptContextInput(pageContextInput, context),
-            optimisticContext: mergeAiPromptContextItems(
-                pagePreviewItems,
-                optimisticContext,
-            ),
+            ...promptContext,
             enableSqlMode: sqlModeAvailable && sqlMode,
             toolHints,
-        }).then(trackDeepResearchFollowUp);
+        }).then(() => {
+            recordSubmittedContext(promptContext.context);
+            trackDeepResearchFollowUp();
+        });
     };
     const handleStartDeepResearch = async ({
         question,
@@ -319,16 +345,17 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             userUuid: user?.data?.userUuid,
             question,
         });
+        const promptContext = getPromptContext();
         const promptUuid =
             retryableRun?.promptUuid ??
             (
                 await createAgentThreadMessage({
                     prompt: question,
-                    context: pageContextInput,
-                    optimisticContext: pagePreviewItems,
+                    ...promptContext,
                     skipAgentResponse: true,
                 })
             ).uuid;
+        if (!retryableRun) recordSubmittedContext(promptContext.context);
         await startDeepResearch.mutateAsync({
             question,
             promptUuid,
@@ -343,13 +370,16 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
 
         return runDeepResearchAgain({
             registration,
-            createPrompt: (question) =>
-                createAgentThreadMessage({
+            createPrompt: async (question) => {
+                const promptContext = getPromptContext();
+                const prompt = await createAgentThreadMessage({
                     prompt: question,
-                    context: pageContextInput,
-                    optimisticContext: pagePreviewItems,
+                    ...promptContext,
                     skipAgentResponse: true,
-                }),
+                });
+                recordSubmittedContext(promptContext.context);
+                return prompt;
+            },
             startRun: startDeepResearch.mutateAsync,
         });
     };

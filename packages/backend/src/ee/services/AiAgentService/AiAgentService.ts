@@ -12616,12 +12616,23 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                 case 'dashboard': {
                     const name = item.displayName ?? '(name unavailable)';
                     const headline = `- Dashboard "${name}" (dashboardSlug: ${item.dashboardSlug ?? '(slug unavailable)'})`;
-                    const overrides = item.runtimeOverrides;
-                    if (!overrides) return headline;
+                    const overrides: AiDashboardRuntimeOverrides =
+                        item.runtimeOverrides ?? {};
                     const overrideLines: string[] = [];
                     if (overrides.activeTab) {
                         overrideLines.push(
                             `  Active tab: "${overrides.activeTab.name}"`,
+                        );
+                    }
+                    // Stated explicitly so a reset replaces overrides from earlier turns.
+                    const savedState = [
+                        !overrides.dashboardFilters && 'filters',
+                        !overrides.dashboardParameters && 'parameter values',
+                        overrides.dateZoom === undefined && 'date zoom',
+                    ].filter((label): label is string => !!label);
+                    if (savedState.length > 0) {
+                        overrideLines.push(
+                            `  As saved on the dashboard: ${savedState.join(', ')}`,
                         );
                     }
                     if (overrides.dashboardFilters) {
