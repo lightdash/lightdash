@@ -39842,6 +39842,85 @@
                 "type": "object",
                 "description": "A query sent live to an external API at question time. Nothing is ingested:\nthe connector runs the payload and its rows become this node's result."
             },
+            "QuerySourceType.MERGE": {
+                "enum": ["merge"],
+                "type": "string"
+            },
+            "MergeSourceQueryInput": {
+                "properties": {
+                    "repeatValues": {
+                        "type": "boolean",
+                        "description": "See MergeQueryMetricSource.repeatValues."
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId"
+                    }
+                },
+                "required": ["nodeId"],
+                "type": "object",
+                "description": "One input of a merge node: a semanticLayer node of the same submission."
+            },
+            "MergeSourceQuery": {
+                "properties": {
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration",
+                        "description": "Merge queries refuse a pivot; pivot in a referencing duckdb query."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SortField"
+                        },
+                        "type": "array",
+                        "description": "Sort of the merged result, by merged column id. Defaults to join-key order."
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeTableCalculation"
+                        },
+                        "type": "array",
+                        "description": "Calculations over the merged row. Defaults to none."
+                    },
+                    "joinType": {
+                        "$ref": "#/components/schemas/MergeJoinType"
+                    },
+                    "joinKey": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeJoinKeyPart"
+                        },
+                        "type": "array",
+                        "description": "Join key parts, each naming one field per source by node id."
+                    },
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeSourceQueryInput"
+                        },
+                        "type": "array",
+                        "description": "At least two semanticLayer nodes, in order; a left join keeps the first one's rows."
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.MERGE"
+                    }
+                },
+                "required": ["joinType", "joinKey", "sources", "sourceType"],
+                "type": "object",
+                "description": "semanticLayer nodes joined on shared keys; the nodes are the legs, read as they ran.\nColumns are `<nodeId>_<fieldId>`, and `merge_<name>` for keys and calculations."
+            },
             "SourceQuery": {
                 "anyOf": [
                     {
@@ -39861,6 +39940,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/ApiSourceQuery"
+                    },
+                    {
+                        "$ref": "#/components/schemas/MergeSourceQuery"
                     }
                 ],
                 "description": "The tagged union every submit endpoint takes: one shape per source,\ndiscriminated by sourceType. New sources add a member here — this union is\nthe extension point, not new WarehouseTypes values."
@@ -73605,7 +73687,8 @@
                     "duckdb",
                     "external",
                     "python",
-                    "api"
+                    "api",
+                    "merge"
                 ],
                 "type": "string"
             },
@@ -77401,7 +77484,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.214.1",
+        "version": "3.215.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

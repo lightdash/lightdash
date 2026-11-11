@@ -1,3 +1,10 @@
+# [3.215.0](https://github.com/lightdash/lightdash/compare/3.214.1...3.215.0) (2026-11-11)
+
+
+### Features
+
+* **ai:** composer merge node ([#32388](https://github.com/lightdash/lightdash/issues/32388)) ([39cd132](https://github.com/lightdash/lightdash/commit/39cd132ef3bfacebfd1ae4a4930b02967c8a6746))
+
 ## [3.214.1](https://github.com/lightdash/lightdash/compare/3.214.0...3.214.1) (2026-11-11)
 
 
