@@ -1,5 +1,6 @@
 import { type DateZoomControl } from '@lightdash/common';
 import {
+    dateZoomSlugs,
     getDateZoomConfigWithIds,
     getDateZoomConfigWithSlugs,
 } from './dateZoomControlSlugs';
@@ -76,6 +77,52 @@ describe('getDateZoomConfigWithIds', () => {
             c: legacy,
         });
         expect(tileTargets.c).toBe(legacy);
+    });
+
+    it('matches a uuid-less control by its file slug before its name', () => {
+        const { controls } = getDateZoomConfigWithIds(
+            {
+                controls: [
+                    { slug: 'week', name: 'Weekly', granularity: 'WEEK' },
+                ],
+            },
+            saved,
+        );
+        expect(controls[0].uuid).toBe('week-uuid');
+    });
+
+    it('matches same-named controls by the slugs a download derives', () => {
+        const twins: DateZoomControl[] = [
+            { uuid: 'first-uuid', name: 'Zoom', granularity: 'WEEK' },
+            { uuid: 'second-uuid', name: 'Zoom', granularity: 'MONTH' },
+        ];
+        const [first, second] = dateZoomSlugs(twins);
+        const { controls } = getDateZoomConfigWithIds(
+            {
+                controls: [
+                    { slug: second, name: 'Zoom', granularity: 'MONTH' },
+                    { slug: first, name: 'Zoom', granularity: 'WEEK' },
+                ],
+            },
+            twins,
+        );
+        expect(controls.map(({ uuid }) => uuid)).toEqual([
+            'second-uuid',
+            'first-uuid',
+        ]);
+    });
+
+    it('never takes by slug a saved uuid another control in the file keeps', () => {
+        const { controls } = getDateZoomConfigWithIds(
+            {
+                controls: [
+                    { uuid: 'week-uuid', name: 'Renamed', granularity: 'WEEK' },
+                    { slug: 'week', name: 'Week', granularity: 'WEEK' },
+                ],
+            },
+            saved,
+        );
+        expect(controls[1].uuid).not.toMatch(/^(week|month)-uuid$/);
     });
 
     it('accepts a config without controls or tile targets', () => {

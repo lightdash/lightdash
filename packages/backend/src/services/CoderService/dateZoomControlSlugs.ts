@@ -22,7 +22,7 @@ export const dateZoomSlugs = (
 type UploadedControl = Pick<DateZoomControlUploadAsCode, 'uuid' | 'slug'> &
     Pick<DateZoomControl, 'name'>;
 
-/** Controls keep a file uuid, else the saved uuid their name matches, else a new one; targets resolve `controlSlug` */
+/** Controls keep a file uuid, else the saved uuid their slug or name matches, else a new one; targets resolve `controlSlug` */
 export const getDateZoomConfigWithIds = <C extends UploadedControl>(
     config: {
         controls?: C[];
@@ -49,20 +49,34 @@ export const getDateZoomConfigWithIds = <C extends UploadedControl>(
             );
         seen.add(slug);
     });
-    const fileUuids = new Set(
+    const usedUuids = new Set(
         fileControls.flatMap(({ uuid }) => (uuid === undefined ? [] : [uuid])),
     );
+    // A file slug first matches the slug a download derives for a saved control
+    const savedSlugs = dateZoomSlugs(existing.map(({ name }) => ({ name })));
+    const slugMatches = fileControls.map(({ uuid, slug }) => {
+        if (uuid !== undefined || slug === undefined) return undefined;
+        const match = existing[savedSlugs.indexOf(slug)]?.uuid;
+        if (match === undefined || usedUuids.has(match)) return undefined;
+        usedUuids.add(match);
+        return match;
+    });
     const newIds = getStableIds(
-        fileControls.filter(({ uuid }) => uuid === undefined),
+        fileControls.filter(
+            ({ uuid }, index) =>
+                uuid === undefined && slugMatches[index] === undefined,
+        ),
         existing.map(({ uuid, name }) => ({ id: uuid, name })),
         baseSlug,
-        fileUuids,
+        usedUuids,
     );
     // A file's slugs only resolve refs inside it
-    const controls = fileControls.map(({ slug: _slug, uuid, ...control }) => ({
-        ...control,
-        uuid: uuid ?? (newIds.shift() as string),
-    }));
+    const controls = fileControls.map(
+        ({ slug: _slug, uuid, ...control }, index) => ({
+            ...control,
+            uuid: uuid ?? slugMatches[index] ?? (newIds.shift() as string),
+        }),
+    );
     const slugs = dateZoomSlugs(fileControls);
     const uuidBySlug = new Map(
         slugs.map((slug, index) => [slug, controls[index].uuid]),

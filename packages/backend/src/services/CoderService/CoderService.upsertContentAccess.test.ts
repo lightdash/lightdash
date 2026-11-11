@@ -5529,5 +5529,52 @@ describe('CoderService dashboard control order as code', () => {
                     ?.dateZoomConfig,
             ).toEqual({ controls: [], tileTargets: {} });
         });
+
+        it('keeps the uuids of same-named zooms uploaded by their downloaded slugs', async () => {
+            const dashboard = zoomDashboard({
+                dateZoomConfig: {
+                    controls: [
+                        {
+                            uuid: 'first-uuid',
+                            name: 'Zoom',
+                            granularity: 'WEEK',
+                        },
+                        {
+                            uuid: 'second-uuid',
+                            name: 'Zoom',
+                            granularity: 'MONTH',
+                        },
+                    ],
+                    tileTargets: {
+                        'tile-a': { controlUuid: 'second-uuid', ...zoomTarget },
+                    },
+                },
+            });
+            const file = download(dashboard, true);
+            const { controls, tileTargets } = file.config!.dateZoomConfig!;
+            const saved = await upload(
+                {
+                    ...file,
+                    config: {
+                        ...file.config!,
+                        dateZoomConfig: {
+                            controls: controls.map(
+                                ({ uuid: _uuid, ...control }) => control,
+                            ),
+                            tileTargets: Object.fromEntries(
+                                Object.entries(tileTargets).map(
+                                    ([
+                                        tile,
+                                        { controlUuid: _uuid, ...rest },
+                                    ]) => [tile, rest],
+                                ),
+                            ),
+                        },
+                    },
+                },
+                { saved: dashboard },
+            );
+            expect(zoomsOf(saved)).toEqual(zoomsOf(dashboard));
+        });
     });
 });
