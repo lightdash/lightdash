@@ -76,6 +76,25 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         [dirtyPivotConfiguration, resultsData?.pivotDetails?.valuesColumns],
     );
 
+    // The reverse: the chart as configured now would fold the groups past the
+    // column limit into "Other", but the results dropped them: stacking was
+    // switched on after the query ran. Charts with table calculations are left
+    // out because pivot table calculations never fold, so a re-run would not
+    // clear the message.
+    const isMissingOtherGroup = useMemo(
+        () =>
+            !!dirtyPivotConfiguration?.foldOverflowGroups &&
+            pivotColumnLimitMessage !== null &&
+            !hasOtherPivotGroup(resultsData?.pivotDetails?.valuesColumns) &&
+            (resultsData?.metricQuery?.tableCalculations ?? []).length === 0,
+        [
+            dirtyPivotConfiguration,
+            pivotColumnLimitMessage,
+            resultsData?.pivotDetails?.valuesColumns,
+            resultsData?.metricQuery?.tableCalculations,
+        ],
+    );
+
     // Determine if configured pivot dimensions are different from the ones used to compute the results
     const shouldShowPivotMismatch = useMemo(() => {
         // Determine pivot used to compute current results
@@ -132,6 +151,10 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
             _messages.push(
                 'These results add the groups past the column limit together as "Other", which only applies to stacked charts. Re-run the query to update them.',
             );
+        } else if (isMissingOtherGroup) {
+            _messages.push(
+                'These results leave out the groups past the column limit, so totals are too low. Re-run the query to add them together as "Other".',
+            );
         } else if (pivotColumnLimitMessage) {
             _messages.push(pivotColumnLimitMessage);
         }
@@ -143,6 +166,7 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         unusedDimensionLabels,
         pivotColumnLimitMessage,
         hasStaleOtherGroup,
+        isMissingOtherGroup,
     ]);
 
     if (messages.length === 0) return null;

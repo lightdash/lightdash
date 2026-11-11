@@ -212,6 +212,51 @@ describe('VisualizationWarning', () => {
         });
     });
 
+    it('asks for a re-run when a chart that is now stacked has results that dropped groups', async () => {
+        renderWithProviders(
+            <VisualizationWarning
+                {...props}
+                chartConfig={{
+                    type: ChartType.CARTESIAN,
+                    config: {
+                        layout: {
+                            xField: 'orders_date',
+                            yField: ['orders_total'],
+                        },
+                        eChartsConfig: {},
+                    },
+                }}
+                resultsData={{
+                    ...props.resultsData,
+                    pivotDetails: {
+                        totalColumnCount: 412,
+                        indexColumn: undefined,
+                        valuesColumns: [],
+                        groupByColumns: [{ reference: 'orders_status' }],
+                        sortBy: undefined,
+                        originalColumns: {},
+                    },
+                }}
+                dirtyPivotConfiguration={{
+                    indexColumn: undefined,
+                    valuesColumns: [],
+                    groupByColumns: [{ reference: 'orders_status' }],
+                    sortBy: undefined,
+                    foldOverflowGroups: true,
+                }}
+                maxColumnLimit={200}
+            />,
+        );
+
+        await userEvent.hover(
+            screen.getByRole('img', { name: 'Results may be incorrect' }),
+        );
+
+        expect(await screen.findByRole('tooltip')).toHaveTextContent(
+            'Re-run the query to add them together as "Other".',
+        );
+    });
+
     it('does not warn when every dimension is used', () => {
         renderWithProviders(
             <VisualizationWarning
