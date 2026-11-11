@@ -22,7 +22,6 @@ const Harness: FC<{
     return (
         <DefaultZoomPopover
             enabledGranularities={enabled}
-            defaultGranularity={defaultGranularity}
             value={value}
             customLabels={customLabels}
             mode={
@@ -94,23 +93,22 @@ describe('DefaultZoomPopover', () => {
         ).toEqual(['Week', 'Month', 'Fiscal quarter']);
     });
 
-    it("tells a viewer that clearing goes back to the dashboard's default", async () => {
+    it("tells a viewer that clearing leaves tiles on their own grain, as the menu's None", async () => {
         const { onApply } = renderViewer(DateGranularity.MONTH);
         const grain = screen.getByRole('combobox', { name: 'Default zoom' });
         expect(grain).toHaveValue('Month');
-        expect(screen.queryByText(/^If cleared,/)).not.toBeInTheDocument();
+        expect(
+            screen.getByText('If cleared, tiles keep their own grain.'),
+        ).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: /^Settings/ }),
         ).not.toBeInTheDocument();
-        await userEvent.click(grain);
         await userEvent.click(
-            await screen.findByRole('option', { name: 'Week' }),
+            screen.getByRole('button', { name: 'Clear grain' }),
         );
-        expect(
-            screen.getByText('If cleared, tiles use the default, Month.'),
-        ).toBeInTheDocument();
+        expect(grain).toHaveAttribute('placeholder', 'None');
         await userEvent.click(screen.getByRole('button', { name: 'Apply' }));
-        expect(onApply).toHaveBeenCalledWith(DateGranularity.WEEK);
+        expect(onApply).toHaveBeenCalledWith(null);
     });
 
     it('tells a viewer with no default that tiles keep their own grain', async () => {

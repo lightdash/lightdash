@@ -68,7 +68,6 @@ const DefaultZoomEditorContent: FC = () => {
     const cancel = useDateZoomEditorSelector((c) => c.cancel);
     const resolvePending = useDateZoomEditorSelector((c) => c.resolvePending);
     const granularities = useDashboardDateZoomGranularities();
-    const defaultGranularity = useDefaultDateZoomGranularity();
     const customLabels = useDashboardSelector(
         selectAvailableCustomGranularities,
     );
@@ -76,7 +75,6 @@ const DefaultZoomEditorContent: FC = () => {
     return (
         <DefaultZoomPopover
             enabledGranularities={granularities}
-            defaultGranularity={defaultGranularity ?? null}
             value={pick}
             customLabels={customLabels}
             mode={isViewer ? { kind: 'viewer' } : { kind: 'editor', tileCount }}
