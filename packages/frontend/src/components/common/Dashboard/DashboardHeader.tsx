@@ -760,9 +760,6 @@ const DashboardHeader = memo(
                                 className={headerClasses.editBar}
                             >
                                 <TileLayoutHistoryButtons />
-                                <TidyTilesButton />
-                                <ActionBar.Divider />
-                                <CanvasZoomControls />
                                 <ActionBar.Divider />
                                 <AddTileButton
                                     onAddTiles={onAddTiles}
@@ -773,7 +770,9 @@ const DashboardHeader = memo(
                                     onNewChart={onNewChart}
                                     radius="md"
                                 />
+                                <TidyTilesButton />
                                 <ActionBar.Divider />
+                                <CanvasZoomControls />
                                 <EditFiltersVisibilityControl
                                     value={editFiltersVisibility}
                                     onChange={onEditFiltersVisibilityChange}
