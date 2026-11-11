@@ -172,8 +172,9 @@ const ToolbarToggle: FC<{
     </Tooltip>
 );
 
-// Tabler 2 has no filter-lines icon: three lines narrowing to a point.
+// Tabler has no filter-lines icon: three lines narrowing to a point.
 const IconFilterLines = createReactComponent(
+    'outline',
     'filter-lines',
     'IconFilterLines',
     [

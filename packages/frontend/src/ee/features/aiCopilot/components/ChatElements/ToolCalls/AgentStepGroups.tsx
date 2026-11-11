@@ -5,9 +5,9 @@ import {
     IconPencil,
     IconSearch,
     IconTerminal2,
-    type TablerIconsProps,
+    type TablerIcon,
 } from '@tabler/icons-react';
-import { type FC, type JSX } from 'react';
+import { type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { ToolCallChip } from './ToolCallChip';
 import styles from './ToolCallRow.module.css';
@@ -21,7 +21,7 @@ type StepKind = AiWritebackStep['kind'];
 const KIND_DISPLAY: Record<
     StepKind,
     {
-        icon: (props: TablerIconsProps) => JSX.Element;
+        icon: TablerIcon;
         verb: string;
         noun: string;
         chips: boolean;
