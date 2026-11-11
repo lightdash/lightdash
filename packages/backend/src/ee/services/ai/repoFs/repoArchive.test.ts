@@ -112,6 +112,10 @@ describe('an archive kept across agent runs', () => {
         expect((await run('tree-1'))?.get('models/a.sql')).toBe('select 1');
         expect((await run('tree-1'))?.get('models/a.sql')).toBe('select 1');
         expect(getRepoArchiveStream).toHaveBeenCalledTimes(1);
+        // The listed tree is what is downloaded, so a branch that moves cannot fill this entry with other files.
+        expect(getRepoArchiveStream).toHaveBeenCalledWith(
+            expect.objectContaining({ ref: 'tree-1' }),
+        );
     });
 
     it('is downloaded again once the tree changes', async () => {

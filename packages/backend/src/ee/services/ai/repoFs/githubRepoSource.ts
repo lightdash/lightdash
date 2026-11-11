@@ -91,6 +91,8 @@ export const readRepoArchive = async (
     let tooLarge = false;
     const extractor = extract();
     const piped = pipeline(archive, createGunzip(), extractor);
+    // Stopping early or a bad archive rejects this too; the loop below is what reports it.
+    piped.catch(() => undefined);
     try {
         for await (const entry of extractor) {
             const { type, name, size = 0 } = entry.header;
@@ -221,7 +223,8 @@ export const createGithubRepoSource = ({
                     await getRepoArchiveStream({
                         owner,
                         repo,
-                        ref: branch,
+                        // The tree that was listed, not the branch: the branch may have moved since, and the files are kept under this hash.
+                        ref: treeSha,
                         token,
                     }),
                     { prefix, maxBytes },
