@@ -1,3 +1,15 @@
+# [3.216.0](https://github.com/lightdash/lightdash/compare/3.215.0...3.216.0) (2026-11-11)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** create new sections inline ([#32415](https://github.com/lightdash/lightdash/issues/32415)) ([e243e36](https://github.com/lightdash/lightdash/commit/e243e36c7d44d7799d7987ccb36b75ecde061a1b))
+
+
+### Features
+
+* **mobile:** show the sign-in code without a button ([#32400](https://github.com/lightdash/lightdash/issues/32400)) ([0a2c020](https://github.com/lightdash/lightdash/commit/0a2c020555a1bebab4d778a63c0d149a4be9dfdc))
+
 # [3.215.0](https://github.com/lightdash/lightdash/compare/3.214.1...3.215.0) (2026-11-11)
 
 
