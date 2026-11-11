@@ -75,6 +75,13 @@ describe('getDateZoomConfigWithIds', () => {
         expect(tileTargets.c).toBe(legacy);
     });
 
+    it('accepts a config without controls or tile targets', () => {
+        expect(getDateZoomConfigWithIds({}, saved)).toEqual({
+            controls: [],
+            tileTargets: {},
+        });
+    });
+
     it.each([
         [
             'an invalid slug',

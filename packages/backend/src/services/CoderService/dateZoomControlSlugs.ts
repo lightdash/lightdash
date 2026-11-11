@@ -25,16 +25,19 @@ type UploadedControl = Pick<DateZoomControlUploadAsCode, 'uuid' | 'slug'> &
 /** Controls keep a file uuid, else the saved uuid their name matches, else a new one; targets resolve `controlSlug` */
 export const getDateZoomConfigWithIds = <C extends UploadedControl>(
     config: {
-        controls: C[];
-        tileTargets: Record<string, DateZoomTileTargetUploadAsCode>;
+        controls?: C[];
+        tileTargets?: Record<string, DateZoomTileTargetUploadAsCode>;
     },
     existing: Pick<DateZoomControl, 'uuid' | 'name'>[],
 ): {
     controls: (Omit<C, 'uuid' | 'slug'> & { uuid: string })[];
     tileTargets: Record<string, DateZoomTileTarget>;
 } => {
+    // Older readers tolerated a config without either list
+    const fileControls = config.controls ?? [];
+    const fileTargets = config.tileTargets ?? {};
     const seen = new Set<string>();
-    config.controls.forEach(({ slug }) => {
+    fileControls.forEach(({ slug }) => {
         if (slug === undefined) return;
         if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))
             throw new ParameterError(
@@ -47,30 +50,26 @@ export const getDateZoomConfigWithIds = <C extends UploadedControl>(
         seen.add(slug);
     });
     const fileUuids = new Set(
-        config.controls.flatMap(({ uuid }) =>
-            uuid === undefined ? [] : [uuid],
-        ),
+        fileControls.flatMap(({ uuid }) => (uuid === undefined ? [] : [uuid])),
     );
     const newIds = getStableIds(
-        config.controls.filter(({ uuid }) => uuid === undefined),
+        fileControls.filter(({ uuid }) => uuid === undefined),
         existing.map(({ uuid, name }) => ({ id: uuid, name })),
         baseSlug,
         fileUuids,
     );
     // A file's slugs only resolve refs inside it
-    const controls = config.controls.map(
-        ({ slug: _slug, uuid, ...control }) => ({
-            ...control,
-            uuid: uuid ?? (newIds.shift() as string),
-        }),
-    );
-    const slugs = dateZoomSlugs(config.controls);
+    const controls = fileControls.map(({ slug: _slug, uuid, ...control }) => ({
+        ...control,
+        uuid: uuid ?? (newIds.shift() as string),
+    }));
+    const slugs = dateZoomSlugs(fileControls);
     const uuidBySlug = new Map(
         slugs.map((slug, index) => [slug, controls[index].uuid]),
     );
     const validSlugs = slugs.join(', ') || 'none';
     const tileTargets = Object.fromEntries(
-        Object.entries(config.tileTargets).map(([tile, target]) => {
+        Object.entries(fileTargets).map(([tile, target]) => {
             const { controlSlug, ...rest } = target;
             if (controlSlug === undefined) {
                 if (rest.controlUuid === undefined)
