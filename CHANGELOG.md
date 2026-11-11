@@ -1,3 +1,15 @@
+# [3.212.0](https://github.com/lightdash/lightdash/compare/3.211.5...3.212.0) (2026-11-11)
+
+
+### Bug Fixes
+
+* **ai-writeback:** normalize git host matching for integration tokens ([#32399](https://github.com/lightdash/lightdash/issues/32399)) ([5ed463b](https://github.com/lightdash/lightdash/commit/5ed463b246504fc3c8b5799f7b28e0c578cb2717))
+
+
+### Features
+
+* **embed:** reload an embedded dashboard in place with refreshKey ([#32397](https://github.com/lightdash/lightdash/issues/32397)) ([0a33a19](https://github.com/lightdash/lightdash/commit/0a33a196227b744af148aa943b79d4665bb967fc))
+
 ## [3.211.5](https://github.com/lightdash/lightdash/compare/3.211.4...3.211.5) (2026-11-11)
 
 
