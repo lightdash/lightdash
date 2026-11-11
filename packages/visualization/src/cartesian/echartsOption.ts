@@ -3148,7 +3148,11 @@ export const getStackTotalSeries = (
                 flipAxis,
                 selectedLegendNames,
             );
+            // ECharts matches series between updates by id, falling back to
+            // their position in the list. Without a stable id, hiding one
+            // stack's total makes the next stack's labels slide into its place.
             const stackSeries: EChartsSeries = {
+                id: `stack-total-${stack}`,
                 type: series[0].type,
                 ...(series[0].type === CartesianSeriesType.LINE ||
                 series[0].type === CartesianSeriesType.AREA
@@ -3199,6 +3203,7 @@ export const getStackTotalSeries = (
                           );
             if (clampedRows.length > 0) {
                 acc.push({
+                    id: `stack-total-clamped-${stack}`,
                     type: CartesianSeriesType.LINE,
                     showSymbol: true,
                     symbolSize: 0,

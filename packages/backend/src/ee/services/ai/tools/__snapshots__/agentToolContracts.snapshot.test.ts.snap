@@ -18465,6 +18465,8 @@ Node kinds:
 
 A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: aggregate in the referenced node itself.
 
+A duckdb node that only reshapes another duckdb node's result (adds a column, filters, renames, re-sorts) belongs in that node's SQL: write one duckdb node over the original's references, under a new node id if the original is from an earlier call. Each duckdb step waits for the one it reads.
+
 Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -19655,6 +19657,8 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
   },
   {
     "description": "Visualize a node's result for the user as a chart or table. Each call adds one card to the thread; a result stays hidden until it is visualized.
+
+A request to chart a single-number answer asks for the breakdown behind it: visualize the node that produced the number.
 
 nodeId names a node from a successful query call in this thread, in this turn or an earlier one, so a result can be visualized again with a different vizConfig without rerunning query. vizConfig references are that node's result columns, as listed in its query result.
 

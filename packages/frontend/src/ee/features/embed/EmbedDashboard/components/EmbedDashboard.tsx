@@ -80,7 +80,11 @@ import {
     applyFilterLabelOverrides,
     restoreFilterLabelOverrides,
 } from '../filterLabelOverrides';
-import { useEmbedDashboard, useEmbedSavedParameters } from '../hooks';
+import {
+    useEmbedDashboard,
+    useEmbedDashboardRefreshKey,
+    useEmbedSavedParameters,
+} from '../hooks';
 import {
     type ChartSaveDestination,
     type EmbedChartSaveDashboard,
@@ -371,6 +375,7 @@ const EmbedDashboard: FC<{
     onEditModeChange?: (isEditMode: boolean) => void;
     chartSaveDestinations?: ChartSaveDestination[];
     sharesViewWithAiAgent?: boolean;
+    refreshKey?: number;
 }> = ({
     containerStyles,
     initialDashboard,
@@ -378,6 +383,7 @@ const EmbedDashboard: FC<{
     onEditModeChange,
     chartSaveDestinations,
     sharesViewWithAiAgent = true,
+    refreshKey,
 }) => {
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const activeTab = useDashboardSelector(selectActiveTab);
@@ -477,6 +483,7 @@ const EmbedDashboard: FC<{
         !initialDashboard,
         embedDashboardUuid,
     );
+    useEmbedDashboardRefreshKey(refreshKey, isEditMode);
     useEffect(() => {
         if (initialDashboard) {
             setLocalDashboard(initialDashboard);

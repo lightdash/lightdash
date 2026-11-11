@@ -268,12 +268,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                 clientId,
                             }),
                 }),
-            linearAppService: ({ models, context }) => {
+            linearAppService: ({ models, context, utils }) => {
                 const aiAgentReviewNotificationModel =
                     models.getAiAgentReviewNotificationModel<AiAgentReviewNotificationModel>();
                 return new LinearAppService({
                     linearAppInstallationsModel:
                         models.getLinearAppInstallationsModel(),
+                    encryptionUtil: utils.getEncryptionUtil(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     onWorkspaceChanged: (organizationUuid, trx) =>

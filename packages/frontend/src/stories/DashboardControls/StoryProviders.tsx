@@ -100,6 +100,8 @@ const createStore = (sections: DashboardControlSection[]) => {
     );
     store.dispatch(
         dashboardParametersActions.addDiscoveredParameterReferences({
+            chartSavedValues: {},
+            virtualViewSavedValues: {},
             definitions: Object.fromEntries(
                 parameterList.map(({ key, definition }) => [key, definition]),
             ),

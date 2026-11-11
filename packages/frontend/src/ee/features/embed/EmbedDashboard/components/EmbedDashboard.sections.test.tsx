@@ -1,20 +1,26 @@
 import { type Dashboard } from '@lightdash/common';
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { type FC } from 'react';
+import { useEffect, type FC } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     selectControlSections,
+    selectDashboardFilters,
+    selectRawTemporaryFilters,
     useDashboardSelector,
 } from '../../../../../features/dashboard/store';
 import DashboardProvider from '../../../../../providers/Dashboard/DashboardProvider';
+import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import EmbedDashboard from './EmbedDashboard';
 
 const mocks = vi.hoisted(() => ({
     embed: {} as Record<string, unknown>,
     updateDashboard: vi.fn(),
+    onUpdateSuccess: undefined as ((dashboard: unknown) => void) | undefined,
+    setTemporaryFilters: undefined as ((filters: unknown) => void) | undefined,
+    committedFilterIds: [] as string[],
 }));
 
 // The chart editor's SQL editor is never opened here
@@ -44,10 +50,15 @@ vi.mock(
             isInitialLoading: false,
             isFetching: false,
         }),
-        useUpdateDashboard: () => ({
-            mutate: mocks.updateDashboard,
-            isLoading: false,
-        }),
+        useUpdateDashboard: (
+            _uuid: unknown,
+            _projectUuid: unknown,
+            _showToast: unknown,
+            onSuccess: (dashboard: unknown) => void,
+        ) => {
+            mocks.onUpdateSuccess = onSuccess;
+            return { mutate: mocks.updateDashboard, isLoading: false };
+        },
     }),
 );
 vi.mock('../hooks', async (importActual) => ({
@@ -127,11 +138,27 @@ const SectionNames: FC = () => {
     );
 };
 
+const FilterIds: FC = () => {
+    const filters = useDashboardSelector(selectDashboardFilters);
+    const temporaryFilters = useDashboardSelector(selectRawTemporaryFilters);
+    mocks.setTemporaryFilters = useDashboardContext(
+        (c) => c.setDashboardTemporaryFilters,
+    ) as (filters: unknown) => void;
+    const ids = [...filters.dimensions, ...temporaryFilters.dimensions]
+        .map(({ id }) => id)
+        .join(',');
+    useEffect(() => {
+        mocks.committedFilterIds.push(ids);
+    }, [ids]);
+    return <output data-testid="filter-ids">{ids}</output>;
+};
+
 const renderEmbed = (isEditMode: boolean) =>
     renderWithProviders(
         <MemoryRouter>
             <DashboardProvider embedToken="token" projectUuid="project-1">
                 <SectionNames />
+                <FilterIds />
                 <EmbedDashboard
                     initialDashboard={
                         dashboard as unknown as Parameters<
@@ -194,5 +221,49 @@ describe('EmbedDashboard sections', () => {
                 ({ sectionId }: { sectionId?: string }) => sectionId,
             ),
         ).toEqual(['a']);
+    });
+
+    it("keeps a viewer's added filter applied, once, through its save", async () => {
+        renderEmbed(false);
+        await waitFor(() =>
+            expect(screen.getByTestId('filter-ids')).toHaveTextContent(
+                'rule-1',
+            ),
+        );
+        const viewerFilter = {
+            id: 'viewer-city',
+            operator: 'equals',
+            target: { fieldId: 'orders_city', tableName: 'orders' },
+            values: ['Porto'],
+        };
+        act(() =>
+            mocks.setTemporaryFilters?.({
+                dimensions: [viewerFilter],
+                metrics: [],
+                tableCalculations: [],
+            }),
+        );
+
+        mocks.committedFilterIds = [];
+        act(() =>
+            mocks.onUpdateSuccess?.({
+                ...dashboard,
+                filters: {
+                    ...dashboard.filters,
+                    dimensions: [...dashboard.filters.dimensions, viewerFilter],
+                },
+            }),
+        );
+
+        await waitFor(() =>
+            expect(screen.getByTestId('filter-ids').textContent).toBe(
+                'rule-1,viewer-city',
+            ),
+        );
+        expect(
+            mocks.committedFilterIds.filter(
+                (ids) => ids !== 'rule-1,viewer-city',
+            ),
+        ).toEqual([]);
     });
 });

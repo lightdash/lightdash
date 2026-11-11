@@ -2706,7 +2706,7 @@ describe('getAgentTools workstream tool gate', () => {
             );
             expect(
                 systemMessage.content.includes(
-                    'Want me to save this as a Document you can share?',
+                    'Want me to turn this analysis into a Document',
                 ),
             ).toBe(documentsEnabled);
             // buildArgs ties content reads to the content setting.
@@ -3873,6 +3873,9 @@ describe('external MCP tool call activity', () => {
     );
 });
 
+const OFFER_LINE =
+    'Want me to turn this analysis into a Document, a shareable report with these charts and a written summary?';
+
 describe('shouldOfferDocument', () => {
     const chartTurn = (toolCallId: string): ModelMessage => ({
         role: 'assistant',
@@ -3886,7 +3889,7 @@ describe('shouldOfferDocument', () => {
         ],
     });
 
-    it('waits for a chart in an earlier reply', () => {
+    it('waits for two charts in earlier replies', () => {
         expect(
             shouldOfferDocument([
                 { role: 'user', content: 'Revenue by month' },
@@ -3898,10 +3901,22 @@ describe('shouldOfferDocument', () => {
                 chartTurn('chart-1'),
                 { role: 'user', content: 'Break it down by status' },
             ]),
+        ).toBe(false);
+        expect(
+            shouldOfferDocument([
+                { role: 'user', content: 'Revenue by month' },
+                chartTurn('chart-1'),
+                { role: 'user', content: 'Break it down by status' },
+                chartTurn('chart-2'),
+                { role: 'user', content: 'Which status grew fastest?' },
+            ]),
         ).toBe(true);
     });
 
-    it('offers only once per thread', () => {
+    it.each([
+        ['current', OFFER_LINE],
+        ['older', 'Want me to save this as a Document you can share?'],
+    ])('offers only once per thread, after the %s offer line', (_, offer) => {
         expect(
             shouldOfferDocument([
                 { role: 'user', content: 'Revenue by month' },
@@ -3910,9 +3925,9 @@ describe('shouldOfferDocument', () => {
                 chartTurn('chart-2'),
                 {
                     role: 'assistant',
-                    content:
-                        'Here it is.\n\nWant me to save this as a Document you can share?',
+                    content: `Here it is.\n\n${offer}`,
                 },
+                chartTurn('chart-3'),
                 { role: 'user', content: 'Which status grew fastest?' },
             ]),
         ).toBe(false);
@@ -3923,6 +3938,8 @@ describe('shouldOfferDocument', () => {
             { role: 'user', content: 'Revenue by month' },
             chartTurn('chart-1'),
             { role: 'user', content: 'Break it down by status' },
+            chartTurn('chart-2'),
+            { role: 'user', content: 'Which status grew fastest?' },
         ];
         const latestQuestion = (documents: boolean) => {
             const args = buildAgentArgs();
@@ -3943,10 +3960,10 @@ describe('shouldOfferDocument', () => {
         };
 
         expect(JSON.stringify(latestQuestion(true))).toContain(
-            'end it with this line on its own: \\"Want me to save this as a Document you can share?\\"',
+            `end it with this line on its own: \\"${OFFER_LINE}\\"`,
         );
         expect(JSON.stringify(latestQuestion(false))).not.toContain(
-            'save this as a Document',
+            'turn this analysis into a Document',
         );
     });
 
@@ -3955,6 +3972,7 @@ describe('shouldOfferDocument', () => {
             shouldOfferDocument([
                 { role: 'user', content: 'Revenue by month' },
                 chartTurn('chart-1'),
+                chartTurn('chart-2'),
                 { role: 'user', content: 'Write it up' },
                 {
                     role: 'assistant',
@@ -3974,7 +3992,7 @@ describe('shouldOfferDocument', () => {
 });
 
 describe('getDocumentNudgeOutcome', () => {
-    const offer = 'Want me to save this as a Document you can share?';
+    const offer = OFFER_LINE;
     const nudgedArgs = (messageHistory: ModelMessage[]) => {
         const args = buildAgentArgs();
         args.enableDataAccess = true;

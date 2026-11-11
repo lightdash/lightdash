@@ -12,6 +12,7 @@ import {
     isJwtUser,
     KnexPaginateArgs,
     KnexPaginatedData,
+    MetricQuery,
     NotFoundError,
     QUERY_HISTORY_WINDOW_MINUTES,
     QUERY_HISTORY_WINDOWS_ORDERED,
@@ -42,6 +43,7 @@ import {
     DbQueryHistory,
     DbQueryHistoryUpdate,
     QueryHistoryCacheOutcome,
+    queryHistoryRequestColumnSql,
     QueryHistoryTableName,
 } from '../../database/entities/queryHistory';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
@@ -130,6 +132,39 @@ export type CachedResultsContent = {
     /** Every value the content may be recorded under (uuid and slug) */
     identifiers: string[];
 };
+
+type ResultsCacheRowSource = 'columns' | 'json';
+
+export function getQueryHistoryRequestColumns(
+    requestParameters: QueryHistory['requestParameters'],
+    metricQuery: MetricQuery | null,
+): Pick<
+    DbQueryHistory,
+    | 'request_chart_uuid'
+    | 'request_saved_sql_uuid'
+    | 'request_dashboard_uuid'
+    | 'metric_query_explore_name'
+> {
+    return {
+        request_chart_uuid:
+            'chartUuid' in requestParameters
+                ? requestParameters.chartUuid
+                : null,
+        request_saved_sql_uuid:
+            ('savedSqlUuid' in requestParameters
+                ? requestParameters.savedSqlUuid
+                : null) ??
+            requestParameters.resultSource?.savedSqlUuid ??
+            null,
+        request_dashboard_uuid:
+            ('dashboardUuid' in requestParameters
+                ? requestParameters.dashboardUuid
+                : null) ??
+            requestParameters.resultSource?.dashboardUuid ??
+            null,
+        metric_query_explore_name: metricQuery?.exploreName ?? null,
+    };
+}
 
 export class QueryHistoryModel {
     readonly database: Knex;
@@ -266,6 +301,10 @@ export class QueryHistoryModel {
                 metric_query: queryHistory.metricQuery,
                 fields: queryHistory.fields,
                 request_parameters: queryHistory.requestParameters,
+                ...getQueryHistoryRequestColumns(
+                    queryHistory.requestParameters,
+                    queryHistory.metricQuery,
+                ),
                 used_parameters: queryHistory.usedParameters,
                 total_row_count: null,
                 warehouse_query_id: null,
@@ -444,7 +483,16 @@ export class QueryHistoryModel {
         const query = this.database(QueryHistoryTableName)
             .where('query_uuid', queryUuid)
             .andWhere('project_uuid', projectUuid)
-            .update(update);
+            .update({
+                ...update,
+                ...(update.warehouse_execution_stats !== undefined
+                    ? {
+                          warehouse_bytes_billed:
+                              update.warehouse_execution_stats?.bytesBilled ??
+                              null,
+                      }
+                    : {}),
+            });
 
         const createdByColumn = account.isRegisteredUser()
             ? 'created_by_user_uuid'
@@ -698,16 +746,17 @@ export class QueryHistoryModel {
         content: CachedResultsContent,
         createdSince: Date,
     ): Promise<number> {
-        const requestParameterKey =
-            content.type === 'chart' ? 'chartUuid' : 'dashboardUuid';
+        const contentColumn = queryHistoryRequestColumnSql(
+            QueryHistoryTableName,
+            content.type === 'chart'
+                ? 'request_chart_uuid'
+                : 'request_dashboard_uuid',
+        );
         const contentCacheKeys = this.database(QueryHistoryTableName)
             .distinct('cache_key')
             .where('project_uuid', projectUuid)
             .andWhere('created_at', '>', createdSince)
-            .whereRaw('request_parameters->>? = ANY(?)', [
-                requestParameterKey,
-                content.identifiers,
-            ]);
+            .whereRaw(`${contentColumn} = ANY(?)`, [content.identifiers]);
         return this.invalidateCachedResultsByCacheKeys(
             projectUuid,
             contentCacheKeys,
@@ -1131,21 +1180,21 @@ export class QueryHistoryModel {
             .leftJoin(SavedChartsTableName, function joinRequestChart() {
                 this.on(
                     database.raw(
-                        `${SavedChartsTableName}.saved_query_uuid::text = ${QueryHistoryTableName}.request_parameters->>'chartUuid'`,
+                        `${SavedChartsTableName}.saved_query_uuid::text = ${queryHistoryRequestColumnSql(QueryHistoryTableName, 'request_chart_uuid')}`,
                     ),
                 );
             })
             .leftJoin(SavedSqlTableName, function joinRequestSqlChart() {
                 this.on(
                     database.raw(
-                        `${SavedSqlTableName}.saved_sql_uuid::text = ${QueryHistoryTableName}.request_parameters->>'savedSqlUuid'`,
+                        `${SavedSqlTableName}.saved_sql_uuid::text = ${queryHistoryRequestColumnSql(QueryHistoryTableName, 'request_saved_sql_uuid')}`,
                     ),
                 );
             })
             .leftJoin(DashboardsTableName, function joinRequestDashboard() {
                 this.on(
                     database.raw(
-                        `${DashboardsTableName}.dashboard_uuid::text = ${QueryHistoryTableName}.request_parameters->>'dashboardUuid'`,
+                        `${DashboardsTableName}.dashboard_uuid::text = ${queryHistoryRequestColumnSql(QueryHistoryTableName, 'request_dashboard_uuid')}`,
                     ),
                 );
             })
@@ -1376,7 +1425,17 @@ export class QueryHistoryModel {
     private static readonly RESULTS_CACHE_RUN_FILTER = `${QueryHistoryModel.RESULTS_CACHE_ELIGIBLE_RUN_FILTER}
           AND qh.cache_miss_reason IS DISTINCT FROM '${ResultsCacheMissReason.CACHE_DISABLED}'`;
 
-    private static readonly RESULTS_CACHE_RUN_COLUMNS = `qh.context,
+    // Rows written before the copied columns existed have no explore name, so they are read from JSON.
+    private static readonly RESULTS_CACHE_FILLED_ROW = `qh.metric_query_explore_name IS NOT NULL`;
+
+    private static readonly RESULTS_CACHE_UNFILLED_ROW = `qh.metric_query_explore_name IS NULL`;
+
+    private static resultsCacheRunColumns(source: ResultsCacheRowSource) {
+        const bytesBilled =
+            source === 'columns'
+                ? 'qh.warehouse_bytes_billed'
+                : `(qh.warehouse_execution_stats->>'bytesBilled')::float8`;
+        return `qh.context,
             qh.cache_key,
             qh.results_file_name,
             qh.results_created_at,
@@ -1384,96 +1443,82 @@ export class QueryHistoryModel {
             qh.cache_miss_reason,
             qh.cache_refresh_requested,
             COALESCE(qh.warehouse_execution_time_ms, 0) AS warehouse_ms,
-            COALESCE((qh.warehouse_execution_stats->>'bytesBilled')::float8, 0) AS bytes_billed,
+            COALESCE(${bytesBilled}, 0) AS bytes_billed,
             COALESCE(qh.results_created_at < qh.created_at, false) AS is_hit`;
+    }
 
-    // Skips the JSON columns; use for aggregates that don't need chart targets.
-    private static readonly RESULTS_CACHE_RUNS_SLIM_CTE = `runs AS (
-        SELECT ${QueryHistoryModel.RESULTS_CACHE_RUN_COLUMNS}
-        FROM ${QueryHistoryTableName} qh
-        WHERE ${QueryHistoryModel.RESULTS_CACHE_RUN_FILTER}
+    private static resultsCacheTargetColumns(source: ResultsCacheRowSource) {
+        switch (source) {
+            case 'columns':
+                return `qh.request_chart_uuid AS chart_uuid,
+            qh.request_saved_sql_uuid AS saved_sql_uuid,
+            NULLIF(qh.metric_query_explore_name, '${SQL_QUERY_MOCK_EXPLORER_NAME}') AS explore_name`;
+            case 'json':
+                return `rp."chartUuid" AS chart_uuid,
+            COALESCE(rp."savedSqlUuid", rp."resultSource"->>'savedSqlUuid') AS saved_sql_uuid,
+            CASE
+                WHEN rp."chartUuid" IS NULL
+                 AND COALESCE(rp."savedSqlUuid", rp."resultSource"->>'savedSqlUuid') IS NULL
+                THEN NULLIF(qh.metric_query->>'exploreName', '${SQL_QUERY_MOCK_EXPLORER_NAME}')
+            END AS explore_name`;
+            default:
+                return assertUnreachable(source, `Unknown source ${source}`);
+        }
+    }
+
+    /**
+     * Filled rows are read with an index-only scan of query_history_project_created_at_covering_idx.
+     * Unfilled rows are found through query_history_project_created_at_unfilled_idx and read from JSON.
+     * The filter binds project_uuid and the cutoff, so callers pass both twice.
+     */
+    private static resultsCacheRunsCte(
+        filter: string,
+        { withTargets }: { withTargets: boolean },
+    ) {
+        const branch = (source: ResultsCacheRowSource) => `
+        SELECT
+            ${QueryHistoryModel.resultsCacheRunColumns(source)}${
+                withTargets
+                    ? `,
+            ${QueryHistoryModel.resultsCacheTargetColumns(source)}`
+                    : ''
+            }
+        FROM ${QueryHistoryTableName} qh${
+            withTargets && source === 'json'
+                ? `
+        LEFT JOIN LATERAL jsonb_to_record(qh.request_parameters)
+            AS rp("chartUuid" text, "savedSqlUuid" text, "resultSource" jsonb) ON true`
+                : ''
+        }
+        WHERE ${filter}
+          AND ${
+              source === 'columns'
+                  ? QueryHistoryModel.RESULTS_CACHE_FILLED_ROW
+                  : QueryHistoryModel.RESULTS_CACHE_UNFILLED_ROW
+          }`;
+        return `runs AS MATERIALIZED (${branch('columns')}
+        UNION ALL${branch('json')}
     )`;
+    }
 
     // Replays every eligible run, so it also estimates periods when caching was off.
-    private static readonly RESULTS_CACHE_REPLAY_RUNS_CTE = `runs AS (
-        SELECT ${QueryHistoryModel.RESULTS_CACHE_RUN_COLUMNS}
-        FROM ${QueryHistoryTableName} qh
-        WHERE ${QueryHistoryModel.RESULTS_CACHE_ELIGIBLE_RUN_FILTER}
-    )`;
+    private static readonly RESULTS_CACHE_REPLAY_RUNS_CTE =
+        QueryHistoryModel.resultsCacheRunsCte(
+            QueryHistoryModel.RESULTS_CACHE_ELIGIBLE_RUN_FILTER,
+            { withTargets: false },
+        );
 
-    private static readonly RESULTS_CACHE_RUNS_WITH_TARGETS_CTE = `runs AS (
-        SELECT
-            ${QueryHistoryModel.RESULTS_CACHE_RUN_COLUMNS},
-            qh.request_parameters->>'chartUuid' AS chart_uuid,
-            COALESCE(
-                qh.request_parameters->>'savedSqlUuid',
-                qh.request_parameters->'resultSource'->>'savedSqlUuid'
-            ) AS saved_sql_uuid,
-            NULLIF(qh.metric_query->>'exploreName', '${SQL_QUERY_MOCK_EXPLORER_NAME}') AS explore_name
-        FROM ${QueryHistoryTableName} qh
-        WHERE ${QueryHistoryModel.RESULTS_CACHE_RUN_FILTER}
-    )`;
+    private static readonly RESULTS_CACHE_RUNS_WITH_TARGETS_CTE =
+        QueryHistoryModel.resultsCacheRunsCte(
+            QueryHistoryModel.RESULTS_CACHE_RUN_FILTER,
+            { withTargets: true },
+        );
 
     private static resultsCacheStatsCutoff(days: number): Date {
         return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     }
 
-    async getResultsCacheContextStats(
-        projectUuid: string,
-        days: number,
-    ): Promise<ResultsCacheContextStatsRow[]> {
-        const { rows } = await this.database.raw<{
-            rows: Array<{
-                context: string | null;
-                runs: number;
-                hits: number;
-                warehouse_time_on_misses_ms: number;
-                warehouse_time_saved_ms: number;
-                bytes_billed_saved: number;
-            }>;
-        }>(
-            `WITH ${QueryHistoryModel.RESULTS_CACHE_RUNS_SLIM_CTE},
-            producers AS (
-                SELECT DISTINCT ON (cache_key, results_file_name)
-                    cache_key, results_file_name, warehouse_execution_time_ms,
-                    (warehouse_execution_stats->>'bytesBilled')::float8 AS bytes_billed
-                FROM ${QueryHistoryTableName}
-                WHERE project_uuid = ?
-                  AND results_created_at >= created_at
-                  AND cache_key IN (SELECT cache_key FROM runs WHERE is_hit)
-                ORDER BY cache_key, results_file_name, created_at DESC
-            )
-            SELECT
-                r.context,
-                count(*)::int AS runs,
-                (count(*) FILTER (WHERE r.is_hit))::int AS hits,
-                COALESCE(sum(r.warehouse_ms) FILTER (WHERE NOT r.is_hit), 0)::float8 AS warehouse_time_on_misses_ms,
-                COALESCE(sum(p.warehouse_execution_time_ms) FILTER (WHERE r.is_hit), 0)::float8 AS warehouse_time_saved_ms,
-                COALESCE(sum(p.bytes_billed) FILTER (WHERE r.is_hit), 0)::float8 AS bytes_billed_saved
-            FROM runs r
-            LEFT JOIN producers p
-                ON r.is_hit
-                AND p.cache_key = r.cache_key
-                AND p.results_file_name = r.results_file_name
-            GROUP BY r.context
-            ORDER BY r.context`,
-            [
-                projectUuid,
-                QueryHistoryModel.resultsCacheStatsCutoff(days),
-                projectUuid,
-            ],
-        );
-        return rows.map((row) => ({
-            context: row.context,
-            runs: row.runs,
-            hits: row.hits,
-            warehouseTimeOnMissesMs: row.warehouse_time_on_misses_ms,
-            warehouseTimeSavedMs: row.warehouse_time_saved_ms,
-            bytesBilledSaved: row.bytes_billed_saved,
-        }));
-    }
-
-    async getResultsCacheRecommendationRows(
+    async getResultsCacheStatsRows(
         projectUuid: string,
         days: number,
         {
@@ -1481,25 +1526,100 @@ export class QueryHistoryModel {
             minMisses,
             minShareOfRuns,
             minWarehouseTimeMs,
+            maxTtlSeconds,
         }: {
             scheduledContexts: string[];
             minMisses: number;
             minShareOfRuns: number;
             minWarehouseTimeMs: number;
+            // Longest TTL a hit's result could have had, which bounds how far back its producer can be.
+            maxTtlSeconds: number;
         },
-    ): Promise<ResultsCacheRecommendationRow[]> {
+    ): Promise<{
+        contextRows: ResultsCacheContextStatsRow[];
+        recommendationRows: ResultsCacheRecommendationRow[];
+    }> {
+        const since = QueryHistoryModel.resultsCacheStatsCutoff(days);
+        const producedSince = new Date(since.getTime() - maxTtlSeconds * 1000);
         const { rows } = await this.database.raw<{
             rows: Array<{
-                reason: ResultsCacheStatsMissReason;
-                chart_kind: 'chart' | 'sqlChart' | 'explore';
-                target: string;
-                name: string | null;
-                slug: string | null;
-                misses: number;
-                warehouse_time_ms: number;
+                context_rows: Array<{
+                    context: string | null;
+                    runs: number;
+                    hits: number;
+                    warehouse_time_on_misses_ms: number;
+                    warehouse_time_saved_ms: number;
+                    bytes_billed_saved: number;
+                }>;
+                recommendation_rows: Array<{
+                    reason: ResultsCacheStatsMissReason;
+                    chart_kind: 'chart' | 'sqlChart' | 'explore';
+                    target: string;
+                    name: string | null;
+                    slug: string | null;
+                    misses: number;
+                    warehouse_time_ms: number;
+                }>;
             }>;
         }>(
             `WITH ${QueryHistoryModel.RESULTS_CACHE_RUNS_WITH_TARGETS_CTE},
+            -- A hit reuses a file produced at most maxTtlSeconds before it. Filtering on the
+            -- index range alone keeps this an index-only scan instead of per-key heap lookups.
+            produced AS MATERIALIZED (
+                SELECT qh.cache_key, qh.results_file_name, qh.created_at, qh.warehouse_execution_time_ms,
+                    qh.warehouse_bytes_billed AS bytes_billed
+                FROM ${QueryHistoryTableName} qh
+                WHERE qh.project_uuid = ?
+                  AND qh.created_at >= ?
+                  AND qh.results_created_at >= qh.created_at
+                  AND ${QueryHistoryModel.RESULTS_CACHE_FILLED_ROW}
+                UNION ALL
+                SELECT qh.cache_key, qh.results_file_name, qh.created_at, qh.warehouse_execution_time_ms,
+                    (qh.warehouse_execution_stats->>'bytesBilled')::float8 AS bytes_billed
+                FROM ${QueryHistoryTableName} qh
+                WHERE qh.project_uuid = ?
+                  AND qh.created_at >= ?
+                  AND qh.results_created_at >= qh.created_at
+                  AND ${QueryHistoryModel.RESULTS_CACHE_UNFILLED_ROW}
+            ),
+            producers AS (
+                SELECT DISTINCT ON (cache_key, results_file_name)
+                    cache_key, results_file_name, warehouse_execution_time_ms, bytes_billed
+                FROM produced
+                WHERE cache_key IN (SELECT cache_key FROM runs WHERE is_hit)
+                ORDER BY cache_key, results_file_name, created_at DESC
+            ),
+            hit_savings AS (
+                SELECT
+                    r.context,
+                    sum(p.warehouse_execution_time_ms) AS warehouse_time_saved_ms,
+                    sum(p.bytes_billed) AS bytes_billed_saved
+                FROM runs r
+                JOIN producers p
+                    ON p.cache_key = r.cache_key
+                    AND p.results_file_name = r.results_file_name
+                WHERE r.is_hit
+                GROUP BY r.context
+            ),
+            context_stats AS (
+                SELECT
+                    c.context,
+                    c.runs,
+                    c.hits,
+                    c.warehouse_time_on_misses_ms,
+                    COALESCE(h.warehouse_time_saved_ms, 0)::float8 AS warehouse_time_saved_ms,
+                    COALESCE(h.bytes_billed_saved, 0)::float8 AS bytes_billed_saved
+                FROM (
+                    SELECT
+                        context,
+                        count(*)::int AS runs,
+                        (count(*) FILTER (WHERE is_hit))::int AS hits,
+                        COALESCE(sum(warehouse_ms) FILTER (WHERE NOT is_hit), 0)::float8 AS warehouse_time_on_misses_ms
+                    FROM runs
+                    GROUP BY context
+                ) c
+                LEFT JOIN hit_savings h ON h.context IS NOT DISTINCT FROM c.context
+            ),
             classified AS (
                 SELECT
                     r.*,
@@ -1527,41 +1647,64 @@ export class QueryHistoryModel {
                 FROM classified
                 WHERE NOT is_hit AND reason IS NOT NULL AND target IS NOT NULL
                 GROUP BY reason, chart_kind, target
+            ),
+            recommendations AS (
+                SELECT
+                    g.reason,
+                    g.chart_kind,
+                    g.target,
+                    COALESCE(sq.name, ss.name) AS name,
+                    ss.slug AS slug,
+                    g.misses,
+                    g.warehouse_time_ms
+                FROM grouped g
+                JOIN target_runs t ON t.chart_kind = g.chart_kind AND t.target = g.target
+                LEFT JOIN ${SavedChartsTableName} sq ON g.chart_kind = 'chart' AND sq.saved_query_uuid::text = g.target AND sq.deleted_at IS NULL
+                LEFT JOIN ${SavedSqlTableName} ss ON g.chart_kind = 'sqlChart' AND ss.saved_sql_uuid::text = g.target AND ss.deleted_at IS NULL
+                WHERE g.misses >= ?
+                  AND g.misses >= ?::float8 * t.runs
+                  AND g.warehouse_time_ms >= ?
             )
             SELECT
-                g.reason,
-                g.chart_kind,
-                g.target,
-                COALESCE(sq.name, ss.name) AS name,
-                ss.slug AS slug,
-                g.misses,
-                g.warehouse_time_ms
-            FROM grouped g
-            JOIN target_runs t ON t.chart_kind = g.chart_kind AND t.target = g.target
-            LEFT JOIN ${SavedChartsTableName} sq ON g.chart_kind = 'chart' AND sq.saved_query_uuid::text = g.target AND sq.deleted_at IS NULL
-            LEFT JOIN ${SavedSqlTableName} ss ON g.chart_kind = 'sqlChart' AND ss.saved_sql_uuid::text = g.target AND ss.deleted_at IS NULL
-            WHERE g.misses >= ?
-              AND g.misses >= ?::float8 * t.runs
-              AND g.warehouse_time_ms >= ?
-            ORDER BY g.warehouse_time_ms DESC, g.target`,
+                COALESCE((SELECT json_agg(c ORDER BY c.context) FROM context_stats c), '[]') AS context_rows,
+                COALESCE((SELECT json_agg(r ORDER BY r.warehouse_time_ms DESC, r.target) FROM recommendations r), '[]') AS recommendation_rows`,
             [
                 projectUuid,
-                QueryHistoryModel.resultsCacheStatsCutoff(days),
+                since,
+                projectUuid,
+                since,
+                projectUuid,
+                producedSince,
+                projectUuid,
+                producedSince,
                 scheduledContexts,
                 minMisses,
                 minShareOfRuns,
                 minWarehouseTimeMs,
             ],
         );
-        return rows.map((row) => ({
-            reason: row.reason,
-            chartKind: row.chart_kind,
-            target: row.target,
-            name: row.name,
-            slug: row.slug,
-            misses: row.misses,
-            warehouseTimeMs: row.warehouse_time_ms,
-        }));
+        const [row] = rows;
+        return {
+            contextRows: (row?.context_rows ?? []).map((context) => ({
+                context: context.context,
+                runs: context.runs,
+                hits: context.hits,
+                warehouseTimeOnMissesMs: context.warehouse_time_on_misses_ms,
+                warehouseTimeSavedMs: context.warehouse_time_saved_ms,
+                bytesBilledSaved: context.bytes_billed_saved,
+            })),
+            recommendationRows: (row?.recommendation_rows ?? []).map(
+                (recommendation) => ({
+                    reason: recommendation.reason,
+                    chartKind: recommendation.chart_kind,
+                    target: recommendation.target,
+                    name: recommendation.name,
+                    slug: recommendation.slug,
+                    misses: recommendation.misses,
+                    warehouseTimeMs: recommendation.warehouse_time_ms,
+                }),
+            ),
+        };
     }
 
     async getResultsCacheTtlReplayRows(
@@ -1577,7 +1720,7 @@ export class QueryHistoryModel {
             this.database.raw<{ rows: Array<{ runs: number; hits: number }> }>(
                 `WITH ${QueryHistoryModel.RESULTS_CACHE_REPLAY_RUNS_CTE}
                 SELECT count(*)::int AS runs, (count(*) FILTER (WHERE is_hit))::int AS hits FROM runs`,
-                [projectUuid, since],
+                [projectUuid, since, projectUuid, since],
             ),
             this.database.raw<{
                 rows: Array<{
@@ -1608,7 +1751,7 @@ export class QueryHistoryModel {
                 JOIN keys k ON k.cache_key = r.cache_key
                 ORDER BY r.cache_key, r.created_at
                 LIMIT ?`,
-                [projectUuid, since, limit],
+                [projectUuid, since, projectUuid, since, limit],
             ),
         ]);
         return {
@@ -1688,6 +1831,13 @@ export function mapQueryHistoryRowToListItem(
         resultsCreatedAt: row.results_created_at,
     });
 
+    const requestColumns = row.request_parameters
+        ? getQueryHistoryRequestColumns(
+              row.request_parameters,
+              row.metric_query,
+          )
+        : null;
+
     return {
         queryUuid: row.query_uuid,
         createdAt: row.created_at,
@@ -1704,19 +1854,10 @@ export function mapQueryHistoryRowToListItem(
             language === QueryLanguage.SEMANTIC ? row.metric_query : null,
         requestParameters: row.request_parameters,
         chartName: row.chart_name,
-        chartUuid:
-            row.request_parameters && 'chartUuid' in row.request_parameters
-                ? row.request_parameters.chartUuid
-                : null,
-        savedSqlUuid:
-            row.request_parameters && 'savedSqlUuid' in row.request_parameters
-                ? row.request_parameters.savedSqlUuid
-                : null,
+        chartUuid: requestColumns?.request_chart_uuid ?? null,
+        savedSqlUuid: requestColumns?.request_saved_sql_uuid ?? null,
         dashboardName: row.dashboard_name,
-        dashboardUuid:
-            row.request_parameters && 'dashboardUuid' in row.request_parameters
-                ? row.request_parameters.dashboardUuid
-                : null,
+        dashboardUuid: requestColumns?.request_dashboard_uuid ?? null,
         compiledSql: row.compiled_sql,
         totalRowCount: row.total_row_count,
         warehouseExecutionTimeMs: row.warehouse_execution_time_ms,

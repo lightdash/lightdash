@@ -53,6 +53,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import {
+    selectCanvasZoom,
     selectDashboardFilters,
     selectDashboardTabs,
     selectDateZoomGranularity,
@@ -63,6 +64,8 @@ import {
     useDashboardUnmetFilterRequirements,
 } from '../dashboard/store';
 import { ControlsBar } from '../dashboardControls/ControlsBar';
+import { useParameterBarControls } from '../dashboardControls/useParameterBarControls';
+import { useParameterEditorSelector } from '../dashboardControls/useParameterEditor';
 import addFilterClasses from '../dashboardFilters/AddFilterButton.module.css';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
@@ -78,7 +81,9 @@ import { TabEditModal } from './EditTabModal';
 import GridTile from './GridTile';
 import {
     convertLayoutToBaseCoordinates,
+    hasGridItemMoved,
     DEFAULT_ROW_HEIGHT,
+    EDIT_ACTION_BAR_CLEARANCE,
     FINE_GRID_SCALE,
     FIT_TO_SCREEN_GRID_BOTTOM_PADDING,
     getDashboardLayouts,
@@ -100,9 +105,12 @@ const EMPTY_LAYOUTS: DashboardLayouts = {
     xs: [],
 };
 
+// Unset outside edit mode, where the grid is never zoomed
+type DashboardGridProps = ReturnType<typeof getResponsiveGridLayoutProps> & {
+    transformScale: number | undefined;
+};
+
 const DASHBOARD_GRID_BOTTOM_PADDING = 60;
-// Room for the floating edit action bar, so it never covers the last row
-const EDIT_ACTION_BAR_CLEARANCE = 80;
 
 type TabGridPanelProps = {
     tabUuid: string;
@@ -111,12 +119,12 @@ type TabGridPanelProps = {
     isActive: boolean;
     isEditMode: boolean;
     locked: boolean;
-    gridProps: ReturnType<typeof getResponsiveGridLayoutProps>;
+    gridProps: DashboardGridProps;
     dashboardTabs: DashboardTab[];
     onDragStart: () => void;
-    onDragStop: (layout: Layout[]) => void;
+    onDragStop: (layout: Layout[], before: Layout, after: Layout) => void;
     onResizeStart: () => void;
-    onResizeStop: (layout: Layout[]) => void;
+    onResizeStop: (layout: Layout[], before: Layout, after: Layout) => void;
     onWidthChange: (width: number) => void;
     onDeleteTile: (tile: IDashboard['tiles'][number]) => Promise<void>;
     onEditTile: (tile: IDashboard['tiles'][number]) => void;
@@ -341,11 +349,15 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         setIsInteracting(true);
         startAutoScroll();
     }, [startAutoScroll]);
-    const handleDragStop = useCallback(
-        (layout: Layout[]) => {
+    // The grid reports its whole layout on every stop, with stored overlaps
+    // pushed apart, so a click that moved nothing must not apply it
+    const handleInteractionStop = useCallback(
+        (layout: Layout[], before: Layout, after: Layout) => {
             stopAutoScroll();
             setIsInteracting(false);
-            void handleUpdateTilesWithScaling(layout);
+            if (hasGridItemMoved(before, after)) {
+                void handleUpdateTilesWithScaling(layout);
+            }
         },
         [handleUpdateTilesWithScaling, stopAutoScroll],
     );
@@ -353,14 +365,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         setIsInteracting(true);
         startAutoScroll();
     }, [startAutoScroll]);
-    const handleResizeStop = useCallback(
-        (layout: Layout[]) => {
-            stopAutoScroll();
-            setIsInteracting(false);
-            void handleUpdateTilesWithScaling(layout);
-        },
-        [handleUpdateTilesWithScaling, stopAutoScroll],
-    );
     const handleWidthChange = useCallback(
         (cw: number) => setGridWidth(cw),
         [setGridWidth],
@@ -509,7 +513,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
               SCROLL_TO_TOP_BOTTOM) +
         (isEditActionBarShown ? EDIT_ACTION_BAR_CLEARANCE : 0);
 
-    const gridProps = useMemo(
+    const canvasZoom = useDashboardSelector(selectCanvasZoom);
+    const isCanvasZoomable = isEditMode && editErgonomicsFlag?.enabled === true;
+    // Apart from the zoom, so a zoom step keeps the grid's own props stable
+    const unzoomedGridProps = useMemo(
         () =>
             getResponsiveGridLayoutProps({
                 isEditMode,
@@ -520,6 +527,13 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                         : (fitToScreenRowHeight ?? DEFAULT_ROW_HEIGHT),
             }),
         [isEditMode, gridScale, fitToScreenRowHeight],
+    );
+    const gridProps: DashboardGridProps = useMemo(
+        () => ({
+            ...unzoomedGridProps,
+            transformScale: isCanvasZoomable ? canvasZoom : undefined,
+        }),
+        [unzoomedGridProps, isCanvasZoomable, canvasZoom],
     );
     const layoutsByTab = useMemo(() => {
         const map = new Map<string, DashboardLayouts>();
@@ -537,8 +551,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 
     const gridLineStyles = useGridStyles({
         ref: gridWrapperRef,
-        cols: gridProps.cols,
-        rowHeight: gridProps.rowHeight,
+        cols: unzoomedGridProps.cols,
+        rowHeight: unzoomedGridProps.rowHeight,
     });
 
     // Compute whether there are unmet filter requirements that apply to the current tab
@@ -663,7 +677,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const totalFiltersCount =
         dashboardFilters.dimensions.length +
         dashboardTemporaryFilters.dimensions.length;
-    const totalParametersCount = Object.keys(activeTabParameters).length;
+    const parameterBar = useParameterBarControls();
+    const isParameterViewer = useParameterEditorSelector((c) => c.isViewer);
+    // With the controls, the pills the bar shows
+    const totalParametersCount = isDashboardControlsEnabled
+        ? parameterBar.entries.filter(
+              ({ control }) => !(isParameterViewer && control.hidden),
+          ).length
+        : Object.keys(activeTabParameters).length;
 
     const currentTabHasTiles = !!dashboardTiles?.some((tile) =>
         isActiveTile(tile),
@@ -1251,12 +1272,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                   gridProps={gridProps}
                                                   dashboardTabs={dashboardTabs}
                                                   onDragStart={handleDragStart}
-                                                  onDragStop={handleDragStop}
+                                                  onDragStop={
+                                                      handleInteractionStop
+                                                  }
                                                   onResizeStart={
                                                       handleResizeStart
                                                   }
                                                   onResizeStop={
-                                                      handleResizeStop
+                                                      handleInteractionStop
                                                   }
                                                   onWidthChange={
                                                       handleWidthChange
@@ -1276,9 +1299,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                               key={gridProps.cols.lg}
                                               {...gridProps}
                                               onDragStart={handleDragStart}
-                                              onDragStop={handleDragStop}
+                                              onDragStop={handleInteractionStop}
                                               onResizeStart={handleResizeStart}
-                                              onResizeStop={handleResizeStop}
+                                              onResizeStop={
+                                                  handleInteractionStop
+                                              }
                                               onWidthChange={handleWidthChange}
                                               layouts={allTilesLayouts}
                                           >
