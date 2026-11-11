@@ -1,31 +1,22 @@
 import { interpolateUiString } from '@lightdash/common';
-import { Box, Button, Group, Paper, Stack, Switch, Text } from '@mantine/core';
+import { Stack, Switch, Text } from '@mantine/core';
 import { useCallbackRef } from '@mantine/hooks';
 import { IconClock } from '@tabler/icons-react';
 import { memo, useMemo, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
-import {
-    selectActiveTab,
-    selectDashboardTabs,
-    selectDashboardTiles,
-    useDashboardSelector,
-} from '../dashboard/store';
 import { type DateZoomTileCard, type ZoomTileChange } from './dateZoomControls';
 import { LazySelect } from './LazySelect';
-import { focusOnMount } from './mappingFocus';
-import { getTilesOnTab } from './peers';
-import classes from './TileOverlay.module.css';
+import { ControlName, MoveQuestion, TileCard, TileVeil } from './TileCard';
 import {
     areTilePropsEqual,
-    getTileTitle,
+    getTileHighlight,
     type TileHighlight,
 } from './tileProps';
-import { getTileSelector, LOCKED_TILE_CLASS } from './tileSelector';
 import { useDateZoomEditorSelector } from './useDateZoomEditor';
 import { useDateZoomMapping } from './useDateZoomMapping';
-import { usePortalTargets } from './usePortalTargets';
+import { useTabTileTargets } from './useTabTileTargets';
 
 const NO_STRINGS: string[] = [];
 
@@ -45,13 +36,6 @@ type Props = {
     highlight: TileHighlight | null;
     onSet: (change: ZoomTileChange) => void;
 };
-
-// A zoom named inside a sentence: the one part that reads at full weight
-const ZoomName: FC<{ name: string }> = ({ name }) => (
-    <Text span inherit fw={600} c="text">
-        {name}
-    </Text>
-);
 
 const DateZoomTileOverlay = memo<Props>(
     ({
@@ -75,9 +59,7 @@ const DateZoomTileOverlay = memo<Props>(
 
         if (cardKind === 'none') {
             return (
-                <div
-                    className={`${classes.overlay} ${classes.unfilterable} ${LOCKED_TILE_CLASS}`}
-                    data-controls-overlay
+                <TileVeil
                     title={getUiString('controls.dateZoom.noDateField')}
                 />
             );
@@ -103,91 +85,63 @@ const DateZoomTileOverlay = memo<Props>(
         const isInZoom = fieldId !== undefined;
 
         return (
-            <div
-                className={`${classes.overlay} ${LOCKED_TILE_CLASS}`}
-                data-controls-overlay
-                data-highlighted={highlight ?? undefined}
+            <TileCard
+                highlight={highlight}
                 title={getUiString('controls.dateZoom.tilesLocked')}
             >
-                <Box className={classes.ring} aria-hidden />
-                <Paper
-                    shadow="md"
-                    p="sm"
-                    radius="md"
-                    className={classes.card}
-                    title=""
-                    data-controls-editor
-                >
-                    {pendingMove !== null && takenByName !== null ? (
-                        // The question on its own line: a long name has room
-                        <Stack gap="xs">
-                            <Text fz="xs" role="status">
-                                Move from <ZoomName name={takenByName} />?
+                {pendingMove !== null && takenByName !== null ? (
+                    <MoveQuestion
+                        question={
+                            <>
+                                Move from <ControlName name={takenByName} />?
                                 {isTakenLast &&
                                     ' It has no other tiles and will be removed.'}
+                            </>
+                        }
+                        onAnswer={answer}
+                    />
+                ) : (
+                    <Stack gap="xs">
+                        {takenByName !== null && (
+                            <Text fz="xs" c="dimmed" truncate>
+                                {interpolateUiString(
+                                    getUiString('controls.dateZoom.inZoom'),
+                                    { zoom: takenByName },
+                                )}
                             </Text>
-                            <Group gap="xs" wrap="nowrap" justify="flex-end">
-                                <Button
-                                    variant="subtle"
-                                    size="xs"
-                                    onClick={() => answer(false)}
-                                >
-                                    Cancel
-                                </Button>
-                                {/* The row's Apply is the one filled button */}
-                                <Button
-                                    variant="default"
-                                    size="xs"
-                                    ref={focusOnMount}
-                                    onClick={() => answer(true)}
-                                >
-                                    Move
-                                </Button>
-                            </Group>
-                        </Stack>
-                    ) : (
-                        <Stack gap="xs">
-                            {takenByName !== null && (
-                                <Text fz="xs" c="dimmed" truncate>
-                                    {interpolateUiString(
-                                        getUiString('controls.dateZoom.inZoom'),
-                                        { zoom: takenByName },
-                                    )}
-                                </Text>
-                            )}
-                            {cardKind === 'param' ? (
-                                <Switch
-                                    size="xs"
-                                    label={getUiString(
-                                        'controls.dateZoom.usesParameter',
-                                    )}
-                                    aria-label={selectLabel}
-                                    checked={isInZoom}
-                                    onChange={({ currentTarget }) =>
-                                        pick({
-                                            tileUuid,
-                                            target: currentTarget.checked
-                                                ? {
-                                                      fieldId: null,
-                                                      tableName: null,
-                                                  }
-                                                : null,
-                                        })
-                                    }
-                                />
-                            ) : (
-                                <LazyFieldSelect
-                                    selectLabel={selectLabel}
-                                    fieldIds={fieldIds}
-                                    fieldLabels={fieldLabels}
-                                    value={fieldId ?? null}
-                                    onChange={(id) => pick(fieldTarget(id))}
-                                />
-                            )}
-                        </Stack>
-                    )}
-                </Paper>
-            </div>
+                        )}
+                        {cardKind === 'param' ? (
+                            <Switch
+                                size="xs"
+                                label={getUiString(
+                                    'controls.dateZoom.usesParameter',
+                                )}
+                                aria-label={selectLabel}
+                                checked={isInZoom}
+                                onChange={({ currentTarget }) =>
+                                    pick({
+                                        tileUuid,
+                                        target: currentTarget.checked
+                                            ? {
+                                                  fieldId: null,
+                                                  tableName: null,
+                                              }
+                                            : null,
+                                    })
+                                }
+                            />
+                        ) : (
+                            <LazyFieldSelect
+                                selectLabel={selectLabel}
+                                fieldIds={fieldIds}
+                                fieldLabels={fieldLabels}
+                                value={fieldId ?? null}
+                                onChange={(id) => pick(fieldTarget(id))}
+                            />
+                        )}
+                    </Stack>
+                )}
+            </TileCard>
         );
     },
     areTilePropsEqual,
@@ -233,25 +187,10 @@ export const DateZoomTileOverlays: FC = () => {
 };
 
 const MappedTileOverlays: FC = () => {
-    const getUiString = useUiStrings();
     const mapping = useDateZoomMapping();
     const setTiles = useDateZoomEditorSelector((c) => c.setTiles);
-    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
-    const activeTab = useDashboardSelector(selectActiveTab);
-    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
-    // As the grid draws them: a tile with no tab, or a stale one, is on the first
-    const tiles = useMemo(() => {
-        const all = dashboardTiles ?? [];
-        return activeTab && dashboardTabs.length > 0
-            ? getTilesOnTab(all, dashboardTabs, activeTab.uuid)
-            : all;
-    }, [dashboardTiles, dashboardTabs, activeTab]);
-    const tileUuids = useMemo(() => tiles.map((tile) => tile.uuid), [tiles]);
-    const targets = usePortalTargets(
-        tileUuids,
-        getTileSelector,
+    const { tiles, targets, selectLabelOf } = useTabTileTargets(
         mapping !== null,
-        true,
     );
     const handleSet = useCallbackRef((change: ZoomTileChange) =>
         setTiles([change], change.target === null ? 'clear' : 'pick'),
@@ -269,16 +208,7 @@ const MappedTileOverlays: FC = () => {
                 return createPortal(
                     <DateZoomTileOverlay
                         tileUuid={tile.uuid}
-                        selectLabel={interpolateUiString(
-                            getUiString('filters.tileCard.selectName'),
-                            {
-                                filter: mapping.name,
-                                tile: getTileTitle(
-                                    tile,
-                                    getUiString('filters.tileCard.thisTile'),
-                                ),
-                            },
-                        )}
+                        selectLabel={selectLabelOf(mapping.name, tile)}
                         cardKind={card.kind}
                         fieldIds={isField ? card.fieldIds : NO_STRINGS}
                         fieldLabels={isField ? card.fieldLabels : NO_STRINGS}
@@ -288,13 +218,12 @@ const MappedTileOverlays: FC = () => {
                             isField ? (card.takenBy?.name ?? null) : null
                         }
                         isTakenLast={isField && card.takenBy?.isLast === true}
-                        highlight={
-                            !isField
-                                ? null
-                                : fieldId !== undefined
-                                  ? 'filtered'
-                                  : 'available'
-                        }
+                        highlight={getTileHighlight({
+                            isReachable: isField,
+                            isOnControl: fieldId !== undefined,
+                            activeId: null,
+                            isOnActive: () => false,
+                        })}
                         onSet={handleSet}
                     />,
                     element,
