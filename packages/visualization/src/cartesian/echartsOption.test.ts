@@ -6,9 +6,11 @@ import {
     FieldType,
     FilterOperator,
     getLegendStyle,
+    OTHER_PIVOT_KEY,
     REFERENCE_LINE_Z,
     TimeFrames,
     transformToPercentageStacking,
+    VizAggregationOptions,
     type CartesianChart,
     type Dimension,
     type EChartsSeries,
@@ -3182,5 +3184,65 @@ describe('reference lines without a value', () => {
                 (d) => d.uuid,
             ),
         ).toEqual(['a', 'c']);
+    });
+});
+
+describe('"Other" pivot group', () => {
+    test('is labelled Other instead of being formatted as a value of the group field', () => {
+        const yRef = {
+            field: 'revenue',
+            pivotValues: [{ field: 'created', value: OTHER_PIVOT_KEY }],
+        };
+        const columnName = `revenue_any_${OTHER_PIVOT_KEY}`;
+        const chart: CartesianChart = {
+            layout: { xField: 'date', yField: ['revenue'] },
+            eChartsConfig: {
+                series: [
+                    {
+                        type: CartesianSeriesType.BAR,
+                        stack: 'revenue',
+                        encode: { xRef: { field: 'date' }, yRef },
+                    },
+                ],
+            },
+        };
+
+        const [series] = getEchartsSeriesFromPivotedData(
+            {
+                // A date group field would turn the placeholder into
+                // "Invalid date" if it went through the formatter.
+                created: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    name: 'created',
+                    label: 'Created',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.created',
+                    hidden: false,
+                },
+            },
+            chart,
+            { [columnName]: yRef },
+            {
+                [columnName]: {
+                    referenceField: 'revenue',
+                    pivotColumnName: columnName,
+                    aggregation: VizAggregationOptions.ANY,
+                    pivotValues: [
+                        {
+                            referenceField: 'created',
+                            value: OTHER_PIVOT_KEY,
+                            formatted: 'Other',
+                        },
+                    ],
+                    columnIndex: 201,
+                },
+            },
+        );
+
+        expect(series.dimensions?.[1]?.displayName).toBe('Other');
+        expect(series.stack).toBe('revenue');
+        expect(series.encode?.y).toBe(columnName);
     });
 });

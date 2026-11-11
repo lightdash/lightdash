@@ -106,6 +106,8 @@ import {
     NotImplementedError,
     NotSupportedError,
     OrganizationAccessStatus,
+    OTHER_PIVOT_KEY,
+    OTHER_PIVOT_LABEL,
     ParameterError,
     ParseError,
     PersistentDownloadFileAccessMode,
@@ -4042,7 +4044,20 @@ export class AsyncQueryService extends ProjectService {
                       // with the same row_index carries a different value
                       // for the same passthrough dim, the dim isn't
                       // 1-to-1 with the visible row/pivot dims.
-                      if (passthroughDimensions && currentTransformedRow) {
+                      // The row that carries the summed values of the groups
+                      // past the column limit (foldOverflowGroups). Its
+                      // group-by and passthrough values belong to one of the
+                      // folded groups, so they are not used.
+                      const isOtherGroup =
+                          Number(
+                              row[PivotQueryBuilder.IS_OTHER_GROUP_COLUMN],
+                          ) === 1;
+
+                      if (
+                          passthroughDimensions &&
+                          currentTransformedRow &&
+                          !isOtherGroup
+                      ) {
                           for (const dim of passthroughDimensions) {
                               const incoming = row[dim.reference];
                               const existing =
@@ -4101,6 +4116,13 @@ export class AsyncQueryService extends ProjectService {
 
                       const pivotValues =
                           groupByColumns?.map((c) => {
+                              if (isOtherGroup) {
+                                  return {
+                                      referenceField: c.reference,
+                                      value: OTHER_PIVOT_KEY,
+                                      formatted: OTHER_PIVOT_LABEL,
+                                  };
+                              }
                               const field = itemsMap[c.reference];
                               const rawValue = formatRawValue(
                                   field,

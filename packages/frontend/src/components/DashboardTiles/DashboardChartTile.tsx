@@ -150,6 +150,7 @@ import useToaster from '../../hooks/toaster/useToaster';
 import { useExploreConnectionName } from '../../hooks/useConnectionBadges';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { useExplore } from '../../hooks/useExplore';
+import { usePivotColumnLimitMessage } from '../../hooks/usePivotColumnLimitMessage';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { useRefreshPreAggregateByDefinitionName } from '../../hooks/usePreAggregateRefresh';
 import { useProjectUrlIdentifier } from '../../hooks/useProjectRoute';
@@ -179,6 +180,7 @@ import {
 import { getConditionalRuleLabelFromItem } from '../common/Filters/FilterInputs/utils';
 import MantineIcon from '../common/MantineIcon';
 import MoveChartThatBelongsToDashboardModal from '../common/modal/MoveChartThatBelongsToDashboardModal';
+import PivotColumnLimitWarning from '../common/PivotColumnLimitWarning';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import LightdashVisualization from '../LightdashVisualization';
 import { type EmbeddedDashboardInteractivity } from '../LightdashVisualization/context';
@@ -638,6 +640,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             explore,
         } = dashboardChartReadyQuery;
         const savedMerge = chart.merge ?? null;
+        const pivotColumnLimitMessage = usePivotColumnLimitMessage(
+            resultsData.pivotDetails,
+        );
         // A merged tile's filters echo per source; the other source's explore
         // is needed to label them.
         const additionalExploreName = (
@@ -1172,8 +1177,16 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     lockHeaderVisibility={isCommentsMenuOpen}
                     chartKind={chartKind}
                     visibleHeaderElement={
-                        // Dashboard comments button is always visible if they exist
-                        tileHasComments ? dashboardComments : undefined
+                        // Dashboard comments button is always visible if they exist,
+                        // and so is the warning that some groups are not shown
+                        tileHasComments || pivotColumnLimitMessage ? (
+                            <>
+                                <PivotColumnLimitWarning
+                                    message={pivotColumnLimitMessage}
+                                />
+                                {tileHasComments ? dashboardComments : null}
+                            </>
+                        ) : undefined
                     }
                     extraHeaderElement={
                         <>
@@ -2084,6 +2097,9 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
         explore,
         executeQueryResponse: { metricQuery, usedParametersValues },
     } = dashboardChartReadyQuery;
+    const pivotColumnLimitMessage = usePivotColumnLimitMessage(
+        resultsData.pivotDetails,
+    );
     const showEditChart =
         onEditChart !== undefined &&
         props.isEditMode &&
@@ -2242,6 +2258,13 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
                 isLoading={false}
                 chartKind={chartKind}
                 minimal={true}
+                visibleHeaderElement={
+                    pivotColumnLimitMessage ? (
+                        <PivotColumnLimitWarning
+                            message={pivotColumnLimitMessage}
+                        />
+                    ) : undefined
+                }
                 extraMenuItems={
                     canExportCsv ||
                     (canExportImages &&

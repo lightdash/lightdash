@@ -82,6 +82,43 @@ describe('VisualizationWarning', () => {
             );
         },
     );
+    it('warns that totals are incomplete when groups exceed the column limit', async () => {
+        renderWithProviders(
+            <VisualizationWarning
+                {...props}
+                chartConfig={{
+                    type: ChartType.CARTESIAN,
+                    config: {
+                        layout: {
+                            xField: 'orders_date',
+                            yField: ['orders_status'],
+                        },
+                        eChartsConfig: {},
+                    },
+                }}
+                resultsData={{
+                    ...props.resultsData,
+                    pivotDetails: {
+                        totalColumnCount: 412,
+                        indexColumn: undefined,
+                        valuesColumns: [],
+                        groupByColumns: undefined,
+                        sortBy: undefined,
+                        originalColumns: {},
+                    },
+                }}
+                maxColumnLimit={200}
+            />,
+        );
+
+        await userEvent.hover(
+            screen.getByRole('img', { name: 'Results may be incorrect' }),
+        );
+
+        expect(await screen.findByRole('tooltip')).toHaveTextContent(
+            'Only the first 200 of 412 grouped columns are shown. Totals leave out the rest.',
+        );
+    });
     it('does not warn when every dimension is used', () => {
         renderWithProviders(
             <VisualizationWarning

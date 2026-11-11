@@ -10,6 +10,10 @@ import { Box, List, Tooltip } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { isEqual } from 'es-toolkit/compat';
 import { useMemo, type FC } from 'react';
+import {
+    getPivotColumnLimitMessage,
+    hasOtherPivotGroup,
+} from '../../../hooks/usePivotColumnLimitMessage';
 import { type InfiniteQueryResults } from '../../../hooks/useQueryResults';
 import MantineIcon from '../../common/MantineIcon';
 
@@ -49,13 +53,17 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
     );
 
     // Determine if pivot column limit has been exceeded
-    const shouldShowPivotColumnLimit = useMemo(() => {
-        return (
-            resultsData?.pivotDetails?.totalColumnCount &&
-            maxColumnLimit &&
-            resultsData.pivotDetails.totalColumnCount > maxColumnLimit
-        );
-    }, [resultsData?.pivotDetails?.totalColumnCount, maxColumnLimit]);
+    const pivotColumnLimitMessage = useMemo(
+        () =>
+            getPivotColumnLimitMessage({
+                totalColumnCount: resultsData?.pivotDetails?.totalColumnCount,
+                maxColumnLimit,
+                hasOtherGroup: hasOtherPivotGroup(
+                    resultsData?.pivotDetails?.valuesColumns,
+                ),
+            }),
+        [resultsData?.pivotDetails, maxColumnLimit],
+    );
 
     // Determine if configured pivot dimensions are different from the ones used to compute the results
     const shouldShowPivotMismatch = useMemo(() => {
@@ -109,10 +117,8 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
                 'Please re-run the query to fetch the latest data with correct group by settings.',
             );
         }
-        if (shouldShowPivotColumnLimit && maxColumnLimit) {
-            _messages.push(
-                `This query exceeds the maximum number of columns (${maxColumnLimit}). Showing the first ${maxColumnLimit} columns.`,
-            );
+        if (pivotColumnLimitMessage) {
+            _messages.push(pivotColumnLimitMessage);
         }
         return _messages;
     }, [
@@ -120,8 +126,7 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         isQueryFetching,
         shouldShowPivotMismatch,
         unusedDimensionLabels,
-        shouldShowPivotColumnLimit,
-        maxColumnLimit,
+        pivotColumnLimitMessage,
     ]);
 
     if (messages.length === 0) return null;

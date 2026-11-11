@@ -24,6 +24,7 @@ import {
     type SavedChartDAO,
 } from '../types/savedCharts';
 import assertUnreachable from '../utils/assertUnreachable';
+import { isNumericItem } from '../utils/item';
 import {
     getColumnAxisType,
     getTableCalculationAxisType,
@@ -388,6 +389,21 @@ function getCartesianPivotConfiguration(
             xField,
         );
 
+        // A stacked chart's bar height and total are the sum of its groups, so
+        // groups past the pivot column limit must still count: fold them into
+        // one "Other" group instead of dropping them. Summing only makes sense
+        // for numeric values.
+        const isStacked =
+            !!chartConfig.config.layout.stack ||
+            (chartConfig.config.eChartsConfig.series ?? []).some(
+                (series) => series.stack !== undefined || !!series.areaStyle,
+            );
+        const foldOverflowGroups =
+            isStacked &&
+            groupByColumns.length > 0 &&
+            valuesColumns.length > 0 &&
+            valuesColumns.every((col) => isNumericItem(fields[col.reference]));
+
         const partialPivotConfiguration: Omit<PivotConfiguration, 'sortBy'> = {
             indexColumn,
             valuesColumns,
@@ -395,6 +411,7 @@ function getCartesianPivotConfiguration(
             ...(sortOnlyMetrics.length > 0 && {
                 sortOnlyColumns: sortOnlyMetrics,
             }),
+            ...(foldOverflowGroups && { foldOverflowGroups }),
         };
 
         const pivotConfiguration: PivotConfiguration = {

@@ -50,6 +50,12 @@ const DEFAULT_PIVOT_ROW_LIMIT = 500;
  *    (e.g., transforming rows of categories into separate columns for each category)
  */
 export class PivotQueryBuilder {
+    /**
+     * Output column set to 1 on the row that carries the summed values of the
+     * groups past the column limit (see `foldOverflowGroups`).
+     */
+    static readonly IS_OTHER_GROUP_COLUMN = 'is_other_group';
+
     private readonly sql: string;
 
     /**
@@ -2087,9 +2093,10 @@ export class PivotQueryBuilder {
               );
 
         let columnIndexFilterSql = '';
+        let maxColumnsPerValueColumn: number | undefined;
 
         if (columnLimit) {
-            const maxColumnsPerValueColumn =
+            maxColumnsPerValueColumn =
                 PivotQueryBuilder.calculateMaxColumnsPerValueColumn(
                     valuesColumns,
                     columnLimit,
@@ -2100,6 +2107,16 @@ export class PivotQueryBuilder {
                 'column_index',
             )} <= ${maxColumnsPerValueColumn}`;
         }
+
+        // Fold the groups past the column limit into one "Other" row per
+        // row_index instead of dropping them (see foldOverflowGroups). Pivot
+        // table calculations and metrics-as-rows are table-only layouts.
+        const overflowColumnLimit =
+            this.pivotConfiguration.foldOverflowGroups &&
+            !this.pivotConfiguration.metricsAsRows &&
+            Object.keys(this.pivotTableCalculations).length === 0
+                ? maxColumnsPerValueColumn
+                : undefined;
 
         // Build CTEs in correct dependency order:
         // 1. original_query, group_by_query (base data)
@@ -2174,6 +2191,23 @@ export class PivotQueryBuilder {
             adapterType === SupportedDbtAdapter.ATHENA
                 ? ''
                 : ` ORDER BY ${groupByPartition}`;
+        if (overflowColumnLimit !== undefined) {
+            return PivotQueryBuilder.assembleSqlParts([
+                PivotQueryBuilder.buildCtesSQL(ctes),
+                this.getFoldedOverflowFinalSelect({
+                    indexColumns,
+                    displayValuesColumns: this.pivotConfiguration.valuesColumns,
+                    valuesColumns: valuesColumnsWithoutPivotTableCalculations,
+                    groupByColumns,
+                    passthroughDimensions,
+                    overflowColumnLimit,
+                    totalColumnsMultiplier,
+                    groupByPartition,
+                    grpRnOrderBy,
+                }),
+            ]);
+        }
+
         const finalSelect = `SELECT ${outputColumns}, total_columns FROM (SELECT p.*, SUM(CASE WHEN ${this.qualifyIdentifier(
             'p',
             '__grp_rn',
@@ -2187,6 +2221,118 @@ export class PivotQueryBuilder {
             PivotQueryBuilder.buildCtesSQL(ctes),
             finalSelect,
         ]);
+    }
+
+    /**
+     * Final SELECT used when groups past the column limit are folded into one
+     * "Other" row per row_index instead of being dropped.
+     *
+     * Rows within the limit pass through unchanged. For each row_index, the
+     * first row past the limit is kept as the "Other" row: its displayed value
+     * columns are replaced by the sum of every row past the limit, and
+     * `is_other_group` is set so the result transform spreads it into the
+     * `OTHER_PIVOT_KEY` column. The sums are window functions over the same
+     * scan that computes total_columns, so the base data is still read once.
+     */
+    private getFoldedOverflowFinalSelect({
+        indexColumns,
+        displayValuesColumns,
+        valuesColumns,
+        groupByColumns,
+        passthroughDimensions,
+        overflowColumnLimit,
+        totalColumnsMultiplier,
+        groupByPartition,
+        grpRnOrderBy,
+    }: {
+        indexColumns: ReturnType<typeof normalizeIndexColumns>;
+        displayValuesColumns: PivotConfiguration['valuesColumns'];
+        valuesColumns: PivotConfiguration['valuesColumns'];
+        groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>;
+        passthroughDimensions: PivotConfiguration['passthroughDimensions'];
+        overflowColumnLimit: number;
+        totalColumnsMultiplier: string;
+        groupByPartition: string;
+        grpRnOrderBy: string;
+    }): string {
+        const columnIndex = this.quoteIdentifier('column_index');
+        const rowIndex = this.quoteIdentifier('row_index');
+        const otherColumnIndex = this.quoteIdentifier('__other_column_index');
+        const isOverflow = (alias?: string) =>
+            `${
+                alias
+                    ? this.qualifyIdentifier(alias, 'column_index')
+                    : columnIndex
+            } > ${overflowColumnLimit}`;
+
+        // Index-based aliases keep the helper columns short and unique however
+        // long the value column names are.
+        const foldedValueAliases = new Map<string, string>(
+            [
+                ...new Set(
+                    displayValuesColumns.map((col) =>
+                        PivotQueryBuilder.getValueColumnFieldName(
+                            col.reference,
+                            col.aggregation,
+                        ),
+                    ),
+                ),
+            ].map((name, index) => [
+                this.quoteIdentifier(name),
+                this.quoteIdentifier(`__other_value_${index}`),
+            ]),
+        );
+
+        const overflowWindows = [
+            `MIN(CASE WHEN ${isOverflow('p')} THEN ${this.qualifyIdentifier(
+                'p',
+                'column_index',
+            )} END) OVER (PARTITION BY ${this.qualifyIdentifier(
+                'p',
+                'row_index',
+            )}) AS ${otherColumnIndex}`,
+            ...[...foldedValueAliases].map(
+                ([valueColumn, foldedAlias]) =>
+                    `SUM(CASE WHEN ${isOverflow('p')} THEN p.${valueColumn} END) OVER (PARTITION BY ${this.qualifyIdentifier(
+                        'p',
+                        'row_index',
+                    )}) AS ${foldedAlias}`,
+            ),
+        ].join(', ');
+
+        const outputColumns = this.getPivotOutputColumns(
+            indexColumns,
+            valuesColumns,
+            groupByColumns,
+            passthroughDimensions,
+        )
+            .map((column) => {
+                const foldedAlias = foldedValueAliases.get(column);
+                if (foldedAlias) {
+                    return `CASE WHEN ${isOverflow()} THEN ${foldedAlias} ELSE ${column} END AS ${column}`;
+                }
+                // Every "Other" row gets the same column_index, right after
+                // the last kept group, whichever folded group it came from.
+                if (column === columnIndex) {
+                    return `CASE WHEN ${isOverflow()} THEN ${
+                        overflowColumnLimit + 1
+                    } ELSE ${columnIndex} END AS ${columnIndex}`;
+                }
+                return column;
+            })
+            .join(', ');
+
+        return `SELECT ${outputColumns}, total_columns, CASE WHEN ${isOverflow()} THEN 1 ELSE 0 END AS ${this.quoteIdentifier(
+            PivotQueryBuilder.IS_OTHER_GROUP_COLUMN,
+        )} FROM (SELECT p.*, SUM(CASE WHEN ${this.qualifyIdentifier(
+            'p',
+            '__grp_rn',
+        )} = 1 THEN 1 ELSE 0 END) OVER ()${totalColumnsMultiplier} AS total_columns, ${overflowWindows} FROM (SELECT f.*, ROW_NUMBER() OVER (PARTITION BY ${groupByPartition}${grpRnOrderBy}) AS ${this.quoteIdentifier(
+            '__grp_rn',
+        )} FROM filtered_rows f) p) pivoted WHERE ${columnIndex} <= ${overflowColumnLimit} OR ${columnIndex} = ${otherColumnIndex} order by ${rowIndex}, ${this.qualifyIdentifier(
+            'pivoted',
+            'column_index',
+        )}`;
     }
 
     /**

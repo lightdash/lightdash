@@ -51,10 +51,12 @@ import {
     isDimension,
     isField,
     isMetric,
+    isOtherPivotValue,
     isPivotReferenceWithValues,
     isTableCalculation,
     LightdashParameters,
     MetricType,
+    OTHER_PIVOT_LABEL,
     resolveGranularityInLabel,
     StackType,
     TableCalculationType,
@@ -1130,15 +1132,19 @@ const getPivotSeries = ({
 }: GetPivotSeriesArg): EChartsSeries => {
     const pivotLabel = pivotReference.pivotValues.reduce(
         (acc, { field, value }) => {
-            const formattedValue = getFormattedValue(
-                value,
-                field,
-                itemsMap,
-                undefined,
-                pivotValuesColumnsMap,
-                parameters,
-                resolvedTimezone,
-            );
+            // The "Other" group is not a real value of the field, so it must
+            // not go through the field's formatter (dates, numbers).
+            const formattedValue = isOtherPivotValue(value)
+                ? OTHER_PIVOT_LABEL
+                : getFormattedValue(
+                      value,
+                      field,
+                      itemsMap,
+                      undefined,
+                      pivotValuesColumnsMap,
+                      parameters,
+                      resolvedTimezone,
+                  );
             return acc ? `${acc} - ${formattedValue}` : formattedValue;
         },
         '',

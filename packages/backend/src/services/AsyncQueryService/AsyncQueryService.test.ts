@@ -16490,6 +16490,96 @@ describe('AsyncQueryService', () => {
             expect(pivotDetails).not.toBeNull();
             expect(pivotDetails?.totalRows).toBe(5);
         });
+
+        test('spreads the folded overflow row into an "Other" pivot column', async () => {
+            // Column limit of 2: groups p1 and p2 are kept, and the SQL sends
+            // one extra row per row_index holding the sum of the rest. That
+            // row still carries the group value of one of the folded groups.
+            const row = (
+                dimA: string,
+                group: string,
+                value: number,
+                rowIndex: number,
+                columnIndex: number,
+                isOther = 0,
+            ) => ({
+                dim_a: dimA,
+                group_b: group,
+                metric_x_any: value,
+                row_index: rowIndex,
+                column_index: columnIndex,
+                total_columns: 5,
+                is_other_group: isOther,
+            });
+            const batches = [
+                [
+                    row('d1', 'p1', 1, 1, 1),
+                    row('d1', 'p2', 2, 1, 2),
+                    row('d1', 'p3', 12, 1, 3, 1),
+                    // Every group of d2 is past the limit
+                    row('d2', 'p4', 27, 2, 3, 1),
+                ],
+            ];
+            const write = vi.fn();
+
+            const { pivotDetails } =
+                await AsyncQueryService.runQueryAndTransformRows({
+                    warehouseClient: buildWarehouseClientStreaming(batches),
+                    query: 'SELECT 1',
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    write,
+                    pivotConfiguration: {
+                        indexColumn: {
+                            reference: 'dim_a',
+                            type: VizIndexType.CATEGORY,
+                        },
+                        valuesColumns: [
+                            {
+                                reference: 'metric_x',
+                                aggregation: VizAggregationOptions.ANY,
+                            },
+                        ],
+                        groupByColumns: [{ reference: 'group_b' }],
+                        sortBy: undefined,
+                        foldOverflowGroups: true,
+                    },
+                    itemsMap: {},
+                    displayTimezone: null,
+                    recoverStalledQuery: false,
+                });
+
+            expect(write.mock.calls.flatMap(([rows]) => rows)).toEqual([
+                {
+                    dim_a: 'd1',
+                    metric_x_any_p1: 1,
+                    metric_x_any_p2: 2,
+                    'metric_x_any_<other>': 12,
+                },
+                { dim_a: 'd2', 'metric_x_any_<other>': 27 },
+            ]);
+            expect(
+                pivotDetails?.valuesColumns.get('metric_x_any_<other>'),
+            ).toEqual({
+                referenceField: 'metric_x',
+                pivotColumnName: 'metric_x_any_<other>',
+                aggregation: VizAggregationOptions.ANY,
+                pivotValues: [
+                    {
+                        referenceField: 'group_b',
+                        value: '<other>',
+                        formatted: 'Other',
+                    },
+                ],
+                columnIndex: 3,
+            });
+            // The folded group's own value must not become a column
+            expect(pivotDetails?.valuesColumns.has('metric_x_any_p3')).toBe(
+                false,
+            );
+            expect(pivotDetails?.totalColumnCount).toBe(5);
+        });
     });
 });
 
