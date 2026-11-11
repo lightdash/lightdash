@@ -89,6 +89,7 @@ import { canUseEmbeddedChartBuilder } from '../utils';
 import classes from './EmbedDashboard.module.css';
 import EmbedDashboardChartEditorModal from './EmbedDashboardChartEditorModal';
 import EmbedDashboardChartTile from './EmbedDashboardChartTile';
+import EmbedDashboardContentStateEvent from './EmbedDashboardContentStateEvent';
 import EmbedDashboardHeader from './EmbedDashboardHeader';
 import EmbedDataAppTile from './EmbedDataAppTile';
 import { EmbedHeadingTile } from './EmbedHeadingTile';
@@ -1202,6 +1203,9 @@ const EmbedDashboard: FC<{
         >
             <div ref={setContentElement} className={classes.content}>
                 <DocumentTitle title={dashboard.name} />
+                <EmbedDashboardContentStateEvent
+                    dashboardUuid={dashboard.uuid}
+                />
                 <ControlsSidebarProvider
                     // No route says the mode in an embed
                     isEditMode={canWriteDashboard && isEditMode}

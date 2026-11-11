@@ -1,3 +1,10 @@
+import {
+    type DashboardFilters,
+    type ExportContentRequest,
+    type MetricQuery,
+    type ParametersValuesMap,
+} from '@lightdash/common';
+
 /**
  * Enum of all supported Lightdash embed event types
  */
@@ -11,11 +18,12 @@ export enum LightdashEventType {
     DashboardSaved = 'dashboardSaved',
     Notification = 'notification',
     ContentHeightChanged = 'contentHeightChanged',
+    ContentStateChanged = 'contentStateChanged',
 }
 
 /**
  * Payload for FilterChanged events.
- * Sanitized to exclude actual filter values and sensitive data.
+ * @deprecated Use ContentStateChanged, which carries the filter values.
  */
 export type FilterChangedPayload = {
     /** Whether any filters are currently active */
@@ -102,6 +110,44 @@ export type ContentHeightChangedPayload = {
     height: number;
 };
 
+/** What an embedded dashboard currently runs with, shaped like the export request */
+export type DashboardContentState = {
+    type: 'dashboard';
+    dashboardUuid: string;
+    filters: DashboardFilters;
+    parameters: ParametersValuesMap;
+    // Null unless the dashboard uses parameter controls
+    tileParameters: NonNullable<ExportContentRequest['tileParameters']> | null;
+    dateZoomGranularity: string | null;
+    activeTabUuid: string | null;
+};
+
+/** A saved chart open in the explorer, unsaved edits included */
+export type ChartContentState = {
+    type: 'chart';
+    chartUuid: string;
+    exploreName: string;
+    metricQuery: MetricQuery;
+    parameters: ParametersValuesMap;
+};
+
+/** An explore query that isn't a saved chart */
+export type ExploreContentState = {
+    type: 'explore';
+    exploreName: string;
+    metricQuery: MetricQuery;
+    parameters: ParametersValuesMap;
+};
+
+/**
+ * Payload for ContentStateChanged events.
+ * The state the user sees, emitted once it settles and after every change.
+ */
+export type ContentStateChangedPayload =
+    | DashboardContentState
+    | ChartContentState
+    | ExploreContentState;
+
 export type LightdashEventPayload =
     | FilterChangedPayload
     | TabChangedPayload
@@ -111,7 +157,8 @@ export type LightdashEventPayload =
     | ChartSavedPayload
     | DashboardSavedPayload
     | NotificationPayload
-    | ContentHeightChangedPayload;
+    | ContentHeightChangedPayload
+    | ContentStateChangedPayload;
 
 /**
  * Generic event structure for all Lightdash events
@@ -135,6 +182,7 @@ type LightdashEventPayloads = {
     [LightdashEventType.DashboardSaved]: DashboardSavedPayload;
     [LightdashEventType.Notification]: NotificationPayload;
     [LightdashEventType.ContentHeightChanged]: ContentHeightChangedPayload;
+    [LightdashEventType.ContentStateChanged]: ContentStateChangedPayload;
 };
 
 export type LightdashEventPayloadFor<K extends LightdashEventType> =

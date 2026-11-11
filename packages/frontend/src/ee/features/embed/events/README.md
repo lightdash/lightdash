@@ -9,13 +9,38 @@ The event system must be enabled in the Lightdash embedding configuration. Direc
 
 | Event                            | Payload                       | Trigger                                                                                                                                                                                                    |
 | -------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `lightdash:filterChanged`        | `{ hasFilters, filterCount }` | The effective dashboard filter set changes after initial setup. Filter values are never included.                                                                                                          |
+| `lightdash:filterChanged`        | `{ hasFilters, filterCount }` | Deprecated: use `contentStateChanged`. The effective dashboard filter set changes after initial setup.                                                                                                     |
 | `lightdash:tabChanged`           | `{ tabIndex }`                | A viewer selects a different visible dashboard tab. Initial tab selection does not emit.                                                                                                                   |
 | `lightdash:allTilesLoaded`       | `{ tilesCount, loadTimeMs }`  | Every visible tile settles for the active dashboard load cycle. A new cycle starts when the tab, filters, parameters, date zoom, visible tiles, or refresh counter changes. Failed tiles count as settled. |
 | `lightdash:locationChanged`      | `{ pathname, search, href }`  | The direct iframe location changes. SDK embeds do not emit this event.                                                                                                                                     |
 | `lightdash:chartSaved`           | `{ chartUuid, action }`       | A chart is created or updated through a direct iframe write flow.                                                                                                                                          |
 | `lightdash:dashboardSaved`       | `{ dashboardUuid, action }`   | A dashboard is saved, or an AI agent creates or edits one (for example, adds a chart tile).                                                                                                                |
 | `lightdash:contentHeightChanged` | `{ height }`                  | The rendered dashboard height changes, in CSS pixels. Emits once on render, then at most every 150ms while the height changes. Use it to size the iframe to its content.                                   |
+| `lightdash:contentStateChanged`  | `{ type, ... }`               | The state the user sees settles after load, and after each change (debounced 300ms). See below.                                                                                                            |
+
+### Content state
+
+`contentStateChanged` tells the host what the user is looking at, for example to export it. The payload's `type` says which shape it is:
+
+- `dashboard`: `{ dashboardUuid, filters, parameters, tileParameters, dateZoomGranularity, activeTabUuid }`. Filters include the ones the user added. `tileParameters` is `null` unless the dashboard uses parameter controls.
+- `chart`: `{ chartUuid, exploreName, metricQuery, parameters }` for a saved chart in `Lightdash.Chart` with `isEditMode` set, unsaved edits included.
+- `explore`: `{ exploreName, metricQuery, parameters }` for a query that isn't a saved chart, such as `Lightdash.Explore` or "Explore from here".
+
+The dashboard fields match `POST /api/v2/dashboards/{uuid}/exports`, so a host can export what the user sees:
+
+```js
+onEvent={(event) => {
+    if (event.type === 'contentStateChanged' && event.payload.type === 'dashboard') {
+        const { filters, parameters, tileParameters, dateZoomGranularity } = event.payload;
+        latestExportRequest = {
+            dashboardFilters: filters,
+            parameters,
+            ...(tileParameters && { tileParameters }),
+            ...(dateZoomGranularity && { dateZoomGranularity }),
+        };
+    }
+}}
+```
 
 ### Fitting an iframe to its content
 
