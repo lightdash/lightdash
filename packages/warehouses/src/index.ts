@@ -15,5 +15,6 @@ export * from './warehouseClients/PostgresWarehouseClient';
 export * from './warehouseClients/RedshiftWarehouseClient';
 export * from './warehouseClients/redshiftIamCredentials';
 export * from './warehouseClients/SnowflakeWarehouseClient';
+export * from './warehouseClients/snowflakePrivateKey';
 export * from './warehouseClients/TrinoWarehouseClient';
 export * from './warehouseSqlBuilderFromType';

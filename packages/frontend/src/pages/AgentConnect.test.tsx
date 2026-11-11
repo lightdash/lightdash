@@ -58,6 +58,7 @@ beforeEach(() => {
     vi.stubGlobal('location', {
         href: window.location.href,
         origin: window.location.origin,
+        pathname: window.location.pathname,
         assign: mocks.assign,
     });
 });

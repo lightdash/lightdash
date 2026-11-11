@@ -53,9 +53,28 @@ ${getChartPlacement(viaComposerQueries, customCharts)}
 }. Keep an existing one by its tag, and when the user asks for one, explain the limitation instead of silently changing the chart.`;
 
 export const DOCUMENT_OFFER_LINE =
-    'Want me to save this as a Document you can share?';
+    'Want me to turn this analysis into a Document, a shareable report with these charts and a written summary?';
+
+// Offer lines earlier releases wrote into threads, still recognised so old threads are not offered twice.
+const LEGACY_DOCUMENT_OFFER_LINES = [
+    'Want me to save this as a Document you can share?',
+];
+
+const DOCUMENT_OFFER_LINES = [
+    DOCUMENT_OFFER_LINE,
+    ...LEGACY_DOCUMENT_OFFER_LINES,
+];
+
+export const includesDocumentOffer = (text: string): boolean =>
+    DOCUMENT_OFFER_LINES.some((line) => text.includes(line));
+
+export const removeDocumentOffer = (text: string): string =>
+    DOCUMENT_OFFER_LINES.reduce((rest, line) => rest.replace(line, ''), text);
+
+/** Charts a thread needs before a Document is offered: a single chart or a quick follow-up is not an analysis. */
+export const MIN_CHARTS_FOR_DOCUMENT_OFFER = 3;
 
 export const DOCUMENT_NUDGES_GUIDANCE = `
 - Documents are shareable write-ups that combine narrative and charts.
-  - When this reply creates a chart and an earlier reply in this conversation also created one, or the reply concludes a finding that took several steps, end the reply with this line on its own: "${DOCUMENT_OFFER_LINE}" Offer only once per conversation: skip it if a Document was already offered or created, and never after a single quick question.
+  - Offer a Document only once the conversation holds a substantial analysis: at least ${MIN_CHARTS_FOR_DOCUMENT_OFFER} charts across several turns exploring one topic, and this reply concludes a finding from them. Then end the reply with this line on its own: "${DOCUMENT_OFFER_LINE}" Offer only once per conversation: skip it if a Document was already offered or created, and never after a single chart or a quick question.
   - When looking for existing content, include Documents. When an existing Document covers the question, link it.`;

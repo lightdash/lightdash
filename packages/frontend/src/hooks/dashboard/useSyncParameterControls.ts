@@ -46,7 +46,9 @@ export const useSyncParameterControls = ({
         const sync = () => {
             const {
                 tileParameterReferences,
+                tileQueryParameterReferences,
                 tileListedParameterSources,
+                tileFailedParameterSources,
                 parameterDefinitions,
                 haveParameterControlsChanged,
             } = store.getState().parameters;
@@ -57,6 +59,7 @@ export const useSyncParameterControls = ({
                 querySources,
                 tileParameterReferences,
                 tileListedParameterSources,
+                tileFailedParameterSources,
                 parameterDefinitions,
                 haveParameterControlsChanged,
             ];
@@ -68,11 +71,21 @@ export const useSyncParameterControls = ({
             if (
                 config?.parameterControls === undefined &&
                 (dashboardTiles === undefined ||
-                    querySources.some(
-                        (source) =>
+                    querySources.some((source) => {
+                        const key = JSON.stringify(source);
+                        // A failed listing is settled: the tile reports from its own query.
+                        // Own reports carry no source; a source change clears them once listed
+                        return (
                             tileListedParameterSources[source.tileUuid] !==
-                            JSON.stringify(source),
-                    ))
+                                key &&
+                            tileFailedParameterSources[source.tileUuid] !==
+                                key &&
+                            !Object.hasOwn(
+                                tileQueryParameterReferences,
+                                source.tileUuid,
+                            )
+                        );
+                    }))
             ) {
                 store.dispatch(
                     dashboardParametersActions.deactivateParameterControls(),
@@ -90,8 +103,6 @@ export const useSyncParameterControls = ({
                                   definitions: parameterDefinitions,
                                   tileParameterReferences,
                                   parameterOrder: config?.parameterOrder ?? [],
-                                  parameterSections:
-                                      config?.parameterSections ?? {},
                                   // Loaded definitions are user parameters, which may shadow a reserved name
                                   userParameterNames:
                                       Object.keys(parameterDefinitions),

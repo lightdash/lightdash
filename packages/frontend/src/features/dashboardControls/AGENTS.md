@@ -190,9 +190,22 @@ Each one has broken before or would break silently.
   (`FeatureFlagService.getForAccount`).
 - **Saved section keys survive every rewrite**: `sectionId` is carried in
   `applyDimensionOverrides` / `applyMetricOverrides`, `adoptPlaceholder` and
-  the emptied placeholder; `buildDashboardConfig` carries
-  `parameterSections` forward. See `docs/sections.md`.
+  the emptied placeholder. See `docs/sections.md`.
 - **`data-tour-*` anchors** on the bar are the shipped bar's; keep them.
+
+## Dashboard files (as code)
+
+New control kinds (date zoom next) follow these rules:
+
+1. Every control in a dashboard file is identified by `slug` only. Download
+   derives it from the control's name; upload matches it to the saved control
+   to keep the saved id. Ids and uuids never appear in the file.
+2. Section membership is `sectionSlug` on the control. No maps on `config`,
+   no `sectionId`.
+3. Order and line breaks live only in `controlOrder`, as
+   `{ kind, slug, newLine }`. No per-kind order fields, no per-control or
+   per-section line flags.
+4. Tiles are referenced by tile slug.
 
 ## Strings
 
@@ -250,7 +263,10 @@ Every flag-on pill is the default white pill; only these change it, all in
 - Picked (edit mode): blue fill and a check, the only blue.
 - Required with no value: a muted asterisk on the left, before the field
   icon, with the requirement's tooltip (the pill is described by it); none
-  once it has a value, nor on a locked pill (no viewer can set it). Locked
+  once it has a value, nor on a locked pill (no viewer can set it). A
+  parameter pill takes the same cues: the asterisk when a tile it sets has
+  no value, dashed until saved (the store's `savedParameterControlIds`),
+  the select hint; hidden from viewers is its eye-off icon, never muted. Locked
   and "changed since save" have no other cue; Save in the header is the one
   unsaved signal. An inner part with its own tooltip carries
   `data-own-tooltip` (or is a button), so the pill's tooltip waits on it.

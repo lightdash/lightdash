@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "3.199.0",
+    "version": "3.214.1",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -167,6 +167,7 @@
         "scope-tours:generate": "tsx scripts/scope-tours/generate.ts && pnpm -F frontend run formatter -- src/features/scopeTours/generated.ts src/features/scopeTours/released.ts",
         "scope-tours:order": "tsx scripts/scope-tours/order.ts && pnpm -F frontend run formatter -- src/features/scopeTours/curriculum.ts",
         "scope-tours:check": "tsx scripts/scope-tours/check.ts",
+        "scope-tours:bump-docs": "tsx scripts/scope-tours/bump-docs-pin.ts",
         "scope-tours:coverage": "tsx scripts/scope-tours/coverage.ts",
         "scope-tours:coverage:test": "tsx scripts/scope-tours/coverage.test.ts",
         "scope-tours:release-check": "tsx scripts/scope-tours/coverage.ts --release",

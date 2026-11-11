@@ -13,11 +13,12 @@ export type Node = {
     key: string;
     label: string;
     index: number;
+    source?: { label: string; showInline: boolean };
     children?: NodeMap;
     description?: string;
 };
 
-export type GroupNode = Required<Node>;
+export type GroupNode = Node & { children: NodeMap; description: string };
 
 export type NodeMap = Record<string, Node>;
 

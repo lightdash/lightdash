@@ -5926,7 +5926,6 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 sectionSlug: { dataType: 'string' },
-                sectionId: { dataType: 'string' },
                 hidden: { dataType: 'boolean' },
                 granularity: {
                     dataType: 'union',
@@ -5985,10 +5984,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                inline: { dataType: 'boolean' },
                 collapsed: { dataType: 'boolean' },
                 name: { dataType: 'string', required: true },
-                id: { dataType: 'string' },
                 slug: { dataType: 'string' },
             },
             validators: {},
@@ -6067,7 +6064,6 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 sectionSlug: { dataType: 'string' },
-                sectionId: { dataType: 'string' },
                 valueType: {
                     ref: 'Required_Pick_LightdashProjectParameter.type-or-multiple__',
                     required: true,
@@ -6088,7 +6084,6 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                id: { dataType: 'string' },
                 slug: { dataType: 'string' },
             },
             validators: {},
@@ -6131,16 +6126,6 @@ const models: TsoaRoute.Models = {
                         dataType: 'refAlias',
                         ref: 'DashboardParameterControlAsCode',
                     },
-                },
-                parameterSectionSlugs: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {},
-                    additionalProperties: { dataType: 'string' },
-                },
-                parameterSections: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {},
-                    additionalProperties: { dataType: 'string' },
                 },
                 controlSections: {
                     dataType: 'array',
@@ -9497,7 +9482,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                inline: { dataType: 'boolean' },
                 collapsed: { dataType: 'boolean' },
                 name: { dataType: 'string', required: true },
                 id: { dataType: 'string', required: true },
@@ -9573,11 +9557,6 @@ const models: TsoaRoute.Models = {
                         dataType: 'refAlias',
                         ref: 'DashboardParameterControl',
                     },
-                },
-                parameterSections: {
-                    dataType: 'nestedObjectLiteral',
-                    nestedProperties: {},
-                    additionalProperties: { dataType: 'string' },
                 },
                 controlSections: {
                     dataType: 'array',
@@ -19710,6 +19689,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 baseTable: { dataType: 'string', required: true },
+                combineJoinedFields: { dataType: 'boolean' },
                 groups: { dataType: 'array', array: { dataType: 'string' } },
                 groupLabel: { dataType: 'string' },
                 tags: {
@@ -68974,6 +68954,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                combineJoinedFields: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 baseTable: {
                     dataType: 'union',
                     subSchemas: [
@@ -70091,14 +70078,6 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                dataAppAutomaticThumbnailsEnabled: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'boolean' },
-                        { dataType: 'enum', enums: [null] },
-                    ],
-                    required: true,
-                },
                 corsAllowedDomains: {
                     dataType: 'union',
                     subSchemas: [
@@ -70325,14 +70304,6 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'array', array: { dataType: 'string' } },
-                        { dataType: 'enum', enums: [null] },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                dataAppAutomaticThumbnailsEnabled: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'boolean' },
                         { dataType: 'enum', enums: [null] },
                         { dataType: 'undefined' },
                     ],
@@ -72943,11 +72914,52 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    LinearInstallUrl: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                installUrl: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_LinearInstallUrl_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'LinearInstallUrl', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiLinearInstallUrlResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess_LinearInstallUrl_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    LinearOAuthCredentials: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                clientSecret: { dataType: 'string', required: true },
+                clientId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     LinearInstallation: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                requiresClientSecret: { dataType: 'boolean', required: true },
                 requiresReconnect: { dataType: 'boolean', required: true },
                 organizationUrlKey: { dataType: 'string', required: true },
                 organizationName: { dataType: 'string', required: true },
@@ -74391,6 +74403,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                combineJoinedFields: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 tables: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {},
@@ -74586,6 +74605,13 @@ const models: TsoaRoute.Models = {
                 dataType: 'union',
                 subSchemas: [
                     { ref: 'DbtExploreIdentity' },
+                    { dataType: 'undefined' },
+                ],
+            },
+            combineJoinedFields: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'boolean' },
                     { dataType: 'undefined' },
                 ],
             },
@@ -79253,6 +79279,14 @@ const models: TsoaRoute.Models = {
                         error: {
                             dataType: 'enum',
                             enums: [null],
+                            required: true,
+                        },
+                        virtualViewSavedValues: {
+                            ref: 'ParametersValuesMap',
+                            required: true,
+                        },
+                        chartSavedValues: {
+                            ref: 'ParametersValuesMap',
                             required: true,
                         },
                         parameterDefinitions: { ref: 'ParameterDefinitions' },
@@ -138309,12 +138343,70 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsLinearController_connectLinearIntegration: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'LinearOAuthCredentials',
+        },
+    };
+    app.post(
+        '/api/v1/linear/install',
+        ...fetchMiddlewares<RequestHandler>(LinearController),
+        ...fetchMiddlewares<RequestHandler>(
+            LinearController.prototype.connectLinearIntegration,
+        ),
+
+        async function LinearController_connectLinearIntegration(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsLinearController_connectLinearIntegration,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<LinearController>(LinearController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'connectLinearIntegration',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsLinearController_installLinearIntegration: Record<
         string,
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        clientId: { in: 'query', name: 'clientId', dataType: 'string' },
     };
     app.get(
         '/api/v1/linear/install',
@@ -138370,6 +138462,7 @@ export function RegisterRoutes(app: Router) {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
         code: { in: 'query', name: 'code', dataType: 'string' },
         state: { in: 'query', name: 'state', dataType: 'string' },
+        error: { in: 'query', name: 'error', dataType: 'string' },
     };
     app.get(
         '/api/v1/linear/oauth/callback',

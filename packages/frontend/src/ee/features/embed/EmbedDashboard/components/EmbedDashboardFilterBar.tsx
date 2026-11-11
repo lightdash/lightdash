@@ -135,12 +135,14 @@ const EmbedDashboardFilterBar: FC<Props> = ({
     const activeTabParameters = useActiveTabParameters(activeTiles);
     const parameterBar = useParameterBarControls();
     const totalParametersCount = parametersEnabled
-        ? useParameterControls
+        ? isControlsEnabled
             ? parameterBar.entries.filter(({ control }) => !control.hidden)
                   .length
             : Object.keys(activeTabParameters).length
         : 0;
     const hasVisibleParameters = totalParametersCount > 0;
+    // With the controls on, the legacy parameters never show: none until the controls are built
+    const showsLegacyParameters = parametersEnabled && !isControlsEnabled;
 
     // Collapsing only hides filters and parameters — date zoom stays visible
     const isCollapsible = totalFiltersCount > 0 || totalParametersCount > 0;
@@ -220,13 +222,15 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                     )
                 ) : (
                     <>
-                        {shouldShowFilters && hasVisibleParameters && (
-                            <Divider
-                                className={styles.filterParameterDivider}
-                                orientation="vertical"
-                            />
-                        )}
-                        {parametersEnabled && (
+                        {shouldShowFilters &&
+                            hasVisibleParameters &&
+                            showsLegacyParameters && (
+                                <Divider
+                                    className={styles.filterParameterDivider}
+                                    orientation="vertical"
+                                />
+                            )}
+                        {showsLegacyParameters && (
                             <EmbedDashboardParameters
                                 parameters={activeTabParameters}
                             />

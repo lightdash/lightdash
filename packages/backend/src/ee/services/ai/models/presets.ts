@@ -17,8 +17,13 @@ export const XHIGH_MAX_OUTPUT_TOKENS = 24_000;
 // `budget + 4096` and other Bedrock requests omit the output cap entirely.
 export const BEDROCK_MAX_OUTPUT_TOKENS = 24_000;
 
+/** What a preset is for. Within a provider, presets are listed newest first, so the first of a tier is its latest. */
+export type ModelTier = 'frontier' | 'balanced' | 'fast';
+
 export type ModelPreset<P extends SelectableModelProvider> = {
     name: string;
+    // Unset on a deprecated or instance-configured model, which nothing should prefer.
+    tier?: ModelTier;
     provider: P;
     modelId: string;
     displayName: string;
@@ -54,6 +59,7 @@ export const MODEL_PRESETS: {
     openai: [
         {
             name: 'gpt-6.1-sol',
+            tier: 'frontier',
             provider: 'openai',
             modelId: 'gpt-6.1-sol',
             displayName: 'GPT-6.1 Sol',
@@ -68,6 +74,7 @@ export const MODEL_PRESETS: {
         },
         {
             name: 'gpt-6.1-terra',
+            tier: 'balanced',
             provider: 'openai',
             modelId: 'gpt-6.1-terra',
             displayName: 'GPT-6.1 Terra',
@@ -81,6 +88,7 @@ export const MODEL_PRESETS: {
         },
         {
             name: 'gpt-6-luna',
+            tier: 'fast',
             provider: 'openai',
             modelId: 'gpt-6-luna',
             displayName: 'GPT-6 Luna',
@@ -232,6 +240,7 @@ export const MODEL_PRESETS: {
     anthropic: [
         {
             name: 'claude-opus-5-5',
+            tier: 'frontier',
             provider: 'anthropic',
             modelId: 'claude-opus-5-5',
             displayName: 'Claude Opus 5.5',
@@ -245,6 +254,7 @@ export const MODEL_PRESETS: {
         },
         {
             name: 'claude-sonnet-5-5',
+            tier: 'balanced',
             provider: 'anthropic',
             modelId: 'claude-sonnet-5-5',
             displayName: 'Claude Sonnet 5.5',
@@ -366,6 +376,7 @@ export const MODEL_PRESETS: {
         },
         {
             name: 'claude-haiku-5-5',
+            tier: 'fast',
             provider: 'anthropic',
             modelId: 'claude-haiku-5-5',
             displayName: 'Claude Haiku 5.5',
@@ -449,6 +460,7 @@ export const MODEL_PRESETS: {
         },
         {
             name: 'claude-opus-5-5',
+            tier: 'frontier',
             provider: 'bedrock',
             modelId: 'anthropic.claude-opus-5-5',
             displayName: 'Claude Opus 5.5',
@@ -462,6 +474,7 @@ export const MODEL_PRESETS: {
         },
         {
             name: 'claude-sonnet-5-5',
+            tier: 'balanced',
             provider: 'bedrock',
             modelId: 'anthropic.claude-sonnet-5-5',
             displayName: 'Claude Sonnet 5.5',
@@ -526,6 +539,7 @@ export const MODEL_PRESETS: {
         },
         {
             name: 'claude-haiku-5-5',
+            tier: 'fast',
             provider: 'bedrock',
             modelId: 'anthropic.claude-haiku-5-5',
             displayName: 'Claude Haiku 5.5',

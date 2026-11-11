@@ -15,6 +15,8 @@ import {
     dashboardEditReducer as reducer,
 } from './dashboardEditReducer';
 import {
+    selectCanRedoTileLayout,
+    selectCanUndoTileLayout,
     selectDateZoomConfig,
     selectDateZoomGranularities,
     selectDefaultDateZoomGranularity,
@@ -282,7 +284,10 @@ describe('tile selectors', () => {
         it('keeps staged sections over a seed', () => {
             const edited = reducer(
                 initialDashboardEditState,
-                actions.addControlSection(sections[0]),
+                actions.addControlSection({
+                    section: sections[0],
+                    barOrder: [],
+                }),
             );
             expect(edited.haveControlSectionsChanged).toBe(true);
             const state = reducer(
@@ -300,33 +305,64 @@ describe('tile selectors', () => {
             ).toBe(sections);
         });
 
-        it('appends a section after the others, marking the change', () => {
-            const seeded = reducer(
-                initialDashboardEditState,
-                actions.syncControlSections(sections),
-            );
-            const state = reducer(
-                seeded,
-                actions.addControlSection({ id: 'c', name: 'New' }),
-            );
-            expect(state.controlSections.map((s) => s.id)).toEqual([
-                'a',
-                'b',
-                'c',
-            ]);
-            expect(state.controlSections.at(-1)?.inline).toBe(true);
-            expect(state.haveControlSectionsChanged).toBe(true);
-            // A stored order places it; `inline` would only mislabel it
-            const ordered = reducer(
+        describe('adding a section', () => {
+            const { FILTER, SECTION } = DashboardControlRefKind;
+            const added = { id: 'c', name: 'New' };
+            const barOrder = [
+                { kind: FILTER, id: 'f' },
+                { kind: SECTION, id: 'a', newLine: true },
+                { kind: SECTION, id: 'b', newLine: true },
+            ];
+            const seeded = () =>
                 reducer(
-                    seeded,
-                    actions.syncControlOrder([
-                        { kind: DashboardControlRefKind.SECTION, id: 'a' },
-                    ]),
-                ),
-                actions.addControlSection({ id: 'c', name: 'New' }),
-            );
-            expect(ordered.controlSections.at(-1)).not.toHaveProperty('inline');
+                    initialDashboardEditState,
+                    actions.syncControlSections(sections),
+                );
+
+            it('stores no order for the first section', () => {
+                const state = reducer(
+                    initialDashboardEditState,
+                    actions.addControlSection({ section: added, barOrder: [] }),
+                );
+                expect(state.controlSections).toEqual([added]);
+                expect(state.haveControlSectionsChanged).toBe(true);
+                expect(state.controlOrder).toBeUndefined();
+                expect(state.hasControlOrderChanged).toBe(false);
+            });
+
+            it('stores the bar order with it on the line of the section before, without a stored order', () => {
+                const state = reducer(
+                    seeded(),
+                    actions.addControlSection({ section: added, barOrder }),
+                );
+                expect(state.controlSections.map((s) => s.id)).toEqual([
+                    'a',
+                    'b',
+                    'c',
+                ]);
+                expect(state.controlSections.at(-1)).toEqual(added);
+                expect(state.haveControlSectionsChanged).toBe(true);
+                expect(state.controlOrder).toEqual([
+                    ...barOrder,
+                    { kind: SECTION, id: 'c' },
+                ]);
+                expect(state.hasControlOrderChanged).toBe(true);
+            });
+
+            it('keeps a stored order, which places it at the end', () => {
+                const stored = [{ kind: SECTION, id: 'a' }];
+                const withOrder = reducer(
+                    seeded(),
+                    actions.syncControlOrder(stored),
+                );
+                const state = reducer(
+                    withOrder,
+                    actions.addControlSection({ section: added, barOrder }),
+                );
+                expect(state.controlSections.at(-1)).toEqual(added);
+                expect(state.controlOrder).toBe(stored);
+                expect(state.hasControlOrderChanged).toBe(false);
+            });
         });
 
         it('renames and removes a section, marking the change', () => {
@@ -392,5 +428,220 @@ describe('tile selectors', () => {
                 ).controlSections[1],
             ).toEqual(sections[1]);
         });
+    });
+});
+
+describe('tile layout undo and redo', () => {
+    it('leaves the draft and its history alone when the canvas is zoomed', () => {
+        const zoomed = reducer(
+            initialDashboardEditState,
+            actions.setCanvasZoom(0.5),
+        );
+        expect(zoomed.canvasZoom).toBe(0.5);
+        expect(zoomed.haveTilesChanged).toBe(false);
+        expect(zoomed.tileLayoutHistory).toBe(
+            initialDashboardEditState.tileLayoutHistory,
+        );
+    });
+
+    const editing = (tiles: Dashboard['tiles']) =>
+        reducer(initialDashboardEditState, actions.setTiles(tiles));
+    const move = (uuid: string, x: number) =>
+        actions.moveTiles([{ uuid, x, y: 0, w: 6, h: 3 }]);
+    const xs = (state: typeof initialDashboardEditState) =>
+        state.tiles?.map((t) => t.x);
+
+    it('tidies the tab in view only, as one undo step', () => {
+        const tabs = ['one', 'two'].map((uuid, order) => ({
+            uuid,
+            name: uuid,
+            order,
+        }));
+        const on = (uuid: string, tabUuid: string, y: number) => ({
+            ...tile(uuid),
+            tabUuid,
+            y,
+        });
+        const ys = (state: typeof initialDashboardEditState) =>
+            state.tiles?.map((t) => t.y);
+        const start = [
+            actions.setTabs(tabs),
+            actions.setActiveTab(tabs[0]),
+        ].reduce(
+            reducer,
+            editing([on('a', 'one', 5), on('b', 'one', 20), on('c', 'two', 9)]),
+        );
+
+        const tidy = reducer(start, actions.tidyTiles());
+        expect(ys(tidy)).toEqual([0, 3, 9]);
+        expect(tidy.haveTilesChanged).toBe(true);
+
+        expect(ys(reducer(tidy, actions.undoTileLayout()))).toEqual([5, 20, 9]);
+        expect(reducer(tidy, actions.tidyTiles())).toBe(tidy);
+    });
+
+    it('tidies gaps and row widths in one undo step', () => {
+        const start = editing([tile('a'), { ...tile('b', 6), y: 12 }]);
+        const placement = (state: typeof initialDashboardEditState) =>
+            state.tiles?.map(({ x, y, w }) => [x, y, w]);
+
+        const tidy = reducer(start, actions.tidyTiles());
+        expect(placement(tidy)).toEqual([
+            [0, 0, 18],
+            [18, 0, 18],
+        ]);
+        expect(placement(reducer(tidy, actions.undoTileLayout()))).toEqual(
+            placement(start),
+        );
+    });
+
+    it('undoes and redoes a move', () => {
+        const moved = reducer(editing([tile('a'), tile('b', 6)]), move('a', 3));
+        expect(xs(moved)).toEqual([3, 6]);
+
+        const undone = reducer(moved, actions.undoTileLayout());
+        expect(xs(undone)).toEqual([0, 6]);
+
+        const redone = reducer(undone, actions.redoTileLayout());
+        expect(xs(redone)).toEqual([3, 6]);
+    });
+
+    it('steps back through several moves in order', () => {
+        const state = [move('a', 1), move('a', 2), move('a', 3)].reduce(
+            reducer,
+            editing([tile('a')]),
+        );
+        const once = reducer(state, actions.undoTileLayout());
+        const twice = reducer(once, actions.undoTileLayout());
+        expect([xs(once), xs(twice)]).toEqual([[2], [1]]);
+    });
+
+    it('drops the redo steps when a new move follows an undo', () => {
+        const undone = reducer(
+            reducer(editing([tile('a')]), move('a', 3)),
+            actions.undoTileLayout(),
+        );
+        const movedAgain = reducer(undone, move('a', 5));
+        expect(selectCanRedoTileLayout(storeWith(movedAgain))).toBe(false);
+        expect(reducer(movedAgain, actions.redoTileLayout())).toBe(movedAgain);
+    });
+
+    it('records nothing when a drag ends where it started', () => {
+        const state = reducer(editing([tile('a')]), move('a', 0));
+        expect(selectCanUndoTileLayout(storeWith(state))).toBe(false);
+        expect(state.haveTilesChanged).toBe(false);
+    });
+
+    it('has nothing to save once every move is undone', () => {
+        const moved = reducer(editing([tile('a')]), move('a', 3));
+        expect(moved.haveTilesChanged).toBe(true);
+        const undone = reducer(moved, actions.undoTileLayout());
+        expect(undone.haveTilesChanged).toBe(false);
+        expect(reducer(undone, actions.redoTileLayout()).haveTilesChanged).toBe(
+            true,
+        );
+    });
+
+    it('still has tiles to save when another tile change came with the moves', () => {
+        const edited = reducer(
+            reducer(editing([tile('a')]), move('a', 3)),
+            actions.setHaveTilesChanged(true),
+        );
+        expect(reducer(edited, actions.undoTileLayout()).haveTilesChanged).toBe(
+            true,
+        );
+    });
+
+    describe('with tabs', () => {
+        const tabs = [
+            { uuid: 't1', name: 'One', order: 0 },
+            { uuid: 't2', name: 'Two', order: 1 },
+        ];
+        const onTab = (uuid: string, tabUuid: string, x = 0) => ({
+            ...tile(uuid, x),
+            tabUuid,
+        });
+        const editingTabs = (tiles: Dashboard['tiles']) =>
+            [actions.setTabs(tabs), actions.setActiveTab(tabs[0])].reduce(
+                reducer,
+                editing(tiles),
+            );
+
+        it('leaves a tile that changed tab where it was put', () => {
+            const moved = reducer(
+                editingTabs([onTab('a', 't1'), onTab('b', 't1', 6)]),
+                actions.moveTiles([
+                    { uuid: 'a', x: 3, y: 0, w: 6, h: 3 },
+                    { uuid: 'b', x: 9, y: 0, w: 6, h: 3 },
+                ]),
+            );
+            const retabbed = reducer(
+                moved,
+                actions.setTiles(
+                    moved.tiles?.map((t) =>
+                        t.uuid === 'b' ? { ...t, x: 0, tabUuid: 't2' } : t,
+                    ),
+                ),
+            );
+            expect(xs(reducer(retabbed, actions.undoTileLayout()))).toEqual([
+                0, 0,
+            ]);
+        });
+
+        it('undoes only moves on the tab in view', () => {
+            const moved = [move('a', 3), move('b', 9)].reduce(
+                reducer,
+                editingTabs([onTab('a', 't1'), onTab('b', 't2', 6)]),
+            );
+            const undone = reducer(moved, actions.undoTileLayout());
+            expect(xs(undone)).toEqual([0, 9]);
+            expect(selectCanUndoTileLayout(storeWith(undone))).toBe(false);
+
+            const onOtherTab = reducer(undone, actions.setActiveTab(tabs[1]));
+            expect(selectCanUndoTileLayout(storeWith(onOtherTab))).toBe(true);
+            expect(xs(reducer(onOtherTab, actions.undoTileLayout()))).toEqual([
+                0, 6,
+            ]);
+        });
+    });
+
+    it('keeps the tiles that did not move', () => {
+        const before = editing([tile('a'), tile('b', 6)]);
+        const undone = reducer(
+            reducer(before, move('a', 3)),
+            actions.undoTileLayout(),
+        );
+        expect(undone.tiles?.[1]).toBe(before.tiles?.[1]);
+    });
+
+    it('leaves tiles added since a step where they are', () => {
+        const moved = reducer(editing([tile('a')]), move('a', 3));
+        const withNewTile = reducer(
+            moved,
+            actions.setTiles([...(moved.tiles ?? []), tile('new', 9)]),
+        );
+        expect(xs(reducer(withNewTile, actions.undoTileLayout()))).toEqual([
+            0, 9,
+        ]);
+    });
+
+    it('skips steps that only moved tiles removed since', () => {
+        const state = [move('a', 3), move('b', 9)].reduce(
+            reducer,
+            editing([tile('a'), tile('b', 6)]),
+        );
+        const withoutB = reducer(
+            state,
+            actions.setTiles(state.tiles?.filter((t) => t.uuid === 'a')),
+        );
+        expect(xs(reducer(withoutB, actions.undoTileLayout()))).toEqual([0]);
+    });
+
+    it('forgets the history once the draft is saved or discarded', () => {
+        const cleared = reducer(
+            reducer(editing([tile('a')]), move('a', 3)),
+            actions.setHaveTilesChanged(false),
+        );
+        expect(selectCanUndoTileLayout(storeWith(cleared))).toBe(false);
     });
 });

@@ -1,46 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.199.0",
-  "previousVersion": "3.198.1",
-  "releaseDate": "2026-11-10T14:36:50.534Z",
+  "version": "3.214.1",
+  "previousVersion": "3.214.0",
+  "releaseDate": "2026-11-11T15:57:22.883Z",
   "migrations": {
-    "present": true,
-    "count": 2,
-    "coreCount": 2,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261110100000_create_project_model_documents.ts",
-        "edition": "core",
-        "tables": [
-          "project_model_change_sets",
-          "project_model_documents",
-          "project_model_draft_changes",
-          "project_model_revisions",
-          "projects",
-          "users"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      },
-      {
-        "name": "20261110130000_create_project_model_draft_impacts.ts",
-        "edition": "core",
-        "tables": [
-          "project_model_draft_impacts",
-          "projects",
-          "users"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -52,22 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/aiAgents/admin/threads — added the new `semantic_studio` enum value to the `results/data/threads/items/allOf[#/components/schemas/ThreadSummary]/createdFrom` response property for the response status `200`",
-        "GET /api/v1/aiAgents/admin/threads/{threadUuid}/dump — added the new `semantic_studio` enum value to the `results/createdFrom` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/aiAgents/thread-shares/{aiThreadShareUuid}/clone — added the new `semantic_studio` enum value to the `results/createdFrom` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/aiAgents/threads — added the new `semantic_studio` enum value to the `results/data/items/allOf[#/components/schemas/AiAgentThreadSummary_AiAgentUser_]/createdFrom` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads — added the new `semantic_studio` enum value to the `results/items/createdFrom` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads — added the new `semantic_studio` enum value to the `results/createdFrom` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — added the new `proposeSemanticLayerChange` enum value to the `results/allOf[subschema #2]/messages/items/anyOf[#/components/schemas/AiAgentMessageAssistant]/toolResults/items/allOf[subschema #2]/anyOf[subschema #1]/toolName` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — added the new `readSemanticModel` enum value to the `results/allOf[subschema #2]/messages/items/anyOf[#/components/schemas/AiAgentMessageAssistant]/toolResults/items/allOf[subschema #2]/anyOf[subschema #1]/toolName` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — added the new `semantic_studio` enum value to the `results/allOf[#/components/schemas/AiAgentThreadSummary_AiAgentUser_]/createdFrom` response property for the response status `200`",
-        "GET /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid} — added the new `semantic_studio` enum value to the `results/allOf[subschema #2]/messages/items/anyOf[#/components/schemas/AiAgentMessageAssistant]/loadout/allOf[#/components/schemas/AiAgentPromptLoadout]/base` response property for the response status `200`",
-        "POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/clone/{promptUuid} — added the new `semantic_studio` enum value to the `results/createdFrom` response property for the response status `200`",
-        "GET /api/v1/schedulers/runs/{runId}/logs — added the new `checkSemanticLayerDraftImpact` enum value to the `results/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`",
-        "GET /api/v1/schedulers/{projectUuid}/logs — added the new `checkSemanticLayerDraftImpact` enum value to the `results/data/logs/items/allOf[#/components/schemas/BaseSchedulerLog]/task` response property for the response status `200`"
-      ],
-      "advisoryCount": 13
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,

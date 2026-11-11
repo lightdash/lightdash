@@ -746,23 +746,26 @@ must still prove that portable fields download, compare, and upload correctly.
 
 When `dashboard-controls` is enabled, `config.controlSections` downloads each
 section with a readable `slug`. Filters, parameter controls and date zoom
-controls refer to it with `sectionSlug`. Dashboard parameter section assignments
-use `config.parameterSectionSlugs`.
+controls refer to it with `sectionSlug`. A section written without a `slug`
+takes the slug of its name. Files never hold section or control ids.
 
 Section slugs come from the name on every download and are never saved, like
 tab slugs; repeated names are all suffixed `-1`, `-2` in list order. A slug in
 an uploaded file only resolves references inside that file. An upload keeps a
 saved section's internal UUID only when no other section shares its slug base
 (the name) on the saved dashboard or in the file; a renamed or repeated section
-gets a new UUID v4. Duplicate section slugs and unknown `sectionSlug` references are
-rejected.
+gets a new UUID v4. Invalid section slugs are rejected with the allowed
+characters, duplicate section slugs with the positions and names of the
+sections that share them, and unknown `sectionSlug` references with the valid
+slugs listed (or a hint to add `config.controlSections` when the file has
+none).
 
-With the flag off, downloads retain section IDs and their legacy references,
-including previously saved sections, and omit parameter controls. Uploads
-resolve section slugs with either flag state, without enabling parameter
-controls or replacing their saved values while the flag is off. With the flag
-off, uploads match saved sections by their saved slug (or the slug of their
-name) and save each section's slug, as earlier releases did.
+With the flag off, downloads keep saved sections without their IDs, write
+`sectionSlug` references and omit parameter controls. Uploads resolve section
+slugs with either flag state, without enabling parameter controls or replacing
+their saved values while the flag is off. With the flag off, uploads match a
+saved section by its saved slug, else the slug of its name, never giving two
+sections the same saved section, and save each section's slug.
 
 ### Dashboard parameter controls
 
@@ -772,7 +775,7 @@ When dashboard controls are enabled, dashboard files can save controls under
 Downloads derive the slug from the label, else the first parameter key, and
 never save it; repeats are all suffixed `-1`, `-2`. An upload keeps a saved
 control's internal ID only when no other control shares its slug base on the
-saved dashboard or in the file; a relabelled or repeated control gets a new ID. Legacy `id` fields are accepted; duplicate slugs are rejected.
+saved dashboard or in the file; a relabelled or repeated control gets a new ID. Duplicate slugs are rejected.
 
 Each parameter rule is `all`, `{ only: [tile-slug] }`, or
 `{ except: [tile-slug] }`. A key has at most one default (`all` or `except`),
@@ -800,7 +803,7 @@ section. An entry with `newLine: true` starts a new bar line, and
 every other entry shares the line of the entry before it. A line start on a
 section member passes to the next entry in the list outside a section; it is
 dropped if there is none. Without a saved
-order, lines follow each section's `inline`. Controls left out of
+order, every section starts its own line. Controls left out of
 `controlOrder` go to the end of their container, inline; to place a new
 control, add its entry. With dashboard controls enabled, AI agent reads match
 downloads but always include filter slugs, so an agent can write a list. An

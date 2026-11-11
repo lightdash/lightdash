@@ -10,9 +10,7 @@ type SettingsQuery = {
     data:
         | Pick<
               OrganizationSettings,
-              | 'dataAppAutomaticThumbnailsEnabled'
-              | 'dataAppCapturesEnabled'
-              | 'dataAppCustomDependenciesEnabled'
+              'dataAppCapturesEnabled' | 'dataAppCustomDependenciesEnabled'
           >
         | undefined;
     isInitialLoading: boolean;
@@ -20,18 +18,16 @@ type SettingsQuery = {
     error: ApiError | undefined;
 };
 
-const LABEL = 'Automatically capture thumbnails for data app versions';
 const CAPTURES_LABEL = 'Allow screenshots and attachments in data app builds';
 const CUSTOM_DEPENDENCIES_LABEL = 'Allow custom dependencies in data apps';
 
 const DEFAULT_SETTINGS = {
-    dataAppAutomaticThumbnailsEnabled: true,
     dataAppCapturesEnabled: true,
     dataAppCustomDependenciesEnabled: false,
 };
 
 const {
-    automaticThumbnailsFlag,
+    aiSettings,
     health,
     mutationState,
     refetchSettings,
@@ -41,7 +37,6 @@ const {
     const settingsQuery: { current: SettingsQuery } = {
         current: {
             data: {
-                dataAppAutomaticThumbnailsEnabled: true,
                 dataAppCapturesEnabled: true,
                 dataAppCustomDependenciesEnabled: false,
             },
@@ -52,8 +47,13 @@ const {
     };
 
     return {
-        automaticThumbnailsFlag: { enabled: true },
-        health: { hasHeadlessBrowser: true, capturesEnabledOnInstance: true },
+        aiSettings: {
+            current: { isCopilotEnabled: true, isTrial: false } as {
+                isCopilotEnabled: boolean;
+                isTrial: boolean;
+            },
+        },
+        health: { capturesEnabledOnInstance: true },
         mutationState: { isLoading: false },
         refetchSettings: vi.fn(),
         settingsQuery,
@@ -72,17 +72,16 @@ vi.mock('../../../hooks/organization/useOrganizationSettings', () => ({
     }),
 }));
 
-vi.mock('../../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: () => ({
-        data: { enabled: automaticThumbnailsFlag.enabled },
-        isInitialLoading: false,
+vi.mock(
+    '../../../ee/features/aiCopilot/hooks/useAiOrganizationSettings',
+    () => ({
+        useAiOrganizationSettings: () => ({ data: aiSettings.current }),
     }),
-}));
+);
 
 vi.mock('../../../hooks/health/useHealth', () => ({
     default: () => ({
         data: {
-            hasHeadlessBrowser: health.hasHeadlessBrowser,
             dataApps: { capturesEnabled: health.capturesEnabledOnInstance },
         },
         isInitialLoading: false,
@@ -104,105 +103,26 @@ describe('DataAppGeneralSettingsPage', () => {
             isError: false,
             error: undefined,
         };
-        health.hasHeadlessBrowser = true;
         health.capturesEnabledOnInstance = true;
-        automaticThumbnailsFlag.enabled = true;
         mutationState.isLoading = false;
         refetchSettings.mockReset();
         updateSettings.mockReset();
     });
 
-    it('shows automatic capture on for an organization that has it on', () => {
-        renderPage();
-
-        const checkbox = screen.getByRole('switch', { name: LABEL });
-        expect(checkbox).toBeChecked();
-        expect(checkbox).toBeEnabled();
-        expect(
-            screen.queryByText('No headless browser is configured'),
-        ).not.toBeInTheDocument();
-    });
-
-    it('says that thumbnail text is blurred', () => {
-        renderPage();
-
-        expect(
-            screen.getByText(/Text is blurred so values are not readable\./),
-        ).toBeInTheDocument();
-    });
-
-    it('hides automatic capture when the feature flag is off', () => {
-        automaticThumbnailsFlag.enabled = false;
-        health.hasHeadlessBrowser = false;
-        renderPage();
-
-        expect(
-            screen.queryByRole('switch', { name: LABEL }),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.queryByText('Automatically capture thumbnails'),
-        ).not.toBeInTheDocument();
-        expect(
-            screen.queryByText('No headless browser is configured'),
-        ).not.toBeInTheDocument();
-    });
-
-    it('turns automatic capture off when the checkbox is unticked', async () => {
-        const user = userEvent.setup();
-        renderPage();
-
-        await user.click(screen.getByRole('switch', { name: LABEL }));
-
-        expect(updateSettings).toHaveBeenCalledExactlyOnceWith({
-            dataAppAutomaticThumbnailsEnabled: false,
-        });
-    });
-
-    it('turns automatic capture back on when the checkbox is ticked', async () => {
-        const user = userEvent.setup();
-        settingsQuery.current.data = {
-            ...DEFAULT_SETTINGS,
-            dataAppAutomaticThumbnailsEnabled: false,
-        };
-        renderPage();
-
-        const checkbox = screen.getByRole('switch', { name: LABEL });
-        expect(checkbox).not.toBeChecked();
-        await user.click(checkbox);
-
-        expect(updateSettings).toHaveBeenCalledExactlyOnceWith({
-            dataAppAutomaticThumbnailsEnabled: true,
-        });
-    });
-
-    it('disables the checkbox while a change is being saved', () => {
-        mutationState.isLoading = true;
-        renderPage();
-
-        expect(screen.getByRole('switch', { name: LABEL })).toBeDisabled();
-    });
-
-    it('disables the checkbox and explains why when no headless browser is configured', () => {
-        health.hasHeadlessBrowser = false;
-        renderPage();
-
-        expect(screen.getByRole('switch', { name: LABEL })).toBeDisabled();
-        expect(
-            screen.getByText('No headless browser is configured'),
-        ).toBeInTheDocument();
-    });
-
     describe('screenshots and attachments', () => {
-        it('is on, and shown even when automatic thumbnails are not available', () => {
-            automaticThumbnailsFlag.enabled = false;
+        it('is on for an organization that has never changed it', () => {
             renderPage();
 
             const toggle = screen.getByRole('switch', { name: CAPTURES_LABEL });
             expect(toggle).toBeChecked();
             expect(toggle).toBeEnabled();
-            expect(
-                screen.queryByRole('switch', { name: LABEL }),
-            ).not.toBeInTheDocument();
+        });
+
+        it('offers no automatic thumbnail control', () => {
+            renderPage();
+
+            expect(screen.getAllByRole('switch')).toHaveLength(2);
+            expect(screen.queryByText(/automatic/i)).not.toBeInTheDocument();
         });
 
         it('turns captures off when unticked', async () => {
@@ -218,26 +138,30 @@ describe('DataAppGeneralSettingsPage', () => {
             });
         });
 
-        it('locks automatic thumbnails off while captures are off', () => {
+        it('turns captures back on when ticked', async () => {
+            const user = userEvent.setup();
             settingsQuery.current.data = {
                 ...DEFAULT_SETTINGS,
                 dataAppCapturesEnabled: false,
-                // The API resolves this to false while captures are off.
-                dataAppAutomaticThumbnailsEnabled: false,
             };
+            renderPage();
+
+            const toggle = screen.getByRole('switch', { name: CAPTURES_LABEL });
+            expect(toggle).not.toBeChecked();
+            await user.click(toggle);
+
+            expect(updateSettings).toHaveBeenCalledExactlyOnceWith({
+                dataAppCapturesEnabled: true,
+            });
+        });
+
+        it('is disabled while a change is being saved', () => {
+            mutationState.isLoading = true;
             renderPage();
 
             expect(
                 screen.getByRole('switch', { name: CAPTURES_LABEL }),
-            ).not.toBeChecked();
-            const thumbnails = screen.getByRole('switch', { name: LABEL });
-            expect(thumbnails).not.toBeChecked();
-            expect(thumbnails).toBeDisabled();
-            expect(
-                screen.getByText(
-                    'Off while screenshots and attachments are not allowed.',
-                ),
-            ).toBeInTheDocument();
+            ).toBeDisabled();
         });
 
         it('cannot be turned on when the instance env has captures off', () => {
@@ -245,7 +169,6 @@ describe('DataAppGeneralSettingsPage', () => {
             settingsQuery.current.data = {
                 ...DEFAULT_SETTINGS,
                 dataAppCapturesEnabled: false,
-                dataAppAutomaticThumbnailsEnabled: false,
             };
             renderPage();
 
@@ -323,5 +246,35 @@ describe('DataAppGeneralSettingsPage', () => {
         await user.click(screen.getByRole('button', { name: 'Try again' }));
 
         expect(refetchSettings).toHaveBeenCalledOnce();
+    });
+});
+
+describe('AI analysis link', () => {
+    beforeEach(() => {
+        settingsQuery.current = {
+            data: DEFAULT_SETTINGS,
+            isInitialLoading: false,
+            isError: false,
+            error: undefined,
+        };
+    });
+
+    it.each([
+        ['AI enabled', { isCopilotEnabled: true, isTrial: false }],
+        ['AI trial', { isCopilotEnabled: false, isTrial: true }],
+    ])('links to the AI analysis settings with %s', (_, current) => {
+        aiSettings.current = current;
+        renderPage();
+        expect(
+            screen.getByRole('link', { name: 'Ask AI · AI analysis' }),
+        ).toHaveAttribute('href', '/generalSettings/ai/analysis');
+    });
+
+    it('hides the link without AI, where the page does not exist', () => {
+        aiSettings.current = { isCopilotEnabled: false, isTrial: false };
+        renderPage();
+        expect(
+            screen.queryByRole('link', { name: 'Ask AI · AI analysis' }),
+        ).not.toBeInTheDocument();
     });
 });

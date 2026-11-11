@@ -36,8 +36,6 @@ const settingsContext = (
     hasAnyAiAgentAccess: true,
     isAiOrganizationSettingsLoading: false,
     dataAppsFlag: undefined,
-    dataAppAnalysisFlag: undefined,
-    dashboardAnalysisFlag: undefined,
     isDataAppsFlagLoading: false,
     isApiQuerySourcesEnabled: false,
     isChartStudioAvailable: false,
@@ -620,4 +618,54 @@ describe('My agent connections navigation', () => {
             }
         },
     );
+});
+
+describe('AI analysis settings navigation', () => {
+    const navigation = (
+        rules: { action: string; subject: string }[],
+        overrides: Partial<SettingsContext> = {},
+    ) =>
+        organizationNavigation({
+            user: {
+                ability: new Ability(rules),
+            } as unknown as SettingsContext['user'],
+            ...overrides,
+        });
+    const askAiChild = (items: ReturnType<typeof navigation>) =>
+        items
+            ?.find((item) => item.label === 'Ask AI')
+            ?.children.find((item) => item.label === 'AI analysis');
+    const manageOrganization = [{ action: 'manage', subject: 'Organization' }];
+
+    it.each([false, true])(
+        'lives under Ask AI only (data apps on: %s)',
+        (dataAppsEnabled) => {
+            const items = navigation(manageOrganization, {
+                dataAppsFlag: {
+                    id: 'data-apps',
+                    enabled: dataAppsEnabled,
+                } as SettingsContext['dataAppsFlag'],
+            });
+            expect(askAiChild(items)?.to).toBe('/generalSettings/ai/analysis');
+            const elsewhere = items
+                ?.filter((item) => item.label !== 'Ask AI')
+                .flatMap((item) => [item, ...item.children])
+                .filter((item) => item.label === 'AI analysis');
+            expect(elsewhere).toEqual([]);
+        },
+    );
+
+    it('hides AI analysis from users who cannot manage the organization', () => {
+        expect(askAiChild(navigation([]))).toBeUndefined();
+    });
+
+    it('hides AI analysis without AI', () => {
+        expect(
+            askAiChild(
+                navigation(manageOrganization, {
+                    isAiCopilotEnabledOrTrial: false,
+                }),
+            ),
+        ).toBeUndefined();
+    });
 });

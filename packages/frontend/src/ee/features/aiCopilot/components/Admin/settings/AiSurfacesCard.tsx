@@ -1,15 +1,16 @@
 import { type SlackSettings } from '@lightdash/common';
 import { Divider, Stack, Switch, Text } from '@mantine/core';
 import {
-    IconApps,
     IconBrandSlack,
     IconLayoutDashboard,
+    IconSparkles,
     type Icon,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { SettingRow } from '../../../../../../components/common/Settings/SettingLayout';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
+import { AI_ANALYSIS_SETTINGS_PATH } from '../../../../../../features/apps/analysis/useDataAppAnalysisAvailability';
 
 const SurfaceRow: FC<{
     icon: Icon;
@@ -37,8 +38,6 @@ const SurfaceRow: FC<{
 
 type AiSurfacesCardProps = {
     aiAgentsVisible: boolean;
-    // Rolled out per org by feature flag; hidden until then.
-    showDataAppRuntimeAi: boolean;
     slackInstallation: SlackSettings | undefined;
     slackAgentsEnabled: boolean;
     disabled: boolean;
@@ -49,7 +48,6 @@ type AiSurfacesCardProps = {
 
 export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
     aiAgentsVisible,
-    showDataAppRuntimeAi,
     slackInstallation,
     slackAgentsEnabled,
     disabled,
@@ -70,31 +68,27 @@ export const AiSurfacesCard: FC<AiSurfacesCardProps> = ({
                     disabled={disabled}
                     onChange={onUpdateAiAgentsVisible}
                 />
-                {showDataAppRuntimeAi && (
-                    <>
-                        <Divider />
-                        <SettingRow
-                            icon={IconApps}
-                            title="Data apps"
-                            description={
-                                <>
-                                    AI analysis inside data apps is configured
-                                    under{' '}
-                                    <Text
-                                        span
-                                        inherit
-                                        component={Link}
-                                        to="/generalSettings/dataApps/aiAnalysis"
-                                        td="underline"
-                                    >
-                                        Data apps · AI analysis
-                                    </Text>
-                                    .
-                                </>
-                            }
-                        />
-                    </>
-                )}
+                <Divider />
+                <SettingRow
+                    icon={IconSparkles}
+                    title="AI analysis"
+                    description={
+                        <>
+                            Analysis on data apps and dashboards is configured
+                            under{' '}
+                            <Text
+                                span
+                                inherit
+                                component={Link}
+                                to={AI_ANALYSIS_SETTINGS_PATH}
+                                td="underline"
+                            >
+                                Ask AI · AI analysis
+                            </Text>
+                            .
+                        </>
+                    }
+                />
                 <Divider />
                 <SurfaceRow
                     icon={IconBrandSlack}

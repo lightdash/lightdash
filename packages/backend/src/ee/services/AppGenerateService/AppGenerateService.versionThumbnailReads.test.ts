@@ -83,11 +83,12 @@ const VERSIONS: VersionRow[] = [
         thumbnail_captured_at: null,
         thumbnail_is_manual: null,
     },
+    // Captured automatically by an older release: not served.
     {
         version: 1,
         status: 'ready',
-        thumbnail_captured_at: null,
-        thumbnail_is_manual: null,
+        thumbnail_captured_at: new Date(),
+        thumbnail_is_manual: false,
     },
 ];
 
@@ -307,7 +308,7 @@ describe('AppGenerateService version thumbnails', () => {
         expect(() => new URL(thumbnailUrl)).not.toThrow();
     });
 
-    it('finds no thumbnail for a version the summary reports without one', async () => {
+    it('finds no thumbnail for a version with only an automatic one', async () => {
         const service = buildService({ canView: true });
 
         await expect(

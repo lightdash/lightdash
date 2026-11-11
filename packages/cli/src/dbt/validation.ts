@@ -3,6 +3,7 @@ import {
     DbtRawModelNode,
     ExploreError,
     friendlyName,
+    hasModelAdditionalDimension,
     InlineError,
     InlineErrorType,
     normaliseModelDatabase,
@@ -54,7 +55,11 @@ export const validateDbtModel = async (
                         ? formatServedManifestValidationError(errorMessage)
                         : errorMessage,
                 };
-            } else if (isValid && Object.values(model.columns).length <= 0) {
+            } else if (
+                isValid &&
+                Object.values(model.columns).length <= 0 &&
+                !hasModelAdditionalDimension(model)
+            ) {
                 error = {
                     type: InlineErrorType.NO_DIMENSIONS_FOUND,
                     message: 'No dimensions available',

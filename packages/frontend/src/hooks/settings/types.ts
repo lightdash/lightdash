@@ -91,8 +91,6 @@ export type SettingsContext = {
     hasAnyAiAgentAccess: boolean;
     isAiOrganizationSettingsLoading: boolean;
     dataAppsFlag: FeatureFlag | undefined;
-    dataAppAnalysisFlag: FeatureFlag | undefined;
-    dashboardAnalysisFlag: FeatureFlag | undefined;
     isDataAppsFlagLoading: boolean;
     isApiQuerySourcesEnabled: boolean;
     // Chart Studio uses org themes, so it opens Themes without data apps.

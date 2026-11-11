@@ -1,9 +1,14 @@
 /**
- * Durable app state — values a data app saves through Lightdash so they come
- * back on the next open, on any device.
+ * App state — one hook, three scopes:
  *
- *   const [filters, setFilters] = useAppState('filters', defaults);        // per person
- *   const [targets, setTargets] = useSharedAppState('targets', defaults);  // everyone
+ *   const [filters, setFilters] = useAppState('filters', defaults);                   // per person
+ *   const [view, setView] = useAppState('view', 'table', { scope: 'url' });           // shareable link
+ *   const [targets, setTargets] = useAppState('targets', {}, { scope: 'shared' });    // everyone
+ *
+ * `user` and `shared` are durable: Lightdash stores the values so they come
+ * back on the next open, on any device. `url` has link semantics: it lives in
+ * the page's `?state=` param (see urlState.ts). `useUrlState` and
+ * `useSharedAppState` remain as aliases for already-generated apps.
  *
  * Per-user values overwrite in place. Shared values carry a version per write
  * and a history of who changed what; a write made against a stale version is
@@ -29,7 +34,7 @@ import type {
     AppStateUserEntry,
     Transport,
 } from './types';
-import { parseUrlStateSeed, setUrlStateKey } from './urlState';
+import { parseUrlStateSeed, setUrlStateKey, useUrlState } from './urlState';
 
 export class AppStateError extends Error {
     readonly code: AppStateErrorCode;
@@ -79,7 +84,9 @@ export type AppStateStatus =
     | 'memory';
 
 type Updater = (prev: unknown) => unknown;
-type Intent = { kind: 'value'; value: unknown } | { kind: 'updater'; fn: Updater };
+type Intent =
+    | { kind: 'value'; value: unknown }
+    | { kind: 'updater'; fn: Updater };
 
 export type AppStateStoreState = {
     status: AppStateStatus;
@@ -101,7 +108,11 @@ export type AppStateStore = {
     /** True when the key's latest value is confirmed stored. */
     isSaved: (scope: 'user' | 'shared', key: string) => boolean;
     setUser: (key: string, value: unknown) => void;
-    setShared: (key: string, next: unknown | Updater, fallback: unknown) => void;
+    setShared: (
+        key: string,
+        next: unknown | Updater,
+        fallback: unknown,
+    ) => void;
     deleteUser: (key: string) => Promise<void>;
     deleteShared: (key: string) => Promise<void>;
     history: (
@@ -119,7 +130,8 @@ export type AppStateStore = {
     mirrorToUrl: (key: string) => void;
 };
 
-const isUpdater = (next: unknown): next is Updater => typeof next === 'function';
+const isUpdater = (next: unknown): next is Updater =>
+    typeof next === 'function';
 
 // Round-trips through JSON so what the app holds is exactly what persists
 // (drops undefined fields, Dates become strings) and the value is
@@ -477,9 +489,7 @@ export function createAppStateStore(options: {
         isSaved: (scope, key) =>
             state.status === 'ready' &&
             !state.keyErrors[`${scope}:${key}`] &&
-            !(scope === 'user'
-                ? pendingUser.has(key)
-                : pendingShared.has(key)),
+            !(scope === 'user' ? pendingUser.has(key) : pendingShared.has(key)),
         setUser: (key, value) => {
             touched.add(key);
             tombstones.delete(`user:${key}`);
@@ -600,7 +610,10 @@ const jsonKind = (value: unknown): string => {
  * the app now expects an array, a string where it expects a number) is from
  * an older build of the app; show the default instead of breaking the app.
  */
-export const matchesDefaultShape = (saved: unknown, fallback: unknown): boolean =>
+export const matchesDefaultShape = (
+    saved: unknown,
+    fallback: unknown,
+): boolean =>
     fallback === null || fallback === undefined
         ? true
         : jsonKind(saved) === jsonKind(fallback);
@@ -626,8 +639,24 @@ export type SharedAppStateMeta = AppStateMeta & {
     updatedBy: AppStateAuthor | null;
 };
 
-function useStore(): AppStateStore {
+// Inert memory-only store for `scope: 'url'`: URL state never touches durable
+// storage, but the unified hook must call the same hooks for every scope. It
+// is also what keeps a url-scoped hook from fetching the durable snapshot (or
+// warning) when a provider is present but the key never leaves the URL.
+let fallbackStore: AppStateStore | null = null;
+const getFallbackStore = (): AppStateStore => {
+    if (!fallbackStore) {
+        fallbackStore = createAppStateStore({
+            transport: null,
+            warn: () => {},
+        });
+    }
+    return fallbackStore;
+};
+
+function useStore(scope: AppStateScope): AppStateStore {
     const transport = useOptionalTransport();
+    if (scope === 'url') return getFallbackStore();
     if (!transport) {
         throw new Error(
             'useAppState must be used inside <LightdashProvider>. ' +
@@ -640,50 +669,90 @@ function useStore(): AppStateStore {
 const useStoreState = (store: AppStateStore): AppStateStoreState =>
     useSyncExternalStore(store.subscribe, store.getState, store.getState);
 
+export type AppStateScope = 'url' | 'user' | 'shared';
+
 export type AppStateOptions = {
     /**
-     * Also keep the value in the page URL (`useUrlState`), so the control is
-     * both remembered for the person and part of the shareable link. A value
-     * in the link wins until the person changes the control.
+     * Where the value lives:
+     * - `'user'` (default) — saved for the current person, back on any device.
+     * - `'shared'` — one value every viewer sees, versioned, with history.
+     * - `'url'` — part of the shareable link (`?state=`), ephemeral, ≤4 KB
+     *   total across keys.
+     */
+    scope?: AppStateScope;
+    /**
+     * `user` scope only: also keep the value in the page URL, so the control
+     * is both remembered for the person and part of the shareable link. A
+     * value in the link wins until the person changes the control.
      */
     url?: boolean;
 };
 
+// The scope (like the key) must be constant for the lifetime of a call site.
+const URL_SCOPE_META: AppStateMeta = {
+    loading: false,
+    error: null,
+    persisted: true,
+    saved: true,
+};
+
 /**
- * `useState`-shaped hook whose value is saved for the current person and
- * comes back on their next open, on any device.
+ * `useState`-shaped hook for app state, in one of three scopes:
  *
- *   const [period, setPeriod] = useAppState('period', 'last_month');
- *   const [tab, setTab] = useAppState('tab', 'overview', { url: true });
+ *   const [period, setPeriod] = useAppState('period', 'last_month');                      // this person
+ *   const [tab, setTab] = useAppState('tab', 'overview', { url: true });                  // person + link
+ *   const [view, setView] = useAppState('view', 'table', { scope: 'url' });               // link only
+ *   const [targets, setTargets] = useAppState('targets', {}, { scope: 'shared' });        // every viewer
  *
- * Values must be JSON. A value in the page URL for the same key wins until
+ * Values must be JSON. The scope must not change for the lifetime of a call
+ * site. In `user` scope, a value in the page URL for the same key wins until
  * the app sets the key, so a shared link still opens the view it points at.
+ * In `shared` scope, an updater-function write is retried on version conflict
+ * and a plain-value write surfaces the conflict as an error.
  */
 export function useAppState<T>(
     key: string,
     defaultValue: T,
+    options?: { scope?: 'user' | 'url'; url?: boolean },
+): [T, (next: T | ((prev: T) => T)) => void, AppStateMeta];
+export function useAppState<T>(
+    key: string,
+    defaultValue: T,
+    options: { scope: 'shared' },
+): [T, (next: T | ((prev: T) => T)) => void, SharedAppStateMeta];
+// A value typed as AppStateOptions (scope not narrowed to a literal) stays
+// accepted; the meta is then the union of what the scopes can return.
+export function useAppState<T>(
+    key: string,
+    defaultValue: T,
+    options: AppStateOptions,
+): [T, (next: T | ((prev: T) => T)) => void, AppStateMeta | SharedAppStateMeta];
+export function useAppState<T>(
+    key: string,
+    defaultValue: T,
     options: AppStateOptions = {},
-): [T, (next: T | ((prev: T) => T)) => void, AppStateMeta] {
-    const store = useStore();
-    const mirrorToUrl = options.url === true;
+): [
+    T,
+    (next: T | ((prev: T) => T)) => void,
+    AppStateMeta | SharedAppStateMeta,
+] {
+    const scope: AppStateScope = options.scope ?? 'user';
+    const mirrorToUrl = scope === 'user' && options.url === true;
+    const store = useStore(scope);
     const snapshot = useStoreState(store);
+    const [urlValue, setUrlValue] = useUrlState<T>(key, defaultValue);
     useEffect(() => {
         // A restored value also lands in the link, so copying the address
         // bar reproduces the view the person is looking at.
         if (mirrorToUrl) store.mirrorToUrl(key);
     }, [store, key, mirrorToUrl]);
-    const raw = store.getUserValue(key);
-    const value = (
-        raw === undefined || !matchesDefaultShape(raw, defaultValue)
-            ? defaultValue
-            : raw
-    ) as T;
 
-    const set = useCallback(
+    const setUser = useCallback(
         (next: T | ((prev: T) => T)) => {
             const prevRaw = store.getUserValue(key);
             const prev = (
-                prevRaw === undefined || !matchesDefaultShape(prevRaw, defaultValue)
+                prevRaw === undefined ||
+                !matchesDefaultShape(prevRaw, defaultValue)
                     ? defaultValue
                     : prevRaw
             ) as T;
@@ -698,40 +767,7 @@ export function useAppState<T>(
         [store, key, mirrorToUrl],
     );
 
-    return [
-        value,
-        set,
-        {
-            loading: snapshot.status === 'idle' || snapshot.status === 'loading',
-            error: snapshot.keyErrors[`user:${key}`] ?? snapshot.error,
-            persisted: snapshot.status === 'ready',
-            saved: store.isSaved('user', key),
-        },
-    ];
-}
-
-/**
- * `useState`-shaped hook for a value every viewer of the app shares, with a
- * version per write and a history of who changed it.
- *
- *   const [targets, setTargets] = useSharedAppState('targets', {});
- *   setTargets((prev) => ({ ...prev, q3: 120 }));   // retried on conflict
- *   setTargets(next);                                // errors on conflict
- */
-export function useSharedAppState<T>(
-    key: string,
-    defaultValue: T,
-): [T, (next: T | ((prev: T) => T)) => void, SharedAppStateMeta] {
-    const store = useStore();
-    const snapshot = useStoreState(store);
-    const entry = snapshot.shared[key];
-    const value = (
-        entry === undefined || !matchesDefaultShape(entry.value, defaultValue)
-            ? defaultValue
-            : entry.value
-    ) as T;
-
-    const set = useCallback(
+    const setShared = useCallback(
         (next: T | ((prev: T) => T)) => {
             if (typeof next === 'function') {
                 const fn = next as (p: T) => T;
@@ -754,17 +790,65 @@ export function useSharedAppState<T>(
         [store, key],
     );
 
+    if (scope === 'url') {
+        return [urlValue, setUrlValue, URL_SCOPE_META];
+    }
+
+    if (scope === 'shared') {
+        const entry = snapshot.shared[key];
+        const value = (
+            entry === undefined ||
+            !matchesDefaultShape(entry.value, defaultValue)
+                ? defaultValue
+                : entry.value
+        ) as T;
+        return [
+            value,
+            setShared,
+            {
+                loading:
+                    snapshot.status === 'idle' || snapshot.status === 'loading',
+                error: snapshot.keyErrors[`shared:${key}`] ?? snapshot.error,
+                persisted: snapshot.status === 'ready',
+                saved: store.isSaved('shared', key),
+                version: entry?.version ?? null,
+                updatedAt: entry?.updatedAt ?? null,
+                updatedBy: entry?.updatedBy ?? null,
+            },
+        ];
+    }
+
+    const raw = store.getUserValue(key);
+    const value = (
+        raw === undefined || !matchesDefaultShape(raw, defaultValue)
+            ? defaultValue
+            : raw
+    ) as T;
     return [
         value,
-        set,
+        setUser,
         {
-            loading: snapshot.status === 'idle' || snapshot.status === 'loading',
-            error: snapshot.keyErrors[`shared:${key}`] ?? snapshot.error,
+            loading:
+                snapshot.status === 'idle' || snapshot.status === 'loading',
+            error: snapshot.keyErrors[`user:${key}`] ?? snapshot.error,
             persisted: snapshot.status === 'ready',
-            saved: store.isSaved('shared', key),
-            version: entry?.version ?? null,
-            updatedAt: entry?.updatedAt ?? null,
-            updatedBy: entry?.updatedBy ?? null,
+            saved: store.isSaved('user', key),
         },
     ];
+}
+
+/**
+ * Alias for `useAppState(key, defaultValue, { scope: 'shared' })`: a value
+ * every viewer of the app shares, with a version per write and a history of
+ * who changed it.
+ *
+ *   const [targets, setTargets] = useSharedAppState('targets', {});
+ *   setTargets((prev) => ({ ...prev, q3: 120 }));   // retried on conflict
+ *   setTargets(next);                                // errors on conflict
+ */
+export function useSharedAppState<T>(
+    key: string,
+    defaultValue: T,
+): [T, (next: T | ((prev: T) => T)) => void, SharedAppStateMeta] {
+    return useAppState(key, defaultValue, { scope: 'shared' });
 }

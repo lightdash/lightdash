@@ -268,12 +268,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                 clientId,
                             }),
                 }),
-            linearAppService: ({ models, context }) => {
+            linearAppService: ({ models, context, utils }) => {
                 const aiAgentReviewNotificationModel =
                     models.getAiAgentReviewNotificationModel<AiAgentReviewNotificationModel>();
                 return new LinearAppService({
                     linearAppInstallationsModel:
                         models.getLinearAppInstallationsModel(),
+                    encryptionUtil: utils.getEncryptionUtil(),
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     onWorkspaceChanged: (organizationUuid, trx) =>
@@ -651,13 +652,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     appThumbnailClient: new AppThumbnailClient({
                         lightdashConfig: context.lightdashConfig,
                         appModel: models.getAppModel(),
-                        unfurlService: repository.getUnfurlService(),
                         storage: new AppRuntimeThumbnailStorage({
                             lightdashConfig: context.lightdashConfig,
                         }),
                         organizationSettingsModel:
                             models.getOrganizationSettingsModel(),
-                        featureFlagModel: models.getFeatureFlagModel(),
                     }),
                     chartRegistryClient: new ChartRegistryClient({
                         lightdashConfig: context.lightdashConfig,

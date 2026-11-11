@@ -7,7 +7,6 @@ import {
 } from '@aws-sdk/client-s3';
 import {
     DATA_APP_VIZ_TEMPLATE,
-    FeatureFlags,
     NotFoundError,
     ParameterError,
     resolveEffectiveOrganizationSettings,
@@ -17,10 +16,8 @@ import { createObjectUrlSigner } from '../../clients/Aws/ObjectUrlSigner';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type DbApp, type DbAppVersion } from '../../database/entities/apps';
 import { type AppModel } from '../../models/AppModel';
-import { type FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { type OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { getOrganizationSettingsInstanceDefaults } from '../../services/OrganizationSettingsService/getInstanceDefaults';
-import { type UnfurlService } from '../../services/UnfurlService/UnfurlService';
 import {
     createAppRuntimeS3,
     type AppRuntimeS3,
@@ -37,8 +34,7 @@ export type ThumbnailApp = {
 export type ThumbnailVersion = {
     version: number;
     status: AppVersionStatus;
-    createdByUserUuid: string;
-    thumbnail: { isManual: boolean } | null;
+    hasThumbnail: boolean;
 };
 
 export type AppVersionRef = { appUuid: string; version: number };
@@ -58,32 +54,15 @@ export type AppThumbnailClientArgs = {
     appModel: Pick<
         AppModel,
         | 'getApp'
-        | 'findAppByUuid'
         | 'getVersion'
         | 'getLatestReadyVersion'
         | 'hasAnyVersionThumbnail'
         | 'setVersionThumbnail'
         | 'clearVersionThumbnail'
     >;
-    unfurlService: Pick<UnfurlService, 'captureDataAppVersion'>;
     storage: AppThumbnailStorage;
     organizationSettingsModel: Pick<OrganizationSettingsModel, 'get'>;
-    featureFlagModel: Pick<FeatureFlagModel, 'get'>;
 };
-
-export type AppThumbnailCaptureSkipReason =
-    | 'no_headless_browser'
-    | 'feature_flag_off'
-    | 'captures_disabled'
-    | 'app_not_found'
-    | 'custom_chart_type'
-    | 'version_not_ready'
-    | 'manual_thumbnail_exists';
-
-export type AppThumbnailCaptureOutcome =
-    | { status: 'captured' }
-    | { status: 'skipped'; reason: AppThumbnailCaptureSkipReason }
-    | { status: 'failed'; error: unknown };
 
 type AppRef = { projectUuid: string; appUuid: string };
 
@@ -92,12 +71,9 @@ export const appLevelThumbnailKey = (appUuid: string): string =>
     `apps/${appUuid}/thumbnail.png`;
 
 // Outside the version's bundle prefix, so copying a bundle never carries the
-// image along. Manual and automatic images never share an object.
-const versionThumbnailKey = (
-    { appUuid, version }: AppVersionRef,
-    isManual: boolean,
-): string =>
-    `apps/${appUuid}/thumbnails/${version}/${isManual ? 'manual' : 'automatic'}.png`;
+// image along.
+const versionThumbnailKey = ({ appUuid, version }: AppVersionRef): string =>
+    `apps/${appUuid}/thumbnails/${version}/manual.png`;
 
 const SIGNED_URL_TTL_SECONDS = 900;
 
@@ -190,6 +166,8 @@ const toThumbnailApp = (
     isCustomChartType: app.template === DATA_APP_VIZ_TEMPLATE,
 });
 
+// Only a manual thumbnail counts. Rows written by the removed automatic
+// capture (`thumbnail_is_manual` false) read as having no thumbnail.
 const toThumbnailVersion = (
     row: DbAppVersion | null,
 ): ThumbnailVersion | null => {
@@ -197,10 +175,9 @@ const toThumbnailVersion = (
     return {
         version: row.version,
         status: row.status,
-        createdByUserUuid: row.created_by_user_uuid,
-        thumbnail: row.thumbnail_captured_at
-            ? { isManual: row.thumbnail_is_manual === true }
-            : null,
+        hasThumbnail:
+            row.thumbnail_captured_at !== null &&
+            row.thumbnail_is_manual === true,
     };
 };
 
@@ -214,28 +191,20 @@ export class AppThumbnailClient {
 
     private readonly appModel: AppThumbnailClientArgs['appModel'];
 
-    private readonly unfurlService: AppThumbnailClientArgs['unfurlService'];
-
     private readonly storage: AppThumbnailStorage;
 
     private readonly organizationSettingsModel: AppThumbnailClientArgs['organizationSettingsModel'];
 
-    private readonly featureFlagModel: AppThumbnailClientArgs['featureFlagModel'];
-
     constructor({
         lightdashConfig,
         appModel,
-        unfurlService,
         storage,
         organizationSettingsModel,
-        featureFlagModel,
     }: AppThumbnailClientArgs) {
         this.lightdashConfig = lightdashConfig;
         this.appModel = appModel;
-        this.unfurlService = unfurlService;
         this.storage = storage;
         this.organizationSettingsModel = organizationSettingsModel;
-        this.featureFlagModel = featureFlagModel;
     }
 
     private async effectiveSettings(organizationUuid: string) {
@@ -249,8 +218,8 @@ export class AppThumbnailClient {
      * The org's effective "allow screenshots and attachments in data app
      * builds" switch: the org setting capped by `LIGHTDASH_APP_CAPTURES_ENABLED`.
      * Every capture of a running app — prompt-bar screenshots, file
-     * attachments, manual and automatic thumbnails, the Slack build-outcome
-     * image — checks this before it runs.
+     * attachments, manual thumbnails, the Slack build-outcome image — checks
+     * this before it runs.
      */
     async areCapturesEnabled(organizationUuid: string): Promise<boolean> {
         // Resolved to a boolean by the resolver; the type stays nullable.
@@ -258,73 +227,6 @@ export class AppThumbnailClient {
             (await this.effectiveSettings(organizationUuid))
                 .dataAppCapturesEnabled !== false
         );
-    }
-
-    /** Whether to enqueue a capture when a version of this app becomes ready. */
-    async shouldCaptureAutomatically(
-        app: Pick<ThumbnailApp, 'organizationUuid' | 'isCustomChartType'>,
-    ): Promise<boolean> {
-        if (this.uncapturableReason(app) !== null) return false;
-        if (!(await this.isAutomaticCaptureFlagOn(app.organizationUuid))) {
-            return false;
-        }
-        // Resolved against the captures switch: off while captures are off.
-        const settings = await this.effectiveSettings(app.organizationUuid);
-        return settings.dataAppAutomaticThumbnailsEnabled !== false;
-    }
-
-    /**
-     * Captures a ready version's obscured thumbnail, rendered as the version's
-     * creator. Best-effort: never throws, and never replaces a manual thumbnail.
-     */
-    async captureVersion(
-        ref: AppVersionRef,
-    ): Promise<AppThumbnailCaptureOutcome> {
-        try {
-            const appRow = await this.appModel.findAppByUuid(ref.appUuid);
-            if (!appRow) return { status: 'skipped', reason: 'app_not_found' };
-            const app = toThumbnailApp(appRow);
-
-            const skipReason = this.uncapturableReason(app);
-            if (skipReason) return { status: 'skipped', reason: skipReason };
-            if (!(await this.isAutomaticCaptureFlagOn(app.organizationUuid))) {
-                return { status: 'skipped', reason: 'feature_flag_off' };
-            }
-            // Re-checked at run time: the switch may have flipped since the
-            // job was enqueued.
-            if (!(await this.areCapturesEnabled(app.organizationUuid))) {
-                return { status: 'skipped', reason: 'captures_disabled' };
-            }
-
-            const version = await this.findVersion(ref.appUuid, ref.version);
-            if (!version || version.status !== 'ready') {
-                return { status: 'skipped', reason: 'version_not_ready' };
-            }
-            if (version.thumbnail?.isManual) {
-                return { status: 'skipped', reason: 'manual_thumbnail_exists' };
-            }
-
-            const image = await this.unfurlService.captureDataAppVersion({
-                projectUuid: app.projectUuid,
-                appUuid: app.appUuid,
-                appName: app.name,
-                version: ref.version,
-                authUserUuid: version.createdByUserUuid,
-                organizationUuid: app.organizationUuid,
-            });
-
-            await this.storage.put(versionThumbnailKey(ref, false), image);
-            const written = await this.appModel.setVersionThumbnail(
-                ref.appUuid,
-                ref.version,
-                { isManual: false },
-            );
-            return written
-                ? { status: 'captured' }
-                : { status: 'skipped', reason: 'manual_thumbnail_exists' };
-        } catch (error) {
-            return { status: 'failed', error };
-        }
     }
 
     // `version: null` targets the latest ready version. Returns the version written,
@@ -350,12 +252,11 @@ export class AppThumbnailClient {
                 'This app has no ready version to save a thumbnail for',
             );
         }
-        const ref = { appUuid, version: target.version };
-        await this.storage.put(versionThumbnailKey(ref, true), image);
-        await this.appModel.setVersionThumbnail(appUuid, target.version, {
-            isManual: true,
-        });
-        await this.storage.delete(versionThumbnailKey(ref, false));
+        await this.storage.put(
+            versionThumbnailKey({ appUuid, version: target.version }),
+            image,
+        );
+        await this.appModel.setVersionThumbnail(appUuid, target.version);
         return { version: target.version };
     }
 
@@ -373,22 +274,20 @@ export class AppThumbnailClient {
         if (!app.isCustomChartType) {
             const target = await this.resolveTargetVersion(appUuid, version);
             if (target) {
-                const ref = { appUuid, version: target.version };
                 await this.appModel.clearVersionThumbnail(
                     appUuid,
                     target.version,
                 );
-                await Promise.all([
-                    this.storage.delete(versionThumbnailKey(ref, true)),
-                    this.storage.delete(versionThumbnailKey(ref, false)),
-                ]);
+                await this.storage.delete(
+                    versionThumbnailKey({ appUuid, version: target.version }),
+                );
             }
         }
         await this.storage.delete(appLevelThumbnailKey(appUuid));
     }
 
     // Gives `to` the thumbnail of `from`, if it has one; not a capture, so the
-    // automatic capture setting does not apply.
+    // captures switch does not apply.
     async copyThumbnail({
         from,
         to,
@@ -397,16 +296,13 @@ export class AppThumbnailClient {
         to: AppVersionRef;
     }): Promise<boolean> {
         const source = await this.findVersion(from.appUuid, from.version);
-        if (!source?.thumbnail) return false;
+        if (!source?.hasThumbnail) return false;
 
-        const { isManual } = source.thumbnail;
         await this.storage.copy(
-            versionThumbnailKey(from, isManual),
-            versionThumbnailKey(to, isManual),
+            versionThumbnailKey(from),
+            versionThumbnailKey(to),
         );
-        return this.appModel.setVersionThumbnail(to.appUuid, to.version, {
-            isManual,
-        });
+        return this.appModel.setVersionThumbnail(to.appUuid, to.version);
     }
 
     /**
@@ -451,27 +347,6 @@ export class AppThumbnailClient {
         );
     }
 
-    private async isAutomaticCaptureFlagOn(
-        organizationUuid: string,
-    ): Promise<boolean> {
-        const { enabled } = await this.featureFlagModel.get({
-            user: { organizationUuid },
-            featureFlagId: FeatureFlags.EnableDataAppAutomaticThumbnails,
-        });
-        return enabled;
-    }
-
-    /** Why this app's versions can never be captured; null when they can. */
-    private uncapturableReason(
-        app: Pick<ThumbnailApp, 'isCustomChartType'>,
-    ): AppThumbnailCaptureSkipReason | null {
-        if (this.lightdashConfig.headlessBrowser.host === undefined) {
-            return 'no_headless_browser';
-        }
-        if (app.isCustomChartType) return 'custom_chart_type';
-        return null;
-    }
-
     /** The version a manual action applies to; null when none is ready. */
     private async resolveTargetVersion(
         appUuid: string,
@@ -498,11 +373,8 @@ export class AppThumbnailClient {
         appUuid: string,
         version: ThumbnailVersion | null,
     ): string | null {
-        if (!version?.thumbnail || version.status !== 'ready') return null;
-        return versionThumbnailKey(
-            { appUuid, version: version.version },
-            version.thumbnail.isManual,
-        );
+        if (!version?.hasThumbnail || version.status !== 'ready') return null;
+        return versionThumbnailKey({ appUuid, version: version.version });
     }
 
     private async resolveAppThumbnailKey(
@@ -518,7 +390,9 @@ export class AppThumbnailClient {
                 latestReady,
             );
             if (versionKey) return versionKey;
-            // The old image is only served while no version has a thumbnail.
+            // The old image is only served while no version has ever had a
+            // thumbnail, counting retired automatic ones, so an app that
+            // only had automatic thumbnails shows none.
             if (await this.appModel.hasAnyVersionThumbnail(app.appUuid)) {
                 return null;
             }

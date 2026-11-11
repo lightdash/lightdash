@@ -131,10 +131,7 @@ describe('LauncherAnalysisPanel unavailable states', () => {
         const link = await screen.findByRole('link', {
             name: 'Turn it on in settings',
         });
-        expect(link).toHaveAttribute(
-            'href',
-            '/generalSettings/dataApps/aiAnalysis',
-        );
+        expect(link).toHaveAttribute('href', '/generalSettings/ai/analysis');
         expect(screen.queryByText('Analyse this view')).toBeNull();
     });
 
@@ -142,19 +139,6 @@ describe('LauncherAnalysisPanel unavailable states', () => {
         renderPanel(unavailable('org_setting_off'), buildController());
         expect(
             await screen.findByText('Ask an organization admin to turn it on.'),
-        ).toBeInTheDocument();
-        await userLoaded();
-        expect(screen.queryByRole('link')).toBeNull();
-    });
-
-    it('offers nothing to fix when the org is not rolled out', async () => {
-        renderPanel(unavailable('not_rolled_out'), buildController(), [
-            { action: 'manage', subject: 'Organization' },
-        ]);
-        expect(
-            await screen.findByText(
-                'AI analysis is not available for this organization yet.',
-            ),
         ).toBeInTheDocument();
         await userLoaded();
         expect(screen.queryByRole('link')).toBeNull();

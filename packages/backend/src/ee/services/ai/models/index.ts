@@ -30,6 +30,7 @@ import {
     MODEL_PRESETS,
     ModelPreset,
     ModelPresetProvider,
+    ModelTier,
     openRouterPreset,
     ReasoningEffort,
     SelectableModelProvider,
@@ -394,6 +395,19 @@ export const reconcileInheritedModelConfig = (
         modelName: fallback.name,
     };
 };
+
+/** A provider's latest preset of a tier, among those the org is offered; null when it has none. */
+export const findPreferredPreset = (
+    catalogue: ModelCatalogue,
+    provider: string,
+    tier: ModelTier,
+): ModelPreset<SelectableModelProvider> | null =>
+    catalogue.offeredPresets.find(
+        (preset) =>
+            preset.provider === provider &&
+            preset.tier === tier &&
+            !preset.deprecated,
+    ) ?? null;
 
 // The returned config is what gets recorded on the prompt, so the swap must
 // happen before the prompt is stored.

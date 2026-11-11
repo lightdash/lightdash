@@ -25,6 +25,7 @@ import {
     selectDashboardParameterDefinitions,
     selectDashboardParameterReferences,
     selectDashboardWideParameterValues,
+    selectMissingParametersByTile,
     selectMissingRequiredParameters,
     selectParameterValues,
 } from './selectors';
@@ -166,6 +167,58 @@ describe('parameter selectors', () => {
                     }),
                 ),
             ).toEqual([]);
+        });
+
+        describe('a tile listed but not run', () => {
+            const listed = {
+                ...base,
+                tileQueryParameterReferences: {},
+                tileListedParameterReferences: { 'tile-1': ['status'] },
+                tileVirtualViewSavedParameters: { 'tile-1': {} },
+            };
+
+            it('counts as missing without a value', () => {
+                const state = stateWith({
+                    ...listed,
+                    tileChartSavedParameters: { 'tile-1': {} },
+                });
+                expect(selectMissingRequiredParameters(state)).toEqual([
+                    'status',
+                ]);
+                expect(selectMissingParametersByTile(state)).toEqual({
+                    'tile-1': ['status'],
+                });
+            });
+
+            it('is not known while its latest listing failed, until it runs', () => {
+                const failed = stateWith({
+                    ...listed,
+                    tileChartSavedParameters: { 'tile-1': {} },
+                    tileFailedParameterSources: { 'tile-1': 'chart-2' },
+                });
+                expect(selectMissingRequiredParameters(failed)).toEqual([]);
+                expect(selectMissingParametersByTile(failed)).toEqual({});
+                const ran = stateWith({
+                    ...failed.parameters,
+                    tileQueryParameterReferences: { 'tile-1': ['status'] },
+                });
+                expect(selectMissingRequiredParameters(ran)).toEqual([
+                    'status',
+                ]);
+            });
+
+            it('is satisfied by its listed chart value', () => {
+                const state = stateWith({
+                    ...listed,
+                    tileChartSavedParameters: {
+                        'tile-1': { status: 'Shipped' },
+                    },
+                });
+                expect(selectMissingRequiredParameters(state)).toEqual([]);
+                expect(selectMissingParametersByTile(state)).toEqual({
+                    'tile-1': [],
+                });
+            });
         });
 
         it('is satisfied by a chart-saved value', () => {

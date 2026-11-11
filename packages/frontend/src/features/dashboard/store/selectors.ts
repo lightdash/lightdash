@@ -154,6 +154,25 @@ export const selectDashboardParameterReferences = createSelector(
 
 const selectTileQueryParameterReferences = (state: DashboardStoreState) =>
     state.parameters.tileQueryParameterReferences;
+const selectTileListedParameterReferences = (state: DashboardStoreState) =>
+    state.parameters.tileListedParameterReferences;
+const selectTileFailedParameterSources = (state: DashboardStoreState) =>
+    state.parameters.tileFailedParameterSources;
+
+// A tile counts once it ran, or once it was listed with its saved values
+const isTileParameterStateKnown = (
+    tileUuid: string,
+    queryReferences: Record<string, string[] | null>,
+    listedReferences: Record<string, string[]>,
+    failedSources: Record<string, string>,
+    chartValues: Record<string, ParametersValuesMap>,
+    virtualValues: Record<string, ParametersValuesMap>,
+) =>
+    Object.hasOwn(queryReferences, tileUuid) ||
+    (Object.hasOwn(listedReferences, tileUuid) &&
+        !Object.hasOwn(failedSources, tileUuid) &&
+        Object.hasOwn(chartValues, tileUuid) &&
+        Object.hasOwn(virtualValues, tileUuid));
 
 export const selectParameterPicks = (state: DashboardStoreState) =>
     state.parameters.parameterPicks;
@@ -161,6 +180,8 @@ export const selectParameterControls = (state: DashboardStoreState) =>
     state.parameters.parameterControls;
 export const selectAreParameterControlsSaved = (state: DashboardStoreState) =>
     state.parameters.areParameterControlsSaved;
+export const selectSavedParameterControlIds = (state: DashboardStoreState) =>
+    state.parameters.savedParameterControlIds;
 export const selectHaveParameterControlsChanged = (
     state: DashboardStoreState,
 ) => state.parameters.haveParameterControlsChanged;
@@ -241,6 +262,8 @@ export const selectMissingRequiredParameters = createSelector(
     [
         selectTileParameterReferences,
         selectTileQueryParameterReferences,
+        selectTileListedParameterReferences,
+        selectTileFailedParameterSources,
         selectTileChartSavedParameters,
         selectTileVirtualViewSavedParameters,
         selectAppliedParameterValues,
@@ -250,6 +273,8 @@ export const selectMissingRequiredParameters = createSelector(
     (
         tileParameterReferences,
         tileQueryParameterReferences,
+        tileListedParameterReferences,
+        tileFailedParameterSources,
         tileChartSavedParameters,
         tileVirtualViewSavedParameters,
         appliedParameterValues,
@@ -257,10 +282,17 @@ export const selectMissingRequiredParameters = createSelector(
         controlInputs,
     ) =>
         getMissingRequiredDashboardParameters({
-            // A tile's saved values arrive when it runs; until then it can't count as missing
+            // Until a tile's saved values are known it can't count as missing
             tiles: Object.entries(tileParameterReferences)
-                .filter(
-                    ([tileUuid]) => tileUuid in tileQueryParameterReferences,
+                .filter(([tileUuid]) =>
+                    isTileParameterStateKnown(
+                        tileUuid,
+                        tileQueryParameterReferences,
+                        tileListedParameterReferences,
+                        tileFailedParameterSources,
+                        tileChartSavedParameters,
+                        tileVirtualViewSavedParameters,
+                    ),
                 )
                 .map(([tileUuid, parameterReferences]) => ({
                     parameterReferences,
@@ -282,6 +314,8 @@ export const selectMissingParametersByTile = createSelector(
     [
         selectTileParameterReferences,
         selectTileQueryParameterReferences,
+        selectTileListedParameterReferences,
+        selectTileFailedParameterSources,
         selectTileChartSavedParameters,
         selectTileVirtualViewSavedParameters,
         selectAppliedParameterValues,
@@ -291,6 +325,8 @@ export const selectMissingParametersByTile = createSelector(
     (
         references,
         queryReferences,
+        listedReferences,
+        failedSources,
         chartValues,
         virtualValues,
         dashboardValues,
@@ -300,7 +336,14 @@ export const selectMissingParametersByTile = createSelector(
         Object.fromEntries(
             Object.entries(references)
                 .filter(([tileUuid]) =>
-                    Object.hasOwn(queryReferences, tileUuid),
+                    isTileParameterStateKnown(
+                        tileUuid,
+                        queryReferences,
+                        listedReferences,
+                        failedSources,
+                        chartValues,
+                        virtualValues,
+                    ),
                 )
                 .map(([tileUuid, parameterReferences]) => {
                     const inputs = {

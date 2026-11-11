@@ -104,8 +104,8 @@ describe('DashboardAsCodeInternalization', () => {
                 config: {
                     isDateZoomDisabled: false,
                     controlSections: [
-                        { id: 's1', name: 'Dates' },
-                        { id: 's2', name: 'Region' },
+                        { slug: 'dates', name: 'Dates' },
+                        { slug: 'region', name: 'Region' },
                     ],
                 },
             }).dashboard[dashboardAsCode.slug];
@@ -205,7 +205,7 @@ describe('DashboardAsCodeInternalization', () => {
             );
         });
 
-        it('should merge translated section names by position without touching ids', () => {
+        it('should merge translated section names by position without touching slugs', () => {
             const merged = new DashboardAsCodeInternalization().merge(
                 {
                     config: { controlSections: [{ name: 'Dates FR' }] },
@@ -216,10 +216,9 @@ describe('DashboardAsCodeInternalization', () => {
                     config: {
                         isDateZoomDisabled: true,
                         controlSections: [
-                            { id: 's1', name: 'Dates' },
-                            { id: 's2', name: 'Region' },
+                            { slug: 'dates', name: 'Dates' },
+                            { slug: 'region', name: 'Region' },
                         ],
-                        parameterSections: { region: 's2' },
                     },
                 },
             );
@@ -227,10 +226,9 @@ describe('DashboardAsCodeInternalization', () => {
             expect(merged.config).toEqual({
                 isDateZoomDisabled: true,
                 controlSections: [
-                    { id: 's1', name: 'Dates FR' },
-                    { id: 's2', name: 'Region' },
+                    { slug: 'dates', name: 'Dates FR' },
+                    { slug: 'region', name: 'Region' },
                 ],
-                parameterSections: { region: 's2' },
             });
         });
 

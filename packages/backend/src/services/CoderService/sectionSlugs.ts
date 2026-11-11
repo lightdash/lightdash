@@ -3,18 +3,52 @@ import {
     ParameterError,
     type DashboardAsCode,
     type DashboardConfig,
+    type DashboardConfigAsCode,
     type DashboardControlSection,
     type DashboardControlSectionAsCode,
+    type DashboardFilterRuleAsCode,
+    type DashboardParameterControlAsCode,
+    type DateZoomControlAsCode,
 } from '@lightdash/common';
+import { pick } from 'es-toolkit/compat';
 import { v4 as uuidv4 } from 'uuid';
 import { getStableIds } from './dashboardReferences';
 
 type SectionReference = { sectionId?: string; sectionSlug?: string };
-type DashboardWithSectionIds = Omit<DashboardAsCode, 'config'> & {
-    config?: Omit<NonNullable<DashboardAsCode['config']>, 'controlSections'> & {
-        controlSections?: DashboardControlSection[];
+type WithSectionReference<T> = T & SectionReference;
+type DashboardWithSections<Section> = Omit<
+    DashboardAsCode,
+    'config' | 'filters'
+> & {
+    filters?: {
+        dimensions?: WithSectionReference<
+            Omit<DashboardFilterRuleAsCode, 'id'>
+        >[];
+        metrics?: WithSectionReference<DashboardFilterRuleAsCode>[];
+        tableCalculations?: WithSectionReference<DashboardFilterRuleAsCode>[];
+    };
+    config?: Omit<
+        DashboardConfigAsCode,
+        'controlSections' | 'parameterControls' | 'dateZoomConfig'
+    > & {
+        controlSections?: Section[];
+        parameterControls?: WithSectionReference<DashboardParameterControlAsCode>[];
+        dateZoomConfig?: Omit<
+            NonNullable<DashboardConfigAsCode['dateZoomConfig']>,
+            'controls'
+        > & { controls: WithSectionReference<DateZoomControlAsCode>[] };
     };
 };
+/** A dashboard file whose references hold stored section ids */
+export type DashboardWithSectionIds =
+    DashboardWithSections<DashboardControlSection>;
+
+/** A saved config without the order's ids, nor `parameterSections` that earlier versions saved */
+export const withoutStoredOnlyKeys = ({
+    controlOrder: _order,
+    parameterSections: _sections,
+    ...config
+}: DashboardConfig & { parameterSections?: unknown }) => config;
 
 const sectionBase = ({ name }: Pick<DashboardControlSection, 'name'>) =>
     name
@@ -27,10 +61,10 @@ export const sectionSlugs = (
     sections: Pick<DashboardControlSectionAsCode, 'name' | 'slug'>[],
 ) => getPortableSlugs(sections, sectionBase);
 
-const mapReferences = (
-    dashboard: DashboardAsCode,
+const mapReferences = <Section>(
+    dashboard: DashboardWithSections<Section>,
     sectionOf: (reference: SectionReference) => SectionReference,
-): DashboardAsCode => {
+): DashboardWithSections<Section> => {
     const mapReference = <T extends SectionReference>({
         sectionId,
         sectionSlug,
@@ -77,48 +111,45 @@ const mapReferences = (
     };
 };
 
+// Saved sections can carry keys nothing reads any more, such as `inline`
+const withSections = (
+    dashboard: DashboardWithSectionIds,
+    toFile: (
+        section: DashboardControlSection,
+        index: number,
+    ) => DashboardControlSectionAsCode,
+): DashboardAsCode =>
+    dashboard.config?.controlSections
+        ? {
+              ...dashboard,
+              config: {
+                  ...dashboard.config,
+                  controlSections: dashboard.config.controlSections.map(toFile),
+              },
+          }
+        : dashboard;
+
+/** References become the slugs derived from the section names */
 export const getDashboardWithSectionSlugs = (
-    dashboard: DashboardAsCode,
+    dashboard: DashboardWithSectionIds,
 ): DashboardAsCode => {
-    const sections = dashboard.config?.controlSections;
-    if (!sections) return dashboard;
+    const sections = dashboard.config?.controlSections ?? [];
     // Derived on every download: a stored slug is ignored
     const slugs = sectionSlugs(sections.map(({ name }) => ({ name })));
     const slugById = new Map(
         sections.map((section, index) => [section.id, slugs[index]]),
     );
-    const converted = mapReferences(
-        dashboard,
-        ({ sectionId, sectionSlug: _slug, ...reference }) => {
+    return withSections(
+        mapReferences(dashboard, ({ sectionId }) => {
             const slug =
                 sectionId === undefined ? undefined : slugById.get(sectionId);
-            return {
-                ...reference,
-                ...(slug !== undefined && { sectionSlug: slug }),
-            };
-        },
+            return slug === undefined ? {} : { sectionSlug: slug };
+        }),
+        (section, index) => ({
+            ...pick(section, ['name', 'collapsed']),
+            slug: slugs[index],
+        }),
     );
-    const { parameterSections, ...config } = converted.config!;
-    return {
-        ...converted,
-        config: {
-            ...config,
-            controlSections: sections.map(
-                ({ id: _id, slug: _slug, ...section }, index) => ({
-                    ...section,
-                    slug: slugs[index],
-                }),
-            ),
-            ...(parameterSections && {
-                parameterSectionSlugs: Object.fromEntries(
-                    Object.entries(parameterSections).flatMap(([key, id]) => {
-                        const slug = slugById.get(id);
-                        return slug === undefined ? [] : [[key, slug]];
-                    }),
-                ),
-            }),
-        },
-    };
 };
 
 export const getDashboardWithSectionIds = (
@@ -131,116 +162,93 @@ export const getDashboardWithSectionIds = (
     const stableIds = controlsEnabled
         ? getStableIds(sections, existingSections, sectionBase)
         : [];
-    // Flag off keeps the legacy match on stored slugs and persists the slug
-    const existingSlugs = sectionSlugs(existingSections);
-    const existingBySlug = new Map(
-        existingSections.map((section, index) => [
-            existingSlugs[index],
-            section.id,
-        ]),
+    const storedSlugs = sectionSlugs(existingSections);
+    const nameSlugs = sectionSlugs(
+        existingSections.map(({ name }) => ({ name })),
     );
-    const legacyIds = new Set(sections.flatMap(({ id }) => id ?? []));
-    const ids = new Set<string>();
+    const byStoredSlug = new Map(
+        existingSections.map(({ id }, index) => [storedSlugs[index], id]),
+    );
+    const byNameSlug = new Map(
+        existingSections.map(({ id }, index) => [nameSlugs[index], id]),
+    );
+    const slugs = sectionSlugs(sections);
+    // Flag off: stored slugs, then name slugs, each saved id once; whole-file passes so file order never decides
+    const namedIds = new Set(slugs.map((fileSlug) => byNameSlug.get(fileSlug)));
+    const matched = new Map<string, string>();
+    const claim = (matchOf: (fileSlug: string) => string | undefined) =>
+        slugs.forEach((fileSlug) => {
+            const id = matchOf(fileSlug);
+            if (
+                matched.has(fileSlug) ||
+                id === undefined ||
+                [...matched.values()].includes(id)
+            )
+                return;
+            matched.set(fileSlug, id);
+        });
+    if (!controlsEnabled) {
+        claim((fileSlug) => {
+            const stored = byStoredSlug.get(fileSlug);
+            return stored === byNameSlug.get(fileSlug) || !namedIds.has(stored)
+                ? stored
+                : undefined;
+        });
+        claim((fileSlug) => byNameSlug.get(fileSlug));
+        claim((fileSlug) => byStoredSlug.get(fileSlug));
+    }
     const idBySlug = new Map<string, string>();
-    const resolved = sections.map(({ id, slug, ...section }, index) => {
-        if (slug !== undefined) {
-            if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))
-                throw new ParameterError(
-                    `Invalid dashboard section slug "${slug}"`,
-                );
-            if (idBySlug.has(slug))
-                throw new ParameterError(
-                    `Dashboard section slug "${slug}" is duplicated`,
-                );
-        }
-        const matchedId =
-            controlsEnabled || slug === undefined
-                ? undefined
-                : existingBySlug.get(slug);
-        if (id !== undefined && matchedId !== undefined && id !== matchedId)
+    const resolved = sections.map(({ slug, ...section }, index) => {
+        if (slug !== undefined && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))
             throw new ParameterError(
-                `Dashboard section slug "${slug}" conflicts with id "${id}"`,
+                `Invalid dashboard section slug "${slug}"; use lowercase letters and digits, with single hyphens between them`,
             );
-        if (id === '' || (slug === undefined && id === undefined))
+        if (idBySlug.has(slugs[index]))
             throw new ParameterError(
-                'A dashboard section needs a slug or legacy id',
+                `Dashboard section slug "${slugs[index]}" is used by sections ${slugs.indexOf(slugs[index]) + 1} ("${sections[slugs.indexOf(slugs[index])].name}") and ${index + 1} ("${section.name}") in config.controlSections; give each a unique slug`,
             );
-        const resolvedId = controlsEnabled
-            ? (id ??
-              (legacyIds.has(stableIds[index]) ? uuidv4() : stableIds[index]))
-            : (matchedId ?? id ?? uuidv4());
-        if (ids.has(resolvedId))
-            throw new ParameterError(
-                `Dashboard section id "${resolvedId}" is duplicated`,
-            );
-        ids.add(resolvedId);
-        if (slug !== undefined) idBySlug.set(slug, resolvedId);
-        if (controlsEnabled) return { ...section, id: resolvedId };
+        const id = controlsEnabled
+            ? stableIds[index]
+            : (matched.get(slugs[index]) ?? uuidv4());
+        idBySlug.set(slugs[index], id);
+        const kept = { ...pick(section, ['name', 'collapsed']), id };
+        if (controlsEnabled) return kept;
         const savedSlug =
-            slug ??
-            existingSections.find((item) => item.id === resolvedId)?.slug;
+            slug ?? existingSections.find((item) => item.id === id)?.slug;
         return {
-            ...section,
-            id: resolvedId,
+            ...kept,
             ...(savedSlug !== undefined && { slug: savedSlug }),
         };
     });
-    const resolveSlug = (slug: string): string => {
-        const id = idBySlug.get(slug);
+    const converted = mapReferences(dashboard, ({ sectionSlug }) => {
+        if (sectionSlug === undefined) return {};
+        const id = idBySlug.get(sectionSlug);
         if (id === undefined)
             throw new ParameterError(
-                `Unknown dashboard section slug "${slug}"`,
+                `Unknown dashboard section slug "${sectionSlug}". Valid section slugs are ${[...idBySlug.keys()].join(', ') || 'none; add the section under config.controlSections'}`,
             );
-        return id;
-    };
-    const converted = mapReferences(
-        dashboard,
-        ({ sectionId, sectionSlug, ...reference }) => {
-            const id =
-                sectionSlug === undefined
-                    ? sectionId
-                    : resolveSlug(sectionSlug);
-            if (
-                sectionSlug !== undefined &&
-                sectionId !== undefined &&
-                id !== sectionId
-            )
-                throw new ParameterError(
-                    `Dashboard section slug "${sectionSlug}" conflicts with id "${sectionId}"`,
-                );
-            return { ...reference, ...(id !== undefined && { sectionId: id }) };
-        },
-    );
+        return { sectionId: id };
+    });
     if (!converted.config) {
         const { config: _config, ...withoutConfig } = converted;
         return withoutConfig;
     }
+    // Keys earlier versions accepted; nothing reads them, so an upload drops them
     const {
-        parameterSectionSlugs,
         controlSections: _sections,
+        parameterSections: _parameterSections,
+        parameterSectionSlugs: _parameterSectionSlugs,
         ...config
-    } = converted.config;
-    const parameterSections = new Map(
-        Object.entries(config.parameterSections ?? {}),
-    );
-    Object.entries(parameterSectionSlugs ?? {}).forEach(([key, slug]) => {
-        const id = resolveSlug(slug);
-        if (parameterSections.has(key) && parameterSections.get(key) !== id)
-            throw new ParameterError(
-                `Conflicting section references for parameter "${key}"`,
-            );
-        parameterSections.set(key, id);
-    });
+    } = converted.config as typeof converted.config & {
+        parameterSections?: unknown;
+        parameterSectionSlugs?: unknown;
+    };
     return {
         ...converted,
         config: {
             ...config,
             ...(dashboard.config?.controlSections !== undefined && {
                 controlSections: resolved,
-            }),
-            ...((config.parameterSections !== undefined ||
-                parameterSectionSlugs !== undefined) && {
-                parameterSections: Object.fromEntries(parameterSections),
             }),
         },
     };

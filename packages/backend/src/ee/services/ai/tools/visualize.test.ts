@@ -381,6 +381,8 @@ describe('visualize', () => {
         runComposerQueries.mockResolvedValueOnce({
             status: 'failure',
             error: 'warehouse down',
+            cause: null,
+            reportedAtSource: false,
             nodeStatuses: [],
         });
 
@@ -738,6 +740,147 @@ describe('visualize', () => {
                 'y: no numeric column to draw; set y to a numeric column',
             );
             expect(versions).toEqual([]);
+        });
+
+        describe('a chart without a category or time column', () => {
+            const breakdownNode: ThreadComposerQueryNode = {
+                sourceType: QuerySourceType.SEMANTIC_LAYER,
+                nodeId: 'snowflake_over_100',
+                title: 'Snowflake projects with over 100 queries',
+                exploreName: 'queries',
+                dimensions: ['queries_project_id'],
+                metrics: ['queries_total_queries'],
+                limit: 500,
+            };
+            const countNode: ThreadComposerQueryNode = {
+                sourceType: QuerySourceType.DUCKDB,
+                nodeId: 'count_snowflake_over_100',
+                title: 'Count of Snowflake projects with over 100 queries',
+                sql: 'SELECT count(*) AS project_count FROM snowflake_over_100',
+                references: ['snowflake_over_100'],
+                limit: 500,
+            };
+            const labeledNode: ThreadComposerQueryNode = {
+                ...countNode,
+                nodeId: 'snowflake_bar_labeled',
+                sql: "SELECT 'Snowflake projects' AS category, project_count FROM count_snowflake_over_100",
+                references: ['count_snowflake_over_100'],
+            };
+            const columns: Record<string, ComposerNodeColumn[]> = {
+                snowflake_over_100: [
+                    {
+                        reference: 'queries_project_id',
+                        type: DimensionType.STRING,
+                    },
+                    {
+                        reference: 'queries_total_queries',
+                        type: DimensionType.NUMBER,
+                    },
+                ],
+                count_snowflake_over_100: [
+                    { reference: 'project_count', type: DimensionType.NUMBER },
+                ],
+                snowflake_bar_labeled: [
+                    { reference: 'category', type: DimensionType.STRING },
+                    { reference: 'project_count', type: DimensionType.NUMBER },
+                ],
+            };
+            const visualizeNode = (
+                nodeId: string,
+                vizConfig: Partial<ToolVisualizeArgs['vizConfig']>,
+                nodeColumns = columns,
+            ) => {
+                const tool = makeTool({
+                    threadNodes: [breakdownNode, countNode, labeledNode],
+                    nodeColumns,
+                });
+                return {
+                    ...tool,
+                    output: tool.visualize({
+                        nodeId,
+                        vizConfig: {
+                            ...barConfig,
+                            x: null,
+                            y: ['project_count'],
+                            ...vizConfig,
+                        } as ToolVisualizeArgs['vizConfig'],
+                    }),
+                };
+            };
+
+            it.each(['bar', 'line', 'area', 'scatter'] as const)(
+                'rejects a %s on a count node, pointing to the node it counts',
+                async (type) => {
+                    const { output, versions, runComposerQueries } =
+                        visualizeNode('count_snowflake_over_100', { type });
+
+                    const result = await output;
+
+                    expect(result.metadata.status).toBe('error');
+                    expect(result.result).toContain(
+                        'vizConfig does not match node "count_snowflake_over_100": x: no category or time column to draw; set x. Columns of node "count_snowflake_over_100": project_count (number).\nNode "snowflake_over_100" has queries_project_id (string): visualize it directly, no new query needed.',
+                    );
+                    expect(versions).toEqual([]);
+                    expect(runComposerQueries).not.toHaveBeenCalled();
+                },
+            );
+
+            it('rejects without a pointer when the node it reads has no stored columns', async () => {
+                const { output } = visualizeNode(
+                    'count_snowflake_over_100',
+                    {},
+                    {
+                        count_snowflake_over_100:
+                            columns.count_snowflake_over_100,
+                    },
+                );
+
+                const result = await output;
+
+                expect(result.result).toContain(
+                    'x: no category or time column to draw; set x',
+                );
+                expect(result.result).not.toContain('visualize it directly');
+            });
+
+            it.each([
+                [
+                    'x is null and a string column is present',
+                    'snowflake_bar_labeled',
+                    {},
+                ],
+                [
+                    'x is set',
+                    'snowflake_over_100',
+                    { x: 'queries_project_id', y: ['queries_total_queries'] },
+                ],
+                [
+                    'the chart is a big number',
+                    'count_snowflake_over_100',
+                    { type: 'big_number' as const },
+                ],
+                [
+                    'the chart is a table',
+                    'count_snowflake_over_100',
+                    { type: 'table' as const, y: null },
+                ],
+            ])('writes the card when %s', async (_, nodeId, vizConfig) => {
+                const { output, versions } = visualizeNode(nodeId, vizConfig);
+
+                expect((await output).metadata.status).toBe('success');
+                expect(versions).toHaveLength(1);
+            });
+
+            it('skips the check when the node has no stored columns', async () => {
+                const { output, versions } = visualizeNode(
+                    'count_snowflake_over_100',
+                    {},
+                    {},
+                );
+
+                expect((await output).metadata.status).toBe('success');
+                expect(versions).toHaveLength(1);
+            });
         });
 
         it('checks only y[0] where a chart draws one value', async () => {

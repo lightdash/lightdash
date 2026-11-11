@@ -10,6 +10,7 @@ import { type AdditionalMetric } from './metricQuery';
 import {
     type DashboardParameters,
     type ParameterDefinitions,
+    type ParametersValuesMap,
     type ParameterValue,
 } from './parameters';
 import { type ProjectType } from './projects';
@@ -255,8 +256,6 @@ export type DashboardControlSection = {
     name: string;
     /** Starts folded in the rail and on the bar; absent, the bar folds only a dense section */
     collapsed?: boolean;
-    /** Sits on the bar line of the section before it; absent, starts a line of its own */
-    inline?: boolean;
 };
 
 export type DateZoomConfig = {
@@ -318,8 +317,6 @@ export type DashboardConfig = {
     /** Named sets of controls, in display order. Controls point at a section
      *  by id; controls with no section render first, unsectioned. */
     controlSections?: DashboardControlSection[];
-    /** Parameter name to section id. Parameters have no saved object of their own. */
-    parameterSections?: { [parameterName: string]: string };
     /** Absent: filled from the parameters tiles use. Present (even empty): exactly these. */
     parameterControls?: DashboardParameterControl[];
     /** The order of controls of every kind on the bar. A hint: readers drop refs
@@ -478,6 +475,8 @@ export type DashboardTileParameterReferences =
           tileUuid: string;
           parameterReferences: string[];
           parameterDefinitions?: ParameterDefinitions;
+          chartSavedValues: ParametersValuesMap;
+          virtualViewSavedValues: ParametersValuesMap;
           error: null;
       }
     | { tileUuid: string; parameterReferences: null; error: string };

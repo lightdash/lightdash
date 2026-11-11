@@ -1,15 +1,12 @@
 import { NotFoundError, type AppVersionStatus } from '@lightdash/common';
-import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { type DbAppVersion } from '../../database/entities/apps';
 import {
     appLevelThumbnailKey,
-    AppThumbnailClient,
     type AppThumbnailClientArgs,
 } from './AppThumbnailClient';
 import {
     buildAppThumbnailClientMock,
     createInMemoryAppThumbnailStorage,
-    featureFlagModelWith,
     organizationSettingsModelWith,
 } from './AppThumbnailClient.mock';
 
@@ -81,7 +78,6 @@ const buildScenario = ({
             }
             return app;
         },
-        findAppByUuid: async (appUuid) => appRows.get(appUuid),
         getVersion: async (appUuid, version) => {
             const row = findRow(appUuid, version);
             return row ? { ...row } : null;
@@ -96,12 +92,11 @@ const buildScenario = ({
             versionsOf(appUuid).some(
                 (row) => row.thumbnail_captured_at !== null,
             ),
-        setVersionThumbnail: async (appUuid, version, { isManual }) => {
+        setVersionThumbnail: async (appUuid, version) => {
             const row = findRow(appUuid, version);
             if (!row) return false;
-            if (!isManual && row.thumbnail_is_manual) return false;
             row.thumbnail_captured_at = new Date();
-            row.thumbnail_is_manual = isManual;
+            row.thumbnail_is_manual = true;
             return true;
         },
         clearVersionThumbnail: async (appUuid, version) => {
@@ -115,45 +110,16 @@ const buildScenario = ({
     const { storage, objects, download } = createInMemoryAppThumbnailStorage();
 
     const state = {
-        // The organization's stored choice; null when it never changed it.
-        automaticCaptureEnabled: null as boolean | null,
         // The organization's stored captures switch; null when never changed.
         capturesEnabled: null as boolean | null,
-        featureFlagEnabled: true,
-        renderFails: false,
-        // Runs while the headless render is in flight.
-        duringRender: async () => {},
-    };
-    const lightdashConfig = {
-        ...lightdashConfigMock,
-        headlessBrowser: {
-            ...lightdashConfigMock.headlessBrowser,
-            host: 'headless-browser' as string | undefined,
-        },
     };
 
-    const thumbnails = new AppThumbnailClient({
-        lightdashConfig,
+    const thumbnails = buildAppThumbnailClientMock({
         appModel,
-        unfurlService: {
-            captureDataAppVersion: async ({
-                appUuid,
-                version,
-                authUserUuid,
-            }) => {
-                await state.duringRender();
-                if (state.renderFails) throw new Error('Render timed out');
-                return image(
-                    `render of ${appUuid} v${version} as ${authUserUuid}`,
-                );
-            },
-        },
         storage,
         organizationSettingsModel: organizationSettingsModelWith(
-            () => state.automaticCaptureEnabled,
             () => state.capturesEnabled,
         ),
-        featureFlagModel: featureFlagModelWith(() => state.featureFlagEnabled),
     });
 
     if (legacyImage) {
@@ -163,28 +129,27 @@ const buildScenario = ({
     return {
         thumbnails,
         state,
+        objects,
         addVersion,
-        removeHeadlessBrowser: () => {
-            lightdashConfig.headlessBrowser.host = undefined;
-        },
-        statusOf: (version: number, appUuid = APP_UUID) =>
-            findRow(appUuid, version)?.status ?? null,
-        /** A build finished: the version is ready, and its capture job runs if one is enqueued. */
-        becomeReady: async (seed: Omit<VersionSeed, 'status'>) => {
-            const appUuid = seed.appUuid ?? APP_UUID;
-            addVersion({ ...seed, status: 'ready' });
-            const app = appRows.get(appUuid);
-            if (!app) throw new Error(`No such app: ${appUuid}`);
-            const shouldCapture = await thumbnails.shouldCaptureAutomatically({
-                organizationUuid: app.organization_uuid,
-                isCustomChartType: app.template === 'data_app_viz',
-            });
-            if (shouldCapture) {
-                await thumbnails.captureVersion({
-                    appUuid,
-                    version: seed.version,
-                });
-            }
+        setManual: (version: number | null, label: string, app = APP) =>
+            thumbnails.setManualThumbnail({
+                ...app,
+                version,
+                image: image(label),
+            }),
+        /**
+         * A version captured by the removed automatic capture: the row and
+         * the `automatic.png` object an older release left behind.
+         */
+        seedAutomaticThumbnail: (version: number, appUuid = APP_UUID) => {
+            const row = findRow(appUuid, version);
+            if (!row) throw new Error(`No such version: v${version}`);
+            row.thumbnail_captured_at = new Date();
+            row.thumbnail_is_manual = false;
+            objects.set(
+                `apps/${appUuid}/thumbnails/${version}/automatic.png`,
+                image(`automatic capture of ${appUuid} v${version}`),
+            );
         },
         appThumbnail: async (app = APP) =>
             download(await thumbnails.getAppThumbnailUrl(app)),
@@ -196,141 +161,54 @@ const buildScenario = ({
 };
 
 describe('AppThumbnailClient', () => {
-    describe('automatic capture when a version becomes ready', () => {
-        it('gives the version a thumbnail rendered as its creator', async () => {
-            const s = buildScenario();
+    describe('thumbnails captured automatically by an older release', () => {
+        it('are not served for the version', async () => {
+            const s = buildScenario({
+                versions: [{ version: 1, status: 'ready' }],
+            });
+            s.seedAutomaticThumbnail(1);
 
-            await s.becomeReady({ version: 1, createdByUserUuid: 'ada' });
-
-            expect(await s.versionThumbnail(1)).toBe(
-                'render of app-1 v1 as ada',
-            );
+            expect(await s.versionThumbnail(1)).toBeNull();
         });
 
-        it('still captures a version that was superseded before its capture ran', async () => {
+        it('leave the app with no thumbnail, not even the old app-level image', async () => {
+            const s = buildScenario({
+                versions: [{ version: 1, status: 'ready' }],
+                legacyImage: image('old app-level image'),
+            });
+            s.seedAutomaticThumbnail(1);
+
+            expect(await s.appThumbnail()).toBeNull();
+        });
+
+        it('are replaced by a manual thumbnail', async () => {
+            const s = buildScenario({
+                versions: [{ version: 1, status: 'ready' }],
+            });
+            s.seedAutomaticThumbnail(1);
+
+            await s.setManual(1, 'hand-picked state');
+
+            expect(await s.versionThumbnail(1)).toBe('hand-picked state');
+            expect(await s.appThumbnail()).toBe('hand-picked state');
+        });
+
+        it('are not copied to another version', async () => {
             const s = buildScenario({
                 versions: [
                     { version: 1, status: 'ready' },
                     { version: 2, status: 'ready' },
                 ],
             });
+            s.seedAutomaticThumbnail(1);
 
-            await s.thumbnails.captureVersion({
-                appUuid: APP_UUID,
-                version: 1,
+            const copied = await s.thumbnails.copyThumbnail({
+                from: { appUuid: APP_UUID, version: 1 },
+                to: { appUuid: APP_UUID, version: 2 },
             });
 
-            expect(await s.versionThumbnail(1)).toBe(
-                `render of app-1 v1 as ${CREATOR_UUID}`,
-            );
-        });
-
-        it('captures nothing when no headless browser is configured', async () => {
-            const s = buildScenario();
-            s.removeHeadlessBrowser();
-
-            await s.becomeReady({ version: 1 });
-            const outcome = await s.thumbnails.captureVersion({
-                appUuid: APP_UUID,
-                version: 1,
-            });
-
-            expect(outcome.status).toBe('skipped');
-            expect(await s.versionThumbnail(1)).toBeNull();
-        });
-
-        it('captures nothing for a custom chart type', async () => {
-            const s = buildScenario({ apps: [{ isCustomChartType: true }] });
-
-            await s.becomeReady({ version: 1 });
-            const outcome = await s.thumbnails.captureVersion({
-                appUuid: APP_UUID,
-                version: 1,
-            });
-
-            expect(outcome.status).toBe('skipped');
-            expect(await s.versionThumbnail(1)).toBeNull();
-            expect(await s.appThumbnail()).toBeNull();
-        });
-
-        it('captures nothing for a version that is not ready', async () => {
-            const s = buildScenario({
-                versions: [
-                    { version: 1, status: 'error' },
-                    { version: 2, status: 'building' },
-                ],
-            });
-
-            await s.thumbnails.captureVersion({
-                appUuid: APP_UUID,
-                version: 1,
-            });
-            await s.thumbnails.captureVersion({
-                appUuid: APP_UUID,
-                version: 2,
-            });
-            await s.thumbnails.captureVersion({
-                appUuid: APP_UUID,
-                version: 3,
-            });
-
-            expect(await s.versionThumbnail(1)).toBeNull();
+            expect(copied).toBe(false);
             expect(await s.versionThumbnail(2)).toBeNull();
-            expect(await s.versionThumbnail(3)).toBeNull();
-        });
-
-        it('leaves the version ready and without a thumbnail when the capture fails', async () => {
-            const s = buildScenario();
-            s.state.renderFails = true;
-
-            await s.becomeReady({ version: 1 });
-
-            expect(s.statusOf(1)).toBe('ready');
-            expect(await s.versionThumbnail(1)).toBeNull();
-            expect(await s.appThumbnail()).toBeNull();
-        });
-    });
-
-    describe('with automatic capture turned off for the organization', () => {
-        it('is on for an organization that has never changed the setting', async () => {
-            const s = buildScenario();
-
-            await s.becomeReady({ version: 1 });
-
-            expect(await s.versionThumbnail(1)).toBe(
-                `render of app-1 v1 as ${CREATOR_UUID}`,
-            );
-        });
-
-        it('is off only for the organization that turned it off', async () => {
-            const stored: Record<string, boolean> = {
-                'org-1': false,
-                'org-2': true,
-            };
-            const client = buildAppThumbnailClientMock({
-                headlessBrowserConfigured: true,
-                organizationSettingsModel: organizationSettingsModelWith(
-                    (organizationUuid) => stored[organizationUuid] ?? null,
-                ),
-            });
-            const capturesFor = (organizationUuid: string) =>
-                client.shouldCaptureAutomatically({
-                    organizationUuid,
-                    isCustomChartType: false,
-                });
-
-            expect(await capturesFor('org-1')).toBe(false);
-            expect(await capturesFor('org-2')).toBe(true);
-            expect(await capturesFor('org-3')).toBe(true);
-        });
-
-        it('captures nothing when a version becomes ready', async () => {
-            const s = buildScenario();
-            s.state.automaticCaptureEnabled = false;
-
-            await s.becomeReady({ version: 1 });
-
-            expect(await s.versionThumbnail(1)).toBeNull();
         });
     });
 
@@ -348,208 +226,51 @@ describe('AppThumbnailClient', () => {
             const client = buildAppThumbnailClientMock({
                 capturesEnabledOnInstance: false,
                 organizationSettingsModel: organizationSettingsModelWith(
-                    () => null,
                     () => true,
                 ),
             });
 
             expect(await client.areCapturesEnabled('org-1')).toBe(false);
         });
-
-        it('captures nothing automatically while it is off, even with automatic capture on', async () => {
-            const s = buildScenario();
-            s.state.automaticCaptureEnabled = true;
-            s.state.capturesEnabled = false;
-
-            await s.becomeReady({ version: 1 });
-
-            expect(await s.versionThumbnail(1)).toBeNull();
-        });
-
-        it('skips a capture that was enqueued before it was turned off', async () => {
-            const s = buildScenario({
-                versions: [{ version: 1, status: 'ready' }],
-            });
-            s.state.capturesEnabled = false;
-
-            const outcome = await s.thumbnails.captureVersion({
-                appUuid: APP_UUID,
-                version: 1,
-            });
-
-            expect(outcome).toEqual({
-                status: 'skipped',
-                reason: 'captures_disabled',
-            });
-            expect(await s.versionThumbnail(1)).toBeNull();
-        });
-
-        it('still captures a version whose capture was enqueued before it was turned off', async () => {
-            const s = buildScenario({
-                versions: [{ version: 1, status: 'ready' }],
-            });
-            s.state.automaticCaptureEnabled = false;
-
-            await s.thumbnails.captureVersion({
-                appUuid: APP_UUID,
-                version: 1,
-            });
-
-            expect(await s.versionThumbnail(1)).toBe(
-                `render of app-1 v1 as ${CREATOR_UUID}`,
-            );
-        });
-
-        it('still saves a manual capture', async () => {
-            const s = buildScenario();
-            s.state.automaticCaptureEnabled = false;
-            await s.becomeReady({ version: 1 });
-
-            await s.thumbnails.setManualThumbnail({
-                ...APP,
-                version: 1,
-                image: image('hand-picked state'),
-            });
-
-            expect(await s.versionThumbnail(1)).toBe('hand-picked state');
-            expect(await s.appThumbnail()).toBe('hand-picked state');
-        });
-
-        it('keeps showing the thumbnails captured before it was turned off', async () => {
-            const s = buildScenario();
-            await s.becomeReady({ version: 1 });
-
-            s.state.automaticCaptureEnabled = false;
-
-            expect(await s.versionThumbnail(1)).toBe(
-                `render of app-1 v1 as ${CREATOR_UUID}`,
-            );
-            expect(await s.appThumbnail()).toBe(
-                `render of app-1 v1 as ${CREATOR_UUID}`,
-            );
-        });
-
-        it('captures only the versions that become ready after it is turned back on', async () => {
-            const s = buildScenario();
-            s.state.automaticCaptureEnabled = false;
-            await s.becomeReady({ version: 1 });
-
-            s.state.automaticCaptureEnabled = true;
-            await s.becomeReady({ version: 2 });
-
-            expect(await s.versionThumbnail(1)).toBeNull();
-            expect(await s.versionThumbnail(2)).toBe(
-                `render of app-1 v2 as ${CREATOR_UUID}`,
-            );
-        });
-    });
-
-    describe('with the automatic thumbnails feature flag off for the organization', () => {
-        it('captures nothing when a version becomes ready', async () => {
-            const s = buildScenario();
-            s.state.featureFlagEnabled = false;
-            s.state.automaticCaptureEnabled = true;
-
-            await s.becomeReady({ version: 1 });
-
-            expect(await s.versionThumbnail(1)).toBeNull();
-        });
-
-        it('skips a capture that was already enqueued', async () => {
-            const s = buildScenario({
-                versions: [{ version: 1, status: 'ready' }],
-            });
-            s.state.featureFlagEnabled = false;
-
-            const outcome = await s.thumbnails.captureVersion({
-                appUuid: APP_UUID,
-                version: 1,
-            });
-
-            expect(outcome).toEqual({
-                status: 'skipped',
-                reason: 'feature_flag_off',
-            });
-            expect(await s.versionThumbnail(1)).toBeNull();
-        });
-
-        it('is off only for the organization without the flag', async () => {
-            const client = buildAppThumbnailClientMock({
-                headlessBrowserConfigured: true,
-                featureFlagModel: featureFlagModelWith(
-                    (organizationUuid) => organizationUuid === 'org-2',
-                ),
-            });
-            const capturesFor = (organizationUuid: string) =>
-                client.shouldCaptureAutomatically({
-                    organizationUuid,
-                    isCustomChartType: false,
-                });
-
-            expect(await capturesFor('org-1')).toBe(false);
-            expect(await capturesFor('org-2')).toBe(true);
-        });
-
-        it('still saves a manual capture', async () => {
-            const s = buildScenario({
-                versions: [{ version: 1, status: 'ready' }],
-            });
-            s.state.featureFlagEnabled = false;
-
-            await s.thumbnails.setManualThumbnail({
-                ...APP,
-                version: 1,
-                image: image('hand-picked state'),
-            });
-
-            expect(await s.versionThumbnail(1)).toBe('hand-picked state');
-        });
-
-        it('stores exactly the rendered image once the flag is on', async () => {
-            const s = buildScenario();
-            s.state.featureFlagEnabled = true;
-            s.state.automaticCaptureEnabled = true;
-
-            await s.becomeReady({ version: 1, createdByUserUuid: 'ada' });
-
-            expect(await s.versionThumbnail(1)).toBe(
-                'render of app-1 v1 as ada',
-            );
-        });
     });
 
     describe("a data app's thumbnail", () => {
         it("is its latest ready version's thumbnail", async () => {
-            const s = buildScenario();
+            const s = buildScenario({
+                versions: [
+                    { version: 1, status: 'ready' },
+                    { version: 2, status: 'ready' },
+                ],
+            });
 
-            await s.becomeReady({ version: 1 });
-            await s.becomeReady({ version: 2 });
+            await s.setManual(1, 'v1 state');
+            await s.setManual(2, 'v2 state');
 
-            expect(await s.appThumbnail()).toBe(
-                `render of app-1 v2 as ${CREATOR_UUID}`,
-            );
+            expect(await s.appThumbnail()).toBe('v2 state');
         });
 
         it('is not changed by a newer version that is building or failed', async () => {
-            const s = buildScenario();
-            await s.becomeReady({ version: 1 });
+            const s = buildScenario({
+                versions: [{ version: 1, status: 'ready' }],
+            });
+            await s.setManual(1, 'v1 state');
 
             s.addVersion({ version: 2, status: 'error' });
             s.addVersion({ version: 3, status: 'building' });
 
-            expect(await s.appThumbnail()).toBe(
-                `render of app-1 v1 as ${CREATOR_UUID}`,
-            );
+            expect(await s.appThumbnail()).toBe('v1 state');
         });
 
         it('is none when the latest ready version has none, even if older versions have one', async () => {
-            const s = buildScenario();
-            await s.becomeReady({ version: 1 });
+            const s = buildScenario({
+                versions: [
+                    { version: 1, status: 'ready' },
+                    { version: 2, status: 'ready' },
+                ],
+            });
+            await s.setManual(1, 'v1 state');
 
-            s.state.renderFails = true;
-            await s.becomeReady({ version: 2 });
-
-            expect(await s.versionThumbnail(1)).not.toBeNull();
+            expect(await s.versionThumbnail(1)).toBe('v1 state');
             expect(await s.appThumbnail()).toBeNull();
         });
 
@@ -560,14 +281,11 @@ describe('AppThumbnailClient', () => {
             });
             expect(await s.appThumbnail()).toBe('old app-level image');
 
-            await s.becomeReady({ version: 2 });
-            expect(await s.appThumbnail()).toBe(
-                `render of app-1 v2 as ${CREATOR_UUID}`,
-            );
+            await s.setManual(1, 'v1 state');
+            expect(await s.appThumbnail()).toBe('v1 state');
 
-            // v3 has no thumbnail, but v2 does: the old image stays ignored.
-            s.state.renderFails = true;
-            await s.becomeReady({ version: 3 });
+            // v2 has no thumbnail, but v1 does: the old image stays ignored.
+            s.addVersion({ version: 2, status: 'ready' });
             expect(await s.appThumbnail()).toBeNull();
         });
 
@@ -577,11 +295,7 @@ describe('AppThumbnailClient', () => {
                 versions: [{ version: 1, status: 'ready' }],
             });
 
-            await s.thumbnails.setManualThumbnail({
-                ...APP,
-                version: null,
-                image: image('chart type image'),
-            });
+            await s.setManual(null, 'chart type image');
 
             expect(await s.appThumbnail()).toBe('chart type image');
             expect(await s.versionThumbnail(1)).toBeNull();
@@ -596,34 +310,29 @@ describe('AppThumbnailClient', () => {
 
     describe('manual capture', () => {
         it("replaces the version's thumbnail", async () => {
-            const s = buildScenario();
-            await s.becomeReady({ version: 1 });
-
-            await s.thumbnails.setManualThumbnail({
-                ...APP,
-                version: 1,
-                image: image('hand-picked state'),
+            const s = buildScenario({
+                versions: [{ version: 1, status: 'ready' }],
             });
+            await s.setManual(1, 'first state');
+
+            await s.setManual(1, 'hand-picked state');
 
             expect(await s.versionThumbnail(1)).toBe('hand-picked state');
             expect(await s.appThumbnail()).toBe('hand-picked state');
         });
 
         it('targets the version being viewed, not the latest', async () => {
-            const s = buildScenario();
-            await s.becomeReady({ version: 1 });
-            await s.becomeReady({ version: 2 });
-
-            await s.thumbnails.setManualThumbnail({
-                ...APP,
-                version: 1,
-                image: image('hand-picked state'),
+            const s = buildScenario({
+                versions: [
+                    { version: 1, status: 'ready' },
+                    { version: 2, status: 'ready' },
+                ],
             });
 
+            await s.setManual(1, 'hand-picked state');
+
             expect(await s.versionThumbnail(1)).toBe('hand-picked state');
-            expect(await s.versionThumbnail(2)).toBe(
-                `render of app-1 v2 as ${CREATOR_UUID}`,
-            );
+            expect(await s.versionThumbnail(2)).toBeNull();
         });
 
         it('targets the latest ready version when no version is given', async () => {
@@ -635,11 +344,7 @@ describe('AppThumbnailClient', () => {
                 ],
             });
 
-            const saved = await s.thumbnails.setManualThumbnail({
-                ...APP,
-                version: null,
-                image: image('hand-picked state'),
-            });
+            const saved = await s.setManual(null, 'hand-picked state');
 
             expect(saved.version).toBe(2);
             expect(await s.versionThumbnail(2)).toBe('hand-picked state');
@@ -651,57 +356,20 @@ describe('AppThumbnailClient', () => {
                 versions: [{ version: 1, status: 'building' }],
             });
 
-            await expect(
-                s.thumbnails.setManualThumbnail({
-                    ...APP,
-                    version: 1,
-                    image: image('hand-picked state'),
-                }),
-            ).rejects.toThrow();
-            await expect(
-                s.thumbnails.setManualThumbnail({
-                    ...APP,
-                    version: 7,
-                    image: image('hand-picked state'),
-                }),
-            ).rejects.toThrow(NotFoundError);
+            await expect(s.setManual(1, 'hand-picked state')).rejects.toThrow();
+            await expect(s.setManual(7, 'hand-picked state')).rejects.toThrow(
+                NotFoundError,
+            );
             expect(await s.versionThumbnail(1)).toBeNull();
         });
 
-        it('survives an automatic capture of the same version that runs later', async () => {
+        it('is saved while the captures switch is off', async () => {
             const s = buildScenario({
                 versions: [{ version: 1, status: 'ready' }],
             });
-            await s.thumbnails.setManualThumbnail({
-                ...APP,
-                version: 1,
-                image: image('hand-picked state'),
-            });
+            s.state.capturesEnabled = false;
 
-            await s.thumbnails.captureVersion({
-                appUuid: APP_UUID,
-                version: 1,
-            });
-
-            expect(await s.versionThumbnail(1)).toBe('hand-picked state');
-        });
-
-        it('survives an automatic capture that was already rendering', async () => {
-            const s = buildScenario({
-                versions: [{ version: 1, status: 'ready' }],
-            });
-            s.state.duringRender = async () => {
-                await s.thumbnails.setManualThumbnail({
-                    ...APP,
-                    version: 1,
-                    image: image('hand-picked state'),
-                });
-            };
-
-            await s.thumbnails.captureVersion({
-                appUuid: APP_UUID,
-                version: 1,
-            });
+            await s.setManual(1, 'hand-picked state');
 
             expect(await s.versionThumbnail(1)).toBe('hand-picked state');
         });
@@ -710,9 +378,10 @@ describe('AppThumbnailClient', () => {
     describe('remove', () => {
         it("deletes the version's thumbnail and the old app-level image", async () => {
             const s = buildScenario({
+                versions: [{ version: 1, status: 'ready' }],
                 legacyImage: image('old app-level image'),
             });
-            await s.becomeReady({ version: 1 });
+            await s.setManual(1, 'hand-picked state');
 
             await s.thumbnails.removeThumbnail({
                 ...APP,
@@ -721,16 +390,14 @@ describe('AppThumbnailClient', () => {
 
             expect(await s.versionThumbnail(1)).toBeNull();
             expect(await s.appThumbnail()).toBeNull();
+            expect(s.objects.has(appLevelThumbnailKey(APP_UUID))).toBe(false);
         });
 
-        it('deletes a manual thumbnail', async () => {
-            const s = buildScenario();
-            await s.becomeReady({ version: 1 });
-            await s.thumbnails.setManualThumbnail({
-                ...APP,
-                version: 1,
-                image: image('hand-picked state'),
+        it('deletes the thumbnail of the latest ready version when no version is given', async () => {
+            const s = buildScenario({
+                versions: [{ version: 1, status: 'ready' }],
             });
+            await s.setManual(1, 'hand-picked state');
 
             await s.thumbnails.removeThumbnail({
                 ...APP,
@@ -754,29 +421,17 @@ describe('AppThumbnailClient', () => {
 
             expect(await s.appThumbnail()).toBeNull();
         });
-
-        it('is not sticky: the next version is still captured', async () => {
-            const s = buildScenario();
-            await s.becomeReady({ version: 1 });
-            await s.thumbnails.removeThumbnail({
-                ...APP,
-                version: null,
-            });
-
-            await s.becomeReady({ version: 2 });
-
-            expect(await s.appThumbnail()).toBe(
-                `render of app-1 v2 as ${CREATOR_UUID}`,
-            );
-        });
     });
 
     describe('copy between versions', () => {
         it("gives a restored version the source version's thumbnail", async () => {
-            const s = buildScenario();
-            await s.becomeReady({ version: 1 });
-            s.state.renderFails = true;
-            await s.becomeReady({ version: 2 });
+            const s = buildScenario({
+                versions: [
+                    { version: 1, status: 'ready' },
+                    { version: 2, status: 'ready' },
+                ],
+            });
+            await s.setManual(1, 'v1 state');
 
             s.addVersion({ version: 3, status: 'ready' });
             await s.thumbnails.copyThumbnail({
@@ -784,25 +439,17 @@ describe('AppThumbnailClient', () => {
                 to: { appUuid: APP_UUID, version: 3 },
             });
 
-            expect(await s.versionThumbnail(3)).toBe(
-                `render of app-1 v1 as ${CREATOR_UUID}`,
-            );
-            expect(await s.appThumbnail()).toBe(
-                `render of app-1 v1 as ${CREATOR_UUID}`,
-            );
+            expect(await s.versionThumbnail(3)).toBe('v1 state');
+            expect(await s.appThumbnail()).toBe('v1 state');
         });
 
-        it("gives a duplicate's first version the source version's thumbnail, even with automatic capture off", async () => {
+        it("gives a duplicate's first version the source version's thumbnail, even with captures off", async () => {
             const s = buildScenario({
                 apps: [{}, { appUuid: 'app-copy' }],
+                versions: [{ version: 4, status: 'ready' }],
             });
-            await s.becomeReady({ version: 4 });
-            await s.thumbnails.setManualThumbnail({
-                ...APP,
-                version: 4,
-                image: image('hand-picked state'),
-            });
-            s.state.automaticCaptureEnabled = false;
+            await s.setManual(4, 'hand-picked state');
+            s.state.capturesEnabled = false;
 
             s.addVersion({ appUuid: 'app-copy', version: 1, status: 'ready' });
             await s.thumbnails.copyThumbnail({
@@ -834,8 +481,10 @@ describe('AppThumbnailClient', () => {
 
     describe('lookup', () => {
         it('does not find an app through another project', async () => {
-            const s = buildScenario();
-            await s.becomeReady({ version: 1 });
+            const s = buildScenario({
+                versions: [{ version: 1, status: 'ready' }],
+            });
+            await s.setManual(1, 'hand-picked state');
 
             await expect(
                 s.appThumbnail({

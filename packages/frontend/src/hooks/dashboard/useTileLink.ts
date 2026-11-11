@@ -12,20 +12,14 @@ const HIGHLIGHT_TILE_SEARCH_PARAM = 'highlightTile';
 /** Tiles on a lazily mounted tab can take a while to appear after navigation */
 const WAIT_FOR_TILE_TIMEOUT_MS = 10_000;
 
-/**
- * Builds a shareable link that lands on the dashboard and highlights a tile.
- * Keeps the current search params (filters, date zoom) so the recipient sees
- * the same view.
- */
-export const getTileLinkUrl = ({
-    origin,
+/** In-app path that opens the dashboard on the tile's tab and highlights the tile. */
+export const getTileLinkPath = ({
     projectUrlIdentifier,
     dashboardSlug,
     tileUuid,
     tileTabUuid,
     search,
 }: {
-    origin: string;
     projectUrlIdentifier: string;
     dashboardSlug: string;
     tileUuid: string;
@@ -36,8 +30,25 @@ export const getTileLinkUrl = ({
     searchParams.set(HIGHLIGHT_TILE_SEARCH_PARAM, tileUuid);
 
     const tabPath = tileTabUuid ? `/tabs/${tileTabUuid}` : '';
-    return `${origin}/projects/${projectUrlIdentifier}/dashboards/${dashboardSlug}/view${tabPath}?${searchParams.toString()}`;
+    return `/projects/${projectUrlIdentifier}/dashboards/${dashboardSlug}/view${tabPath}?${searchParams.toString()}`;
 };
+
+/**
+ * Builds a shareable link that lands on the dashboard and highlights a tile.
+ * Keeps the current search params (filters, date zoom) so the recipient sees
+ * the same view.
+ */
+export const getTileLinkUrl = ({
+    origin,
+    ...path
+}: {
+    origin: string;
+    projectUrlIdentifier: string;
+    dashboardSlug: string;
+    tileUuid: string;
+    tileTabUuid: string | null;
+    search: string;
+}) => `${origin}${getTileLinkPath(path)}`;
 
 /**
  * Returns a callback that copies the tile's link to the clipboard, or null

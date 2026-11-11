@@ -137,12 +137,10 @@ export type DashboardTabAsCode = {
 };
 
 export type DashboardControlSectionAsCode = {
+    /** Portable section identifier; absent, derived from the name. */
     slug?: string;
-    /** Legacy section identifier accepted on upload. */
-    id?: string;
     name: DashboardControlSection['name'];
     collapsed?: DashboardControlSection['collapsed'];
-    inline?: DashboardControlSection['inline'];
 };
 
 export type DashboardFilterRuleAsCode = DashboardFilterRule & {
@@ -156,19 +154,15 @@ export type DateZoomControlAsCode = {
     name: DateZoomControl['name'];
     granularity: DateZoomControl['granularity'];
     hidden?: DateZoomControl['hidden'];
-    sectionId?: string;
     sectionSlug?: string;
 };
 
 export type DashboardParameterControlAsCode = {
     /** Portable control identifier; matching an existing slug preserves its id. */
     slug?: string;
-    /** Legacy project-local identifier accepted on upload. */
-    id?: string;
     label: DashboardParameterControl['label'];
     value: DashboardParameterControl['value'];
     valueType: DashboardParameterControl['valueType'];
-    sectionId?: string;
     sectionSlug?: string;
     parameters: DashboardParameterControl['parameters'];
     hidden?: boolean;
@@ -177,7 +171,7 @@ export type DashboardParameterControlAsCode = {
 /** A control in `controlOrder`, by its slug in the same file */
 export type DashboardControlRefAsCode = {
     kind: DashboardControlRefKind;
-    /** Slug of a filter, parameter control or section in this file */
+    /** Slug of a control of this kind in this file: a filter, parameter control, date zoom control or section */
     slug: string;
     /** Starts a new bar line; absent, it shares the line of the entry before it. On a section member it passes to the next loose entry in the list */
     newLine?: boolean;
@@ -199,8 +193,6 @@ export type DashboardConfigAsCode = {
     requiredFiltersNote?: DashboardConfig['requiredFiltersNote'];
     customMetrics?: DashboardConfig['customMetrics'];
     controlSections?: DashboardControlSectionAsCode[];
-    parameterSections?: DashboardConfig['parameterSections'];
-    parameterSectionSlugs?: { [parameterName: string]: string };
     parameterControls?: DashboardParameterControlAsCode[];
     /** The order of filters, parameter controls and sections on the bar. Absent: the default order. */
     controlOrder?: DashboardControlRefAsCode[];

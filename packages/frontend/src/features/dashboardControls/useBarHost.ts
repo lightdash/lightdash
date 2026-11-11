@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useState } from 'react';
+import { getZoomedCanvas } from '../dashboardTabs/canvasZoomUtils';
 import classes from './FieldTilesBar.module.css';
 import { usePortalTargets } from './usePortalTargets';
 
@@ -41,7 +42,9 @@ export const useBarHost = (
         if (grid === null) return;
         const element = document.createElement('div');
         element.className = classes.host;
-        grid.after(element);
+        element.dataset.dashboardFloatingBar = '';
+        // Outside a zoomed canvas, so the bar keeps its size
+        (getZoomedCanvas(grid) ?? grid).after(element);
         setHost(element);
         return () => {
             element.remove();

@@ -250,7 +250,7 @@ describe('ParameterPills', () => {
             });
         });
 
-        it('says "not set" with no override, even with a definition default, never "any value"', async () => {
+        it('shows the definition default with no override, never "any value"', async () => {
             const { user } = setup({
                 controls: [
                     control('region'),
@@ -263,11 +263,11 @@ describe('ParameterPills', () => {
                 },
             });
             // A value outside its options reads as no override too
-            for (const [id, name] of [
-                ['region', 'Region'],
-                ['week', 'Week starts'],
+            for (const [id, text] of [
+                ['region', 'Region is EMEA'],
+                ['week', 'Week starts is Monday'],
             ]) {
-                expect(pill(id)).toHaveTextContent(`${name} is not set`);
+                expect(pill(id)).toHaveTextContent(text);
                 expect(pill(id)).not.toHaveAttribute('data-in-effect');
                 expect(pill(id)).not.toHaveAttribute('data-missing');
                 expect(pill(id)).not.toHaveTextContent('any value');
@@ -278,6 +278,35 @@ describe('ParameterPills', () => {
                 "Tiles use their own value or the parameter's default",
             );
             expect(tooltip).toHaveTextContent('Sales region');
+        });
+
+        it('says "not set" with no override and no definition default', () => {
+            setup({
+                controls: [control('currency')],
+                references: { 'tile-1': ['currency'] },
+                // The tile has its own value, so nothing is missing
+                tileChartSavedParameters: { 'tile-1': { currency: 'EUR' } },
+            });
+            expect(pill('currency')).toHaveTextContent('Currency is not set');
+            expect(pill('currency')).not.toHaveTextContent('any value');
+            expect(pill('currency')).not.toHaveAttribute('data-in-effect');
+        });
+
+        it('shows the default for a combined control whose keys share it', () => {
+            setup({
+                controls: [
+                    control('region', {
+                        parameters: { region: 'all', week: 'all' },
+                    }),
+                ],
+                references: { 'tile-1': ['region'], 'tile-2': ['week'] },
+                parameterDefinitions: {
+                    ...definitions,
+                    week: { ...definitions.week, default: 'EMEA' },
+                },
+            });
+            expect(pill('region')).toHaveTextContent('Region is EMEA');
+            expect(pill('region')).not.toHaveAttribute('data-in-effect');
         });
 
         it('says "not set" for a combined control whose keys have different defaults', () => {
@@ -327,6 +356,9 @@ describe('ParameterPills', () => {
                 'Currency needs a value',
             );
             expect(pill('currency')).toHaveAttribute('data-missing');
+            expect(pill('currency')).toHaveAccessibleDescription(
+                'Required: set a value to run its tiles',
+            );
             expect(pill('currency')).not.toHaveTextContent('any value');
         });
 
@@ -409,7 +441,6 @@ describe('ParameterPills', () => {
                 definitions: parameterDefinitions,
                 tileParameterReferences: references,
                 parameterOrder: [],
-                parameterSections: {},
                 userParameterNames: Object.keys(parameterDefinitions),
             });
             setup({ controls: filled, references, parameterDefinitions });
@@ -617,7 +648,7 @@ describe('ParameterPills', () => {
     });
 
     describe('the safety net', () => {
-        it('raises a pill for a tile a control leaves out, and the control is not amber', async () => {
+        it('raises a pill for a tile a control leaves out, and the control is not marked missing', async () => {
             const { store, user } = setup({
                 controls: [
                     control('currency', {
@@ -850,7 +881,7 @@ describe('ParameterPills', () => {
             const { store, user } = setup({
                 controls: [control('region', { value: 'LATAM' })],
             });
-            expect(pill('region')).toHaveTextContent('Region is not set');
+            expect(pill('region')).toHaveTextContent('Region is EMEA');
             await user.click(pill('region'));
             await user.click(screen.getByRole('button', { name: 'Rename' }));
             await user.keyboard('Sales region{Enter}');
@@ -1129,8 +1160,50 @@ describe('ParameterPills', () => {
         });
     });
 
+    describe('not saved yet', () => {
+        it("dashes an editor's control that is not in the saved dashboard", () => {
+            const { store } = setup({ controls: [control('region')] });
+            act(() => {
+                store.dispatch(
+                    dashboardParametersActions.setParameterControls([
+                        control('region'),
+                        control('currency'),
+                    ]),
+                );
+            });
+            expect(pill('currency')).toHaveAttribute('data-temporary');
+            expect(pill('region')).not.toHaveAttribute('data-temporary');
+        });
+
+        it('keeps "Not saved yet" above the orphaned tooltip', async () => {
+            const { store, user } = setup({ controls: [control('region')] });
+            act(() => {
+                store.dispatch(
+                    dashboardParametersActions.setParameterControls([
+                        control('region'),
+                        control('orphan', {
+                            label: 'Orphan',
+                            parameters: { region: { only: [] } },
+                        }),
+                    ]),
+                );
+            });
+            await user.hover(pill('orphan'));
+            expect(
+                await screen.findByText('Not saved yet'),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByText(
+                    DEFAULT_UI_STRINGS[
+                        'controls.parameter.notAppliedToAnyTiles'
+                    ],
+                ),
+            ).toBeInTheDocument();
+        });
+    });
+
     describe('hidden from viewers', () => {
-        it("leaves a hidden control off a viewer's bar, and muted on an editor's", () => {
+        it("leaves a hidden control off a viewer's bar, and marked on an editor's", () => {
             const controls = [
                 control('region', { value: 'EMEA', hidden: true }),
                 control('currency'),

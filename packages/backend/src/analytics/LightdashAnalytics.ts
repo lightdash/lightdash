@@ -96,6 +96,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import { type ExternalConnectionEvent } from '../ee/analytics';
 import { type SuggestionFallbackReason } from '../ee/services/ai/agents/suggestionErrors';
+import type { AiAgentToolCallCompletedProperties } from '../ee/services/ai/analytics/toolCallEvent';
 import Logger from '../logging/logger';
 import type { ExecutionContextInfo } from '../logging/winston';
 import type { FeatureFlagCheckAggregateEntry } from '../models/FeatureFlagModel/flagCheckAggregator';
@@ -3716,6 +3717,12 @@ export type AiAgentPromptCreatedEvent = BaseTrack & {
         // Joins turn start to its steps, tool calls and response.
         promptId: string;
         context: 'slack' | 'web_app';
+        /** Where the thread was started, so a surface such as Semantic Studio can be told apart. */
+        threadCreatedFrom: string;
+        /** The model the prompt runs on; null when the instance default is used. */
+        modelProvider: string | null;
+        modelName: string | null;
+        reasoningEnabled: boolean | null;
         hasPinnedContext: boolean;
         pinnedContextCount: number;
         pinnedChartCount: number;
@@ -3986,21 +3993,7 @@ export type AiAgentToolCallEvent = BaseTrack & {
 export type AiAgentToolCallCompletedEvent = BaseTrack & {
     event: 'ai_agent.tool_call_completed';
     userId: string;
-    properties: {
-        organizationId: string;
-        projectId: string;
-        aiAgentId: string;
-        toolName: string;
-        threadId: string;
-        promptId: string;
-        toolCallId: string;
-        stepIndex: number;
-        durationMs: number;
-        stage: 'query' | 'api' | 'render';
-        queryCacheHit: boolean | null;
-        queryReuseHit: boolean | null;
-        status: 'success' | 'error';
-    };
+    properties: AiAgentToolCallCompletedProperties;
 };
 
 // A tool returned an error to the model. Most of these are the model's own

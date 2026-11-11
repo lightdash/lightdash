@@ -8,7 +8,6 @@ import { ActionIcon, Menu, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconDots,
-    IconGitMerge,
     IconInfoCircle,
     IconPencil,
     IconPlugConnected,
@@ -33,16 +32,12 @@ type Props = {
     projectUuid: string;
     explore: Explore;
     sourceRef: ExternalSourceRef;
-    canMergeAnotherQuery: boolean;
-    onAddMergeSource: () => void;
 };
 
 export const ExternalSourceExploreMenu: FC<Props> = ({
     projectUuid,
     explore,
     sourceRef,
-    canMergeAnotherQuery,
-    onAddMergeSource,
 }) => {
     const navigate = useNavigate();
     const { user } = useApp();
@@ -62,7 +57,7 @@ export const ExternalSourceExploreMenu: FC<Props> = ({
     const [isDeleteOpen, deleteHandlers] = useDisclosure(false);
     const [previewRef, setPreviewRef] = useState<ExternalSourceRef>();
 
-    if (!canManage && !canMergeAnotherQuery) {
+    if (!canManage) {
         return null;
     }
 
@@ -78,97 +73,71 @@ export const ExternalSourceExploreMenu: FC<Props> = ({
                     </ActionIcon>
                 </Menu.Target>
                 <Menu.Dropdown>
-                    {canMergeAnotherQuery && (
+                    {sourceRef.sourceType === ExternalSourceType.CSV && (
                         <Menu.Item
-                            leftSection={<MantineIcon icon={IconGitMerge} />}
-                            onClick={onAddMergeSource}
+                            leftSection={<MantineIcon icon={IconUpload} />}
+                            onClick={replaceHandlers.open}
                         >
                             <Text fz="xs" fw={500}>
-                                Merge another query
+                                Replace file
                             </Text>
                         </Menu.Item>
                     )}
-                    {canMergeAnotherQuery && canManage && <Menu.Divider />}
-                    {canManage && (
+                    {sourceRef.sourceType ===
+                        ExternalSourceType.GOOGLE_SHEETS && (
                         <>
-                            {sourceRef.sourceType ===
-                                ExternalSourceType.CSV && (
-                                <Menu.Item
-                                    leftSection={
-                                        <MantineIcon icon={IconUpload} />
-                                    }
-                                    onClick={replaceHandlers.open}
-                                >
-                                    <Text fz="xs" fw={500}>
-                                        Replace file
-                                    </Text>
-                                </Menu.Item>
-                            )}
-                            {sourceRef.sourceType ===
-                                ExternalSourceType.GOOGLE_SHEETS && (
-                                <>
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconRefresh} />
-                                        }
-                                        onClick={() =>
-                                            refreshMutation.mutate(
-                                                sourceRef.sourceUuid,
-                                            )
-                                        }
-                                    >
-                                        <Text fz="xs" fw={500}>
-                                            Refresh from Google Sheets
-                                        </Text>
-                                    </Menu.Item>
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconPlugConnected}
-                                            />
-                                        }
-                                        onClick={() =>
-                                            reconnectMutation.mutate(
-                                                sourceRef.sourceUuid,
-                                            )
-                                        }
-                                    >
-                                        <Text fz="xs" fw={500}>
-                                            Reconnect Google account
-                                        </Text>
-                                    </Menu.Item>
-                                </>
-                            )}
                             <Menu.Item
-                                leftSection={<MantineIcon icon={IconPencil} />}
-                                onClick={renameHandlers.open}
+                                leftSection={<MantineIcon icon={IconRefresh} />}
+                                onClick={() =>
+                                    refreshMutation.mutate(sourceRef.sourceUuid)
+                                }
                             >
                                 <Text fz="xs" fw={500}>
-                                    Rename table
+                                    Refresh from Google Sheets
                                 </Text>
                             </Menu.Item>
                             <Menu.Item
                                 leftSection={
-                                    <MantineIcon icon={IconInfoCircle} />
+                                    <MantineIcon icon={IconPlugConnected} />
                                 }
-                                onClick={() => setPreviewRef(sourceRef)}
+                                onClick={() =>
+                                    reconnectMutation.mutate(
+                                        sourceRef.sourceUuid,
+                                    )
+                                }
                             >
                                 <Text fz="xs" fw={500}>
-                                    View source details
-                                </Text>
-                            </Menu.Item>
-                            <Menu.Divider />
-                            <Menu.Item
-                                leftSection={<MantineIcon icon={IconTrash} />}
-                                color="red"
-                                onClick={deleteHandlers.open}
-                            >
-                                <Text fz="xs" fw={500}>
-                                    Delete
+                                    Reconnect Google account
                                 </Text>
                             </Menu.Item>
                         </>
                     )}
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconPencil} />}
+                        onClick={renameHandlers.open}
+                    >
+                        <Text fz="xs" fw={500}>
+                            Rename table
+                        </Text>
+                    </Menu.Item>
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconInfoCircle} />}
+                        onClick={() => setPreviewRef(sourceRef)}
+                    >
+                        <Text fz="xs" fw={500}>
+                            View source details
+                        </Text>
+                    </Menu.Item>
+                    <Menu.Divider />
+                    <Menu.Item
+                        leftSection={<MantineIcon icon={IconTrash} />}
+                        color="red"
+                        onClick={deleteHandlers.open}
+                    >
+                        <Text fz="xs" fw={500}>
+                            Delete
+                        </Text>
+                    </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
             {isRenameOpen && (

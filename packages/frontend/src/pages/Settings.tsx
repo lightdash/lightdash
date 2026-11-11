@@ -105,6 +105,7 @@ import Roadmap from '../ee/pages/Roadmap';
 import { AgentIdentitySettingsPage } from '../features/aiAccess/AgentIdentitySettingsPage';
 import { getAgentSettingsAccess } from '../features/aiAccess/agentSettingsAccess';
 import { DataAppAiAnalysisSettingsPage } from '../features/apps/analysis/settings/DataAppAiAnalysisSettingsPage';
+import { AI_ANALYSIS_SETTINGS_PATH } from '../features/apps/analysis/useDataAppAnalysisAvailability';
 import { DataAppGeneralSettingsPage } from '../features/apps/settings/DataAppGeneralSettingsPage';
 import { getDataAppsSettingsLanding } from '../features/apps/settings/dataAppsSettingsLanding';
 import { DataAppActivitySettingsPage } from '../features/dataAppActivity/components/DataAppActivitySettingsPage';
@@ -186,8 +187,6 @@ const Settings: FC = () => {
         project,
         isScimTokenManagementEnabled,
         dataAppsFlag,
-        dataAppAnalysisFlag,
-        dashboardAnalysisFlag,
         isDataAppsFlagLoading,
         isChartStudioAvailable,
         isAiCopilotEnabledOrTrial,
@@ -539,22 +538,25 @@ const Settings: FC = () => {
             });
         }
 
-        // The AI-analysis page hosts the shared consent toggle; dashboard
-        // analysis shares it, so a dashboard-only rollout must still reach it.
-        {
-            const canManageOrganization =
-                user?.ability.can('manage', 'Organization') ?? false;
-            const canManageAiAnalysis =
-                canManageOrganization &&
-                ((dataAppsFlag?.enabled === true &&
-                    dataAppAnalysisFlag?.enabled === true) ||
-                    dashboardAnalysisFlag?.enabled === true);
-            if (canManageAiAnalysis) {
-                allowedRoutes.push({
-                    path: '/dataApps/aiAnalysis',
+        // The AI-analysis page hosts the consent toggle that data-app and
+        // dashboard analysis share, so it opens wherever AI is available.
+        if (
+            isAiCopilotEnabledOrTrial &&
+            user?.ability.can('manage', 'Organization')
+        ) {
+            allowedRoutes.push(
+                {
+                    path: '/ai/analysis',
                     element: <DataAppAiAnalysisSettingsPage />,
-                });
-            }
+                },
+                // Old location, still linked from docs.
+                {
+                    path: '/dataApps/aiAnalysis',
+                    element: (
+                        <Navigate to={AI_ANALYSIS_SETTINGS_PATH} replace />
+                    ),
+                },
+            );
         }
 
         if (dataAppsFlag?.enabled) {
@@ -901,8 +903,6 @@ const Settings: FC = () => {
         health?.hasGitlab,
         health?.auth.google.enabled,
         dataAppsFlag?.enabled,
-        dataAppAnalysisFlag?.enabled,
-        dashboardAnalysisFlag?.enabled,
         isChartStudioAvailable,
         canAccessAnalyticsSettings,
         isOrganizationRoadmapEnabled,

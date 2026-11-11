@@ -58,9 +58,6 @@ export const AiGeneralSettingsPage = () => {
 
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const chartStudioAvailable = useChartStudioAvailable();
-    const dataAppAnalysisFlag = useServerFeatureFlag(
-        FeatureFlags.EnableDataAppAnalysis,
-    );
     const customProvidersFlag = useServerFeatureFlag(
         FeatureFlags.OrgAiCustomProviders,
     );
@@ -161,10 +158,6 @@ export const AiGeneralSettingsPage = () => {
                     >
                         <AiSurfacesCard
                             aiAgentsVisible={settings.aiAgentsVisible}
-                            showDataAppRuntimeAi={
-                                dataAppsFlag.data?.enabled === true &&
-                                dataAppAnalysisFlag.data?.enabled === true
-                            }
                             slackInstallation={slackInstallation}
                             slackAgentsEnabled={slackAgentsEnabled}
                             disabled={isUpdatingSettings}

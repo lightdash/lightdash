@@ -6,7 +6,7 @@ import { renderWithProviders } from '../../../testing/testUtils';
 import AnalysisOffChip from './AnalysisOffChip';
 
 const render = (
-    reason: 'org_setting_off' | 'copilot_off' | 'not_rolled_out',
+    reason: 'org_setting_off' | 'copilot_off',
     abilityRules: LightdashUserWithAbilityRules['abilityRules'] = [],
 ) =>
     renderWithProviders(
@@ -32,10 +32,7 @@ describe('AnalysisOffChip', () => {
         const chip = await screen.findByRole('link', {
             name: 'AI analysis off',
         });
-        expect(chip).toHaveAttribute(
-            'href',
-            '/generalSettings/dataApps/aiAnalysis',
-        );
+        expect(chip).toHaveAttribute('href', '/generalSettings/ai/analysis');
     });
 
     it('is inert for everyone else', async () => {

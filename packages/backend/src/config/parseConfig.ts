@@ -2067,6 +2067,10 @@ export type LightdashConfig = {
         maxOrganizationBytes: number;
         maxConcurrentIngestsPerOrganization: number;
         maxConcurrentDuckdbQueriesPerOrganization: number;
+        /** How long a DuckDB query waits for a free per-organization slot before it fails. */
+        duckdbQuerySlotWaitTimeoutMs: number;
+        /** Per-process cap on concurrent external source DuckDB queries, across organizations. */
+        maxConcurrentDuckdbQueries: number;
         googleSheetsBatchRows: number;
         stagedUploadTtlHours: number;
         ingestLeaseMs: number;
@@ -3043,6 +3047,9 @@ const parseResultsCacheEnabled = (
     return ['1', 'true'].includes(normalized);
 };
 
+const LIGHTDASH_ANDROID_APP_SIGNING_FINGERPRINT =
+    'EB:2C:4B:A2:0C:21:91:EB:9A:47:DF:1C:09:69:36:80:89:95:93:F5:6A:E5:AF:E8:9F:3D:4B:B0:C1:E2:8C:90';
+
 const parseCertificateFingerprints = (value: string | undefined): string[] =>
     (value ?? '')
         .split(',')
@@ -3374,7 +3381,8 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.MOBILE_ANDROID_PACKAGE_NAME ??
                 'com.lightdash.mobile',
             androidCertificateFingerprints: parseCertificateFingerprints(
-                process.env.MOBILE_ANDROID_CERT_FINGERPRINTS,
+                process.env.MOBILE_ANDROID_CERT_FINGERPRINTS ??
+                    LIGHTDASH_ANDROID_APP_SIGNING_FINGERPRINT,
             ),
         },
         mobilePushNotifications: {
@@ -4240,6 +4248,14 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'EXTERNAL_SOURCES_MAX_CONCURRENT_DUCKDB_QUERIES_PER_ORGANIZATION',
                 ) ?? 2,
+            duckdbQuerySlotWaitTimeoutMs:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_DUCKDB_QUERY_SLOT_WAIT_TIMEOUT_MS',
+                ) ?? 15_000,
+            maxConcurrentDuckdbQueries:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_MAX_CONCURRENT_DUCKDB_QUERIES',
+                ) ?? 4,
             googleSheetsBatchRows:
                 getIntegerFromEnvironmentVariable(
                     'EXTERNAL_SOURCES_GOOGLE_SHEETS_BATCH_ROWS',

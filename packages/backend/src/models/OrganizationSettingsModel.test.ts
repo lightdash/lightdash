@@ -54,7 +54,6 @@ describe('OrganizationSettingsModel', () => {
                 queryLimit: null,
                 csvCellsLimit: null,
                 corsAllowedDomains: null,
-                dataAppAutomaticThumbnailsEnabled: null,
                 dataAppCapturesEnabled: null,
                 dataAppCustomDependenciesEnabled: false,
             });
@@ -83,7 +82,6 @@ describe('OrganizationSettingsModel', () => {
                 queryLimit: null,
                 csvCellsLimit: null,
                 corsAllowedDomains: null,
-                dataAppAutomaticThumbnailsEnabled: null,
                 dataAppCapturesEnabled: null,
                 dataAppCustomDependenciesEnabled: false,
             });
@@ -109,7 +107,6 @@ describe('OrganizationSettingsModel', () => {
                 queryLimit: null,
                 csvCellsLimit: null,
                 corsAllowedDomains: null,
-                dataAppAutomaticThumbnailsEnabled: null,
                 dataAppCapturesEnabled: null,
                 dataAppCustomDependenciesEnabled: false,
             });
@@ -137,7 +134,6 @@ describe('OrganizationSettingsModel', () => {
                 queryLimit: null,
                 csvCellsLimit: null,
                 corsAllowedDomains: null,
-                dataAppAutomaticThumbnailsEnabled: null,
                 dataAppCapturesEnabled: null,
                 dataAppCustomDependenciesEnabled: false,
             });
@@ -167,19 +163,9 @@ describe('OrganizationSettingsModel', () => {
                     'https://app.example.com',
                     '/^https:\\/\\/.*\\.example\\.com$/',
                 ],
-                dataAppAutomaticThumbnailsEnabled: null,
                 dataAppCapturesEnabled: null,
                 dataAppCustomDependenciesEnabled: false,
             });
-        });
-
-        test('reads back a stored choice to turn automatic data app thumbnails off', async () => {
-            const { model } = createModel({
-                data_app_automatic_thumbnails_enabled: false,
-            });
-            expect(
-                (await model.get(ORG)).dataAppAutomaticThumbnailsEnabled,
-            ).toBe(false);
         });
     });
 
@@ -256,7 +242,6 @@ describe('OrganizationSettingsModel', () => {
                 queryLimit: null,
                 csvCellsLimit: null,
                 corsAllowedDomains: null,
-                dataAppAutomaticThumbnailsEnabled: null,
                 dataAppCapturesEnabled: null,
                 dataAppCustomDependenciesEnabled: false,
             });
@@ -353,26 +338,6 @@ describe('OrganizationSettingsModel', () => {
                     '/^https:\\/\\/.*\\.example\\.com$/',
                 ],
             });
-            expect(captured.merge).not.toHaveProperty('oidc_linking_enabled');
-        });
-
-        test('writes the automatic data app thumbnails column when provided', async () => {
-            const { model, captured } = createModel({
-                data_app_automatic_thumbnails_enabled: false,
-            });
-
-            await model.update(ORG, {
-                dataAppAutomaticThumbnailsEnabled: false,
-            });
-
-            expect(captured.insert).toEqual({
-                organization_uuid: ORG,
-                data_app_automatic_thumbnails_enabled: false,
-            });
-            expect(captured.merge).toHaveProperty(
-                'data_app_automatic_thumbnails_enabled',
-                false,
-            );
             expect(captured.merge).not.toHaveProperty('oidc_linking_enabled');
         });
 

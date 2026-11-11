@@ -36,8 +36,6 @@ export type DbOrganizationSettings = {
     csv_cells_limit: number | null;
     // Per-org CORS entries. NULL/absent resolves to no org domains.
     cors_allowed_domains: string[] | null;
-    // Automatic data app thumbnail capture. NULL/absent resolves to on.
-    data_app_automatic_thumbnails_enabled: boolean | null;
     // Data app captures (screenshots, attachments, thumbnails). NULL/absent
     // inherits the instance env (LIGHTDASH_APP_CAPTURES_ENABLED).
     data_app_captures_enabled: boolean | null;

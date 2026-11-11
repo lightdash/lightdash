@@ -35,20 +35,23 @@ describe('useTileVirtualViewSavedParameters', () => {
         );
     });
 
-    it('clears earlier values once the explore is gone', () => {
-        const { rerender } = renderHook(
-            ({ current }) =>
-                useTileVirtualViewSavedParameters('tile-1', current),
-            {
-                initialProps: {
-                    current: explore as ApiExploreResults | undefined,
-                },
-            },
+    it('reports nothing while the explore is loading', () => {
+        renderHook(() =>
+            useTileVirtualViewSavedParameters('tile-1', undefined),
         );
 
-        rerender({ current: undefined });
+        expect(setTileVirtualViewSavedParameters).not.toHaveBeenCalled();
+    });
 
-        expect(setTileVirtualViewSavedParameters).toHaveBeenLastCalledWith(
+    it('reports an empty map for an explore without saved values', () => {
+        renderHook(() =>
+            useTileVirtualViewSavedParameters(
+                'tile-1',
+                {} as unknown as ApiExploreResults,
+            ),
+        );
+
+        expect(setTileVirtualViewSavedParameters).toHaveBeenCalledWith(
             'tile-1',
             {},
         );

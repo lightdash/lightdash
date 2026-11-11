@@ -6157,9 +6157,6 @@
                     "sectionSlug": {
                         "type": "string"
                     },
-                    "sectionId": {
-                        "type": "string"
-                    },
                     "hidden": {
                         "type": "boolean"
                     },
@@ -6210,21 +6207,15 @@
             },
             "DashboardControlSectionAsCode": {
                 "properties": {
-                    "inline": {
-                        "type": "boolean"
-                    },
                     "collapsed": {
                         "type": "boolean"
                     },
                     "name": {
                         "type": "string"
                     },
-                    "id": {
-                        "type": "string",
-                        "description": "Legacy section identifier accepted on upload."
-                    },
                     "slug": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "Portable section identifier; absent, derived from the name."
                     }
                 },
                 "required": ["name"],
@@ -6295,9 +6286,6 @@
                     "sectionSlug": {
                         "type": "string"
                     },
-                    "sectionId": {
-                        "type": "string"
-                    },
                     "valueType": {
                         "$ref": "#/components/schemas/Required_Pick_LightdashProjectParameter.type-or-multiple__"
                     },
@@ -6312,10 +6300,6 @@
                     "label": {
                         "type": "string",
                         "nullable": true
-                    },
-                    "id": {
-                        "type": "string",
-                        "description": "Legacy project-local identifier accepted on upload."
                     },
                     "slug": {
                         "type": "string",
@@ -6338,7 +6322,7 @@
                     },
                     "slug": {
                         "type": "string",
-                        "description": "Slug of a filter, parameter control or section in this file"
+                        "description": "Slug of a control of this kind in this file: a filter, parameter control, date zoom control or section"
                     },
                     "kind": {
                         "$ref": "#/components/schemas/DashboardControlRefKind"
@@ -6362,20 +6346,6 @@
                             "$ref": "#/components/schemas/DashboardParameterControlAsCode"
                         },
                         "type": "array"
-                    },
-                    "parameterSectionSlugs": {
-                        "properties": {},
-                        "additionalProperties": {
-                            "type": "string"
-                        },
-                        "type": "object"
-                    },
-                    "parameterSections": {
-                        "properties": {},
-                        "additionalProperties": {
-                            "type": "string"
-                        },
-                        "type": "object"
                     },
                     "controlSections": {
                         "items": {
@@ -9809,10 +9779,6 @@
             },
             "DashboardControlSection": {
                 "properties": {
-                    "inline": {
-                        "type": "boolean",
-                        "description": "Sits on the bar line of the section before it; absent, starts a line of its own"
-                    },
                     "collapsed": {
                         "type": "boolean",
                         "description": "Starts folded in the rail and on the bar; absent, the bar folds only a dense section"
@@ -9901,14 +9867,6 @@
                         },
                         "type": "array",
                         "description": "Absent: filled from the parameters tiles use. Present (even empty): exactly these."
-                    },
-                    "parameterSections": {
-                        "properties": {},
-                        "additionalProperties": {
-                            "type": "string"
-                        },
-                        "type": "object",
-                        "description": "Parameter name to section id. Parameters have no saved object of their own."
                     },
                     "controlSections": {
                         "items": {
@@ -20799,6 +20757,9 @@
                     },
                     "baseTable": {
                         "type": "string"
+                    },
+                    "combineJoinedFields": {
+                        "type": "boolean"
                     },
                     "groups": {
                         "items": {
@@ -63734,6 +63695,9 @@
                         "type": "array",
                         "description": "Nested groups for the sidebar (max 5 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
                     },
+                    "combineJoinedFields": {
+                        "type": "boolean"
+                    },
                     "baseTable": {
                         "type": "string"
                     },
@@ -64766,12 +64730,7 @@
                     "dataAppCapturesEnabled": {
                         "type": "boolean",
                         "nullable": true,
-                        "description": "Whether images of a running data app, and files, may be captured or\nattached anywhere in the data app builder: prompt-bar screenshots, file\nattachments sent to the coding agent, manual and automatic thumbnails,\nand the Slack build-outcome image. Inherits and is capped by the\ninstance-wide `LIGHTDASH_APP_CAPTURES_ENABLED` (the ceiling): an org can\nturn captures off, never back on past the env. `null` inherits it.\nAlways resolved to an effective boolean in API responses."
-                    },
-                    "dataAppAutomaticThumbnailsEnabled": {
-                        "type": "boolean",
-                        "nullable": true,
-                        "description": "Whether a data app version gets a thumbnail captured automatically when\nit becomes ready. On unless the org turned it off, so `null` (or no\nstored row) resolves to `true`. Always resolved to `false` while\n{@link OrganizationSettings.dataAppCapturesEnabled} is off."
+                        "description": "Whether images of a running data app, and files, may be captured or\nattached anywhere in the data app builder: prompt-bar screenshots, file\nattachments sent to the coding agent, manual thumbnails, and the Slack\nbuild-outcome image. Inherits and is capped by the instance-wide\n`LIGHTDASH_APP_CAPTURES_ENABLED` (the ceiling): an org can turn captures\noff, never back on past the env. `null` inherits it.\nAlways resolved to an effective boolean in API responses."
                     },
                     "corsAllowedDomains": {
                         "items": {
@@ -64853,7 +64812,6 @@
                 "required": [
                     "dataAppCustomDependenciesEnabled",
                     "dataAppCapturesEnabled",
-                    "dataAppAutomaticThumbnailsEnabled",
                     "corsAllowedDomains",
                     "csvCellsLimit",
                     "queryLimit",
@@ -64963,15 +64921,10 @@
                         "nullable": true,
                         "description": "Exact origins, wildcard subdomain origins, and regex patterns this org\ncontributes to the instance CORS allow-list. Regex entries use `/.../`\nsyntax."
                     },
-                    "dataAppAutomaticThumbnailsEnabled": {
-                        "type": "boolean",
-                        "nullable": true,
-                        "description": "Whether a data app version gets a thumbnail captured automatically when\nit becomes ready. On unless the org turned it off, so `null` (or no\nstored row) resolves to `true`. Always resolved to `false` while\n{@link OrganizationSettings.dataAppCapturesEnabled} is off."
-                    },
                     "dataAppCapturesEnabled": {
                         "type": "boolean",
                         "nullable": true,
-                        "description": "Whether images of a running data app, and files, may be captured or\nattached anywhere in the data app builder: prompt-bar screenshots, file\nattachments sent to the coding agent, manual and automatic thumbnails,\nand the Slack build-outcome image. Inherits and is capped by the\ninstance-wide `LIGHTDASH_APP_CAPTURES_ENABLED` (the ceiling): an org can\nturn captures off, never back on past the env. `null` inherits it.\nAlways resolved to an effective boolean in API responses."
+                        "description": "Whether images of a running data app, and files, may be captured or\nattached anywhere in the data app builder: prompt-bar screenshots, file\nattachments sent to the coding agent, manual thumbnails, and the Slack\nbuild-outcome image. Inherits and is capped by the instance-wide\n`LIGHTDASH_APP_CAPTURES_ENABLED` (the ceiling): an org can turn captures\noff, never back on past the env. `null` inherits it.\nAlways resolved to an effective boolean in API responses."
                     },
                     "dataAppCustomDependenciesEnabled": {
                         "type": "boolean",
@@ -67512,8 +67465,49 @@
                 "enum": ["dark", "light", "voyager"],
                 "nullable": false
             },
+            "LinearInstallUrl": {
+                "properties": {
+                    "installUrl": {
+                        "type": "string"
+                    }
+                },
+                "required": ["installUrl"],
+                "type": "object"
+            },
+            "ApiSuccess_LinearInstallUrl_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LinearInstallUrl"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiLinearInstallUrlResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_LinearInstallUrl_"
+            },
+            "LinearOAuthCredentials": {
+                "properties": {
+                    "clientSecret": {
+                        "type": "string"
+                    },
+                    "clientId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["clientSecret", "clientId"],
+                "type": "object"
+            },
             "LinearInstallation": {
                 "properties": {
+                    "requiresClientSecret": {
+                        "type": "boolean"
+                    },
                     "requiresReconnect": {
                         "type": "boolean"
                     },
@@ -67528,6 +67522,7 @@
                     }
                 },
                 "required": [
+                    "requiresClientSecret",
                     "requiresReconnect",
                     "organizationUrlKey",
                     "organizationName",
@@ -69002,6 +68997,9 @@
                     "dbtModelIdentity": {
                         "$ref": "#/components/schemas/DbtExploreIdentity"
                     },
+                    "combineJoinedFields": {
+                        "type": "boolean"
+                    },
                     "tables": {
                         "properties": {},
                         "additionalProperties": {
@@ -69148,6 +69146,9 @@
                     },
                     "dbtModelIdentity": {
                         "$ref": "#/components/schemas/DbtExploreIdentity"
+                    },
+                    "combineJoinedFields": {
+                        "type": "boolean"
                     },
                     "tables": {
                         "properties": {},
@@ -73919,6 +73920,12 @@
                                 "enum": [null],
                                 "nullable": true
                             },
+                            "virtualViewSavedValues": {
+                                "$ref": "#/components/schemas/ParametersValuesMap"
+                            },
+                            "chartSavedValues": {
+                                "$ref": "#/components/schemas/ParametersValuesMap"
+                            },
                             "parameterDefinitions": {
                                 "$ref": "#/components/schemas/ParameterDefinitions"
                             },
@@ -73934,6 +73941,8 @@
                         },
                         "required": [
                             "error",
+                            "virtualViewSavedValues",
+                            "chartSavedValues",
                             "parameterReferences",
                             "tileUuid"
                         ],
@@ -77392,7 +77401,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.199.0",
+        "version": "3.214.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"
@@ -111078,6 +111087,36 @@
             }
         },
         "/api/v1/linear/install": {
+            "post": {
+                "operationId": "connectLinearIntegration",
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiLinearInstallUrlResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Start Linear OAuth with the organization's own Linear OAuth app",
+                "summary": "Connect Linear",
+                "tags": ["Integrations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LinearOAuthCredentials"
+                            }
+                        }
+                    }
+                }
+            },
             "get": {
                 "operationId": "installLinearIntegration",
                 "responses": {
@@ -111085,20 +111124,11 @@
                         "description": "Redirect to Linear OAuth"
                     }
                 },
-                "description": "Start Linear OAuth with PKCE",
-                "summary": "Connect Linear",
+                "description": "Restart Linear OAuth with the credentials already saved for the organization",
+                "summary": "Reconnect Linear",
                 "tags": ["Integrations"],
                 "security": [],
-                "parameters": [
-                    {
-                        "in": "query",
-                        "name": "clientId",
-                        "required": false,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
+                "parameters": []
             }
         },
         "/api/v1/linear/oauth/callback": {
@@ -111125,6 +111155,14 @@
                     {
                         "in": "query",
                         "name": "state",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "error",
                         "required": false,
                         "schema": {
                             "type": "string"

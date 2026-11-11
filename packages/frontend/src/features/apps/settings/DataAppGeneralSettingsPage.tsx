@@ -1,15 +1,15 @@
-import { FeatureFlags } from '@lightdash/common';
 import {
     Button,
     Code,
-    Divider,
     Group,
     Loader,
     Stack,
     Switch,
     Text,
 } from '@mantine/core';
+import { IconSparkles } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Link } from 'react-router';
 import Callout from '../../../components/common/Callout';
 import ErrorState from '../../../components/common/ErrorState';
 import {
@@ -18,12 +18,13 @@ import {
 } from '../../../components/common/Settings/SettingLayout';
 import { SettingsCard } from '../../../components/common/Settings/SettingsCard';
 import { SettingsPage } from '../../../components/common/Settings/SettingsPage';
+import { useAiOrganizationSettings } from '../../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import useHealth from '../../../hooks/health/useHealth';
 import {
     useOrganizationSettings,
     useUpdateOrganizationSettings,
 } from '../../../hooks/organization/useOrganizationSettings';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { AI_ANALYSIS_SETTINGS_PATH } from '../analysis/useDataAppAnalysisAvailability';
 
 export const DataAppGeneralSettingsPage: FC = () => {
     const health = useHealth();
@@ -36,18 +37,15 @@ export const DataAppGeneralSettingsPage: FC = () => {
     } = useOrganizationSettings();
     const { mutate: updateSettings, isLoading: isUpdating } =
         useUpdateOrganizationSettings();
+    // The AI analysis page only exists where AI does.
+    const { data: aiSettings } = useAiOrganizationSettings();
+    const isAiAvailable =
+        aiSettings?.isCopilotEnabled === true || aiSettings?.isTrial === true;
 
-    const automaticThumbnailsFlag = useServerFeatureFlag(
-        FeatureFlags.EnableDataAppAutomaticThumbnails,
-    );
-
-    const hasHeadlessBrowser = health.data?.hasHeadlessBrowser ?? false;
     // The instance env is the ceiling: when it is off the org switch is shown
     // off and cannot be turned on here.
     const capturesEnabledOnInstance =
         health.data?.dataApps.capturesEnabled !== false;
-    const automaticThumbnailsAvailable =
-        automaticThumbnailsFlag.data?.enabled === true;
     // Already resolved against the instance ceiling by the API.
     const capturesEnabled = settings?.dataAppCapturesEnabled !== false;
 
@@ -68,10 +66,7 @@ export const DataAppGeneralSettingsPage: FC = () => {
                         </Button>
                     </Stack>
                 </SettingsCard>
-            ) : isInitialLoading ||
-              !settings ||
-              health.isInitialLoading ||
-              automaticThumbnailsFlag.isInitialLoading ? (
+            ) : isInitialLoading || !settings || health.isInitialLoading ? (
                 <Group justify="center" mt="xl">
                     <Loader size="sm" />
                 </Group>
@@ -90,7 +85,7 @@ export const DataAppGeneralSettingsPage: FC = () => {
                     )}
                     <SettingsSection
                         label="Screenshots and thumbnails"
-                        description="Controls every way an image of your data can be captured in the builder, including automatic thumbnails and the image posted with a Slack build. While screenshots are off, existing thumbnails stay hidden."
+                        description="Controls every way an image of your data can be captured in the builder, including thumbnails and the image posted with a Slack build. While screenshots are off, existing thumbnails stay hidden."
                     >
                         <SettingsCard>
                             <Stack gap="md">
@@ -116,64 +111,6 @@ export const DataAppGeneralSettingsPage: FC = () => {
                                         />
                                     }
                                 />
-                                {automaticThumbnailsAvailable && (
-                                    <>
-                                        <Divider />
-                                        <SettingRow
-                                            title="Automatically capture thumbnails"
-                                            description="Each data app version gets a thumbnail when it becomes ready, rendered as the user who created it. Text is blurred so values are not readable. Turning this off keeps existing thumbnails, and thumbnails can still be captured by hand."
-                                            control={
-                                                <Switch
-                                                    size="md"
-                                                    aria-label="Automatically capture thumbnails for data app versions"
-                                                    checked={
-                                                        settings.dataAppAutomaticThumbnailsEnabled !==
-                                                        false
-                                                    }
-                                                    disabled={
-                                                        isUpdating ||
-                                                        !hasHeadlessBrowser ||
-                                                        !capturesEnabled
-                                                    }
-                                                    onChange={(event) =>
-                                                        updateSettings({
-                                                            dataAppAutomaticThumbnailsEnabled:
-                                                                event
-                                                                    .currentTarget
-                                                                    .checked,
-                                                        })
-                                                    }
-                                                />
-                                            }
-                                        >
-                                            {!capturesEnabled && (
-                                                <Text
-                                                    c="dimmed"
-                                                    fz="xs"
-                                                    mt="xxs"
-                                                >
-                                                    Off while screenshots and
-                                                    attachments are not allowed.
-                                                </Text>
-                                            )}
-                                            {!hasHeadlessBrowser &&
-                                                capturesEnabled && (
-                                                    <Callout
-                                                        variant="info"
-                                                        title="No headless browser is configured"
-                                                        mt="sm"
-                                                    >
-                                                        Thumbnails are captured
-                                                        in a headless browser,
-                                                        and this instance does
-                                                        not have one. Automatic
-                                                        capture is skipped until
-                                                        one is configured.
-                                                    </Callout>
-                                                )}
-                                        </SettingRow>
-                                    </>
-                                )}
                             </Stack>
                         </SettingsCard>
                     </SettingsSection>
@@ -220,6 +157,32 @@ export const DataAppGeneralSettingsPage: FC = () => {
                             </Stack>
                         </SettingsCard>
                     </SettingsSection>
+                    {isAiAvailable && (
+                        <SettingsSection label="AI analysis" description={null}>
+                            <SettingsCard>
+                                <SettingRow
+                                    icon={IconSparkles}
+                                    title="AI analysis"
+                                    description={
+                                        <>
+                                            AI analysis in data apps is
+                                            configured under{' '}
+                                            <Text
+                                                span
+                                                inherit
+                                                component={Link}
+                                                to={AI_ANALYSIS_SETTINGS_PATH}
+                                                td="underline"
+                                            >
+                                                Ask AI · AI analysis
+                                            </Text>
+                                            .
+                                        </>
+                                    }
+                                />
+                            </SettingsCard>
+                        </SettingsSection>
+                    )}
                 </>
             )}
         </SettingsPage>

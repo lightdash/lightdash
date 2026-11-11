@@ -102,7 +102,6 @@ const buildScenario = () => {
             }
             return app;
         },
-        findAppByUuid: async (appUuid) => apps.get(appUuid),
         getVersion: async (appUuid, version) => findVersion(appUuid, version),
         getLatestReadyVersion: async (appUuid) =>
             versions.findLast(
@@ -114,11 +113,11 @@ const buildScenario = () => {
                     row.app_id === appUuid &&
                     row.thumbnail_captured_at !== null,
             ),
-        setVersionThumbnail: async (appUuid, version, { isManual }) => {
+        setVersionThumbnail: async (appUuid, version) => {
             const row = findVersion(appUuid, version);
             if (!row) return false;
             row.thumbnail_captured_at = new Date();
-            row.thumbnail_is_manual = isManual;
+            row.thumbnail_is_manual = true;
             return true;
         },
         clearVersionThumbnail: async (appUuid, version) => {

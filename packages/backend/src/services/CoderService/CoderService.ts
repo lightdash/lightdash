@@ -237,6 +237,8 @@ import {
 import {
     getDashboardWithSectionIds,
     getDashboardWithSectionSlugs,
+    withoutStoredOnlyKeys,
+    type DashboardWithSectionIds,
 } from './sectionSlugs';
 
 type RuntimeChartAsCode = Omit<ChartAsCode, 'chartConfig'> & {
@@ -2175,7 +2177,7 @@ export class CoderService extends BaseService {
                       sections: config?.controlSections ?? [],
                   }
                 : undefined;
-        const dashboardAsCode: DashboardAsCode = {
+        const dashboardAsCode: DashboardWithSectionIds = {
             name: dashboard.name,
             description: dashboard.description,
             updatedAt: dashboard.updatedAt,
@@ -2195,7 +2197,7 @@ export class CoderService extends BaseService {
             slug: dashboard.slug,
             ...(config && {
                 config: {
-                    ...omit(config, 'controlOrder'),
+                    ...withoutStoredOnlyKeys(config),
                     ...(config?.parameterControls !== undefined && {
                         parameterControls: getParameterControlsWithSlugs(
                             config.parameterControls,
@@ -2223,9 +2225,7 @@ export class CoderService extends BaseService {
             verification: verificationMap.get(dashboard.uuid) ?? null,
         };
 
-        return controlsEnabled
-            ? getDashboardWithSectionSlugs(dashboardAsCode)
-            : dashboardAsCode;
+        return getDashboardWithSectionSlugs(dashboardAsCode);
     }
 
     private static convertTabsWithSlugsToUuids(
@@ -5905,8 +5905,7 @@ export class CoderService extends BaseService {
         const dashboardFilters = CoderService.getFiltersWithTileUuids(
             dashboardWithResolvedTabs,
             tilesWithUuids,
-            existingDashboard?.filters.dimensions ?? [],
-            controlsEnabled,
+            existingDashboard?.filters,
         );
         let dashboardConfig: DashboardConfig | undefined;
         if (dashboardWithResolvedTabs.config) {

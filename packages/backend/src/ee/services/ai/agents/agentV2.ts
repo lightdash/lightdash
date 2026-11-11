@@ -34,6 +34,7 @@ import {
     emitAiUsage,
     languageModelUsageToTokens,
 } from '../../../../analytics/aiUsage';
+import { runWithAiAgentLogContext } from '../../../../logging/aiAgentLogContext';
 import Logger from '../../../../logging/logger';
 import type { ConnectedAgentTool } from '../../../../services/AgentPermissionService/AgentPermissionService';
 import {
@@ -45,6 +46,7 @@ import {
     isDeepResearchWarehouseMcpTool,
 } from '../../AiDeepResearchService/toolClassification';
 import { MCP_UNTRUSTED_OUTPUT_NOTICE } from '../AiAgentMcpRuntimeClient';
+import { createToolCallEventTracker } from '../analytics/toolCallEvent';
 import { Compaction } from '../compaction';
 import {
     getAgentDecisionContext,
@@ -80,7 +82,11 @@ import {
     getSystemPromptV2,
     type CapabilitySectionArgs,
 } from '../prompts/systemV2';
-import { DOCUMENT_OFFER_LINE } from '../prompts/systemV2ContentTools';
+import {
+    DOCUMENT_OFFER_LINE,
+    includesDocumentOffer,
+    MIN_CHARTS_FOR_DOCUMENT_OFFER,
+} from '../prompts/systemV2ContentTools';
 import {
     accumulatePromptTokenUsage,
     completedPromptTokenUsage,
@@ -186,6 +192,7 @@ import {
     summarizeToolCall,
     summarizeToolResult,
 } from '../utils/toolSummaries';
+import { getAgentLogContext, withToolCallLogContext } from './agentLogContext';
 import { pruneSupersededContentReads } from './contentReadRetention';
 import { getMcpActiveTools } from './mcpToolGating';
 import { compactChartDiscovery, getPreviousQueryUuid } from './previousQuery';
@@ -199,6 +206,7 @@ import {
 } from './referenceToolGating';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
 import {
+    getToolStage,
     TurnTimingTracker,
     withNonStreamingProviderTiming,
     type StepTiming,
@@ -380,6 +388,30 @@ const trackAgentStep = (
     });
 };
 
+const createTurnToolCallEvents = (
+    args: AiAgentArgs,
+    dependencies: Pick<AiAgentDependencies, 'trackEvent'>,
+) => {
+    const logContext = getAgentLogContext(args);
+    return createToolCallEventTracker(
+        {
+            organizationId: logContext.organizationUuid,
+            projectId: logContext.projectUuid,
+            aiAgentId: logContext.agentUuid,
+            threadId: logContext.threadUuid,
+            promptId: logContext.promptUuid,
+            model: logContext.model,
+            serverVersion: logContext.serverVersion,
+        },
+        (properties) =>
+            dependencies.trackEvent({
+                event: 'ai_agent.tool_call_completed',
+                userId: args.userId,
+                properties,
+            }),
+    );
+};
+
 export const DEFAULT_AGENT_MAX_STEPS = 40;
 
 export const AGENT_WRAP_UP_STEPS = 5;
@@ -527,14 +559,14 @@ const isDocumentInput = (input: unknown): boolean =>
     'type' in input &&
     input.type === 'document';
 
-/** An earlier reply made a chart, and no Document was offered or saved yet. */
+/** Earlier replies made enough charts for an analysis, and no Document was offered or saved yet. The latest reply can add the last chart. */
 export const shouldOfferDocument = (
     messageHistory: ModelMessage[],
 ): boolean => {
     const latestUserIndex = messageHistory.findLastIndex(
         (message) => message.role === 'user',
     );
-    let hasChart = false;
+    let chartCount = 0;
     for (const message of messageHistory.slice(0, latestUserIndex)) {
         if (message.role === 'assistant') {
             const parts =
@@ -542,10 +574,7 @@ export const shouldOfferDocument = (
                     ? [{ type: 'text' as const, text: message.content }]
                     : message.content;
             for (const part of parts) {
-                if (
-                    part.type === 'text' &&
-                    part.text.includes(DOCUMENT_OFFER_LINE)
-                ) {
+                if (part.type === 'text' && includesDocumentOffer(part.text)) {
                     return false;
                 }
                 if (part.type === 'tool-call') {
@@ -556,13 +585,13 @@ export const shouldOfferDocument = (
                         return false;
                     }
                     if (part.toolName === 'generateVisualization') {
-                        hasChart = true;
+                        chartCount += 1;
                     }
                 }
             }
         }
     }
-    return hasChart;
+    return chartCount >= MIN_CHARTS_FOR_DOCUMENT_OFFER - 1;
 };
 
 const previousReplyOfferedDocument = (
@@ -583,7 +612,7 @@ const previousReplyOfferedDocument = (
                               part.type === 'text' ? part.text : '',
                           )
                           .join('');
-            if (text.includes(DOCUMENT_OFFER_LINE)) return true;
+            if (includesDocumentOffer(text)) return true;
         }
     }
     return false;
@@ -617,7 +646,7 @@ export const getDocumentNudgeOutcome = (
     return {
         documentNudgesEnabled,
         documentOfferShown:
-            documentNudgesEnabled && response.includes(DOCUMENT_OFFER_LINE),
+            documentNudgesEnabled && includesDocumentOffer(response),
         documentOfferAccepted:
             documentNudgesEnabled &&
             previousReplyOfferedDocument(args.messageHistory) &&
@@ -634,7 +663,7 @@ const withDocumentOfferHint = (
     );
     const lastUser = messageHistory[lastUserIndex];
     if (lastUser?.role !== 'user') return messageHistory;
-    const hint = `\n\n(If your reply creates a chart or concludes a finding that took several steps, end it with this line on its own: "${DOCUMENT_OFFER_LINE}" Skip it if this reply saves a Document.)`;
+    const hint = `\n\n(If your reply concludes a finding from the analysis so far, end it with this line on its own: "${DOCUMENT_OFFER_LINE}" Skip it if this reply only answers a quick follow-up or saves a Document.)`;
     const updatedContent =
         typeof lastUser.content === 'string'
             ? `${lastUser.content}${hint}`
@@ -2902,13 +2931,16 @@ const prepareAgentTurn = async ({
             ),
         );
     }
-    tools = reportEarlyToolProgress
-        ? withEarlyToolProgress(
-              intentToolGate.tools,
-              dependencies.updateProgress,
-              args.execution.mode === 'deep_research',
-          )
-        : intentToolGate.tools;
+    tools = withToolCallLogContext(
+        reportEarlyToolProgress
+            ? withEarlyToolProgress(
+                  intentToolGate.tools,
+                  dependencies.updateProgress,
+                  args.execution.mode === 'deep_research',
+              )
+            : intentToolGate.tools,
+        getAgentLogContext(args),
+    );
     const messages = getAgentMessages(
         args,
         loadout,
@@ -2971,12 +3003,12 @@ const prepareAgentTurn = async ({
 
 // Forked scope so every capture in the turn, including from tool execute, carries the model.
 const withAgentModelScope = <T>(
-    model: AiAgentArgs['model'],
+    args: AiAgentArgs,
     run: () => Promise<T>,
 ): Promise<T> =>
     Sentry.withScope((scope) => {
-        scope.setTag('ai.model', getAiAgentModelName(model));
-        return run();
+        scope.setTag('ai.model', getAiAgentModelName(args.model));
+        return runWithAiAgentLogContext(getAgentLogContext(args), run);
     });
 
 const runGenerateAgentResponse = async ({
@@ -3006,6 +3038,7 @@ const runGenerateAgentResponse = async ({
     );
     const startTime = Date.now();
     const timing = new TurnTimingTracker(startTime);
+    const toolCallEvents = createTurnToolCallEvents(args, dependencies);
     const modelName = getAiAgentModelName(args.model);
     let generatedTokenUsage = initialPromptTokenUsage(
         args.execution.mode === 'deep_research'
@@ -3088,6 +3121,7 @@ const runGenerateAgentResponse = async ({
                     toolCall.toolCallId,
                     toolCall.toolName,
                 );
+                toolCallEvents.start(toolCall.toolCallId, toolCall.toolName);
             },
             onToolExecutionEnd: (event) => {
                 notifyAiAccessRefusal(dependencies, event);
@@ -3100,32 +3134,47 @@ const runGenerateAgentResponse = async ({
                         isQueryReuseHit(event.toolOutput.output),
                 );
                 if (toolTiming) {
-                    dependencies.trackEvent({
-                        event: 'ai_agent.tool_call_completed',
-                        userId: args.userId,
-                        properties: {
-                            organizationId: args.organizationId,
-                            projectId: args.agentSettings.projectUuid,
-                            aiAgentId: args.agentSettings.uuid,
-                            promptId: args.promptUuid,
-                            threadId: args.threadUuid,
-                            stepIndex: toolTiming.stepIndex,
-                            toolName: toolTiming.toolName,
-                            toolCallId: event.toolCall.toolCallId,
-                            durationMs: toolTiming.durationMs,
-                            stage: toolTiming.stage,
-                            queryCacheHit: toolTiming.queryCacheHit,
-                            queryReuseHit: toolTiming.queryReuseHit,
-                            status:
-                                event.toolOutput.type !== 'tool-result' ||
-                                isErrorToolResult(event.toolOutput.output)
-                                    ? 'error'
-                                    : 'success',
-                        },
+                    toolCallEvents.track({
+                        toolCallId: event.toolCall.toolCallId,
+                        toolName: toolTiming.toolName,
+                        result:
+                            event.toolOutput.type === 'tool-result'
+                                ? {
+                                      type: 'tool-result',
+                                      output: event.toolOutput.output,
+                                  }
+                                : {
+                                      type: 'tool-error',
+                                      error: event.toolOutput.error,
+                                  },
+                        stepIndex: toolTiming.stepIndex,
+                        durationMs: toolTiming.durationMs,
+                        stage: toolTiming.stage,
+                        queryCacheHit: toolTiming.queryCacheHit,
+                        queryReuseHit: toolTiming.queryReuseHit,
                     });
                 }
             },
             onStepEnd: async (step) => {
+                // Calls the SDK rejected before execution (invalid input) never reach onToolExecutionEnd
+                for (const part of step.content) {
+                    if (
+                        part.type === 'tool-call' &&
+                        part.invalid === true &&
+                        !toolCallEvents.isTracked(part.toolCallId)
+                    ) {
+                        toolCallEvents.track({
+                            toolCallId: part.toolCallId,
+                            toolName: part.toolName,
+                            result: { type: 'tool-error', error: part.error },
+                            stepIndex: timing.getCurrentStepIndex(),
+                            durationMs: 0,
+                            stage: getToolStage(part.toolName),
+                            queryCacheHit: null,
+                            queryReuseHit: null,
+                        });
+                    }
+                }
                 const stepUsage = await recordStepUsage(step);
                 // completeStep opens the next step; these calls belong to this one.
                 const stepIndex = timing.getCurrentStepIndex();
@@ -3419,9 +3468,7 @@ const runGenerateAgentResponse = async ({
 export const generateAgentResponse = (
     params: Parameters<typeof runGenerateAgentResponse>[0],
 ): Promise<string> =>
-    withAgentModelScope(params.args.model, () =>
-        runGenerateAgentResponse(params),
-    );
+    withAgentModelScope(params.args, () => runGenerateAgentResponse(params));
 
 const runStreamAgentResponse = async ({
     args,
@@ -3449,6 +3496,7 @@ const runStreamAgentResponse = async ({
     let mcpClientsClosed = false;
     // The turn-level timers above still feed Prometheus and responseTiming.
     const timing = new TurnTimingTracker(startTime);
+    const toolCallEvents = createTurnToolCallEvents(args, dependencies);
     const modelName = getAiAgentModelName(args.model);
     const persistPrompt = makeStreamSafePersist(
         dependencies.updatePrompt,
@@ -3548,6 +3596,10 @@ const runStreamAgentResponse = async ({
                 switch (event.chunk.type) {
                     case 'tool-call':
                         timing.recordToolCallStart(
+                            event.chunk.toolCallId,
+                            event.chunk.toolName,
+                        );
+                        toolCallEvents.start(
                             event.chunk.toolCallId,
                             event.chunk.toolName,
                         );
@@ -3727,30 +3779,18 @@ const runStreamAgentResponse = async ({
                             isQueryReuseHit(event.chunk.output),
                         );
                         if (toolTiming) {
-                            dependencies.trackEvent({
-                                event: 'ai_agent.tool_call_completed',
-                                userId: args.userId,
-                                properties: {
-                                    organizationId: args.organizationId,
-                                    projectId: args.agentSettings.projectUuid,
-                                    aiAgentId: args.agentSettings.uuid,
-                                    toolName: event.chunk.toolName,
-                                    threadId: args.threadUuid,
-                                    promptId: args.promptUuid,
-                                    toolCallId: event.chunk.toolCallId,
-                                    stepIndex: toolTiming.stepIndex,
-                                    durationMs: toolTiming.durationMs,
-                                    stage: toolTiming.stage,
-                                    queryCacheHit:
-                                        toolTiming.queryCacheHit || null,
-                                    queryReuseHit:
-                                        toolTiming.queryReuseHit || null,
-                                    status: isErrorToolResult(
-                                        event.chunk.output as AnyType,
-                                    )
-                                        ? 'error'
-                                        : 'success',
+                            toolCallEvents.track({
+                                toolCallId: event.chunk.toolCallId,
+                                toolName: event.chunk.toolName,
+                                result: {
+                                    type: 'tool-result',
+                                    output: event.chunk.output,
                                 },
+                                stepIndex: toolTiming.stepIndex,
+                                durationMs: toolTiming.durationMs,
+                                stage: toolTiming.stage,
+                                queryCacheHit: toolTiming.queryCacheHit || null,
+                                queryReuseHit: toolTiming.queryReuseHit || null,
                             });
                         }
                         void dependencies
@@ -3790,6 +3830,27 @@ const runStreamAgentResponse = async ({
                             );
                         }
                         break;
+                    case 'tool-error': {
+                        const errorTiming = timing.recordToolCallEnd(
+                            event.chunk.toolCallId,
+                        );
+                        if (errorTiming) {
+                            toolCallEvents.track({
+                                toolCallId: event.chunk.toolCallId,
+                                toolName: event.chunk.toolName,
+                                result: {
+                                    type: 'tool-error',
+                                    error: event.chunk.error,
+                                },
+                                stepIndex: errorTiming.stepIndex,
+                                durationMs: errorTiming.durationMs,
+                                stage: errorTiming.stage,
+                                queryCacheHit: null,
+                                queryReuseHit: null,
+                            });
+                        }
+                        break;
+                    }
                     case 'raw':
                     case 'reasoning-delta':
                     case 'source':
@@ -3806,7 +3867,6 @@ const runStreamAgentResponse = async ({
                     case 'reasoning-end':
                     case 'reasoning-file':
                     case 'tool-input-end':
-                    case 'tool-error':
                     case 'tool-output-denied':
                     case 'tool-approval-request':
                     case 'tool-approval-response':
@@ -4085,6 +4145,4 @@ const runStreamAgentResponse = async ({
 export const streamAgentResponse = (
     params: Parameters<typeof runStreamAgentResponse>[0],
 ): Promise<AgentStreamTextResult> =>
-    withAgentModelScope(params.args.model, () =>
-        runStreamAgentResponse(params),
-    );
+    withAgentModelScope(params.args, () => runStreamAgentResponse(params));

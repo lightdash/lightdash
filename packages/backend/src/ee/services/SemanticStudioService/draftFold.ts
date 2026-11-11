@@ -105,6 +105,7 @@ export const foldDraft = (
             changes: [],
             refusals: [],
             error,
+            notes: [],
         });
         if (!MODEL_NAME.test(item.name)) {
             return failed(
@@ -127,6 +128,7 @@ export const foldDraft = (
                 changes: made,
                 refusals,
                 error: null,
+                notes: [],
             };
         } catch (error) {
             return failed(getErrorMessage(error));

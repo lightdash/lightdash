@@ -138,79 +138,6 @@ describe('OrganizationSettingsService — updates', () => {
     });
 });
 
-describe('OrganizationSettingsService — automatic data app thumbnails', () => {
-    const member = {
-        ...account,
-        user: {
-            ...account.user,
-            ability: new Ability<PossibleAbilities>([
-                { subject: 'Organization', action: 'view' },
-            ]),
-        },
-    } as unknown as RegisteredAccount;
-
-    // A store that keeps what was written, so reads reflect earlier updates.
-    const buildStatefulService = () => {
-        let stored: UpdateOrganizationSettings = {};
-        const organizationSettingsModel = {
-            get: async () => stored,
-            update: async (
-                _orgUuid: string,
-                patch: UpdateOrganizationSettings,
-            ) => {
-                stored = { ...stored, ...patch };
-                return stored;
-            },
-        } as unknown as OrganizationSettingsModel;
-        return new OrganizationSettingsService({
-            lightdashConfig: lightdashConfigMock,
-            organizationSettingsModel,
-        });
-    };
-
-    it('is on for an organization that has never changed it', async () => {
-        const service = buildStatefulService();
-
-        const settings = await service.getOrganizationSettings(account);
-
-        expect(settings.dataAppAutomaticThumbnailsEnabled).toBe(true);
-    });
-
-    it('lets an organization manager turn it off and back on', async () => {
-        const service = buildStatefulService();
-
-        await service.updateOrganizationSettings(account, {
-            dataAppAutomaticThumbnailsEnabled: false,
-        });
-        expect(
-            (await service.getOrganizationSettings(account))
-                .dataAppAutomaticThumbnailsEnabled,
-        ).toBe(false);
-
-        await service.updateOrganizationSettings(account, {
-            dataAppAutomaticThumbnailsEnabled: true,
-        });
-        expect(
-            (await service.getOrganizationSettings(account))
-                .dataAppAutomaticThumbnailsEnabled,
-        ).toBe(true);
-    });
-
-    it('refuses a change from a user who cannot manage the organization', async () => {
-        const service = buildStatefulService();
-
-        await expect(
-            service.updateOrganizationSettings(member, {
-                dataAppAutomaticThumbnailsEnabled: false,
-            }),
-        ).rejects.toThrow(ForbiddenError);
-        expect(
-            (await service.getOrganizationSettings(account))
-                .dataAppAutomaticThumbnailsEnabled,
-        ).toBe(true);
-    });
-});
-
 describe('OrganizationSettingsService — data app captures', () => {
     const buildStatefulService = (capturesEnabledOnInstance = true) => {
         let stored: UpdateOrganizationSettings = {};
@@ -243,7 +170,7 @@ describe('OrganizationSettingsService — data app captures', () => {
         expect(settings.dataAppCapturesEnabled).toBe(true);
     });
 
-    it('turns automatic thumbnails off with it, and restores them when turned back on', async () => {
+    it('lets an organization turn it off and back on', async () => {
         const service = buildStatefulService();
 
         await service.updateOrganizationSettings(account, {
@@ -251,14 +178,12 @@ describe('OrganizationSettingsService — data app captures', () => {
         });
         let settings = await service.getOrganizationSettings(account);
         expect(settings.dataAppCapturesEnabled).toBe(false);
-        expect(settings.dataAppAutomaticThumbnailsEnabled).toBe(false);
 
         await service.updateOrganizationSettings(account, {
             dataAppCapturesEnabled: true,
         });
         settings = await service.getOrganizationSettings(account);
         expect(settings.dataAppCapturesEnabled).toBe(true);
-        expect(settings.dataAppAutomaticThumbnailsEnabled).toBe(true);
     });
 
     it('stays off when the instance env turns captures off, whatever the org sets', async () => {
@@ -266,12 +191,10 @@ describe('OrganizationSettingsService — data app captures', () => {
 
         await service.updateOrganizationSettings(account, {
             dataAppCapturesEnabled: true,
-            dataAppAutomaticThumbnailsEnabled: true,
         });
         const settings = await service.getOrganizationSettings(account);
 
         expect(settings.dataAppCapturesEnabled).toBe(false);
-        expect(settings.dataAppAutomaticThumbnailsEnabled).toBe(false);
     });
 });
 

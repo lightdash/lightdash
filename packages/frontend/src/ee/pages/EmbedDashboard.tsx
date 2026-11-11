@@ -17,12 +17,14 @@ const EmbedDashboardPage: FC<{
     isEditMode?: boolean;
     onEditModeChange?: (isEditMode: boolean) => void;
     chartSaveDestinations?: ChartSaveDestination[];
+    refreshKey?: number;
 }> = ({
     containerStyles,
     initialDashboard,
     isEditMode,
     onEditModeChange,
     chartSaveDestinations,
+    refreshKey,
 }) => {
     const projectUuidFromParams = useProjectUuid();
     const { health } = useApp();
@@ -65,6 +67,7 @@ const EmbedDashboardPage: FC<{
                     isEditMode={isEditMode}
                     onEditModeChange={onEditModeChange}
                     chartSaveDestinations={chartSaveDestinations}
+                    refreshKey={refreshKey}
                 />
             </TileQueryQueueProvider>
         </DashboardProvider>

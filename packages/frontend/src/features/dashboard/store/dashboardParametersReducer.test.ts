@@ -47,6 +47,33 @@ describe('dashboardParametersReducer', () => {
             });
         });
 
+        it('follows a saved change for values the viewer did not set', () => {
+            const state = stateWith({
+                savedParameters: {
+                    status: { parameterName: 'status', value: 'Shipped' },
+                    region: { parameterName: 'region', value: 'EU' },
+                    removed: { parameterName: 'removed', value: 'x' },
+                },
+                parameters: {
+                    status: { parameterName: 'status', value: 'Shipped' },
+                    region: { parameterName: 'region', value: 'US' },
+                    removed: { parameterName: 'removed', value: 'x' },
+                },
+                parameterPicks: { region: 'US' },
+            });
+            const next = reducer(
+                state,
+                actions.setSavedParameters({
+                    status: { parameterName: 'status', value: 'Returned' },
+                    region: { parameterName: 'region', value: 'APAC' },
+                }),
+            );
+            expect(next.parameters).toEqual({
+                status: { parameterName: 'status', value: 'Returned' },
+                region: { parameterName: 'region', value: 'US' },
+            });
+        });
+
         it('replaces staged values with the saved object in edit mode', () => {
             const state = stateWith({
                 isEditMode: true,
@@ -475,6 +502,106 @@ describe('dashboardParametersReducer', () => {
             expect(next.tileChartSavedParameters).toEqual({});
         });
 
+        it('keepTileParameterState drops removed tiles failed listings', () => {
+            const next = reducer(
+                stateWith({
+                    tileFailedParameterSources: {
+                        'tile-1': 'chart-1',
+                        'tile-2': 'chart-2',
+                    },
+                }),
+                actions.keepTileParameterState(['tile-1']),
+            );
+            expect(next.tileFailedParameterSources).toEqual({
+                'tile-1': 'chart-1',
+            });
+        });
+
+        it("drops a tile's parameter state when its source changes, and only then", () => {
+            const reported = [
+                actions.addParameterReferences({
+                    tileUuid: 'tile-1',
+                    references: ['region'],
+                }),
+                actions.setTileChartSavedParameters({
+                    tileUuid: 'tile-1',
+                    values: { region: 'EU' },
+                }),
+                actions.markParameterReferencesFailed({ 'tile-1': 'chart-1' }),
+            ].reduce(reducer, stateWith());
+            const recorded = reducer(
+                reported,
+                actions.resetChangedTileParameterSources({
+                    'tile-1': 'chart-1',
+                }),
+            );
+            expect(recorded.tileParameterReferences).toEqual({
+                'tile-1': ['region'],
+            });
+            expect(
+                reducer(
+                    recorded,
+                    actions.resetChangedTileParameterSources({
+                        'tile-1': 'chart-1',
+                    }),
+                ),
+            ).toBe(recorded);
+            const swapped = reducer(
+                recorded,
+                actions.resetChangedTileParameterSources({
+                    'tile-1': 'chart-2',
+                }),
+            );
+            expect(swapped.tileParameterReferences).toEqual({});
+            expect(swapped.tileQueryParameterReferences).toEqual({});
+            expect(swapped.tileChartSavedParameters).toEqual({});
+            expect(swapped.tileFailedParameterSources).toEqual({});
+            expect(swapped.tileParameterStateSources).toEqual({
+                'tile-1': 'chart-2',
+            });
+        });
+
+        it("keeps a tile's own report when a late listing fails", () => {
+            const next = [
+                actions.addParameterReferences({
+                    tileUuid: 'tile-1',
+                    references: ['status'],
+                }),
+                actions.markParameterReferencesFailed({ 'tile-1': 'chart-2' }),
+            ].reduce(
+                reducer,
+                stateWith({
+                    tileListedParameterSources: { 'tile-1': 'chart-1' },
+                }),
+            );
+            expect(next.tileParameterReferences).toEqual({
+                'tile-1': ['status'],
+            });
+        });
+
+        it('clears a failed listing once the tile is listed', () => {
+            const failed = reducer(
+                stateWith(),
+                actions.markParameterReferencesFailed({
+                    'tile-1': 'chart-1',
+                    'tile-2': 'chart-2',
+                }),
+            );
+            const next = reducer(
+                failed,
+                actions.addDiscoveredParameterReferences({
+                    references: { 'tile-1': ['region'] },
+                    definitions: {},
+                    sources: { 'tile-1': 'chart-1' },
+                    chartSavedValues: { 'tile-1': {} },
+                    virtualViewSavedValues: { 'tile-1': {} },
+                }),
+            );
+            expect(next.tileFailedParameterSources).toEqual({
+                'tile-2': 'chart-2',
+            });
+        });
+
         it('keepTileParameterState returns the same state when nothing is dropped', () => {
             const state = stateWith({
                 tileParameterReferences: { 'tile-1': ['status'] },
@@ -486,6 +613,91 @@ describe('dashboardParametersReducer', () => {
                     actions.keepTileParameterState(['tile-1', 'tile-2']),
                 ),
             ).toBe(state);
+        });
+    });
+
+    describe('listed saved values', () => {
+        const listing = (
+            chartSavedValues: Record<string, Record<string, string>>,
+            source = 'chart-1',
+        ) =>
+            actions.addDiscoveredParameterReferences({
+                references: { 'tile-1': ['region'] },
+                definitions: {},
+                sources: { 'tile-1': source },
+                chartSavedValues,
+                virtualViewSavedValues: { 'tile-1': { week: 'listed' } },
+            });
+        const tileReport = [
+            actions.setTileChartSavedParameters({
+                tileUuid: 'tile-1',
+                values: { region: 'own' },
+            }),
+            actions.setTileVirtualViewSavedParameters({
+                tileUuid: 'tile-1',
+                values: { week: 'own' },
+            }),
+        ];
+
+        it('seeds the saved values of tiles that have not reported', () => {
+            const next = reducer(
+                stateWith(),
+                listing({ 'tile-1': { region: 'listed' } }),
+            );
+            expect(next.tileChartSavedParameters).toEqual({
+                'tile-1': { region: 'listed' },
+            });
+            expect(next.tileVirtualViewSavedParameters).toEqual({
+                'tile-1': { week: 'listed' },
+            });
+        });
+
+        it.each([
+            ['the listing first', true],
+            ['the tile first', false],
+        ])("keeps the tile's own values with %s", (_order, listingFirst) => {
+            const listed = listing({ 'tile-1': { region: 'listed' } });
+            const next = (
+                listingFirst ? [listed, ...tileReport] : [...tileReport, listed]
+            ).reduce(reducer, stateWith());
+            expect(next.tileChartSavedParameters['tile-1']).toEqual({
+                region: 'own',
+            });
+            expect(next.tileVirtualViewSavedParameters['tile-1']).toEqual({
+                week: 'own',
+            });
+        });
+
+        it('replaces the values when the tile points at another chart', () => {
+            const next = [
+                actions.resetChangedTileParameterSources({
+                    'tile-1': 'chart-1',
+                }),
+                listing({ 'tile-1': { region: 'listed' } }),
+                ...tileReport,
+                actions.resetChangedTileParameterSources({
+                    'tile-1': 'chart-2',
+                }),
+                listing({ 'tile-1': { region: 'other' } }, 'chart-2'),
+            ].reduce(reducer, stateWith());
+            expect(next.tileChartSavedParameters['tile-1']).toEqual({
+                region: 'other',
+            });
+        });
+
+        it('seeds nothing for a tile left out of the listing', () => {
+            const next = reducer(
+                stateWith(),
+                actions.addDiscoveredParameterReferences({
+                    references: {},
+                    definitions: {},
+                    sources: {},
+                    chartSavedValues: {},
+                    virtualViewSavedValues: {},
+                }),
+            );
+            expect(next.tileChartSavedParameters).toEqual({});
+            expect(next.tileVirtualViewSavedParameters).toEqual({});
         });
     });
 
@@ -513,6 +725,33 @@ describe('dashboardParametersReducer', () => {
             expect(next.parameterControls).toEqual(list);
             expect(next.areParameterControlsSaved).toBe(true);
             expect(next.haveParameterControlsChanged).toBe(false);
+        });
+
+        it('records the synced ids as saved, and keeps them through an edit', () => {
+            const synced = reducer(
+                stateWith(),
+                actions.syncParameterControls({
+                    controls: filledList({ region: 'a' }),
+                    isSaved: false,
+                }),
+            );
+            expect(synced.savedParameterControlIds).toEqual(['a']);
+            const edited = reducer(
+                synced,
+                actions.setParameterControls(
+                    filledList({ region: 'a', currency: 'b' }),
+                ),
+            );
+            expect(edited.savedParameterControlIds).toEqual(['a']);
+            // Saved and synced again with the same list: the new id counts as saved
+            const resynced = reducer(
+                reducer(edited, actions.setHaveParameterControlsChanged(false)),
+                actions.syncParameterControls({
+                    controls: filledList({ region: 'a', currency: 'b' }),
+                    isSaved: true,
+                }),
+            );
+            expect(resynced.savedParameterControlIds).toEqual(['a', 'b']);
         });
 
         it('keeps the ids of filled controls when the list is refilled', () => {

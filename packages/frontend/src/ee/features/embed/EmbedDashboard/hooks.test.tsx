@@ -3,7 +3,11 @@ import { renderHook, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
 import { beforeEach, vi, type Mock } from 'vitest';
 import { createQueryClient } from '../../../../providers/ReactQuery/createQueryClient';
-import { useEmbedDashboard, useEmbedSavedParameters } from './hooks';
+import {
+    useEmbedDashboard,
+    useEmbedDashboardRefreshKey,
+    useEmbedSavedParameters,
+} from './hooks';
 
 vi.mock('./api', () => ({
     postEmbedDashboard: vi.fn(),
@@ -36,10 +40,11 @@ const dashboard = { name: 'My dashboard', tiles: [], tabs: [] };
 
 // Uses the production QueryClient defaults so the test exercises the same
 // retry policy the app ships with.
-function createWrapper() {
-    const queryClient = createQueryClient({
+function createWrapper(
+    queryClient = createQueryClient({
         queries: { retryDelay: () => 0 },
-    });
+    }),
+) {
     return ({ children }: PropsWithChildren) => (
         <QueryClientProvider client={queryClient}>
             {children}
@@ -131,5 +136,89 @@ describe('useEmbedSavedParameters', () => {
         renderHook(() => useEmbedSavedParameters(undefined));
 
         expect(setSavedParameters).not.toHaveBeenCalled();
+    });
+});
+
+describe('useEmbedDashboardRefreshKey', () => {
+    beforeEach(() => {
+        vi.resetAllMocks();
+        mockPostEmbedDashboard.mockResolvedValue(dashboard);
+    });
+
+    const renderRefreshableDashboard = (
+        initialProps: {
+            refreshKey: number | undefined;
+            isEditMode: boolean;
+        },
+        queryClient = createQueryClient({
+            queries: { retryDelay: () => 0 },
+        }),
+    ) =>
+        renderHook(
+            ({ refreshKey, isEditMode }) => {
+                useEmbedDashboardRefreshKey(refreshKey, isEditMode);
+                return useEmbedDashboard('project-uuid');
+            },
+            { wrapper: createWrapper(queryClient), initialProps },
+        );
+
+    it('refetches the dashboard when the refresh key changes', async () => {
+        const { result, rerender } = renderRefreshableDashboard({
+            refreshKey: undefined,
+            isEditMode: false,
+        });
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+        expect(mockPostEmbedDashboard).toHaveBeenCalledTimes(1);
+
+        rerender({ refreshKey: 1, isEditMode: false });
+
+        await waitFor(() =>
+            expect(mockPostEmbedDashboard).toHaveBeenCalledTimes(2),
+        );
+    });
+
+    it('invalidates saved SQL chart definitions', async () => {
+        const queryClient = createQueryClient();
+        const sqlChartKey = ['savedSqlChart', 'chart', 'embed', 'tile'];
+        queryClient.setQueryData(sqlChartKey, { lastUpdatedAt: 'old' });
+        const { result, rerender } = renderRefreshableDashboard(
+            { refreshKey: 0, isEditMode: false },
+            queryClient,
+        );
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+        rerender({ refreshKey: 1, isEditMode: false });
+
+        expect(queryClient.getQueryState(sqlChartKey)?.isInvalidated).toBe(
+            true,
+        );
+    });
+
+    it('does not refetch on rerenders with the same key', async () => {
+        const { result, rerender } = renderRefreshableDashboard({
+            refreshKey: 1,
+            isEditMode: false,
+        });
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+        rerender({ refreshKey: 1, isEditMode: false });
+
+        expect(mockPostEmbedDashboard).toHaveBeenCalledTimes(1);
+    });
+
+    it('waits for edit mode to end before refetching', async () => {
+        const { result, rerender } = renderRefreshableDashboard({
+            refreshKey: 0,
+            isEditMode: true,
+        });
+        await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+        rerender({ refreshKey: 1, isEditMode: true });
+        expect(mockPostEmbedDashboard).toHaveBeenCalledTimes(1);
+
+        rerender({ refreshKey: 1, isEditMode: false });
+        await waitFor(() =>
+            expect(mockPostEmbedDashboard).toHaveBeenCalledTimes(2),
+        );
     });
 });

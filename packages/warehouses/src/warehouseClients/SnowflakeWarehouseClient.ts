@@ -22,7 +22,6 @@ import {
     type WarehouseExecuteAsyncQuery,
     type WarehouseExecuteAsyncQueryArgs,
 } from '@lightdash/common';
-import * as crypto from 'crypto';
 import {
     Column,
     configure,
@@ -41,6 +40,10 @@ import {
     processPromisesInBatches,
 } from '../utils/processPromisesInBatches';
 import { normalizeUnicode } from '../utils/sql';
+import {
+    normalizeSnowflakePrivateKey,
+    SnowflakePrivateKeyError,
+} from './snowflakePrivateKey';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
@@ -1011,19 +1014,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     private async getConnectionOptions(
         connectionOptionsOverrides?: Partial<ConnectionOptions>,
     ): Promise<ConnectionOptions> {
-        let privateKey: string | undefined;
-        if (this.privateKey && this.privateKeyPassphrase) {
-            privateKey = crypto
-                .createPrivateKey({
-                    key: this.privateKey,
-                    format: 'pem',
-                    passphrase: this.privateKeyPassphrase,
-                })
-                .export({ format: 'pem', type: 'pkcs8' })
-                .toString();
-        } else {
-            privateKey = this.privateKey;
-        }
+        const privateKey = this.privateKey
+            ? normalizeSnowflakePrivateKey(
+                  this.privateKey,
+                  this.privateKeyPassphrase,
+              )
+            : undefined;
 
         return {
             ...this.connectionOptions,
@@ -1084,18 +1080,17 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     ): Promise<Connection> {
         let connection: Connection;
         try {
-            connection = createConnection({
-                ...(await this.getConnectionOptions(
-                    connectionOptionsOverrides,
-                )),
-            });
+            connection = createConnection(
+                await this.getConnectionOptions(connectionOptionsOverrides),
+            );
 
             await Util.promisify(connection.connect.bind(connection))();
         } catch (e: unknown) {
             const error = new WarehouseConnectionError(
                 `Snowflake error: ${getErrorMessage(e)}`,
             );
-            if (this.agentJobControls) error.cause = e;
+            if (this.agentJobControls || e instanceof SnowflakePrivateKeyError)
+                error.cause = e;
             throw error;
         }
         return connection;

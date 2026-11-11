@@ -5,24 +5,27 @@ _group_ (that is `requiredGroupId`).
 
 ## Saved shape
 
-- `DashboardConfig.controlSections`: `{ id, name, collapsed?, inline? }[]` in
-  display order. Absent `collapsed` means the size rule
-  (`isCollapsedByDefault`). `inline: true` puts a section on the previous
-  section's line; it is read only while no order is stored.
+- `DashboardConfig.controlSections`: `{ id, name, collapsed? }[]` in display
+  order. Absent `collapsed` means the size rule (`isCollapsedByDefault`).
+  Line placement lives only in `controlOrder`; a save drops the `inline` that
+  earlier versions stored.
 - `DashboardConfig.controlOrder`: every control of every kind in bar order,
   `newLine: true` where one starts a line. Absent or `[]` means no order: the
   bar is the same as main.
 - Membership lives on the control (`DashboardFilterRule.sectionId`,
-  `DateZoomControl.sectionId`, `DashboardConfig.parameterSections`). A
+  `DashboardParameterControl.sectionId`, `DateZoomControl.sectionId`). A
   `sectionId` with no matching section counts as unsectioned.
 - These keys must survive every rewrite: the dimension and metric overrides,
   `adoptPlaceholder`, and `buildDashboardConfig`.
+- Dashboard files never hold section ids: see "Dashboard files (as code)" in
+  `../AGENTS.md`.
 
 ## Rules
 
 - **An order is stored only after a reorder.** That means a drag, a keyboard
-  move, or any section change (by drag, the editor's Section setting, or the
-  selection bar). Every other edit keeps what is stored, which may be none.
+  move, any section change (by drag, the editor's Section setting, or the
+  selection bar), or adding a section after the first. Every other edit keeps
+  what is stored, which may be none.
   The save (`getControlsToSave`) writes the full reconciled list, never `[]`,
   and sorts each kind's array to follow it. A flag-off save carries the
   stored order forward.
@@ -42,8 +45,9 @@ _group_ (that is `requiredGroupId`).
 ## Bar layout
 
 - No stored order: "Add filter", unsectioned pills, one capsule per section
-  on its own line unless `inline`, then "New section" (edit mode). A new
-  section after the first is added `inline`.
+  on its own line, then "New section" (edit mode). Adding a section after the
+  first stores the bar's order with the new section last and no `newLine`,
+  so it joins the line of the section before it (`addControlSection`).
 - "New section" and a new section's name input end the last line once a
   section exists, where the new section lands; the first is named on the
   line below the filters.
@@ -60,6 +64,9 @@ _group_ (that is `requiredGroupId`).
 - One `DndContext` in `SectionedFilters`. The pill itself is the handle
   (PointerSensor, 5px), so a click still opens the editor. Nothing drags
   while a filter is edited.
+- A section drags from anywhere on its capsule except its pills (their own
+  drag) and its trailing "+" and "..." (`data-section-actions`). A click on
+  the chevron still folds and on the name still renames.
 - **A pointer drag drops at the insertion point nearest the pointer**
   (`chooseInsertionPoint` in `insertionPoints.ts`, over `measureBar`'s rects).
   What the drop line shows is where the control lands; there is never more

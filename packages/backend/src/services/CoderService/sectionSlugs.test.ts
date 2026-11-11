@@ -2,14 +2,17 @@ import {
     FilterOperator,
     type DashboardAsCode,
     type DashboardConfig,
+    type DashboardControlSection,
 } from '@lightdash/common';
 import { validate, version } from 'uuid';
 import {
     getDashboardWithSectionIds,
     getDashboardWithSectionSlugs,
+    type DashboardWithSectionIds,
 } from './sectionSlugs';
 
-const dashboard = (): DashboardAsCode => ({
+// As stored: `inline` and `parameterSections` are earlier keys nothing reads
+const dashboard = (): DashboardWithSectionIds => ({
     name: 'Currency comparison',
     slug: 'currency-comparison',
     spaceSlug: 'jaffle-shop',
@@ -24,9 +27,8 @@ const dashboard = (): DashboardAsCode => ({
                 name: 'Currency comparison',
                 collapsed: true,
                 inline: true,
-            },
+            } as DashboardControlSection,
         ],
-        parameterSections: { currency: 'old-id' },
         parameterControls: [
             {
                 slug: 'currency',
@@ -82,6 +84,17 @@ const dashboard = (): DashboardAsCode => ({
     },
 });
 
+const savedConfig = (input: DashboardWithSectionIds) =>
+    input.config as DashboardConfig;
+
+// Every key a file never holds, wherever it sits
+const removedKeys = (file: DashboardAsCode) => {
+    const json = JSON.stringify(file);
+    return ['"sectionId"', '"inline"', '"parameterSections"', '"id":"old-id"']
+        .filter((key) => json.includes(key))
+        .sort();
+};
+
 describe('dashboard section slugs', () => {
     it('downloads readable slugs and converts every section reference', () => {
         const portable = getDashboardWithSectionSlugs(dashboard());
@@ -90,14 +103,12 @@ describe('dashboard section slugs', () => {
                 slug: 'currency-comparison',
                 name: 'Currency comparison',
                 collapsed: true,
-                inline: true,
             },
         ]);
         for (const rules of Object.values(portable.filters ?? {})) {
             expect(rules?.[0]).toMatchObject({
                 sectionSlug: 'currency-comparison',
             });
-            expect(rules?.[0].sectionId).toBeUndefined();
         }
         expect(portable.config?.parameterControls?.[0]).toMatchObject({
             sectionSlug: 'currency-comparison',
@@ -105,10 +116,7 @@ describe('dashboard section slugs', () => {
         expect(portable.config?.dateZoomConfig?.controls[0]).toMatchObject({
             sectionSlug: 'currency-comparison',
         });
-        expect(portable.config?.parameterSectionSlugs).toEqual({
-            currency: 'currency-comparison',
-        });
-        expect(portable.config?.parameterSections).toBeUndefined();
+        expect(removedKeys(portable)).toEqual([]);
     });
 
     it('restores the id of a uniquely named section through reuploads and stores no slug', () => {
@@ -116,14 +124,13 @@ describe('dashboard section slugs', () => {
         const portable = getDashboardWithSectionSlugs(original);
         const restored = getDashboardWithSectionIds(
             portable,
-            original.config as DashboardConfig,
+            savedConfig(original),
             true,
         );
         expect(restored.config?.controlSections?.[0]).toEqual({
             id: 'old-id',
             name: 'Currency comparison',
             collapsed: true,
-            inline: true,
         });
         expect(restored.filters?.dimensions?.[0].sectionId).toBe('old-id');
         expect(restored.config?.parameterControls?.[0].sectionId).toBe(
@@ -132,10 +139,58 @@ describe('dashboard section slugs', () => {
         expect(restored.config?.dateZoomConfig?.controls[0].sectionId).toBe(
             'old-id',
         );
-        expect(restored.config?.parameterSections).toEqual({
-            currency: 'old-id',
-        });
         expect(getDashboardWithSectionSlugs(restored)).toEqual(portable);
+    });
+
+    it.each([true, false])(
+        'drops removed fields from an uploaded file (flag on: %s)',
+        (controlsEnabled) => {
+            const file = {
+                ...getDashboardWithSectionSlugs(dashboard()),
+            } as DashboardAsCode;
+            file.config = {
+                ...file.config!,
+                controlSections: [
+                    {
+                        ...file.config!.controlSections![0],
+                        id: 'old-id',
+                        inline: true,
+                    } as DashboardControlSection,
+                ],
+                parameterSections: { 'old-id': ['currency'] },
+                parameterSectionSlugs: { currency: 'x' },
+            } as DashboardAsCode['config'];
+            const restored = JSON.stringify(
+                getDashboardWithSectionIds(
+                    file,
+                    savedConfig(dashboard()),
+                    controlsEnabled,
+                ),
+            );
+            expect(
+                [
+                    '"inline"',
+                    '"parameterSections"',
+                    '"parameterSectionSlugs"',
+                ].filter((key) => restored.includes(key)),
+            ).toEqual([]);
+        },
+    );
+
+    it('derives the slug of a section written without one from its name', () => {
+        const portable = getDashboardWithSectionSlugs(dashboard());
+        const { slug: _slug, ...section } =
+            portable.config!.controlSections![0];
+        const restored = getDashboardWithSectionIds(
+            {
+                ...portable,
+                config: { ...portable.config!, controlSections: [section] },
+            },
+            savedConfig(dashboard()),
+            true,
+        );
+        expect(restored.config!.controlSections![0].id).toBe('old-id');
+        expect(restored.filters?.dimensions?.[0].sectionId).toBe('old-id');
     });
 
     it('mints a new id for a section renamed in the file, even when it keeps the old slug', () => {
@@ -144,7 +199,7 @@ describe('dashboard section slugs', () => {
         portable.config!.controlSections![0].name = 'Renamed';
         const restored = getDashboardWithSectionIds(
             portable,
-            original.config as DashboardConfig,
+            savedConfig(original),
             true,
         );
         const { id } = restored.config!.controlSections![0];
@@ -164,7 +219,7 @@ describe('dashboard section slugs', () => {
         ];
         const ids = getDashboardWithSectionIds(
             getDashboardWithSectionSlugs(original),
-            original.config as DashboardConfig,
+            savedConfig(original),
             true,
         ).config!.controlSections!.map(({ id }) => id);
         expect(ids).not.toContain('a');
@@ -207,34 +262,6 @@ describe('dashboard section slugs', () => {
         expect(section.id).not.toMatch(/^[ab]$/);
     });
 
-    it('round-trips legacy uploads and keeps the legacy id when a legacy client renames a section', () => {
-        const original = dashboard();
-        const saved = getDashboardWithSectionIds(
-            getDashboardWithSectionSlugs(original),
-            original.config as DashboardConfig,
-            true,
-        );
-        const legacy = dashboard();
-        legacy.config!.controlSections![0].name = 'Legacy rename';
-        const restored = getDashboardWithSectionIds(
-            legacy,
-            {
-                isDateZoomDisabled: false,
-                controlSections: saved.config!.controlSections,
-            },
-            true,
-        );
-        expect(restored.config!.controlSections![0]).toMatchObject({
-            id: 'old-id',
-            name: 'Legacy rename',
-        });
-        expect(restored.config!.controlSections![0]).not.toHaveProperty('slug');
-        expect(restored.filters).toEqual(legacy.filters);
-        expect(restored.config!.parameterSections).toEqual(
-            legacy.config!.parameterSections,
-        );
-    });
-
     it('resolves portable references against target identities rather than source identities', () => {
         const portable = getDashboardWithSectionSlugs(dashboard());
         const target = {
@@ -253,31 +280,10 @@ describe('dashboard section slugs', () => {
         expect(restored.config!.parameterControls![0].sectionId).toBe(
             'target-id',
         );
-        expect(restored.config!.parameterSections).toEqual({
-            currency: 'target-id',
-        });
         expect(getDashboardWithSectionSlugs(restored)).toEqual(portable);
     });
 
-    it.each(['constructor', '__proto__'])(
-        'round-trips a section assignment for parameter %s',
-        (key) => {
-            const original = dashboard();
-            original.config!.parameterSections = Object.fromEntries([
-                [key, 'old-id'],
-            ]);
-            const restored = getDashboardWithSectionIds(
-                getDashboardWithSectionSlugs(original),
-                original.config as DashboardConfig,
-                true,
-            );
-            expect(restored.config!.parameterSections).toEqual(
-                Object.fromEntries([[key, 'old-id']]),
-            );
-        },
-    );
-
-    it('mints UUID v4 identities for new sections and accepts legacy IDs', () => {
+    it('mints UUID v4 identities for new sections', () => {
         const fresh = getDashboardWithSectionIds(
             getDashboardWithSectionSlugs(dashboard()),
             undefined,
@@ -287,10 +293,6 @@ describe('dashboard section slugs', () => {
         expect(validate(id)).toBe(true);
         expect(version(id)).toBe(4);
         expect(fresh.filters?.dimensions?.[0].sectionId).toBe(id);
-        expect(
-            getDashboardWithSectionIds(dashboard(), undefined, true).config
-                ?.controlSections?.[0].id,
-        ).toBe('old-id');
     });
 
     it('derives unique slugs and ignores a stored slug', () => {
@@ -321,7 +323,7 @@ describe('dashboard section slugs', () => {
         // Both fall back to one base, so neither keeps its id
         const ids = getDashboardWithSectionIds(
             portable,
-            input.config as DashboardConfig,
+            savedConfig(input),
             true,
         ).config!.controlSections!.map(({ id }) => id);
         expect(ids).not.toContain('empty');
@@ -329,7 +331,7 @@ describe('dashboard section slugs', () => {
         expect(new Set(ids).size).toBe(2);
     });
 
-    it('rejects duplicate slugs, duplicate IDs, invalid slugs, and unknown references', () => {
+    it('rejects duplicate slugs, invalid slugs, and unknown references', () => {
         const portable = getDashboardWithSectionSlugs(dashboard());
         const section = portable.config!.controlSections![0];
         expect(() =>
@@ -344,7 +346,9 @@ describe('dashboard section slugs', () => {
                 undefined,
                 true,
             ),
-        ).toThrow(/duplicated/);
+        ).toThrow(
+            'Dashboard section slug "currency-comparison" is used by sections 1 ("Currency comparison") and 2 ("Currency comparison") in config.controlSections; give each a unique slug',
+        );
         expect(() =>
             getDashboardWithSectionIds(
                 {
@@ -357,33 +361,30 @@ describe('dashboard section slugs', () => {
                 undefined,
                 true,
             ),
-        ).toThrow(/Invalid.*slug/);
-        const legacy = dashboard();
-        legacy.config!.controlSections!.push({ id: 'old-id', name: 'Other' });
-        expect(() =>
-            getDashboardWithSectionIds(legacy, undefined, true),
-        ).toThrow(/duplicated/);
+        ).toThrow(
+            'Invalid dashboard section slug "BAD"; use lowercase letters and digits, with single hyphens between them',
+        );
         portable.config!.parameterControls![0].sectionSlug = 'unknown';
         expect(() =>
             getDashboardWithSectionIds(portable, undefined, true),
-        ).toThrow(/Unknown.*section/);
-    });
-
-    it('rejects conflicting legacy and portable references', () => {
-        const portable = getDashboardWithSectionSlugs(dashboard());
-        portable.config!.controlSections!.push({
-            id: 'other-id',
-            slug: 'other',
-            name: 'Other',
-        });
-        portable.config!.parameterControls![0].sectionId = 'other-id';
+        ).toThrow(
+            'Unknown dashboard section slug "unknown". Valid section slugs are currency-comparison',
+        );
+        const { controlSections: _sections, ...withoutSections } =
+            portable.config!;
         expect(() =>
-            getDashboardWithSectionIds(portable, undefined, true),
-        ).toThrow(/conflict/i);
+            getDashboardWithSectionIds(
+                { ...portable, config: withoutSections },
+                undefined,
+                true,
+            ),
+        ).toThrow(
+            'Unknown dashboard section slug "currency-comparison". Valid section slugs are none; add the section under config.controlSections',
+        );
     });
 
-    it('leaves dashboards without sections unchanged and drops dangling legacy references on download', () => {
-        const plain: DashboardAsCode = {
+    it('leaves dashboards without sections unchanged and drops dangling references on download', () => {
+        const plain: DashboardWithSectionIds = {
             name: 'Empty',
             slug: 'empty',
             spaceSlug: 'space',
@@ -397,19 +398,72 @@ describe('dashboard section slugs', () => {
         );
         const input = dashboard();
         input.config!.parameterControls![0].sectionId = 'deleted';
+        const portable = getDashboardWithSectionSlugs(input);
+        expect(portable.config?.parameterControls?.[0]).not.toHaveProperty(
+            'sectionSlug',
+        );
+        expect(portable.config?.parameterControls?.[0]).not.toHaveProperty(
+            'sectionId',
+        );
+        const { controlSections: _sections, ...withoutSections } =
+            input.config!;
         expect(
-            getDashboardWithSectionSlugs(input).config?.parameterControls?.[0]
-                .sectionSlug,
-        ).toBeUndefined();
+            removedKeys(
+                getDashboardWithSectionSlugs({
+                    ...input,
+                    config: withoutSections,
+                }),
+            ),
+        ).toEqual([]);
     });
+
     describe('with the flag off', () => {
+        it('keeps section membership through a download and upload', () => {
+            const original = dashboard();
+            const file = getDashboardWithSectionSlugs(original);
+            expect(removedKeys(file)).toEqual([]);
+            const restored = getDashboardWithSectionIds(
+                file,
+                savedConfig(original),
+                false,
+            );
+            expect(restored.filters?.dimensions?.[0].sectionId).toBe(
+                restored.config?.controlSections?.[0].id,
+            );
+        });
+
+        it('keeps a section id when its stored slug differs from its name', () => {
+            const saved: DashboardConfig = {
+                isDateZoomDisabled: false,
+                controlSections: [
+                    { id: 'old-id', slug: 'revenue', name: 'Sales' },
+                ],
+            };
+            const file = getDashboardWithSectionSlugs({
+                name: 'Dashboard',
+                slug: 'dashboard',
+                spaceSlug: 'space',
+                version: 1,
+                tiles: [],
+                tabs: [],
+                config: {
+                    isDateZoomDisabled: false,
+                    controlSections: saved.controlSections,
+                },
+            });
+            expect(
+                getDashboardWithSectionIds(file, saved, false).config
+                    ?.controlSections?.[0].id,
+            ).toBe('old-id');
+        });
+
         it('matches saved sections by stored slug and persists the slug through a rename', () => {
             const original = dashboard();
             const portable = getDashboardWithSectionSlugs(original);
             portable.config!.controlSections![0].name = 'Renamed';
             const restored = getDashboardWithSectionIds(
                 portable,
-                original.config as DashboardConfig,
+                savedConfig(original),
                 false,
             );
             expect(restored.config?.controlSections?.[0]).toEqual({
@@ -417,37 +471,91 @@ describe('dashboard section slugs', () => {
                 slug: 'currency-comparison',
                 name: 'Renamed',
                 collapsed: true,
-                inline: true,
             });
             expect(restored.filters?.dimensions?.[0].sectionId).toBe('old-id');
-            expect(restored.config?.parameterSections).toEqual({
-                currency: 'old-id',
-            });
         });
 
-        it('keeps the saved slug when a legacy client renames a section', () => {
-            const legacy = dashboard();
-            legacy.config!.controlSections![0].name = 'Legacy rename';
-            const restored = getDashboardWithSectionIds(
-                legacy,
-                {
+        it.each([false, true])(
+            'never gives two sections one saved id (file order reversed: %s)',
+            (reversed) => {
+                const saved: DashboardConfig = {
                     isDateZoomDisabled: false,
                     controlSections: [
-                        {
-                            id: 'old-id',
-                            name: 'Currency comparison',
-                            slug: 'currency-comparison',
-                        },
+                        { id: 'a', slug: 'revenue', name: 'Sales' },
+                        { id: 'b', name: 'Revenue' },
                     ],
-                },
-                false,
-            );
-            expect(restored.config!.controlSections![0]).toMatchObject({
-                id: 'old-id',
-                slug: 'currency-comparison',
-                name: 'Legacy rename',
-            });
-        });
+                };
+                const file = getDashboardWithSectionSlugs({
+                    name: 'Dashboard',
+                    slug: 'dashboard',
+                    spaceSlug: 'space',
+                    version: 1,
+                    tiles: [],
+                    tabs: [],
+                    filters: {
+                        dimensions: [
+                            {
+                                target: { fieldId: 'f', tableName: 't' },
+                                operator: FilterOperator.EQUALS,
+                                label: 'Example',
+                                sectionId: 'b',
+                            },
+                        ],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlSections: saved.controlSections,
+                    },
+                });
+                if (reversed) file.config!.controlSections!.reverse();
+                const restored = getDashboardWithSectionIds(file, saved, false);
+                expect(
+                    restored.config?.controlSections?.map(({ id }) => id),
+                ).toEqual(reversed ? ['b', 'a'] : ['a', 'b']);
+                expect(restored.filters?.dimensions?.[0].sectionId).toBe('b');
+            },
+        );
+
+        it.each([false, true])(
+            'gives a saved section to the file section named after it (file order reversed: %s)',
+            (reversed) => {
+                const file = getDashboardWithSectionSlugs({
+                    name: 'Dashboard',
+                    slug: 'dashboard',
+                    spaceSlug: 'space',
+                    version: 1,
+                    tiles: [],
+                    tabs: [],
+                    config: {
+                        isDateZoomDisabled: false,
+                        controlSections: [
+                            { id: 'x', slug: 'revenue', name: 'New' },
+                            { id: 'y', name: 'Sales' },
+                        ],
+                    },
+                });
+                file.config!.controlSections![0].slug = 'revenue';
+                if (reversed) file.config!.controlSections!.reverse();
+                const sections = getDashboardWithSectionIds(
+                    file,
+                    {
+                        isDateZoomDisabled: false,
+                        controlSections: [
+                            { id: 'a', slug: 'revenue', name: 'Sales' },
+                        ],
+                    },
+                    false,
+                ).config!.controlSections!;
+                expect(sections.find(({ name }) => name === 'Sales')?.id).toBe(
+                    'a',
+                );
+                expect(
+                    sections.find(({ name }) => name === 'New')?.id,
+                ).not.toBe('a');
+            },
+        );
 
         it('matches a saved section by its stored slug, not its name', () => {
             const portable = getDashboardWithSectionSlugs(dashboard());
@@ -470,19 +578,6 @@ describe('dashboard section slugs', () => {
                 id: 'by-slug',
                 slug: 'currency-comparison',
             });
-        });
-
-        it('rejects a slug that matches a saved section with another id', () => {
-            const original = dashboard();
-            const portable = getDashboardWithSectionSlugs(original);
-            portable.config!.controlSections![0].id = 'other-id';
-            expect(() =>
-                getDashboardWithSectionIds(
-                    portable,
-                    original.config as DashboardConfig,
-                    false,
-                ),
-            ).toThrow('conflicts with id "other-id"');
         });
     });
 });

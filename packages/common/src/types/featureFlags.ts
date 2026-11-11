@@ -75,28 +75,6 @@ export enum FeatureFlags {
     AiAccessSkipResultsCache = 'ai-access-skip-results-cache',
 
     /**
-     * Per-organization rollout of AI analysis in data apps (detect anomalies,
-     * investigate with an agent). Gates the endpoints and the admin toggle;
-     * the org's `dataAppRuntimeAiEnabled` setting is the separate customer
-     * consent. Disabled by default.
-     */
-    EnableDataAppAnalysis = 'enable-data-app-analysis',
-
-    /**
-     * Per-organization rollout of AI analysis on classic dashboards. Gates the
-     * dashboard analysis endpoints and entry points; shares the org's
-     * `dataAppRuntimeAiEnabled` consent setting and daily analysis budgets
-     * with data-app analysis. Disabled by default.
-     */
-    EnableDashboardAnalysis = 'enable-dashboard-analysis',
-
-    /**
-     * Per-organization gate for automatic (obscured) data app thumbnail
-     * capture and its settings card. Disabled by default.
-     */
-    EnableDataAppAutomaticThumbnails = 'enable-data-app-automatic-thumbnails',
-
-    /**
      * Per-user / per-organization gate for the data app state store
      * (`useAppState` / `useSharedAppState` in the SDK and its endpoints).
      * Resolves user override, then organization, then instance default.

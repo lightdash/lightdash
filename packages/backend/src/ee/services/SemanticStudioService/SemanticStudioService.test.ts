@@ -303,6 +303,10 @@ const setup = ({
                 columnTimezone: 'UTC',
                 dataTimezone: null,
             }),
+            getWarehouseTables: async () => ({}),
+            describeWarehouseTable: async () => {
+                throw new Error('no catalog in these tests');
+            },
             compileQuery,
             runSqlQuery,
             setExplores,

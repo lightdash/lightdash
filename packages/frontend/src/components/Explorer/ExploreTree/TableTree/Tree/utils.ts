@@ -54,6 +54,7 @@ const createNodeWithGroup = (
     isLegacyInterval: boolean,
     orderFieldsBy: OrderFieldsByStrategy,
     itemsMap: Record<string, NodeItem>,
+    groupByKey: boolean,
 ): NodeMap => {
     if (groups.length === 0) {
         return {
@@ -68,10 +69,11 @@ const createNodeWithGroup = (
     };
 
     const groupLabel = groupDefinition.label;
+    const groupKey = groupByKey ? JSON.stringify(['group', head]) : groupLabel;
 
     // Create or retrieve the group node
     const existingGroupNode: NodeMap[string] | undefined =
-        existingNode[groupLabel];
+        existingNode[groupKey];
 
     // Handle collision: if a field exists with the same key as the group label,
     // skip grouping and add the item at the current level instead
@@ -88,7 +90,7 @@ const createNodeWithGroup = (
     const groupNode =
         existingGroupNode ||
         ({
-            key: groupLabel,
+            key: groupKey,
             label: groupLabel,
             description: groupDefinition.description ?? '',
             children: {},
@@ -110,6 +112,7 @@ const createNodeWithGroup = (
                   isLegacyInterval,
                   orderFieldsBy,
                   itemsMap,
+                  groupByKey,
               );
 
     // Sort children according to orderFieldsBy strategy
@@ -135,7 +138,7 @@ const createNodeWithGroup = (
     // Return updated node map with the updated group
     return {
         ...existingNode,
-        [groupLabel]: updatedGroupNode,
+        [groupKey]: updatedGroupNode,
     };
 };
 
@@ -143,6 +146,7 @@ export const getNodeMapFromItemsMap = (
     itemsMap: Record<string, NodeItem>,
     groupDetails: Record<string, GroupType> = {},
     orderFieldsBy: OrderFieldsByStrategy = OrderFieldsByStrategy.LABEL,
+    options: { groupByKey?: boolean; fieldOrder?: Map<string, number> } = {},
 ): NodeMap => {
     const filteredItems = Object.entries(itemsMap).filter(([, item]) =>
         isVisibleInTree(item),
@@ -155,12 +159,17 @@ export const getNodeMapFromItemsMap = (
             ? {
                   key: itemId,
                   label: item.name,
-                  index: Number.MAX_SAFE_INTEGER,
+                  index:
+                      options.fieldOrder?.get(itemId) ??
+                      Number.MAX_SAFE_INTEGER,
               }
             : {
                   key: itemId,
                   label: item.label || item.name,
-                  index: item.index ?? Number.MAX_SAFE_INTEGER,
+                  index:
+                      options.fieldOrder?.get(itemId) ??
+                      item.index ??
+                      Number.MAX_SAFE_INTEGER,
               };
 
         // For non-field items, simply add to the root
@@ -215,6 +224,7 @@ export const getNodeMapFromItemsMap = (
             isLegacyInterval,
             orderFieldsBy,
             itemsMap,
+            options.groupByKey ?? false,
         );
     }, {});
 };

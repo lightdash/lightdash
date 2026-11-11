@@ -317,7 +317,12 @@ import {
     type ApiLearnWorkspaceFileResponse,
     type ApiLearnWorkspaceFilesResponse,
 } from './learnSandbox';
-import type { LinearInstallation, LinearProject, LinearTeam } from './linear';
+import type {
+    LinearInstallation,
+    LinearInstallUrl,
+    LinearProject,
+    LinearTeam,
+} from './linear';
 import {
     type ApiCompiledMergeQueryResults,
     type MergeFieldOrigins,
@@ -1590,6 +1595,7 @@ type ApiResults =
     | Array<JiraProject>
     | Array<JiraIssueType>
     | LinearInstallation
+    | LinearInstallUrl
     | Array<LinearTeam>
     | Array<LinearProject>
     | CiChecks

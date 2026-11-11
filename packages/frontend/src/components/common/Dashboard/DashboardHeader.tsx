@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import {
     Badge,
+    ActionBar,
     ActionIcon,
     Box,
     Button,
@@ -71,6 +72,11 @@ import {
 import DashboardAsCodeModal from '../../../features/contentAsCode/components/DashboardAsCodeModal';
 import ProjectContentAsCodeUploadModal from '../../../features/contentAsCode/components/ProjectContentAsCodeUploadModal';
 import { useCanUploadContentAsCode } from '../../../features/contentAsCode/hooks/useCanUploadContentAsCode';
+import { type PendingChange } from '../../../features/dashboard/pendingChanges/getPendingChanges';
+import {
+    EditFiltersVisibilityControl,
+    type EditFiltersVisibility,
+} from '../../../features/dashboardFilters/EditFiltersVisibilityControl';
 import {
     DirectAccessModal,
     useCanManageDirectAccess,
@@ -123,12 +129,23 @@ import ShareShortLinkButton from '../ShareShortLinkButton';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
+import { CanvasZoomControls } from './CanvasZoomControls';
 import headerClasses from './DashboardHeader.module.css';
 import { DashboardPerformanceWarning } from './DashboardPerformanceWarning';
 import DashboardPreAggRefreshModal from './DashboardPreAggRefreshModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
+import { PendingChangesButton } from './PendingChangesButton';
 import { PreAggregateAuditDrawer } from './PreAggregateAuditIndicator';
+import { TidyTilesButton } from './TidyTilesButton';
+import { TileLayoutHistoryButtons } from './TileLayoutHistoryButtons';
 import { useDashboardManageAccess } from './useDashboardManageAccess';
+
+// The dashboard controls' floating bars sit this far from the bottom too
+const EDIT_BAR_POSITION = {
+    bottom: 'md',
+    left: 0,
+    right: 0,
+};
 
 type DashboardHeaderProps = {
     dashboard: Dashboard;
@@ -164,6 +181,11 @@ type DashboardHeaderProps = {
     isFitToScreen: boolean;
     isFitToScreenAvailable: boolean;
     onToggleFitToScreen: () => void;
+    // null when the control is not offered
+    editFiltersVisibility: EditFiltersVisibility | null;
+    // Changes to settings tracked by a flag only; null hides the changes count
+    pendingSettingsChanges: PendingChange[] | null;
+    onEditFiltersVisibilityChange: (value: EditFiltersVisibility) => void;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
     onEditClicked: () => void;
     className?: string;
@@ -190,6 +212,7 @@ const DashboardHeader = memo(
         onNewChart,
         onCancel,
         onSaveDashboard,
+        pendingSettingsChanges,
         onDelete,
         onDuplicate,
         onMoveToSpace,
@@ -198,6 +221,8 @@ const DashboardHeader = memo(
         isFitToScreen,
         isFitToScreenAvailable,
         onToggleFitToScreen,
+        editFiltersVisibility,
+        onEditFiltersVisibilityChange,
         setAddingTab,
         onEditClicked,
         className,
@@ -374,10 +399,12 @@ const DashboardHeader = memo(
         const { data: dashboardControlsFlag } = useServerFeatureFlag(
             FeatureFlags.DashboardControls,
         );
+        // The unsaved changes status next to Save replaces the badge
         const showEditingBadge =
             isEditMode &&
             userCanManageDashboard &&
-            dashboardControlsFlag?.enabled === true;
+            dashboardControlsFlag?.enabled === true &&
+            pendingSettingsChanges === null;
         const canEditDashboard =
             canAuthorDashboard && !isEditMode && !isFullscreen;
         const userCanDeleteDashboard =
@@ -714,16 +741,50 @@ const DashboardHeader = memo(
                             dashboardTabs={dashboardTabs}
                         />
 
-                        <AddTileButton
-                            onAddTiles={onAddTiles}
-                            disabled={isSaving}
-                            setAddingTab={setAddingTab}
-                            activeTabUuid={activeTabUuid}
-                            dashboardTabs={dashboardTabs}
-                            onNewChart={onNewChart}
-                            radius="md"
-                        />
+                        {editFiltersVisibility === null ? (
+                            <AddTileButton
+                                onAddTiles={onAddTiles}
+                                disabled={isSaving}
+                                setAddingTab={setAddingTab}
+                                activeTabUuid={activeTabUuid}
+                                dashboardTabs={dashboardTabs}
+                                onNewChart={onNewChart}
+                                radius="md"
+                            />
+                        ) : (
+                            <ActionBar
+                                opened
+                                shadow="md"
+                                aria-label="Dashboard editing tools"
+                                position={EDIT_BAR_POSITION}
+                                className={headerClasses.editBar}
+                            >
+                                <TileLayoutHistoryButtons />
+                                <ActionBar.Divider />
+                                <AddTileButton
+                                    onAddTiles={onAddTiles}
+                                    disabled={isSaving}
+                                    setAddingTab={setAddingTab}
+                                    activeTabUuid={activeTabUuid}
+                                    dashboardTabs={dashboardTabs}
+                                    onNewChart={onNewChart}
+                                    radius="md"
+                                />
+                                <TidyTilesButton />
+                                <ActionBar.Divider />
+                                <CanvasZoomControls />
+                                <EditFiltersVisibilityControl
+                                    value={editFiltersVisibility}
+                                    onChange={onEditFiltersVisibilityChange}
+                                />
+                            </ActionBar>
+                        )}
 
+                        {pendingSettingsChanges !== null && (
+                            <PendingChangesButton
+                                settingsChanges={pendingSettingsChanges}
+                            />
+                        )}
                         <Tooltip
                             fz="xs"
                             position="bottom"

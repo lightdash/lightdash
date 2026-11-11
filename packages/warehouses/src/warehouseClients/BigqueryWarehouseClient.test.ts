@@ -1298,6 +1298,135 @@ describe('BigqueryWarehouseClient key file credentials', () => {
     });
 });
 
+describe('BigqueryWarehouseClient Google Drive access', () => {
+    const DRIVE_READONLY_SCOPE =
+        'https://www.googleapis.com/auth/drive.readonly';
+
+    const serviceAccountKeyfile = {
+        type: 'service_account',
+        client_email: 'robot@example.iam.gserviceaccount.com',
+        private_key: 'private-key',
+    };
+    const userKeyfile = {
+        type: 'authorized_user',
+        client_id: 'client-id',
+        client_secret: 'client-secret',
+        refresh_token: 'refresh-token',
+    };
+
+    const getScopes = (warehouse: BigqueryWarehouseClient) =>
+        (warehouse.client.authClient as unknown as { scopes: string[] }).scopes;
+
+    it.each([
+        BigqueryAuthenticationType.PRIVATE_KEY,
+        BigqueryAuthenticationType.SSO,
+        undefined,
+    ])(
+        'requests BigQuery and Drive read scopes for a service account key (%s)',
+        async (authenticationType) => {
+            const warehouse = new BigqueryWarehouseClient({
+                ...credentials,
+                authenticationType,
+                keyfileContents: serviceAccountKeyfile,
+            });
+            expect(getScopes(warehouse)).toEqual([
+                'https://www.googleapis.com/auth/bigquery',
+                DRIVE_READONLY_SCOPE,
+            ]);
+            const client = await warehouse.client.authClient.getClient();
+            expect((client as unknown as { scopes: string[] }).scopes).toEqual(
+                getScopes(warehouse),
+            );
+        },
+    );
+
+    it('requests the Drive read scope for ADC', () => {
+        const warehouse = new BigqueryWarehouseClient({
+            ...credentials,
+            authenticationType: BigqueryAuthenticationType.ADC,
+        });
+        expect(getScopes(warehouse)).toContain(DRIVE_READONLY_SCOPE);
+    });
+
+    it('requests the Drive read scope for workload identity federation', () => {
+        const warehouse = new BigqueryWarehouseClient(
+            {
+                ...credentials,
+                authenticationType:
+                    BigqueryAuthenticationType.WORKLOAD_IDENTITY_FEDERATION,
+                keyfileContents: {},
+            },
+            {
+                bigqueryExternalAccount: {
+                    type: 'external_account',
+                    audience: 'audience',
+                    subject_token_type: 'urn:ietf:params:oauth:token-type:jwt',
+                    token_url: 'https://sts.googleapis.com/v1/token',
+                    subject_token_supplier: {
+                        getSubjectToken: async () => 'token',
+                    },
+                },
+            },
+        );
+        expect(getScopes(warehouse)).toContain(DRIVE_READONLY_SCOPE);
+    });
+
+    it.each([
+        BigqueryAuthenticationType.SSO,
+        BigqueryAuthenticationType.PRIVATE_KEY,
+    ])(
+        'does not request extra scopes for user OAuth credentials (%s)',
+        (authenticationType) => {
+            const warehouse = new BigqueryWarehouseClient({
+                ...credentials,
+                authenticationType,
+                keyfileContents: userKeyfile,
+            });
+            expect(getScopes(warehouse)).toEqual([
+                'https://www.googleapis.com/auth/bigquery',
+            ]);
+        },
+    );
+
+    const driveError = {
+        reason: 'accessDenied',
+        message:
+            'Access Denied: BigQuery BigQuery: Permission denied while getting Drive credentials.',
+    };
+
+    it('tells service account connections to share the Drive file', () => {
+        const warehouse = new BigqueryWarehouseClient({
+            ...credentials,
+            keyfileContents: serviceAccountKeyfile,
+        });
+        expect(warehouse.parseError(driveError).message).toBe(
+            `${driveError.message} Share the Google Drive file with the account used by this connection.`,
+        );
+    });
+
+    it('tells user OAuth connections to use a service account', () => {
+        const warehouse = new BigqueryWarehouseClient({
+            ...credentials,
+            authenticationType: BigqueryAuthenticationType.SSO,
+            keyfileContents: userKeyfile,
+        });
+        expect(warehouse.parseError(driveError).message).toBe(
+            `${driveError.message} Tables backed by Google Drive files need a service account connection that the file is shared with.`,
+        );
+    });
+
+    it('keeps other access denied messages unchanged', () => {
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        expect(
+            warehouse.parseError({
+                reason: 'accessDenied',
+                message:
+                    'Access Denied: Table x: User does not have permission',
+            }).message,
+        ).toBe('Access Denied: Table x: User does not have permission');
+    });
+});
+
 describe('BigQuery agent job options', () => {
     const callerTags: (Record<string, string> | undefined)[] = [
         undefined,
