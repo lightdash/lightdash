@@ -9,6 +9,7 @@ import {
     assertGithubInstallationResolved,
     getGithubCloneHostDomain,
     getGithubToken,
+    GITHUB_APP_HOST_MISMATCH_MESSAGE,
     GITHUB_APP_NOT_INSTALLED_MESSAGE,
 } from './githubAuthorization';
 
@@ -130,16 +131,24 @@ describe('assertGithubInstallationResolved', () => {
 });
 
 describe('getGithubCloneHostDomain', () => {
-    test('pins github.com for a GitHub App connection, ignoring the configured host', () => {
-        // Installation tokens are minted by github.com and only valid there;
-        // a connection-configured host must never receive them.
+    test('targets github.com for a GitHub App connection', () => {
+        expect(getGithubCloneHostDomain(oauthConnection)).toBe('github.com');
         expect(
             getGithubCloneHostDomain({
                 ...oauthConnection,
-                host_domain: 'attacker.example',
+                host_domain: 'GitHub.com.',
             }),
         ).toBe('github.com');
-        expect(getGithubCloneHostDomain(oauthConnection)).toBe('github.com');
+    });
+
+    test('rejects a GitHub App connection configured with another host', () => {
+        // Installation tokens are minted by github.com and only valid there.
+        expect(() =>
+            getGithubCloneHostDomain({
+                ...oauthConnection,
+                host_domain: 'github.acme.com',
+            }),
+        ).toThrow(GITHUB_APP_HOST_MISMATCH_MESSAGE);
     });
 
     test('keeps the configured host for a PAT connection (GitHub Enterprise)', () => {

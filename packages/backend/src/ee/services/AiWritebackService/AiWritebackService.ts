@@ -1207,10 +1207,8 @@ export class AiWritebackService extends BaseService {
         const { hostDomain } = connection;
         // The GitLab client is split on host format: makeGitlabRequest-based
         // reads (createGitlabRepoSource) take a BARE domain and prepend https,
-        // while getGitlabProjects takes a FULL instance URL. Derive both from
-        // the connection's host_domain so gitlab.com and self-hosted both work.
-        const bareHost = hostDomain.replace(/^https?:\/\//, '');
-        const instanceUrl = `https://${bareHost}`;
+        // while getGitlabProjects takes a FULL instance URL.
+        const instanceUrl = `https://${hostDomain}`;
         const projectRepoKeys = await this.getConfiguredRepositoryKeys(
             projectUuid,
             project,
@@ -1265,7 +1263,7 @@ export class AiWritebackService extends BaseService {
 
         return {
             token,
-            hostDomain: bareHost,
+            hostDomain,
             listRepos: async () => [...(await loadRepoMap()).values()],
             resolveRepoAccess: async (owner, repo) => {
                 const entry = (await loadRepoMap()).get(`${owner}/${repo}`);
