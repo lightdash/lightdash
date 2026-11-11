@@ -10616,6 +10616,8 @@ Node kinds:
 
 A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: aggregate in the referenced node itself.
 
+A duckdb node that only reshapes another duckdb node's result (adds a column, filters, renames, re-sorts) belongs in that node's SQL: write one duckdb node over the original's references, under a new node id if the original is from an earlier call. Each duckdb step waits for the one it reads.
+
 A python node's "code" defines \`def run(inputs, params)\`, and semanticLayer "filters" are flat expression strings; each field documents its contract.
 
 Reuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in "references", submitting only the new nodes. Reused nodes bring everything they read and are served from cache when possible. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.
