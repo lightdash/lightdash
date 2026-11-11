@@ -32,6 +32,7 @@ const submitArgs = (
     account,
     projectUuid,
     context: QueryExecutionContext.AI,
+    submission: [],
     query,
     resolvedReferences,
     parameters: {},

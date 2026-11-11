@@ -677,3 +677,122 @@ describe('semanticLayer node parameters', () => {
         ).toBe(true);
     });
 });
+
+describe('composer merge nodes', () => {
+    const mergeNode = {
+        sourceType: QuerySourceType.MERGE,
+        nodeId: 'revenue_per_session',
+        title: 'Revenue per session',
+        description: 'Joins weekly revenue and sessions on the week.',
+        sources: [
+            { nodeId: 'weekly_revenue' },
+            { nodeId: 'weekly_sessions', repeatValues: true },
+        ],
+        joinKey: [
+            {
+                name: 'week',
+                fields: [
+                    {
+                        nodeId: 'weekly_revenue',
+                        fieldId: 'orders_order_date_week',
+                    },
+                    {
+                        nodeId: 'weekly_sessions',
+                        fieldId: 'sessions_session_date_week',
+                    },
+                ],
+            },
+        ],
+        joinType: 'left',
+        tableCalculations: [
+            {
+                name: 'revenue_per_session',
+                displayName: 'Revenue per session',
+                formula:
+                    'weekly_revenue_orders_total_revenue / weekly_sessions_sessions_count',
+                format: 'percent',
+            },
+        ],
+        sorts: [{ fieldId: 'merge_week', descending: false }],
+    };
+    const args = {
+        title: null,
+        description: null,
+        terminalNodeId: null,
+        queries: [mergeNode],
+    };
+
+    it('describes when to prefer a merge node', () => {
+        expect(
+            getToolComposerQueriesDescription({ enablePythonNodes: false }),
+        ).toContain('Prefer it to a duckdb join of semanticLayer nodes.');
+    });
+
+    it('requires at least two sources', () => {
+        expect(
+            toolComposerQueriesArgsSchema.safeParse({
+                ...args,
+                queries: [{ ...mergeNode, sources: [mergeNode.sources[0]] }],
+            }).success,
+        ).toBe(false);
+    });
+
+    it('converts to a merge source query in the merge vocabulary', () => {
+        const [node] = toolComposerQueriesArgsSchema.parse(args).queries;
+        if (node.sourceType !== QuerySourceType.MERGE) {
+            throw new Error('expected a merge node');
+        }
+        expect(toolComposerQueryNodeToSourceQuery(node)).toEqual({
+            sourceType: QuerySourceType.MERGE,
+            nodeId: 'revenue_per_session',
+            title: 'Revenue per session',
+            description: 'Joins weekly revenue and sessions on the week.',
+            sources: [
+                { nodeId: 'weekly_revenue' },
+                { nodeId: 'weekly_sessions', repeatValues: true },
+            ],
+            joinKey: [
+                {
+                    name: 'week',
+                    fieldIdBySourceId: {
+                        weekly_revenue: 'orders_order_date_week',
+                        weekly_sessions: 'sessions_session_date_week',
+                    },
+                },
+            ],
+            joinType: 'left',
+            tableCalculations: [
+                {
+                    name: 'revenue_per_session',
+                    displayName: 'Revenue per session',
+                    sql: '',
+                    formula:
+                        '=weekly_revenue_orders_total_revenue / weekly_sessions_sessions_count',
+                    format: { type: 'percent', separator: 'default' },
+                },
+            ],
+            sorts: [{ fieldId: 'merge_week', descending: false }],
+            limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+        });
+    });
+
+    it('renders a partially streamed merge node with its sources', () => {
+        expect(
+            parsePartialToolComposerQueriesArgs({
+                queries: [
+                    {
+                        sourceType: QuerySourceType.MERGE,
+                        nodeId: 'revenue_per_session',
+                        sources: [{ nodeId: 'weekly_revenue' }, {}],
+                    },
+                ],
+            })?.queries,
+        ).toEqual([
+            expect.objectContaining({
+                sourceType: QuerySourceType.MERGE,
+                nodeId: 'revenue_per_session',
+                sources: [{ nodeId: 'weekly_revenue', repeatValues: null }],
+            }),
+        ]);
+    });
+});

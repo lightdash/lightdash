@@ -171,28 +171,44 @@ export const getMergeSourceLabels = ({
     );
 
 /**
- * A leg that came back at the row cap may have had more rows behind it, and
- * the join cannot tell because the leg ran with its limit already at that
- * cap. Refuse on the leg's own row count instead, naming the source to
- * narrow. Known only once the leg has run, so it lands as the merged
- * query's error rather than a pre-execution refusal. An unknown row count
- * is not evidence, so it never refuses.
+ * A leg that came back at the row cap, or at a lower limit of its own, may
+ * have had more rows behind it, and the join cannot tell. Refuse on the
+ * leg's own row count instead, naming the source to narrow. Known only once
+ * the leg has run, so it lands as the merged query's error rather than a
+ * pre-execution refusal. An unknown row count is not evidence, so it never
+ * refuses.
  */
 export const getMergeRowCapError = ({
     legs,
     sourceRowCap,
 }: {
-    legs: Array<{ label: string; rowCount: number | null }>;
+    legs: Array<{
+        label: string;
+        rowCount: number | null;
+        /** The limit the leg ran with; null when it ran at the cap. */
+        limit: number | null;
+    }>;
     sourceRowCap: number;
 }): string | null => {
-    const capped = legs
-        .filter(({ rowCount }) => rowCount !== null && rowCount >= sourceRowCap)
-        .map(({ label }) => label);
+    const capped = legs.flatMap(({ label, rowCount, limit }) => {
+        const cap = Math.min(sourceRowCap, limit ?? sourceRowCap);
+        return rowCount !== null && rowCount >= cap ? [{ label, cap }] : [];
+    });
     if (capped.length === 0) return null;
+    const atOwnLimit = capped.filter(({ cap }) => cap < sourceRowCap);
+    if (atOwnLimit.length > 0) {
+        return atOwnLimit
+            .map(
+                ({ label, cap }) =>
+                    `${label} returned its limit of ${cap} rows, so the merged results would be missing data. Raise the limit of ${label} or narrow it, then merge again.`,
+            )
+            .join(' ');
+    }
+    const labels = capped.map(({ label }) => label);
     const consequence = `returned the maximum of ${sourceRowCap} rows, so the merged results would be missing data.`;
-    return capped.length === 1
-        ? `${capped[0]} ${consequence} Add a filter to ${capped[0]}, then merge again.`
-        : `${capped.join(' and ')} each ${consequence} Add a filter to each, then merge again.`;
+    return labels.length === 1
+        ? `${labels[0]} ${consequence} Add a filter to ${labels[0]}, then merge again.`
+        : `${labels.join(' and ')} each ${consequence} Add a filter to each, then merge again.`;
 };
 
 // A result that filled its own limit may hold more rows behind it; a missing limit or count is not evidence.
@@ -227,6 +243,7 @@ export const buildMergeRowCapGuard =
                 ([tableName, label]) => ({
                     label,
                     rowCount: completed[tableName]?.totalRowCount ?? null,
+                    limit: completed[tableName]?.metricQuery?.limit ?? null,
                 }),
             ),
             sourceRowCap,

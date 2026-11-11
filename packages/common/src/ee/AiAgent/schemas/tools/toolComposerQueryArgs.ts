@@ -1,6 +1,15 @@
 import { z } from 'zod';
-import { DimensionType, MetricType } from '../../../../types/field';
+import {
+    CustomFormatType,
+    DimensionType,
+    MetricType,
+    NumberSeparator,
+} from '../../../../types/field';
 import { type Filters } from '../../../../types/filter';
+import {
+    MergeJoinType,
+    type MergeTableCalculation,
+} from '../../../../types/mergeQuery';
 import {
     type AdditionalMetric,
     type MetricQueryRequest,
@@ -13,6 +22,7 @@ import {
     type ApiSourceQuery,
     type DuckdbSourceQuery,
     type ExternalSourceQuery,
+    type MergeSourceQuery,
     type PythonSourceQuery,
     type QueryNodeId,
     type SemanticLayerSourceQuery,
@@ -25,6 +35,7 @@ import {
     filterExpressionsSchema,
 } from '../filterExpressions/expressionSchemas';
 import { structuredToolOutputSchema } from '../outputMetadata';
+import { withLeadingEquals } from '../tableCalcs/tableCalcFormula';
 import { createToolSchema } from '../toolSchemaBuilder';
 import {
     appliedParametersSchema,
@@ -92,6 +103,7 @@ const getComposerNodeKindsDescription = ({
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
 - "sql": raw SQL against the project warehouse; ${sqlNote}.
 - "external": DuckDB SQL over uploaded or connected tables declared in "tables".
+- "merge": joins semanticLayer nodes on dimensions they share at the same grain, without SQL. Its columns keep each governed field's label, format and description, and it refuses a join that would count a metric twice. Prefer it to a duckdb join of semanticLayer nodes.
 - "duckdb": DuckDB SQL over other results declared in "references".${
     enablePythonNodes
         ? `
@@ -371,6 +383,103 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         limit: limitSchema,
     });
 
+    const mergeNodeSchema = z.object({
+        sourceType: z.literal(QuerySourceType.MERGE),
+        nodeId: nodeIdSchema,
+        ...nodeMetaSchema,
+        sources: z
+            .array(
+                z.object({
+                    nodeId: referencedNodeIdSchema.describe(
+                        'A semanticLayer node of this call or of the thread.',
+                    ),
+                    repeatValues: z
+                        .boolean()
+                        .nullish()
+                        .default(null)
+                        .describe(
+                            "true repeats this node's values on every row of the one source that keeps a dimension outside the join key, e.g. a monthly target beside daily sales. Every source but that one sets it. null otherwise.",
+                        ),
+                }),
+            )
+            .min(2)
+            .describe(
+                "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects exactly its join-key dimensions plus metrics, and returns fewer rows than its limit: a node cut off at its limit is refused.",
+            ),
+        joinKey: z
+            .array(
+                z.object({
+                    name: z
+                        .string()
+                        .regex(
+                            /^[a-z][a-z0-9_]*$/,
+                            'Join key names use lowercase snake_case',
+                        )
+                        .describe(
+                            'snake_case name of the shared key column, which the result calls merge_<name>.',
+                        ),
+                    fields: z
+                        .array(
+                            z.object({
+                                nodeId: referencedNodeIdSchema,
+                                fieldId: z
+                                    .string()
+                                    .describe('A dimension that node selects.'),
+                            }),
+                        )
+                        .min(2)
+                        .describe(
+                            'One dimension per source, the same value at the same grain (both a month, both a customer id).',
+                        ),
+                }),
+            )
+            .min(1)
+            .describe('The dimensions the sources share, one entry per key.'),
+        joinType: z
+            .enum(MergeJoinType)
+            .describe(
+                '"full" keeps keys found in any source, "left" keeps the first source\'s keys, "inner" keeps keys found in every source.',
+            ),
+        tableCalculations: z
+            .array(
+                z.object({
+                    name: z
+                        .string()
+                        .regex(
+                            /^[a-z][a-z0-9_]*$/,
+                            'Calculation names use lowercase snake_case',
+                        )
+                        .describe(
+                            'snake_case name; the result calls it merge_<name>.',
+                        ),
+                    displayName: z.string().describe('Column label.'),
+                    formula: z
+                        .string()
+                        .describe(
+                            'Row-wise formula over merged column ids, e.g. `orders_orders_total_revenue / sessions_sessions_count`. Spreadsheet operators and functions; no SQL.',
+                        ),
+                    format: z
+                        .enum(['number', 'percent'])
+                        .nullish()
+                        .default(null)
+                        .describe(
+                            '"percent" for ratios and shares (0.12 shows as 12%); null for a number.',
+                        ),
+                }),
+            )
+            .nullish()
+            .default(null)
+            .describe(
+                "Calculations across the merged sources' columns, such as a ratio of one node's metric to another's. null for none.",
+            ),
+        sorts: z
+            .array(sortFieldSchema)
+            .nullish()
+            .default(null)
+            .describe('Sorts by merged column id. null keeps join-key order.'),
+        limit: limitSchema,
+    });
+
     const externalNodeSchema = z.object({
         sourceType: z.literal(QuerySourceType.EXTERNAL),
         nodeId: nodeIdSchema,
@@ -422,6 +531,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
         sqlNodeSchema,
         duckdbNodeSchema,
         externalNodeSchema,
+        mergeNodeSchema,
     ] as const;
     const sourceQueryNodeSchema = z.discriminatedUnion('sourceType', [
         ...baseNodeSchemas,
@@ -449,7 +559,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
                 .describe(
                     `The nodes to submit, in any order: reads are resolved from ${
                         enablePythonNodes ? 'duckdb and python' : 'duckdb'
-                    } references.`,
+                    } references and merge sources.`,
                 ),
             terminalNodeId: z
                 .string()
@@ -546,7 +656,59 @@ export type SubmittedSourceQuery = (
     | ExternalSourceQuery
     | PythonSourceQuery
     | ApiSourceQuery
+    | MergeSourceQuery
 ) & { nodeId: QueryNodeId };
+
+type ToolComposerMergeNode = Extract<
+    ToolComposerQueryNode,
+    { sourceType: QuerySourceType.MERGE }
+>;
+
+const toMergeTableCalculation = (
+    calculation: NonNullable<
+        ToolComposerMergeNode['tableCalculations']
+    >[number],
+): MergeTableCalculation => ({
+    name: calculation.name,
+    displayName: calculation.displayName,
+    sql: '',
+    formula: withLeadingEquals(calculation.formula),
+    format: {
+        type:
+            calculation.format === 'percent'
+                ? CustomFormatType.PERCENT
+                : CustomFormatType.NUMBER,
+        separator: NumberSeparator.DEFAULT,
+    },
+});
+
+const toolComposerMergeNodeToSourceQuery = (
+    node: ToolComposerMergeNode,
+): MergeSourceQuery & { nodeId: QueryNodeId } => ({
+    sourceType: node.sourceType,
+    nodeId: node.nodeId,
+    ...toSourceQueryNodeMeta(node),
+    sources: node.sources.map(({ nodeId, repeatValues }) => ({
+        nodeId,
+        ...(repeatValues ? { repeatValues: true } : {}),
+    })),
+    joinKey: node.joinKey.map(({ name, fields }) => ({
+        name,
+        fieldIdBySourceId: Object.fromEntries(
+            fields.map(({ nodeId, fieldId }) => [nodeId, fieldId]),
+        ),
+    })),
+    joinType: node.joinType,
+    ...(node.tableCalculations?.length
+        ? {
+              tableCalculations: node.tableCalculations.map(
+                  toMergeTableCalculation,
+              ),
+          }
+        : {}),
+    ...(node.sorts?.length ? { sorts: node.sorts } : {}),
+    limit: node.limit,
+});
 
 export const toolComposerQueryNodeToSourceQuery = (
     node: ResolvedToolComposerQueryNode,
@@ -620,6 +782,8 @@ export const toolComposerQueryNodeToSourceQuery = (
                 payload: node.payload,
                 limit: node.limit,
             };
+        case QuerySourceType.MERGE:
+            return toolComposerMergeNodeToSourceQuery(node);
         default:
             return assertUnreachable(node, 'Unknown composer query node');
     }
@@ -730,6 +894,32 @@ export const parsePartialToolComposerQueriesArgs = (
                         ...meta,
                         code: typeof node.code === 'string' ? node.code : '',
                         references: asReferenceMapOrArray(node.references),
+                        limit: DEFAULT_COMPOSER_QUERY_LIMIT,
+                    },
+                ];
+            case QuerySourceType.MERGE:
+                return [
+                    {
+                        sourceType: QuerySourceType.MERGE,
+                        ...meta,
+                        sources: asStringArray(
+                            Array.isArray(node.sources)
+                                ? node.sources.map((source: unknown) =>
+                                      source &&
+                                      typeof source === 'object' &&
+                                      'nodeId' in source
+                                          ? source.nodeId
+                                          : null,
+                                  )
+                                : [],
+                        ).map((sourceNodeId) => ({
+                            nodeId: sourceNodeId,
+                            repeatValues: null,
+                        })),
+                        joinKey: [],
+                        joinType: MergeJoinType.FULL,
+                        tableCalculations: null,
+                        sorts: null,
                         limit: DEFAULT_COMPOSER_QUERY_LIMIT,
                     },
                 ];

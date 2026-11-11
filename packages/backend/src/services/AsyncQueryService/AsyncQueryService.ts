@@ -542,7 +542,7 @@ import {
 } from './types';
 
 /** A compiled merge that can run: no errors, the join core and full metadata. */
-type RunnableCompiledMergeQuery = ApiCompiledMergeQueryResults & {
+export type RunnableCompiledMergeQuery = ApiCompiledMergeQueryResults & {
     coreSql: string;
     terminalWrapper: NonNullable<
         ApiCompiledMergeQueryResults['terminalWrapper']
@@ -15027,47 +15027,6 @@ export class AsyncQueryService extends ProjectService {
             ]),
         );
 
-        const columnOrder = Object.values(compiledMerge.fieldIdByColumn);
-        const referenceTableBySourceId = Object.fromEntries(
-            mergeQuery.sources.map((source, index) => [
-                source.id,
-                composeMergeReferenceTable(index),
-            ]),
-        );
-
-        // Each reference table binds to a leg node, or to an existing result
-        const references = Object.fromEntries(
-            Object.entries(referenceTableBySourceId).map(
-                ([sourceId, tableName]) => [
-                    tableName,
-                    legReferenceBySourceId[sourceId],
-                ],
-            ),
-        );
-        const labelBySourceId = getMergeSourceLabels({
-            sources: mergeQuery.sources,
-            typedColumns: compiledMerge.typedColumns,
-            itemsMap: compiledMerge.itemsMap,
-        });
-        // Only the legs this merge ran are checked against the cap; a
-        // referenced result's row count is its own query's concern
-        const legLabelByReferenceTable = Object.fromEntries(
-            mergeQuery.sources
-                .filter(isMergeMetricSource)
-                .map((source) => [
-                    referenceTableBySourceId[source.id],
-                    labelBySourceId[source.id],
-                ]),
-        );
-        const originalColumns: ResultColumns = buildComposeMergeOriginalColumns(
-            {
-                typedColumns: compiledMerge.typedColumns,
-                itemsMap: compiledMerge.itemsMap,
-                usedParametersValues: compiledMerge.usedParametersValues,
-                legReferenceBySourceId,
-            },
-        );
-
         const requestParameters: ExecuteAsyncQueryRequestParams = {
             ...(documentQueryContext
                 ? { documentSource: documentQueryContext.reference }
@@ -15078,71 +15037,22 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             pivotConfiguration,
         };
-        // The join node carries the compile's core and its own pivot; the
-        // node composes the pivot stage and terminal wrapper for the engine,
-        // so nothing here knows whether the merge is pivoted
         const joinNodeId = 'merge';
-        const joinNode: DuckdbSourceQuery = {
-            sourceType: QuerySourceType.DUCKDB,
+        const { joinNode, plan } = this.buildMergeJoin({
             nodeId: joinNodeId,
-            sql: compiledMerge.coreSql,
-            references,
-            pivotConfiguration,
-        };
-        const compose: DuckdbQueryPlanComposer = ({
-            warehouseClient,
-            pivotConfiguration: pivot,
-        }) =>
-            new MergeQueryComposer({
-                coreSql: compiledMerge.coreSql,
-                terminalWrapper: compiledMerge.terminalWrapper,
-                itemsMap: compiledMerge.itemsMap,
+            mergeQuery,
+            compiledMerge,
+            legReferenceBySourceId,
+            labelBySourceId: getMergeSourceLabels({
+                sources: mergeQuery.sources,
                 typedColumns: compiledMerge.typedColumns,
-                columnOrder,
-                sorts: compiledMerge.sorts,
-                limit: mergeQuery.limit,
-                parameterReferences: compiledMerge.parameterReferences,
-                usedParametersValues: compiledMerge.usedParametersValues,
-                warehouseClient,
-                pivotConfiguration: pivot,
-            });
-        // A pivot the composer refuses fails here, before any leg runs; the
-        // join node composes again with the same inputs when it executes
-        compose({
-            warehouseClient:
-                this.composeEngineClient.createExecutionWarehouseClient({
-                    storage: 'results',
-                    scope: null,
-                }),
+                itemsMap: compiledMerge.itemsMap,
+            }),
+            requestParameters,
             pivotConfiguration,
-        }).getSql({
-            columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
         });
-        const plan: DuckdbQueryPlan = {
-            columns: {
-                mode: 'supplied',
-                compose,
-                originalColumns,
-                requestParameters,
-            },
-            // A merge calculation is user SQL: it runs on a session that
-            // reaches only the leg files it joins
-            engine: 'scopedToReferencedResults',
-            // Only the legs this merge ran are checked against the cap; a
-            // referenced result's row count is its own query's concern
-            guard: { legLabelByReferenceTable, sourceRowCap },
-            referenceLabels: legLabelByReferenceTable,
-        };
 
-        // A statement that reads files is refused before any leg runs; the
-        // join node checks it again when it submits
-        try {
-            DuckdbWarehouseClient.validateUserSqlFileAccess(
-                compiledMerge.coreSql,
-            );
-        } catch (e) {
-            throw new ParameterError(getErrorMessage(e));
-        }
+        const columnOrder = Object.values(compiledMerge.fieldIdByColumn);
 
         // The DAG submits the legs, then the join with its references
         // rewritten to their queryUuids; the join waits for the legs itself
@@ -15219,6 +15129,225 @@ export class AsyncQueryService extends ProjectService {
             usedParametersValues: compiledMerge.usedParametersValues,
             resolvedTimezone: null,
         };
+    }
+
+    /**
+     * Compiles a composer merge node's merge over its semanticLayer nodes.
+     * A refusal throws with every reason, each naming the node at fault.
+     */
+    async compileComposerMerge({
+        account,
+        projectUuid,
+        nodeId,
+        mergeQuery,
+        parameters,
+        userAttributeOverrides,
+    }: {
+        account: Account;
+        projectUuid: string;
+        nodeId: string;
+        mergeQuery: MergeQuery;
+        parameters: ParametersValuesMap;
+        userAttributeOverrides: UserAttributeValueMap;
+    }): Promise<RunnableCompiledMergeQuery> {
+        const compiled = await this.compileMergeQuery({
+            account,
+            projectUuid,
+            mergeQuery,
+            parameters,
+            userAttributeOverrides,
+        });
+        if (!isRunnableCompiledMergeQuery(compiled)) {
+            throw new ParameterError(
+                `Merge node "${nodeId}" cannot run: ${compiled.errors
+                    .map((error) => error.message)
+                    .join(' ')}`,
+            );
+        }
+        return compiled;
+    }
+
+    /**
+     * Submits a composer merge node's join over legs that are already
+     * submitted: the merge's own semanticLayer nodes, by queryUuid. The
+     * guard refuses a leg that reached its own limit.
+     */
+    async submitComposerMergeJoin({
+        account,
+        projectUuid,
+        context,
+        querySurface,
+        mergeQuery,
+        compiledMerge,
+        legQueryUuidBySourceId,
+        labelBySourceId,
+        parameters,
+        invalidateCache,
+    }: {
+        account: Account;
+        projectUuid: string;
+        context: QueryExecutionContext;
+        querySurface?: QuerySurface;
+        mergeQuery: MergeQuery;
+        compiledMerge: RunnableCompiledMergeQuery;
+        legQueryUuidBySourceId: Record<string, string>;
+        labelBySourceId: Record<string, string>;
+        parameters: ParametersValuesMap;
+        invalidateCache: boolean;
+    }): Promise<{ queryUuid: string }> {
+        const { joinNode, plan } = this.buildMergeJoin({
+            nodeId: 'merge',
+            mergeQuery,
+            compiledMerge,
+            legReferenceBySourceId: legQueryUuidBySourceId,
+            labelBySourceId,
+            requestParameters: {
+                context,
+                invalidateCache,
+                mergeQuery,
+                parameters,
+            },
+            pivotConfiguration: undefined,
+        });
+        return this.executeAsyncDuckdbSourceQuery({
+            account,
+            projectUuid,
+            sql: joinNode.sql,
+            references: joinNode.references as Record<string, string>,
+            context,
+            querySurface,
+            parameters,
+            invalidateCache,
+            plan,
+        });
+    }
+
+    /**
+     * The join of a compiled merge as a duckdb node and its execution plan:
+     * the compile's columns supplied, a session scoped to the legs it reads,
+     * and the guard that refuses a leg cut off at its row limit. Legs are
+     * referenced by node id or queryUuid; the caller submits them.
+     */
+    private buildMergeJoin({
+        nodeId,
+        mergeQuery,
+        compiledMerge,
+        legReferenceBySourceId,
+        labelBySourceId,
+        requestParameters,
+        pivotConfiguration,
+    }: {
+        nodeId: string;
+        mergeQuery: MergeQuery;
+        compiledMerge: RunnableCompiledMergeQuery;
+        legReferenceBySourceId: Record<string, string>;
+        labelBySourceId: Record<string, string>;
+        requestParameters: ExecuteAsyncQueryRequestParams;
+        pivotConfiguration: PivotConfiguration | undefined;
+    }): { joinNode: DuckdbSourceQuery; plan: DuckdbQueryPlan } {
+        const sourceRowCap = this.lightdashConfig.query.maxLimit;
+        const columnOrder = Object.values(compiledMerge.fieldIdByColumn);
+        const referenceTableBySourceId = Object.fromEntries(
+            mergeQuery.sources.map((source, index) => [
+                source.id,
+                composeMergeReferenceTable(index),
+            ]),
+        );
+
+        // Each reference table binds to a leg node, or to an existing result
+        const references = Object.fromEntries(
+            Object.entries(referenceTableBySourceId).map(
+                ([sourceId, tableName]) => [
+                    tableName,
+                    legReferenceBySourceId[sourceId],
+                ],
+            ),
+        );
+        // Only the legs this merge ran are checked against the cap; a
+        // referenced result's row count is its own query's concern
+        const legLabelByReferenceTable = Object.fromEntries(
+            mergeQuery.sources
+                .filter(isMergeMetricSource)
+                .map((source) => [
+                    referenceTableBySourceId[source.id],
+                    labelBySourceId[source.id],
+                ]),
+        );
+        const originalColumns: ResultColumns = buildComposeMergeOriginalColumns(
+            {
+                typedColumns: compiledMerge.typedColumns,
+                itemsMap: compiledMerge.itemsMap,
+                usedParametersValues: compiledMerge.usedParametersValues,
+                legReferenceBySourceId,
+            },
+        );
+
+        // The join node carries the compile's core and its own pivot; the
+        // node composes the pivot stage and terminal wrapper for the engine,
+        // so nothing here knows whether the merge is pivoted
+        const joinNode: DuckdbSourceQuery = {
+            sourceType: QuerySourceType.DUCKDB,
+            nodeId,
+            sql: compiledMerge.coreSql,
+            references,
+            pivotConfiguration,
+        };
+        const compose: DuckdbQueryPlanComposer = ({
+            warehouseClient,
+            pivotConfiguration: pivot,
+        }) =>
+            new MergeQueryComposer({
+                coreSql: compiledMerge.coreSql,
+                terminalWrapper: compiledMerge.terminalWrapper,
+                itemsMap: compiledMerge.itemsMap,
+                typedColumns: compiledMerge.typedColumns,
+                columnOrder,
+                sorts: compiledMerge.sorts,
+                limit: mergeQuery.limit,
+                parameterReferences: compiledMerge.parameterReferences,
+                usedParametersValues: compiledMerge.usedParametersValues,
+                warehouseClient,
+                pivotConfiguration: pivot,
+            });
+        // A pivot the composer refuses fails here, before any leg runs; the
+        // join node composes again with the same inputs when it executes
+        compose({
+            warehouseClient:
+                this.composeEngineClient.createExecutionWarehouseClient({
+                    storage: 'results',
+                    scope: null,
+                }),
+            pivotConfiguration,
+        }).getSql({
+            columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+        });
+        const plan: DuckdbQueryPlan = {
+            columns: {
+                mode: 'supplied',
+                compose,
+                originalColumns,
+                requestParameters,
+            },
+            // A merge calculation is user SQL: it runs on a session that
+            // reaches only the leg files it joins
+            engine: 'scopedToReferencedResults',
+            // Only the legs this merge ran are checked against the cap; a
+            // referenced result's row count is its own query's concern
+            guard: { legLabelByReferenceTable, sourceRowCap },
+            referenceLabels: legLabelByReferenceTable,
+        };
+
+        // A statement that reads files is refused before any leg runs; the
+        // join node checks it again when it submits
+        try {
+            DuckdbWarehouseClient.validateUserSqlFileAccess(
+                compiledMerge.coreSql,
+            );
+        } catch (e) {
+            throw new ParameterError(getErrorMessage(e));
+        }
+
+        return { joinNode, plan };
     }
 
     /**

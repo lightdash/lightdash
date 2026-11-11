@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     QuerySourceType,
     type ToolComposerQueriesArgs,
     type ToolComposerQueryNode,
@@ -15,6 +16,7 @@ import {
 } from '@mantine/core';
 import {
     IconApi,
+    IconArrowsJoin,
     IconBrandPython,
     IconChevronRight,
     IconDatabase,
@@ -124,6 +126,18 @@ const getNodePresentation = (
         }
         case QuerySourceType.API:
             return LIVE_SOURCE_PRESENTATION;
+        case QuerySourceType.MERGE:
+            return {
+                icon: IconArrowsJoin,
+                badge: 'Merge',
+                detail: readsDetail(
+                    node.sources.map(
+                        ({ nodeId }) => titlesByNodeId[nodeId] ?? nodeId,
+                    ),
+                ),
+            } as const;
+        default:
+            return assertUnreachable(node, 'Unknown composer node');
     }
 };
 
@@ -191,6 +205,7 @@ const NodeBody: FC<{ node: ToolComposerQueryNode }> = ({ node }) => {
             </Box>
         );
     }
+    if (node.sourceType === QuerySourceType.MERGE) return null;
     if (!canViewSql || !node.sql) return null;
     return (
         <ToolCallSqlBlock

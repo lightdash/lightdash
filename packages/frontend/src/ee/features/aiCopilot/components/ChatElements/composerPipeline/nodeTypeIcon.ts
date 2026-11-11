@@ -6,6 +6,7 @@ import {
 import {
     createReactComponent,
     IconApi,
+    IconArrowsJoin,
     IconBrandPython,
     IconDatabase,
     IconFileSpreadsheet,
@@ -34,6 +35,8 @@ export const nodeTypeIcon = (query: SourceQuery) => {
             return IconApi;
         case QuerySourceType.DUCKDB:
             return IconDuckdb;
+        case QuerySourceType.MERGE:
+            return IconArrowsJoin;
         default:
             return assertUnreachable(query, 'Unknown source type');
     }

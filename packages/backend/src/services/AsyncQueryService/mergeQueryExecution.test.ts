@@ -265,8 +265,8 @@ describe('getMergeRowCapError', () => {
         expect(
             getMergeRowCapError({
                 legs: [
-                    { label: 'Orders', rowCount: 500 },
-                    { label: 'Payments', rowCount: 12 },
+                    { label: 'Orders', rowCount: 500, limit: null },
+                    { label: 'Payments', rowCount: 12, limit: null },
                 ],
                 sourceRowCap: 500,
             }),
@@ -279,8 +279,8 @@ describe('getMergeRowCapError', () => {
         expect(
             getMergeRowCapError({
                 legs: [
-                    { label: 'Orders', rowCount: 500 },
-                    { label: 'Payments', rowCount: 501 },
+                    { label: 'Orders', rowCount: 500, limit: null },
+                    { label: 'Payments', rowCount: 501, limit: null },
                 ],
                 sourceRowCap: 500,
             }),
@@ -293,18 +293,32 @@ describe('getMergeRowCapError', () => {
         expect(
             getMergeRowCapError({
                 legs: [
-                    { label: 'Orders', rowCount: 499 },
-                    { label: 'Payments', rowCount: 0 },
+                    { label: 'Orders', rowCount: 499, limit: null },
+                    { label: 'Payments', rowCount: 0, limit: null },
                 ],
                 sourceRowCap: 500,
             }),
         ).toBeNull();
     });
 
+    test('refuses a leg that reached its own lower limit', () => {
+        expect(
+            getMergeRowCapError({
+                legs: [
+                    { label: 'Orders', rowCount: 500, limit: 500 },
+                    { label: 'Payments', rowCount: 900, limit: 1000 },
+                ],
+                sourceRowCap: 5000,
+            }),
+        ).toBe(
+            'Orders returned its limit of 500 rows, so the merged results would be missing data. Raise the limit of Orders or narrow it, then merge again.',
+        );
+    });
+
     test('allows a source whose row count is unknown', () => {
         expect(
             getMergeRowCapError({
-                legs: [{ label: 'Orders', rowCount: null }],
+                legs: [{ label: 'Orders', rowCount: null, limit: null }],
                 sourceRowCap: 500,
             }),
         ).toBeNull();

@@ -862,6 +862,7 @@ export type QuerySourcesSubmittedEvent = BaseTrack & {
         externalNodeCount: number;
         pythonNodeCount: number;
         apiNodeCount: number;
+        mergeNodeCount: number;
     };
 };
 

@@ -10611,6 +10611,7 @@ Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
 - "sql": raw SQL against the project warehouse; available only when run_sql is.
 - "external": DuckDB SQL over uploaded or connected tables declared in "tables".
+- "merge": joins semanticLayer nodes on dimensions they share at the same grain, without SQL. Its columns keep each governed field's label, format and description, and it refuses a join that would count a metric twice. Prefer it to a duckdb join of semanticLayer nodes.
 - "duckdb": DuckDB SQL over other results declared in "references".
 - "python": pandas code over other results declared in "references".
 
@@ -10645,7 +10646,7 @@ Returns the terminal node's first rows, other submitted nodes' columns and first
             "type": "string",
           },
           "queries": {
-            "description": "The nodes to submit, in any order: reads are resolved from duckdb and python references.",
+            "description": "The nodes to submit, in any order: reads are resolved from duckdb and python references and merge sources.",
             "items": {
               "anyOf": [
                 {
@@ -11100,6 +11101,200 @@ Returns the terminal node's first rows, other submitted nodes' columns and first
                 },
                 {
                   "properties": {
+                    "description": {
+                      "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. "Sums completed order revenue per month over the last year." Shown as the node's heading in the pipeline list.",
+                      "type": "string",
+                    },
+                    "joinKey": {
+                      "description": "The dimensions the sources share, one entry per key.",
+                      "items": {
+                        "properties": {
+                          "fields": {
+                            "description": "One dimension per source, the same value at the same grain (both a month, both a customer id).",
+                            "items": {
+                              "properties": {
+                                "fieldId": {
+                                  "description": "A dimension that node selects.",
+                                  "type": "string",
+                                },
+                                "nodeId": {
+                                  "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "nodeId",
+                                "fieldId",
+                              ],
+                              "type": "object",
+                            },
+                            "minItems": 2,
+                            "type": "array",
+                          },
+                          "name": {
+                            "description": "snake_case name of the shared key column, which the result calls merge_<name>.",
+                            "pattern": "^[a-z][a-z0-9_]*$",
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "name",
+                          "fields",
+                        ],
+                        "type": "object",
+                      },
+                      "minItems": 1,
+                      "type": "array",
+                    },
+                    "joinType": {
+                      "description": ""full" keeps keys found in any source, "left" keeps the first source's keys, "inner" keeps keys found in every source.",
+                      "enum": [
+                        "full",
+                        "left",
+                        "inner",
+                      ],
+                      "type": "string",
+                    },
+                    "limit": {
+                      "default": 500,
+                      "description": "Maximum number of rows this node returns. Defaults to 500, max 5000.",
+                      "exclusiveMinimum": 0,
+                      "maximum": 5000,
+                      "type": "integer",
+                    },
+                    "nodeId": {
+                      "description": "Names this node so other nodes can read its result.",
+                      "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
+                      "type": "string",
+                    },
+                    "sorts": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "properties": {
+                              "descending": {
+                                "description": "If true sorts in descending order, ascending otherwise.",
+                                "type": "boolean",
+                              },
+                              "fieldId": {
+                                "description": "Field id to sort by.",
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "fieldId",
+                              "descending",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "default": null,
+                      "description": "Sorts by merged column id. null keeps join-key order.",
+                    },
+                    "sourceType": {
+                      "const": "merge",
+                      "type": "string",
+                    },
+                    "sources": {
+                      "description": "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects exactly its join-key dimensions plus metrics, and returns fewer rows than its limit: a node cut off at its limit is refused.",
+                      "items": {
+                        "properties": {
+                          "nodeId": {
+                            "description": "A semanticLayer node of this call or of the thread.",
+                            "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
+                            "type": "string",
+                          },
+                          "repeatValues": {
+                            "default": null,
+                            "description": "true repeats this node's values on every row of the one source that keeps a dimension outside the join key, e.g. a monthly target beside daily sales. Every source but that one sets it. null otherwise.",
+                            "type": [
+                              "boolean",
+                              "null",
+                            ],
+                          },
+                        },
+                        "required": [
+                          "nodeId",
+                        ],
+                        "type": "object",
+                      },
+                      "minItems": 2,
+                      "type": "array",
+                    },
+                    "tableCalculations": {
+                      "anyOf": [
+                        {
+                          "items": {
+                            "properties": {
+                              "displayName": {
+                                "description": "Column label.",
+                                "type": "string",
+                              },
+                              "format": {
+                                "anyOf": [
+                                  {
+                                    "enum": [
+                                      "number",
+                                      "percent",
+                                    ],
+                                    "type": "string",
+                                  },
+                                  {
+                                    "type": "null",
+                                  },
+                                ],
+                                "default": null,
+                                "description": ""percent" for ratios and shares (0.12 shows as 12%); null for a number.",
+                              },
+                              "formula": {
+                                "description": "Row-wise formula over merged column ids, e.g. \`orders_orders_total_revenue / sessions_sessions_count\`. Spreadsheet operators and functions; no SQL.",
+                                "type": "string",
+                              },
+                              "name": {
+                                "description": "snake_case name; the result calls it merge_<name>.",
+                                "pattern": "^[a-z][a-z0-9_]*$",
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "name",
+                              "displayName",
+                              "formula",
+                            ],
+                            "type": "object",
+                          },
+                          "type": "array",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                      "default": null,
+                      "description": "Calculations across the merged sources' columns, such as a ratio of one node's metric to another's. null for none.",
+                    },
+                    "title": {
+                      "description": "Short label a reader understands without seeing the query, two to five words, e.g. "Revenue by month". Shown to users instead of the node id.",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "sourceType",
+                    "nodeId",
+                    "title",
+                    "description",
+                    "sources",
+                    "joinKey",
+                    "joinType",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "properties": {
                     "code": {
                       "description": "Python defining run(inputs, params) -> pandas.DataFrame. Shape every node like this:
 
@@ -11307,6 +11502,7 @@ Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, po
                     "external",
                     "python",
                     "api",
+                    "merge",
                   ],
                   "type": "string",
                 },
