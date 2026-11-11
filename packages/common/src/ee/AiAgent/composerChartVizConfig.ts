@@ -660,6 +660,7 @@ type ReferenceCheck = {
     isNumeric: (reference: string) => boolean;
     typeOf: (reference: string) => DimensionType | null;
     numericReferences: string[];
+    hasNonNumeric: boolean;
 };
 
 const toReferenceCheck = (columns: ComposerNodeColumn[]): ReferenceCheck => {
@@ -673,6 +674,9 @@ const toReferenceCheck = (columns: ComposerNodeColumn[]): ReferenceCheck => {
         numericReferences: columns
             .filter(({ type }) => type === DimensionType.NUMBER)
             .map(({ reference }) => reference),
+        hasNonNumeric: columns.some(
+            ({ type }) => type !== DimensionType.NUMBER,
+        ),
     };
 };
 
@@ -703,6 +707,9 @@ const getNonNumericErrors = (
                 `${label}: column "${reference}" is ${check.typeOf(reference) ?? 'untyped'}, not numeric`,
         );
 
+export const COMPOSER_VIZ_MISSING_X_ERROR =
+    'x: no category or time column to draw; set x';
+
 const getBuiltinReferenceErrors = (
     check: ReferenceCheck,
     vizConfig: ComposerBuiltinChartVizConfig,
@@ -732,6 +739,9 @@ const getBuiltinReferenceErrors = (
         ...(type === 'table' ? [] : getNonNumericErrors(check, 'y', drawnY)),
         ...(type !== 'table' && vizConfig.y === null && !hasDefaultY
             ? ['y: no numeric column to draw; set y to a numeric column']
+            : []),
+        ...(isCartesian && x === null && !check.hasNonNumeric
+            ? [COMPOSER_VIZ_MISSING_X_ERROR]
             : []),
         ...(usesY2 ? getNonNumericErrors(check, 'y2', y2) : []),
         ...(usesY2 && y2.some((reference) => y.includes(reference))

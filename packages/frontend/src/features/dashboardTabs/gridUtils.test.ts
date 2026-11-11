@@ -3,6 +3,8 @@ import {
     AUTO_FIT_MAX_SCALE,
     AUTO_FIT_MIN_SCALE,
     canFitGridToScreen,
+    closeTileGaps,
+    tidyTiles,
     convertLayoutToBaseCoordinates,
     DEFAULT_ROW_HEIGHT,
     FINE_GRID_SCALE,
@@ -13,6 +15,7 @@ import {
     getGridHeight,
     getGridTotalRows,
     getViewModeActiveTabTiles,
+    hasGridItemMoved,
     getDashboardLayouts,
     getMobileGridLayout,
     getResponsiveGridLayoutProps,
@@ -289,6 +292,21 @@ describe('fine edit grid', () => {
     });
 });
 
+describe('a drag or resize that ends', () => {
+    const item = { i: 'a', x: 4, y: 2, w: 12, h: 6 };
+
+    it('moved nothing when the tile was only clicked', () => {
+        expect(hasGridItemMoved(item, { ...item })).toBe(false);
+    });
+
+    it.each([{ x: 5 }, { y: 3 }, { w: 13 }, { h: 7 }])(
+        'moved the tile when it ends at %o',
+        (change) => {
+            expect(hasGridItemMoved(item, { ...item, ...change })).toBe(true);
+        },
+    );
+});
+
 describe('same grid at every window width', () => {
     const props = getResponsiveGridLayoutProps({ isEditMode: true });
     const row = [
@@ -353,5 +371,143 @@ describe('saving after a drag or resize', () => {
                 new Set([36 * gridScale]),
             );
         });
+    });
+});
+
+describe('closing the gaps between tiles', () => {
+    const at = (uuid: string, x: number, y: number, w = 12, h = 6) => ({
+        uuid,
+        x,
+        y,
+        w,
+        h,
+    });
+    const ys = (tiles: ReturnType<typeof at>[]) =>
+        Object.fromEntries(tiles.map((tile) => [tile.uuid, tile.y]));
+
+    it('pulls tiles up to the top and onto the tile above', () => {
+        const tidy = closeTileGaps([at('a', 0, 3), at('b', 0, 20)]);
+        expect(ys(tidy)).toEqual({ a: 0, b: 6 });
+    });
+
+    it('leaves a tile under a taller neighbour only as low as its own column needs', () => {
+        const tidy = closeTileGaps([
+            at('tall', 0, 0, 12, 10),
+            at('short', 12, 0, 12, 4),
+            at('under-short', 12, 12, 12, 4),
+        ]);
+        expect(ys(tidy)).toEqual({ tall: 0, short: 0, 'under-short': 4 });
+    });
+
+    it('stops a wide tile at the lowest tile it spans', () => {
+        const tidy = closeTileGaps([
+            at('left', 0, 0, 12, 10),
+            at('right', 12, 0, 12, 4),
+            at('wide', 0, 30, 24, 4),
+        ]);
+        expect(ys(tidy).wide).toBe(10);
+    });
+
+    it('keeps columns, sizes and half-step positions', () => {
+        const tidy = closeTileGaps([
+            at('a', 2.5, 4, 7.5, 3.5),
+            at('b', 2.5, 9),
+        ]);
+        expect(tidy).toEqual([at('a', 2.5, 0, 7.5, 3.5), at('b', 2.5, 3.5)]);
+    });
+
+    it('changes nothing in a layout without gaps', () => {
+        const packed = [at('a', 0, 0), at('b', 12, 0), at('c', 0, 6)];
+        expect(closeTileGaps(packed)).toEqual(packed);
+    });
+});
+
+describe('tidying tiles', () => {
+    const at = (uuid: string, x: number, y: number, w: number, h = 6) => ({
+        uuid,
+        x,
+        y,
+        w,
+        h,
+    });
+
+    it('widens a row with spare room to the full grid, keeping proportions', () => {
+        expect(tidyTiles([at('a', 0, 0, 8), at('b', 8, 0, 16)])).toEqual([
+            at('a', 0, 0, 12),
+            at('b', 12, 0, 24),
+        ]);
+    });
+
+    it('closes a hole in the middle of a row', () => {
+        expect(tidyTiles([at('a', 0, 0, 12), at('b', 24, 0, 12)])).toEqual([
+            at('a', 0, 0, 18),
+            at('b', 18, 0, 18),
+        ]);
+    });
+
+    it('gives every tile in a row the height of the tallest', () => {
+        expect(
+            tidyTiles([at('kpi', 0, 0, 12, 3), at('chart', 12, 0, 24, 8)]),
+        ).toEqual([at('kpi', 0, 0, 12, 8), at('chart', 12, 0, 24, 8)]);
+    });
+
+    it('stacks rows with no space between them', () => {
+        expect(
+            tidyTiles([
+                at('short', 0, 2, 18, 3),
+                at('tall', 18, 2, 18, 8),
+                at('below', 0, 20, 36, 4),
+            ]),
+        ).toEqual([
+            at('short', 0, 0, 18, 8),
+            at('tall', 18, 0, 18, 8),
+            at('below', 0, 8, 36, 4),
+        ]);
+    });
+
+    it('counts tiles whose tops are slightly off as one row', () => {
+        expect(
+            tidyTiles([
+                at('a', 0, 0, 12),
+                at('b', 12, 1, 12),
+                at('c', 24, 0.5, 12),
+            ]),
+        ).toEqual([at('a', 0, 0, 12), at('b', 12, 0, 12), at('c', 24, 0, 12)]);
+    });
+
+    it('moves a tile stacked under another into the next row', () => {
+        expect(
+            tidyTiles([
+                at('tall', 0, 0, 12, 12),
+                at('top', 12, 0, 12),
+                at('bottom', 12, 6, 6),
+            ]),
+        ).toEqual([
+            at('tall', 0, 0, 18, 12),
+            at('top', 18, 0, 18, 12),
+            at('bottom', 0, 12, 36, 6),
+        ]);
+    });
+
+    it('lands uneven splits on half steps that still span the grid', () => {
+        expect(
+            tidyTiles([at('a', 0, 0, 5), at('b', 5, 0, 5), at('c', 10, 0, 4)]),
+        ).toEqual([
+            at('a', 0, 0, 13),
+            at('b', 13, 0, 12.5),
+            at('c', 25.5, 0, 10.5),
+        ]);
+    });
+
+    it('leaves a tidy layout as it is', () => {
+        const tidy = [at('a', 0, 0, 12), at('b', 12, 0, 24), at('c', 0, 6, 36)];
+        expect(tidyTiles(tidy)).toEqual(tidy);
+    });
+
+    it('closes gaps first, so tiles pulled level share a row', () => {
+        expect(tidyTiles([at('a', 0, 4, 12), at('b', 12, 30, 12)])).toEqual([
+            at('a', 0, 0, 18),
+            at('b', 18, 0, 18),
+        ]);
     });
 });

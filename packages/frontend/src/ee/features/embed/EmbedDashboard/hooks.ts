@@ -1,9 +1,12 @@
 import type { ApiError, EmbedDashboard } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
+import { useDashboardRefresh } from '../../../../hooks/dashboard/useDashboardRefresh';
 import useDashboardContext from '../../../../providers/Dashboard/useDashboardContext';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 import { postEmbedDashboard } from './api';
+
+const EMBED_DASHBOARD_QUERY_KEY = 'embed-dashboard';
 
 export const useEmbedDashboard = (
     projectUuid: string | undefined,
@@ -15,7 +18,12 @@ export const useEmbedDashboard = (
 ) => {
     const lightdashApi = useLightdashApi();
     return useQuery<EmbedDashboard, ApiError>({
-        queryKey: ['embed-dashboard', projectUuid, paletteUuid, dashboardUuid],
+        queryKey: [
+            EMBED_DASHBOARD_QUERY_KEY,
+            projectUuid,
+            paletteUuid,
+            dashboardUuid,
+        ],
         queryFn: () =>
             postEmbedDashboard(lightdashApi, projectUuid!, { paletteUuid }),
         enabled: !!projectUuid && enabled,
@@ -34,4 +42,30 @@ export const useEmbedSavedParameters = (
             setSavedParameters(dashboard.parameters ?? {});
         }
     }, [dashboard, setSavedParameters]);
+};
+
+// Reloads the saved dashboard in place when the host changes `refreshKey`,
+// so the viewer's filters and active tab survive. Waits out edit mode.
+export const useEmbedDashboardRefreshKey = (
+    refreshKey: number | undefined,
+    isEditMode: boolean,
+) => {
+    const queryClient = useQueryClient();
+    const { invalidateDashboardRelatedQueries } = useDashboardRefresh();
+    const appliedRefreshKeyRef = useRef(refreshKey);
+    useEffect(() => {
+        if (isEditMode || refreshKey === appliedRefreshKeyRef.current) return;
+        appliedRefreshKeyRef.current = refreshKey;
+        void queryClient.invalidateQueries({
+            queryKey: [EMBED_DASHBOARD_QUERY_KEY],
+        });
+        // SQL chart results re-key on the chart's lastUpdatedAt
+        void queryClient.invalidateQueries({ queryKey: ['savedSqlChart'] });
+        void invalidateDashboardRelatedQueries();
+    }, [
+        invalidateDashboardRelatedQueries,
+        isEditMode,
+        queryClient,
+        refreshKey,
+    ]);
 };

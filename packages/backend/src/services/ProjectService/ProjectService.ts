@@ -10928,9 +10928,6 @@ export class ProjectService
             };
         }
 
-        // Named by field id, so results are keyed by the same ids the
-        // items map is keyed by and every lookup downstream resolves
-        const coreSql = mergeQueryBuilder.toCoreSql(fieldIdByColumn);
         const columnByFieldId = Object.fromEntries(
             Object.entries(fieldIdByColumn).map(([column, fieldId]) => [
                 fieldId,
@@ -10945,13 +10942,20 @@ export class ProjectService
             resolvedSources.find((source) => source.explore !== null)?.explore
                 ?.targetDatabase ?? SupportedDbtAdapter.DUCKDB,
         );
+        const mergeSorts = sorts.map(({ fieldId, descending, nullsFirst }) => ({
+            column: columnByFieldId[fieldId],
+            descending,
+            nullsFirst: nullsFirst ?? false,
+        }));
+        // Named by field id, so results are keyed by the same ids the
+        // items map is keyed by and every lookup downstream resolves
+        const coreSql = mergeQueryBuilder.toCoreSql(
+            fieldIdByColumn,
+            mergeSorts,
+        );
         const terminalWrapper = mergeQueryBuilder.buildTerminalWrapper(
             fieldIdByColumn,
-            sorts.map(({ fieldId, descending, nullsFirst }) => ({
-                column: columnByFieldId[fieldId],
-                descending,
-                nullsFirst: nullsFirst ?? false,
-            })),
+            mergeSorts,
         );
 
         return {

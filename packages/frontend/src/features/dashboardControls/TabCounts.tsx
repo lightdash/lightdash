@@ -65,17 +65,17 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
         () => dashboardTabs.map((tab) => tab.uuid),
         [dashboardTabs],
     );
-    // An editor's tabs keep the slots at rest, so mapping reflows none; a
-    // viewer never maps, so never gets them
+    // A viewer never maps, so never gets the slots
     const isEnabled = dashboardTabs.length > 0 && !isViewer;
     // An embed editor's plain tabs have no slot: the count goes in the tab
     const isInSlot = hasTabSlots && !isViewer;
+    const isFilterOpen = rule !== null || parameterMapping !== null;
     const targets = usePortalTargets(
         tabUuids,
         isInSlot ? getTabSlotSelector : getTabSelector,
         isEnabled,
         // A filter open: the menu beside each count is inert
-        isInSlot && (rule !== null || parameterMapping !== null),
+        isInSlot && isFilterOpen,
     );
 
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
@@ -121,6 +121,7 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
     ]);
 
     // Every tile on the tab: no count is wider, so none reflows the tabs
+    // while a filter is open. At rest the slot holds no width
     const reserves = useMemo(
         () =>
             Object.fromEntries(
@@ -192,7 +193,9 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
                             fz="xs"
                             c="dimmed"
                             data-reached={isReached}
-                            data-reserve={reserves[tab.uuid]}
+                            data-reserve={
+                                isFilterOpen ? reserves[tab.uuid] : undefined
+                            }
                             data-capped={!isViewer || undefined}
                             data-controls-overlay={isInSlot || undefined}
                             className={classes.count}

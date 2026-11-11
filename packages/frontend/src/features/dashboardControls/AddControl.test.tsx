@@ -746,6 +746,8 @@ describe('AddControl with parameters', () => {
         act(() => {
             store.dispatch(
                 dashboardParametersActions.addDiscoveredParameterReferences({
+                    chartSavedValues: {},
+                    virtualViewSavedValues: {},
                     references: { 'tile-1': references['tile-1'] },
                     definitions,
                     sources: { 'tile-1': JSON.stringify(sources[0]) },
@@ -758,6 +760,8 @@ describe('AddControl with parameters', () => {
         act(() => {
             store.dispatch(
                 dashboardParametersActions.addDiscoveredParameterReferences({
+                    chartSavedValues: {},
+                    virtualViewSavedValues: {},
                     references,
                     definitions,
                     sources: Object.fromEntries(
