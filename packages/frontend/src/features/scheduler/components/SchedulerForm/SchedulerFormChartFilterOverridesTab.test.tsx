@@ -2,7 +2,9 @@ import {
     DimensionType,
     FieldType,
     FilterOperator,
+    SupportedDbtAdapter,
     getFilterRulesFromGroup,
+    type Explore,
     type FilterableDimension,
     type FilterRule,
     type Filters,
@@ -38,6 +40,27 @@ const paymentField: FilterableDimension = {
 const itemsMap: ItemsMap = {
     orders_status: statusField,
     orders_payment_method: paymentField,
+};
+
+const explore: Explore = {
+    name: 'orders',
+    label: 'Orders',
+    tags: [],
+    baseTable: 'orders',
+    joinedTables: [],
+    tables: {
+        orders: {
+            name: 'orders',
+            label: 'Orders',
+            database: '',
+            schema: '',
+            sqlTable: 'orders',
+            dimensions: { status: statusField, payment_method: paymentField },
+            metrics: {},
+            lineageGraph: {},
+        },
+    },
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
 };
 
 const statusFilter: FilterRule = {
@@ -83,7 +106,7 @@ vi.mock('../../../../hooks/useProject', () => ({
 
 vi.mock('../../../../hooks/useExplore', () => ({
     useExploreByProjectUuid: () => ({
-        data: undefined,
+        data: explore,
         isInitialLoading: false,
     }),
 }));
@@ -127,6 +150,37 @@ const seeded: Filters = {
 };
 
 describe('SchedulerFormChartFilterOverridesTab', () => {
+    it.each([
+        {
+            entryPoint: 'the chart page',
+            resultFields: { orders_status: statusField },
+        },
+        { entryPoint: 'a standalone form', resultFields: undefined },
+    ])(
+        'lets a delivery from $entryPoint edit a filter outside the query results',
+        ({ resultFields }) => {
+            renderWithProviders(
+                <SchedulerFormChartFilterOverridesTab
+                    savedChart={savedChart}
+                    itemsMap={resultFields}
+                    draftFilters={seeded}
+                    savedFilters={undefined}
+                    isEditMode={false}
+                    onChange={vi.fn()}
+                    filtersWithUnmetRequirements={[]}
+                />,
+            );
+
+            expect(screen.getByText('Payment method')).toBeInTheDocument();
+            expect(
+                screen.getAllByRole('button', { name: 'Edit filter' }),
+            ).toHaveLength(2);
+            expect(
+                screen.queryByText('Invalid filter'),
+            ).not.toBeInTheDocument();
+        },
+    );
+
     it('seeds the draft with the chart filters, flattened, on first render', async () => {
         const onDraftChange = vi.fn();
         renderWithProviders(
