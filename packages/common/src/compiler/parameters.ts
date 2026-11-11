@@ -209,12 +209,17 @@ export const getAvailableParametersFromTables = (
         };
     }, {});
 
-/** Table-scoped (model-prefixed) parameter definitions for an explore (empty when absent). */
+/** Table-scoped plus explore-level parameter definitions for an explore (empty when absent). */
 export const getExploreParameterDefinitions = (
     explore: Explore | undefined,
 ): Record<string, LightdashProjectParameter> =>
     explore
-        ? getAvailableParametersFromTables(Object.values(explore.tables))
+        ? {
+              ...getAvailableParametersFromTables(
+                  Object.values(explore.tables),
+              ),
+              ...(explore.parameters ?? {}),
+          }
         : {};
 
 /**
