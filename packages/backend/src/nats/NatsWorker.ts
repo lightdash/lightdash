@@ -194,6 +194,19 @@ export class NatsWorker {
                 );
         }
 
+        if (
+            subject === STREAM_CONFIGS.duckdb.subjects.externalSource ||
+            (preAgg && subject === preAgg.subjects.externalSource)
+        ) {
+            return (queryUuid, worker, queryTags, onConnectionClaimed) =>
+                this.asyncQueryService.runAsyncExternalSourceQueryFromHistory(
+                    queryUuid,
+                    worker,
+                    queryTags,
+                    onConnectionClaimed,
+                );
+        }
+
         if (preAgg && subject === preAgg.subjects.query) {
             return (queryUuid, worker, queryTags, onConnectionClaimed) =>
                 this.asyncQueryService.runAsyncPreAggregateQueryFromHistory(
