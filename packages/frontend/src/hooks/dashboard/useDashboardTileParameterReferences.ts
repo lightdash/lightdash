@@ -9,7 +9,6 @@ import { chunk } from 'es-toolkit/compat';
 import { useEffect, useSyncExternalStore } from 'react';
 import {
     dashboardParametersActions,
-    selectDashboardTabs,
     selectTileQuerySources,
     selectTileQuerySourcesKey,
     type DashboardStore,
@@ -21,17 +20,15 @@ const TILES_PER_REQUEST = 200;
 
 /**
  * Registers the parameters and saved values of every tile, on every tab,
- * before any tile runs: while editing, and in view mode when tiles sit on
- * tabs that may never open. In embeds the API client sends the embed token.
+ * before any tile runs, so controls don't depend on which tiles have run.
+ * In embeds the API client sends the embed token.
  */
 export const useDashboardTileParameterReferences = ({
     store,
     projectUuid,
-    isEditMode,
 }: {
     store: DashboardStore;
     projectUuid: string | undefined;
-    isEditMode: boolean;
 }) => {
     const lightdashApi = useLightdashApi();
     const { data: dashboardControlsFlag } = useServerFeatureFlag(
@@ -40,12 +37,7 @@ export const useDashboardTileParameterReferences = ({
     const tilesKey = useSyncExternalStore(store.subscribe, () =>
         selectTileQuerySourcesKey(store.getState()),
     );
-    const hasTabs = useSyncExternalStore(
-        store.subscribe,
-        () => (selectDashboardTabs(store.getState())?.length ?? 0) > 1,
-    );
     const isEnabled =
-        (isEditMode || hasTabs) &&
         dashboardControlsFlag?.enabled === true &&
         !!projectUuid &&
         tilesKey !== '';

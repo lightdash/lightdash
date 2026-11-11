@@ -71,7 +71,6 @@ const dashboardTabs: DashboardTab[] = [
 const setup = (
     embedApi?: LightdashApi,
     dashboardTiles = tiles,
-    isEditMode = true,
     tabs: DashboardTab[] = [],
 ) => {
     const store = createDashboardTestStore();
@@ -96,7 +95,6 @@ const setup = (
             useDashboardTileParameterReferences({
                 store,
                 projectUuid: 'project-uuid',
-                isEditMode,
             }),
         { wrapper },
     );
@@ -271,15 +269,19 @@ describe('useDashboardTileParameterReferences', () => {
         expect(mockApi).not.toHaveBeenCalled();
     });
 
-    it('makes no request in view mode without tabs', async () => {
-        const store = setup(undefined, tiles, false, [dashboardTabs[0]]);
+    it('lists tiles on a dashboard with a single tab', async () => {
+        mockApi.mockResolvedValue([listedTile('tile-open', ['orders.region'])]);
 
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        expect(mockApi).not.toHaveBeenCalled();
-        expect(store.getState().parameters.tileParameterReferences).toEqual({});
+        const store = setup(undefined, [tiles[0]], [dashboardTabs[0]]);
+
+        await waitFor(() =>
+            expect(
+                store.getState().parameters.tileListedParameterReferences,
+            ).toEqual({ 'tile-open': ['orders.region'] }),
+        );
     });
 
-    it('lists tiles and their saved values in view mode with tabs', async () => {
+    it('lists tiles and their saved values on dashboards with tabs', async () => {
         mockApi.mockResolvedValue([
             {
                 ...listedTile('tile-unopened', ['orders.region']),
@@ -288,7 +290,7 @@ describe('useDashboardTileParameterReferences', () => {
             },
         ]);
 
-        const store = setup(undefined, tiles, false, dashboardTabs);
+        const store = setup(undefined, tiles, dashboardTabs);
 
         await waitFor(() =>
             expect(
