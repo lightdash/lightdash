@@ -308,9 +308,13 @@ const sqlApprovalToolCallSql = (alias: string): string =>
         queries: [{ sourceType: QuerySourceType.SQL }],
     })}'::jsonb))`;
 
-/** Which embedded threads a token can see: by its write spaces, or by its viewer when it has none. */
+/** Which embedded threads a token can see: by its write spaces and viewer, or by its viewer alone when it has no write spaces. */
 export type EmbedThreadScope =
-    | { type: 'writeSpaces'; writeSpaceUuids: string[] }
+    | {
+          type: 'writeSpaces';
+          writeSpaceUuids: string[];
+          externalUserId: string | null;
+      }
     | { type: 'externalUser'; externalUserId: string };
 
 export type AiPromptResponseState = {
@@ -7324,9 +7328,10 @@ export class AiAgentModel {
             case 'writeSpaces': {
                 // Rows from older pods only have embed_space_uuid; a deleted space keeps the thread hidden.
                 const spaces = `COALESCE(${AiWebAppThreadTableName}.embed_space_uuids, ARRAY[${AiWebAppThreadTableName}.embed_space_uuid])`;
+                // A token without a viewer only sees threads started without one.
                 return this.database.raw(
-                    `(${spaces} <@ ?::uuid[] AND cardinality(${spaces}) > 0)`,
-                    [scope.writeSpaceUuids],
+                    `(${spaces} <@ ?::uuid[] AND cardinality(${spaces}) > 0 AND ${AiWebAppThreadTableName}.embed_external_user_id IS NOT DISTINCT FROM ?::text)`,
+                    [scope.writeSpaceUuids, scope.externalUserId],
                 );
             }
             case 'externalUser':
