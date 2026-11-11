@@ -199,6 +199,54 @@ describe('useSyncParameterControls', () => {
         ).toEqual({ type: 'number', multiple: true });
     });
 
+    it('fills once the listing settles, with failed tiles adding what they report', () => {
+        const store = createDashboardTestStore();
+        store.dispatch(
+            dashboardEditActions.setTiles([
+                {
+                    uuid: 'a',
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: { savedChartUuid: 'chart-a' },
+                },
+                {
+                    uuid: 'b',
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: { savedChartUuid: 'chart-b' },
+                },
+            ] as Dashboard['tiles']),
+        );
+        store.dispatch(discover('a', 'chart-a', ['region']));
+        mountHook(store, { isDateZoomDisabled: false });
+        expect(store.getState().parameters.parameterControls).toBeNull();
+        act(() => {
+            store.dispatch(
+                dashboardParametersActions.markParameterReferencesFailed({
+                    b: JSON.stringify({
+                        tileUuid: 'b',
+                        savedChartUuid: 'chart-b',
+                        savedSqlUuid: null,
+                    }),
+                }),
+            );
+        });
+        const keysOf = () =>
+            store
+                .getState()
+                .parameters.parameterControls?.map(({ parameters }) =>
+                    Object.keys(parameters),
+                );
+        expect(keysOf()).toEqual([['region']]);
+        act(() => {
+            store.dispatch(
+                dashboardParametersActions.addParameterReferences({
+                    tileUuid: 'b',
+                    references: ['status'],
+                }),
+            );
+        });
+        expect(keysOf()).toEqual([['region'], ['status']]);
+    });
+
     it('waits for new discovery when a tile changes its chart', () => {
         const store = setup({ isDateZoomDisabled: false });
         expect(store.getState().parameters.parameterControls).not.toBeNull();

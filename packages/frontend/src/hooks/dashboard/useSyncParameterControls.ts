@@ -47,6 +47,7 @@ export const useSyncParameterControls = ({
             const {
                 tileParameterReferences,
                 tileListedParameterSources,
+                tileFailedParameterSources,
                 parameterDefinitions,
                 haveParameterControlsChanged,
             } = store.getState().parameters;
@@ -57,6 +58,7 @@ export const useSyncParameterControls = ({
                 querySources,
                 tileParameterReferences,
                 tileListedParameterSources,
+                tileFailedParameterSources,
                 parameterDefinitions,
                 haveParameterControlsChanged,
             ];
@@ -68,11 +70,15 @@ export const useSyncParameterControls = ({
             if (
                 config?.parameterControls === undefined &&
                 (dashboardTiles === undefined ||
-                    querySources.some(
-                        (source) =>
+                    querySources.some((source) => {
+                        const key = JSON.stringify(source);
+                        // A failed listing is settled: the tile reports from its own query
+                        return (
                             tileListedParameterSources[source.tileUuid] !==
-                            JSON.stringify(source),
-                    ))
+                                key &&
+                            tileFailedParameterSources[source.tileUuid] !== key
+                        );
+                    }))
             ) {
                 store.dispatch(
                     dashboardParametersActions.deactivateParameterControls(),

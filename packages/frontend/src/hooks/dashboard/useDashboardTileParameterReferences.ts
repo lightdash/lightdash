@@ -98,6 +98,23 @@ export const useDashboardTileParameterReferences = ({
                 ? [result]
                 : [],
         );
+        const completeTiles = new Set(complete.map(({ tileUuid }) => tileUuid));
+        const failed = data.filter(
+            ({ tileUuid }) =>
+                sourceByTile[tileUuid] !== undefined &&
+                !completeTiles.has(tileUuid),
+        );
+        if (failed.length > 0)
+            store.dispatch(
+                dashboardParametersActions.markParameterReferencesFailed(
+                    Object.fromEntries(
+                        failed.map(({ tileUuid }) => [
+                            tileUuid,
+                            sourceByTile[tileUuid],
+                        ]),
+                    ),
+                ),
+            );
         if (complete.length === 0) return;
         store.dispatch(
             dashboardParametersActions.addDiscoveredParameterReferences({

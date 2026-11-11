@@ -475,6 +475,44 @@ describe('dashboardParametersReducer', () => {
             expect(next.tileChartSavedParameters).toEqual({});
         });
 
+        it('keepTileParameterState drops removed tiles failed listings', () => {
+            const next = reducer(
+                stateWith({
+                    tileFailedParameterSources: {
+                        'tile-1': 'chart-1',
+                        'tile-2': 'chart-2',
+                    },
+                }),
+                actions.keepTileParameterState(['tile-1']),
+            );
+            expect(next.tileFailedParameterSources).toEqual({
+                'tile-1': 'chart-1',
+            });
+        });
+
+        it('clears a failed listing once the tile is listed', () => {
+            const failed = reducer(
+                stateWith(),
+                actions.markParameterReferencesFailed({
+                    'tile-1': 'chart-1',
+                    'tile-2': 'chart-2',
+                }),
+            );
+            const next = reducer(
+                failed,
+                actions.addDiscoveredParameterReferences({
+                    references: { 'tile-1': ['region'] },
+                    definitions: {},
+                    sources: { 'tile-1': 'chart-1' },
+                    chartSavedValues: { 'tile-1': {} },
+                    virtualViewSavedValues: { 'tile-1': {} },
+                }),
+            );
+            expect(next.tileFailedParameterSources).toEqual({
+                'tile-2': 'chart-2',
+            });
+        });
+
         it('keepTileParameterState returns the same state when nothing is dropped', () => {
             const state = stateWith({
                 tileParameterReferences: { 'tile-1': ['status'] },

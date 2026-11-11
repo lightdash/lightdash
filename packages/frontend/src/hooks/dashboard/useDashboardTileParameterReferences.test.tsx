@@ -184,6 +184,43 @@ describe('useDashboardTileParameterReferences', () => {
         );
     });
 
+    it('marks tiles whose listing errored, or came from an older server, as failed', async () => {
+        mockApi.mockResolvedValue([
+            listedTile('tile-open', ['orders.region']),
+            {
+                tileUuid: 'tile-unopened',
+                parameterReferences: ['region'],
+                parameterDefinitions: {},
+                error: null,
+            },
+            {
+                tileUuid: 'tile-sql',
+                parameterReferences: null,
+                error: 'No access',
+            },
+        ]);
+        const store = setup();
+        await waitFor(() =>
+            expect(
+                store.getState().parameters.tileFailedParameterSources,
+            ).toEqual({
+                'tile-unopened': JSON.stringify({
+                    tileUuid: 'tile-unopened',
+                    savedChartUuid: 'chart-2',
+                    savedSqlUuid: null,
+                }),
+                'tile-sql': JSON.stringify({
+                    tileUuid: 'tile-sql',
+                    savedChartUuid: null,
+                    savedSqlUuid: 'sql-1',
+                }),
+            }),
+        );
+        expect(
+            Object.keys(store.getState().parameters.tileListedParameterSources),
+        ).toEqual(['tile-open']);
+    });
+
     it('sends a large dashboard in requests of at most 200 tiles', async () => {
         const manyTiles = Array.from({ length: 450 }, (_, index) =>
             tile(
@@ -246,6 +283,16 @@ describe('useDashboardTileParameterReferences', () => {
         expect(listed['tile-199']).toEqual(['orders.region']);
         expect(listed['tile-200']).toBeUndefined();
         expect(listed['tile-449']).toEqual(['orders.region']);
+        await waitFor(() =>
+            expect(
+                Object.keys(
+                    store.getState().parameters.tileFailedParameterSources,
+                ),
+            ).toHaveLength(200),
+        );
+        expect(
+            store.getState().parameters.tileFailedParameterSources['tile-200'],
+        ).toBeDefined();
     });
 
     it("requests through the embed's API client, which sends its token", async () => {
