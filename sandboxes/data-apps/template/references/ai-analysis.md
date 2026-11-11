@@ -289,7 +289,7 @@ function DriverPill({ recommendation }: { recommendation: string }) {
 
 ## Saved commentary shared between viewers (`useSharedAiCommentary`)
 
-> Use this when the user wants generated commentary to be **saved** — "save the summary for the team", "everyone should see the same commentary", "let people edit the AI text", "keep the narrative with this view". It needs BOTH AI analysis and saved app state available (see the prompt's availability lines); without either, fall back to `useAiPrompt` (no saving) or plain `useSharedAppState` (no generation).
+> Use this when the user wants generated commentary to be **saved** — "save the summary for the team", "everyone should see the same commentary", "let people edit the AI text", "keep the narrative with this view". It needs BOTH AI analysis and saved app state available (see the prompt's availability lines); without either, fall back to `useAiPrompt` (no saving) or plain `useAppState(key, default, { scope: 'shared' })` (no generation).
 
 `useAiPrompt` answers one viewer once; `useSharedAiCommentary` keys the answer to the current selection and stores it in shared app state, so the first viewer generates it, later viewers of the same selection read the saved text, and anyone may edit it. The edited text is what later viewers see.
 

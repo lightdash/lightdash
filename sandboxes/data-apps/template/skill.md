@@ -232,7 +232,7 @@ If the prompt lists external connections (files under `/tmp/external-data/`), re
 
 ## Saved app state
 
-If the prompt says saved app state is available, read `/app/references/app-state.md` before building anything that should survive a reload: a person's inputs are remembered with `useAppState` by default, without being asked; shared values (comments, targets, annotations, "everyone", "the team", "who changed") use `useSharedAppState`. Without that line in the prompt, do not use these hooks.
+If the prompt says saved app state is available, read `/app/references/app-state.md` before building anything that should survive a reload: a person's inputs are remembered with `useAppState` (the default `user` scope) without being asked; shared values (comments, targets, annotations, "everyone", "the team", "who changed") use `useAppState(key, default, { scope: 'shared' })`. Without that line in the prompt, do not use the `user` or `shared` scopes — only `{ scope: 'url' }` (see "App state — one hook, pick a scope").
 
 ## Attached images
 
@@ -747,35 +747,50 @@ const client = useLightdashClient();
 const user = await client.auth.getUser();
 ```
 
-### Shareable URL state
+### App state — one hook, pick a scope
 
-The host page keeps a `?state=` query param in sync with the app's view state, so the
-browser's address bar is always a shareable link — a colleague who opens the link lands
-on the same view. **Use `useUrlState` instead of `useState` for every user-facing view
-control**: period/date-range selectors, active tab, segment pickers, sort toggles.
+Any state the app keeps beyond a plain `useState` goes through one hook,
+`useAppState(key, default, { scope })`. Pick the scope from what the value *is*:
+
+| The value is… | Scope |
+| --- | --- |
+| Part of the link you'd share — it defines *which view* this is: period/date-range selectors, active tab, segment pickers, sort toggles | `'url'` (always available) |
+| A person's own pick, remembered across visits and devices | `'user'` — only when the prompt says saved app state is available |
+| The team's value — one thing every viewer reads, versioned | `'shared'` — only when the prompt says saved app state is available |
+
+**Use `useAppState(key, default, { scope: 'url' })` instead of `useState` for every
+user-facing view control.** The host page keeps a `?state=` query param in sync with
+`url`-scoped values, so the browser's address bar is always a shareable link — a
+colleague who opens the link lands on the same view.
 
 ```tsx
-import { useUrlState } from '@lightdash/query-sdk';
+import { useAppState } from '@lightdash/query-sdk';
 
-const [period, setPeriod] = useUrlState('period', 'last_month');
+const [period, setPeriod] = useAppState('period', 'last_month', { scope: 'url' });
 ```
 
 - Drop-in `useState` shape (functional updates work). Values must be JSON-serializable.
-- Each control owns a stable string key; all keys share one map, so keep the total
-  small (≤ 4 KB serialized — oversized state stays in memory but stops persisting).
+  The scope is fixed per call site — never switch it at runtime.
+- Each `url` control owns a stable string key; all `url` keys share one map, so keep
+  the total small (≤ 4 KB serialized — oversized state stays in memory but stops
+  persisting).
 - **Global filters are persisted automatically** — `useGlobalFilters()` already stores
-  its filters in URL state. Never wire filter state through `useUrlState` yourself.
-- **Treat the seeded value as untrusted.** It comes from a user-editable URL: validate
-  it before use and fall back to the default when it's not what you expect
+  its filters in URL state. Never wire filter state through `useAppState` yourself.
+- **Treat a `url`-seeded value as untrusted.** It comes from a user-editable URL:
+  validate it before use and fall back to the default when it's not what you expect
   (e.g. `PERIODS.includes(period) ? period : 'last_month'`).
 - Do NOT build "copy link" / "share" buttons — the host page owns the URL; sharing is
   just copying the address bar.
 - Ephemeral UI state (open dropdowns, hover, modal visibility, in-progress form input)
   stays in plain `useState` — only state that defines *which view* the user is looking
   at belongs in the URL.
-- When the prompt says saved app state is available, view controls use
-  `useAppState(key, default, { url: true })` instead, which keeps the URL in sync and
-  also remembers the value for the person. See `/app/references/app-state.md`.
+- When the prompt says saved app state is available, read `/app/references/app-state.md`
+  and use the `user` and `shared` scopes there; view controls then use
+  `useAppState(key, default, { url: true })` (user scope mirrored into the link), so a
+  shared link wins until the person changes the control. Without that line in the
+  prompt, `'url'` is the only scope to use.
+- `useUrlState(key, default)` and `useSharedAppState(key, default)` are aliases for the
+  `url` and `shared` scopes; prefer the unified hook in new code.
 
 ### External APIs
 
@@ -853,7 +868,7 @@ Use `useDeliveryRender()` from `@lightdash/query-sdk` to mount every tab's data 
 import { useDeliveryRender } from '@lightdash/query-sdk';
 
 function AppTabs() {
-    const [activeTab, setActiveTab] = useUrlState('tab', 'overview');
+    const [activeTab, setActiveTab] = useAppState('tab', 'overview', { scope: 'url' });
     const deliveryRender = useDeliveryRender();
 
     return (
