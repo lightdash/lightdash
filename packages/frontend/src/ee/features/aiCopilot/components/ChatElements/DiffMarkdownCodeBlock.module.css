@@ -49,3 +49,16 @@
     line-height: var(--diffs-line-height);
     white-space: pre;
 }
+
+/* The expanded view has room, so lines wrap instead of scrolling sideways. */
+.expanded {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    overflow: hidden;
+    --diffs-font-family: var(--mantine-font-family-monospace);
+    --diffs-font-size: 13px;
+    --diffs-line-height: 22px;
+    --diffs-bg-context-override: var(--mantine-color-body);
+    --diffs-bg-context-gutter-override: var(--mantine-color-body);
+    --diffs-fg-number-override: var(--mantine-color-ldGray-5);
+}

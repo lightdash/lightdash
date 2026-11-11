@@ -164,6 +164,12 @@
     flex: 1;
 }
 
+/* The card sits in the conversation, so it reads at the conversation's size. */
+:global([data-quiet-cards]) .card .titleBlock :is(p, a),
+:global([data-quiet-cards]) .card .merge {
+    font-size: var(--mantine-font-size-sm);
+}
+
 :global([data-quiet-cards]) .card .actions {
     flex-direction: row-reverse;
     align-items: center;

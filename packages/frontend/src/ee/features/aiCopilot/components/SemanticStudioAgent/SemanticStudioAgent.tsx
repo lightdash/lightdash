@@ -23,7 +23,9 @@ import {
 import { useEffect, useEffectEvent, useRef, type FC } from 'react';
 import { Provider } from 'react-redux';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { SidebarPosition } from '../../../../../components/common/Page/types';
 import { useKeepsSemanticLayerDraft } from '../../../../../features/semanticStudio/useSemanticLayerModel';
+import useSidebarResize from '../../../../../hooks/useSidebarResize';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
 import {
@@ -67,6 +69,9 @@ const withOpenModel = (
         optimisticContext: [...item, ...(optimisticContext ?? [])],
     };
 };
+
+const PANEL_WIDTH = 360;
+const PANEL_MIN_WIDTH = 300;
 
 /** Whether the agent's latest reply proposes a change that no pull request carries yet. */
 const hasOpenProposal = (messages: AiAgentThread['messages']): boolean => {
@@ -323,11 +328,32 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
     const { isEnabled, agent, thread, setStored } = useStudioAgent(projectUuid);
     const [isOpen, setIsOpen] = useChatOpen();
 
+    const { sidebarRef, sidebarWidth, isResizing, startResizing } =
+        useSidebarResize({
+            defaultWidth: PANEL_WIDTH,
+            minWidth: PANEL_MIN_WIDTH,
+            position: SidebarPosition.RIGHT,
+        });
+
     if (!isEnabled || !agent) return null;
     if (!isOpen) return null;
     return (
         <QuietCardsContext.Provider value>
-            <Box className={classes.panel} data-quiet-cards>
+            <Box
+                ref={sidebarRef}
+                className={classes.panel}
+                w={sidebarWidth}
+                data-quiet-cards
+            >
+                <Box
+                    className={classes.resizeHandle}
+                    data-resizing={isResizing}
+                    onMouseDown={(event) => {
+                        // Without this the drag selects text across the page.
+                        event.preventDefault();
+                        startResizing();
+                    }}
+                />
                 <Group className={classes.actions} gap={4} wrap="nowrap">
                     {thread ? (
                         <Tooltip label="New conversation">

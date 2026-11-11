@@ -51,3 +51,20 @@
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm)
         var(--mantine-spacing-sm);
 }
+
+/* The panel's left edge drags to give the conversation more room. */
+.resizeHandle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 3;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    transition: background-color 120ms ease;
+}
+
+.resizeHandle:hover,
+.resizeHandle[data-resizing='true'] {
+    background-color: var(--mantine-color-default-border);
+}

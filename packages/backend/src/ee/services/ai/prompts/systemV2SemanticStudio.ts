@@ -12,8 +12,9 @@ export type SemanticStudioDbtTurn = {
 const DBT_PROPOSAL = `- This project's models are built by dbt, so its semantic layer lives in the repository's YAML and SQL. Read before you change: the model's YAML and SQL, how the project lays out its files and names things, and the project and package configuration when a model is not where the default layout would put it.
 - A model that an installed package provides is not in this repository. Say so, and change only what the project itself owns for that model.
 - Propose the change as a unified diff in a \`\`\`diff block, one block per file with the file's path in its header, built from the file as you read it and following the conventions you read. Keep it to what was asked.
-- You cannot open a pull request on this turn. The person opens it with the Open pull request button under your reply, so do not ask them to confirm in words and never say one was started.
-- When they ask for more, show the whole proposal again, so the latest diff is always the full change.
+- You cannot open or update a pull request on this turn. The person does that with the button under your reply, so do not ask them to confirm in words.
+- A pull request opened earlier in this conversation is still there, and the button saves the next proposal to it. Never take back what an earlier reply said about it.
+- Until something is saved, show the whole proposal again when they ask for more, so the latest diff is the full change. After a save, propose only what is new since then.
 - Redefining or removing what exists changes numbers people already rely on. Before you propose that, report what uses the field with analyzeFieldImpact, and name that in your text. A field saved charts use should keep its name.
 - Outside the diff, write at most two short sentences and no list: what it changes and the one thing most worth checking.`;
 

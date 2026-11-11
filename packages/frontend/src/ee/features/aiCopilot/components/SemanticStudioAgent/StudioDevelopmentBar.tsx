@@ -1,11 +1,10 @@
-import { Anchor, Box, Button, Group, Text } from '@mantine/core';
+import { Anchor, Badge, Button, Group, Text } from '@mantine/core';
 import { IconExternalLink } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useMergePullRequest } from '../../hooks/useMergePullRequest';
 import { isMergeable } from '../ChatElements/ToolCalls/pullRequestActions';
-import classes from './StudioDevelopmentBar.module.css';
 import { type StudioPullRequest } from './useStudioPullRequest';
 
 /** What a dbt project's Studio conversation has saved so far: its pull request, a look at the result, and publishing it. */
@@ -20,12 +19,9 @@ export const StudioDevelopmentBar: FC<{
     const number = /\/(\d+)\/?$/.exec(prUrl)?.[1];
     return (
         <Group gap="sm" wrap="nowrap" miw={0} flex={1}>
-            <Group gap={6} wrap="nowrap" flex="none">
-                <Box className={classes.dot} />
-                <Text fz="xs" fw={500}>
-                    In development
-                </Text>
-            </Group>
+            <Badge color="orange" flex="none">
+                In development
+            </Badge>
             <Anchor
                 href={prUrl}
                 target="_blank"
