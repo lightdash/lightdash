@@ -20,10 +20,19 @@ import {
     Stack,
 } from '@mantine/core';
 import { useDebouncedCallback, useDisclosure } from '@mantine/hooks';
-import { IconDots, IconTableExport } from '@tabler/icons-react';
+import {
+    IconChartBar,
+    IconDeviceFloppy,
+    IconDots,
+    IconExternalLink,
+    IconLayoutDashboard,
+    IconTableExport,
+} from '@tabler/icons-react';
 import { clsx } from 'clsx';
 import { useMemo, useState, type FC, type RefObject } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import MantineModal from '../../../../../components/common/MantineModal';
+import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import ExportDataModal from '../../../../../components/DashboardTiles/ExportDataModal';
 import { type EChartsReact } from '../../../../../components/EChartsReactWrapper';
 import { useAbilityContext } from '../../../../../providers/Ability/useAbilityContext';
@@ -47,6 +56,7 @@ import {
     type AiComposerVizConfigPanelMode,
 } from './composerVizConfig/AiComposerVizConfigPanel';
 import { useArtifactResultRows } from './useArtifactResultRows';
+import { useComposerMergeChartActions } from './useComposerMergeChartActions';
 import {
     useComposerNodeResults,
     type ComposerPanelSource,
@@ -116,6 +126,8 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         downloadModalOpened,
         { open: openDownloadModal, close: closeDownloadModal },
     ] = useDisclosure(false);
+    const [saveModalOpened, { open: openSaveModal, close: closeSaveModal }] =
+        useDisclosure(false);
     const canExportData = user.data?.ability?.can(
         'manage',
         subject('ExportCsv', {
@@ -152,6 +164,13 @@ export const AiComposerArtifactPanel: FC<Props> = ({
         () => columns.map((column) => column.reference),
         [columns],
     );
+    const mergeChartActions = useComposerMergeChartActions({
+        projectUuid,
+        config,
+        columns,
+        title,
+        description,
+    });
     const storedVizConfig =
         config.schemaVersion === 1 ? (config.vizConfig ?? null) : null;
     // v2 draws the presented node through the runQuery chart builders; nothing to edit.
@@ -266,7 +285,9 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                         },
                     ]}
                 />
-                {(canExportImage || canDownloadResults) && (
+                {(canExportImage ||
+                    canDownloadResults ||
+                    !!mergeChartActions) && (
                     <Menu withArrow position="bottom-end">
                         <Menu.Target>
                             <ActionIcon
@@ -300,6 +321,47 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                                     {getUiString(
                                         'aiAgent.composer.actions.downloadResults',
                                     )}
+                                </Menu.Item>
+                            )}
+                            {mergeChartActions?.quickSaveDashboard && (
+                                <Menu.Item
+                                    disabled={
+                                        mergeChartActions.isSavingToDashboard
+                                    }
+                                    onClick={() =>
+                                        void mergeChartActions.saveToCurrentDashboard()
+                                    }
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconLayoutDashboard}
+                                        />
+                                    }
+                                >
+                                    Save to current dashboard
+                                </Menu.Item>
+                            )}
+                            {mergeChartActions?.canSave && (
+                                <Menu.Item
+                                    onClick={openSaveModal}
+                                    leftSection={
+                                        <MantineIcon icon={IconDeviceFloppy} />
+                                    }
+                                >
+                                    {mergeChartActions.quickSaveDashboard
+                                        ? 'Save to…'
+                                        : 'Save'}
+                                </Menu.Item>
+                            )}
+                            {mergeChartActions && (
+                                <Menu.Item
+                                    onClick={() =>
+                                        void mergeChartActions.exploreFromHere()
+                                    }
+                                    leftSection={
+                                        <MantineIcon icon={IconExternalLink} />
+                                    }
+                                >
+                                    Explore from here
                                 </Menu.Item>
                             )}
                         </Menu.Dropdown>
@@ -397,6 +459,29 @@ export const AiComposerArtifactPanel: FC<Props> = ({
                 opened={exportImageModalOpened}
                 onClose={closeExportImageModal}
             />
+            {mergeChartActions && (
+                <MantineModal
+                    opened={saveModalOpened}
+                    onClose={closeSaveModal}
+                    title="Save chart"
+                    icon={IconChartBar}
+                    size="lg"
+                    modalBodyProps={{ px: 0, py: 0 }}
+                    modalRootProps={{ closeOnClickOutside: false }}
+                >
+                    <SaveToSpaceOrDashboard
+                        projectUuid={projectUuid}
+                        savedData={mergeChartActions.savedData}
+                        onConfirm={closeSaveModal}
+                        onClose={closeSaveModal}
+                        chartMetadata={{
+                            name: title,
+                            description: description ?? '',
+                        }}
+                        redirectOnSuccess={false}
+                    />
+                </MantineModal>
+            )}
             {downloadQueryUuid && (
                 <ExportDataModal
                     isOpen={downloadModalOpened}
