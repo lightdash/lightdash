@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconCalendarSearch, IconPencil } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import TruncatedText from '../../components/common/TruncatedText';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -19,7 +19,11 @@ import {
 import { focusParameterValueOnMount } from './editorFocus';
 import { formatTileCount, formatTilesOf } from './fieldLabels';
 import classes from './FilterEditor.module.css';
-import { EditorActions, type EditorView as PopoverView } from './FilterPopover';
+import {
+    EditorActions,
+    EditorPrompt,
+    type EditorView as PopoverView,
+} from './FilterPopover';
 import { GrainSelect } from './GrainSelect';
 import { useRefocusAfter } from './nameFocus';
 import { NameInput } from './NameInput';
@@ -41,24 +45,29 @@ type EditorMode = {
     totalTileCount: number;
     initialView: PopoverView;
     onChooseTiles: () => void;
-    onApply: (control: DateZoomControl) => void;
+    /** The draft, edited: only Apply takes it to the dashboard. */
+    onChange: (next: DateZoomControl) => void;
 };
 
 type ViewerMode = {
     kind: 'viewer';
-    /** The viewer's pick; null: the saved grain. */
+    /** The viewer's pick, from their override else the saved grain; cleared (null): the saved grain. */
     granularity: string | null;
-    onApply: (granularity: string | null) => void;
+    onChange: (granularity: string | null) => void;
 };
 
 type Props = {
-    /** As saved, or as added. */
+    /** The editor's draft; a viewer's, as saved. */
     control: DateZoomControl;
     /** The dashboard's enabled grains, standard then custom. */
     granularities: string[];
     customLabels: Record<string, string>;
     mode: EditorMode | ViewerMode;
+    /** Another pill was clicked over unapplied changes: "Apply changes to ... first?" */
+    isAsking: boolean;
+    onResolvePending: (shouldApply: boolean) => void;
     onCancel: () => void;
+    onApply: () => void;
 };
 
 /** A named date zoom, as the parameter popover: its grain, tiles and settings. */
@@ -67,16 +76,18 @@ export const DateZoomControlPopover: FC<Props> = ({
     granularities,
     customLabels,
     mode,
+    isAsking,
+    onResolvePending,
     onCancel,
+    onApply,
 }) => {
     const getUiString = useUiStrings();
     const isViewer = mode.kind === 'viewer';
-    const [draft, setDraft] = useState(control);
-    const [pick, setPick] = useState<string | null>(
-        mode.kind === 'viewer'
-            ? (mode.granularity ?? control.granularity)
-            : null,
-    );
+    const draft = control;
+    const setDraft = (write: (current: DateZoomControl) => DateZoomControl) => {
+        if (mode.kind === 'editor') mode.onChange(write(control));
+    };
+    const pick = mode.kind === 'viewer' ? mode.granularity : null;
     const [view, setView] = useState<PopoverView>(
         mode.kind === 'editor' ? mode.initialView : 'value',
     );
@@ -156,7 +167,7 @@ export const DateZoomControlPopover: FC<Props> = ({
                     placeholder={labelOf(control.granularity)}
                     isClearable={isViewer}
                     onChange={(granularity) => {
-                        if (isViewer) setPick(granularity);
+                        if (mode.kind === 'viewer') mode.onChange(granularity);
                         else if (granularity !== null)
                             setDraft((current) => ({
                                 ...current,
@@ -173,25 +184,40 @@ export const DateZoomControlPopover: FC<Props> = ({
         </Box>
     );
 
-    if (mode.kind === 'viewer')
-        return (
-            <Box className={classes.root} role="dialog" aria-label={name}>
-                {valueView}
+    // As the parameter popover: the question over a dimmed, inert body
+    const frame = (applyBlockedReason: string | null, body: ReactNode) => (
+        <Box className={classes.root} role="dialog" aria-label={name}>
+            {isAsking && (
+                <EditorPrompt
+                    name={name}
+                    applyBlockedReason={applyBlockedReason}
+                    onResolvePending={onResolvePending}
+                />
+            )}
+            <Box
+                className={classes.body}
+                data-dimmed={isAsking || undefined}
+                inert={isAsking || undefined}
+            >
+                {body}
                 <Group
                     justify="flex-end"
                     wrap="nowrap"
                     className={classes.footer}
                 >
                     <EditorActions
-                        applyBlockedReason={null}
+                        applyBlockedReason={applyBlockedReason}
                         isApplyDisabled={false}
-                        isAsking={false}
+                        isAsking={isAsking}
                         onCancel={onCancel}
-                        onApply={() => mode.onApply(pick)}
+                        onApply={onApply}
                     />
                 </Group>
             </Box>
-        );
+        </Box>
+    );
+
+    if (mode.kind === 'viewer') return frame(null, valueView);
 
     const { sections, tileCount, totalTileCount } = mode;
     const sectionName =
@@ -242,8 +268,9 @@ export const DateZoomControlPopover: FC<Props> = ({
         </Stack>
     );
 
-    return (
-        <Box className={classes.root} role="dialog" aria-label={name}>
+    return frame(
+        applyBlockedReason,
+        <>
             {view === 'settings' ? settingsView : valueView}
             {view === 'value' && (
                 <Group gap="xs" align="center" px="md" pb="sm">
@@ -259,15 +286,6 @@ export const DateZoomControlPopover: FC<Props> = ({
                     />
                 </Group>
             )}
-            <Group justify="flex-end" wrap="nowrap" className={classes.footer}>
-                <EditorActions
-                    applyBlockedReason={applyBlockedReason}
-                    isApplyDisabled={false}
-                    isAsking={false}
-                    onCancel={onCancel}
-                    onApply={() => mode.onApply(draft)}
-                />
-            </Group>
-        </Box>
+        </>,
     );
 };

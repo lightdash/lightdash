@@ -8,6 +8,7 @@ import {
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { AddControl } from './AddControl';
 import classes from './ControlsBar.module.css';
+import { DateZoomPills } from './DateZoomPills';
 import { FilterPills } from './FilterPills';
 import { MappingRow } from './MappingRow';
 import { ParameterMappingRow } from './ParameterMappingRow';
@@ -57,6 +58,7 @@ export const ControlsBar: FC<Props> = (props) => {
                             <AddControl />
                             <FilterPills activeTabUuid={props.activeTabUuid} />
                             <ParameterPills />
+                            <DateZoomPills />
                         </>
                     )}
                 </SettledFilterFields>

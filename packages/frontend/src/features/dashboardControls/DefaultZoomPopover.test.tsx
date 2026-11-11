@@ -1,6 +1,7 @@
 import { DateGranularity } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState, type FC } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import { DefaultZoomPopover } from './DefaultZoomPopover';
@@ -11,15 +12,38 @@ const customLabels = {
 };
 const enabled = [DateGranularity.WEEK, DateGranularity.MONTH, 'fiscal_quarter'];
 
+// The draft (or pick) lives above the popover, as in the editor provider
+const Harness: FC<{
+    isViewer: boolean;
+    defaultGranularity: string | null;
+    onApply: (value: string | null) => void;
+}> = ({ isViewer, defaultGranularity, onApply }) => {
+    const [value, setValue] = useState(defaultGranularity);
+    return (
+        <DefaultZoomPopover
+            enabledGranularities={enabled}
+            defaultGranularity={defaultGranularity}
+            value={value}
+            customLabels={customLabels}
+            mode={
+                isViewer ? { kind: 'viewer' } : { kind: 'editor', tileCount: 3 }
+            }
+            isAsking={false}
+            onResolvePending={vi.fn()}
+            onChange={setValue}
+            onCancel={vi.fn()}
+            onApply={() => onApply(value)}
+        />
+    );
+};
+
 const renderEditor = () => {
     const onApply = vi.fn();
     renderWithProviders(
-        <DefaultZoomPopover
-            enabledGranularities={enabled}
+        <Harness
+            isViewer={false}
             defaultGranularity={DateGranularity.MONTH}
-            customLabels={customLabels}
-            mode={{ kind: 'editor', tileCount: 3, onApply }}
-            onCancel={vi.fn()}
+            onApply={(defaultGranularity) => onApply({ defaultGranularity })}
         />,
     );
     return { onApply };
@@ -28,12 +52,10 @@ const renderEditor = () => {
 const renderViewer = (defaultGranularity: string | null) => {
     const onApply = vi.fn();
     renderWithProviders(
-        <DefaultZoomPopover
-            enabledGranularities={enabled}
+        <Harness
+            isViewer
             defaultGranularity={defaultGranularity}
-            customLabels={customLabels}
-            mode={{ kind: 'viewer', granularity: null, onApply }}
-            onCancel={vi.fn()}
+            onApply={onApply}
         />,
     );
     return { onApply };

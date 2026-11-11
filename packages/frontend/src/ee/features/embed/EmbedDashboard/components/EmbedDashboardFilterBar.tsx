@@ -84,6 +84,8 @@ const ControlsFilterArea: FC<{
                     viewerActions={actions}
                     triggerClassName={triggerClassName}
                     withParameters={withParameters}
+                    // The embed's date zoom stays on the right, in its class contract
+                    withDateZooms={false}
                 />
             ) : (
                 <>

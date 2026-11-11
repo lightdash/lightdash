@@ -427,7 +427,7 @@ export const selectCompletedEmbedTiles = (state: DashboardStoreState) =>
     state.tileStatus.completedEmbedTiles;
 
 /** The date zoom config as edited, resolved against the loaded dashboard's, as `useDashboardDateZoomConfig` */
-const selectCurrentDateZoomConfig = (state: DashboardStoreState) =>
+export const selectCurrentDateZoomConfig = (state: DashboardStoreState) =>
     selectDateZoomConfig(
         state,
         getSavedDateZoomSettings(selectDashboard(state)?.config).dateZoomConfig,

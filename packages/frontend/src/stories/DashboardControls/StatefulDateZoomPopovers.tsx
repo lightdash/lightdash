@@ -10,7 +10,9 @@ import { DefaultZoomPopover } from '../../features/dashboardControls/DefaultZoom
 import { type EditorView as PopoverView } from '../../features/dashboardControls/FilterPopover';
 import { customGranularityLabels, TOTAL_TILE_COUNT } from './fixtures';
 
-// The popovers keep their own draft; Cancel remounts them, as reopening would
+const noop = () => {};
+
+// The draft lives here, as in the editor provider; Cancel starts it over
 
 type StatefulDateZoomPopoverProps = {
     initialControl: DateZoomControl;
@@ -42,19 +44,23 @@ export const StatefulDateZoomPopover: FC<StatefulDateZoomPopoverProps> = ({
 }) => {
     const sections = useDashboardSelector(selectControlSections);
     const [opening, setOpening] = useState(0);
+    const [draft, setDraft] = useState(initialControl);
+    const [pick, setPick] = useState<string | null>(
+        viewerGranularity ?? initialControl.granularity,
+    );
     return (
         <Paper shadow="md" radius="md" w="fit-content">
             <DateZoomControlPopover
                 key={opening}
-                control={initialControl}
+                control={isViewer ? initialControl : draft}
                 granularities={granularities}
                 customLabels={customGranularityLabels}
                 mode={
                     isViewer
                         ? {
                               kind: 'viewer',
-                              granularity: viewerGranularity,
-                              onApply: onViewerApply,
+                              granularity: pick,
+                              onChange: setPick,
                           }
                         : {
                               kind: 'editor',
@@ -64,11 +70,18 @@ export const StatefulDateZoomPopover: FC<StatefulDateZoomPopoverProps> = ({
                               totalTileCount: TOTAL_TILE_COUNT,
                               initialView,
                               onChooseTiles,
-                              onApply,
+                              onChange: setDraft,
                           }
+                }
+                isAsking={false}
+                onResolvePending={noop}
+                onApply={() =>
+                    isViewer ? onViewerApply(pick) : onApply(draft)
                 }
                 onCancel={() => {
                     setOpening((count) => count + 1);
+                    setDraft(initialControl);
+                    setPick(viewerGranularity ?? initialControl.granularity);
                     onCancel();
                 }}
             />
@@ -101,24 +114,34 @@ export const StatefulDefaultZoomPopover: FC<
     onCancel,
 }) => {
     const [opening, setOpening] = useState(0);
+    const initialValue = isViewer
+        ? (viewerGranularity ?? defaultGranularity)
+        : defaultGranularity;
+    const [value, setValue] = useState(initialValue);
     return (
         <Paper shadow="md" radius="md" w="fit-content">
             <DefaultZoomPopover
                 key={opening}
                 enabledGranularities={enabledGranularities}
                 defaultGranularity={defaultGranularity}
+                value={value}
                 customLabels={customGranularityLabels}
                 mode={
                     isViewer
-                        ? {
-                              kind: 'viewer',
-                              granularity: viewerGranularity,
-                              onApply: onViewerApply,
-                          }
-                        : { kind: 'editor', tileCount, onApply }
+                        ? { kind: 'viewer' }
+                        : { kind: 'editor', tileCount }
+                }
+                isAsking={false}
+                onResolvePending={noop}
+                onChange={setValue}
+                onApply={() =>
+                    isViewer
+                        ? onViewerApply(value)
+                        : onApply({ defaultGranularity: value })
                 }
                 onCancel={() => {
                     setOpening((count) => count + 1);
+                    setValue(initialValue);
                     onCancel();
                 }}
             />

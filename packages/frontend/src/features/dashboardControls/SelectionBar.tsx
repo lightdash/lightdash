@@ -23,7 +23,8 @@ type Props = SelectionActionsProps & { onClear: () => void };
 // Floats over the tiles, where the field bar does, while pills are picked on
 // the sectioned bar
 export const SelectionBar: FC<Props> = ({ onClear, ...actions }) => {
-    const count = actions.filterCount + actions.parameterCount;
+    const count =
+        actions.filterCount + actions.parameterCount + actions.dateZoomCount;
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     const host = useBarHost(activeTabUuid, true);
     if (host === null) return null;

@@ -16,6 +16,7 @@ import {
     type DashboardFilters,
     type DashboardParameterControl,
     type DashboardTile,
+    type DateZoomConfig,
 } from '@lightdash/common';
 import { act, fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -36,9 +37,11 @@ import {
     selectControlSections,
     selectHasControlOrderChanged,
     selectHaveControlSectionsChanged,
+    selectCurrentDateZoomConfig,
     selectOrderedControls,
 } from '../dashboard/store';
 import type * as AddControlModule from './AddControl';
+import { DateZoomEditorProvider } from './DateZoomEditorProvider';
 import type * as FilterEditorModule from './FilterEditor';
 import { ParameterEditorProvider } from './ParameterEditorProvider';
 import { SectionedFilters } from './SectionedFilters';
@@ -4191,6 +4194,132 @@ describe('SectionedFilters', () => {
                 ).dimensions.map((r) => r.sectionId ?? null),
             ).toEqual([null]);
             expect(controlsOf(store)).toEqual(['region']);
+        });
+    });
+
+    describe('date zooms', () => {
+        const zooms: DateZoomConfig = {
+            controls: [
+                { uuid: 'z1', name: 'Revenue zoom', granularity: 'Week' },
+                {
+                    uuid: 'z2',
+                    name: 'Orders zoom',
+                    granularity: 'Month',
+                    sectionId: 'a',
+                },
+            ],
+            tileTargets: {
+                'tile-1': {
+                    controlUuid: 'z1',
+                    fieldId: 'orders_date',
+                    tableName: 'orders',
+                },
+                'tile-2': {
+                    controlUuid: 'z2',
+                    fieldId: 'orders_date',
+                    tableName: 'orders',
+                },
+            },
+        };
+        const renderWithZooms = (dimensions: DashboardFilterRule[]) => {
+            const config = {
+                isDateZoomDisabled: false,
+                controlSections: [
+                    { id: 'a', name: 'Dates' },
+                    { id: 'b', name: 'Regions' },
+                ],
+                dateZoomConfig: zooms,
+            };
+            const store = createDashboardTestStore({
+                dashboardFilters: {
+                    dimensions,
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                source: { embedDashboard: { config } as never },
+            });
+            mockDashboardContext.current = {
+                ...mockDashboardContext.current,
+                dashboard: { config },
+                setDateZoomConfig: (value: DateZoomConfig) =>
+                    store.dispatch(
+                        dashboardEditActions.setDateZoomConfig({
+                            value,
+                            changed: true,
+                            saved: zooms,
+                        }),
+                    ),
+                setControlGranularity: vi.fn(),
+            };
+            seedDashboardEditState(store, {
+                dashboard: { config },
+                dashboardTiles: tiles,
+                dashboardTabs: [
+                    { uuid: 'tab-1', name: 'Tab 1', order: 0 },
+                    { uuid: 'tab-2', name: 'Tab 2', order: 1 },
+                ],
+            });
+            renderWithProviders(
+                <DashboardStoreTestProvider store={store}>
+                    <DateZoomEditorProvider isViewer={false}>
+                        <SectionedFilters activeTabUuid={undefined} />
+                    </DateZoomEditorProvider>
+                </DashboardStoreTestProvider>,
+            );
+            return store;
+        };
+        const zoomPill = (uuid: string) =>
+            document.querySelector<HTMLElement>(
+                `[data-date-zoom-pill="${uuid}"]`,
+            )!;
+
+        beforeEach(() => {
+            mockDroppable.current = null;
+        });
+
+        it('draws each zoom after the filters of its pass, in its section', () => {
+            renderWithZooms([rule('loose', undefined)]);
+            expect(
+                screen
+                    .getByTestId('pills-unsectioned')
+                    .compareDocumentPosition(zoomPill('z1')) &
+                    Node.DOCUMENT_POSITION_FOLLOWING,
+            ).toBeTruthy();
+            expect(capsuleOf('Dates')).toContainElement(zoomPill('z2'));
+        });
+
+        it('stores the order with the zoom ref on a keyboard move', () => {
+            const store = renderWithZooms([rule('loose', undefined)]);
+            fireEvent.keyDown(zoomPill('z1'), {
+                key: 'ArrowLeft',
+                altKey: true,
+            });
+            expect(selectControlOrder(store.getState())?.slice(0, 2)).toEqual([
+                { kind: DashboardControlRefKind.DATE_ZOOM, id: 'z1' },
+                { kind: DashboardControlRefKind.FILTER, id: 'loose' },
+            ]);
+        });
+
+        it('moves a dropped zoom into the section, with the order', () => {
+            const store = renderWithZooms([rule('loose', undefined)]);
+            act(() =>
+                mockDragEnd.handlers.at(-1)!({
+                    active: {
+                        id: 'z1',
+                        data: { current: { kind: 'dateZoom' } },
+                    },
+                    over: { id: 'b' },
+                } as unknown as DragEndEvent),
+            );
+            expect(
+                selectCurrentDateZoomConfig(store.getState()).controls[0],
+            ).toEqual({ ...zooms.controls[0], sectionId: 'b' });
+            expect(
+                selectOrderedControls(store.getState()).find(
+                    ({ id }) => id === 'z1',
+                )?.sectionId,
+            ).toBe('b');
+            expect(selectHasControlOrderChanged(store.getState())).toBe(true);
         });
     });
 });

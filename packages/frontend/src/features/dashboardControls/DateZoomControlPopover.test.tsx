@@ -1,7 +1,7 @@
 import { DateGranularity, type DateZoomControl } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { type ComponentProps } from 'react';
+import { useState, type ComponentProps, type FC } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
 import { DateZoomControlPopover } from './DateZoomControlPopover';
@@ -19,21 +19,22 @@ const granularities = [
 ];
 const customLabels = { fiscal_quarter: 'Fiscal quarter' };
 
-const renderEditor = (
-    overrides: Partial<
-        Extract<
-            ComponentProps<typeof DateZoomControlPopover>['mode'],
-            { kind: 'editor' }
-        >
-    > = {},
-    control: DateZoomControl = zoom,
-) => {
-    const onApply = vi.fn();
-    const onChooseTiles = vi.fn();
-    const onCancel = vi.fn();
-    renderWithProviders(
+type EditorMode = Extract<
+    ComponentProps<typeof DateZoomControlPopover>['mode'],
+    { kind: 'editor' }
+>;
+
+// The draft lives above the popover, as in the editor provider
+const Editor: FC<{
+    control: DateZoomControl;
+    overrides: Partial<EditorMode>;
+    onApply: (control: DateZoomControl) => void;
+    onChooseTiles: () => void;
+}> = ({ control, overrides, onApply, onChooseTiles }) => {
+    const [draft, setDraft] = useState(control);
+    return (
         <DateZoomControlPopover
-            control={control}
+            control={draft}
             granularities={granularities}
             customLabels={customLabels}
             mode={{
@@ -44,26 +45,58 @@ const renderEditor = (
                 totalTileCount: 5,
                 initialView: 'value',
                 onChooseTiles,
-                onApply,
+                onChange: setDraft,
                 ...overrides,
             }}
-            onCancel={onCancel}
-        />,
+            isAsking={false}
+            onResolvePending={vi.fn()}
+            onCancel={vi.fn()}
+            onApply={() => onApply(draft)}
+        />
     );
-    return { onApply, onChooseTiles, onCancel };
 };
 
-const renderViewer = (granularity: string | null) => {
+const renderEditor = (
+    overrides: Partial<EditorMode> = {},
+    control: DateZoomControl = zoom,
+) => {
     const onApply = vi.fn();
+    const onChooseTiles = vi.fn();
     renderWithProviders(
+        <Editor
+            control={control}
+            overrides={overrides}
+            onApply={onApply}
+            onChooseTiles={onChooseTiles}
+        />,
+    );
+    return { onApply, onChooseTiles };
+};
+
+const Viewer: FC<{
+    granularity: string | null;
+    onApply: (granularity: string | null) => void;
+}> = ({ granularity, onApply }) => {
+    const [pick, setPick] = useState<string | null>(
+        granularity ?? zoom.granularity,
+    );
+    return (
         <DateZoomControlPopover
             control={zoom}
             granularities={granularities}
             customLabels={customLabels}
-            mode={{ kind: 'viewer', granularity, onApply }}
+            mode={{ kind: 'viewer', granularity: pick, onChange: setPick }}
+            isAsking={false}
+            onResolvePending={vi.fn()}
             onCancel={vi.fn()}
-        />,
+            onApply={() => onApply(pick)}
+        />
     );
+};
+
+const renderViewer = (granularity: string | null) => {
+    const onApply = vi.fn();
+    renderWithProviders(<Viewer granularity={granularity} onApply={onApply} />);
     return { onApply };
 };
 
@@ -167,5 +200,37 @@ describe('DateZoomControlPopover', () => {
             screen.getByRole('combobox', { name: 'Revenue zoom' }),
         ).toHaveValue('Week');
         expect(screen.queryByText(/^If cleared,/)).not.toBeInTheDocument();
+    });
+});
+
+describe('DateZoomControlPopover asking', () => {
+    it('asks to apply first, with the body inert', async () => {
+        const onResolvePending = vi.fn();
+        renderWithProviders(
+            <DateZoomControlPopover
+                control={zoom}
+                granularities={granularities}
+                customLabels={customLabels}
+                mode={{
+                    kind: 'editor',
+                    isNew: false,
+                    sections: [],
+                    tileCount: 2,
+                    totalTileCount: 5,
+                    initialView: 'value',
+                    onChooseTiles: vi.fn(),
+                    onChange: vi.fn(),
+                }}
+                isAsking
+                onResolvePending={onResolvePending}
+                onCancel={vi.fn()}
+                onApply={vi.fn()}
+            />,
+        );
+        expect(
+            screen.getByText('Apply changes to Revenue zoom first?'),
+        ).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Discard' }));
+        expect(onResolvePending).toHaveBeenCalledWith(false);
     });
 });
