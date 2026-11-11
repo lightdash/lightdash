@@ -55,6 +55,7 @@ import { useClipboard, useElementSize } from '@mantine/hooks';
 import {
     IconAlertCircle,
     IconAlertTriangle,
+    IconCode,
     IconCopy,
     IconFilePencil,
     IconFilter,
@@ -121,6 +122,8 @@ const getDashboardTileErrorMessage = (
 
 import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
 import { AskAiAgentMenuItem } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import EmbedCodeModal from '../../ee/features/embed/EmbedCode/EmbedCodeModal';
+import { useCanShowEmbedCode } from '../../ee/features/embed/EmbedCode/useCanShowEmbedCode';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { DashboardTileComments } from '../../features/comments';
 import {
@@ -682,6 +685,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             top: number;
         }>();
         const [isMovingChart, setIsMovingChart] = useState(false);
+        const [isEmbedCodeOpen, setIsEmbedCodeOpen] = useState(false);
+        const canShowEmbedCode = useCanShowEmbedCode(projectUuid);
 
         // State used to only track event on initial load. Excluding lazy load updates for table charts.
         const hasTrackedLoadEvent = useRef(false);
@@ -1660,7 +1665,8 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                         savedChartUuid !== null &&
                         (userCanViewExplore ||
                             userCanManageChart ||
-                            userCanExportData) && (
+                            userCanExportData ||
+                            canShowEmbedCode) && (
                             <>
                                 {/* TODO: add a create-issue entry point once the issues flow is finalized */}
                                 <Tooltip
@@ -1857,6 +1863,16 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                         Duplicate chart
                                     </Menu.Item>
                                 )}
+                                {canShowEmbedCode && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconCode} />
+                                        }
+                                        onClick={() => setIsEmbedCodeOpen(true)}
+                                    >
+                                        Embed code
+                                    </Menu.Item>
+                                )}
                             </>
                         )
                     }
@@ -1972,6 +1988,19 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                         </Box>
                     </>
                 </TileBase>
+
+                {isEmbedCodeOpen && projectUuid && (
+                    <EmbedCodeModal
+                        projectUuid={projectUuid}
+                        target={{
+                            type: 'chart',
+                            uuid: chart.uuid,
+                            name: chart.name,
+                            spaceUuid: chart.spaceUuid ?? null,
+                        }}
+                        onClose={() => setIsEmbedCodeOpen(false)}
+                    />
+                )}
 
                 {chart.spaceUuid && (
                     <MoveChartThatBelongsToDashboardModal
