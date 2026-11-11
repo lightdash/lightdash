@@ -264,21 +264,6 @@
                     "mcp": []
                 }
             }
-        },
-        "dashboard-tile-parameters-endpoint-renamed": {
-            "reason": "POST /api/v2/projects/{projectUuid}/dashboards/tile-parameter-references is replaced by POST /api/v2/projects/{projectUuid}/dashboards/tile-parameters, which also returns each tile's saved parameter values and the referenced parameter definitions once. The endpoint is called only by the dashboard UI behind the experimental dashboard-controls flag, which is off by default on Cloud (enabled only through per-organization overrides) and on self-hosted (only via ENV), and it refuses callers when the flag is off. During a rolling update an old browser tab gets no listing and falls back to learning parameters from each tile's query, which is the pre-existing view-mode behaviour.",
-            "requiredStop": false,
-            "impact": {
-                "kind": "no-external-callers",
-                "featureFlag": "dashboard-controls",
-                "covers": {
-                    "rest": [
-                        "POST /api/v2/projects/{projectUuid}/dashboards/tile-parameter-references",
-                        "POST /api/v2/projects/{projectUuid}/dashboards/tile-parameters"
-                    ],
-                    "mcp": []
-                }
-            }
         }
     }
 }

@@ -447,7 +447,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'ProjectDashboardControllerV2.delete',
     'ProjectDashboardControllerV2.get',
     'ProjectDashboardControllerV2.getComments',
-    'ProjectDashboardControllerV2.getTileParameters',
+    'ProjectDashboardControllerV2.getTileParameterReferences',
     'ProjectDbtSourcesController.createProjectDbtSource',
     'ProjectDbtSourcesController.deleteProjectDbtSource',
     'ProjectDbtSourcesController.listProjectDbtSources',

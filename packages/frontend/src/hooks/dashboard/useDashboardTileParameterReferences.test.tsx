@@ -52,17 +52,16 @@ const tiles = [
 const listedTile = (tileUuid: string, parameterReferences: string[]) => ({
     tileUuid,
     parameterReferences,
+    parameterDefinitions: {},
     chartSavedValues: {},
     virtualViewSavedValues: {},
     error: null,
 });
 
-const listingOf = (body: string, parameterReferences: string[]) => ({
-    parameterDefinitions: {},
-    tiles: (JSON.parse(body) as { tiles: { tileUuid: string }[] }).tiles.map(
+const listingOf = (body: string, parameterReferences: string[]) =>
+    (JSON.parse(body) as { tiles: { tileUuid: string }[] }).tiles.map(
         ({ tileUuid }) => listedTile(tileUuid, parameterReferences),
-    ),
-});
+    );
 
 const dashboardTabs: DashboardTab[] = [
     { uuid: 'tab-1', name: 'One', order: 0 },
@@ -111,14 +110,15 @@ describe('useDashboardTileParameterReferences', () => {
     });
 
     it('registers the references of every tile, on every tab', async () => {
-        mockApi.mockResolvedValue({
-            parameterDefinitions: {},
-            tiles: [
-                listedTile('tile-open', ['orders.region']),
-                listedTile('tile-unopened', ['payments.region']),
-                { tileUuid: 'tile-sql', error: 'No access' },
-            ],
-        });
+        mockApi.mockResolvedValue([
+            listedTile('tile-open', ['orders.region']),
+            listedTile('tile-unopened', ['payments.region']),
+            {
+                tileUuid: 'tile-sql',
+                parameterReferences: null,
+                error: 'No access',
+            },
+        ]);
 
         const store = setup();
 
@@ -150,6 +150,21 @@ describe('useDashboardTileParameterReferences', () => {
                 },
             ],
         });
+    });
+
+    it('does not mark older responses without definitions as complete', async () => {
+        mockApi.mockResolvedValue([
+            {
+                tileUuid: 'tile-open',
+                parameterReferences: ['region'],
+                error: null,
+            },
+        ]);
+        const store = setup(undefined, [tiles[0]]);
+        await waitFor(() => expect(mockApi).toHaveBeenCalled());
+        expect(store.getState().parameters.tileListedParameterSources).toEqual(
+            {},
+        );
     });
 
     it('sends a large dashboard in requests of at most 200 tiles', async () => {
@@ -217,10 +232,9 @@ describe('useDashboardTileParameterReferences', () => {
     });
 
     it("requests through the embed's API client, which sends its token", async () => {
-        const embedApi = vi.fn().mockResolvedValue({
-            parameterDefinitions: {},
-            tiles: [listedTile('tile-open', ['orders.region'])],
-        });
+        const embedApi = vi
+            .fn()
+            .mockResolvedValue([listedTile('tile-open', ['orders.region'])]);
 
         const store = setup(embedApi as unknown as LightdashApi);
 
@@ -231,7 +245,7 @@ describe('useDashboardTileParameterReferences', () => {
         );
         expect(embedApi).toHaveBeenCalledWith(
             expect.objectContaining({
-                url: '/projects/project-uuid/dashboards/tile-parameters',
+                url: '/projects/project-uuid/dashboards/tile-parameter-references',
                 version: 'v2',
             }),
         );
@@ -247,16 +261,13 @@ describe('useDashboardTileParameterReferences', () => {
     });
 
     it('lists tiles and their saved values in view mode with tabs', async () => {
-        mockApi.mockResolvedValue({
-            parameterDefinitions: {},
-            tiles: [
-                {
-                    ...listedTile('tile-unopened', ['orders.region']),
-                    chartSavedValues: { 'orders.region': 'EU' },
-                    virtualViewSavedValues: { 'orders.week': 'W1' },
-                },
-            ],
-        });
+        mockApi.mockResolvedValue([
+            {
+                ...listedTile('tile-unopened', ['orders.region']),
+                chartSavedValues: { 'orders.region': 'EU' },
+                virtualViewSavedValues: { 'orders.week': 'W1' },
+            },
+        ]);
 
         const store = setup(undefined, tiles, false, dashboardTabs);
 
@@ -268,35 +279,6 @@ describe('useDashboardTileParameterReferences', () => {
         expect(
             store.getState().parameters.tileVirtualViewSavedParameters,
         ).toEqual({ 'tile-unopened': { 'orders.week': 'W1' } });
-    });
-
-    it('merges the definitions of every batch', async () => {
-        const manyTiles = Array.from({ length: 250 }, (_, index) =>
-            tile(
-                `tile-${index}`,
-                'tab-1',
-                DashboardTileTypes.SAVED_CHART,
-                `chart-${index}`,
-            ),
-        );
-        mockApi.mockImplementation(async ({ body }: { body: string }) => {
-            const listing = listingOf(body, ['orders.region']);
-            return {
-                ...listing,
-                parameterDefinitions: {
-                    [listing.tiles[0].tileUuid]: { label: 'Batch' },
-                },
-            };
-        });
-
-        const store = setup(undefined, manyTiles);
-
-        await waitFor(() =>
-            expect(store.getState().parameters.parameterDefinitions).toEqual({
-                'tile-0': { label: 'Batch' },
-                'tile-200': { label: 'Batch' },
-            }),
-        );
     });
 
     it('requests again when the tile set changes in edit mode', async () => {

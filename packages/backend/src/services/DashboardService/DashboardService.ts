@@ -76,8 +76,8 @@ import {
     type DashboardBasicDetailsWithTileTypes,
     type DashboardCustomMetricUpdateResult,
     type DashboardHistory,
-    type DashboardTileParameters,
-    type DashboardTileParametersRequestTile,
+    type DashboardTileParameterReferences,
+    type DashboardTileParameterReferencesTile,
     type DashboardTileTarget,
     type DashboardVersion,
     type DuplicateDashboardParams,
@@ -221,9 +221,10 @@ type ParameterReferencesResult =
           virtualViewSavedValues: ParametersValuesMap;
           error: null;
       }
-    | { error: string };
+    | { parameterReferences: null; error: string };
 
 const parameterReferencesFailure = (e: unknown): ParameterReferencesResult => ({
+    parameterReferences: null,
     error: typeof e === 'string' ? e : getErrorMessage(e),
 });
 
@@ -1062,11 +1063,11 @@ export class DashboardService
         return enabled;
     }
 
-    async getTileParameters(
+    async getTileParameterReferences(
         account: Account,
         projectUuid: string,
-        tiles: DashboardTileParametersRequestTile[],
-    ): Promise<DashboardTileParameters> {
+        tiles: DashboardTileParameterReferencesTile[],
+    ): Promise<DashboardTileParameterReferences[]> {
         if (tiles.length > MAX_PARAMETER_REFERENCE_TILES) {
             throw new ParameterError(
                 `A request can list the parameters of at most ${MAX_PARAMETER_REFERENCE_TILES} tiles`,
@@ -1120,40 +1121,23 @@ export class DashboardService
                 .then(toLookup)
                 .catch(getFailedResults),
         ]);
-        const results = tiles.map(({ tileUuid }, index) => {
+        return tiles.map(({ tileUuid }, index) => {
             const source = sources[index];
+            if (source === null) {
+                return {
+                    tileUuid,
+                    ...parameterReferencesFailure(
+                        'Tile is not on the embedded dashboard',
+                    ),
+                };
+            }
             const result =
-                source === null
-                    ? parameterReferencesFailure(
-                          'Tile is not on the embedded dashboard',
-                      )
-                    : (source.savedChartUuid &&
-                          chartResults(source.savedChartUuid)) ||
-                      (source.savedSqlUuid &&
-                          sqlResults(source.savedSqlUuid)) ||
-                      parameterReferencesFailure('Tile has no saved chart');
-            return { tileUuid, result };
+                (source.savedChartUuid &&
+                    chartResults(source.savedChartUuid)) ||
+                (source.savedSqlUuid && sqlResults(source.savedSqlUuid)) ||
+                parameterReferencesFailure('Tile has no saved chart');
+            return { tileUuid, ...result };
         });
-        return {
-            parameterDefinitions: results.reduce<ParameterDefinitions>(
-                (acc, { result }) =>
-                    result.error === null
-                        ? { ...acc, ...result.parameterDefinitions }
-                        : acc,
-                {},
-            ),
-            tiles: results.map(({ tileUuid, result }) =>
-                result.error === null
-                    ? {
-                          tileUuid,
-                          parameterReferences: result.parameterReferences,
-                          chartSavedValues: result.chartSavedValues,
-                          virtualViewSavedValues: result.virtualViewSavedValues,
-                          error: null,
-                      }
-                    : { tileUuid, error: result.error },
-            ),
-        };
     }
 
     /**
@@ -1163,8 +1147,8 @@ export class DashboardService
     private async getEmbedDashboardTileSources(
         account: AnonymousAccount,
         projectUuid: string,
-        tiles: DashboardTileParametersRequestTile[],
-    ): Promise<(DashboardTileParametersRequestTile | null)[]> {
+        tiles: DashboardTileParameterReferencesTile[],
+    ): Promise<(DashboardTileParameterReferencesTile | null)[]> {
         const { content } = account.access;
         if (content.type !== 'dashboard' || !content.dashboardUuid) {
             throw new ForbiddenError(

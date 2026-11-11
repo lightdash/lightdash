@@ -1670,7 +1670,7 @@ export const REST_OPERATION_CAPABILITIES = {
     'ProjectDashboardControllerV2.delete': [AgentCapability.Delete],
     'ProjectDashboardControllerV2.get': [AgentCapability.ReadDiscover],
     'ProjectDashboardControllerV2.getComments': [AgentCapability.ReadDiscover],
-    'ProjectDashboardControllerV2.getTileParameters': [
+    'ProjectDashboardControllerV2.getTileParameterReferences': [
         AgentCapability.ReadDiscover,
     ],
     'ProjectDashboardControllerV2.update': [AgentCapability.ContentWrite],

@@ -230,17 +230,12 @@ const chartTile = (tileUuid: string, savedChartUuid: string) => ({
 
 const noSavedValues = { chartSavedValues: {}, virtualViewSavedValues: {} };
 
-const listTiles = async (
-    service: DashboardService,
-    ...args: Parameters<DashboardService['getTileParameters']>
-) => (await service.getTileParameters(...args)).tiles;
-
-describe('DashboardService.getTileParameters', () => {
+describe('DashboardService.getTileParameterReferences', () => {
     it('reads the explore and the chart query, without compiling', async () => {
         const { service, projectService } = setup();
 
         await expect(
-            listTiles(service, account, projectUuid, [
+            service.getTileParameterReferences(account, projectUuid, [
                 chartTile('tile-1', 'plain'),
                 chartTile('tile-2', 'selecting'),
             ]),
@@ -250,12 +245,14 @@ describe('DashboardService.getTileParameters', () => {
                 parameterReferences: ['orders.region'],
                 ...noSavedValues,
                 error: null,
+                parameterDefinitions: {},
             },
             {
                 tileUuid: 'tile-2',
                 parameterReferences: ['orders.min_amount', 'orders.region'],
                 ...noSavedValues,
                 error: null,
+                parameterDefinitions: {},
             },
         ]);
         expect(projectService.findExplores).toHaveBeenCalledWith(
@@ -301,36 +298,41 @@ describe('DashboardService.getTileParameters', () => {
                     ]),
                 ),
         );
-        const result = await service.getTileParameters(account, projectUuid, [
-            chartTile('unopened', 'plain'),
-            chartTile('private', 'hidden'),
-            { tileUuid: 'sql', savedChartUuid: null, savedSqlUuid: 'sql' },
-        ]);
-        expect(result).toEqual({
-            // Merged once across tiles; the SQL tile's project definition comes last
+        const result = await service.getTileParameterReferences(
+            account,
+            projectUuid,
+            [
+                chartTile('unopened', 'plain'),
+                chartTile('private', 'hidden'),
+                { tileUuid: 'sql', savedChartUuid: null, savedSqlUuid: 'sql' },
+            ],
+        );
+        expect(result[0]).toEqual({
+            tileUuid: 'unopened',
+            parameterReferences: ['orders.region'],
             parameterDefinitions: {
                 'orders.region': {
                     label: 'Region',
                     type: 'number',
                     multiple: true,
                 },
+            },
+            ...noSavedValues,
+            error: null,
+        });
+        expect(result[1]).toEqual({
+            tileUuid: 'private',
+            parameterReferences: null,
+            error: expect.any(String),
+        });
+        expect(result[2]).toEqual({
+            tileUuid: 'sql',
+            parameterReferences: ['region'],
+            parameterDefinitions: {
                 region: { label: 'Region', type: 'string', multiple: true },
             },
-            tiles: [
-                {
-                    tileUuid: 'unopened',
-                    parameterReferences: ['orders.region'],
-                    ...noSavedValues,
-                    error: null,
-                },
-                { tileUuid: 'private', error: expect.any(String) },
-                {
-                    tileUuid: 'sql',
-                    parameterReferences: ['region'],
-                    ...noSavedValues,
-                    error: null,
-                },
-            ],
+            ...noSavedValues,
+            error: null,
         });
     });
 
@@ -355,7 +357,7 @@ describe('DashboardService.getTileParameters', () => {
         );
 
         await expect(
-            listTiles(service, account, projectUuid, [
+            service.getTileParameterReferences(account, projectUuid, [
                 chartTile('tile-1', 'withValues'),
                 { tileUuid: 'sql', savedChartUuid: null, savedSqlUuid: 'sql' },
             ]),
@@ -369,12 +371,14 @@ describe('DashboardService.getTileParameters', () => {
                     'payments.region': 'payments',
                 },
                 error: null,
+                parameterDefinitions: {},
             },
             {
                 tileUuid: 'sql',
                 parameterReferences: ['region'],
                 ...noSavedValues,
                 error: null,
+                parameterDefinitions: {},
             },
         ]);
     });
@@ -382,11 +386,15 @@ describe('DashboardService.getTileParameters', () => {
     it('loads each explore and chart once across tiles', async () => {
         const { service, savedChartModel, projectService } = setup();
 
-        const results = await listTiles(service, account, projectUuid, [
-            chartTile('tile-1', 'plain'),
-            chartTile('tile-2', 'plain'),
-            chartTile('tile-3', 'sameExplore'),
-        ]);
+        const results = await service.getTileParameterReferences(
+            account,
+            projectUuid,
+            [
+                chartTile('tile-1', 'plain'),
+                chartTile('tile-2', 'plain'),
+                chartTile('tile-3', 'sameExplore'),
+            ],
+        );
 
         expect(results.map((result) => result.tileUuid)).toEqual([
             'tile-1',
@@ -420,8 +428,7 @@ describe('DashboardService.getTileParameters', () => {
             return charts[uuid];
         });
 
-        await listTiles(
-            service,
+        await service.getTileParameterReferences(
             account,
             projectUuid,
             manyCharts.map((manyChart) =>
@@ -437,8 +444,7 @@ describe('DashboardService.getTileParameters', () => {
         const { service, savedChartModel } = setup();
 
         await expect(
-            listTiles(
-                service,
+            service.getTileParameterReferences(
                 account,
                 projectUuid,
                 Array.from({ length: 201 }, (_, index) =>
@@ -459,7 +465,7 @@ describe('DashboardService.getTileParameters', () => {
         });
 
         await expect(
-            listTiles(service, account, projectUuid, [
+            service.getTileParameterReferences(account, projectUuid, [
                 chartTile('tile-1', 'plain'),
             ]),
         ).rejects.toThrow(ForbiddenError);
@@ -492,7 +498,7 @@ describe('DashboardService.getTileParameters', () => {
         );
 
         await expect(
-            listTiles(service, account, projectUuid, [
+            service.getTileParameterReferences(account, projectUuid, [
                 chartTile('tile-1', 'plain'),
                 chartTile('tile-2', 'restricted'),
                 {
@@ -507,9 +513,11 @@ describe('DashboardService.getTileParameters', () => {
                 parameterReferences: ['orders.region'],
                 ...noSavedValues,
                 error: null,
+                parameterDefinitions: {},
             },
             {
                 tileUuid: 'tile-2',
+                parameterReferences: null,
                 error: "You don't have authorization to access this explore",
             },
             {
@@ -517,6 +525,7 @@ describe('DashboardService.getTileParameters', () => {
                 parameterReferences: ['region'],
                 ...noSavedValues,
                 error: null,
+                parameterDefinitions: {},
             },
         ]);
     });
@@ -525,7 +534,7 @@ describe('DashboardService.getTileParameters', () => {
         const { service, projectService } = setup();
 
         await expect(
-            listTiles(service, account, projectUuid, [
+            service.getTileParameterReferences(account, projectUuid, [
                 chartTile('tile-1', 'merged'),
             ]),
         ).resolves.toEqual([
@@ -534,6 +543,7 @@ describe('DashboardService.getTileParameters', () => {
                 parameterReferences: ['orders.region', 'payments.region'],
                 ...noSavedValues,
                 error: null,
+                parameterDefinitions: {},
             },
         ]);
         expect(projectService.findExplores).toHaveBeenCalledTimes(1);
@@ -564,7 +574,7 @@ describe('DashboardService.getTileParameters', () => {
         });
 
         await expect(
-            listTiles(service, account, projectUuid, [
+            service.getTileParameterReferences(account, projectUuid, [
                 chartTile('tile-1', 'requiring'),
             ]),
         ).resolves.toEqual([
@@ -573,6 +583,7 @@ describe('DashboardService.getTileParameters', () => {
                 parameterReferences: ['orders.region', 'required.region'],
                 ...noSavedValues,
                 error: null,
+                parameterDefinitions: {},
             },
         ]);
     });
@@ -584,13 +595,15 @@ describe('DashboardService.getTileParameters', () => {
             merge: { ...merge, keys: null as never },
         });
 
-        const results = await listTiles(service, account, projectUuid, [
-            chartTile('tile-1', 'corrupt'),
-            chartTile('tile-2', 'plain'),
-        ]);
+        const results = await service.getTileParameterReferences(
+            account,
+            projectUuid,
+            [chartTile('tile-1', 'corrupt'), chartTile('tile-2', 'plain')],
+        );
 
         expect(results[0]).toEqual({
             tileUuid: 'tile-1',
+            parameterReferences: null,
             error: expect.stringContaining('null'),
         });
         expect(results[1]).toEqual({
@@ -598,6 +611,7 @@ describe('DashboardService.getTileParameters', () => {
             parameterReferences: ['orders.region'],
             ...noSavedValues,
             error: null,
+            parameterDefinitions: {},
         });
     });
 
@@ -615,7 +629,7 @@ describe('DashboardService.getTileParameters', () => {
         });
 
         await expect(
-            listTiles(service, account, projectUuid, [
+            service.getTileParameterReferences(account, projectUuid, [
                 chartTile('tile-1', 'stale'),
             ]),
         ).resolves.toEqual([
@@ -624,6 +638,7 @@ describe('DashboardService.getTileParameters', () => {
                 parameterReferences: ['orders.min_amount', 'orders.region'],
                 ...noSavedValues,
                 error: null,
+                parameterDefinitions: {},
             },
         ]);
     });
@@ -637,13 +652,14 @@ describe('DashboardService.getTileParameters', () => {
         charts.api = savedChart({ uuid: 'api', tableName: 'api' });
 
         await expect(
-            listTiles(service, account, projectUuid, [
+            service.getTileParameterReferences(account, projectUuid, [
                 chartTile('tile-1', 'api'),
             ]),
         ).resolves.toEqual([
             {
                 tileUuid: 'tile-1',
                 parameterReferences: [],
+                parameterDefinitions: {},
                 ...noSavedValues,
                 error: null,
             },
@@ -663,12 +679,13 @@ describe('DashboardService.getTileParameters', () => {
         });
 
         await expect(
-            listTiles(service, account, projectUuid, [
+            service.getTileParameterReferences(account, projectUuid, [
                 chartTile('tile-1', 'mergedBroken'),
             ]),
         ).resolves.toEqual([
             {
                 tileUuid: 'tile-1',
+                parameterReferences: null,
                 error: 'Explore "gone" is not available',
             },
         ]);
@@ -678,7 +695,7 @@ describe('DashboardService.getTileParameters', () => {
         const { service } = setup();
 
         await expect(
-            listTiles(service, account, projectUuid, [
+            service.getTileParameterReferences(account, projectUuid, [
                 {
                     tileUuid: 'tile-1',
                     savedChartUuid: null,
@@ -691,6 +708,7 @@ describe('DashboardService.getTileParameters', () => {
                 parameterReferences: ['region'],
                 ...noSavedValues,
                 error: null,
+                parameterDefinitions: {},
             },
         ]);
     });
@@ -698,12 +716,16 @@ describe('DashboardService.getTileParameters', () => {
     it('reports failing, missing and hidden tiles without failing the rest', async () => {
         const { service } = setup();
 
-        const results = await listTiles(service, account, projectUuid, [
-            chartTile('good', 'plain'),
-            chartTile('failing', 'broken'),
-            chartTile('missing', 'deleted'),
-            chartTile('denied', 'hidden'),
-        ]);
+        const results = await service.getTileParameterReferences(
+            account,
+            projectUuid,
+            [
+                chartTile('good', 'plain'),
+                chartTile('failing', 'broken'),
+                chartTile('missing', 'deleted'),
+                chartTile('denied', 'hidden'),
+            ],
+        );
 
         expect(results).toEqual([
             {
@@ -711,17 +733,21 @@ describe('DashboardService.getTileParameters', () => {
                 parameterReferences: ['orders.region'],
                 ...noSavedValues,
                 error: null,
+                parameterDefinitions: {},
             },
             {
                 tileUuid: 'failing',
+                parameterReferences: null,
                 error: 'Explore "broken" is not available',
             },
             {
                 tileUuid: 'missing',
+                parameterReferences: null,
                 error: 'Saved chart not found',
             },
             {
                 tileUuid: 'denied',
+                parameterReferences: null,
                 error: "You don't have access to view this chart",
             },
         ]);
@@ -746,13 +772,14 @@ describe('DashboardService.getTileParameters', () => {
         });
 
         await expect(
-            listTiles(service, account, projectUuid, [
+            service.getTileParameterReferences(account, projectUuid, [
                 sqlTile('missing', 'deleted-sql'),
                 sqlTile('good', 'sql'),
             ]),
         ).resolves.toEqual([
             {
                 tileUuid: 'missing',
+                parameterReferences: null,
                 error: 'SQL chart not found',
             },
             {
@@ -760,6 +787,7 @@ describe('DashboardService.getTileParameters', () => {
                 parameterReferences: ['region'],
                 ...noSavedValues,
                 error: null,
+                parameterDefinitions: {},
             },
         ]);
     });
@@ -769,13 +797,14 @@ describe('DashboardService.getTileParameters', () => {
         charts['plain-slug'] = charts.plain;
 
         await expect(
-            listTiles(service, account, projectUuid, [
+            service.getTileParameterReferences(account, projectUuid, [
                 chartTile('tile-1', 'plain-slug'),
                 chartTile('tile-2', 'plain'),
             ]),
         ).resolves.toEqual([
             {
                 tileUuid: 'tile-1',
+                parameterReferences: null,
                 error: 'Saved chart plain-slug must be addressed by its uuid',
             },
             {
@@ -783,6 +812,7 @@ describe('DashboardService.getTileParameters', () => {
                 parameterReferences: ['orders.region'],
                 ...noSavedValues,
                 error: null,
+                parameterDefinitions: {},
             },
         ]);
     });
@@ -791,8 +821,7 @@ describe('DashboardService.getTileParameters', () => {
         it("lists the token dashboard's tiles with the charts saved on it", async () => {
             const { service, savedChartModel } = setup();
 
-            const results = await listTiles(
-                service,
+            const results = await service.getTileParameterReferences(
                 dashboardEmbed,
                 projectUuid,
                 [
@@ -813,18 +842,21 @@ describe('DashboardService.getTileParameters', () => {
                     parameterReferences: ['orders.region'],
                     ...noSavedValues,
                     error: null,
+                    parameterDefinitions: {},
                 },
                 {
                     tileUuid: 'embed-sql-tile',
                     parameterReferences: ['region'],
                     ...noSavedValues,
                     error: null,
+                    parameterDefinitions: {},
                 },
                 {
                     tileUuid: 'embed-hidden-tile',
                     parameterReferences: ['orders.region'],
                     ...noSavedValues,
                     error: null,
+                    parameterDefinitions: {},
                 },
             ]);
             expect(savedChartModel.get).not.toHaveBeenCalledWith(
@@ -844,8 +876,7 @@ describe('DashboardService.getTileParameters', () => {
             const { service, savedChartModel, dashboardModel } = setup();
 
             await expect(
-                listTiles(
-                    service,
+                service.getTileParameterReferences(
                     embedAccount(
                         {
                             type: 'dashboard',
@@ -867,8 +898,7 @@ describe('DashboardService.getTileParameters', () => {
             const { service } = setup();
 
             await expect(
-                listTiles(
-                    service,
+                service.getTileParameterReferences(
                     embedAccount(
                         {
                             type: 'dashboard',
@@ -887,6 +917,7 @@ describe('DashboardService.getTileParameters', () => {
                     parameterReferences: ['orders.region'],
                     ...noSavedValues,
                     error: null,
+                    parameterDefinitions: {},
                 },
             ]);
         });
@@ -895,12 +926,15 @@ describe('DashboardService.getTileParameters', () => {
             const { service, savedChartModel } = setup();
 
             await expect(
-                listTiles(service, dashboardEmbed, projectUuid, [
-                    chartTile('not-on-dashboard', 'plain'),
-                ]),
+                service.getTileParameterReferences(
+                    dashboardEmbed,
+                    projectUuid,
+                    [chartTile('not-on-dashboard', 'plain')],
+                ),
             ).resolves.toEqual([
                 {
                     tileUuid: 'not-on-dashboard',
+                    parameterReferences: null,
                     error: 'Tile is not on the embedded dashboard',
                 },
             ]);
@@ -911,8 +945,7 @@ describe('DashboardService.getTileParameters', () => {
             const { service } = setup();
 
             await expect(
-                listTiles(
-                    service,
+                service.getTileParameterReferences(
                     embedAccount({
                         type: 'chart',
                         chartUuids: ['plain'],

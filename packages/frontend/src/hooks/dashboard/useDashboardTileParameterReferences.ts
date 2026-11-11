@@ -2,7 +2,7 @@ import {
     FeatureFlags,
     getErrorMessage,
     type ApiError,
-    type DashboardTileParameters,
+    type DashboardTileParameterReferences,
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { chunk } from 'es-toolkit/compat';
@@ -50,40 +50,36 @@ export const useDashboardTileParameterReferences = ({
         !!projectUuid &&
         tilesKey !== '';
 
-    const { data } = useQuery<DashboardTileParameters, ApiError>({
-        queryKey: ['dashboards', 'tileParameters', projectUuid, tilesKey],
+    const { data } = useQuery<DashboardTileParameterReferences[], ApiError>({
+        queryKey: [
+            'dashboards',
+            'tileParameterReferences',
+            projectUuid,
+            tilesKey,
+        ],
         // The endpoint takes at most 200 tiles a request; larger dashboards go
         // in turns, and a failed request fails only its own tiles
         queryFn: () =>
             chunk(
                 selectTileQuerySources(store.getState()),
                 TILES_PER_REQUEST,
-            ).reduce<Promise<DashboardTileParameters>>(
-                async (previous, batch) => {
-                    const merged = await previous;
-                    const result = await lightdashApi<DashboardTileParameters>({
-                        url: `/projects/${projectUuid}/dashboards/tile-parameters`,
+            ).reduce<Promise<DashboardTileParameterReferences[]>>(
+                async (previous, batch) => [
+                    ...(await previous),
+                    ...(await lightdashApi<DashboardTileParameterReferences[]>({
+                        url: `/projects/${projectUuid}/dashboards/tile-parameter-references`,
                         version: 'v2',
                         method: 'POST',
                         body: JSON.stringify({ tiles: batch }),
-                    }).catch(
-                        (e: unknown): DashboardTileParameters => ({
-                            parameterDefinitions: {},
-                            tiles: batch.map(({ tileUuid }) => ({
-                                tileUuid,
-                                error: getErrorMessage(e),
-                            })),
-                        }),
-                    );
-                    return {
-                        parameterDefinitions: {
-                            ...merged.parameterDefinitions,
-                            ...result.parameterDefinitions,
-                        },
-                        tiles: [...merged.tiles, ...result.tiles],
-                    };
-                },
-                Promise.resolve({ parameterDefinitions: {}, tiles: [] }),
+                    }).catch((e: unknown) =>
+                        batch.map(({ tileUuid }) => ({
+                            tileUuid,
+                            parameterReferences: null,
+                            error: getErrorMessage(e),
+                        })),
+                    )),
+                ],
+                Promise.resolve([]),
             ),
         enabled: isEnabled,
     });
@@ -101,8 +97,10 @@ export const useDashboardTileParameterReferences = ({
                 JSON.stringify(source),
             ]),
         );
-        const complete = data.tiles.flatMap((result) =>
-            result.error === null && sourceByTile[result.tileUuid] !== undefined
+        const complete = data.flatMap((result) =>
+            result.error === null &&
+            result.parameterDefinitions !== undefined &&
+            sourceByTile[result.tileUuid] !== undefined
                 ? [result]
                 : [],
         );
@@ -115,7 +113,10 @@ export const useDashboardTileParameterReferences = ({
                         result.parameterReferences,
                     ]),
                 ),
-                definitions: data.parameterDefinitions,
+                definitions: Object.assign(
+                    {},
+                    ...complete.map((result) => result.parameterDefinitions),
+                ),
                 chartSavedValues: Object.fromEntries(
                     complete.map((result) => [
                         result.tileUuid,
