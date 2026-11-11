@@ -8918,13 +8918,20 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    // Wide enough that a later TTL increase cannot revive older results
-    private getResultsCacheInvalidationWindowStart(invalidatedAt: Date): Date {
-        const maxTtlSeconds = Math.max(
+    // Longest TTL any project can have: the per-project cap or the instance default, whichever is larger.
+    private getMaxResultsCacheTtlSeconds(): number {
+        return Math.max(
             this.lightdashConfig.results.cacheStateTimeSeconds,
             MAX_RESULTS_CACHE_TTL_SECONDS,
         );
-        return new Date(invalidatedAt.getTime() - maxTtlSeconds * 1000);
+    }
+
+    // Wide enough that a later TTL increase cannot revive older results
+    private getResultsCacheInvalidationWindowStart(invalidatedAt: Date): Date {
+        return new Date(
+            invalidatedAt.getTime() -
+                this.getMaxResultsCacheTtlSeconds() * 1000,
+        );
     }
 
     private async invalidateContentResultsCache(
@@ -17151,12 +17158,8 @@ export class AsyncQueryService extends ProjectService {
             account,
             projectUuid,
         );
-        const [contextRows, recommendationRows] = await Promise.all([
-            this.queryHistoryModel.getResultsCacheContextStats(
-                projectUuid,
-                days,
-            ),
-            this.queryHistoryModel.getResultsCacheRecommendationRows(
+        const { contextRows, recommendationRows } =
+            await this.queryHistoryModel.getResultsCacheStatsRows(
                 projectUuid,
                 days,
                 {
@@ -17164,9 +17167,9 @@ export class AsyncQueryService extends ProjectService {
                         ResultsCacheStatsContextGroup.SCHEDULED,
                     ),
                     ...RESULTS_CACHE_RECOMMENDATION_THRESHOLDS,
+                    maxTtlSeconds: this.getMaxResultsCacheTtlSeconds(),
                 },
-            ),
-        ]);
+            );
         const stats = buildResultsCacheStats({
             days,
             contextRows,
