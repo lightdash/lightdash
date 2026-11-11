@@ -86,6 +86,13 @@ _Avoid_: path, URL, link
 - The DuckDB query concurrency budget is process-local. Deployments with many
   API workers should size the per-worker limit accordingly; ingest concurrency
   is database-coordinated and therefore cluster-wide.
+- A query over the per-organization cap waits for a slot
+  (`EXTERNAL_SOURCES_DUCKDB_QUERY_SLOT_WAIT_TIMEOUT_MS`, default 15s). Each
+  process also runs at most `EXTERNAL_SOURCES_MAX_CONCURRENT_DUCKDB_QUERIES`
+  of these queries across all organizations (default 4). Each session's
+  memory limit is 512 MB unless the pre-aggregate DuckDB memory limit is set,
+  which then applies; size the cap against that. Waits of 100 ms or more are
+  logged as `DuckDB query slot wait`.
 - DuckDB `SCOPE` limits which URI receives the configured credential. Production
   should still use dedicated S3/IAM credentials restricted to the
   `external-sources/` prefix for defense in depth.

@@ -2069,6 +2069,8 @@ export type LightdashConfig = {
         maxConcurrentDuckdbQueriesPerOrganization: number;
         /** How long a DuckDB query waits for a free per-organization slot before it fails. */
         duckdbQuerySlotWaitTimeoutMs: number;
+        /** Per-process cap on concurrent external source DuckDB queries, across organizations. */
+        maxConcurrentDuckdbQueries: number;
         googleSheetsBatchRows: number;
         stagedUploadTtlHours: number;
         ingestLeaseMs: number;
@@ -4250,6 +4252,10 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'EXTERNAL_SOURCES_DUCKDB_QUERY_SLOT_WAIT_TIMEOUT_MS',
                 ) ?? 15_000,
+            maxConcurrentDuckdbQueries:
+                getIntegerFromEnvironmentVariable(
+                    'EXTERNAL_SOURCES_MAX_CONCURRENT_DUCKDB_QUERIES',
+                ) ?? 4,
             googleSheetsBatchRows:
                 getIntegerFromEnvironmentVariable(
                     'EXTERNAL_SOURCES_GOOGLE_SHEETS_BATCH_ROWS',

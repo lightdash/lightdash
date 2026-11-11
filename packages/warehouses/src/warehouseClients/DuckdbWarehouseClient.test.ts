@@ -1906,7 +1906,10 @@ describe('DuckdbWarehouseClient', () => {
         >;
         let streamMock: Mock;
 
-        const createClient = (acquireTimeoutMs = 5_000) =>
+        const createClient = (
+            acquireTimeoutMs = 5_000,
+            processConcurrencyLimit?: number,
+        ) =>
             DuckdbWarehouseClient.createForPreAggregate(
                 {
                     type: 'duckdb_s3',
@@ -1921,6 +1924,7 @@ describe('DuckdbWarehouseClient', () => {
                     resourceLimits: { memoryLimit: '128MB', threads: 1 },
                     organizationConcurrencyLimit: 1,
                     organizationConcurrencyAcquireTimeoutMs: acquireTimeoutMs,
+                    processConcurrencyLimit,
                 },
             );
 
@@ -1989,6 +1993,67 @@ describe('DuckdbWarehouseClient', () => {
                     'External source query capacity is full. Try again shortly.',
             });
             expect(startedQueries()).toEqual(['q1']);
+
+            finish('q1');
+            await first;
+        });
+
+        it('holds a query over the process-wide ceiling until any organization frees a slot', async () => {
+            const run = (index: number) =>
+                createClient(5_000, 2).runQuery(`SELECT 'q${index}' AS val`, {
+                    organization_uuid: `org-${index}`,
+                });
+            const running = [1, 2].map(run);
+            await vi.waitFor(() => expect(startedQueries()).toHaveLength(2));
+
+            const third = run(3);
+            await new Promise((resolve) => {
+                setTimeout(resolve, 50);
+            });
+            expect(startedQueries()).not.toContain('q3');
+
+            finish('q1');
+            await vi.waitFor(() => expect(startedQueries()).toContain('q3'));
+            [2, 3].forEach((index) => finish(`q${index}`));
+            await Promise.all([...running, third]);
+        });
+
+        it('frees the organization slot when the wait for a process slot times out', async () => {
+            vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+            const run = (name: string, organization: string) =>
+                createClient(5_000, 1).runQuery(`SELECT '${name}' AS val`, {
+                    organization_uuid: organization,
+                });
+            const first = run('q1', 'org-a');
+            await vi.waitFor(() => expect(startedQueries()).toEqual(['q1']));
+
+            const timedOut = run('q2', 'org-b').catch(
+                (error: unknown) => error,
+            );
+            await vi.advanceTimersByTimeAsync(5_000);
+            expect(await timedOut).toBeInstanceOf(WarehouseQueryError);
+
+            finish('q1');
+            await first;
+            const next = run('q3', 'org-b');
+            await vi.waitFor(() =>
+                expect(startedQueries()).toEqual(['q1', 'q3']),
+            );
+            finish('q3');
+            await expect(next).resolves.toBeDefined();
+        });
+
+        it('fails at once on a full process ceiling when there is no wait', async () => {
+            const run = (name: string, organization: string) =>
+                createClient(0, 1).runQuery(`SELECT '${name}' AS val`, {
+                    organization_uuid: organization,
+                });
+            const first = run('q1', 'org-a');
+            await vi.waitFor(() => expect(startedQueries()).toEqual(['q1']));
+
+            await expect(run('q2', 'org-b')).rejects.toBeInstanceOf(
+                WarehouseQueryError,
+            );
 
             finish('q1');
             await first;

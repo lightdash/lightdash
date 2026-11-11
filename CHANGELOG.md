@@ -1,3 +1,29 @@
+# [3.214.0](https://github.com/lightdash/lightdash/compare/3.213.3...3.214.0) (2026-11-11)
+
+
+### Bug Fixes
+
+* **ai-agent:** refuse visualize charts without a category axis, point to the breakdown step ([#32408](https://github.com/lightdash/lightdash/issues/32408)) ([1fcba4d](https://github.com/lightdash/lightdash/commit/1fcba4d573d7821dc20b33aa4dfd142e56fa6c4b))
+
+
+### Features
+
+* **embed:** allow results and chart exports in embedded Explore ([#32404](https://github.com/lightdash/lightdash/issues/32404)) ([a64958b](https://github.com/lightdash/lightdash/commit/a64958b20459eadffd62f28ed59da0916c1b2544))
+
+## [3.213.3](https://github.com/lightdash/lightdash/compare/3.213.2...3.213.3) (2026-11-11)
+
+
+### Bug Fixes
+
+* **external-sources:** cap concurrent external source queries per process ([#32391](https://github.com/lightdash/lightdash/issues/32391)) ([8f6c80f](https://github.com/lightdash/lightdash/commit/8f6c80fac63e052ef74885d90d6abf3e7b79b95f))
+
+## [3.213.2](https://github.com/lightdash/lightdash/compare/3.213.1...3.213.2) (2026-11-11)
+
+
+### Bug Fixes
+
+* **external-sources:** keep the connection id and run tracking for queued external source queries ([#32403](https://github.com/lightdash/lightdash/issues/32403)) ([06ace59](https://github.com/lightdash/lightdash/commit/06ace590c9218774e89516f9f8b32f5adf596212))
+
 ## [3.213.1](https://github.com/lightdash/lightdash/compare/3.213.0...3.213.1) (2026-11-11)
 
 

@@ -99,7 +99,9 @@ const getComposerNodeKindsDescription = ({
         : ''
 }
 
-A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: aggregate in the referenced node itself.`;
+A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: aggregate in the referenced node itself.
+
+A duckdb node that only reshapes another duckdb node's result (adds a column, filters, renames, re-sorts) belongs in that node's SQL: write one duckdb node over the original's references, under a new node id if the original is from an earlier call. Each duckdb step waits for the one it reads.`;
 
 export const getToolComposerQueriesDescription = ({
     enablePythonNodes,

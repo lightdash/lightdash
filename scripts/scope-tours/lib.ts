@@ -4,7 +4,8 @@
  * markers becomes a walkthrough. See generate.ts for the marker contract.
  */
 import { getScopes } from '@lightdash/common';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 export const root = path.resolve(__dirname, '../..');
@@ -16,6 +17,125 @@ export const outputPath = path.join(
     frontendSrc,
     'features/scopeTours/generated.ts',
 );
+
+/**
+ * The docs commit the walkthroughs are generated from. CI checks the docs out
+ * at this commit, so a docs edit cannot fail an unrelated pull request; a
+ * deliberate bump (`pnpm scope-tours:bump-docs`) moves it.
+ */
+export const docsPinPath = path.join(root, 'scripts/scope-tours/docs-pin.txt');
+
+/** The files a docs bump regenerates, relative to the repository root. */
+export const GENERATED_FILES = [
+    'packages/frontend/src/features/scopeTours/generated.ts',
+    'packages/frontend/src/features/scopeTours/released.ts',
+    'packages/frontend/src/features/scopeTours/curriculum.ts',
+];
+
+/**
+ * Why a bump must not run, given `git status --porcelain` for the generated
+ * files: a bump regenerates them, so it would overwrite local changes.
+ * Undefined when they have none.
+ */
+export const generatedChangesError = (
+    porcelain: string,
+): string | undefined => {
+    const changed = porcelain
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line !== '')
+        .map((line) => line.replace(/^\S+\s+/, ''));
+    if (changed.length === 0) return undefined;
+    return `The generated files have local changes: ${changed.join(', ')}. A bump regenerates them, so commit or stash them first, then run this again.`;
+};
+
+/** Set to 1 to run against a docs checkout that is not at the pinned commit. */
+export const DOCS_PIN_OVERRIDE = 'SCOPE_TOURS_ALLOW_UNPINNED_DOCS';
+
+const COMMIT_SHA = /^[0-9a-f]{40}$/;
+
+export const parseDocsPin = (
+    text: string,
+    source = path.relative(root, docsPinPath),
+): string => {
+    const sha = text.replace(/\n+$/, '');
+    if (!COMMIT_SHA.test(sha)) {
+        throw new Error(
+            `${source} must hold one 40-character lowercase docs commit SHA`,
+        );
+    }
+    return sha;
+};
+
+export const readDocsPin = (file = docsPinPath): string =>
+    parseDocsPin(readFileSync(file, 'utf8'));
+
+/** The commit a docs checkout is at; undefined when it is not a git checkout. */
+export const docsHead = (dir = docsDir): string | undefined => {
+    if (!existsSync(path.join(dir, '.git'))) return undefined;
+    return execFileSync('git', ['-C', dir, 'rev-parse', 'HEAD'], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+};
+
+export type DocsPinVerdict = {
+    level: 'ok' | 'warning' | 'error';
+    message: string;
+};
+
+const isCi = (env: NodeJS.ProcessEnv) =>
+    env.CI !== undefined && env.CI !== '' && env.CI !== 'false';
+
+/**
+ * Whether the docs checkout is the pinned commit. A mismatch is a warning
+ * locally and an error in CI, unless DOCS_PIN_OVERRIDE is set.
+ */
+export const docsPinVerdict = (
+    pin: string,
+    head: string | undefined,
+    env: NodeJS.ProcessEnv = process.env,
+): DocsPinVerdict => {
+    if (head === pin) {
+        return { level: 'ok', message: `Docs at the pinned commit ${pin}` };
+    }
+    const problem =
+        head === undefined
+            ? `Docs at ${docsDir} are not a git checkout, so they cannot be confirmed as the pinned commit ${pin}`
+            : `Docs checkout is at ${head}, not the pinned commit ${pin} (${path.relative(root, docsPinPath)})`;
+    if (env[DOCS_PIN_OVERRIDE] === '1') {
+        return {
+            level: 'warning',
+            message: `${problem}; continuing because ${DOCS_PIN_OVERRIDE}=1`,
+        };
+    }
+    if (isCi(env)) {
+        return {
+            level: 'error',
+            message: `${problem}. CI must generate from the pinned commit.`,
+        };
+    }
+    return {
+        level: 'warning',
+        message: `${problem}. Output can differ from CI: check out the pinned commit, or run pnpm scope-tours:bump-docs.`,
+    };
+};
+
+/**
+ * Reports the docs commit on stderr (stdout may carry JSON) and throws when
+ * the verdict is an error. Returns the commit the docs checkout is at.
+ */
+export const ensureDocsPin = (env = process.env): string | undefined => {
+    const head = docsHead();
+    const verdict = docsPinVerdict(readDocsPin(), head, env);
+    if (verdict.level === 'error') throw new Error(verdict.message);
+    console.error(
+        verdict.level === 'warning'
+            ? `warning: ${verdict.message}`
+            : verdict.message,
+    );
+    return head;
+};
 
 export type Marker = {
     scope: string;
