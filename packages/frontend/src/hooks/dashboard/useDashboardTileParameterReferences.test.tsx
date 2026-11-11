@@ -4,8 +4,8 @@ import {
     type DashboardTile,
 } from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, renderHook, waitFor } from '@testing-library/react';
-import type { PropsWithChildren } from 'react';
+import { act, render, renderHook, waitFor } from '@testing-library/react';
+import { useEffect, useSyncExternalStore, type PropsWithChildren } from 'react';
 import { vi, type Mock } from 'vitest';
 
 vi.mock('../../api');
@@ -19,6 +19,7 @@ import { sharedLightdashApi, type LightdashApi } from '../../api';
 import {
     dashboardEditActions,
     dashboardParametersActions,
+    selectTileQuerySourcesKey,
 } from '../../features/dashboard/store';
 import { LightdashApiContext } from '../../providers/LightdashApi/LightdashApiContext';
 import { createDashboardTestStore } from '../../testing/dashboardStore';
@@ -358,6 +359,49 @@ describe('useDashboardTileParameterReferences', () => {
             expect(store.getState().parameters.tileParameterReferences).toEqual(
                 { 'tile-open': ['a.region'] },
             );
+        });
+
+        it('keeps a report the new chart makes in the same render as the swap', async () => {
+            mockApi.mockReturnValue(new Promise(() => {}));
+            const store = createDashboardTestStore();
+            store.dispatch(dashboardEditActions.setTiles([tiles[0]]));
+            // A cached chart reports from its tile's effect in the commit that swaps it
+            const Tile = () => {
+                const key = useSyncExternalStore(store.subscribe, () =>
+                    selectTileQuerySourcesKey(store.getState()),
+                );
+                useEffect(() => {
+                    if (!key.includes('chart-9')) return;
+                    store.dispatch(
+                        dashboardParametersActions.setTileChartSavedParameters({
+                            tileUuid: 'tile-open',
+                            values: { status: 'Open' },
+                        }),
+                    );
+                }, [key]);
+                return null;
+            };
+            const Dashboard = () => {
+                useDashboardTileParameterReferences({
+                    store,
+                    projectUuid: 'project-uuid',
+                });
+                return <Tile />;
+            };
+            render(
+                <QueryClientProvider client={new QueryClient()}>
+                    <Dashboard />
+                </QueryClientProvider>,
+            );
+            await waitFor(() =>
+                expect(
+                    store.getState().parameters.tileParameterStateSources,
+                ).toHaveProperty('tile-open'),
+            );
+            swap(store);
+            expect(
+                store.getState().parameters.tileChartSavedParameters,
+            ).toEqual({ 'tile-open': { status: 'Open' } });
         });
     });
 

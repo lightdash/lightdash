@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { chunk } from 'es-toolkit/compat';
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useSyncExternalStore } from 'react';
 import {
     dashboardParametersActions,
     selectTileQuerySources,
@@ -42,8 +42,9 @@ export const useDashboardTileParameterReferences = ({
         !!projectUuid &&
         tilesKey !== '';
 
-    // A tile pointed at another chart drops what it had, before its new query reports
-    useEffect(() => {
+    // A tile pointed at another chart drops what it had, before its new query reports:
+    // a layout effect runs before every tile's effects, which report a cached chart at once
+    useLayoutEffect(() => {
         if (dashboardControlsFlag?.enabled !== true) return;
         store.dispatch(
             dashboardParametersActions.resetChangedTileParameterSources(
