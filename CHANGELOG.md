@@ -1,3 +1,10 @@
+## [3.211.4](https://github.com/lightdash/lightdash/compare/3.211.3...3.211.4) (2026-11-11)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** show only the new parameter pills with controls on ([#32394](https://github.com/lightdash/lightdash/issues/32394)) ([ce08bd3](https://github.com/lightdash/lightdash/commit/ce08bd37549403008f513149b4c3be338daa46c7))
+
 ## [3.211.3](https://github.com/lightdash/lightdash/compare/3.211.2...3.211.3) (2026-11-11)
 
 
