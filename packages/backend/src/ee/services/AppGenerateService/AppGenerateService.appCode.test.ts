@@ -3141,6 +3141,28 @@ describe('AppGenerateService.authorizeConsumerQuery', () => {
         ).rejects.toThrow(ForbiddenError);
     });
 
+    describe('stored consumer queries', () => {
+        const source = {
+            account: request.account,
+            projectUuid: PROJECT_UUID,
+            appUuid: NEW_APP_UUID,
+        };
+
+        it('allows reads and reruns recorded on the latest ready version', async () => {
+            const { service } = setup();
+            await expect(
+                service.assertCanViewQuerySource({ ...source, version: 2 }),
+            ).resolves.toBeUndefined();
+        });
+
+        it('denies reads and reruns recorded on an older version', async () => {
+            const { service } = setup();
+            await expect(
+                service.assertCanViewQuerySource({ ...source, version: 1 }),
+            ).rejects.toThrow('newer version');
+        });
+    });
+
     describe('explores named differently from their base table', () => {
         const reportReferences = extract(
             "query('orders_report').dimensions(['country']).metrics(['revenue']);",

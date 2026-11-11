@@ -2393,6 +2393,7 @@ export class AsyncQueryService extends ProjectService {
                 account,
                 projectUuid,
                 appUuid: queryHistory.requestParameters.dataAppSource.appUuid,
+                version: queryHistory.requestParameters.dataAppSource.version,
             });
         }
         if (queryHistory.requestParameters?.documentSource) {

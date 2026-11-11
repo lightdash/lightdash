@@ -7260,6 +7260,7 @@ describe('AsyncQueryService', () => {
                 account: sessionAccount,
                 projectUuid,
                 appUuid: 'app-uuid',
+                version: 2,
             });
         });
 

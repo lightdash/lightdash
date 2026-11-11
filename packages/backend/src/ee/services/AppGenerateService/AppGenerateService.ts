@@ -12491,12 +12491,7 @@ export class AppGenerateService extends BaseService {
                 })
             ).enabled
         ) {
-            const latest = await this.appModel.getLatestReadyVersion(appUuid);
-            if (!latest || latest.version !== version) {
-                throw new ForbiddenError(
-                    'This data app has a newer version. Reload the app to continue.',
-                );
-            }
+            await this.assertLatestReadyVersion(appUuid, version);
         }
 
         return mintPreviewToken(
@@ -13366,15 +13361,20 @@ export class AppGenerateService extends BaseService {
         }
     }
 
-    /** Rechecks app access for stored results and reruns of consumer queries. */
+    /**
+     * Rechecks app access for stored results and reruns of consumer queries.
+     * With `version`, it must still be the latest ready version.
+     */
     async assertCanViewQuerySource({
         account,
         projectUuid,
         appUuid,
+        version,
     }: {
         account: Account;
         projectUuid: string;
         appUuid: string;
+        version?: number;
     }): Promise<void> {
         if (!account.isRegisteredUser()) throw new ForbiddenError();
         const app = await this.appModel.findApp(appUuid, projectUuid);
@@ -13402,6 +13402,17 @@ export class AppGenerateService extends BaseService {
             )
         )
             throw new ForbiddenError('You do not have access to this data app');
+        if (version !== undefined)
+            await this.assertLatestReadyVersion(appUuid, version);
+    }
+
+    private async assertLatestReadyVersion(appUuid: string, version: number) {
+        const latest = await this.appModel.getLatestReadyVersion(appUuid);
+        if (!latest || latest.version !== version)
+            throw new ForbiddenError(
+                'This data app has a newer version. Reload the app to continue.',
+            );
+        return latest;
     }
 
     /**
@@ -13441,11 +13452,7 @@ export class AppGenerateService extends BaseService {
         await this.assertCanViewQuerySource({ account, projectUuid, appUuid });
         // Only the latest ready version: removing a field from an app must
         // also stop consumers querying it through an older version.
-        const latest = await this.appModel.getLatestReadyVersion(appUuid);
-        if (!latest || latest.version !== version)
-            throw new ForbiddenError(
-                'This data app has a newer version. Reload the app to continue.',
-            );
+        const latest = await this.assertLatestReadyVersion(appUuid, version);
         if (!latest.consumer_data_references)
             throw new ForbiddenError(
                 'This data app version has no saved data references',
