@@ -1,3 +1,10 @@
+# [3.219.0](https://github.com/lightdash/lightdash/compare/3.218.0...3.219.0) (2026-11-11)
+
+
+### Features
+
+* **mobile:** show the sign-in number only after the web confirms ([#32407](https://github.com/lightdash/lightdash/issues/32407)) ([ac21566](https://github.com/lightdash/lightdash/commit/ac215666a5fe8fa7281318b37d1b166f03765e1e))
+
 # [3.218.0](https://github.com/lightdash/lightdash/compare/3.217.1...3.218.0) (2026-11-11)
 
 
