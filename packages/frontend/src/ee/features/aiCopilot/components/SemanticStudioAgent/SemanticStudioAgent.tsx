@@ -30,6 +30,7 @@ import { store } from '../../store';
 import { AiAgentThreadStreamAbortControllerContextProvider } from '../../streaming/AiAgentThreadStreamAbortControllerContextProvider';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
+import { QuietCardsContext } from '../ChatElements/ToolCalls/quietCards';
 import classes from './SemanticStudioAgent.module.css';
 import {
     useChatOpen,
@@ -282,53 +283,57 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
     if (!isEnabled || !agent) return null;
     if (!isOpen) return null;
     return (
-        <Box className={classes.panel} data-quiet-cards>
-            <Group className={classes.actions} gap={4} wrap="nowrap">
-                {thread ? (
-                    <Tooltip label="New conversation">
+        <QuietCardsContext.Provider value>
+            <Box className={classes.panel} data-quiet-cards>
+                <Group className={classes.actions} gap={4} wrap="nowrap">
+                    {thread ? (
+                        <Tooltip label="New conversation">
+                            <ActionIcon
+                                aria-label="New conversation"
+                                onClick={() => setStored(null)}
+                            >
+                                <MantineIcon icon={IconPlus} />
+                            </ActionIcon>
+                        </Tooltip>
+                    ) : null}
+                    <Tooltip label="Hide chat">
                         <ActionIcon
-                            aria-label="New conversation"
-                            onClick={() => setStored(null)}
+                            aria-label="Hide chat"
+                            onClick={() => setIsOpen(false)}
                         >
-                            <MantineIcon icon={IconPlus} />
+                            <MantineIcon
+                                icon={IconLayoutSidebarRightCollapse}
+                            />
                         </ActionIcon>
                     </Tooltip>
-                ) : null}
-                <Tooltip label="Hide chat">
-                    <ActionIcon
-                        aria-label="Hide chat"
-                        onClick={() => setIsOpen(false)}
-                    >
-                        <MantineIcon icon={IconLayoutSidebarRightCollapse} />
-                    </ActionIcon>
-                </Tooltip>
-            </Group>
-            <Box className={classes.body}>
-                {thread ? (
-                    <ExistingThread
-                        key={thread.threadUuid}
-                        projectUuid={projectUuid}
-                        agent={thread.agent}
-                        threadUuid={thread.threadUuid}
-                        modelName={modelName}
-                        fieldName={fieldName}
-                        prompt={prompt}
-                        onPromptTaken={onPromptTaken}
-                    />
-                ) : (
-                    <NewThread
-                        projectUuid={projectUuid}
-                        agent={agent}
-                        onCreated={setStored}
-                        showStarters={showStarters}
-                        modelName={modelName}
-                        fieldName={fieldName}
-                        prompt={prompt}
-                        onPromptTaken={onPromptTaken}
-                    />
-                )}
+                </Group>
+                <Box className={classes.body}>
+                    {thread ? (
+                        <ExistingThread
+                            key={thread.threadUuid}
+                            projectUuid={projectUuid}
+                            agent={thread.agent}
+                            threadUuid={thread.threadUuid}
+                            modelName={modelName}
+                            fieldName={fieldName}
+                            prompt={prompt}
+                            onPromptTaken={onPromptTaken}
+                        />
+                    ) : (
+                        <NewThread
+                            projectUuid={projectUuid}
+                            agent={agent}
+                            onCreated={setStored}
+                            showStarters={showStarters}
+                            modelName={modelName}
+                            fieldName={fieldName}
+                            prompt={prompt}
+                            onPromptTaken={onPromptTaken}
+                        />
+                    )}
+                </Box>
             </Box>
-        </Box>
+        </QuietCardsContext.Provider>
     );
 };
 
