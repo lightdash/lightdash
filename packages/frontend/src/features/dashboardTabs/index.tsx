@@ -27,7 +27,7 @@ import {
     useTransition,
     type FC,
 } from 'react';
-import { type Layout } from 'react-grid-layout';
+import { type ItemCallback, type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import {
@@ -82,6 +82,9 @@ import GridTile from './GridTile';
 import {
     convertLayoutToBaseCoordinates,
     hasGridItemMoved,
+    pinGridItem,
+    resolveDropOverlaps,
+    unpinGridItem,
     DEFAULT_ROW_HEIGHT,
     EDIT_ACTION_BAR_CLEARANCE,
     FINE_GRID_SCALE,
@@ -108,6 +111,7 @@ const EMPTY_LAYOUTS: DashboardLayouts = {
 // Unset outside edit mode, where the grid is never zoomed
 type DashboardGridProps = ReturnType<typeof getResponsiveGridLayoutProps> & {
     transformScale: number | undefined;
+    allowOverlap: boolean;
 };
 
 const DASHBOARD_GRID_BOTTOM_PADDING = 60;
@@ -121,10 +125,10 @@ type TabGridPanelProps = {
     locked: boolean;
     gridProps: DashboardGridProps;
     dashboardTabs: DashboardTab[];
-    onDragStart: () => void;
-    onDragStop: (layout: Layout[], before: Layout, after: Layout) => void;
-    onResizeStart: () => void;
-    onResizeStop: (layout: Layout[], before: Layout, after: Layout) => void;
+    onDragStart: ItemCallback;
+    onDragStop: ItemCallback;
+    onResizeStart: ItemCallback;
+    onResizeStop: ItemCallback;
     onWidthChange: (width: number) => void;
     onDeleteTile: (tile: IDashboard['tiles'][number]) => Promise<void>;
     onEditTile: (tile: IDashboard['tiles'][number]) => void;
@@ -319,10 +323,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         FeatureFlags.DashboardEditErgonomics,
     );
     // Editing gets a grid twice as fine; stored positions stay in base units
-    const gridScale =
-        isEditMode && editErgonomicsFlag?.enabled === true
-            ? FINE_GRID_SCALE
-            : 1;
+    const isEditErgonomicsEnabled =
+        isEditMode && editErgonomicsFlag?.enabled === true;
+    const gridScale = isEditErgonomicsEnabled ? FINE_GRID_SCALE : 1;
     const FiltersBar = isDashboardControlsEnabled
         ? ControlsBar
         : DashboardFiltersBar;
@@ -345,26 +348,31 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const { start: startAutoScroll, stop: stopAutoScroll } =
         useAutoScrollOnDrag();
 
-    const handleDragStart = useCallback(() => {
-        setIsInteracting(true);
-        startAutoScroll();
-    }, [startAutoScroll]);
+    const handleInteractionStart = useCallback<ItemCallback>(
+        (_layout, _before, _after, _placeholder, _event, node) => {
+            if (isEditErgonomicsEnabled) pinGridItem(node);
+            setIsInteracting(true);
+            startAutoScroll();
+        },
+        [startAutoScroll, isEditErgonomicsEnabled],
+    );
     // The grid reports its whole layout on every stop, with stored overlaps
     // pushed apart, so a click that moved nothing must not apply it
-    const handleInteractionStop = useCallback(
-        (layout: Layout[], before: Layout, after: Layout) => {
+    const handleInteractionStop = useCallback<ItemCallback>(
+        (layout, before, after, _placeholder, _event, node) => {
+            unpinGridItem(node);
             stopAutoScroll();
             setIsInteracting(false);
             if (hasGridItemMoved(before, after)) {
-                void handleUpdateTilesWithScaling(layout);
+                void handleUpdateTilesWithScaling(
+                    isEditErgonomicsEnabled
+                        ? resolveDropOverlaps(layout, after.i)
+                        : layout,
+                );
             }
         },
-        [handleUpdateTilesWithScaling, stopAutoScroll],
+        [handleUpdateTilesWithScaling, stopAutoScroll, isEditErgonomicsEnabled],
     );
-    const handleResizeStart = useCallback(() => {
-        setIsInteracting(true);
-        startAutoScroll();
-    }, [startAutoScroll]);
     const handleWidthChange = useCallback(
         (cw: number) => setGridWidth(cw),
         [setGridWidth],
@@ -532,8 +540,16 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         () => ({
             ...unzoomedGridProps,
             transformScale: isCanvasZoomable ? canvasZoom : undefined,
+            // Only mid-gesture, so the grid still pushes stored overlaps apart
+            allowOverlap: isEditErgonomicsEnabled && isInteracting,
         }),
-        [unzoomedGridProps, isCanvasZoomable, canvasZoom],
+        [
+            unzoomedGridProps,
+            isCanvasZoomable,
+            canvasZoom,
+            isEditErgonomicsEnabled,
+            isInteracting,
+        ],
     );
     const layoutsByTab = useMemo(() => {
         const map = new Map<string, DashboardLayouts>();
@@ -1227,6 +1243,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                 isFitToScreenSnapping
                                     ? styles.gridSnapping
                                     : undefined,
+                                gridProps.allowOverlap
+                                    ? styles.dropShadow
+                                    : undefined,
                             ]
                                 .filter(Boolean)
                                 .join(' ')}
@@ -1271,12 +1290,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                   }
                                                   gridProps={gridProps}
                                                   dashboardTabs={dashboardTabs}
-                                                  onDragStart={handleDragStart}
+                                                  onDragStart={
+                                                      handleInteractionStart
+                                                  }
                                                   onDragStop={
                                                       handleInteractionStop
                                                   }
                                                   onResizeStart={
-                                                      handleResizeStart
+                                                      handleInteractionStart
                                                   }
                                                   onResizeStop={
                                                       handleInteractionStop
@@ -1298,9 +1319,13 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                           <ResponsiveGridLayout
                                               key={gridProps.cols.lg}
                                               {...gridProps}
-                                              onDragStart={handleDragStart}
+                                              onDragStart={
+                                                  handleInteractionStart
+                                              }
                                               onDragStop={handleInteractionStop}
-                                              onResizeStart={handleResizeStart}
+                                              onResizeStart={
+                                                  handleInteractionStart
+                                              }
                                               onResizeStop={
                                                   handleInteractionStop
                                               }
