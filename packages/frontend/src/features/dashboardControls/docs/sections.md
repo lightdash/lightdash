@@ -64,6 +64,9 @@ _group_ (that is `requiredGroupId`).
 - One `DndContext` in `SectionedFilters`. The pill itself is the handle
   (PointerSensor, 5px), so a click still opens the editor. Nothing drags
   while a filter is edited.
+- A section drags from anywhere on its capsule except its pills (their own
+  drag) and its trailing "+" and "..." (`data-section-actions`). A click on
+  the chevron still folds and on the name still renames.
 - **A pointer drag drops at the insertion point nearest the pointer**
   (`chooseInsertionPoint` in `insertionPoints.ts`, over `measureBar`'s rects).
   What the drop line shows is where the control lands; there is never more
