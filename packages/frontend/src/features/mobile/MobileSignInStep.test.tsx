@@ -70,7 +70,7 @@ describe('maskEmail', () => {
 });
 
 describe('MobileSignInStep', () => {
-    it('hides the code behind Show sign-in code', async () => {
+    it('offers Show sign-in code when the code is hidden', async () => {
         const signIn = mockSignIn({});
         renderStep();
         expect(
@@ -84,8 +84,17 @@ describe('MobileSignInStep', () => {
         expect(signIn.show).toHaveBeenCalledOnce();
     });
 
-    it('shows the QR code and Hide code without a timer', async () => {
-        const signIn = mockSignIn({
+    it('shows a loader instead of the button while the code is created', () => {
+        mockSignIn({ isMinting: true });
+        renderStep();
+        expect(screen.getByLabelText('Creating the code')).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Show sign-in code' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('shows the QR code without a timer or a control to hide it', async () => {
+        mockSignIn({
             phase: 'showing',
             code,
         });
@@ -97,10 +106,7 @@ describe('MobileSignInStep', () => {
         ).toBeInTheDocument();
         expect(screen.queryByText(/sign-in#c=/)).not.toBeInTheDocument();
         expect(screen.queryByText(/Expires in/)).not.toBeInTheDocument();
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Hide code' }),
-        );
-        expect(signIn.hide).toHaveBeenCalledOnce();
+        expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
     it('marks an auto-refreshed code as new', () => {
@@ -219,18 +225,17 @@ describe('MobileSignInStep', () => {
         expect(screen.getByText('Waiting for scan')).toBeVisible();
     });
 
-    it('lets the user cancel after confirming and announces the number', async () => {
-        const signIn = mockSignIn({
+    it('announces the number after confirming, with no control to hide it', () => {
+        mockSignIn({
             phase: 'approved',
             code,
             state: { ...claimedState, status: MobileSignInCodeStatus.APPROVED },
         });
         renderStep();
         expect(screen.getByText('Type on your phone: 4 7')).toBeInTheDocument();
-        await userEvent.click(
-            screen.getByRole('button', { name: 'Hide code' }),
-        );
-        expect(signIn.hide).toHaveBeenCalledOnce();
+        expect(
+            screen.queryByRole('button', { name: 'Hide code' }),
+        ).not.toBeInTheDocument();
     });
 
     it('hides the device row when the phone reported no platform', async () => {

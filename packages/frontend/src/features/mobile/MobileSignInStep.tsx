@@ -57,13 +57,18 @@ const MatchNumber: FC<{ value: string }> = ({ value }) => (
     </Group>
 );
 
-const HiddenCode: FC<StepContext> = ({ signIn }) => (
-    <Group>
-        <Button size="xs" onClick={signIn.show} loading={signIn.isMinting}>
-            {S.showCode}
-        </Button>
-    </Group>
-);
+const HiddenCode: FC<StepContext> = ({ signIn }) =>
+    signIn.isMinting ? (
+        <Box className={classes.qrFrame}>
+            <Loader size="sm" aria-label={MOBILE_STRINGS.creatingCode} />
+        </Box>
+    ) : (
+        <Group>
+            <Button size="xs" onClick={signIn.show}>
+                {S.showCode}
+            </Button>
+        </Group>
+    );
 
 const RefusedNotice: FC<StepContext> = ({ signIn }) => {
     if (signIn.refusal === MobileSignInRefusal.MANAGED_SIGN_IN_REQUIRED) {
@@ -104,16 +109,6 @@ const ShownCode: FC<StepContext> = ({ signIn }) =>
             </Box>
             <Stack gap="sm" className={classes.details}>
                 <Text size="sm">{MOBILE_STRINGS.waitingForScan}</Text>
-                <Group>
-                    <Button
-                        size="xs"
-                        variant="default"
-                        onClick={signIn.hide}
-                        autoFocus
-                    >
-                        {S.hideCode}
-                    </Button>
-                </Group>
             </Stack>
         </Group>
     ) : null;
@@ -127,9 +122,6 @@ const ApprovedNumber: FC<StepContext> = ({ signIn }) =>
                 {S.typeOnPhone}
             </Text>
             <MatchNumber value={signIn.state.matchNumber} />
-            <Button size="xs" variant="default" onClick={signIn.hide} autoFocus>
-                {S.hideCode}
-            </Button>
         </Stack>
     ) : null;
 

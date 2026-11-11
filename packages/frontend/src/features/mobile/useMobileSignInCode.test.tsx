@@ -164,6 +164,158 @@ afterEach(() => {
     vi.useRealTimers();
 });
 
+describe('useMobileSignInCode with autoShow', () => {
+    const renderAutoShown = (autoShow = true) =>
+        renderHookWithProviders(
+            (props: { autoShow: boolean }) => useMobileSignInCode(props),
+            undefined,
+            { initialProps: { autoShow } },
+        );
+
+    it('mints one code on mount and shows it', async () => {
+        const server = mockServer();
+        const { result } = renderAutoShown();
+        await waitFor(() => expect(result.current.phase).toBe('showing'));
+        await advance(MOBILE_SIGN_IN_POLL_INTERVAL_MS * 3);
+        expect(server.mints()).toEqual([{ reason: 'show' }]);
+        expect(server.deletes()).toEqual([]);
+    });
+
+    it('mints once under StrictMode and keeps the code', async () => {
+        const server = mockServer();
+        const { result, unmount } = renderHookWithProviders(
+            () => useMobileSignInCode({ autoShow: true }),
+            undefined,
+            { reactStrictMode: true },
+        );
+        await waitFor(() =>
+            expect(result.current.code?.codeUuid).toBe('code-1'),
+        );
+        await advance(MOBILE_SIGN_IN_POLL_INTERVAL_MS * 3);
+        expect(server.mints()).toEqual([{ reason: 'show' }]);
+        expect(server.deletes()).toEqual([]);
+        expect(result.current.phase).toBe('showing');
+
+        unmount();
+        await waitFor(() =>
+            expect(server.deletes()).toEqual([
+                '/user/mobile/sign-in-codes/code-1',
+            ]),
+        );
+    });
+
+    it('waits for a hidden tab to become visible, then mints once', async () => {
+        setVisibility('hidden');
+        const server = mockServer();
+        const { result } = renderAutoShown();
+        await advance(TTL_MS);
+        expect(server.mints()).toEqual([]);
+        expect(result.current.phase).toBe('hidden');
+
+        setVisibility('visible');
+        await waitFor(() => expect(result.current.phase).toBe('showing'));
+        setVisibility('hidden');
+        setVisibility('visible');
+        await advance(MOBILE_SIGN_IN_POLL_INTERVAL_MS);
+        expect(server.mints()).toEqual([{ reason: 'show' }]);
+    });
+
+    it('keeps the code shown until it expires, then shows a new one', async () => {
+        const server = mockServer();
+        const { result } = renderAutoShown();
+        await waitFor(() => expect(result.current.phase).toBe('showing'));
+
+        await advance(TTL_MS - 5000);
+        expect(result.current.phase).toBe('showing');
+        expect(result.current.code?.codeUuid).toBe('code-1');
+        expect(server.deletes()).toEqual([]);
+
+        await advance(10_000);
+        await waitFor(() =>
+            expect(result.current.code?.codeUuid).toBe('code-2'),
+        );
+        expect(result.current.phase).toBe('showing');
+        expect(server.mints()).toEqual([
+            { reason: 'show' },
+            { reason: 'auto_refresh' },
+        ]);
+    });
+
+    it('does not mint again after the 15 minute idle stop', async () => {
+        const server = mockServer();
+        const { result } = renderAutoShown();
+        await waitFor(() => expect(result.current.phase).toBe('showing'));
+
+        for (let elapsed = 0; elapsed <= MOBILE_SIGN_IN_IDLE_LIMIT_MS; ) {
+            // eslint-disable-next-line no-await-in-loop
+            await advance(60_000);
+            elapsed += 60_000;
+        }
+        await waitFor(() => expect(result.current.phase).toBe('hidden'));
+        const mintsAtStop = server.mints().length;
+        await advance(TTL_MS * 3);
+        expect(server.mints()).toHaveLength(mintsAtStop);
+        expect(result.current.phase).toBe('hidden');
+    }, 60_000);
+
+    it('mints nothing until autoShow turns on, and again each time it does', async () => {
+        const server = mockServer();
+        const { result, rerender } = renderAutoShown(false);
+        await advance(MOBILE_SIGN_IN_POLL_INTERVAL_MS * 3);
+        expect(server.mints()).toEqual([]);
+
+        rerender({ autoShow: true });
+        await waitFor(() =>
+            expect(result.current.code?.codeUuid).toBe('code-1'),
+        );
+        act(() => result.current.hide());
+        rerender({ autoShow: false });
+        rerender({ autoShow: true });
+        await waitFor(() =>
+            expect(result.current.code?.codeUuid).toBe('code-2'),
+        );
+        expect(server.mints()).toHaveLength(2);
+    });
+
+    it('shows the refusal once and does not retry', async () => {
+        const server = mockServer({
+            mintError: {
+                status: 'error',
+                error: {
+                    name: 'ForbiddenError',
+                    statusCode: 429,
+                    message: 'Too many codes',
+                    data: { reason: MobileSignInRefusal.RATE_LIMITED },
+                },
+            },
+        });
+        const { result } = renderAutoShown();
+        await waitFor(() => expect(result.current.phase).toBe('refused'));
+        await advance(TTL_MS * 2);
+        expect(result.current.refusal).toBe(MobileSignInRefusal.RATE_LIMITED);
+        expect(result.current.code).toBeNull();
+        expect(server.mints()).toHaveLength(1);
+    });
+
+    it('reports a failed mint once so the user can retry', async () => {
+        const server = mockServer({
+            mintError: {
+                status: 'error',
+                error: {
+                    name: 'UnexpectedServerError',
+                    statusCode: 500,
+                    message: 'boom',
+                    data: {},
+                },
+            },
+        });
+        const { result } = renderAutoShown();
+        await waitFor(() => expect(result.current.phase).toBe('failed'));
+        await advance(TTL_MS * 2);
+        expect(server.mints()).toHaveLength(1);
+    });
+});
+
 describe('useMobileSignInCode', () => {
     it('keeps the code hidden until Show code, then mints and polls', async () => {
         const server = mockServer();
@@ -288,7 +440,7 @@ describe('useMobileSignInCode', () => {
         );
     });
 
-    it('cancels the code on Hide code and when the page closes', async () => {
+    it('cancels the code when step 2 closes and when the page closes', async () => {
         const server = mockServer();
         const { result, unmount } = renderHookWithProviders(() =>
             useMobileSignInCode(),
