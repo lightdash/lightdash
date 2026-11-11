@@ -116,6 +116,7 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `ControlsSidebarProvider.tsx`, `useControlsSidebar.ts`, `sidebarState.ts` | The edit state, every write to filters, focus return; pure state helpers |
 | `ControlsSidebarPage.tsx` | Drop-in for `Page`: the provider plus tile overlays, tab counts, link prompts, field bar |
 | `ControlsBar.tsx` | The shipped bar with its openings; picks flat or `SectionedFilters`; `MappingSwap` cross-fades to `MappingRow` (the embed's bar uses it too) |
+| `ControlMappingRow.tsx` | Every mapping row's frame; the parameter and date zoom rows (back, open pill, count, Clear all tiles, Cancel, Apply) |
 | `MappingRow.tsx` | Mapping: the open pill, title and counts, field chips, "Add a field", Cancel and Apply |
 | `AddControl.tsx`, `FilterBarMenu.tsx` | "Add filter" and the editor's "..." menu ("Hide for viewers" / "Show for viewers", named for the action as the shipped pin item; "Filter rules"); `InertWhileEditing` |
 | `useBarPill.ts`, `ControlEditorPopover.tsx` | Every kind's pill behaviour (modified-click pick, Alt+arrow move, tile hover, the select hint) and its editor popover's frame |
