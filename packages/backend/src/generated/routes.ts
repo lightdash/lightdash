@@ -72656,6 +72656,19 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MobileSignInDeclinedBy: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['web'] },
+                { dataType: 'enum', enums: ['phone'] },
+                { dataType: 'enum', enums: ['failed_redeems'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MobileSignInPlatform: {
         dataType: 'refAlias',
         type: {
@@ -72696,6 +72709,14 @@ const models: TsoaRoute.Models = {
                     dataType: 'union',
                     subSchemas: [
                         { ref: 'MobileSignInCodeDevice' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                declinedBy: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'MobileSignInDeclinedBy' },
                         { dataType: 'enum', enums: [null] },
                     ],
                     required: true,

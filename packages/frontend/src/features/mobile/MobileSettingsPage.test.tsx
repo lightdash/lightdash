@@ -70,6 +70,7 @@ beforeEach(() => {
                 status: MobileSignInCodeStatus.PENDING,
                 expiresAt: '2026-11-09T12:02:00.000Z',
                 matchNumber: null,
+                declinedBy: null,
                 device: null,
             };
         },
