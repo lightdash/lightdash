@@ -67,12 +67,14 @@ const payments = semantic(
     'payments',
     'payments_payment_month',
     'payments_total_revenue',
+    { parameters: { region: 'EU' } },
 );
 const customers = semantic(
     'new_customers',
     'customers',
     'customers_created_month',
     'customers_count',
+    { parameters: { region: 'EU' } },
 );
 
 const margin: MergeTableCalculation = {
@@ -409,6 +411,27 @@ describe('getComposerMergeSavedChart', () => {
                     terminalNodeId: 'orders_vs_payments',
                     vizConfig: null,
                 },
+                columns: twoSourceColumns,
+                metadata,
+            }),
+        ).toBeNull();
+    });
+
+    it('is null when sources ran under different parameters, since a saved merge shares one map', () => {
+        const config: AiComposerChartArtifactConfigV2 = {
+            source: 'composer',
+            schemaVersion: 2,
+            queries: [
+                orders,
+                { ...payments, parameters: undefined },
+                twoSourceMerge,
+            ],
+            terminalNodeId: 'orders_vs_payments',
+            vizConfig: null,
+        };
+        expect(
+            getComposerMergeSavedChart({
+                config,
                 columns: twoSourceColumns,
                 metadata,
             }),

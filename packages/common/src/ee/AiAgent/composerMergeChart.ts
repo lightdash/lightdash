@@ -5,7 +5,6 @@ import {
 } from '../../types/mergeQuery';
 import {
     getMergeNodeMergeQuery,
-    getMergeNodeParameters,
     metricQueryOfSemanticNode,
     QuerySourceType,
 } from '../../types/querySources';
@@ -15,6 +14,7 @@ import {
     type ChartConfig,
     type CreateSavedChartVersion,
 } from '../../types/savedCharts';
+import { stableJson } from '../../utils/stableJson';
 import { remapFieldIdsDeep } from './canonicalizeAiMerge';
 import { type AiComposerChartArtifactConfig } from './composerArtifact';
 import {
@@ -91,12 +91,15 @@ export const getComposerMergeSavedChart = ({
         ]),
     );
     const pivotColumns = remapFieldIdsDeep(chart.pivotColumns, fieldIdMap);
-    let parameters;
-    try {
-        parameters = getMergeNodeParameters(node, config.queries);
-    } catch {
-        return null;
-    }
+    // A saved merge runs every source under one map, so only sources that set the same values can save
+    const sourceParameters = node.sources.map(({ nodeId }) => {
+        const source = config.queries.find((query) => query.nodeId === nodeId);
+        return source?.sourceType === QuerySourceType.SEMANTIC_LAYER
+            ? stableJson(source.parameters ?? {})
+            : null;
+    });
+    if (new Set(sourceParameters).size !== 1) return null;
+    const parameters = primaryNode.parameters ?? {};
 
     return {
         tableName: primaryNode.exploreName,
