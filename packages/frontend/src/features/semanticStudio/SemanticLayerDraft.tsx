@@ -21,7 +21,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { countBy, uniqBy } from 'es-toolkit/compat';
-import { useEffect, useState, type FC } from 'react';
+import { useEffect, useRef, useState, type FC } from 'react';
 import { Navigate, useSearchParams } from 'react-router';
 import Callout from '../../components/common/Callout';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -367,6 +367,39 @@ const PreviewToggle: FC<{
     </Tooltip>
 );
 
+/** Says so once when someone publishes to a model this person has in development, since the page does not reload for it. */
+const usePublishedUnderNotice = (draft: SemanticLayerDraft | undefined) => {
+    const { showToastInfo } = useToaster();
+    // Null until the first read, which is not news: it was already so when the page opened.
+    const seen = useRef<Set<string> | null>(null);
+    useEffect(() => {
+        if (!draft) return;
+        const current = draft.models.flatMap(({ model, publishedSince }) =>
+            publishedSince
+                ? [
+                      {
+                          key: `${model}@${new Date(publishedSince.at).getTime()}`,
+                          model,
+                          by: publishedSince.by,
+                      },
+                  ]
+                : [],
+        );
+        const known = seen.current;
+        seen.current = new Set(current.map(({ key }) => key));
+        if (known === null) return;
+        current
+            .filter(({ key }) => !known.has(key))
+            .forEach(({ model, by }) =>
+                showToastInfo({
+                    title: `${by ?? 'Someone'} published a change to ${model}`,
+                    subtitle:
+                        'Your changes in development are now shown on top of it.',
+                }),
+            );
+    }, [draft, showToastInfo]);
+};
+
 /** A draft in the toolbar: what it changes, the way to its review and back, and publishing it. */
 export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     projectUuid,
@@ -377,6 +410,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
     const discard = useDiscardSemanticLayerDraft(projectUuid);
     const isEmpty = !draft || draft.changes.length === 0;
+    usePublishedUnderNotice(draft);
     // Once nothing is in development there is nothing to preview.
     useEffect(() => {
         if (draft && isEmpty && isPreviewing) setIsPreviewing(false);
