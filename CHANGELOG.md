@@ -1,3 +1,10 @@
+## [3.209.1](https://github.com/lightdash/lightdash/compare/3.209.0...3.209.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **cli:** detect dbt when the version banner reads dbt-oss 2.x ([#32374](https://github.com/lightdash/lightdash/issues/32374)) ([aa2ecf7](https://github.com/lightdash/lightdash/commit/aa2ecf735a62a088d1d3870a8366bcd33a184ed0))
+
 # [3.209.0](https://github.com/lightdash/lightdash/compare/3.208.0...3.209.0) (2026-11-11)
 
 
