@@ -200,6 +200,39 @@ describe('useAppState scopes', () => {
         expect(appState.setShared).not.toHaveBeenCalled();
     });
 
+    it('url scope never touches the durable store, even with a provider', async () => {
+        const { useAppState } = await import('./appState');
+        const appState = mockAppStateTransport();
+        const probe = await mount(makeTransport(appState), () => {
+            const [value, set, meta] = useAppState('view', 'table', {
+                scope: 'url',
+            });
+            return { value, set, meta };
+        });
+        await act(async () => probe.current().set('map'));
+        await settle();
+        // No snapshot fetch and no writes: a url-only app (e.g. the global
+        // filter provider) must not hit the app-state API at all.
+        expect(appState.getSnapshot).not.toHaveBeenCalled();
+        expect(appState.setUser).not.toHaveBeenCalled();
+    });
+
+    it('accepts a value typed as AppStateOptions (no literal scope)', async () => {
+        const { useAppState } = await import('./appState');
+        const appState = mockAppStateTransport();
+        const options: import('./appState').AppStateOptions = { url: true };
+        const probe = await mount(makeTransport(appState), () => {
+            const [value, set, meta] = useAppState(
+                'period',
+                'last_month',
+                options,
+            );
+            return { value, set, meta };
+        });
+        await settle();
+        expect(probe.current().value).toBe('last_month');
+    });
+
     it('url scope works without a LightdashProvider', async () => {
         const warn = vi
             .spyOn(console, 'warn')

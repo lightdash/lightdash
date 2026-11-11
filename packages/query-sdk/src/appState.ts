@@ -639,8 +639,10 @@ export type SharedAppStateMeta = AppStateMeta & {
     updatedBy: AppStateAuthor | null;
 };
 
-// Memory-only store for `scope: 'url'` outside <LightdashProvider>: URL state
-// needs no transport, but the unified hook must call the same hooks either way.
+// Inert memory-only store for `scope: 'url'`: URL state never touches durable
+// storage, but the unified hook must call the same hooks for every scope. It
+// is also what keeps a url-scoped hook from fetching the durable snapshot (or
+// warning) when a provider is present but the key never leaves the URL.
 let fallbackStore: AppStateStore | null = null;
 const getFallbackStore = (): AppStateStore => {
     if (!fallbackStore) {
@@ -654,13 +656,14 @@ const getFallbackStore = (): AppStateStore => {
 
 function useStore(scope: AppStateScope): AppStateStore {
     const transport = useOptionalTransport();
-    if (!transport && scope !== 'url') {
+    if (scope === 'url') return getFallbackStore();
+    if (!transport) {
         throw new Error(
             'useAppState must be used inside <LightdashProvider>. ' +
                 'Wrap your app in <LightdashProvider client={...}>.',
         );
     }
-    return transport ? getAppStateStore(transport) : getFallbackStore();
+    return getAppStateStore(transport);
 }
 
 const useStoreState = (store: AppStateStore): AppStateStoreState =>
@@ -717,6 +720,13 @@ export function useAppState<T>(
     defaultValue: T,
     options: { scope: 'shared' },
 ): [T, (next: T | ((prev: T) => T)) => void, SharedAppStateMeta];
+// A value typed as AppStateOptions (scope not narrowed to a literal) stays
+// accepted; the meta is then the union of what the scopes can return.
+export function useAppState<T>(
+    key: string,
+    defaultValue: T,
+    options: AppStateOptions,
+): [T, (next: T | ((prev: T) => T)) => void, AppStateMeta | SharedAppStateMeta];
 export function useAppState<T>(
     key: string,
     defaultValue: T,
