@@ -183,23 +183,36 @@ export class AppStateService extends BaseService {
     }
 
     // Shared values can hold data from queries a consumer cannot run
-    // (commentary, comments), so they stay with users who have Explore.
-    private canUseSharedState(
+    // (commentary, comments). With consumer access on, they stay with users
+    // who have Explore; with it off, nothing changes.
+    private async canUseSharedState(
         viewer: Extract<AuthorizedViewer, { kind: 'user' }>,
-    ): boolean {
-        return this.createAuditedAbility(viewer.user).can(
-            'view',
-            subject('Explore', {
+    ): Promise<boolean> {
+        if (
+            this.createAuditedAbility(viewer.user).can(
+                'view',
+                subject('Explore', {
+                    organizationUuid: viewer.app.organization_uuid,
+                    projectUuid: viewer.app.project_uuid,
+                }),
+            )
+        ) {
+            return true;
+        }
+        const { enabled } = await this.featureFlagModel.get({
+            user: {
                 organizationUuid: viewer.app.organization_uuid,
-                projectUuid: viewer.app.project_uuid,
-            }),
-        );
+                userUuid: viewer.user.userUuid,
+            },
+            featureFlagId: FeatureFlags.DataAppConsumerAccess,
+        });
+        return !enabled;
     }
 
-    private assertCanUseSharedState(
+    private async assertCanUseSharedState(
         viewer: Extract<AuthorizedViewer, { kind: 'user' }>,
-    ): void {
-        if (!this.canUseSharedState(viewer)) {
+    ): Promise<void> {
+        if (!(await this.canUseSharedState(viewer))) {
             throw new ForbiddenError(
                 'Shared app state is not available with your access',
             );
@@ -338,7 +351,7 @@ export class AppStateService extends BaseService {
             appUuid,
             viewer.kind === 'user' ? viewer.user.userUuid : null,
         );
-        if (viewer.kind === 'user' && !this.canUseSharedState(viewer)) {
+        if (viewer.kind === 'user' && !(await this.canUseSharedState(viewer))) {
             return { ...snapshot, shared: {} };
         }
         return snapshot;
@@ -413,7 +426,7 @@ export class AppStateService extends BaseService {
             projectUuid,
             appUuid,
         );
-        this.assertCanUseSharedState(viewer);
+        await this.assertCanUseSharedState(viewer);
         const result = await this.appStateModel.upsertSharedState({
             appUuid,
             key,
@@ -471,7 +484,7 @@ export class AppStateService extends BaseService {
             projectUuid,
             appUuid,
         );
-        if (viewer.kind === 'user') this.assertCanUseSharedState(viewer);
+        if (viewer.kind === 'user') await this.assertCanUseSharedState(viewer);
         const versions = await this.appStateModel.getSharedHistory(
             appUuid,
             key,

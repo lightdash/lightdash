@@ -4,6 +4,7 @@ import {
     ConflictError,
     DATA_APP_VIZ_TEMPLATE,
     defineUserAbility,
+    FeatureFlags,
     ForbiddenError,
     getUserAbilityBuilder,
     OrganizationMemberRole,
@@ -86,7 +87,12 @@ const sharedEntry: AppStateSharedEntry = {
 function buildService({
     template = 'data_app',
     flagEnabled = true,
-}: { template?: string; flagEnabled?: boolean } = {}) {
+    consumerAccessEnabled = true,
+}: {
+    template?: string;
+    flagEnabled?: boolean;
+    consumerAccessEnabled?: boolean;
+} = {}) {
     const app = {
         app_id: 'app-1',
         project_uuid: 'proj-1',
@@ -146,7 +152,12 @@ function buildService({
         }),
     };
     const featureFlagModel = {
-        get: vi.fn().mockResolvedValue({ enabled: flagEnabled }),
+        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => ({
+            enabled:
+                featureFlagId === FeatureFlags.DataAppConsumerAccess
+                    ? consumerAccessEnabled
+                    : flagEnabled,
+        })),
     };
     const service = new AppStateService({
         appStateModel,
@@ -280,6 +291,44 @@ describe('AppStateService', () => {
                 ),
             ).rejects.toBeInstanceOf(ForbiddenError);
             expect(appStateModel.upsertSharedState).not.toHaveBeenCalled();
+        });
+
+        it('keeps shared values while consumer access is off', async () => {
+            const { service, appStateModel } = buildService({
+                consumerAccessEnabled: false,
+            });
+            appStateModel.getSnapshot.mockResolvedValue(stored);
+            await expect(
+                service.getSnapshot(consumerAccount(), 'proj-1', 'app-1'),
+            ).resolves.toEqual(stored);
+            await service.setSharedState(
+                consumerAccount(),
+                'proj-1',
+                'app-1',
+                'commentary',
+                'edited',
+                3,
+            );
+            expect(appStateModel.upsertSharedState).toHaveBeenCalled();
+            await expect(
+                service.getSharedHistory(
+                    consumerAccount(),
+                    'proj-1',
+                    'app-1',
+                    'commentary',
+                    {},
+                ),
+            ).resolves.toEqual({ versions: [] });
+        });
+
+        it('does not read the consumer flag for users with Explore', async () => {
+            const { service, featureFlagModel } = buildService();
+            await service.getSnapshot(sessionAccount(), 'proj-1', 'app-1');
+            expect(featureFlagModel.get).not.toHaveBeenCalledWith(
+                expect.objectContaining({
+                    featureFlagId: FeatureFlags.DataAppConsumerAccess,
+                }),
+            );
         });
 
         it('cannot read shared history', async () => {
