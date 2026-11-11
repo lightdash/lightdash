@@ -48,6 +48,7 @@ import {
     useDashboardUnmetFilterRequirements,
 } from '../../../../../features/dashboard/store';
 import { ControlsSidebarProvider } from '../../../../../features/dashboardControls/ControlsSidebarProvider';
+import { DefaultZoomButton } from '../../../../../features/dashboardControls/DateZoomPills';
 import { FieldTilesBar } from '../../../../../features/dashboardControls/FieldTilesBar';
 import { type RailContractClassNames } from '../../../../../features/dashboardControls/railContractClasses';
 import { TabCounts } from '../../../../../features/dashboardControls/TabCounts';
@@ -706,6 +707,9 @@ const EmbedDashboard: FC<{
         isFlagEnabled: dashboardControlsFlag?.enabled === true,
         isEditorInEditMode: canWriteDashboard && isEditMode,
     });
+    // Off the bar, right above the tiles, as in the app
+    const isDefaultZoomShown =
+        isControlsEnabled && dashboard?.canDateZoom === true;
     const canUseChartBuilder = canUseEmbeddedChartBuilder({
         canWriteDashboard,
         canCreateSavedChart: embedWriteContext?.canCreateSavedChart === true,
@@ -1269,6 +1273,9 @@ const EmbedDashboard: FC<{
                                                 )}
                                             </Tabs.Tab>
                                         ))}
+                                        {isDefaultZoomShown && (
+                                            <DefaultZoomButton place="tabs" />
+                                        )}
                                     </Tabs.List>
                                 }
                             />
@@ -1285,6 +1292,9 @@ const EmbedDashboard: FC<{
                                 isControlsEnabled={isControlsEnabled}
                             />
                             {renderDashboardEditToolbar()}
+                            {isDefaultZoomShown && (
+                                <DefaultZoomButton place="line" />
+                            )}
                             {renderGridWithGuidedSetup()}
                         </>
                     )}

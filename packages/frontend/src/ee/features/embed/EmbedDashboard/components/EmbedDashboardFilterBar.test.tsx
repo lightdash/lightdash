@@ -492,9 +492,10 @@ describe('EmbedDashboardFilterBar', () => {
             expect(zoomPill('Revenue zoom')).toHaveClass(
                 'ld-dashboard-date-zoom',
             );
-            expect(zoomPill('Default zoom')).toHaveClass(
-                'ld-dashboard-date-zoom',
-            );
+            // Off the bar, right above the tiles
+            expect(
+                screen.queryByRole('button', { name: /^Default zoom/ }),
+            ).not.toBeInTheDocument();
             expect(
                 screen.queryByTestId('shipped-date-zoom'),
             ).not.toBeInTheDocument();
@@ -503,7 +504,6 @@ describe('EmbedDashboardFilterBar', () => {
         it('renders date zoom pills when filters are hidden', () => {
             renderZoom({ isControlsEnabled: true, shouldShowFilters: false });
             expect(zoomPill('Revenue zoom')).toBeInTheDocument();
-            expect(zoomPill('Default zoom')).toBeInTheDocument();
             expect(
                 screen.queryByTestId('shipped-date-zoom'),
             ).not.toBeInTheDocument();

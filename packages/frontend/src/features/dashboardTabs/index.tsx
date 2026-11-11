@@ -59,15 +59,14 @@ import {
     selectDateZoomGranularity,
     selectIsDateZoomDisabled,
     useDashboardDateZoomConfig,
-    useDefaultDateZoomGranularity,
     useDashboardSelector,
     useDashboardTemporaryFilters,
     useDashboardUnmetFilterRequirements,
 } from '../dashboard/store';
 import { ControlsBar } from '../dashboardControls/ControlsBar';
+import { DefaultZoomButton } from '../dashboardControls/DateZoomPills';
 import { useParameterBarControls } from '../dashboardControls/useParameterBarControls';
 import { useParameterEditorSelector } from '../dashboardControls/useParameterEditor';
-import { getDefaultZoomSummaryLabel } from '../dashboardControls/dateZoomGrains';
 import addFilterClasses from '../dashboardFilters/AddFilterButton.module.css';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
@@ -408,7 +407,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
     const getUiString = useUiStrings();
     const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
-    const defaultDateZoomGranularity = useDefaultDateZoomGranularity();
     const dashboardTemporaryFilters = useDashboardTemporaryFilters();
 
     // filters bar state
@@ -1130,6 +1128,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                             </Button>
                                         </Tooltip>
                                     )}
+                                    {isDashboardControlsEnabled && (
+                                        <DefaultZoomButton place="tabs" />
+                                    )}
                                 </Tabs.List>
                             )}
 
@@ -1142,21 +1143,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                 totalParametersCount
                                             }
                                             dateZoomLabel={
-                                                isDateZoomDisabled
+                                                // With the controls the default zoom is above the tiles, in view
+                                                isDateZoomDisabled ||
+                                                isDashboardControlsEnabled
                                                     ? null
-                                                    : isDashboardControlsEnabled
-                                                      ? // As the default zoom's pill: its grain, or None
-                                                        getDefaultZoomSummaryLabel(
-                                                            dateZoomGranularity ??
-                                                                (isEditMode
-                                                                    ? defaultDateZoomGranularity
-                                                                    : undefined),
-                                                            getUiString,
-                                                        )
-                                                      : getDateZoomSummaryLabel(
-                                                            dateZoomGranularity,
-                                                            getUiString,
-                                                        )
+                                                    : getDateZoomSummaryLabel(
+                                                          dateZoomGranularity,
+                                                          getUiString,
+                                                      )
                                             }
                                             onExpand={() =>
                                                 isEditMode
@@ -1219,6 +1213,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                             )}
                         </div>
                     </StickyWithDetection>
+
+                    {/* With no tabs row, its own line right above the tiles */}
+                    {isDashboardControlsEnabled && sortedTabs.length === 0 && (
+                        <DefaultZoomButton place="line" />
+                    )}
 
                     {showGuidedSetup && (
                         <GuidedFilterSetupOverlay

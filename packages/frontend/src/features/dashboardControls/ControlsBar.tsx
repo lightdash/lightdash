@@ -10,7 +10,7 @@ import { DateZoomCrossTabFieldsLoader } from '../dateZoom/components/DateZoomCro
 import { AddControl } from './AddControl';
 import classes from './ControlsBar.module.css';
 import { DateZoomMappingRow } from './DateZoomMappingRow';
-import { DateZoomPills, DefaultZoomPill } from './DateZoomPills';
+import { DateZoomPills } from './DateZoomPills';
 import { FilterPills } from './FilterPills';
 import { MappingRow } from './MappingRow';
 import { ParameterMappingRow } from './ParameterMappingRow';
@@ -66,7 +66,6 @@ export const ControlsBar: FC<Props> = (props) => {
                         <>
                             {props.isEditMode && <AddControl />}
                             <DateZoomPills />
-                            <DefaultZoomPill />
                         </>
                     ) : hasSections || props.isEditMode ? (
                         <SectionedFilters activeTabUuid={props.activeTabUuid} />
@@ -76,7 +75,6 @@ export const ControlsBar: FC<Props> = (props) => {
                             <FilterPills activeTabUuid={props.activeTabUuid} />
                             <ParameterPills />
                             <DateZoomPills />
-                            <DefaultZoomPill />
                         </>
                     )}
                 </SettledFilterFields>

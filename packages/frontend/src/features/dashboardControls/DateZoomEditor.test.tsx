@@ -19,7 +19,7 @@ import {
     selectDateZoomGranularity,
 } from '../dashboard/store';
 import { DateZoomEditorProvider } from './DateZoomEditorProvider';
-import { DateZoomPills, DefaultZoomPill } from './DateZoomPills';
+import { DateZoomPills, DefaultZoomButton } from './DateZoomPills';
 import { ParameterEditorProvider } from './ParameterEditorProvider';
 import {
     RailContractClasses,
@@ -137,7 +137,7 @@ const setup = ({
                 <ParameterEditorProvider isViewer={isViewer}>
                     <DateZoomEditorProvider isViewer={isViewer}>
                         <DateZoomPills />
-                        <DefaultZoomPill />
+                        <DefaultZoomButton place="line" />
                         <AddButton />
                         <button type="button" data-controls-pill="f1">
                             Region filter
@@ -161,8 +161,9 @@ const setup = ({
     return { store, user, config };
 };
 
+// "Revenue zoom is Week"; the default zoom's button reads "Default zoom Month"
 const pill = (name: string) =>
-    screen.getByRole('button', { name: new RegExp(`^${name} is`) });
+    screen.getByRole('button', { name: new RegExp(`^${name} `) });
 const dialog = () => screen.getByRole('dialog');
 
 describe('Date zoom editor', () => {
@@ -395,7 +396,7 @@ describe('Date zoom editor', () => {
 
     it('sets and clears the default zoom in the dashboard draft', async () => {
         const { user } = setup();
-        expect(pill('Default zoom')).toHaveTextContent('Default zoom is None');
+        expect(pill('Default zoom')).toHaveTextContent('Default zoom None');
         await user.click(pill('Default zoom'));
         expect(
             within(dialog()).getByText('Applies to the other 1 tile'),
@@ -407,7 +408,7 @@ describe('Date zoom editor', () => {
         await user.click(
             within(dialog()).getByRole('button', { name: 'Apply' }),
         );
-        expect(pill('Default zoom')).toHaveTextContent('Default zoom is Month');
+        expect(pill('Default zoom')).toHaveTextContent('Default zoom Month');
 
         await user.click(pill('Default zoom'));
         await user.click(
@@ -416,7 +417,17 @@ describe('Date zoom editor', () => {
         await user.click(
             within(dialog()).getByRole('button', { name: 'Apply' }),
         );
-        expect(pill('Default zoom')).toHaveTextContent('Default zoom is None');
+        expect(pill('Default zoom')).toHaveTextContent('Default zoom None');
+    });
+
+    it('keeps the default zoom off limits while tiles are chosen, as the bar', async () => {
+        const { user } = setup();
+        expect(pill('Default zoom').closest('[inert]')).toBeNull();
+        await user.click(pill('Revenue zoom'));
+        await user.click(
+            within(dialog()).getByRole('button', { name: /Choose tiles/ }),
+        );
+        expect(pill('Default zoom').closest('[inert]')).not.toBeNull();
     });
 
     it("applies a viewer's default zoom pick as the shipped menu did, tracked", async () => {

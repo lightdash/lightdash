@@ -15,18 +15,13 @@ import {
     selectHasStoredControlOrder,
     selectDashboardFilters,
     selectDateZoomGranularity,
-    selectIsDateZoomDisabled,
     selectParameterControls,
     useDashboardSelector,
     useDashboardTemporaryFilters,
 } from '../../../../../features/dashboard/store';
 import { AddControl } from '../../../../../features/dashboardControls/AddControl';
 import { MappingSwap } from '../../../../../features/dashboardControls/ControlsBar';
-import { getDefaultZoomSummaryLabel } from '../../../../../features/dashboardControls/dateZoomGrains';
-import {
-    DateZoomPills,
-    DefaultZoomPill,
-} from '../../../../../features/dashboardControls/DateZoomPills';
+import { DateZoomPills } from '../../../../../features/dashboardControls/DateZoomPills';
 import { FilterPills } from '../../../../../features/dashboardControls/FilterPills';
 import { ParameterPills } from '../../../../../features/dashboardControls/ParameterPills';
 import { SectionedFilters } from '../../../../../features/dashboardControls/SectionedFilters';
@@ -103,7 +98,6 @@ const ControlsFilterArea: FC<{
                     />
                     {withParameters && <ParameterPills />}
                     {withDateZooms && <DateZoomPills />}
-                    {withDateZooms && <DefaultZoomPill />}
                 </>
             )}
         </SettledFilterFields>
@@ -123,7 +117,6 @@ const EmbedDashboardFilterBar: FC<Props> = ({
     const dashboardFilters = useDashboardSelector(selectDashboardFilters);
     const dashboardTemporaryFilters = useDashboardTemporaryFilters();
     const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
-    const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
     // With the controls, date zooms are pills in the flow, not on the right
     const withDateZoomPills =
         isControlsEnabled && dashboard.canDateZoom === true;
@@ -175,20 +168,13 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                 filtersCount={totalFiltersCount}
                 parametersCount={totalParametersCount}
                 dateZoomLabel={
-                    !dashboard.canDateZoom
+                    // With the controls the default zoom is above the tiles, in view
+                    !dashboard.canDateZoom || withDateZoomPills
                         ? null
-                        : withDateZoomPills
-                          ? // As the app's bar: the default zoom pill's grain
-                            isDateZoomDisabled
-                              ? null
-                              : getDefaultZoomSummaryLabel(
-                                    dateZoomGranularity,
-                                    getUiString,
-                                )
-                          : getDateZoomSummaryLabel(
-                                dateZoomGranularity,
-                                getUiString,
-                            )
+                        : getDateZoomSummaryLabel(
+                              dateZoomGranularity,
+                              getUiString,
+                          )
                 }
                 onExpand={() => setIsCollapsed(false)}
             />
@@ -262,12 +248,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                         )}
                     </>
                 )}
-                {!shouldShowFilters && withDateZoomPills && (
-                    <>
-                        <DateZoomPills />
-                        <DefaultZoomPill />
-                    </>
-                )}
+                {!shouldShowFilters && withDateZoomPills && <DateZoomPills />}
             </Group>
 
             <Group gap="xs" wrap="nowrap" flex="0 0 auto">

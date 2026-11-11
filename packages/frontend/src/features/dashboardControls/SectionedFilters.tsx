@@ -103,7 +103,7 @@ import {
     type MoveDirection,
 } from './controlOrder';
 import { dateZoomPillSelector } from './dateZoomControls';
-import { DateZoomPills, DefaultZoomPill } from './DateZoomPills';
+import { DateZoomPills } from './DateZoomPills';
 import { formatSectionCount } from './fieldLabels';
 import { FilterPills } from './FilterPills';
 import pillClasses from './FilterPills.module.css';
@@ -1400,16 +1400,13 @@ export const SectionedFilters: FC<Props> = ({
         </Box>
     );
 
-    // Always the bar's last pill, after every section
-    const defaultZoom = withDateZooms && <DefaultZoomPill />;
-
     if (isViewer && hasStoredOrder) {
         return (
             <Box
                 className={classes.flow}
                 data-sectioned={orderLines.length > 1 || undefined}
             >
-                {renderOrderLines(viewerActions, defaultZoom)}
+                {renderOrderLines(viewerActions, null)}
             </Box>
         );
     }
@@ -1421,12 +1418,11 @@ export const SectionedFilters: FC<Props> = ({
             >
                 {viewerActions}
                 {pills}
-                {lines.length === 0 && defaultZoom}
                 <Box
                     className={classes.sections}
                     data-own-line={isSectionsOwnLine || undefined}
                 >
-                    {renderSectionLines(defaultZoom)}
+                    {renderSectionLines(null)}
                 </Box>
             </Box>
         );
@@ -1982,10 +1978,7 @@ export const SectionedFilters: FC<Props> = ({
                                         <UnsectionTarget>
                                             <AddControl />
                                         </UnsectionTarget>,
-                                        <>
-                                            {defaultZoom}
-                                            {barEnd}
-                                        </>,
+                                        barEnd,
                                     )}
                                 </>
                             ) : (
@@ -2002,7 +1995,6 @@ export const SectionedFilters: FC<Props> = ({
                                         <AddControl />
                                     </UnsectionTarget>
                                     {pills}
-                                    {lines.length === 0 && defaultZoom}
                                     {/* A first section is named inline, where its capsule lands */}
                                     <Box
                                         className={classes.sections}
@@ -2012,12 +2004,7 @@ export const SectionedFilters: FC<Props> = ({
                                     >
                                         {lines.length === 0
                                             ? barEnd
-                                            : renderSectionLines(
-                                                  <>
-                                                      {defaultZoom}
-                                                      {barEnd}
-                                                  </>,
-                                              )}
+                                            : renderSectionLines(barEnd)}
                                     </Box>
                                 </>
                             )}

@@ -16,6 +16,7 @@ import { dashboardParametersActions } from '../dashboard/store';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import type * as AddControlModule from './AddControl';
 import { ControlsBar } from './ControlsBar';
+import { DefaultZoomButton } from './DateZoomPills';
 
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
@@ -472,31 +473,37 @@ describe('ControlsBar', () => {
             hasTilesThatSupportFilters: false,
         };
 
-        it('shows a viewer the default zoom pill and no filters', () => {
+        it('shows a viewer no filters, and the default zoom off the bar', () => {
             renderWithAppProviders(
                 <DashboardStoreTestProvider store={markdownOnly(true)}>
                     <ControlsBar {...noFilterTiles} />
                 </DashboardStoreTestProvider>,
             );
             expect(
-                screen.getByRole('button', { name: /^Default zoom is/ }),
-            ).toBeInTheDocument();
+                screen.queryByRole('button', { name: /^Default zoom/ }),
+            ).toBeNull();
             expect(screen.queryByTestId('filter-pills')).toBeNull();
             expect(screen.queryByRole('button', { name: 'Add' })).toBeNull();
         });
 
-        it('hides the default zoom pill from a viewer when no tile zooms', () => {
-            renderWithAppProviders(
-                <DashboardStoreTestProvider store={markdownOnly(false)}>
-                    <ControlsBar {...noFilterTiles} />
-                </DashboardStoreTestProvider>,
-            );
-            expect(
-                screen.queryByRole('button', { name: /^Default zoom is/ }),
-            ).toBeNull();
-        });
+        it.each([
+            ['shows', true],
+            ['hides', false],
+        ])(
+            '%s a viewer the default zoom above the tiles by whether a tile zooms',
+            (_, zoomable) => {
+                renderWithAppProviders(
+                    <DashboardStoreTestProvider store={markdownOnly(zoomable)}>
+                        <DefaultZoomButton place="line" />
+                    </DashboardStoreTestProvider>,
+                );
+                expect(
+                    screen.queryByRole('button', { name: /^Default zoom/ }),
+                ).toEqual(zoomable ? expect.anything() : null);
+            },
+        );
 
-        it('gives an editor Add and the default zoom pill', () => {
+        it('gives an editor Add and no default zoom on the bar', () => {
             renderWithAppProviders(
                 <DashboardStoreTestProvider store={markdownOnly(true)}>
                     <ControlsBar {...noFilterTiles} isEditMode />
@@ -506,8 +513,8 @@ describe('ControlsBar', () => {
                 screen.getByRole('button', { name: 'Add' }),
             ).toBeInTheDocument();
             expect(
-                screen.getByRole('button', { name: /^Default zoom is/ }),
-            ).toBeInTheDocument();
+                screen.queryByRole('button', { name: /^Default zoom/ }),
+            ).toBeNull();
             expect(screen.queryByTestId('sectioned-filters')).toBeNull();
         });
 
