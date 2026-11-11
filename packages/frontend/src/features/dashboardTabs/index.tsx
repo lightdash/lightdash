@@ -372,7 +372,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         );
     }, []);
 
-    const showGridLines = isEditMode && isInteracting;
+    const showGridLines =
+        isEditErgonomicsEnabled || (isEditMode && isInteracting);
 
     const handleUpdateTilesWithScaling = useCallback(
         async (layout: Layout[]) => {
@@ -1395,6 +1396,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                             ]
                                 .filter(Boolean)
                                 .join(' ')}
+                            data-edit-canvas={
+                                isEditErgonomicsEnabled ? true : undefined
+                            }
                             // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                             style={showGridLines ? gridLineStyles : undefined}
                         >

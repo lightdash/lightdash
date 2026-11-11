@@ -114,82 +114,67 @@
 /* Grips shown on every edge and corner while the tile is hovered or resized */
 .react-grid-item {
     --grip-length: 32px;
-    --grip-corner: 14px;
-    --grip-thickness: 6px;
-    --grip-color: var(--mantine-color-ldGray-3);
+    --grip-corner: 20px;
+    --grip-thickness: 4px;
+    --grip-color: var(--mantine-color-ldGray-5);
 }
 [data-mantine-color-scheme='dark'] .react-grid-item {
-    --grip-color: var(--mantine-color-ldGray-5);
+    --grip-color: var(--mantine-color-ldGray-6);
 }
 
 .react-grid-item > .react-resizable-handle::after {
     content: '';
     position: absolute;
-    box-sizing: border-box;
+    background: var(--grip-color);
     opacity: 0;
-    transition: opacity 150ms ease;
+    transition: opacity 100ms ease;
 }
+/* In step with the tile's lift: in after a beat, out at once */
 .react-grid-item:hover > .react-resizable-handle::after,
 .react-grid-item.resizing > .react-resizable-handle::after {
     opacity: 1;
+    transition: opacity 180ms ease 40ms;
 }
 
-.react-grid-item > .react-resizable-handle-n::after,
-.react-grid-item > .react-resizable-handle-s::after,
-.react-grid-item > .react-resizable-handle-e::after,
-.react-grid-item > .react-resizable-handle-w::after {
-    border-radius: var(--grip-thickness);
-    background: var(--grip-color);
-}
+/* An edge grip shrinks with a short edge and goes once there is no room */
 .react-grid-item > .react-resizable-handle-n::after,
 .react-grid-item > .react-resizable-handle-s::after {
-    left: calc(50% - var(--grip-length) / 2);
-    width: var(--grip-length);
+    left: 50%;
+    translate: -50% 0;
+    width: min(var(--grip-length), 100% - 8px);
+    max-width: max(0px, (100% - 20px) * 999);
     height: var(--grip-thickness);
+    border-radius: var(--grip-thickness);
 }
 .react-grid-item > .react-resizable-handle-e::after,
 .react-grid-item > .react-resizable-handle-w::after {
-    top: calc(50% - var(--grip-length) / 2);
+    top: 50%;
+    translate: 0 -50%;
     width: var(--grip-thickness);
-    height: var(--grip-length);
+    height: min(var(--grip-length), 100% - 8px);
+    max-height: max(0px, (100% - 20px) * 999);
+    border-radius: var(--grip-thickness);
 }
 
-/* Corner grips follow the tile's rounded corner */
+/* A round-ended arc tracing the tile's 12px corner, drawn for the top left
+   and turned for the others */
 .react-grid-item > .react-resizable-handle-ne::after,
 .react-grid-item > .react-resizable-handle-se::after,
 .react-grid-item > .react-resizable-handle-sw::after,
 .react-grid-item > .react-resizable-handle-nw::after {
     width: var(--grip-corner);
     height: var(--grip-corner);
-    border: 0 solid var(--grip-color);
-}
-.react-grid-item > .react-resizable-handle-nw::after {
-    border-top-width: var(--grip-thickness);
-    border-left-width: var(--grip-thickness);
-    border-top-left-radius: calc(
-        var(--mantine-radius-md) + var(--grip-thickness) / 2
-    );
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M2 18V14A12 12 0 0 1 14 2H18' fill='none' stroke='%23000' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E")
+        center / contain no-repeat;
 }
 .react-grid-item > .react-resizable-handle-ne::after {
-    border-top-width: var(--grip-thickness);
-    border-right-width: var(--grip-thickness);
-    border-top-right-radius: calc(
-        var(--mantine-radius-md) + var(--grip-thickness) / 2
-    );
-}
-.react-grid-item > .react-resizable-handle-sw::after {
-    border-bottom-width: var(--grip-thickness);
-    border-left-width: var(--grip-thickness);
-    border-bottom-left-radius: calc(
-        var(--mantine-radius-md) + var(--grip-thickness) / 2
-    );
+    rotate: 90deg;
 }
 .react-grid-item > .react-resizable-handle-se::after {
-    border-bottom-width: var(--grip-thickness);
-    border-right-width: var(--grip-thickness);
-    border-bottom-right-radius: calc(
-        var(--mantine-radius-md) + var(--grip-thickness) / 2
-    );
+    rotate: 180deg;
+}
+.react-grid-item > .react-resizable-handle-sw::after {
+    rotate: 270deg;
 }
 
 /* Centred on the tile's border */
