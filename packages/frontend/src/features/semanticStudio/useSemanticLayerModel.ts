@@ -39,7 +39,10 @@ const useGet = <T extends ApiResponse['results']>(
     idlePollMs: number | false = false,
 ) => {
     const lightdashApi = useLightdashApi();
-    const flag = useServerFeatureFlag(FeatureFlags.SemanticStudioEditing);
+    // Not asked for at all while this read is off: some callers sit on pages everyone opens.
+    const flag = useServerFeatureFlag(FeatureFlags.SemanticStudioEditing, {
+        enabled,
+    });
     return useQuery<T, ApiError>({
         queryKey,
         queryFn: () =>

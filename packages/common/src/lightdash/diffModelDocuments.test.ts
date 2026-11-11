@@ -181,7 +181,7 @@ describe('restoreModelParts', () => {
     ])('puts back %s', (_case, path, mine) => {
         expect(mine).not.toBe(base);
         const { contents, restored } = restore(mine, base, path);
-        expect(restored).toEqual([path]);
+        expect(restored).toEqual([{ path, removed: false }]);
         expect(readModelPart(contents, path)).toBe(readModelPart(base, path));
         expect(diffModelDocuments(base, contents)).toEqual([]);
     });
@@ -192,8 +192,9 @@ describe('restoreModelParts', () => {
             '',
         );
         const { contents, restored } = restore(base, live, 'metrics.ratio');
-        expect(restored).toEqual(['metrics.ratio']);
+        expect(restored).toEqual([{ path: 'metrics.ratio', removed: true }]);
         expect(readModelPart(contents, 'metrics.ratio')).toBeNull();
+        expect(contents).toBe(live);
     });
 
     it('leaves no empty map behind when it removes the last nested definition', () => {
@@ -207,6 +208,31 @@ describe('restoreModelParts', () => {
             'dimensions.amount.metrics.revenue',
         );
         expect(contents).toBe(live);
+    });
+
+    it('puts a join back as a list entry when the draft has no joins left', () => {
+        const mine = base.replace(
+            'joins:\n  - join: customers\n    sql_on: x = y\n',
+            '',
+        );
+        const { contents } = restore(mine, base, 'joins.customers');
+        expect(contents).toContain('joins:\n  - join: customers');
+        expect(diffModelDocuments(base, contents)).toEqual([]);
+        expect(restore(mine, base, 'joins.customers.sql_on').restored).toEqual(
+            [],
+        );
+    });
+
+    it('copies what an alias points at, not the alias', () => {
+        const live = base.replace(
+            'metrics:\n  ratio:\n    type: number\n    sql: a / b\n',
+            'metrics:\n  ratio: &shared\n    type: number\n    sql: a / b\n  other: *shared\n',
+        );
+        const { contents } = restore(base, live, 'metrics.other');
+        expect(contents).not.toContain('*shared');
+        expect(readModelPart(contents, 'metrics.other')).toBe(
+            'type: number\nsql: a / b',
+        );
     });
 
     it('keeps the rest of the draft', () => {

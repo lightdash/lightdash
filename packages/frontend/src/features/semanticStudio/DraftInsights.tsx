@@ -464,6 +464,8 @@ const useTotals = (
     metricIds: string[],
     side: 'live' | 'development',
     enabled: boolean,
+    /** What the draft holds, so totals are read again when it changes. */
+    draftKey: string,
 ) => {
     const lightdashApi = useLightdashApi();
     return useQuery<Totals, ApiError>({
@@ -473,6 +475,7 @@ const useTotals = (
             exploreName,
             side,
             metricIds,
+            draftKey,
         ],
         queryFn: async () => {
             const results = await lightdashApi<ApiQueryResults>({
@@ -520,12 +523,16 @@ export const MetricComparison: FC<{
     const metrics = findComparedMetrics(draft, model);
     const ids = metrics.map((metric) => getItemId(metric));
     const isNewModel = model.contentBefore === null;
+    const draftKey = draft.changes
+        .map(({ draftChangeUuid }) => draftChangeUuid)
+        .join();
     const development = useTotals(
         projectUuid,
         model.model,
         ids,
         'development',
         isAsked && ids.length > 0,
+        draftKey,
     );
     // A metric the draft adds does not exist live, and asking for it there fails the whole query.
     const added = diffModelDocuments(model.contentBefore, model.contentAfter)
@@ -550,6 +557,7 @@ export const MetricComparison: FC<{
         liveIds,
         'live',
         isAsked && liveIds.length > 0 && !isNewModel,
+        draftKey,
     );
     if (metrics.length === 0) return null;
     if (!isAsked) {

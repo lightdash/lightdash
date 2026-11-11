@@ -108,7 +108,10 @@ const mergeItem = (
         contents,
         changes: [
             ...merged.changes,
-            ...restored.map((path) => ({ path, action: 'patched' as const })),
+            ...restored.map(({ path, removed }) => ({
+                path,
+                action: removed ? ('removed' as const) : ('patched' as const),
+            })),
         ],
     };
 };

@@ -1,5 +1,6 @@
 import { isEqual } from 'es-toolkit/compat';
 import {
+    isCollection,
     isMap,
     isNode,
     isSeq,
@@ -199,12 +200,16 @@ const locate = (doc: Document, path: string): Located => {
         const segment = segments[index];
         const node: unknown = doc.getIn([...at, segment]);
         const name = segments[index + 1];
-        if (segment in NAMED_LISTS && isSeq(node) && name !== undefined) {
-            const entry = node.items.findIndex(
-                (item) =>
-                    isMap(item) &&
-                    NAMED_LISTS[segment](asObject(item.toJSON())) === name,
-            );
+        // Named by entry even when the list is not there yet, so an entry is never written as a key of a map.
+        if (segment in NAMED_LISTS && name !== undefined && at.length === 0) {
+            const entry = isSeq(node)
+                ? node.items.findIndex(
+                      (item) =>
+                          isMap(item) &&
+                          NAMED_LISTS[segment](asObject(item.toJSON())) ===
+                              name,
+                  )
+                : -1;
             if (entry === -1) {
                 return {
                     at: [...at, segment],
@@ -221,6 +226,63 @@ const locate = (doc: Document, path: string): Located => {
     return { at, exists: doc.hasIn(at), below: null };
 };
 
+/** Restores one part in place; null when nothing changed. */
+const restoreOne = (
+    doc: Document,
+    liveDoc: Document,
+    live: string,
+    path: string,
+): { removed: boolean } | null => {
+    if (readModelPart(doc.toString(), path) === readModelPart(live, path)) {
+        return null;
+    }
+    const theirs = locate(liveDoc, path);
+    const mine = locate(doc, path);
+    if (!theirs.exists) {
+        if (!mine.exists) return null;
+        doc.deleteIn(mine.at);
+        // An emptied collection goes with its last entry, as when a part is removed by hand; the dimensions list always stays.
+        const parent = mine.at.slice(0, -1);
+        const siblings: unknown = doc.getIn(parent);
+        const isDimensionList =
+            parent.length === 1 && parent[0] === 'dimensions';
+        if (
+            parent.length > 0 &&
+            !isDimensionList &&
+            isCollection(siblings) &&
+            siblings.items.length === 0
+        ) {
+            doc.deleteIn(parent);
+        }
+        return { removed: true };
+    }
+    const node: unknown = liveDoc.getIn(theirs.at, true);
+    // Copied by value: an alias would point at nothing, or at something else, in the draft's document.
+    const copy = doc.createNode(isNode(node) ? node.toJS(liveDoc) : node, {
+        aliasDuplicateObjects: false,
+    });
+    if (mine.below === null) {
+        doc.setIn(mine.at, copy);
+        return { removed: false };
+    }
+    // A key of an entry the draft does not have: there is nothing of the draft's there to put back.
+    if (mine.below.length > 0) return null;
+    const list: unknown = doc.getIn(mine.at);
+    const position = theirs.at.at(-1);
+    if (isSeq(list)) {
+        list.items.splice(
+            typeof position === 'number'
+                ? Math.min(position, list.items.length)
+                : list.items.length,
+            0,
+            copy,
+        );
+    } else {
+        doc.setIn(mine.at, doc.createNode([copy]));
+    }
+    return { removed: false };
+};
+
 /**
  * Leaves parts of a drafted model exactly as they are live, whatever live holds
  * when this runs: the live definition is copied over, and a part live does not
@@ -234,52 +296,16 @@ export const restoreModelParts = ({
     contents: string;
     live: string;
     paths: string[];
-}): { contents: string; restored: string[] } => {
+}): {
+    contents: string;
+    /** Each path that changed, and whether restoring it took the part away. */
+    restored: { path: string; removed: boolean }[];
+} => {
     const doc = parseDocument(contents);
     const liveDoc = parseDocument(live);
-    const restored = paths.filter((path) => {
-        if (readModelPart(doc.toString(), path) === readModelPart(live, path)) {
-            return false;
-        }
-        const theirs = locate(liveDoc, path);
-        const mine = locate(doc, path);
-        if (!theirs.exists) {
-            if (!mine.exists) return false;
-            doc.deleteIn(mine.at);
-            // An emptied map of definitions goes with its last entry, as when a part is removed by hand.
-            const parent = mine.at.slice(0, -1);
-            const siblings: unknown = doc.getIn(parent);
-            if (
-                parent.length > 1 &&
-                isMap(siblings) &&
-                siblings.items.length === 0
-            ) {
-                doc.deleteIn(parent);
-            }
-            return true;
-        }
-        const node: unknown = liveDoc.getIn(theirs.at, true);
-        const copy = isNode(node) ? node.clone() : node;
-        if (mine.below === null) {
-            doc.setIn(mine.at, copy);
-            return true;
-        }
-        // A key of an entry the draft does not have: there is nothing of the draft's there to put back.
-        if (mine.below.length > 0) return false;
-        const list: unknown = doc.getIn(mine.at);
-        const position = theirs.at.at(-1);
-        if (isSeq(list)) {
-            list.items.splice(
-                typeof position === 'number'
-                    ? Math.min(position, list.items.length)
-                    : list.items.length,
-                0,
-                copy,
-            );
-        } else {
-            doc.setIn(mine.at, doc.createNode([copy]));
-        }
-        return true;
+    const restored = paths.flatMap((path) => {
+        const outcome = restoreOne(doc, liveDoc, live, path);
+        return outcome === null ? [] : [{ path, removed: outcome.removed }];
     });
     return {
         contents: restored.length > 0 ? doc.toString() : contents,
