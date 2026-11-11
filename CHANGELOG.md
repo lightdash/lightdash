@@ -1,3 +1,10 @@
+## [3.211.2](https://github.com/lightdash/lightdash/compare/3.211.1...3.211.2) (2026-11-11)
+
+
+### Bug Fixes
+
+* retry unclaimed Snowflake scheduled chart queries ([#32393](https://github.com/lightdash/lightdash/issues/32393)) ([97058c8](https://github.com/lightdash/lightdash/commit/97058c8c80d93a087105fa82268f3cd7d3ee6622))
+
 ## [3.211.1](https://github.com/lightdash/lightdash/compare/3.211.0...3.211.1) (2026-11-11)
 
 
