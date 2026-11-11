@@ -129,6 +129,7 @@ import ShareShortLinkButton from '../ShareShortLinkButton';
 import SpaceActionModal from '../SpaceActionModal';
 import { ActionType } from '../SpaceActionModal/types';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
+import { CanvasZoomControls } from './CanvasZoomControls';
 import headerClasses from './DashboardHeader.module.css';
 import { DashboardPerformanceWarning } from './DashboardPerformanceWarning';
 import DashboardPreAggRefreshModal from './DashboardPreAggRefreshModal';
@@ -758,6 +759,8 @@ const DashboardHeader = memo(
                                 className={headerClasses.editBar}
                             >
                                 <TileLayoutHistoryButtons />
+                                <ActionBar.Divider />
+                                <CanvasZoomControls />
                                 <ActionBar.Divider />
                                 <AddTileButton
                                     onAddTiles={onAddTiles}

@@ -51,6 +51,8 @@ export type DashboardEditState = {
     haveTilesChanged: boolean;
     /** Undo and redo of tile moves and resizes, until the draft is saved or discarded */
     tileLayoutHistory: TileLayoutHistory;
+    /** How large the editor draws the tile grid; 1 is actual size */
+    canvasZoom: number;
     /** Always sorted by `order` */
     tabs: Dashboard['tabs'];
     haveTabsChanged: boolean;
@@ -81,6 +83,7 @@ export const initialDashboardEditState: DashboardEditState = {
     tiles: undefined,
     haveTilesChanged: false,
     tileLayoutHistory: EMPTY_TILE_LAYOUT_HISTORY,
+    canvasZoom: 1,
     tabs: [],
     haveTabsChanged: false,
     activeTab: undefined,
@@ -138,6 +141,7 @@ export const dashboardEditActions = {
     moveTiles: createAction<TileLayout[]>('dashboardEdit/moveTiles'),
     undoTileLayout: createAction('dashboardEdit/undoTileLayout'),
     redoTileLayout: createAction('dashboardEdit/redoTileLayout'),
+    setCanvasZoom: createAction<number>('dashboardEdit/setCanvasZoom'),
     setHaveTilesChanged: createAction<boolean>(
         'dashboardEdit/setHaveTilesChanged',
     ),
@@ -420,6 +424,9 @@ export const dashboardEditReducer = (
     }
     if (dashboardEditActions.redoTileLayout.match(action)) {
         return stepThroughHistory(state, 'redo');
+    }
+    if (dashboardEditActions.setCanvasZoom.match(action)) {
+        return set(state, 'canvasZoom', action.payload);
     }
     // A clean draft (saved or discarded) starts a new history
     if (dashboardEditActions.setHaveTilesChanged.match(action)) {
