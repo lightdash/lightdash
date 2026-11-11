@@ -33,6 +33,12 @@ export type SeriesColorResolverOptions = ColorAssignmentOptions & {
      * from the chart config.
      */
     computedSeries?: Series[];
+    /**
+     * Color for the "Other" group (groups past the pivot column limit, added
+     * together). Lighter than the null color so it reads as the remainder.
+     * Defaults to the null color.
+     */
+    otherColor?: string;
 };
 
 /**
@@ -48,6 +54,7 @@ export const createSeriesColorResolver = ({
     chartConfig,
     itemsMap,
     computedSeries,
+    otherColor = nullColor,
 }: SeriesColorResolverOptions): SeriesColorResolver => {
     const assignment: ColorAssignmentOptions = {
         colorPalette,
@@ -105,9 +112,9 @@ export const createSeriesColorResolver = ({
             pivot = seriesLike.encode.yRef?.pivotValues?.[0];
         }
         // The "Other" group (groups past the pivot column limit, added
-        // together) is not a value of the field. Give it the neutral color
-        // so it reads as the remainder, unless a color was picked above.
-        if (pivot && isOtherPivotValue(pivot.value)) return nullColor;
+        // together) is not a value of the field. Give it a neutral color so
+        // it reads as the remainder, unless a color was picked above.
+        if (pivot && isOtherPivotValue(pivot.value)) return otherColor;
 
         if (itemsMap && pivot) {
             const { field, value } = pivot;

@@ -9,6 +9,7 @@ import { describe, expect, test } from 'vitest';
 import { createSeriesColorResolver } from './resolver';
 
 const NEUTRAL = '#868e96';
+const OTHER = '#ced4da';
 const PALETTE = ['#ff0000', '#00ff00', '#0000ff'];
 
 const pivotSeries = (value: unknown, color?: string): Series => ({
@@ -23,7 +24,7 @@ const pivotSeries = (value: unknown, color?: string): Series => ({
     ...(color ? { color } : {}),
 });
 
-const resolverFor = (series: Series[]) => {
+const resolverFor = (series: Series[], otherColor?: string) => {
     const chartConfig: CartesianChartConfig = {
         type: ChartType.CARTESIAN,
         config: {
@@ -35,19 +36,27 @@ const resolverFor = (series: Series[]) => {
         colorPalette: PALETTE,
         colorMappings: new Map(),
         nullColor: NEUTRAL,
+        otherColor,
         chartConfig,
         itemsMap: undefined,
     });
 };
 
 describe('createSeriesColorResolver', () => {
-    test('gives the "Other" pivot group the neutral color, not a palette color', () => {
+    test('gives the "Other" pivot group its own color, not a palette color', () => {
         const completed = pivotSeries('completed');
         const other = pivotSeries(OTHER_PIVOT_KEY);
-        const { getSeriesColor } = resolverFor([completed, other]);
+        const { getSeriesColor } = resolverFor([completed, other], OTHER);
+
+        expect(getSeriesColor(other)).toBe(OTHER);
+        expect(PALETTE).toContain(getSeriesColor(completed));
+    });
+
+    test('falls back to the null color when no "Other" color is given', () => {
+        const other = pivotSeries(OTHER_PIVOT_KEY);
+        const { getSeriesColor } = resolverFor([other]);
 
         expect(getSeriesColor(other)).toBe(NEUTRAL);
-        expect(PALETTE).toContain(getSeriesColor(completed));
     });
 
     test('keeps a color picked for the "Other" group', () => {
