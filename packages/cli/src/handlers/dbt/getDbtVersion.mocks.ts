@@ -84,6 +84,9 @@ export const cliMocks = {
     dbt2_0_6: {
         all: 'dbt 2.0.6\n',
     } as Partial<ExecaReturnValue>,
+    dbtOss2_0_11: {
+        all: 'dbt-oss 2.0.11\n',
+    } as Partial<ExecaReturnValue>,
     dbt2Preview: {
         all: 'dbt 2.0.0-preview.178',
     } as Partial<ExecaReturnValue>,
