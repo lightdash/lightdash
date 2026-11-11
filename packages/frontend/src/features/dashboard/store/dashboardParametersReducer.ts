@@ -694,9 +694,12 @@ export const dashboardParametersReducer = (
             controls.filter(({ id }) => id !== action.payload),
         );
     }
-    // A reorder lists parameter controls by id: never saved ones keep their
-    // ids until the save, instead of being filled again from the tiles
-    if (dashboardEditActions.arrangeControls.match(action)) {
+    // A reorder or a new section lists parameter controls by id: never saved
+    // ones keep their ids until the save, instead of being filled again from the tiles
+    if (
+        dashboardEditActions.arrangeControls.match(action) ||
+        dashboardEditActions.addControlSection.match(action)
+    ) {
         return state.parameterControls === null ||
             state.areParameterControlsSaved ||
             state.haveParameterControlsChanged
