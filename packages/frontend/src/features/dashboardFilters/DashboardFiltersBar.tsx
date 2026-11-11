@@ -71,6 +71,10 @@ type Props = {
      * spans several lines (default false: inline with the filters).
      */
     isParametersColumn?: boolean;
+    /** The funnel, sliders and calendar circles before each group (default true). */
+    withGroupMarkers?: boolean;
+    /** The date zoom group on the right, its eye and menus (default true). */
+    withDateZoom?: boolean;
 };
 
 export const DashboardFiltersBar: FC<Props> = ({
@@ -95,6 +99,8 @@ export const DashboardFiltersBar: FC<Props> = ({
     isCompactDrawerSuppressed = false,
     filtersAlign = 'flex-start',
     isParametersColumn = false,
+    withGroupMarkers = true,
+    withDateZoom = true,
 }) => {
     const compact = useCompactContentHeader();
     const [opened, { open, close }] = useDisclosure(false);
@@ -178,7 +184,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                             gap="xs"
                             wrap="wrap"
                         >
-                            {renderFilters && (
+                            {renderFilters && withGroupMarkers && (
                                 <FilterGroupSeparator
                                     icon={IconFilter}
                                     tooltipLabel={
@@ -234,7 +240,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                                                 onParameterReorder
                                             }
                                             separator={
-                                                compact
+                                                compact || !withGroupMarkers
                                                     ? undefined
                                                     : parametersSeparator
                                             }
@@ -248,7 +254,8 @@ export const DashboardFiltersBar: FC<Props> = ({
 
                 {/* Right section - date zoom and hide button */}
                 <Group gap="xs" ml="auto" wrap={compact ? 'wrap' : 'nowrap'}>
-                    {hasDashboardTiles &&
+                    {withDateZoom &&
+                        hasDashboardTiles &&
                         (!isDateZoomDisabled || isEditMode) && (
                             <>
                                 <Divider orientation="vertical" />

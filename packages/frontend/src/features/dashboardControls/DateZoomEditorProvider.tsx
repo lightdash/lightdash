@@ -12,19 +12,24 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { useStableCallback } from '../../hooks/useStableCallback';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import useTracking from '../../providers/Tracking/useTracking';
+import { EventName } from '../../types/Events';
 import {
     selectControlGranularities,
     selectCurrentDateZoomConfig,
+    selectDateZoomGranularity,
     useDashboardDateZoomConfig,
     useDashboardDateZoomGranularities,
     useDashboardSelector,
     useDashboardStore,
+    useDefaultDateZoomGranularity,
 } from '../dashboard/store';
 import {
     applyZoomDraft,
     DATE_ZOOM_PILL_ACTION_SELECTOR,
     DATE_ZOOM_PILL_SELECTOR,
     DEFAULT_DATE_ZOOM_NAME,
+    DEFAULT_ZOOM_ID,
     dateZoomPillSelector,
     removeZoom,
     setZoomSection,
@@ -63,7 +68,7 @@ type EditState = {
     /** Every tile target as it opened, and as the draft leaves them. */
     snapshotTargets: DateZoomTileTargets;
     draftTargets: DateZoomTileTargets;
-    /** A viewer's pick, as it opened and now; null: the saved grain. */
+    /** A viewer's pick (the default zoom's draft for an editor), as it opened and now; null: cleared. */
     snapshotPick: string | null;
     pick: string | null;
     mapping: {
@@ -77,7 +82,7 @@ const withoutSection = (control: DateZoomControl) =>
     withZoomSection(control, null);
 
 const isDirty = (edit: EditState) =>
-    edit.isViewer
+    edit.isViewer || edit.id === DEFAULT_ZOOM_ID
         ? edit.pick !== edit.snapshotPick
         : !isEqual(withoutSection(edit.snapshot), withoutSection(edit.draft)) ||
           !isEqual(edit.snapshotTargets, edit.draftTargets);
@@ -127,12 +132,27 @@ export const DateZoomEditorProvider: FC<{
     const setControlGranularity = useDashboardContext(
         (c) => c.setControlGranularity,
     );
+    const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
+    const setDateZoomGranularity = useDashboardContext(
+        (c) => c.setDateZoomGranularity,
+    );
+    const defaultGranularity = useDefaultDateZoomGranularity();
+    const setDefaultDateZoomGranularity = useDashboardContext(
+        (c) => c.setDefaultDateZoomGranularity,
+    );
+    const { track } = useTracking();
+    // As the shipped bar: edit mode starts from the default, with no viewer's pick
+    useEffect(() => {
+        if (!isViewer) setDateZoomGranularity(undefined);
+    }, [isViewer, setDateZoomGranularity]);
     const [state, setState] = useState<EditState | null>(null);
     // Derived: a mode change, or the zoom leaving the dashboard, ends the edit
     const edit =
         state !== null &&
         state.isViewer === isViewer &&
-        (state.isNew || config.controls.some(({ uuid }) => uuid === state.id))
+        (state.isNew ||
+            state.id === DEFAULT_ZOOM_ID ||
+            config.controls.some(({ uuid }) => uuid === state.id))
             ? state
             : null;
     // What follows once "Apply changes first?" is answered
@@ -165,10 +185,19 @@ export const DateZoomEditorProvider: FC<{
     };
     const start = (control: DateZoomControl, isNew: boolean) => {
         setPending(null);
-        const pick = controlGranularities[control.uuid] ?? null;
+        const isDefault = control.uuid === DEFAULT_ZOOM_ID;
+        // The default's runtime grain was cleared as edit mode began
+        const override = isDefault
+            ? (dateZoomGranularity ?? null)
+            : (controlGranularities[control.uuid] ?? null);
         // An editor's tiles show the grain being edited, not a viewer's pick
-        if (!isViewer && pick !== null)
+        if (!isViewer && !isDefault && override !== null)
             setControlGranularity(control.uuid, undefined);
+        const pick = isDefault
+            ? isViewer
+                ? override
+                : (defaultGranularity ?? null)
+            : (override ?? control.granularity);
         setState({
             id: control.uuid,
             isNew,
@@ -177,8 +206,8 @@ export const DateZoomEditorProvider: FC<{
             draft: control,
             snapshotTargets: config.tileTargets,
             draftTargets: config.tileTargets,
-            snapshotPick: pick ?? control.granularity,
-            pick: pick ?? control.granularity,
+            snapshotPick: pick,
+            pick,
             mapping: null,
         });
     };
@@ -191,7 +220,19 @@ export const DateZoomEditorProvider: FC<{
     const apply = useStableCallback(() => {
         const current = latest.current;
         if (current === null) return;
-        if (current.isViewer) {
+        if (current.id === DEFAULT_ZOOM_ID) {
+            if (isDirty(current) && current.isViewer) {
+                // As the shipped menu's pick; cleared is the saved default
+                track({
+                    name: EventName.DATE_ZOOM_CLICKED,
+                    properties: { granularity: current.pick ?? 'default' },
+                });
+                setDateZoomGranularity(
+                    current.pick ?? defaultGranularity ?? undefined,
+                );
+            } else if (isDirty(current))
+                setDefaultDateZoomGranularity(current.pick ?? undefined);
+        } else if (current.isViewer) {
             if (isDirty(current))
                 setControlGranularity(current.id, current.pick ?? undefined);
         } else if (current.isNew || isDirty(current)) {

@@ -67,7 +67,9 @@ Openings (optional props, defaults are today's behaviour):
 - `dashboardTabs/Tab.tsx`: `hasQuietActions`; the tab `maw` reads
   `--dashboard-tab-max-width` first (also in the embed's tabs).
 - `DashboardFiltersBar`: `filterArea`, `isCompactDrawerSuppressed`,
-  `filtersAlign`, `isParametersColumn`.
+  `filtersAlign`, `isParametersColumn`, `withGroupMarkers` and
+  `withDateZoom` (the controls bar passes `false` for both: no funnel,
+  sliders or calendar circles, no date zoom group on the right).
 - `AddFilterButton`: `editModeAction`.
 - `FilterRequirements/FilterRequirementsButton`: `renderTarget` (must take a
   ref; the popover anchors on it).
@@ -93,6 +95,8 @@ Openings (optional props, defaults are today's behaviour):
   `isControlsEnabled`; with it the filter bar sits in `MappingSwap`.
 
 Pure moves out of shipped files, now shared by both sides:
+`features/dateZoom/hooks.ts` (`useGranularityData`,
+`useEligibleDateZoomTiles`, out of `DateZoomControlConfig`),
 `ActiveFilters/` (`FilterRuleLabel`, `FilterPillSkeletons`,
 `TemporaryFilters`, `UnresolvedFilter`, `FilterPillButton`,
 `useFilterTabPlacement`, `filterLabels`, `filterLock`, `filterOrder`),
@@ -127,6 +131,10 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `SectionedFilters.tsx`, `SectionMenu.tsx`, `SectionNameInput.tsx`, `sections.ts`, `nameFocus.ts` | Sections bar, drag and drop, naming (focus after naming, shared with the editor's name); pure section helpers |
 | `controlOrder.ts` | Pure bar order and section line helpers, free of dnd-kit: the store and `utils/dashboardConfig.ts` import them |
 | `SelectionBar.tsx`, `SelectionActions.tsx`, `barSelection.ts` | Multi-select on the sectioned bar |
+| `DateZoomEditorProvider.tsx`, `useDateZoomEditor.ts`, `dateZoomControls.ts` | The date zoom editor: named zooms and the default zoom, their draft, Apply, switching, mapping; every write to the date zoom config from the bar; pure config helpers |
+| `DateZoomPills.tsx`, `useDateZoomBar.ts` | Named zoom pills (in the order, sections, drag and selection) and the default zoom pill, always last; each anchors its popover |
+| `DateZoomControlPopover.tsx`, `DefaultZoomPopover.tsx`, `GrainSelect.tsx`, `ControlPopoverParts.tsx`, `dateZoomGrains.ts`, `DateZoomGrainsMenu.tsx` | The date zoom popovers by props (draft held by the editor), the grain select, the "..." menu's grains |
+| `DateZoomMappingRow.tsx`, `DateZoomTileOverlay.tsx`, `DateZoomTilesBar.tsx`, `useDateZoomMapping.ts` | Choosing a zoom's tiles: the row, a card per tile, the floating bar |
 | `sectionVersionChanges.ts` | Section rows for the version comparison page |
 | `DashboardHeaderGuard.tsx` | Wraps the shipped header; inert while an editor's filter is edited |
 | `useEditorDismiss.ts` | Escape handling while a filter is edited |
@@ -192,6 +200,19 @@ Each one has broken before or would break silently.
   `applyDimensionOverrides` / `applyMetricOverrides`, `adoptPlaceholder` and
   the emptied placeholder. See `docs/sections.md`.
 - **`data-tour-*` anchors** on the bar are the shipped bar's; keep them.
+  The shipped Default zoom button's are on `DefaultZoomPill`, its menu's
+  `zoom-option` on `GrainSelect`'s options.
+- **One editor at a time, three providers.** Filter, parameter and date
+  zoom editors each capture a click on another kind's pill or "Add"
+  (`[data-controls-pill]`, `[data-parameter-pill]`, `[data-date-zoom-pill]`)
+  and each lists the others' pills in its `useEditorDismiss` selector, so a
+  switch asks on unapplied changes instead of discarding them. A new kind
+  joins all three lists.
+- **The date zoom config has one writer on the bar**, the date zoom editor:
+  Apply, a section move and the X write the dashboard draft
+  (`setDateZoomConfig`); Save is the only save. Writes read the config from
+  the store at call time (`selectCurrentDateZoomConfig`), so several in one
+  tick (a selection's section move) all land.
 
 ## Dashboard files (as code)
 
@@ -217,7 +238,8 @@ read with `useUiStrings`; counts go through `formatTileCount` /
 bundles in `packages/sdk-test-app/public/locales/`. Copy only an editor sees
 (Settings, the name input, link prompts, section controls, the "..." menu,
 tips) stays literal; "Applies to", "Choose tiles" and the mapping row are
-viewers' too.
+viewers' too. Date zoom copy is under `controls.dateZoom.*`; the pill's
+"is" is `parameters.is`, "Default zoom" and "None" the shipped `dateZoom.*`.
 See `src/components/common/Filters/AGENTS.md`.
 
 ## Styling and motion
@@ -261,6 +283,11 @@ Every flag-on pill is the default white pill; only these change it, all in
   yet" is the first line of the tooltip the pill already has: the select
   hint, else the tables tooltip (`tablesTooltipNote`).
 - Picked (edit mode): blue fill and a check, the only blue.
+- A date zoom pill reads "Revenue zoom is Week" (`IconCalendarSearch`, the
+  kind's icon, grey): dashed until saved, the ink ring while open, eye-off
+  when hidden from viewers (by itself or with every date zoom), an X in
+  edit mode. The default zoom's reads "Default zoom is Month" or "is None",
+  with no X, never dragged or picked.
 - Required with no value: a muted asterisk on the left, before the field
   icon, with the requirement's tooltip (the pill is described by it); none
   once it has a value, nor on a locked pill (no viewer can set it). A

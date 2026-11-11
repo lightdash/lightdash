@@ -6,10 +6,11 @@ import {
     useDashboardSelector,
 } from '../dashboard/store';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
+import { DateZoomCrossTabFieldsLoader } from '../dateZoom/components/DateZoomCrossTabFieldsLoader';
 import { AddControl } from './AddControl';
 import classes from './ControlsBar.module.css';
 import { DateZoomMappingRow } from './DateZoomMappingRow';
-import { DateZoomPills } from './DateZoomPills';
+import { DateZoomPills, DefaultZoomPill } from './DateZoomPills';
 import { FilterPills } from './FilterPills';
 import { MappingRow } from './MappingRow';
 import { ParameterMappingRow } from './ParameterMappingRow';
@@ -50,6 +51,9 @@ export const ControlsBar: FC<Props> = (props) => {
             }
             // The sectioned flow spans several lines: parameters wrap beside it
             isParametersColumn={hasSections || props.isEditMode}
+            // Every pill carries its kind's icon; date zooms are pills too
+            withGroupMarkers={false}
+            withDateZoom={false}
             filterArea={
                 <SettledFilterFields>
                     {/* An editor's bar is always sectioned: its selection starts the first section */}
@@ -61,13 +65,22 @@ export const ControlsBar: FC<Props> = (props) => {
                             <FilterPills activeTabUuid={props.activeTabUuid} />
                             <ParameterPills />
                             <DateZoomPills />
+                            <DefaultZoomPill />
                         </>
                     )}
                 </SettledFilterFields>
             }
         />
     );
-    return <MappingSwap>{filterRow}</MappingSwap>;
+    return (
+        <>
+            <MappingSwap>{filterRow}</MappingSwap>
+            {/* As the shipped date zoom: fields of tiles on other tabs, for editors */}
+            {props.isEditMode && props.hasDashboardTiles && (
+                <DateZoomCrossTabFieldsLoader />
+            )}
+        </>
+    );
 };
 
 // While tiles are chosen the mapping row cross-fades into the filter row's

@@ -4250,6 +4250,7 @@ describe('SectionedFilters', () => {
                         }),
                     ),
                 setControlGranularity: vi.fn(),
+                setDateZoomGranularity: vi.fn(),
             };
             seedDashboardEditState(store, {
                 dashboard: { config },

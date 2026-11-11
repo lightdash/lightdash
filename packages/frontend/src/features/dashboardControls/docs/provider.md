@@ -134,3 +134,24 @@ every way out (it also drops that field's hover). The derived
 `highlightedFieldId` is the clicked id only while it is a field of the
 filter, a waiting field or the field of a live `fieldUndo`. Changing tab
 keeps it.
+
+## Date zoom editor (`DateZoomEditorProvider`)
+
+Mounted inside the parameter editor, with the same lifecycle: one zoom in
+its popover, its draft (the control and every tile target) in the
+provider, Apply writes the dashboard draft once, Cancel drops it, a
+section change in Settings moves the zoom at once, a mode change applies an
+editor's edit. A new zoom ("Add", or a section's "+") is a dashed draft pill
+until Apply, which needs at least one tile. Opening a zoom in edit mode
+clears a viewer's override for it, so tiles show the edited grain; edit mode
+also clears the default zoom's runtime grain, as the shipped bar did.
+
+The default zoom is edited by the same provider (`DEFAULT_ZOOM_ID`): its
+draft is the default grain (an editor's, `setDefaultDateZoomGranularity`) or
+a viewer's pick (`setDateZoomGranularity`, tracked `DATE_ZOOM_CLICKED` as the
+shipped menu; cleared is the saved default). A named zoom's viewer pick goes
+through `setControlGranularity`, cleared to the saved grain.
+
+Mapping (`startMapping`) keeps a start and one Undo step; Escape leaves it
+only while nothing changed, a press outside never. Apply removes a zoom the
+draft took the last tile from (`applyZoomDraft`).

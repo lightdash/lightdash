@@ -95,6 +95,9 @@ vi.mock('./SectionedFilters', async () => {
 vi.mock('../dateZoom', () => ({
     DateZoom: () => <div data-testid="date-zoom" />,
 }));
+vi.mock('../dateZoom/components/DateZoomCrossTabFieldsLoader', () => ({
+    DateZoomCrossTabFieldsLoader: () => <div data-testid="cross-tab-loader" />,
+}));
 
 const baseProps: ComponentProps<typeof ControlsBar> = {
     isEditMode: false,
@@ -166,7 +169,7 @@ describe('ControlsBar', () => {
         };
     });
 
-    it('renders Add and the pills in view mode, with date zoom and hide, without Required', () => {
+    it('renders Add and the pills in view mode, with hide, without Required, the shipped date zoom or group markers', () => {
         renderWithProviders(<ControlsBar {...baseProps} />);
 
         expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
@@ -174,7 +177,9 @@ describe('ControlsBar', () => {
         expect(
             screen.queryByRole('button', { name: 'Add filter' }),
         ).not.toBeInTheDocument();
-        expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
+        // Date zooms are pills among the controls
+        expect(screen.queryByTestId('date-zoom')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('cross-tab-loader')).toBeNull();
         expect(
             screen.getByRole('button', { name: 'Hide' }),
         ).toBeInTheDocument();
@@ -221,7 +226,7 @@ describe('ControlsBar', () => {
         expect(
             screen.queryByRole('button', { name: 'Add filter' }),
         ).not.toBeInTheDocument();
-        expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
+        expect(screen.queryByTestId('date-zoom')).not.toBeInTheDocument();
     });
 
     it('renders the sectioned filters in view mode for a stored order with no sections, the flat bar for none', () => {
@@ -297,11 +302,13 @@ describe('ControlsBar', () => {
             screen.queryByRole('button', { name: 'Required' }),
         ).not.toBeInTheDocument();
         expect(screen.queryByTestId('filter-pills')).not.toBeInTheDocument();
+        // The eye is the "..." menu's "Hide date zoom for viewers"
         expect(
-            screen.getByRole('button', {
+            screen.queryByRole('button', {
                 name: 'Toggle date zoom visibility for viewers',
             }),
-        ).toBeInTheDocument();
+        ).not.toBeInTheDocument();
+        expect(screen.getByTestId('cross-tab-loader')).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Hide' }),
         ).not.toBeInTheDocument();
@@ -329,7 +336,6 @@ describe('ControlsBar', () => {
                     <ControlsBar {...baseProps} isEditMode={isEditMode} />
                 </DashboardStoreTestProvider>,
             );
-            expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
             expect(screen.queryByRole('note')).toBeNull();
         },
     );
@@ -339,7 +345,6 @@ describe('ControlsBar', () => {
         renderWithProviders(<ControlsBar {...baseProps} isEditMode />);
 
         expect(screen.getByTestId('sectioned-filters')).toBeInTheDocument();
-        expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
     });
 
     it('keeps the walkthrough anchors of the shipped bar in edit mode', () => {

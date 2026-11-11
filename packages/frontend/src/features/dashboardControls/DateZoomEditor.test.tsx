@@ -16,12 +16,16 @@ import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProv
 import { renderWithProviders } from '../../testing/testUtils';
 import { selectCurrentDateZoomConfig } from '../dashboard/store';
 import { DateZoomEditorProvider } from './DateZoomEditorProvider';
-import { DateZoomPills } from './DateZoomPills';
+import { DateZoomPills, DefaultZoomPill } from './DateZoomPills';
 import { ParameterEditorProvider } from './ParameterEditorProvider';
 import { useDateZoomEditorSelector } from './useDateZoomEditor';
 
-const { requestSwitch } = vi.hoisted(() => ({
+const { requestSwitch, track } = vi.hoisted(() => ({
     requestSwitch: vi.fn((proceed: () => void) => proceed()),
+    track: vi.fn(),
+}));
+vi.mock('../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track }),
 }));
 vi.mock('./useControlsSidebar', () => ({
     useControlsSidebarSelector: (
@@ -86,6 +90,16 @@ const setup = ({
     const store = createDashboardTestStore({
         isEditMode: !isViewer,
         controlGranularities,
+        // tile-3 is in no zoom: the default zooms it
+        chartZoomableFieldsByTileUuid: {
+            'tile-3': [
+                {
+                    fieldId: 'orders_date',
+                    label: 'Order date',
+                    tableName: 'orders',
+                },
+            ],
+        },
         source: {
             embedDashboard: {
                 config: { isDateZoomDisabled: false, dateZoomConfig: saved },
@@ -101,6 +115,7 @@ const setup = ({
             <ParameterEditorProvider isViewer={isViewer}>
                 <DateZoomEditorProvider isViewer={isViewer}>
                     <DateZoomPills />
+                    <DefaultZoomPill />
                     <AddButton />
                     <button type="button" data-controls-pill="f1">
                         Region filter
@@ -296,6 +311,52 @@ describe('Date zoom editor', () => {
             within(dialog()).getByRole('button', { name: 'Apply' }),
         );
         expect(store.getState().dateZoom.controlGranularities).toEqual({});
+    });
+
+    it('sets and clears the default zoom in the dashboard draft', async () => {
+        const { user } = setup();
+        expect(pill('Default zoom')).toHaveTextContent('Default zoom is None');
+        await user.click(pill('Default zoom'));
+        expect(
+            within(dialog()).getByText('Zooms the other 1 tile'),
+        ).toBeInTheDocument();
+        await user.click(
+            within(dialog()).getByRole('combobox', { name: 'Default zoom' }),
+        );
+        await user.click(await screen.findByRole('option', { name: 'Month' }));
+        await user.click(
+            within(dialog()).getByRole('button', { name: 'Apply' }),
+        );
+        expect(pill('Default zoom')).toHaveTextContent('Default zoom is Month');
+
+        await user.click(pill('Default zoom'));
+        await user.click(
+            within(dialog()).getByRole('button', { name: 'Clear grain' }),
+        );
+        await user.click(
+            within(dialog()).getByRole('button', { name: 'Apply' }),
+        );
+        expect(pill('Default zoom')).toHaveTextContent('Default zoom is None');
+    });
+
+    it("applies a viewer's default zoom pick as the shipped menu did, tracked", async () => {
+        const { user, store } = setup({ isViewer: true });
+        await user.click(pill('Default zoom'));
+        await user.click(
+            within(dialog()).getByRole('combobox', { name: 'Default zoom' }),
+        );
+        await user.click(await screen.findByRole('option', { name: 'Week' }));
+        await user.click(
+            within(dialog()).getByRole('button', { name: 'Apply' }),
+        );
+        expect(store.getState().dateZoom.granularity).toBe(
+            DateGranularity.WEEK,
+        );
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                properties: { granularity: DateGranularity.WEEK },
+            }),
+        );
     });
 
     it('cancels on Escape', async () => {

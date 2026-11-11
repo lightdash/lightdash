@@ -15,6 +15,11 @@ _group_ (that is `requiredGroupId`).
 - Membership lives on the control (`DashboardFilterRule.sectionId`,
   `DashboardParameterControl.sectionId`, `DateZoomControl.sectionId`). A
   `sectionId` with no matching section counts as unsectioned.
+- Named date zooms are in the order as `dateZoom` refs: the store's
+  `selectOrderedControls` passes the edited date zoom config's controls,
+  and the save's `getControlOrderToSave` keeps their refs. With no stored
+  order they follow the parameter controls of their pass. The default zoom
+  is never in the order: it is the bar's last pill, after every section.
 - These keys must survive every rewrite: the dimension and metric overrides,
   `adoptPlaceholder`, and `buildDashboardConfig`.
 - Dashboard files never hold section ids: see "Dashboard files (as code)" in

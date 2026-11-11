@@ -1,4 +1,4 @@
-import { Select } from '@mantine/core';
+import { Select, Text } from '@mantine/core';
 import { type FC } from 'react';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { getGrainOptions } from './dateZoomGrains';
@@ -40,6 +40,18 @@ export const GrainSelect: FC<{
                 tabIndex: 0,
             }}
             comboboxProps={{ withinPortal: true }}
+            // The shipped view-mode menu's walkthrough anchor, one grain by its label
+            renderOption={({ option }) => (
+                <Text
+                    span
+                    fz="xs"
+                    data-tour-anchor="zoom-option"
+                    data-tour-hint="Choose {value}"
+                    data-tour-value={option.label}
+                >
+                    {option.label}
+                </Text>
+            )}
             onChange={onChange}
         />
     );
