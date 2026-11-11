@@ -2560,6 +2560,7 @@ export type AuthTrustedProvisionerConfig = {
     issuer: string;
     audience: string;
     subjects: string[];
+    ownerEmailPrefix: string;
     ownerEmailDomain: string;
 };
 
@@ -2567,6 +2568,8 @@ const parseTrustedProvisionerConfig =
     (): AuthTrustedProvisionerConfig | null => {
         const issuer = process.env.TRUSTED_PROVISIONER_ISSUER?.trim();
         const audience = process.env.TRUSTED_PROVISIONER_AUDIENCE?.trim();
+        const ownerEmailPrefix =
+            process.env.TRUSTED_PROVISIONER_OWNER_EMAIL_PREFIX?.trim().toLowerCase();
         const ownerEmailDomain =
             process.env.TRUSTED_PROVISIONER_OWNER_EMAIL_DOMAIN?.trim().toLowerCase();
         const subjects = (process.env.TRUSTED_PROVISIONER_SUBJECTS ?? '')
@@ -2576,12 +2579,19 @@ const parseTrustedProvisionerConfig =
         if (
             !issuer ||
             !audience ||
+            !ownerEmailPrefix ||
             !ownerEmailDomain ||
             subjects.length === 0
         ) {
             return null;
         }
-        return { issuer, audience, subjects, ownerEmailDomain };
+        return {
+            issuer,
+            audience,
+            subjects,
+            ownerEmailPrefix,
+            ownerEmailDomain,
+        };
     };
 
 type AuthOidcConfig = {

@@ -19,16 +19,20 @@ import type { EmailModel } from '../../models/EmailModel';
 import type { ManagedSignInModel } from '../../models/ManagedSignInModel';
 import type { UserModel } from '../../models/UserModel';
 import type { OrganizationService } from '../OrganizationService/OrganizationService';
-import type { PersonalAccessTokenService } from '../PersonalAccessTokenService';
 import { OidcTokenVerifier } from './oidcTokenVerifier';
 import { ProvisioningService } from './ProvisioningService';
 
 const ISSUER = 'https://issuer.example.com';
 const AUDIENCE = 'https://lightdash.example.com/api/v1/provisioning';
 const SUBJECT = '112233445566778899000';
-const OWNER_DOMAIN = 'demos.example.com';
-const OWNER_EMAIL = `acme@${OWNER_DOMAIN}`;
-const REQUEST = { organizationName: 'Acme', ownerEmail: OWNER_EMAIL };
+const OWNER_DOMAIN = 'example.com';
+const OWNER_EMAIL = `demo+acme@${OWNER_DOMAIN}`;
+const OWNER_PASSWORD = 'correct-horse-9!';
+const REQUEST = {
+    organizationName: 'Acme',
+    ownerEmail: OWNER_EMAIL,
+    ownerPassword: OWNER_PASSWORD,
+};
 
 const owner = {
     userId: 7,
@@ -36,7 +40,6 @@ const owner = {
     organizationUuid: 'org-uuid-1',
     email: OWNER_EMAIL,
     abilityRules: [],
-    ability: {},
 } as unknown as SessionUser;
 
 let privateKey: KeyLike;
@@ -94,9 +97,6 @@ const buildService = (
     const emailModel = { verifyUserEmailIfExists: vi.fn(async () => []) };
     const managedSignInModel = { claimTokenUse: vi.fn(async () => true) };
     const organizationService = { createAndJoinOrg: vi.fn(async () => {}) };
-    const personalAccessTokenService = {
-        createPersonalAccessToken: vi.fn(async () => ({ token: 'ldpat_new' })),
-    };
     const service = new ProvisioningService({
         lightdashConfig: {
             ...lightdashConfigMock,
@@ -109,6 +109,7 @@ const buildService = (
                               issuer: ISSUER,
                               audience: AUDIENCE,
                               subjects: [SUBJECT],
+                              ownerEmailPrefix: 'demo+',
                               ownerEmailDomain: OWNER_DOMAIN,
                           }
                         : config.trustedProvisioner,
@@ -119,8 +120,6 @@ const buildService = (
         managedSignInModel: managedSignInModel as unknown as ManagedSignInModel,
         getOrganizationService: () =>
             organizationService as unknown as OrganizationService,
-        getPersonalAccessTokenService: () =>
-            personalAccessTokenService as unknown as PersonalAccessTokenService,
         verifier,
     });
     return {
@@ -129,29 +128,33 @@ const buildService = (
         emailModel,
         managedSignInModel,
         organizationService,
-        personalAccessTokenService,
     };
 };
 
 describe('ProvisioningService', () => {
-    it('creates a verified owner, an organization and a token', async () => {
+    it('creates a verified owner and an organization', async () => {
         const mocks = buildService();
 
         const result = await mocks.service.provisionOrganization(
             await signToken(),
             {
                 organizationName: ' Acme ',
-                ownerEmail: ' Acme@Demos.Example.com',
+                ownerEmail: ' Demo+Acme@Example.com',
+                ownerPassword: OWNER_PASSWORD,
             },
         );
 
-        expect(result).toMatchObject({
+        expect(result).toEqual({
             organizationUuid: 'org-uuid-1',
             userUuid: 'user-uuid-1',
-            token: 'ldpat_new',
         });
         expect(mocks.userModel.createUser).toHaveBeenCalledWith(
-            { firstName: 'Demo', lastName: 'Owner', email: OWNER_EMAIL },
+            {
+                firstName: 'Demo',
+                lastName: 'Owner',
+                email: OWNER_EMAIL,
+                password: OWNER_PASSWORD,
+            },
             true,
             true,
         );
@@ -163,13 +166,6 @@ describe('ProvisioningService', () => {
             owner,
             { name: 'Acme' },
         );
-        const [account, tokenRequest] = mocks.personalAccessTokenService
-            .createPersonalAccessToken.mock.calls[0] as unknown as [
-            { user: { userUuid: string } },
-            { expiresAt: Date },
-        ];
-        expect(account.user.userUuid).toBe('user-uuid-1');
-        expect(tokenRequest.expiresAt).toEqual(result.tokenExpiresAt);
     });
 
     it('is not found when no trusted provisioner is configured', async () => {
@@ -218,17 +214,19 @@ describe('ProvisioningService', () => {
     });
 
     it.each([
-        'person@example.com',
-        `acme@evil.${OWNER_DOMAIN}`,
-        `acme@${OWNER_DOMAIN}.evil.com`,
-        `someone@example.com@${OWNER_DOMAIN}`,
-        `@${OWNER_DOMAIN}`,
+        `person@${OWNER_DOMAIN}`,
+        `demo@${OWNER_DOMAIN}`,
+        `demo+@${OWNER_DOMAIN}`,
+        `notdemo+acme@${OWNER_DOMAIN}`,
+        `demo+acme@evil.${OWNER_DOMAIN}`,
+        `demo+acme@${OWNER_DOMAIN}.evil.com`,
+        `demo+acme@other.com@${OWNER_DOMAIN}`,
     ])('rejects the owner email %s', async (ownerEmail) => {
         const { service, userModel } = buildService();
 
         await expect(
             service.provisionOrganization(await signToken(), {
-                organizationName: 'Acme',
+                ...REQUEST,
                 ownerEmail,
             }),
         ).rejects.toThrow(ParameterError);
@@ -240,10 +238,22 @@ describe('ProvisioningService', () => {
 
         await expect(
             service.provisionOrganization(await signToken(), {
+                ...REQUEST,
                 organizationName: '  ',
-                ownerEmail: OWNER_EMAIL,
             }),
         ).rejects.toThrow(ParameterError);
+    });
+
+    it('rejects a weak owner password', async () => {
+        const { service, userModel } = buildService();
+
+        await expect(
+            service.provisionOrganization(await signToken(), {
+                ...REQUEST,
+                ownerPassword: 'short',
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(userModel.createUser).not.toHaveBeenCalled();
     });
 
     it('refuses when the instance allows only one organization', async () => {

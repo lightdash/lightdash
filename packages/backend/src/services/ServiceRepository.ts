@@ -793,8 +793,6 @@ export class ServiceRepository
                     emailModel: this.models.getEmailModel(),
                     managedSignInModel: this.models.getManagedSignInModel(),
                     getOrganizationService: () => this.getOrganizationService(),
-                    getPersonalAccessTokenService: () =>
-                        this.getPersonalAccessTokenService(),
                     verifier: new OidcTokenVerifier(),
                 }),
         );

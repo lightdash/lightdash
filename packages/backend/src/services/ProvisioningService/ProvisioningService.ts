@@ -3,13 +3,11 @@ import {
     ForbiddenError,
     NotFoundError,
     ParameterError,
-    PROVISIONED_TOKEN_LIFETIME_DAYS,
-    RequestMethod,
+    validatePassword,
     type ProvisionedOrganization,
     type ProvisionOrganizationRequest,
 } from '@lightdash/common';
 import { createHash } from 'crypto';
-import { fromSession } from '../../auth/account/account';
 import type {
     AuthTrustedProvisionerConfig,
     LightdashConfig,
@@ -20,12 +18,9 @@ import type { ManagedSignInModel } from '../../models/ManagedSignInModel';
 import type { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 import type { OrganizationService } from '../OrganizationService/OrganizationService';
-import type { PersonalAccessTokenService } from '../PersonalAccessTokenService';
 import { OidcTokenRejection, OidcTokenVerifier } from './oidcTokenVerifier';
 
 const OWNER_LOCAL_PART_PATTERN = /^[a-z0-9][a-z0-9._+-]{0,63}$/;
-
-const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 type ProvisioningServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -33,7 +28,6 @@ type ProvisioningServiceArguments = {
     emailModel: EmailModel;
     managedSignInModel: ManagedSignInModel;
     getOrganizationService: () => OrganizationService;
-    getPersonalAccessTokenService: () => PersonalAccessTokenService;
     verifier: OidcTokenVerifier;
 };
 
@@ -51,8 +45,6 @@ export class ProvisioningService extends BaseService {
 
     private readonly getOrganizationService: () => OrganizationService;
 
-    private readonly getPersonalAccessTokenService: () => PersonalAccessTokenService;
-
     private readonly verifier: OidcTokenVerifier;
 
     constructor(args: ProvisioningServiceArguments) {
@@ -62,7 +54,6 @@ export class ProvisioningService extends BaseService {
         this.emailModel = args.emailModel;
         this.managedSignInModel = args.managedSignInModel;
         this.getOrganizationService = args.getOrganizationService;
-        this.getPersonalAccessTokenService = args.getPersonalAccessTokenService;
         this.verifier = args.verifier;
     }
 
@@ -102,7 +93,7 @@ export class ProvisioningService extends BaseService {
 
     private static parseOwnerEmail(
         ownerEmail: string,
-        ownerEmailDomain: string,
+        { ownerEmailPrefix, ownerEmailDomain }: AuthTrustedProvisionerConfig,
     ): string {
         const email = ownerEmail.trim().toLowerCase();
         const separator = email.lastIndexOf('@');
@@ -111,22 +102,15 @@ export class ProvisioningService extends BaseService {
         if (
             separator < 1 ||
             domain !== ownerEmailDomain ||
-            !OWNER_LOCAL_PART_PATTERN.test(localPart)
+            !OWNER_LOCAL_PART_PATTERN.test(localPart) ||
+            !localPart.startsWith(ownerEmailPrefix) ||
+            localPart.length === ownerEmailPrefix.length
         ) {
             throw new ParameterError(
-                `Owner email must be an address at ${ownerEmailDomain}`,
+                `Owner email must look like ${ownerEmailPrefix}<name>@${ownerEmailDomain}`,
             );
         }
         return email;
-    }
-
-    private getTokenExpiry(): Date {
-        const { maxExpirationTimeInDays } = this.lightdashConfig.auth.pat;
-        const days = Math.min(
-            PROVISIONED_TOKEN_LIFETIME_DAYS,
-            maxExpirationTimeInDays ?? PROVISIONED_TOKEN_LIFETIME_DAYS,
-        );
-        return new Date(Date.now() + days * DAY_IN_MS);
     }
 
     async provisionOrganization(
@@ -148,17 +132,26 @@ export class ProvisioningService extends BaseService {
         }
         const email = ProvisioningService.parseOwnerEmail(
             request.ownerEmail,
-            config.ownerEmailDomain,
+            config,
         );
+        if (!validatePassword(request.ownerPassword)) {
+            throw new ParameterError(
+                'Owner password does not meet the password requirements',
+            );
+        }
         if (!this.lightdashConfig.allowMultiOrgs) {
             throw new ForbiddenError(
                 'This instance does not allow more than one organization',
             );
         }
-        const expiresAt = this.getTokenExpiry();
 
         const user = await this.userModel.createUser(
-            { firstName: 'Demo', lastName: 'Owner', email },
+            {
+                firstName: 'Demo',
+                lastName: 'Owner',
+                email,
+                password: request.ownerPassword,
+            },
             true,
             true,
         );
@@ -172,17 +165,6 @@ export class ProvisioningService extends BaseService {
         if (owner.organizationUuid === undefined) {
             throw new NotFoundError('Provisioned organization was not found');
         }
-        const { token } =
-            await this.getPersonalAccessTokenService().createPersonalAccessToken(
-                fromSession(owner),
-                {
-                    description: 'Organization provisioning',
-                    expiresAt,
-                    autoGenerated: true,
-                },
-                RequestMethod.BACKEND,
-            );
-
         Logger.info(
             `Organization ${owner.organizationUuid} provisioned by trusted identity ${subject}`,
             {
@@ -194,8 +176,6 @@ export class ProvisioningService extends BaseService {
         return {
             organizationUuid: owner.organizationUuid,
             userUuid: owner.userUuid,
-            token,
-            tokenExpiresAt: expiresAt,
         };
     }
 }
