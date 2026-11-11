@@ -1,3 +1,10 @@
+## [3.211.3](https://github.com/lightdash/lightdash/compare/3.211.2...3.211.3) (2026-11-11)
+
+
+### Bug Fixes
+
+* remove redundant apps created column from analytics ([#32247](https://github.com/lightdash/lightdash/issues/32247)) ([6d1fd31](https://github.com/lightdash/lightdash/commit/6d1fd31880bbd263b22735276447c84d69894094))
+
 ## [3.211.2](https://github.com/lightdash/lightdash/compare/3.211.1...3.211.2) (2026-11-11)
 
 
