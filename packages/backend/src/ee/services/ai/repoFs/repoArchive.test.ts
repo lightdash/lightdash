@@ -1,7 +1,15 @@
 import { Readable } from 'node:stream';
 import { gzipSync } from 'node:zlib';
 import { pack } from 'tar-stream';
-import { readRepoArchive } from './githubRepoSource';
+import {
+    getRepoArchiveStream,
+    getRepoTree,
+} from '../../../../clients/github/Github';
+import {
+    clearKeptRepoArchives,
+    createGithubRepoSource,
+    readRepoArchive,
+} from './githubRepoSource';
 
 vi.mock('../../../../clients/github/Github');
 
@@ -72,5 +80,43 @@ describe('readRepoArchive', () => {
                 maxBytes: 10,
             }),
         ).toBeNull();
+    });
+});
+
+describe('an archive kept across agent runs', () => {
+    const run = async (sha: string) => {
+        vi.mocked(getRepoTree).mockResolvedValue({
+            files: [{ path: 'models/a.sql', size: 8 }],
+            truncated: false,
+            sha,
+        });
+        const source = createGithubRepoSource({
+            owner: 'acme',
+            repo: 'jaffle',
+            branch: 'main',
+            token: 'tok',
+        });
+        await source.listAllPaths();
+        return source.readAll?.(1024);
+    };
+
+    beforeEach(() => {
+        clearKeptRepoArchives();
+        vi.mocked(getRepoArchiveStream).mockReset();
+        vi.mocked(getRepoArchiveStream).mockImplementation(() =>
+            archive([{ name: 'models/a.sql', content: 'select 1' }]),
+        );
+    });
+
+    it('is downloaded once while the tree stays the same', async () => {
+        expect((await run('tree-1'))?.get('models/a.sql')).toBe('select 1');
+        expect((await run('tree-1'))?.get('models/a.sql')).toBe('select 1');
+        expect(getRepoArchiveStream).toHaveBeenCalledTimes(1);
+    });
+
+    it('is downloaded again once the tree changes', async () => {
+        await run('tree-1');
+        await run('tree-2');
+        expect(getRepoArchiveStream).toHaveBeenCalledTimes(2);
     });
 });

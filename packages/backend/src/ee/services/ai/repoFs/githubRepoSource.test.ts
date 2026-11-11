@@ -107,6 +107,7 @@ describe('githubRepoSource secrets denylist', () => {
                 { path: 'models/x.sql', size: 20 },
             ],
             truncated: false,
+            sha: 'tree-sha',
         });
         const repo = source();
         const { files } = await repo.listAllPaths();
@@ -259,6 +260,7 @@ describe('githubRepoSource.readAll', () => {
         mockGetRepoTree.mockResolvedValue({
             files: [{ path: 'models/a.sql', size }],
             truncated: false,
+            sha: 'tree-sha',
         });
 
     beforeEach(() => {

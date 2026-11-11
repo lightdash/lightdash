@@ -51,6 +51,32 @@ const MAX_ARCHIVE_FILE_BYTES = 1024 * 1024;
 // ponytail: the archive is the whole repo, so a larger one (a monorepo around a small dbt project) is read file by file; fetch its blobs in batches if that case matters.
 const MAX_ARCHIVE_REPO_BYTES = 50 * 1024 * 1024;
 
+// ponytail: kept per process, so each API instance downloads a tree once; move to shared storage if that repeats too often.
+const MAX_KEPT_ARCHIVES_BYTES = 128 * 1024 * 1024;
+type KeptArchive = { files: Map<string, string>; bytes: number };
+const keptArchives = new Map<string, KeptArchive>();
+
+const keepArchive = (key: string, files: Map<string, string>): void => {
+    let bytes = 0;
+    files.forEach((content) => {
+        bytes += content.length;
+    });
+    keptArchives.set(key, { files, bytes });
+    let total = 0;
+    keptArchives.forEach((kept) => {
+        total += kept.bytes;
+    });
+    // The first key is the least recently used; the one just added is never dropped.
+    [...keptArchives.keys()].slice(0, -1).forEach((oldest) => {
+        if (total <= MAX_KEPT_ARCHIVES_BYTES) return;
+        total -= keptArchives.get(oldest)?.bytes ?? 0;
+        keptArchives.delete(oldest);
+    });
+};
+
+/** Forgets every kept archive; for tests. */
+export const clearKeptRepoArchives = (): void => keptArchives.clear();
+
 /**
  * The text files of a repository archive under `prefix`, keyed relative to it;
  * null once they would hold more than `maxBytes`.
@@ -128,19 +154,21 @@ export const createGithubRepoSource = ({
     const root =
         subPath === '.' || subPath === '' ? '' : subPath.replace(/\/+$/, '');
     const prefix = root ? `${root}/` : '';
-    // The size of the whole repo, known once its tree is listed.
+    // The size of the whole repo and the hash of its tree, known once this run has listed it with its own token.
     let repoBytes: number | null = null;
+    let treeSha: string | null = null;
     return {
         label: `${owner}/${repo}@${branch}${root ? `/${root}` : ''}`,
         listAllPaths: async () => {
             const start = Date.now();
-            const { files, truncated } = await getRepoTree({
+            const { files, truncated, sha } = await getRepoTree({
                 owner,
                 repo,
                 branch,
                 token,
             }).catch(rethrowAsRecoverable);
             repoBytes = files.reduce((total, { size }) => total + size, 0);
+            treeSha = sha;
             const durationMs = Date.now() - start;
             Logger.info(
                 `[repoShell] github tree fetched in ${durationMs}ms (${
@@ -172,8 +200,20 @@ export const createGithubRepoSource = ({
             return { files: scoped, truncated };
         },
         readAll: async (maxBytes) => {
-            if (repoBytes === null || repoBytes > MAX_ARCHIVE_REPO_BYTES) {
+            if (
+                repoBytes === null ||
+                treeSha === null ||
+                repoBytes > MAX_ARCHIVE_REPO_BYTES
+            ) {
                 return null;
+            }
+            // Same tree, same files: a run that just listed this tree may read what an earlier run downloaded.
+            const key = `${owner}/${repo}/${root}@${treeSha}`;
+            const kept = keptArchives.get(key);
+            if (kept) {
+                keptArchives.delete(key);
+                keptArchives.set(key, kept);
+                return kept.files;
             }
             const start = Date.now();
             try {
@@ -202,6 +242,7 @@ export const createGithubRepoSource = ({
                     },
                 );
                 onTiming?.({ kind: 'archive', durationMs });
+                if (files) keepArchive(key, files);
                 return files;
             } catch (error) {
                 // The per-file path still works, and reports a rate limit properly.

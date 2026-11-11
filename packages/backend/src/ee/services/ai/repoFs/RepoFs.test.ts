@@ -1,4 +1,4 @@
-import { RepoFs, RepoSource } from './RepoFs';
+import { RepoFs, RepoSource, searchFiles } from './RepoFs';
 
 /**
  * A fake source that records how many times each path is fetched and tracks
@@ -185,5 +185,46 @@ describe('RepoFs with a source that hands over the whole repo', () => {
         expect(await repo.readFile('models/a.sql')).toBe('select 1');
         expect(source.reads).toEqual({ 'models/a.sql': 1 });
         expect(await repo.readsFromMemory()).toBe(false);
+    });
+});
+
+describe('searchFiles', () => {
+    const files = new Map([
+        ['models/a.sql', 'select 1 as Total\nfrom x'],
+        ['models/b.sql', 'select total\nfrom y\nwhere total > 0'],
+        ['docs/total.md', 'nothing here'],
+        ['models/c.sql', 'select 2'],
+    ]);
+
+    it('finds every file holding the words, whatever the case, most matching lines first', () => {
+        expect(searchFiles(files, 'TOTAL')).toEqual([
+            {
+                path: 'models/b.sql',
+                fragments: ['select total', 'where total > 0'],
+            },
+            { path: 'models/a.sql', fragments: ['select 1 as Total'] },
+            { path: 'docs/total.md', fragments: [] },
+        ]);
+    });
+
+    it('needs every word', () => {
+        expect(
+            searchFiles(files, 'total where').map(({ path }) => path),
+        ).toEqual(['models/b.sql']);
+    });
+});
+
+describe('RepoFs.search', () => {
+    it('searches in memory when the repo is held, with no request', async () => {
+        const searchCode = vi.fn(async () => []);
+        const repo = new RepoFs({
+            ...instrumentedSource({ 'a.sql': 'select total' }),
+            searchCode,
+            readAll: async () => new Map([['a.sql', 'select total']]),
+        });
+        expect(await repo.search('total')).toEqual([
+            { path: 'a.sql', fragments: ['select total'] },
+        ]);
+        expect(searchCode).not.toHaveBeenCalled();
     });
 });

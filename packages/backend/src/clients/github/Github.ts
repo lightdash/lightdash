@@ -449,6 +449,8 @@ export const getRepoTree = async ({
 }): Promise<{
     files: { path: string; size: number }[];
     truncated: boolean;
+    /** The tree's own hash: two listings with the same one hold the same files. */
+    sha: string;
 }> => {
     const { octokit, headers } = getOctokit(installationId, token);
     try {
@@ -475,7 +477,11 @@ export const getRepoTree = async ({
                 path: entry.path as string,
                 size: entry.size ?? 0,
             }));
-        return { files, truncated: response.data.truncated ?? false };
+        return {
+            files,
+            truncated: response.data.truncated ?? false,
+            sha: response.data.sha,
+        };
     } catch (error) {
         if (
             error instanceof Error &&

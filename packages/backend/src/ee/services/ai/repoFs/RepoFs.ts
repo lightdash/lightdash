@@ -57,6 +57,37 @@ export const globToRegExp = (glob: string): RegExp => {
     return new RegExp(`^${pattern}$`);
 };
 
+const MAX_SEARCH_MATCHES = 100;
+const MAX_SEARCH_FRAGMENTS = 3;
+
+/** Files whose path or text holds every word of the query, whatever the case; most matching lines first. */
+export const searchFiles = (
+    files: Map<string, string>,
+    query: string,
+): RepoCodeSearchMatch[] => {
+    const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+    if (terms.length === 0) return [];
+    return [...files]
+        .flatMap(([path, content]) => {
+            const haystack = `${path}\n${content}`.toLowerCase();
+            if (!terms.every((term) => haystack.includes(term))) return [];
+            const lines = content.split('\n').filter((line) => {
+                const lowered = line.toLowerCase();
+                return terms.some((term) => lowered.includes(term));
+            });
+            return [{ path, lines }];
+        })
+        .sort(
+            (a, b) =>
+                b.lines.length - a.lines.length || a.path.localeCompare(b.path),
+        )
+        .slice(0, MAX_SEARCH_MATCHES)
+        .map(({ path, lines }) => ({
+            path,
+            fragments: lines.slice(0, MAX_SEARCH_FRAGMENTS),
+        }));
+};
+
 // Cap the lazy file-content cache by total bytes so a wide crawl (e.g. a grep
 // across a large repo) can't grow it without bound. Least-recently-used entries
 // are evicted once over the cap; ~32MB is generous for dbt source files.
@@ -315,6 +346,11 @@ export class RepoFs {
     }
 
     async search(query: string): Promise<RepoCodeSearchMatch[] | null> {
+        // Only a source that can hand the repo over is worth listing for a search.
+        const all = this.source.readAll
+            ? await this.loadAll(await this.ensureIndex())
+            : null;
+        if (all) return searchFiles(all, query);
         if (!this.source.searchCode) return null;
         return this.source.searchCode(query);
     }
