@@ -85,6 +85,7 @@ import {
     type ExploreError,
     type MetricQuery,
     type ParameterDefinitions,
+    type ParametersValuesMap,
     type SavedChartDAO,
     type UpdateDashboardCustomMetric,
     type UUID,
@@ -216,6 +217,8 @@ type ParameterReferencesResult =
     | {
           parameterReferences: string[];
           parameterDefinitions: ParameterDefinitions;
+          chartSavedValues: ParametersValuesMap;
+          virtualViewSavedValues: ParametersValuesMap;
           error: null;
       }
     | { parameterReferences: null; error: string };
@@ -1265,18 +1268,19 @@ export class DashboardService
                     queries,
                     explores,
                 );
-                const definitions = queries.reduce<ParameterDefinitions>(
-                    (acc, { exploreName }) => {
-                        const explore = explores.get(exploreName);
-                        return explore &&
-                            !(explore instanceof Error) &&
-                            !isExploreError(explore)
-                            ? {
-                                  ...acc,
-                                  ...getExploreParameterDefinitions(explore),
-                              }
-                            : acc;
-                    },
+                const queryExplores = queries.flatMap(({ exploreName }) => {
+                    const explore = explores.get(exploreName);
+                    return explore &&
+                        !(explore instanceof Error) &&
+                        !isExploreError(explore)
+                        ? [explore]
+                        : [];
+                });
+                const definitions = queryExplores.reduce<ParameterDefinitions>(
+                    (acc, explore) => ({
+                        ...acc,
+                        ...getExploreParameterDefinitions(explore),
+                    }),
                     projectDefinitions,
                 );
                 results.set(chart.uuid, {
@@ -1285,6 +1289,15 @@ export class DashboardService
                         definitions,
                         parameterReferences,
                     ),
+                    chartSavedValues: chart.parameters ?? {},
+                    virtualViewSavedValues:
+                        queryExplores.reduce<ParametersValuesMap>(
+                            (acc, explore) => ({
+                                ...acc,
+                                ...explore.savedParameterValues,
+                            }),
+                            {},
+                        ),
                     error: null,
                 });
             } catch (e) {
@@ -1420,6 +1433,8 @@ export class DashboardService
                                   projectDefinitions,
                                   getParameterReferences(sqlChart.sql),
                               ),
+                          chartSavedValues: {},
+                          virtualViewSavedValues: {},
                           error: null,
                       }
                     : parameterReferencesFailure(

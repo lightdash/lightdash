@@ -54,6 +54,8 @@ const discover = (
     definitions = {},
 ) =>
     dashboardParametersActions.addDiscoveredParameterReferences({
+        chartSavedValues: {},
+        virtualViewSavedValues: {},
         references: { [tileUuid]: references },
         definitions,
         sources: {

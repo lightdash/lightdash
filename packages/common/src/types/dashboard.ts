@@ -10,6 +10,7 @@ import { type AdditionalMetric } from './metricQuery';
 import {
     type DashboardParameters,
     type ParameterDefinitions,
+    type ParametersValuesMap,
     type ParameterValue,
 } from './parameters';
 import { type ProjectType } from './projects';
@@ -474,6 +475,8 @@ export type DashboardTileParameterReferences =
           tileUuid: string;
           parameterReferences: string[];
           parameterDefinitions?: ParameterDefinitions;
+          chartSavedValues: ParametersValuesMap;
+          virtualViewSavedValues: ParametersValuesMap;
           error: null;
       }
     | { tileUuid: string; parameterReferences: null; error: string };

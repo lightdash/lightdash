@@ -19,18 +19,16 @@ import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 const TILES_PER_REQUEST = 200;
 
 /**
- * While editing, registers the parameters every tile uses, on every tab,
- * before any tile runs. In view mode tiles report them from their own query.
+ * Registers the parameters and saved values of every tile, on every tab,
+ * before any tile runs, so controls don't depend on which tiles have run.
  * In embeds the API client sends the embed token.
  */
 export const useDashboardTileParameterReferences = ({
     store,
     projectUuid,
-    isEditMode,
 }: {
     store: DashboardStore;
     projectUuid: string | undefined;
-    isEditMode: boolean;
 }) => {
     const lightdashApi = useLightdashApi();
     const { data: dashboardControlsFlag } = useServerFeatureFlag(
@@ -40,7 +38,6 @@ export const useDashboardTileParameterReferences = ({
         selectTileQuerySourcesKey(store.getState()),
     );
     const isEnabled =
-        isEditMode &&
         dashboardControlsFlag?.enabled === true &&
         !!projectUuid &&
         tilesKey !== '';
@@ -95,14 +92,10 @@ export const useDashboardTileParameterReferences = ({
         const complete = data.flatMap((result) =>
             result.error === null &&
             result.parameterDefinitions !== undefined &&
+            // older servers omit saved values; leave those tiles unlisted
+            'chartSavedValues' in result &&
             sourceByTile[result.tileUuid] !== undefined
-                ? [
-                      {
-                          tileUuid: result.tileUuid,
-                          references: result.parameterReferences,
-                          definitions: result.parameterDefinitions,
-                      },
-                  ]
+                ? [result]
                 : [],
         );
         if (complete.length === 0) return;
@@ -111,12 +104,24 @@ export const useDashboardTileParameterReferences = ({
                 references: Object.fromEntries(
                     complete.map((result) => [
                         result.tileUuid,
-                        result.references,
+                        result.parameterReferences,
                     ]),
                 ),
                 definitions: Object.assign(
                     {},
-                    ...complete.map((result) => result.definitions),
+                    ...complete.map((result) => result.parameterDefinitions),
+                ),
+                chartSavedValues: Object.fromEntries(
+                    complete.map((result) => [
+                        result.tileUuid,
+                        result.chartSavedValues,
+                    ]),
+                ),
+                virtualViewSavedValues: Object.fromEntries(
+                    complete.map((result) => [
+                        result.tileUuid,
+                        result.virtualViewSavedValues,
+                    ]),
                 ),
                 sources: Object.fromEntries(
                     complete.map((result) => [

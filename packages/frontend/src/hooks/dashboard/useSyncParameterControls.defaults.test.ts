@@ -34,6 +34,8 @@ describe('parameter control defaults on a dashboard without saved controls', () 
         // The project defines a default; the dashboard never stored a value
         store.dispatch(
             dashboardParametersActions.addDiscoveredParameterReferences({
+                chartSavedValues: {},
+                virtualViewSavedValues: {},
                 references: { 'tile-1': ['region'] },
                 definitions: { region: { label: 'Region', default: 'EMEA' } },
                 sources: {

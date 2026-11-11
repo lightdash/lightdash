@@ -376,7 +376,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         projectUuid,
         embedToken,
     );
-    useDashboardTileParameterReferences({ store, projectUuid, isEditMode });
+    useDashboardTileParameterReferences({ store, projectUuid });
     useSyncParameterControls({
         store,
         config: currentDashboardConfig,
