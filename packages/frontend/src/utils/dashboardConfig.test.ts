@@ -4,6 +4,7 @@ import {
     MetricType,
     type AdditionalMetric,
     type DashboardConfig,
+    type DashboardControlRef,
     type DashboardFilterRule,
     type DashboardParameterControl,
 } from '@lightdash/common';
@@ -12,6 +13,7 @@ import {
     buildDashboardConfig,
     getControlOrderToSave,
     getControlsToSave,
+    getDateZoomConfigToSave,
     getParametersToSave,
 } from './dashboardConfig';
 
@@ -632,7 +634,7 @@ describe('getControlsToSave', () => {
         controlSections,
         haveControlSectionsChanged: false,
         parameterInputs,
-        dateZoomConfig: { controls: [], tileTargets: {} },
+        dateZoomConfigToSave: undefined,
     };
 
     it('saves what it did before the order when nothing was reordered, as a flag-off save', () => {
@@ -680,6 +682,11 @@ describe('getControlsToSave', () => {
         expect(saved.haveControlSectionsChanged).toBe(false);
     });
 
+    const zoomRefs = (refs: DashboardControlRef[] | null | undefined) =>
+        refs
+            ?.filter(({ kind }) => kind === DashboardControlRefKind.DATE_ZOOM)
+            .map(({ id }) => id);
+
     it('keeps no zoom in the order that the same save prunes', () => {
         const saved = getControlsToSave({
             ...base,
@@ -689,27 +696,64 @@ describe('getControlsToSave', () => {
                 { kind: DashboardControlRefKind.DATE_ZOOM, id: 'z2' },
             ],
             hasControlOrderChanged: true,
-            dateZoomConfig: {
-                controls: [
-                    { uuid: 'z1', name: 'Kept', granularity: 'Week' },
-                    { uuid: 'z2', name: 'No tiles', granularity: 'Week' },
-                ],
-                tileTargets: {
-                    t1: {
-                        controlUuid: 'z1',
-                        fieldId: 'orders_date',
-                        tableName: 'orders',
+            dateZoomConfigToSave: getDateZoomConfigToSave({
+                existingConfig: undefined,
+                hasDateZoomConfigChanged: true,
+                dateZoomConfig: {
+                    controls: [
+                        { uuid: 'z1', name: 'Kept', granularity: 'Week' },
+                        { uuid: 'z2', name: 'No tiles', granularity: 'Week' },
+                    ],
+                    tileTargets: {
+                        t1: {
+                            controlUuid: 'z1',
+                            fieldId: 'orders_date',
+                            tableName: 'orders',
+                        },
                     },
                 },
-            },
+            }),
         });
-        expect(
-            saved.controlOrderToSave
-                ?.filter(
-                    ({ kind }) => kind === DashboardControlRefKind.DATE_ZOOM,
-                )
-                .map(({ id }) => id),
-        ).toEqual(['z1']);
+        expect(zoomRefs(saved.controlOrderToSave)).toEqual(['z1']);
+    });
+
+    it('keeps a stored zoom with no tile in its place when the save leaves zooms untouched', () => {
+        const storedZoomConfig = {
+            controls: [{ uuid: 'z', name: 'Empty', granularity: 'Week' }],
+            tileTargets: {},
+        };
+        const saved = getControlsToSave({
+            ...base,
+            dimensions: [filter('f1'), filter('f2'), filter('f3')],
+            metrics: [],
+            controlSections: [],
+            parameterInputs: { ...parameterInputs, parameterControls: [] },
+            controlOrder: [
+                { kind: DashboardControlRefKind.FILTER, id: 'f3' },
+                { kind: DashboardControlRefKind.FILTER, id: 'f1' },
+                {
+                    kind: DashboardControlRefKind.DATE_ZOOM,
+                    id: 'z',
+                    newLine: true,
+                },
+                { kind: DashboardControlRefKind.FILTER, id: 'f2' },
+            ],
+            hasControlOrderChanged: true,
+            dateZoomConfigToSave: getDateZoomConfigToSave({
+                existingConfig: {
+                    isDateZoomDisabled: false,
+                    dateZoomConfig: storedZoomConfig,
+                },
+                hasDateZoomConfigChanged: false,
+                dateZoomConfig: storedZoomConfig,
+            }),
+        });
+        expect(saved.controlOrderToSave).toEqual([
+            { kind: DashboardControlRefKind.FILTER, id: 'f3' },
+            { kind: DashboardControlRefKind.FILTER, id: 'f1' },
+            { kind: DashboardControlRefKind.DATE_ZOOM, id: 'z', newLine: true },
+            { kind: DashboardControlRefKind.FILTER, id: 'f2' },
+        ]);
     });
 
     it('writes no parameter controls with a reorder when there are none', () => {

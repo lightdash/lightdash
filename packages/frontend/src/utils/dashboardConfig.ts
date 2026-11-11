@@ -49,6 +49,24 @@ type BuildDashboardConfigArgs = {
 };
 
 /**
+ * The date zoom config a save writes: pruned when it changed, omitted when no
+ * control remains; else the stored config as loaded.
+ */
+export const getDateZoomConfigToSave = ({
+    existingConfig,
+    dateZoomConfig,
+    hasDateZoomConfigChanged,
+}: {
+    existingConfig: DashboardConfig | undefined;
+    dateZoomConfig: DateZoomConfig;
+    hasDateZoomConfigChanged: boolean;
+}): DateZoomConfig | undefined => {
+    if (!hasDateZoomConfigChanged) return existingConfig?.dateZoomConfig;
+    const pruned = pruneDateZoomConfig(dateZoomConfig);
+    return isEmptyDateZoomConfig(pruned) ? undefined : pruned;
+};
+
+/**
  * Builds the full `dashboard.config` payload for a save. Every DashboardConfig
  * key must be produced here — a key that isn't is silently deleted on save.
  */
@@ -72,15 +90,6 @@ export const buildDashboardConfig = ({
     parameterControlsToSave,
     controlOrderToSave,
 }: BuildDashboardConfigArgs): DashboardConfig => {
-    // Prune empty controls + dangling targets on save; omit the field
-    // entirely when no controls remain so untouched dashboards don't churn.
-    const prunedDateZoomConfig = pruneDateZoomConfig(dateZoomConfig);
-    const savedDateZoomConfig = hasDateZoomConfigChanged
-        ? isEmptyDateZoomConfig(prunedDateZoomConfig)
-            ? undefined
-            : prunedDateZoomConfig
-        : existingConfig?.dateZoomConfig;
-
     return {
         isDateZoomDisabled,
         isAddFilterDisabled,
@@ -94,7 +103,11 @@ export const buildDashboardConfig = ({
         defaultDateZoomGranularity: hasDefaultDateZoomGranularityChanged
             ? defaultDateZoomGranularity
             : existingConfig?.defaultDateZoomGranularity,
-        dateZoomConfig: savedDateZoomConfig,
+        dateZoomConfig: getDateZoomConfigToSave({
+            existingConfig,
+            dateZoomConfig,
+            hasDateZoomConfigChanged,
+        }),
         requiredFiltersNote: requiredFiltersNote || undefined,
         // Staged edits win; otherwise carry the persisted registry forward.
         customMetrics: stagedCustomMetrics ?? existingConfig?.customMetrics,
@@ -222,7 +235,7 @@ export const getControlsToSave = ({
     controlSections,
     haveControlSectionsChanged,
     parameterInputs,
-    dateZoomConfig,
+    dateZoomConfigToSave,
 }: {
     controlOrder: DashboardControlRef[] | undefined;
     hasControlOrderChanged: boolean;
@@ -231,7 +244,8 @@ export const getControlsToSave = ({
     controlSections: DashboardControlSection[];
     haveControlSectionsChanged: boolean;
     parameterInputs: Parameters<typeof getParametersToSave>[0];
-    dateZoomConfig: DateZoomConfig;
+    /** From `getDateZoomConfigToSave`: the order matches the zooms the save writes */
+    dateZoomConfigToSave: DateZoomConfig | undefined;
 }) => {
     const orderToSave = getControlOrderToSave({
         controlOrder,
@@ -240,8 +254,7 @@ export const getControlsToSave = ({
         metrics,
         parameterControls: parameterInputs.parameterControls,
         controlSections,
-        // As the config saves them: a zoom with no tile is pruned
-        dateZoomControls: pruneDateZoomConfig(dateZoomConfig).controls,
+        dateZoomControls: dateZoomConfigToSave?.controls ?? [],
     });
     const { parameterControlsToSave, parameters } = getParametersToSave({
         ...parameterInputs,
