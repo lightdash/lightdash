@@ -135,4 +135,35 @@ describe('the quiet pull request card of a side panel', () => {
             screen.getByRole('menuitem', { name: 'Open pull requests as you' }),
         ).toHaveAttribute('href', '/generalSettings/profile');
     });
+    it.each([
+        { merged: true, state: 'closed' as const, word: 'Merged' },
+        { merged: false, state: 'closed' as const, word: 'Closed' },
+    ])(
+        'reads $word once settled, with nothing left to merge',
+        ({ merged, state, word }) => {
+            held.ciChecks = {
+                merged,
+                state,
+                mergeState: CiMergeState.READY,
+                checks: [],
+            };
+            renderWithProviders(
+                <MemoryRouter>
+                    <QuietCardsContext.Provider value>
+                        <AiEditDbtProjectToolCall
+                            projectUuid="project"
+                            metadata={{
+                                status: 'success',
+                                prUrl: 'https://github.com/acme/analytics/pull/7',
+                            }}
+                        />
+                    </QuietCardsContext.Provider>
+                </MemoryRouter>,
+            );
+            expect(screen.getByText(word)).toBeVisible();
+            expect(
+                screen.queryByRole('button', { name: 'Merge' }),
+            ).not.toBeInTheDocument();
+        },
+    );
 });
