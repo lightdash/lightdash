@@ -118,6 +118,7 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `ControlsBar.tsx` | The shipped bar with its openings; picks flat or `SectionedFilters`; `MappingSwap` cross-fades to `MappingRow` (the embed's bar uses it too) |
 | `MappingRow.tsx` | Mapping: the open pill, title and counts, field chips, "Add a field", Cancel and Apply |
 | `AddControl.tsx`, `FilterBarMenu.tsx` | "Add filter" and the editor's "..." menu ("Hide for viewers" / "Show for viewers", named for the action as the shipped pin item; "Filter rules"); `InertWhileEditing` |
+| `useBarPill.ts`, `ControlEditorPopover.tsx` | Every kind's pill behaviour (modified-click pick, Alt+arrow move, tile hover, the select hint) and its editor popover's frame |
 | `FilterPills.tsx`, `FilterPill.tsx`, `TemporaryFilterPills.tsx` | Bar pills: an editor's, a viewer's saved and own pills (each anchors the editor), an editor's temporary pills (shipped) |
 | `SettledFilterFields.tsx` | Keeps the last fields while tiles reload, so the bar does not flash a first load |
 | `FilterEditor.tsx` | `EditorPopover`, under a pill or "Add filter"; wires `FilterPopover` to the provider, a placeholder's field search |

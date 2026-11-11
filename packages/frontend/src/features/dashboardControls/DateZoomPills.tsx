@@ -1,18 +1,11 @@
-import { ActionIcon, Box, Button, Popover, Text, Tooltip } from '@mantine/core';
-import { useOs } from '@mantine/hooks';
+import { ActionIcon, Box, Button, Text, Tooltip } from '@mantine/core';
 import {
     IconCalendarSearch,
     IconCheck,
     IconEyeOff,
     IconX,
 } from '@tabler/icons-react';
-import {
-    Fragment,
-    type FC,
-    type KeyboardEvent,
-    type MouseEvent,
-    type ReactNode,
-} from 'react';
+import { Fragment, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -30,7 +23,7 @@ import {
 import filterClasses from '../dashboardFilters/ActiveFilters/Filter.module.css';
 import { useEligibleDateZoomTiles } from '../dateZoom/hooks';
 import { getGranularityLabel } from '../dateZoom/utils';
-import { MOVE_KEYS, useBarMove, useBarSelection } from './barSelection';
+import { ControlEditorPopover } from './ControlEditorPopover';
 import { DateZoomControlPopover } from './DateZoomControlPopover';
 import {
     DATE_ZOOM_DRAG,
@@ -39,11 +32,11 @@ import {
     getZoomTileUuids,
 } from './dateZoomControls';
 import { DefaultZoomPopover } from './DefaultZoomPopover';
-import editorClasses from './FilterEditor.module.css';
 import pillClasses from './FilterPills.module.css';
 import classes from './ParameterPills.module.css';
 import { BarDroppable, PillDraggable } from './PillDraggable';
 import { useRailContractClasses } from './railContractClasses';
+import { useBarPill } from './useBarPill';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import {
     useDateZoomBar,
@@ -53,10 +46,7 @@ import {
 import { useDateZoomEditorSelector } from './useDateZoomEditor';
 import { useIsControlEdited } from './useIsControlEdited';
 import { useParameterEditorSelector } from './useParameterEditor';
-import { usePillActionHover } from './usePillActionHover';
-import { useTileHover } from './useTileHover';
 
-const NO_TRANSITION = { duration: 0 };
 const DRAG_DATA = { kind: DATE_ZOOM_DRAG };
 
 // The default zoom's popover: its draft (an editor's) or pick (a viewer's)
@@ -144,53 +134,35 @@ const DateZoomEditorContent: FC = () => {
     );
 };
 
-// As the parameter popover: focus kept inside, Escape and a press outside
-// owned by the provider, mounted only while open
 const DateZoomEditorPopover: FC<{
     isOpen: boolean;
     isDefault?: boolean;
     children: ReactNode;
 }> = ({ isOpen, isDefault = false, children }) => {
-    const contractClasses = useRailContractClasses();
     const filterMapping = useControlsSidebarSelector((c) => c.isMapping);
     const parameterMapping = useParameterEditorSelector((c) => c.isMapping);
     const dateZoomMapping = useDateZoomEditorSelector((c) => c.isMapping);
-    const isShown =
-        isOpen && !filterMapping && !parameterMapping && !dateZoomMapping;
     return (
-        <Popover
-            opened={isShown}
-            withArrow
-            offset={1}
-            arrowOffset={14}
-            transitionProps={NO_TRANSITION}
-            trapFocus
-            closeOnEscape={false}
-            closeOnClickOutside={false}
-            withRoles={false}
+        <ControlEditorPopover
+            isShown={
+                isOpen &&
+                !filterMapping &&
+                !parameterMapping &&
+                !dateZoomMapping
+            }
+            dropdownClass="dateZoomDropdown"
             // The default sits at the bar's end
             position={isDefault ? 'bottom-end' : 'bottom-start'}
+            content={
+                isDefault ? (
+                    <DefaultZoomEditorContent />
+                ) : (
+                    <DateZoomEditorContent />
+                )
+            }
         >
-            <Popover.Target>{children}</Popover.Target>
-            {isShown && (
-                <Popover.Dropdown
-                    p={0}
-                    tabIndex={-1}
-                    data-controls-editor
-                    className={
-                        contractClasses === null
-                            ? editorClasses.dropdown
-                            : `${editorClasses.dropdown} ${contractClasses.rail} ${contractClasses.dateZoomDropdown}`
-                    }
-                >
-                    {isDefault ? (
-                        <DefaultZoomEditorContent />
-                    ) : (
-                        <DateZoomEditorContent />
-                    )}
-                </Popover.Dropdown>
-            )}
-        </Popover>
+            {children}
+        </ControlEditorPopover>
     );
 };
 
@@ -235,8 +207,6 @@ const DateZoomPill: FC<{ entry: DateZoomBarEntry }> = ({ entry }) => {
     // A filter being edited closes first, or asks on unapplied changes
     const requestSwitch = useControlsSidebarSelector((c) => c.requestSwitch);
     const isEditing = useIsControlEdited();
-    const selection = useBarSelection();
-    const barMove = useBarMove();
     const customLabels = useDashboardSelector(
         selectAvailableCustomGranularities,
     );
@@ -246,38 +216,28 @@ const DateZoomPill: FC<{ entry: DateZoomBarEntry }> = ({ entry }) => {
                 ({ uuid }) => uuid === control.uuid,
             ) ?? false,
     );
-    const { isOnAction, trackAction } = usePillActionHover(
-        DATE_ZOOM_PILL_SELECTOR,
-    );
-    const os = useOs();
-    // As a filter pill: in edit mode the tiles it zooms are marked on hover
-    const tileHover = useTileHover(
-        control.uuid,
-        !isViewer && !isEditing,
-        () => entry.tileUuids,
-    );
     const canEdit = !isViewer && !isNew;
-    const isSelectable = selection !== null && canEdit && !isEditing;
-    const isPicked =
-        isSelectable && selection.selectedIds.includes(control.uuid);
-    const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
-        if (isSelectable) {
-            if (event.metaKey || event.ctrlKey || event.shiftKey) {
-                selection.pick(control.uuid, event.shiftKey);
-                return;
-            }
-            selection.clear();
-        }
-        requestSwitch(() => open(control));
-    };
-    const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-        const direction = MOVE_KEYS[event.key];
+    const {
+        isSelectable,
+        isPicked,
+        selectHint,
+        handleClick,
+        handleKeyDown,
+        tileHover,
+        isOnAction,
+        trackAction,
+    } = useBarPill({
+        id: control.uuid,
+        pillSelector: DATE_ZOOM_PILL_SELECTOR,
+        canSelect: canEdit && !isEditing,
+        open: () => requestSwitch(() => open(control)),
         // Moves are an editor's, on the sectioned bar
-        if (!canEdit || !event.altKey || direction === undefined) return;
-        if (barMove === null) return;
-        event.preventDefault();
-        barMove(control.uuid, direction);
-    };
+        canMove: canEdit,
+        moveAlong: null,
+        // As a filter pill: in edit mode the tiles it zooms are marked
+        isTileHoverEnabled: !isViewer && !isEditing,
+        getTileUuids: () => entry.tileUuids,
+    });
     const name = (draft ?? control).name;
     const grain = getGranularityLabel(
         draft?.granularity ?? entry.granularity,
@@ -289,9 +249,7 @@ const DateZoomPill: FC<{ entry: DateZoomBarEntry }> = ({ entry }) => {
     const tooltipLines = [
         isUnsaved ? 'Not saved yet' : null,
         !isViewer && entry.isHidden ? 'Hidden from viewers' : null,
-        isSelectable
-            ? `Click to edit · ${os === 'macos' ? '⌘' : 'Ctrl'} click to select`
-            : null,
+        isSelectable ? selectHint : null,
     ].filter((line) => line !== null);
 
     return (
