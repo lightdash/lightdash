@@ -105,6 +105,7 @@ import {
 import { getSemanticStudioUrl } from './urls';
 import { useExploreFields } from './useExploreFields';
 import {
+    useKeepsSemanticLayerDraft,
     useSemanticLayerDraft,
     useSemanticLayerModel,
 } from './useSemanticLayerModel';
@@ -870,7 +871,12 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         () => [...new Set([...drafted, ...modelled])].sort(),
         [drafted, modelled],
     );
-    const isCode = chat.isAvailable && searchParams.get(VIEW_PARAM) === 'code';
+    // A dbt project has no draft and no model code here: its files are in its repository.
+    const keepsDraft = useKeepsSemanticLayerDraft(view.project.id);
+    const isCode =
+        chat.isAvailable &&
+        keepsDraft &&
+        searchParams.get(VIEW_PARAM) === 'code';
     const requestedFile = searchParams.get(FILE_PARAM);
     const file =
         files.find((name) => name === requestedFile) ??
@@ -888,8 +894,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     };
 
     const hasWarehouse = !!project?.warehouseConnection;
-    const canBuildFirstModel = isEmpty && hasWarehouse && chat.isAvailable;
-    const canNudge = chat.isAvailable && hasWarehouse && modelled.length === 0;
+    const canBuildFirstModel =
+        isEmpty && hasWarehouse && chat.isAvailable && keepsDraft;
+    const canNudge =
+        chat.isAvailable && keepsDraft && hasWarehouse && modelled.length === 0;
     const pane = ((): Pane => {
         if (isCode) return 'code';
         if (isReviewingDraft) return 'review';
@@ -1016,13 +1024,15 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                 wrap="nowrap"
                                 gap="sm"
                             >
-                                <SegmentedControl
-                                    size="xs"
-                                    flex="none"
-                                    value={isCode ? 'code' : 'preview'}
-                                    onChange={switchView}
-                                    data={VIEW_OPTIONS}
-                                />
+                                {keepsDraft ? (
+                                    <SegmentedControl
+                                        size="xs"
+                                        flex="none"
+                                        value={isCode ? 'code' : 'preview'}
+                                        onChange={switchView}
+                                        data={VIEW_OPTIONS}
+                                    />
+                                ) : null}
                                 <Group gap="xs" wrap="nowrap" miw={0} ml="auto">
                                     {isBuildingFirstModel ? null : (
                                         <DraftBar

@@ -361,6 +361,25 @@ export const getSystemPromptV2 = (
                           schema: args.warehouseSchema ?? null,
                       }
                     : null,
+                // Only a dbt project's Studio thread is given the writeback tools.
+                dbtRepository: promptSections.has('aiWriteback')
+                    ? [
+                          getAiWritebackSection({
+                              attribution: writebackAttribution,
+                              siteUrl,
+                              canEditContent: false,
+                          }),
+                          ...(promptSections.has('repoFs')
+                              ? [
+                                    getRepoFsSection({
+                                        root: repoFsRoot,
+                                        supportsCodeSearch:
+                                            repoFsSupportsCodeSearch,
+                                    }),
+                                ]
+                              : []),
+                      ]
+                    : null,
             }),
         );
     }

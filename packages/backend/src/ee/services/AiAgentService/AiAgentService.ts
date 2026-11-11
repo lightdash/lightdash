@@ -5439,10 +5439,12 @@ export class AiAgentService extends BaseService {
                 );
             }
             if (
-                !(await this.semanticStudioService.canEditModels(
-                    user,
-                    agent.projectUuid,
-                ))
+                !(
+                    await this.semanticStudioService.getStatus(
+                        user,
+                        agent.projectUuid,
+                    )
+                ).enabled
             ) {
                 throw new ForbiddenError(
                     'You cannot change the semantic layer of this project',
@@ -17132,6 +17134,15 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         user,
                         featureFlagId: FeatureFlags.AiFilterExpressions,
                     });
+                // A dbt project keeps no draft in Semantic Studio; its thread edits the repository instead.
+                const semanticStudioDrafts =
+                    isSemanticStudioThread &&
+                    (
+                        await this.semanticStudioService.getStatus(
+                            user,
+                            promptProject.projectUuid,
+                        )
+                    ).appliesAs !== 'dbt_pull_request';
                 let aiWritebackEnabled = hasTrustedPromptUserIdentity;
                 if (!aiWritebackEnabled) {
                     this.logger.info(
@@ -17620,6 +17631,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     enableAiWriteback: aiWritebackEnabled,
                     enableEditProjectContext: isReviewRemediationWorkThread,
                     isSemanticStudioThread,
+                    semanticStudioDrafts,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,

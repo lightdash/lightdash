@@ -6,12 +6,15 @@ import { type ApiSuccess } from './api/success';
 import { type UUID } from './api/uuid';
 import { type Explore } from './explore';
 
-export type SemanticLayerApplyMode = 'live' | 'pull_request';
+export type SemanticLayerApplyMode =
+    | 'live'
+    | 'pull_request'
+    | 'dbt_pull_request';
 
 export type SemanticLayerStatus = {
-    /** Whether this person can change this project's models from the server. */
+    /** Whether this person can change this project's models from Semantic Studio. */
     enabled: boolean;
-    /** What applying a draft does: `live` writes the models here, `pull_request` sends them to the project's repository. */
+    /** How a change lands: `live` applies a draft here, `pull_request` sends a draft to the project's repository, and `dbt_pull_request` has the agent edit the dbt project in a pull request, with no draft. */
     appliesAs: SemanticLayerApplyMode;
 };
 

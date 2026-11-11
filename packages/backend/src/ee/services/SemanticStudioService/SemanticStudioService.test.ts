@@ -1421,6 +1421,28 @@ describe('SemanticStudioService', () => {
             ).toEqual({ enabled: true, appliesAs: 'live' });
         });
 
+        it('keeps no draft on a dbt project, where the agent edits the repository', async () => {
+            const dbt = () => setup({ dbtConnection: DBT_IN_GITHUB });
+            expect(
+                await dbt().service.getStatus(repoWriter, PROJECT_UUID),
+            ).toEqual({ enabled: true, appliesAs: 'dbt_pull_request' });
+            expect(
+                await dbt().service.getStatus(deployer, PROJECT_UUID),
+            ).toEqual({ enabled: false, appliesAs: 'dbt_pull_request' });
+            expect(
+                await setup({
+                    dbtConnection: DBT_IN_GITHUB,
+                    enabled: false,
+                }).service.getStatus(repoWriter, PROJECT_UUID),
+            ).toEqual({ enabled: false, appliesAs: 'dbt_pull_request' });
+            expect(
+                await dbt().service.canEditModels(repoWriter, PROJECT_UUID),
+            ).toBe(false);
+            expect(
+                await dbt().service.getDraft(repoWriter, PROJECT_UUID),
+            ).toEqual(expect.objectContaining({ changes: [] }));
+        });
+
         it('needs permission to write to the repository, and the GitHub App', async () => {
             expect(
                 await repo().service.canEditModels(deployer, PROJECT_UUID),
