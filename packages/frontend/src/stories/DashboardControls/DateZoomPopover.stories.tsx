@@ -63,7 +63,7 @@ export const Named: Story = {
         await waitFor(() =>
             expect(
                 dialog.getByRole('button', {
-                    name: 'Zooms 2 of 5 tiles. Choose tiles',
+                    name: 'Applies to 2 of 5 tiles. Choose tiles',
                 }),
             ).toBeVisible(),
         );
@@ -199,7 +199,7 @@ export const Default: Story = {
         await waitFor(() =>
             expect(
                 dialog.getByText(
-                    `Zooms the other ${TOTAL_TILE_COUNT - 3} tiles`,
+                    `Applies to the other ${TOTAL_TILE_COUNT - 3} tiles`,
                 ),
             ).toBeVisible(),
         );

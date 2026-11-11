@@ -63,9 +63,9 @@ const MappingRowContent: FC<{ mapping: DateZoomMapping }> = ({ mapping }) => {
                     </Text>
                 </Button>
             </Box>
-            {/* One sentence: "[pill] zooms 4 of 6 tiles" */}
+            {/* One sentence: "[pill] applies to 4 of 6 tiles" */}
             <Text fz="sm" className={classes.words}>
-                {getUiString('controls.dateZoom.zoomsWord')}
+                {getUiString('controls.dateZoom.appliesToWord')}
             </Text>
             <Text
                 fz="sm"

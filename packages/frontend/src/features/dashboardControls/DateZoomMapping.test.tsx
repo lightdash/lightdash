@@ -145,7 +145,7 @@ describe('choosing the tiles a date zoom re-grains', () => {
         const { user } = setup();
         await chooseTiles(user);
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-        expect(row()).toHaveTextContent('Revenue zoomzooms1 of 4 tiles');
+        expect(row()).toHaveTextContent('Revenue zoomapplies to1 of 4 tiles');
         expect(card('notes')).toHaveAttribute(
             'title',
             'This tile has no date to zoom',
@@ -217,7 +217,7 @@ describe('choosing the tiles a date zoom re-grains', () => {
             name: 'Tiles zoomed by Revenue zoom',
         });
         await user.click(
-            within(bar).getByRole('button', { name: 'Zoom 2 more' }),
+            within(bar).getByRole('button', { name: 'Apply to 2 more' }),
         );
         expect(row()).toHaveTextContent('3 of 4 tiles');
         expect(card('t2')).toHaveTextContent('In Orders zoom');
@@ -241,14 +241,14 @@ describe('choosing the tiles a date zoom re-grains', () => {
         );
         expect(
             screen.getByRole('button', {
-                name: 'Zooms 2 of 4 tiles. Choose tiles',
+                name: 'Applies to 2 of 4 tiles. Choose tiles',
             }),
         ).toBeInTheDocument();
         await user.click(screen.getByRole('button', { name: /Choose tiles/ }));
         await user.click(within(row()).getByRole('button', { name: 'Cancel' }));
         expect(
             screen.getByRole('button', {
-                name: 'Zooms 2 of 4 tiles. Choose tiles',
+                name: 'Applies to 2 of 4 tiles. Choose tiles',
             }),
         ).toBeInTheDocument();
         expect(config()).toEqual(saved);

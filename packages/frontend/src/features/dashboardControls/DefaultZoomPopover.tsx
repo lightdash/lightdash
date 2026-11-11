@@ -12,7 +12,7 @@ import { GrainSelect } from './GrainSelect';
 
 type EditorMode = {
     kind: 'editor';
-    /** Zoomable tiles in no named zoom: the N in "Zooms the other N tiles". */
+    /** Zoomable tiles in no named zoom: the N in "Applies to the other N tiles". */
     tileCount: number;
 };
 
@@ -125,7 +125,7 @@ export const DefaultZoomPopover: FC<Props> = ({
         <Group gap="xs" align="center" px="md" pb="sm">
             <TilesChip
                 // Editors only: a viewer's popover has no count
-                label={`Zooms the other ${formatTileCount(getUiString, mode.tileCount)}`}
+                label={`Applies to the other ${formatTileCount(getUiString, mode.tileCount)}`}
                 chooseTiles={getUiString('controls.chooseTiles')}
                 onChooseTiles={null}
             />

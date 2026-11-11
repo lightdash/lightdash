@@ -16,9 +16,9 @@ import { type FieldTiles, type TileScope } from './useFieldTileActions';
 
 // Editors only map date zooms: these words never reach a viewer
 const DATE_ZOOM_COPY: FieldBarCopy = {
-    fillMore: 'Zoom {count} more',
-    fillOnOtherTabs: 'Zoom {count} on other tabs',
-    fillMoreNone: 'Zoom more',
+    fillMore: 'Apply to {count} more',
+    fillOnOtherTabs: 'Apply to {count} on other tabs',
+    fillMoreNone: 'Apply to more',
     region: 'Tiles zoomed by {field}',
     undoFillName: 'Undo zooming {tiles} by {field}',
     noTile: 'No tile has a date to zoom',

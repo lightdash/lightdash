@@ -108,7 +108,7 @@ describe('DateZoomControlPopover', () => {
         expect(grain).toHaveFocus();
         await userEvent.click(
             screen.getByRole('button', {
-                name: 'Zooms 2 of 5 tiles. Choose tiles',
+                name: 'Applies to 2 of 5 tiles. Choose tiles',
             }),
         );
         expect(onChooseTiles).toHaveBeenCalled();
@@ -169,7 +169,7 @@ describe('DateZoomControlPopover', () => {
         expect(screen.getByRole('textbox', { name: 'Name' })).toHaveFocus();
         expect(
             screen.getByRole('button', {
-                name: 'Zooms no tiles. Choose tiles',
+                name: 'Applies to no tiles. Choose tiles',
             }),
         ).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Apply' })).toBeDisabled();

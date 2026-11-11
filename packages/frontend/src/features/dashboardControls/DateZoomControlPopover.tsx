@@ -225,8 +225,8 @@ export const DateZoomControlPopover: FC<Props> = ({
     const tilesOf = formatTilesOf(getUiString, tileCount, totalTileCount);
     const zooms =
         tileCount === 0
-            ? getUiString('controls.dateZoom.zoomsNoTiles')
-            : interpolateUiString(getUiString('controls.dateZoom.zooms'), {
+            ? getUiString('controls.dateZoom.appliesToNoTiles')
+            : interpolateUiString(getUiString('controls.appliesTo'), {
                   tiles:
                       tileCount === totalTileCount
                           ? formatTileCount(getUiString, totalTileCount)

@@ -348,7 +348,7 @@ describe('Date zoom editor', () => {
         expect(pill('Default zoom')).toHaveTextContent('Default zoom is None');
         await user.click(pill('Default zoom'));
         expect(
-            within(dialog()).getByText('Zooms the other 1 tile'),
+            within(dialog()).getByText('Applies to the other 1 tile'),
         ).toBeInTheDocument();
         await user.click(
             within(dialog()).getByRole('combobox', { name: 'Default zoom' }),

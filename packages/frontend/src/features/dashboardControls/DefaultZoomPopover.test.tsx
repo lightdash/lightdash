@@ -66,7 +66,9 @@ describe('DefaultZoomPopover', () => {
         const grain = screen.getByRole('combobox', { name: 'Default zoom' });
         expect(grain).toHaveValue('Month');
         expect(grain).toHaveFocus();
-        expect(screen.getByText('Zooms the other 3 tiles')).toBeInTheDocument();
+        expect(
+            screen.getByText('Applies to the other 3 tiles'),
+        ).toBeInTheDocument();
         expect(
             screen.getByText('If cleared, tiles keep their own grain.'),
         ).toBeInTheDocument();
