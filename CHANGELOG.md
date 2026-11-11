@@ -1,3 +1,10 @@
+## [3.213.2](https://github.com/lightdash/lightdash/compare/3.213.1...3.213.2) (2026-11-11)
+
+
+### Bug Fixes
+
+* **external-sources:** keep the connection id and run tracking for queued external source queries ([#32403](https://github.com/lightdash/lightdash/issues/32403)) ([06ace59](https://github.com/lightdash/lightdash/commit/06ace590c9218774e89516f9f8b32f5adf596212))
+
 ## [3.213.1](https://github.com/lightdash/lightdash/compare/3.213.0...3.213.1) (2026-11-11)
 
 
