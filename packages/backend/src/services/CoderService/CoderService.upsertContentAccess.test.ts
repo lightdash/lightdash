@@ -5506,5 +5506,28 @@ describe('CoderService dashboard control order as code', () => {
                 'Unknown date zoom control slug "daily" on tile "orders". Valid date zoom control slugs are weekly, month',
             );
         });
+
+        it('uploads a file whose zoom config has no controls', async () => {
+            const file = download(zoomDashboard(), true);
+            const saved = await upload({
+                ...file,
+                config: {
+                    ...file.config!,
+                    controlOrder: undefined,
+                    dateZoomConfig: { tileTargets: {} } as AnyType,
+                },
+            });
+            expect(saved.config?.dateZoomConfig).toEqual({
+                controls: [],
+                tileTargets: {},
+            });
+        });
+
+        it('downloads a stored zoom config without controls', () => {
+            expect(
+                download(zoomDashboard({ dateZoomConfig: {} }), true).config
+                    ?.dateZoomConfig,
+            ).toEqual({ controls: [], tileTargets: {} });
+        });
     });
 });

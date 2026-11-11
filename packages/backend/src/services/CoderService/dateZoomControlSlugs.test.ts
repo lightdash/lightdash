@@ -1,5 +1,8 @@
 import { type DateZoomControl } from '@lightdash/common';
-import { getDateZoomConfigWithIds } from './dateZoomControlSlugs';
+import {
+    getDateZoomConfigWithIds,
+    getDateZoomConfigWithSlugs,
+} from './dateZoomControlSlugs';
 
 const saved: DateZoomControl[] = [
     { uuid: 'week-uuid', name: 'Week', granularity: 'WEEK' },
@@ -119,5 +122,14 @@ describe('getDateZoomConfigWithIds', () => {
         expect(() =>
             getDateZoomConfigWithIds({ tileTargets: {}, ...config }, saved),
         ).toThrow(message);
+    });
+});
+
+describe('getDateZoomConfigWithSlugs', () => {
+    it('accepts a stored config without controls or tile targets', () => {
+        expect(getDateZoomConfigWithSlugs({})).toEqual({
+            controls: [],
+            tileTargets: {},
+        });
     });
 });

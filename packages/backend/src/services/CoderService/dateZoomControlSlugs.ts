@@ -95,23 +95,25 @@ export const getDateZoomConfigWithSlugs = <
     C extends Pick<DateZoomControl, 'uuid' | 'name'>,
     T extends Pick<DateZoomTileTarget, 'controlUuid'>,
 >(config: {
-    controls: C[];
-    tileTargets: Record<string, T>;
+    controls?: C[];
+    tileTargets?: Record<string, T>;
 }) => {
-    const slugs = dateZoomSlugs(config.controls.map(({ name }) => ({ name })));
+    // Older readers tolerated a config without either list
+    const controls = config.controls ?? [];
+    const slugs = dateZoomSlugs(controls.map(({ name }) => ({ name })));
     const slugByUuid = new Map<string, string>();
-    config.controls.forEach(({ uuid }, index) => {
+    controls.forEach(({ uuid }, index) => {
         if (!slugByUuid.has(uuid)) slugByUuid.set(uuid, slugs[index]);
     });
     return {
         ...config,
-        controls: config.controls.map(({ uuid, ...control }, index) => ({
+        controls: controls.map(({ uuid, ...control }, index) => ({
             uuid,
             slug: slugs[index],
             ...control,
         })),
         tileTargets: Object.fromEntries(
-            Object.entries(config.tileTargets).map(([tile, target]) => {
+            Object.entries(config.tileTargets ?? {}).map(([tile, target]) => {
                 const controlSlug = slugByUuid.get(target.controlUuid);
                 return [
                     tile,
