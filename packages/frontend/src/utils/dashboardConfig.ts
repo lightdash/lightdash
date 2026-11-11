@@ -13,6 +13,7 @@ import {
     type DashboardParameters,
     type DateGranularity,
     type DateZoomConfig,
+    type DateZoomControl,
 } from '@lightdash/common';
 import { isEqual, pick } from 'es-toolkit/compat';
 import {
@@ -125,6 +126,7 @@ export const getControlOrderToSave = ({
     metrics,
     parameterControls,
     controlSections,
+    dateZoomControls,
 }: {
     controlOrder: DashboardControlRef[] | undefined;
     hasControlOrderChanged: boolean;
@@ -132,6 +134,8 @@ export const getControlOrderToSave = ({
     metrics: DashboardFilterRule[];
     parameterControls: DashboardParameterControl[] | null;
     controlSections: DashboardControlSection[];
+    /** Their refs stay in the order; the order is their only placement */
+    dateZoomControls: DateZoomControl[];
 }): {
     controlOrder: DashboardControlRef[];
     dimensions: DashboardFilterRule[];
@@ -146,6 +150,7 @@ export const getControlOrderToSave = ({
             filters: { dimensions, metrics },
             parameterControls: parameterControls ?? [],
             sections: controlSections,
+            dateZoomControls,
         }),
     );
     if (refs.length === 0) return null;
@@ -217,6 +222,7 @@ export const getControlsToSave = ({
     controlSections,
     haveControlSectionsChanged,
     parameterInputs,
+    dateZoomControls,
 }: {
     controlOrder: DashboardControlRef[] | undefined;
     hasControlOrderChanged: boolean;
@@ -225,6 +231,7 @@ export const getControlsToSave = ({
     controlSections: DashboardControlSection[];
     haveControlSectionsChanged: boolean;
     parameterInputs: Parameters<typeof getParametersToSave>[0];
+    dateZoomControls: DateZoomControl[];
 }) => {
     const orderToSave = getControlOrderToSave({
         controlOrder,
@@ -233,6 +240,7 @@ export const getControlsToSave = ({
         metrics,
         parameterControls: parameterInputs.parameterControls,
         controlSections,
+        dateZoomControls,
     });
     const { parameterControlsToSave, parameters } = getParametersToSave({
         ...parameterInputs,

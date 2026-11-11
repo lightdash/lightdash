@@ -514,6 +514,7 @@ describe('getControlOrderToSave', () => {
         metrics: [],
         parameterControls: [region('EU')],
         controlSections: [{ id: 's', name: 'Section' }],
+        dateZoomControls: [],
     };
 
     it('stores nothing when the bar was not reordered', () => {
@@ -533,10 +534,42 @@ describe('getControlOrderToSave', () => {
                 metrics: [],
                 parameterControls: null,
                 controlSections: [],
+                dateZoomControls: [],
                 controlOrder: [],
                 hasControlOrderChanged: true,
             }),
         ).toBeNull();
+    });
+
+    it('keeps date zoom refs and their sections in a saved order', () => {
+        const saved = getControlOrderToSave({
+            ...sources,
+            dateZoomControls: [
+                { uuid: 'z1', name: 'Revenue zoom', granularity: 'Week' },
+                {
+                    uuid: 'z2',
+                    name: 'Orders zoom',
+                    granularity: 'Month',
+                    sectionId: 's',
+                },
+            ],
+            controlOrder: [
+                { kind: DashboardControlRefKind.DATE_ZOOM, id: 'z1' },
+                { kind: DashboardControlRefKind.FILTER, id: 'a' },
+            ],
+            hasControlOrderChanged: true,
+        });
+        expect(saved?.controlOrder).toEqual([
+            { kind: DashboardControlRefKind.DATE_ZOOM, id: 'z1' },
+            { kind: DashboardControlRefKind.FILTER, id: 'a' },
+            {
+                kind: DashboardControlRefKind.PARAMETER,
+                id: 'region-control',
+            },
+            { kind: DashboardControlRefKind.SECTION, id: 's' },
+            { kind: DashboardControlRefKind.FILTER, id: 'b' },
+            { kind: DashboardControlRefKind.DATE_ZOOM, id: 'z2' },
+        ]);
     });
 
     it('writes every control after a reorder, with each list following it', () => {
@@ -599,6 +632,7 @@ describe('getControlsToSave', () => {
         controlSections,
         haveControlSectionsChanged: false,
         parameterInputs,
+        dateZoomControls: [],
     };
 
     it('saves what it did before the order when nothing was reordered, as a flag-off save', () => {

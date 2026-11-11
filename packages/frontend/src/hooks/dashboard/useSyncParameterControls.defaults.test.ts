@@ -73,6 +73,7 @@ describe('parameter control defaults on a dashboard without saved controls', () 
             metrics: [],
             controlSections: [],
             haveControlSectionsChanged: false,
+            dateZoomControls: [],
             parameterInputs: {
                 parameterControls: selectParameterControls(state),
                 areParameterControlsSaved:

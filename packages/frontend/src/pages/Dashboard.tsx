@@ -1528,6 +1528,7 @@ const Dashboard: FC = () => {
             ],
             controlSections,
             haveControlSectionsChanged,
+            dateZoomControls: dateZoomConfig.controls,
             parameterInputs: {
                 parameterControls: selectParameterControls(dashboardState),
                 areParameterControlsSaved:
