@@ -9,7 +9,7 @@ describe('getPivotColumnLimitMessage', () => {
                 maxColumnLimit: 200,
             }),
         ).toBe(
-            'Only the first 200 of 412 grouped columns are shown and the rest are left out. Filter the chart or group by a field with fewer values to see everything.',
+            'Results limited to 200 columns. Filter the chart or group by a field with fewer values to show all results.',
         );
     });
 

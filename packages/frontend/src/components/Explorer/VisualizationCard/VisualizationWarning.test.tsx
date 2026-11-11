@@ -124,7 +124,7 @@ describe('VisualizationWarning', () => {
         );
 
         expect(await screen.findByRole('tooltip')).toHaveTextContent(
-            'Only the first 200 of 412 grouped columns are shown and the rest are left out.',
+            'Results limited to 200 columns. Filter the chart or group by a field with fewer values to show all results.',
         );
     });
     describe('when the results hold an "Other" group', () => {
