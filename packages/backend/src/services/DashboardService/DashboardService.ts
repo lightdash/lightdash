@@ -143,6 +143,7 @@ import { runWithConcurrency } from '../../utils/runWithConcurrency';
 import { getContentWriteAgentIdentity } from '../AiAccessService/agentExecutionContext';
 import { logAgentContentWrite } from '../AiAccessService/logAgentContentWrite';
 import { BaseService } from '../BaseService';
+import { assertNotInDevelopmentView } from '../ProjectService/developmentView';
 import type { ProjectService } from '../ProjectService/ProjectService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
@@ -2072,6 +2073,7 @@ export class DashboardService
         projectUuid: UUID,
         dashboard: CreateDashboard,
     ): Promise<Dashboard> {
+        assertNotInDevelopmentView();
         const resolvedSpaceUuid =
             dashboard.spaceUuid ??
             (await this.spacePermissionService.getFirstViewableSpaceUuid(
@@ -2311,6 +2313,7 @@ export class DashboardService
         data: DuplicateDashboardParams,
         options?: { embedWriteSpaceUuids?: string[] },
     ): Promise<Dashboard> {
+        assertNotInDevelopmentView();
         const dashboardDao = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
             { projectUuid },
@@ -2916,6 +2919,7 @@ export class DashboardService
         dashboard: UpdateDashboard,
         options?: { projectUuid?: string },
     ): Promise<Dashboard> {
+        assertNotInDevelopmentView();
         const existingDashboardDao = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
             {

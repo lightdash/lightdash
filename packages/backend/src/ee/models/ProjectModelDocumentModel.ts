@@ -278,20 +278,33 @@ export class ProjectModelDocumentModel {
         });
     }
 
-    /** Bases a person's draft of one model on the given version, once they have seen what was published and kept their own. */
+    /** Bases a person's draft of one model on the given version, once they have seen what was published and kept their own; false, and nothing written, when live is no longer at that version. */
     async rebaseDraftChanges(
         owner: DraftOwner,
         model: string,
         version: number | null,
-    ): Promise<void> {
-        await ProjectModelDocumentModel.openDraftChanges(this.database, owner)
-            .whereRaw('models @> ?::jsonb', [JSON.stringify([{ name: model }])])
-            .update({
-                base_versions: this.database.raw(
-                    "jsonb_set(coalesce(base_versions, '{}'::jsonb), ?::text[], ?::jsonb)",
-                    [[model], JSON.stringify(version)],
-                ),
-            });
+    ): Promise<boolean> {
+        return this.database.transaction(async (trx) => {
+            // Held until this commits, so a publish to the model lands wholly before or wholly after.
+            const live = await trx(ProjectModelDocumentsTableName)
+                .select('document_version')
+                .where('project_uuid', owner.projectUuid)
+                .where('name', model)
+                .forUpdate()
+                .first();
+            if ((live?.document_version ?? null) !== version) return false;
+            await ProjectModelDocumentModel.openDraftChanges(trx, owner)
+                .whereRaw('models @> ?::jsonb', [
+                    JSON.stringify([{ name: model }]),
+                ])
+                .update({
+                    base_versions: trx.raw(
+                        "jsonb_set(coalesce(base_versions, '{}'::jsonb), ?::text[], ?::jsonb)",
+                        [[model], JSON.stringify(version)],
+                    ),
+                });
+            return true;
+        });
     }
 
     // ponytail: a model removed and made again restarts at version 1, so the newest revision with that version wins; key revisions by a document id if that ever matters.

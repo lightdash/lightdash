@@ -3,6 +3,7 @@ import {
     type ApiError,
     type ApiResponse,
     type SemanticLayerDraft,
+    type SemanticLayerDraftedModels,
     type SemanticLayerDraftApplyResult,
     type SemanticLayerDraftImpact,
     type SemanticLayerDraftMoveDirection,
@@ -101,6 +102,18 @@ export const useSemanticLayerDraft = (
         undefined,
         // A draft is replayed on what is live at each read, so reading again is how a person learns that live moved.
         DRAFT_POLL_MS,
+    );
+
+/** The names of the models this person has in development, for pages that only mark them. */
+export const useSemanticLayerDraftedModels = (
+    projectUuid: string,
+    enabled: boolean,
+) =>
+    useGet<SemanticLayerDraftedModels>(
+        [DRAFT_KEY, projectUuid, 'models'],
+        projectUuid,
+        '/draft/models',
+        enabled,
     );
 
 /** What the background check found the draft, or one model of it, would break in saved charts and dashboards. */

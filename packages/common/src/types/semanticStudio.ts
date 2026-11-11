@@ -161,6 +161,12 @@ export type SemanticLayerDraft = {
 
 export type ApiSemanticLayerDraftResponse = ApiSuccess<SemanticLayerDraft>;
 
+/** The names of the models a person has changes in development on, read without replaying or compiling anything. */
+export type SemanticLayerDraftedModels = { models: string[] };
+
+export type ApiSemanticLayerDraftedModelsResponse =
+    ApiSuccess<SemanticLayerDraftedModels>;
+
 export type SemanticLayerDraftApplyResult = {
     /** Null when nothing went live. */
     exploreCount: number | null;

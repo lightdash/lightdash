@@ -2,6 +2,7 @@ import {
     assertRegisteredAccount,
     type ApiErrorPayload,
     type ApiSemanticLayerDraftApplyResponse,
+    type ApiSemanticLayerDraftedModelsResponse,
     type ApiSemanticLayerDraftImpactResponse,
     type ApiSemanticLayerDraftKeepRequest,
     type ApiSemanticLayerDraftMoveRequest,
@@ -89,6 +90,28 @@ export class SemanticStudioController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 modelName,
+            ),
+        };
+    }
+
+    /**
+     * The models this person has changes in development on, by name.
+     * @summary List the models in my semantic layer draft
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/draft/models')
+    @OperationId('getSemanticLayerDraftedModels')
+    async getDraftedModels(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticLayerDraftedModelsResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getDraftedModels(
+                toSessionUser(req.account),
+                projectUuid,
             ),
         };
     }

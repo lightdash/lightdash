@@ -21,6 +21,7 @@ import {
     type Project,
     type SemanticLayerDraft,
     type SemanticLayerDraftApplyResult,
+    type SemanticLayerDraftedModels,
     type SemanticLayerDrafter,
     type SemanticLayerDraftImpact,
     type SemanticLayerDraftItemResult,
@@ -211,6 +212,12 @@ export class SemanticStudioService extends BaseService {
     private readonly savedChartModel: SemanticStudioServiceArguments['savedChartModel'];
 
     private readonly checker: DraftChecker;
+
+    /** Publishes under way, so a repeated request joins the one already running. */
+    private readonly publishing = new Map<
+        string,
+        Promise<SemanticLayerDraftApplyResult>
+    >();
 
     constructor(args: SemanticStudioServiceArguments) {
         super();
@@ -677,6 +684,29 @@ export class SemanticStudioService extends BaseService {
         ]);
     }
 
+    /** The models a person has changes in development on, straight from what is stored: cheap enough for pages that only mark them. */
+    async getDraftedModels(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SemanticLayerDraftedModels> {
+        if (!(await this.canEditModels(user, projectUuid))) {
+            return { models: [] };
+        }
+        const changes = await this.projectModelDocumentModel.findDraftChanges(
+            projectUuid,
+            user.userUuid,
+        );
+        return {
+            models: [
+                ...new Set(
+                    changes.flatMap(({ models }) =>
+                        models.map(({ name }) => name),
+                    ),
+                ),
+            ],
+        };
+    }
+
     /** What the person's draft does to what is live right now; empty for someone who cannot change the project. */
     async getDraft(
         user: SessionUser,
@@ -884,20 +914,18 @@ export class SemanticStudioService extends BaseService {
         seenLiveVersion: number | null,
     ): Promise<void> {
         await this.assertCanEditModels(user, projectUuid);
-        const { stored, repo } = await this.loadStored(projectUuid);
+        const { repo } = await this.loadStored(projectUuid);
         if (repo) return;
-        const liveVersion =
-            stored.find(({ name }) => name === model)?.version ?? null;
-        if (liveVersion !== seenLiveVersion) {
+        const kept = await this.projectModelDocumentModel.rebaseDraftChanges(
+            { projectUuid, userUuid: user.userUuid },
+            model,
+            seenLiveVersion,
+        );
+        if (!kept) {
             throw new ParameterError(
                 'This model was published again since you looked. Check what changed, then choose.',
             );
         }
-        await this.projectModelDocumentModel.rebaseDraftChanges(
-            { projectUuid, userUuid: user.userUuid },
-            model,
-            liveVersion,
-        );
     }
 
     /**
@@ -1278,10 +1306,18 @@ export class SemanticStudioService extends BaseService {
         model: string | null,
     ): Promise<SemanticLayerDraftApplyResult> {
         await this.assertCanEditModels(user, projectUuid);
-        const result = await this.applyDraftOnce(user, projectUuid, model);
-        // What is left of the draft now sits on different live models.
-        await this.queueDraftImpactCheckAfterChange(user, projectUuid);
-        return result;
+        // ponytail: per process, which covers repeated clicks and two tabs on one server; a lock in the database if two servers ever open the same pull request twice.
+        const key = `${projectUuid}:${user.userUuid}:${model ?? ''}`;
+        const running = this.publishing.get(key);
+        if (running) return running;
+        const publish = (async () => {
+            const result = await this.applyDraftOnce(user, projectUuid, model);
+            // What is left of the draft now sits on different live models.
+            await this.queueDraftImpactCheckAfterChange(user, projectUuid);
+            return result;
+        })().finally(() => this.publishing.delete(key));
+        this.publishing.set(key, publish);
+        return publish;
     }
 
     private applyDraftOnce(

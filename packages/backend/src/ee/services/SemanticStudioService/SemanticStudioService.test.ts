@@ -343,6 +343,8 @@ const setup = ({
                 return new Map(baseContents);
             },
             rebaseDraftChanges: async (_owner, model, version) => {
+                // Live is always at version 1 here.
+                if (version !== 1) return false;
                 drafts.forEach((change, index) => {
                     drafts[index] = {
                         ...change,
@@ -352,6 +354,7 @@ const setup = ({
                         },
                     };
                 });
+                return true;
             },
             createChangeSet: commit,
             findChangeSets: async (_projectUuid, uuids) =>
@@ -1289,6 +1292,16 @@ describe('SemanticStudioService', () => {
             expect((await reconciliationOf(context))?.state).toBe('conflict');
             // The oldest base is the one read, whichever change comes first.
             expect(context.requestedBases.at(-1)).toEqual(['orders', 0]);
+        });
+
+        it('runs one publish for requests that arrive together', async () => {
+            const context = await drafted(setup());
+            const [first, second] = await Promise.all([
+                context.service.applyDraft(deployer, PROJECT_UUID, null),
+                context.service.applyDraft(deployer, PROJECT_UUID, null),
+            ]);
+            expect(second).toBe(first);
+            expect(context.commitCalls).toHaveLength(1);
         });
 
         it('says nothing when the base was never recorded', async () => {
