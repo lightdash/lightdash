@@ -1,0 +1,27 @@
+.block {
+    max-height: 320px;
+    overflow: auto;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    --diffs-font-size: 11px;
+    --diffs-line-height: 16px;
+}
+
+/* Pins the diff to the app's colour scheme rather than the system's. */
+.block,
+.host {
+    color-scheme: light;
+
+    @mixin dark {
+        color-scheme: dark;
+    }
+}
+
+.plain {
+    margin: 0;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--diffs-font-size);
+    line-height: var(--diffs-line-height);
+    white-space: pre;
+}
