@@ -477,6 +477,7 @@ export const lightdashConfigMock: LightdashConfig = {
         maxOrganizationBytes: 5 * 1024 * 1024 * 1024,
         maxConcurrentIngestsPerOrganization: 2,
         maxConcurrentDuckdbQueriesPerOrganization: 2,
+        duckdbQuerySlotWaitTimeoutMs: 15_000,
         googleSheetsBatchRows: 5_000,
         stagedUploadTtlHours: 24,
         ingestLeaseMs: 35 * 60 * 1000,

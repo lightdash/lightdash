@@ -1893,6 +1893,187 @@ describe('DuckdbWarehouseClient', () => {
         await first;
     });
 
+    describe('external source per-organization slot wait', () => {
+        const tags = { organization_uuid: 'external-source-org' };
+        let pendingStreams: Map<
+            string,
+            {
+                resolve: (
+                    result: ReturnType<typeof getMockStreamResult>,
+                ) => void;
+                reject: (error: Error) => void;
+            }
+        >;
+        let streamMock: Mock;
+
+        const createClient = (acquireTimeoutMs = 5_000) =>
+            DuckdbWarehouseClient.createForPreAggregate(
+                {
+                    type: 'duckdb_s3',
+                    s3Config: {
+                        endpoint: 's3.amazonaws.com',
+                        forcePathStyle: false,
+                        useSsl: true,
+                        scope: ['s3://bucket/external-sources/object.parquet'],
+                    },
+                },
+                {
+                    resourceLimits: { memoryLimit: '128MB', threads: 1 },
+                    organizationConcurrencyLimit: 1,
+                    organizationConcurrencyAcquireTimeoutMs: acquireTimeoutMs,
+                },
+            );
+
+        const startedQueries = () =>
+            streamMock.mock.calls.map(([sql]) => String(sql).match(/q\d/)?.[0]);
+
+        const finish = (name: string) => {
+            pendingStreams
+                .get(name)
+                ?.resolve(
+                    getMockStreamResult(
+                        [[{ val: 1 }]],
+                        [DUCKDB_TYPE_IDS.INTEGER],
+                    ),
+                );
+        };
+
+        beforeEach(() => {
+            pendingStreams = new Map();
+            streamMock = vi.fn(
+                (sql: string) =>
+                    new Promise<ReturnType<typeof getMockStreamResult>>(
+                        (resolve, reject) => {
+                            const name = sql.match(/q\d/)?.[0] ?? sql;
+                            pendingStreams.set(name, { resolve, reject });
+                        },
+                    ),
+            );
+            createInstanceMock.mockImplementation(async () =>
+                createMockConnection(streamMock),
+            );
+        });
+
+        it('runs a waiting query once a slot frees up within the timeout', async () => {
+            vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+            const first = createClient().runQuery("SELECT 'q1' AS val", tags);
+            await vi.waitFor(() => expect(startedQueries()).toEqual(['q1']));
+
+            const waiting = createClient().runQuery("SELECT 'q2' AS val", tags);
+            await vi.advanceTimersByTimeAsync(4_000);
+            expect(startedQueries()).toEqual(['q1']);
+
+            finish('q1');
+            await first;
+            await vi.waitFor(() =>
+                expect(startedQueries()).toEqual(['q1', 'q2']),
+            );
+            finish('q2');
+            await expect(waiting).resolves.toBeDefined();
+        });
+
+        it('fails a waiting query with the capacity error when the timeout passes', async () => {
+            vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+            const first = createClient().runQuery("SELECT 'q1' AS val", tags);
+            await vi.waitFor(() => expect(startedQueries()).toEqual(['q1']));
+
+            const waiting = createClient()
+                .runQuery("SELECT 'q2' AS val", tags)
+                .catch((error: unknown) => error);
+            await vi.advanceTimersByTimeAsync(5_000);
+
+            const error = await waiting;
+            expect(error).toBeInstanceOf(WarehouseQueryError);
+            expect(error).toMatchObject({
+                message:
+                    'External source query capacity is full. Try again shortly.',
+            });
+            expect(startedQueries()).toEqual(['q1']);
+
+            finish('q1');
+            await first;
+        });
+
+        it('hands freed slots to waiting queries in arrival order', async () => {
+            const first = createClient().runQuery("SELECT 'q1' AS val", tags);
+            await vi.waitFor(() => expect(startedQueries()).toEqual(['q1']));
+            const second = createClient().runQuery("SELECT 'q2' AS val", tags);
+            const third = createClient().runQuery("SELECT 'q3' AS val", tags);
+            const fourth = createClient().runQuery("SELECT 'q4' AS val", tags);
+
+            finish('q1');
+            await vi.waitFor(() =>
+                expect(startedQueries()).toEqual(['q1', 'q2']),
+            );
+            finish('q2');
+            await vi.waitFor(() =>
+                expect(startedQueries()).toEqual(['q1', 'q2', 'q3']),
+            );
+            finish('q3');
+            await vi.waitFor(() =>
+                expect(startedQueries()).toEqual(['q1', 'q2', 'q3', 'q4']),
+            );
+            finish('q4');
+            await Promise.all([first, second, third, fourth]);
+        });
+
+        it('does not let a timed-out query hold or leak a slot', async () => {
+            vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+            const first = createClient().runQuery("SELECT 'q1' AS val", tags);
+            await vi.waitFor(() => expect(startedQueries()).toEqual(['q1']));
+
+            const timedOut = createClient(1_000)
+                .runQuery("SELECT 'q2' AS val", tags)
+                .catch((error: unknown) => error);
+            const patient = createClient(10_000).runQuery(
+                "SELECT 'q3' AS val",
+                tags,
+            );
+            await vi.advanceTimersByTimeAsync(1_000);
+            expect(await timedOut).toBeInstanceOf(WarehouseQueryError);
+
+            finish('q1');
+            await first;
+            await vi.waitFor(() =>
+                expect(startedQueries()).toEqual(['q1', 'q3']),
+            );
+
+            const blocked = createClient(1_000)
+                .runQuery("SELECT 'q4' AS val", tags)
+                .catch((error: unknown) => error);
+            await vi.advanceTimersByTimeAsync(1_000);
+            expect(await blocked).toBeInstanceOf(WarehouseQueryError);
+
+            finish('q3');
+            await patient;
+            const after = createClient(1_000).runQuery(
+                "SELECT 'q5' AS val",
+                tags,
+            );
+            await vi.waitFor(() =>
+                expect(startedQueries()).toEqual(['q1', 'q3', 'q5']),
+            );
+            finish('q5');
+            await after;
+        });
+
+        it('releases the slot to the next waiting query when a query fails', async () => {
+            const failing = createClient()
+                .runQuery("SELECT 'q1' AS val", tags)
+                .catch((error: unknown) => error);
+            await vi.waitFor(() => expect(startedQueries()).toEqual(['q1']));
+            const waiting = createClient().runQuery("SELECT 'q2' AS val", tags);
+
+            pendingStreams.get('q1')?.reject(new Error('Query failed'));
+            expect(await failing).toBeInstanceOf(Error);
+            await vi.waitFor(() =>
+                expect(startedQueries()).toEqual(['q1', 'q2']),
+            );
+            finish('q2');
+            await waiting;
+        });
+    });
+
     it('should load bundled extensions without runtime installs', async () => {
         const accessMock = vi.spyOn(fs, 'access').mockResolvedValue();
         try {
