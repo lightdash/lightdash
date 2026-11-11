@@ -1,3 +1,10 @@
+## [3.213.1](https://github.com/lightdash/lightdash/compare/3.213.0...3.213.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **merge:** order unordered window formulas by the merged result's order ([#32401](https://github.com/lightdash/lightdash/issues/32401)) ([9e914a0](https://github.com/lightdash/lightdash/commit/9e914a01717a8b93065553d17ed474dca5cc861c))
+
 # [3.213.0](https://github.com/lightdash/lightdash/compare/3.212.0...3.213.0) (2026-11-11)
 
 
