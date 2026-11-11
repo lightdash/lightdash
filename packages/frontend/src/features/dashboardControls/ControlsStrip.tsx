@@ -71,12 +71,20 @@ export const ControlsLead: FC<LeadProps> = ({
                                 </Badge>
                             }
                             data-controls-toggle
-                            onClick={() => {
+                            onClick={(event) => {
+                                const ancestors: HTMLElement[] = [];
+                                for (
+                                    let el = event.currentTarget.parentElement;
+                                    el;
+                                    el = el.parentElement
+                                )
+                                    ancestors.push(el);
                                 onToggle();
-                                // The other state's toggle replaces this one
+                                // The other state's toggle replaces this one: look in this strip's nearest surviving container
                                 setTimeout(() =>
-                                    document
-                                        .querySelector<HTMLElement>(
+                                    ancestors
+                                        .find((el) => el.isConnected)
+                                        ?.querySelector<HTMLElement>(
                                             '[data-controls-toggle]',
                                         )
                                         ?.focus(),

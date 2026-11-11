@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -121,6 +121,29 @@ describe('ControlsLead', () => {
         await user.keyboard('{Enter}');
         expect(toggle()).toHaveAttribute('aria-expanded', 'true');
         await waitFor(() => expect(toggle()).toHaveFocus());
+    });
+
+    it('restores focus to its own toggle with two strips on the page', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(
+            <>
+                <section aria-label="first">
+                    <Strip />
+                </section>
+                <section aria-label="second">
+                    <Strip />
+                </section>
+            </>,
+        );
+        const toggle = (name: string) =>
+            within(screen.getByRole('region', { name })).getByRole('button', {
+                name: /^Controls/,
+            });
+        await user.click(toggle('second'));
+        expect(toggle('second')).toHaveAttribute('aria-expanded', 'false');
+        await waitFor(() => expect(toggle('second')).toHaveFocus());
+        await user.click(toggle('second'));
+        await waitFor(() => expect(toggle('second')).toHaveFocus());
     });
 });
 
