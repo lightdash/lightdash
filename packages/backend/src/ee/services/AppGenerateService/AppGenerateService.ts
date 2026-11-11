@@ -777,8 +777,12 @@ const CANCELLED_PROMPT_NOTICE =
 
 /** Prepended to the build prompt when the builder's org has saved app state. */
 export const APP_STATE_PROMPT_BLOCK =
-    '[Saved app state is available — this app can remember what each person enters with useAppState and keep values every viewer shares, with a change history, with useSharedAppState. ' +
-    'Read /app/references/app-state.md before building anything that should survive a reload. ' +
+    // No hook names here: this block also reaches sandboxes resumed with an
+    // older bundled SDK, where a newer call form would silently misbehave
+    // (e.g. a pre-scopes SDK saves a { scope: 'shared' } value per person).
+    // /app/references/app-state.md is baked next to the SDK it documents.
+    '[Saved app state is available — this app can remember what each person enters and keep values every viewer shares, with a change history. ' +
+    'Read /app/references/app-state.md before building anything that should survive a reload, and use exactly the hook forms it shows. ' +
     'Remember a person\'s inputs by default without being asked; use shared state only when the prompt asks for comments, targets, annotations, or anything "everyone" or "the team" sees.]\n\n';
 
 // Maximum number of in-progress app builds allowed per project at one time.
