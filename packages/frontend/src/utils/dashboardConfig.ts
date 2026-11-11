@@ -222,7 +222,7 @@ export const getControlsToSave = ({
     controlSections,
     haveControlSectionsChanged,
     parameterInputs,
-    dateZoomControls,
+    dateZoomConfig,
 }: {
     controlOrder: DashboardControlRef[] | undefined;
     hasControlOrderChanged: boolean;
@@ -231,7 +231,7 @@ export const getControlsToSave = ({
     controlSections: DashboardControlSection[];
     haveControlSectionsChanged: boolean;
     parameterInputs: Parameters<typeof getParametersToSave>[0];
-    dateZoomControls: DateZoomControl[];
+    dateZoomConfig: DateZoomConfig;
 }) => {
     const orderToSave = getControlOrderToSave({
         controlOrder,
@@ -240,7 +240,8 @@ export const getControlsToSave = ({
         metrics,
         parameterControls: parameterInputs.parameterControls,
         controlSections,
-        dateZoomControls,
+        // As the config saves them: a zoom with no tile is pruned
+        dateZoomControls: pruneDateZoomConfig(dateZoomConfig).controls,
     });
     const { parameterControlsToSave, parameters } = getParametersToSave({
         ...parameterInputs,

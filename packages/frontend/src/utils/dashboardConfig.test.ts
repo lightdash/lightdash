@@ -632,7 +632,7 @@ describe('getControlsToSave', () => {
         controlSections,
         haveControlSectionsChanged: false,
         parameterInputs,
-        dateZoomControls: [],
+        dateZoomConfig: { controls: [], tileTargets: {} },
     };
 
     it('saves what it did before the order when nothing was reordered, as a flag-off save', () => {
@@ -678,6 +678,38 @@ describe('getControlsToSave', () => {
         );
         expect(saved.dimensions.map(({ id }) => id)).toEqual(['a', 'b']);
         expect(saved.haveControlSectionsChanged).toBe(false);
+    });
+
+    it('keeps no zoom in the order that the same save prunes', () => {
+        const saved = getControlsToSave({
+            ...base,
+            controlOrder: [
+                { kind: DashboardControlRefKind.FILTER, id: 'a' },
+                { kind: DashboardControlRefKind.DATE_ZOOM, id: 'z1' },
+                { kind: DashboardControlRefKind.DATE_ZOOM, id: 'z2' },
+            ],
+            hasControlOrderChanged: true,
+            dateZoomConfig: {
+                controls: [
+                    { uuid: 'z1', name: 'Kept', granularity: 'Week' },
+                    { uuid: 'z2', name: 'No tiles', granularity: 'Week' },
+                ],
+                tileTargets: {
+                    t1: {
+                        controlUuid: 'z1',
+                        fieldId: 'orders_date',
+                        tableName: 'orders',
+                    },
+                },
+            },
+        });
+        expect(
+            saved.controlOrderToSave
+                ?.filter(
+                    ({ kind }) => kind === DashboardControlRefKind.DATE_ZOOM,
+                )
+                .map(({ id }) => id),
+        ).toEqual(['z1']);
     });
 
     it('writes no parameter controls with a reorder when there are none', () => {
