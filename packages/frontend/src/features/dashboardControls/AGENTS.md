@@ -126,6 +126,7 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `FilterPopover.tsx`, `FilterValueSettings.tsx`, `useRuleEdits.ts`, `NameInput.tsx`, `SectionSetting.tsx`, `ViewerControls.tsx`, `settingsSummary.ts`, `editorFocus.ts`, `useSettingsChipFocus.ts` | The popover, by props: header (icon, name, operator menu), value, chips (tiles, Settings), the prompt, Cancel and Apply, the Settings view (section, required, lock) |
 | `FieldsAndTiles.tsx`, `fieldCandidates.ts` | A new filter's field search; field candidates for "Add a field" and the cards |
 | `peers.ts` | Multi-field model on the saved shape, scopes, counts |
+| `ControlTilesBar.tsx` | The parameter key's and date zoom's floating bar: host, tab scopes, slide guard |
 | `FieldTilesBar.tsx`, `useFieldTileActions.ts`, `useBarHost.ts` | Floating field bar; the one place a field's counts and actions are computed |
 | `TileOverlay.tsx`, `LazySelect.tsx`, `tileProps.ts`, `tileSelector.ts` | Per-tile veil and card |
 | `TabCounts.tsx`, `usePortalTargets.ts`, `useTileHover.ts`, `useScrollToHighlightedTile.ts` | Tab counts, portal targets and sibling locking, pill hover marks, scroll to tile |
