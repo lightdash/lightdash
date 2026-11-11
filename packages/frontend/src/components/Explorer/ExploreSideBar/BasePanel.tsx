@@ -48,14 +48,11 @@ type Props = {
     // Overrides the default navigation to the project's explore page. Embeds
     // use this to keep the selected table inside the embed route.
     onExploreClick?: (explore: SummaryExplore) => void;
-    // The merge picker leaves external source tables out.
-    hideExternalSourceExplores?: boolean;
+    // Leaves matching tables out of the list and its search.
+    shouldHideExplore?: (explore: SummaryExplore) => boolean;
 };
 
-const BasePanel = ({
-    onExploreClick,
-    hideExternalSourceExplores = false,
-}: Props) => {
+const BasePanel = ({ onExploreClick, shouldHideExplore }: Props) => {
     const navigate = useNavigate();
     const location = useLocation();
     const projectUuid = useProjectUuid();
@@ -80,6 +77,11 @@ const BasePanel = ({
             : '';
         if (exploresResult.data) {
             let explores = Object.values(exploresResult.data);
+            if (shouldHideExplore) {
+                explores = explores.filter(
+                    (explore) => !shouldHideExplore(explore),
+                );
+            }
             if (connections !== null && connectionFilter !== null) {
                 explores = explores.filter(
                     (explore) =>
@@ -114,7 +116,13 @@ const BasePanel = ({
             return explores;
         }
         return undefined;
-    }, [exploresResult.data, debouncedSearch, connections, connectionFilter]);
+    }, [
+        exploresResult.data,
+        debouncedSearch,
+        connections,
+        connectionFilter,
+        shouldHideExplore,
+    ]);
 
     const emptyConnectionName =
         connectionFilter !== null && filteredExplores?.length === 0
@@ -155,10 +163,7 @@ const BasePanel = ({
             if (explore.type === ExploreType.PRE_AGGREGATE) {
                 preAggregateExplores.push(explore);
             } else if (explore.type === ExploreType.EXTERNAL_SOURCE) {
-                if (
-                    externalSourcesFlag?.enabled === true &&
-                    !hideExternalSourceExplores
-                ) {
+                if (externalSourcesFlag?.enabled === true) {
                     externalSourceExplores.push(explore);
                 }
             } else if (exploreHasGroups(explore)) {
@@ -190,12 +195,7 @@ const BasePanel = ({
             preAggregateExplores,
             externalSourceExplores,
         ];
-    }, [
-        externalSourcesFlag?.enabled,
-        hideExternalSourceExplores,
-        filteredExplores,
-        tableGroupDetails,
-    ]);
+    }, [externalSourcesFlag?.enabled, filteredExplores, tableGroupDetails]);
 
     const handleExploreClick = useCallback(
         (explore: SummaryExplore) => {
