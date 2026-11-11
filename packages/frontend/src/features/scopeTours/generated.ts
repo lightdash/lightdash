@@ -4309,7 +4309,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 target: '[data-tour-scope="view:DataApp"][data-tour-step="2"]',
                 route: '/projects/:projectUuid/apps/:appUuid/view',
                 title: 'Click View network',
-                body: 'The inspector is a tabbed network panel that captures everything the running app talks to. Open it from **View network** in the preview header.',
+                body: 'The inspector is a tabbed network panel that captures everything the running app talks to. To open it, open the app actions menu (**⋯**) in the header and choose **View network**.',
                 interactive: true,
                 advanceOnTargetClick: true,
                 advanceOnTargetInput: false,
