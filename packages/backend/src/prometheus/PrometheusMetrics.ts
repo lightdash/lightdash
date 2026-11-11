@@ -38,6 +38,10 @@ import {
     type ComposerQuerySource,
     type ComposerQueryStage,
 } from '../services/AsyncQueryService/composerQueryStage';
+import {
+    QUERY_POLLING_SOURCES,
+    type QueryPollingSource,
+} from '../services/AsyncQueryService/queryPollingSource';
 import type { WarehouseExecutionSource } from '../services/AsyncQueryService/types';
 import {
     API_QUERY_OUTCOMES,
@@ -375,6 +379,9 @@ export default class PrometheusMetrics {
         'from' | 'to' | 'context'
     > | null = null;
 
+    private queryPollingTimeoutCounter: prometheus.Counter<'source'> | null =
+        null;
+
     private queueWaitHistogram: prometheus.Histogram | null = null;
 
     private totalDurationHistogram: prometheus.Histogram | null = null;
@@ -458,6 +465,16 @@ export default class PrometheusMetrics {
                     labelNames: ['from', 'to', 'context'],
                     ...rest,
                 });
+
+                this.queryPollingTimeoutCounter = new prometheus.Counter({
+                    name: 'lightdash_query_polling_timeouts_total',
+                    help: 'Queries whose result wait timed out, by caller source',
+                    labelNames: ['source'],
+                    ...rest,
+                });
+                for (const source of QUERY_POLLING_SOURCES) {
+                    this.queryPollingTimeoutCounter.inc({ source }, 0);
+                }
 
                 this.queueWaitHistogram = new prometheus.Histogram({
                     name: 'lightdash_query_queue_wait_duration_seconds',
@@ -1824,6 +1841,10 @@ export default class PrometheusMetrics {
             to,
             context: getQueryContextLabel(context),
         });
+    }
+
+    public incrementQueryPollingTimeout(source: QueryPollingSource) {
+        this.queryPollingTimeoutCounter?.inc({ source });
     }
 
     public observeQueueWaitDuration(durationMs: number, context: string) {

@@ -166,6 +166,15 @@ export function getQueryHistoryRequestColumns(
     };
 }
 
+export class QueryPollingTimeoutError extends Error {
+    readonly timeoutMs: number;
+
+    constructor(timeoutMs: number) {
+        super(`Query polling timed out after ${timeoutMs}ms`);
+        this.timeoutMs = timeoutMs;
+    }
+}
+
 export class QueryHistoryModel {
     readonly database: Knex;
 
@@ -1054,7 +1063,7 @@ export class QueryHistoryModel {
         const poll = async (backoffMs: number): Promise<QueryHistory> => {
             abortSignal?.throwIfAborted();
             if (Date.now() - startTime > timeoutMs) {
-                throw new Error(`Query polling timed out after ${timeoutMs}ms`);
+                throw new QueryPollingTimeoutError(timeoutMs);
             }
 
             const queryHistory = await getQueryHistory();

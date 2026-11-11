@@ -478,6 +478,48 @@ describe('scheduler daily job generation concurrency', () => {
     });
 });
 
+describe('scheduler query polling timeout', () => {
+    it('defaults to 5 minutes', () => {
+        expect(parseConfig().scheduler.queryPollingTimeout).toBe(300_000);
+    });
+
+    it('keeps the default when the job timeout is below it', () => {
+        process.env.SCHEDULER_JOB_TIMEOUT = '120000';
+
+        expect(parseConfig().scheduler.queryPollingTimeout).toBe(300_000);
+    });
+
+    it('reads the configured timeout', () => {
+        process.env.SCHEDULER_QUERY_POLLING_TIMEOUT = '540000';
+
+        expect(parseConfig().scheduler.queryPollingTimeout).toBe(540_000);
+    });
+
+    it('accepts a timeout equal to the job timeout', () => {
+        process.env.SCHEDULER_JOB_TIMEOUT = '1800000';
+        process.env.SCHEDULER_QUERY_POLLING_TIMEOUT = '1800000';
+
+        expect(parseConfig().scheduler.queryPollingTimeout).toBe(1_800_000);
+    });
+
+    it.each(['0', '-1', 'invalid', '2147483648'])(
+        'rejects an invalid timeout: %s',
+        (value) => {
+            process.env.SCHEDULER_QUERY_POLLING_TIMEOUT = value;
+
+            expect(() => parseConfig()).toThrow(ParseError);
+        },
+    );
+
+    it('rejects a timeout greater than the job timeout', () => {
+        process.env.SCHEDULER_QUERY_POLLING_TIMEOUT = '600001';
+
+        expect(() => parseConfig()).toThrow(
+            /SCHEDULER_QUERY_POLLING_TIMEOUT.*SCHEDULER_JOB_TIMEOUT/,
+        );
+    });
+});
+
 describe('usage events storage endpoint', () => {
     it('inherits the base endpoint when no override is configured', () => {
         expect(parseUsageEventsS3Config()?.endpoint).toBe('mock_endpoint');

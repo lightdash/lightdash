@@ -191,7 +191,10 @@ import {
     withResultsCacheConfig,
 } from '../../models/ProjectModel/ProjectModel.mock';
 import { ProjectParametersModel } from '../../models/ProjectParametersModel';
-import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
+import {
+    QueryHistoryModel,
+    QueryPollingTimeoutError,
+} from '../../models/QueryHistoryModel/QueryHistoryModel';
 import { RefreshTokenLockTimeoutError } from '../../models/RefreshTokenRotation/RefreshTokenRotation';
 import type { SavedChartModel } from '../../models/SavedChartModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -309,11 +312,12 @@ import {
     type PreAggregateExecutionResolution,
     type PreAggregateStrategy,
 } from './PreAggregateStrategy';
-import type {
-    DownloadAsyncQueryResultsArgs,
-    ExecuteAsyncQueryReturn,
-    RunAsyncWarehouseQueryArgs,
-    RunDuckdbQueryArgs,
+import {
+    getSchedulerPollingOptions,
+    type DownloadAsyncQueryResultsArgs,
+    type ExecuteAsyncQueryReturn,
+    type RunAsyncWarehouseQueryArgs,
+    type RunDuckdbQueryArgs,
 } from './types';
 
 const projectUuid = '11111111-1111-4111-8111-111111111111';
@@ -28566,6 +28570,7 @@ describe('fresh execution producer to result reader', () => {
                 f.service,
             );
             const scheduler = new SchedulerAiAugmentationService({
+                lightdashConfig: lightdashConfigMock,
                 agentPermissionService: {
                     loadRequest: vi.fn().mockResolvedValue({}),
                     assertOperationWithRequest: vi
@@ -31568,5 +31573,317 @@ describe('external source explore queries on the worker', () => {
             expect.stringContaining('not ready'),
         );
         expect(f.run).not.toHaveBeenCalled();
+    });
+});
+
+describe('query polling timeout', () => {
+    const queryUuid = 'timed-out-query';
+    const fiveMinutes = 5 * 60 * 1000;
+    const timeoutMessage = 'Query polling timed out after 300000ms';
+    const fastPolling = { initialBackoffMs: 1, maxBackoffMs: 1 };
+    const savedChartArgs = {
+        account: sessionAccount,
+        projectUuid,
+        chartUuid: 'chart-uuid',
+        context: QueryExecutionContext.SCHEDULED_DELIVERY,
+    };
+    const schedulerOptions = (queryPollingTimeout: number) => ({
+        ...getSchedulerPollingOptions({
+            scheduler: {
+                ...lightdashConfigMock.scheduler,
+                queryPollingTimeout,
+            },
+        }),
+        ...fastPolling,
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    const setup = (
+        initialStatus: QueryHistoryStatus,
+        readyAfterMs: number | null = null,
+    ) => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        const startedAt = Date.now();
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        const row = { status: initialStatus };
+        respondWithStatusGuard(tracker, row);
+        const model = new QueryHistoryModel({ database });
+        const get = vi.fn(async () => {
+            if (
+                readyAfterMs !== null &&
+                Date.now() - startedAt >= readyAfterMs &&
+                row.status === QueryHistoryStatus.EXECUTING
+            )
+                row.status = QueryHistoryStatus.READY;
+            return {
+                queryUuid,
+                projectUuid,
+                status: row.status,
+                context: QueryExecutionContext.SQL_RUNNER,
+                createdAt: new Date(startedAt),
+                metricQuery: metricQueryMock,
+            } as unknown as QueryHistory;
+        });
+        const poll = vi.fn(
+            async (
+                ...args: Parameters<QueryHistoryModel['pollForQueryCompletion']>
+            ) => {
+                const read = vi.fn(async () => {
+                    vi.setSystemTime(Date.now() + 30_000);
+                    return get();
+                });
+                Object.assign(model, { get: read });
+                return model.pollForQueryCompletion(...args);
+            },
+        );
+        Object.assign(service.queryHistoryModel, {
+            get,
+            update: model.update.bind(model),
+            pollForQueryCompletion: poll,
+        });
+        const prometheusMetrics = {
+            trackQueryStateTransition: vi.fn(),
+            incrementQueryStatus: vi.fn(),
+            observeQueryTotalDuration: vi.fn(),
+            incrementQueryPollingTimeout: vi.fn(),
+        };
+        Object.assign(service, { prometheusMetrics });
+        const executeAsyncSavedChartQuery = vi.fn(async () => ({
+            queryUuid,
+            cacheMetadata: { cacheHit: false },
+            fields: {},
+            metricQuery: metricQueryMock,
+            usedParametersValues: {},
+            resolvedTimezone: null,
+        }));
+        const getReadyQueryResults = vi.fn(async () => ({
+            rows: [{ count: 1 }],
+            cacheMetadata: { cacheHit: false },
+            fields: {},
+            pivotDetails: null,
+            displayTimezone: null,
+            executionStats: null,
+        }));
+        Object.assign(service, {
+            executeAsyncSavedChartQuery,
+            getReadyQueryResults,
+        });
+        const cleanup = async () => {
+            tracker.reset();
+            await database.destroy();
+        };
+        return {
+            service,
+            row,
+            poll,
+            startedAt,
+            prometheusMetrics,
+            executeAsyncSavedChartQuery,
+            getReadyQueryResults,
+            cleanup,
+        };
+    };
+
+    it('cancels the still-running query and throws the same error', async () => {
+        const f = setup(QueryHistoryStatus.EXECUTING);
+        const cancel = vi.spyOn(f.service, 'cancelAsyncQuery');
+        try {
+            const error = await f.service
+                .pollForQueryCompletion({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid,
+                    ...fastPolling,
+                })
+                .catch((e: unknown) => e);
+
+            expect(error).toBeInstanceOf(QueryPollingTimeoutError);
+            expect((error as Error).message).toBe(timeoutMessage);
+            expect(f.poll).toHaveBeenCalledWith(
+                expect.objectContaining({ timeoutMs: fiveMinutes }),
+            );
+            expect(cancel).toHaveBeenCalledOnce();
+            expect(f.row.status).toBe(QueryHistoryStatus.CANCELLED);
+            expect(
+                f.prometheusMetrics.trackQueryStateTransition,
+            ).toHaveBeenCalledWith(
+                QueryHistoryStatus.EXECUTING,
+                QueryHistoryStatus.CANCELLED,
+                QueryExecutionContext.SQL_RUNNER,
+            );
+            expect(
+                f.prometheusMetrics.incrementQueryPollingTimeout,
+            ).toHaveBeenCalledExactlyOnceWith('other');
+        } finally {
+            await f.cleanup();
+        }
+    });
+
+    it.each([
+        QueryHistoryStatus.READY,
+        QueryHistoryStatus.ERROR,
+        QueryHistoryStatus.EXPIRED,
+        QueryHistoryStatus.CANCELLED,
+    ])(
+        'does not cancel a query that is already %s at timeout',
+        async (status) => {
+            const f = setup(status);
+            f.poll.mockRejectedValueOnce(
+                new QueryPollingTimeoutError(fiveMinutes),
+            );
+            const cancel = vi.spyOn(f.service, 'cancelAsyncQuery');
+            try {
+                await expect(
+                    f.service.pollForQueryCompletion({
+                        account: sessionAccount,
+                        projectUuid,
+                        queryUuid,
+                    }),
+                ).rejects.toThrow(timeoutMessage);
+                expect(cancel).not.toHaveBeenCalled();
+                expect(f.row.status).toBe(status);
+                expect(
+                    f.prometheusMetrics.incrementQueryPollingTimeout,
+                ).toHaveBeenCalledOnce();
+            } finally {
+                await f.cleanup();
+            }
+        },
+    );
+
+    it('does not cancel or count when the query fails for another reason', async () => {
+        const f = setup(QueryHistoryStatus.EXECUTING);
+        f.poll.mockRejectedValueOnce(new Error('Warehouse query failed'));
+        const cancel = vi.spyOn(f.service, 'cancelAsyncQuery');
+        try {
+            await expect(
+                f.service.pollForQueryCompletion({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid,
+                }),
+            ).rejects.toThrow('Warehouse query failed');
+            expect(cancel).not.toHaveBeenCalled();
+            expect(
+                f.prometheusMetrics.incrementQueryPollingTimeout,
+            ).not.toHaveBeenCalled();
+        } finally {
+            await f.cleanup();
+        }
+    });
+
+    it('still throws the timeout error and counts it when the cancel fails', async () => {
+        const f = setup(QueryHistoryStatus.EXECUTING);
+        f.poll.mockRejectedValueOnce(new QueryPollingTimeoutError(fiveMinutes));
+        vi.spyOn(f.service, 'cancelAsyncQuery').mockRejectedValueOnce(
+            new Error('database unavailable'),
+        );
+        const warn = vi.spyOn(f.service['logger'], 'warn');
+        try {
+            await expect(
+                f.service.pollForQueryCompletion({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid,
+                    source: 'scheduler',
+                }),
+            ).rejects.toBeInstanceOf(QueryPollingTimeoutError);
+            expect(warn).toHaveBeenCalledWith(
+                expect.stringContaining('database unavailable'),
+            );
+            expect(
+                f.prometheusMetrics.incrementQueryPollingTimeout,
+            ).toHaveBeenCalledExactlyOnceWith('scheduler');
+        } finally {
+            await f.cleanup();
+        }
+    });
+
+    it('cancels and runs the query once when a scheduled delivery times out', async () => {
+        const f = setup(QueryHistoryStatus.QUEUED);
+        try {
+            await expect(
+                f.service.executeSavedChartQueryAndGetResults(
+                    savedChartArgs,
+                    schedulerOptions(fiveMinutes),
+                ),
+            ).rejects.toThrow(timeoutMessage);
+            expect(f.row.status).toBe(QueryHistoryStatus.CANCELLED);
+            expect(f.executeAsyncSavedChartQuery).toHaveBeenCalledOnce();
+            expect(f.poll).toHaveBeenCalledOnce();
+            expect(f.getReadyQueryResults).not.toHaveBeenCalled();
+            expect(
+                f.prometheusMetrics.incrementQueryPollingTimeout,
+            ).toHaveBeenCalledWith('scheduler');
+        } finally {
+            await f.cleanup();
+        }
+    });
+
+    it('keeps the 5 minute default for callers outside the scheduler', async () => {
+        const f = setup(QueryHistoryStatus.READY);
+        try {
+            await f.service.executeSavedChartQueryAndGetResults({
+                ...savedChartArgs,
+                context: QueryExecutionContext.AI,
+            });
+
+            expect(f.poll).toHaveBeenCalledWith(
+                expect.objectContaining({ timeoutMs: fiveMinutes }),
+            );
+            expect(f.poll.mock.calls[0][0]).not.toHaveProperty(
+                'source',
+                'scheduler',
+            );
+        } finally {
+            await f.cleanup();
+        }
+    });
+
+    it('fails a scheduled query that takes more than five minutes with the default timeout', async () => {
+        const f = setup(QueryHistoryStatus.EXECUTING, fiveMinutes + 60_000);
+        try {
+            await expect(
+                f.service.executeSavedChartQueryAndGetResults(
+                    savedChartArgs,
+                    schedulerOptions(
+                        lightdashConfigMock.scheduler.queryPollingTimeout,
+                    ),
+                ),
+            ).rejects.toThrow(timeoutMessage);
+            expect(f.row.status).toBe(QueryHistoryStatus.CANCELLED);
+        } finally {
+            await f.cleanup();
+        }
+    });
+
+    it('delivers a scheduled query that completes after more than five minutes when the configured timeout is larger', async () => {
+        const f = setup(QueryHistoryStatus.EXECUTING, fiveMinutes + 60_000);
+        const cancel = vi.spyOn(f.service, 'cancelAsyncQuery');
+        try {
+            await expect(
+                f.service.executeSavedChartQueryAndGetResults(
+                    savedChartArgs,
+                    schedulerOptions(10 * 60 * 1000),
+                ),
+            ).resolves.toMatchObject({ rows: [{ count: 1 }] });
+            expect(Date.now() - f.startedAt).toBeGreaterThan(fiveMinutes);
+            expect(f.poll).toHaveBeenCalledWith(
+                expect.objectContaining({ timeoutMs: 10 * 60 * 1000 }),
+            );
+            expect(f.executeAsyncSavedChartQuery).toHaveBeenCalledOnce();
+            expect(cancel).not.toHaveBeenCalled();
+            expect(
+                f.prometheusMetrics.incrementQueryPollingTimeout,
+            ).not.toHaveBeenCalled();
+        } finally {
+            await f.cleanup();
+        }
     });
 });

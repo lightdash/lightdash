@@ -1829,6 +1829,7 @@ export type LightdashConfig = {
         dailyJobGenerationConcurrency: number;
         pollInterval: number;
         jobTimeout: number;
+        queryPollingTimeout: number;
         screenshotTimeout?: number;
         shutdownTimeout: number;
         tasks: Array<SchedulerTaskName>;
@@ -2679,6 +2680,7 @@ export type PostmarkConfig = {
 };
 
 const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
+const DEFAULT_SCHEDULER_QUERY_POLLING_TIMEOUT = 1000 * 60 * 5; // 5 minutes
 // 300k rows a night: twice the insert rate of the busiest known instance, so
 // retention catches up without one night ever deleting an unbounded amount
 const DEFAULT_QUERY_HISTORY_CLEANUP_MAX_BATCHES = 300;
@@ -3275,6 +3277,23 @@ export const parseConfig = (): LightdashConfig => {
         getIntegerFromEnvironmentVariable('NATS_WORKER_CONCURRENCY') ?? 1;
     const natsWorkerQueueTimeoutMs =
         getIntegerFromEnvironmentVariable('NATS_QUEUE_TIMEOUT_MS') ?? 180000;
+    const schedulerJobTimeout = process.env.SCHEDULER_JOB_TIMEOUT
+        ? parseInt(process.env.SCHEDULER_JOB_TIMEOUT, 10)
+        : DEFAULT_JOB_TIMEOUT;
+    const schedulerQueryPollingTimeout =
+        getPositiveIntegerFromEnvironmentVariable(
+            'SCHEDULER_QUERY_POLLING_TIMEOUT',
+            DEFAULT_SCHEDULER_QUERY_POLLING_TIMEOUT,
+            MAX_TIMER_MS,
+        );
+    if (
+        process.env.SCHEDULER_QUERY_POLLING_TIMEOUT &&
+        schedulerQueryPollingTimeout > schedulerJobTimeout
+    ) {
+        throw new ParseError(
+            `Cannot parse environment variable "SCHEDULER_QUERY_POLLING_TIMEOUT". Value must not be greater than SCHEDULER_JOB_TIMEOUT (${schedulerJobTimeout}) but SCHEDULER_QUERY_POLLING_TIMEOUT=${schedulerQueryPollingTimeout}`,
+        );
+    }
     const lightdashCloudInstance = process.env.LIGHTDASH_CLOUD_INSTANCE;
     const mobilePushSandbox = parseMobilePushCredential('SANDBOX');
     const mobilePushProduction = parseMobilePushCredential('PRODUCTION');
@@ -3901,9 +3920,8 @@ export const parseConfig = (): LightdashConfig => {
             pollInterval:
                 getIntegerFromEnvironmentVariable('SCHEDULER_POLL_INTERVAL') ||
                 1000,
-            jobTimeout: process.env.SCHEDULER_JOB_TIMEOUT
-                ? parseInt(process.env.SCHEDULER_JOB_TIMEOUT, 10)
-                : DEFAULT_JOB_TIMEOUT,
+            jobTimeout: schedulerJobTimeout,
+            queryPollingTimeout: schedulerQueryPollingTimeout,
             screenshotTimeout: process.env.SCHEDULER_SCREENSHOT_TIMEOUT
                 ? parseInt(process.env.SCHEDULER_SCREENSHOT_TIMEOUT, 10)
                 : undefined,
