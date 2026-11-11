@@ -122,7 +122,7 @@ import {
     getIntrinsicUserAttributes,
     getItemId,
     getItemMap,
-    getMergeSourceTableLabel,
+    getMergeSourceTableLabels,
     getMetricOverridesWithPopInheritance,
     getMetrics,
     getModelInventoryFromManifest,
@@ -10169,6 +10169,8 @@ export class ProjectService
         /** One map for every source: sides of one question share their values. */
         parameters?: ParametersValuesMap;
         userAttributeOverrides?: UserAttributeValueMap;
+        /** Composer only: names a source of a shared explore by its node title, not its slot. */
+        sourceTitleById?: Record<string, string>;
     }): Promise<ApiCompiledMergeQueryResults> {
         const {
             account,
@@ -10688,10 +10690,6 @@ export class ProjectService
         // Present every merged column as an ordinary field. Downstream code
         // looks fields up by `getItemId`, so the items map is keyed by it and
         // the warehouse alias is kept only as the way back to the column.
-        const sourceIndexById = Object.fromEntries(
-            mergeQuery.sources.map((source, index) => [source.id, index]),
-        );
-
         const mergedItem = (itemArgs: {
             table: string;
             tableLabel: string;
@@ -10773,24 +10771,15 @@ export class ProjectService
             },
         );
 
-        // Headers say where a column came from, not which slot it rode in:
-        // the explore's label, unless both sides use the same explore and the
-        // slot is the only thing telling them apart.
-        const exploreLabels = mergeQuery.sources.map(
-            (source) =>
-                exploreBySourceId[source.id]?.label ??
-                resolvedMetricQueryBySourceId[source.id].exploreName,
-        );
-        const labelsCollide =
-            new Set(exploreLabels).size < exploreLabels.length;
-        const sourceTableLabel = (sourceId: string) => {
-            const sourceIndex = sourceIndexById[sourceId] ?? 0;
-            const exploreLabel = exploreLabels[sourceIndex];
-            return labelsCollide
-                ? `${exploreLabel} (${getMergeSourceTableLabel(sourceIndex)})`
-                : exploreLabel;
-        };
-
+        const tableLabelBySourceId = getMergeSourceTableLabels({
+            sources: mergeQuery.sources.map((source) => ({
+                id: source.id,
+                exploreLabel:
+                    exploreBySourceId[source.id]?.label ??
+                    resolvedMetricQueryBySourceId[source.id].exploreName,
+            })),
+            sourceTitleById: args.sourceTitleById ?? null,
+        });
         const valueEntries: MergeItemEntry[] = valueFields.flatMap((field) => {
             const { sourceId, sourceFieldId } = field;
             if (!sourceId || !sourceFieldId) return [];
@@ -10802,7 +10791,7 @@ export class ProjectService
                         // Attributed to the query it came from, so two sources
                         // of the same explore cannot collide.
                         table: sourceId,
-                        tableLabel: sourceTableLabel(sourceId),
+                        tableLabel: tableLabelBySourceId[sourceId],
                         // The origin field id, not its bare name: within one
                         // query two joined tables can both expose a `status`.
                         name: sourceFieldId,

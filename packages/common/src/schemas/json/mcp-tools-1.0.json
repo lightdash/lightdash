@@ -3194,7 +3194,7 @@
                         "type": ["string", "null"]
                     },
                     "queries": {
-                        "description": "The nodes to submit, in any order: reads are resolved from duckdb references.",
+                        "description": "The nodes to submit, in any order: reads are resolved from duckdb references and merge sources.",
                         "items": {
                             "anyOf": [
                                 {
@@ -3646,6 +3646,223 @@
                                         "tables"
                                     ],
                                     "type": "object"
+                                },
+                                {
+                                    "properties": {
+                                        "description": {
+                                            "description": "One sentence for a business user on what this node does to the data, adding to the title rather than repeating it, e.g. \"Sums completed order revenue per month over the last year.\" Shown as the node's heading in the pipeline list.",
+                                            "type": "string"
+                                        },
+                                        "joinKey": {
+                                            "description": "The dimensions the sources share, one entry per key.",
+                                            "items": {
+                                                "properties": {
+                                                    "fields": {
+                                                        "description": "One dimension per source, the same value at the same grain (both a month, both a customer id).",
+                                                        "items": {
+                                                            "properties": {
+                                                                "fieldId": {
+                                                                    "description": "A dimension that node selects.",
+                                                                    "type": "string"
+                                                                },
+                                                                "nodeId": {
+                                                                    "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "nodeId",
+                                                                "fieldId"
+                                                            ],
+                                                            "type": "object"
+                                                        },
+                                                        "minItems": 2,
+                                                        "type": "array"
+                                                    },
+                                                    "name": {
+                                                        "description": "snake_case name of the shared key column, which the result calls merge_<name>.",
+                                                        "pattern": "^[a-z][a-z0-9_]*$",
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": ["name", "fields"],
+                                                "type": "object"
+                                            },
+                                            "minItems": 1,
+                                            "type": "array"
+                                        },
+                                        "joinType": {
+                                            "description": "\"full\" keeps keys found in any source, \"left\" keeps the first source's keys, \"inner\" keeps keys found in every source.",
+                                            "enum": ["full", "left", "inner"],
+                                            "type": "string"
+                                        },
+                                        "limit": {
+                                            "default": 500,
+                                            "description": "Maximum number of rows this node returns. Defaults to 500, max 5000.",
+                                            "exclusiveMinimum": 0,
+                                            "maximum": 5000,
+                                            "type": "integer"
+                                        },
+                                        "nodeId": {
+                                            "description": "Names this node so other nodes can read its result.",
+                                            "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
+                                            "type": "string"
+                                        },
+                                        "sorts": {
+                                            "anyOf": [
+                                                {
+                                                    "items": {
+                                                        "properties": {
+                                                            "descending": {
+                                                                "description": "If true sorts in descending order, ascending otherwise.",
+                                                                "type": "boolean"
+                                                            },
+                                                            "fieldId": {
+                                                                "description": "Field id to sort by.",
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "fieldId",
+                                                            "descending"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array"
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ],
+                                            "default": null,
+                                            "description": "Sorts by merged column id (`merge_<name>`, `<source nodeId>_<fieldId>`). null sorts by every join key, in order."
+                                        },
+                                        "sources": {
+                                            "description": "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects its join-key dimensions plus metrics; one source may keep another dimension when every other source sets repeatValues. Each returns fewer rows than its limit: a node cut off at its limit is refused.",
+                                            "items": {
+                                                "properties": {
+                                                    "nodeId": {
+                                                        "description": "A semanticLayer node of this call or of the thread.",
+                                                        "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
+                                                        "type": "string"
+                                                    },
+                                                    "repeatValues": {
+                                                        "default": null,
+                                                        "description": "true repeats this node's values on every row of the one source that keeps a dimension outside the join key, e.g. a monthly target beside daily sales. Every source but that one sets it. null otherwise.",
+                                                        "type": [
+                                                            "boolean",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["nodeId"],
+                                                "type": "object"
+                                            },
+                                            "minItems": 2,
+                                            "type": "array"
+                                        },
+                                        "sourceType": {
+                                            "const": "merge",
+                                            "type": "string"
+                                        },
+                                        "tableCalculations": {
+                                            "anyOf": [
+                                                {
+                                                    "items": {
+                                                        "properties": {
+                                                            "displayName": {
+                                                                "description": "Column label.",
+                                                                "type": "string"
+                                                            },
+                                                            "format": {
+                                                                "anyOf": [
+                                                                    {
+                                                                        "properties": {
+                                                                            "currency": {
+                                                                                "default": null,
+                                                                                "description": "ISO code for \"currency\", the governed metric's currency (e.g. \"USD\"). null otherwise.",
+                                                                                "type": [
+                                                                                    "string",
+                                                                                    "null"
+                                                                                ]
+                                                                            },
+                                                                            "decimals": {
+                                                                                "anyOf": [
+                                                                                    {
+                                                                                        "maximum": 6,
+                                                                                        "minimum": 0,
+                                                                                        "type": "integer"
+                                                                                    },
+                                                                                    {
+                                                                                        "type": "null"
+                                                                                    }
+                                                                                ],
+                                                                                "default": null,
+                                                                                "description": "Decimal places. null keeps the default."
+                                                                            },
+                                                                            "type": {
+                                                                                "description": "\"percent\" shows 0.12 as 12%.",
+                                                                                "enum": [
+                                                                                    "number",
+                                                                                    "percent",
+                                                                                    "currency"
+                                                                                ],
+                                                                                "type": "string"
+                                                                            }
+                                                                        },
+                                                                        "required": [
+                                                                            "type"
+                                                                        ],
+                                                                        "type": "object"
+                                                                    },
+                                                                    {
+                                                                        "type": "null"
+                                                                    }
+                                                                ],
+                                                                "default": null,
+                                                                "description": "How the column displays, matching the metrics it is built from: money stays money, so a revenue change or revenue per customer is currency in the revenue metric's currency; a share or growth rate is percent. null shows a plain number."
+                                                            },
+                                                            "formula": {
+                                                                "description": "Spreadsheet formula over merged columns by id: `<source nodeId>_<fieldId>` for a source's column, `merge_<name>` for a join key. Sources `weekly_orders` and `weekly_sessions` give `weekly_orders_orders_total_revenue / weekly_sessions_sessions_count`. It supports: arithmetic across sources (dividing by zero gives blank); a blank-safe sum, `COALESCE(a, 0) + COALESCE(b, 0)`; SUM, AVG, MIN, MAX and COUNT over all rows, so `a / SUM(a)` is a share of total, and `SUM(a) OVER (PARTITION BY merge_<name>)` a group's total; LAG, LEAD, RUNNING_TOTAL, MOVING_AVG and RANK, each naming its order, as in `a / LAG(a, PARTITION BY merge_category, ORDER BY merge_year) - 1` for year on year; conditions with IF, ISNULL, comparisons and AND/OR between them, as in `IF(YEAR(merge_year) = 2025, \"Full year\", \"Partial year\")` for a label; YEAR, MONTH and DATE_TRUNC on a date key; ROUND and ABS.",
+                                                                "type": "string"
+                                                            },
+                                                            "name": {
+                                                                "description": "snake_case name; the result calls it merge_<name>.",
+                                                                "pattern": "^[a-z][a-z0-9_]*$",
+                                                                "type": "string"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "name",
+                                                            "displayName",
+                                                            "formula"
+                                                        ],
+                                                        "type": "object"
+                                                    },
+                                                    "type": "array"
+                                                },
+                                                {
+                                                    "type": "null"
+                                                }
+                                            ],
+                                            "default": null,
+                                            "description": "Every calculation over the merged columns: ratios, year on year, shares of total, conditional labels. null for none."
+                                        },
+                                        "title": {
+                                            "description": "Short label a reader understands without seeing the query, two to five words, e.g. \"Revenue by month\". Shown to users instead of the node id.",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "sourceType",
+                                        "nodeId",
+                                        "title",
+                                        "description",
+                                        "sources",
+                                        "joinKey",
+                                        "joinType"
+                                    ],
+                                    "type": "object"
                                 }
                             ]
                         },
@@ -3768,7 +3985,8 @@
                                         "duckdb",
                                         "external",
                                         "python",
-                                        "api"
+                                        "api",
+                                        "merge"
                                     ],
                                     "type": "string"
                                 },

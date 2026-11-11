@@ -617,6 +617,25 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.semanticNode.rows.singular': '{count} row',
     'aiAgent.composer.semanticNode.rows.plural': '{count} rows',
     'aiAgent.composer.node.rowsReachedLimit': '{rows} · reached limit',
+    'aiAgent.composer.mergeNode.setup': 'Merge setup',
+    'aiAgent.composer.mergeNode.summary': 'Joined on {key} · {rows}',
+    'aiAgent.composer.mergeNode.sources': 'Merged steps',
+    'aiAgent.composer.mergeNode.joinedOn': 'on',
+    'aiAgent.composer.mergeNode.joinType': 'Join type',
+    'aiAgent.composer.mergeNode.joinType.inner': 'Matches only',
+    'aiAgent.composer.mergeNode.joinType.left': 'From {source}',
+    'aiAgent.composer.mergeNode.joinType.full': 'All rows',
+    'aiAgent.composer.mergeNode.joinTypeHelp.inner':
+        'Only {key} values found in every source. Everything unmatched is dropped.',
+    'aiAgent.composer.mergeNode.joinTypeHelp.left':
+        'Only {key} values in {source}. Anything found solely in another source is dropped.',
+    'aiAgent.composer.mergeNode.joinTypeHelp.full':
+        'Every {key} from any source. Where a source has no match, its columns are blank.',
+    'aiAgent.composer.mergeNode.repeatsValues': 'Repeats values',
+    'aiAgent.composer.mergeNode.repeatsValuesHelp':
+        'Its values repeat on every {others} row with the same {key}.',
+    'aiAgent.composer.mergeNode.calculations': 'Calculations',
+    'aiAgent.composer.mergeNode.limit': 'Limit',
     'aiAgent.thread.boundDashboard': 'Linked dashboard',
     'aiAgent.thread.boundDashboardUnavailable': 'Dashboard no longer available',
     'aiAgent.thread.boundChart': 'Linked chart',

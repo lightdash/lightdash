@@ -56,6 +56,7 @@ export * from './coder';
 export * from './composerArtifact';
 export * from './nodeCitations';
 export * from './composerChartVizConfig';
+export * from './composerMergeChart';
 export * from './composerSemanticArtifact';
 export * from './composerViz';
 export * from './composerVizPanel';

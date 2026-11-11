@@ -36,7 +36,14 @@ import { type ComposerRunNodeStatus } from '../../useComposerRunNodeStatuses';
 import { ComposerNodeIcon } from '../ComposerNodeIcon';
 import { type NodeLineage, type PipelineNode } from '../groupPipeline';
 import { useComposerNodeTypeLabel } from '../useComposerNodeLiveSource';
-import { CellQueryPanels, CellQueryToggles, ExploreSource } from './NodeQuery';
+import {
+    CellQueryPanels,
+    CellQueryToggles,
+    ExploreSource,
+    MergeCellToggles,
+    MergePanels,
+    MergeSummary,
+} from './NodeQuery';
 import styles from './PipelineNotebook.module.css';
 import {
     hasQueryDetails,
@@ -44,6 +51,7 @@ import {
     type QueryPanel,
 } from './semanticQueryOf';
 import { useExploreFromHere } from './useExploreFromHere';
+import { useMergeNodeView } from './useMergeNodeView';
 
 const FLASH_MS = 1200;
 const CELL_SCROLL_GAP = 16;
@@ -138,6 +146,7 @@ const NotebookCell: FC<CellProps> = ({
     const [resultsOpen, setResultsOpen] = useState(resultsInitiallyOpen);
     const status = nodeStatuses[node.nodeId];
     const semanticQuery = semanticQueryOf(node.query);
+    const mergeView = useMergeNodeView(node.query, references, projectUuid);
     const hasResult =
         displayableNodeIds.has(node.nodeId) &&
         (status === undefined || status.status === 'success');
@@ -166,7 +175,7 @@ const NotebookCell: FC<CellProps> = ({
     const [openPanels, setOpenPanels] = useState<ReadonlySet<QueryPanel>>(
         () =>
             new Set(
-                semanticQuery && hasQueryDetails(semanticQuery)
+                mergeView || (semanticQuery && hasQueryDetails(semanticQuery))
                     ? ['details']
                     : [],
             ),
@@ -242,6 +251,7 @@ const NotebookCell: FC<CellProps> = ({
                     data-flash={flashing}
                     data-empty={
                         !semanticQuery &&
+                        !mergeView &&
                         !canViewSql &&
                         !hasError &&
                         !hasResult &&
@@ -265,6 +275,25 @@ const NotebookCell: FC<CellProps> = ({
                                 onTogglePanel={togglePanel}
                             />
                         </Group>
+                    )}
+                    {mergeView && (
+                        <>
+                            <Group
+                                justify="space-between"
+                                wrap="nowrap"
+                                className={styles.toolbar}
+                            >
+                                <MergeSummary view={mergeView} />
+                                <MergeCellToggles
+                                    openPanels={openPanels}
+                                    onTogglePanel={togglePanel}
+                                />
+                            </Group>
+                            <MergePanels
+                                view={mergeView}
+                                openPanels={openPanels}
+                            />
+                        </>
                     )}
                     <CellQueryPanels
                         query={node.query}
