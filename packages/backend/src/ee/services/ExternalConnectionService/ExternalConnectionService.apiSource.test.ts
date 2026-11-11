@@ -9,6 +9,7 @@ import {
     type ExternalConnection,
 } from '@lightdash/common';
 import { buildAccount } from '../../../auth/account/account.mock';
+import { getApiSourceDefinitionHashes } from '../../../services/QuerySourceService/api/apiSourceExplores';
 import {
     type LiveSourceFieldEdits,
     type LiveSourceFieldState,
@@ -130,6 +131,10 @@ const buildService = ({
                     );
                 },
             ),
+        withLiveSourceBuildLock: vi.fn(
+            async (_uuid: string, rebuild: () => Promise<unknown>) => rebuild(),
+        ),
+        listLiveSourceRefs: vi.fn().mockResolvedValue([]),
         getLiveSourceFieldState: vi
             .fn()
             .mockImplementation(async () => fieldState),
@@ -179,6 +184,8 @@ const buildService = ({
                     names.filter((name) => takenExploreNames.includes(name)),
             ),
         hasApiSourceExplores: vi.fn().mockResolvedValue(hasExplores),
+        listApiSourceExploreHashes: vi.fn().mockResolvedValue([]),
+        getApiSourceFieldIds: vi.fn().mockResolvedValue([]),
     };
     const service = new ExternalConnectionService({
         projectModel,
@@ -791,6 +798,92 @@ describe('ExternalConnectionService live source explores', () => {
             service.update(account, 'proj-1', 'conn-1', { name: 'Renamed' }),
         ).resolves.toMatchObject({ externalConnectionUuid: 'conn-1' });
         expect(projectModel.replaceApiSourceExplores).not.toHaveBeenCalled();
+    });
+
+    describe('rebuilding after a code change', () => {
+        const refs = [
+            {
+                externalConnectionUuid: 'conn-1',
+                projectUuid: 'proj-1',
+                connector: ApiConnectorType.POSTHOG,
+            },
+        ];
+        const currentHashes = Object.values(
+            getApiSourceDefinitionHashes(ApiConnectorType.POSTHOG),
+        ).map((definitionHash) => ({
+            connectionUuid: 'conn-1',
+            definitionHash,
+        }));
+        const setUp = (
+            stored: { connectionUuid: string; definitionHash: string | null }[],
+        ) => {
+            const built = buildService();
+            built.externalConnectionModel.listLiveSourceRefs.mockResolvedValue(
+                refs,
+            );
+            built.projectModel.listApiSourceExploreHashes.mockResolvedValue(
+                stored,
+            );
+            return built;
+        };
+
+        it('rebuilds a source with no hash, without calling the integration', async () => {
+            const { service, projectModel } = setUp([
+                { connectionUuid: 'conn-1', definitionHash: null },
+            ]);
+            await expect(
+                service.rebuildOutdatedApiSourceExplores(),
+            ).resolves.toEqual({ rebuilt: 1, failed: 0 });
+            expect(projectModel.replaceApiSourceExplores).toHaveBeenCalledTimes(
+                1,
+            );
+            expect(mockSecureFetch).not.toHaveBeenCalled();
+        });
+
+        it('leaves a source whose hash matches', async () => {
+            const { service, projectModel } = setUp(currentHashes);
+            await expect(
+                service.rebuildOutdatedApiSourceExplores(),
+            ).resolves.toEqual({ rebuilt: 0, failed: 0 });
+            expect(
+                projectModel.replaceApiSourceExplores,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('leaves a source that was never built', async () => {
+            const { service, projectModel } = setUp([]);
+            await service.rebuildOutdatedApiSourceExplores();
+            expect(
+                projectModel.replaceApiSourceExplores,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('keeps a source whose rebuild would lose a field, and carries on', async () => {
+            const { service, projectModel } = setUp([
+                { connectionUuid: 'conn-1', definitionHash: 'old' },
+            ]);
+            projectModel.getApiSourceFieldIds.mockResolvedValue([
+                'posthog_conn1_events_property_gone',
+            ]);
+            await expect(
+                service.rebuildOutdatedApiSourceExplores(),
+            ).resolves.toEqual({ rebuilt: 0, failed: 1 });
+            expect(
+                projectModel.replaceApiSourceExplores,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('counts a failed save for that source only', async () => {
+            const { service, projectModel } = setUp([
+                { connectionUuid: 'conn-1', definitionHash: 'old' },
+            ]);
+            projectModel.replaceApiSourceExplores.mockRejectedValueOnce(
+                new Error('clash'),
+            );
+            await expect(
+                service.rebuildOutdatedApiSourceExplores(),
+            ).resolves.toEqual({ rebuilt: 0, failed: 1 });
+        });
     });
 
     describe('field curation', () => {

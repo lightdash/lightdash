@@ -183,6 +183,8 @@ function buildService(opts: {
             deleteApiSourceExplores: vi.fn(),
             findExploreNamesTakenByOthers: vi.fn().mockResolvedValue([]),
             hasApiSourceExplores: vi.fn().mockResolvedValue(false),
+            listApiSourceExploreHashes: vi.fn().mockResolvedValue([]),
+            getApiSourceFieldIds: vi.fn().mockResolvedValue([]),
         },
         savedChartModel: {
             getChartCountPerField: vi.fn().mockResolvedValue([]),

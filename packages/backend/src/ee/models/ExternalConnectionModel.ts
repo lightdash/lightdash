@@ -990,6 +990,52 @@ export class ExternalConnectionModel {
         });
     }
 
+    /** Every active live source, in any project. */
+    async listLiveSourceRefs(): Promise<
+        {
+            externalConnectionUuid: string;
+            projectUuid: string;
+            connector: ApiConnectorType;
+        }[]
+    > {
+        const rows = await this.database(ExternalConnectionsTableName)
+            .where('connection_kind', 'live_source')
+            .whereNull('deleted_at')
+            .whereNotNull('api_source')
+            .select<
+                {
+                    external_connection_uuid: string;
+                    project_uuid: string;
+                    connector: ApiConnectorType;
+                }[]
+            >(
+                'external_connection_uuid',
+                'project_uuid',
+                this.database.raw("api_source->>'connector' as connector"),
+            );
+        return rows.map((row) => ({
+            externalConnectionUuid: row.external_connection_uuid,
+            projectUuid: row.project_uuid,
+            connector: row.connector,
+        }));
+    }
+
+    /**
+     * Runs a rebuild alone for this source, so a rebuild that read older
+     * field edits can't overwrite one that read newer edits.
+     */
+    async withLiveSourceBuildLock<T>(
+        uuid: string,
+        rebuild: () => Promise<T>,
+    ): Promise<T> {
+        return this.database.transaction(async (trx) => {
+            await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
+                `live_source_build:${uuid}`,
+            ]);
+            return rebuild();
+        });
+    }
+
     async getLiveSourceFieldState(uuid: string): Promise<LiveSourceFieldState> {
         const row = await this.database(ExternalConnectionsTableName)
             .select('api_source')
