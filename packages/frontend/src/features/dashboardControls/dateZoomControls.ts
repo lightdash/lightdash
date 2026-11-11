@@ -4,6 +4,7 @@ import {
     type DateZoomControl,
     type DateZoomTileTarget,
 } from '@lightdash/common';
+import { isEqual } from 'es-toolkit/compat';
 
 /** What a date zoom pill's drag carries, so drops tell it from the others. */
 export const DATE_ZOOM_DRAG = 'dateZoom';
@@ -103,8 +104,8 @@ export const getEmptiedZooms = (
 
 /**
  * What Apply writes: the draft added or updated (its section as the
- * dashboard has it), every tile target as mapping left them, and the zooms
- * it took the last tile from removed.
+ * dashboard has it), the tile targets mapping changed, and the zooms it
+ * took the last tile from removed.
  */
 export const applyZoomDraft = ({
     config,
@@ -117,12 +118,24 @@ export const applyZoomDraft = ({
     snapshotTargets: DateZoomTileTargets;
     draftTargets: DateZoomTileTargets;
 }): DateZoomConfig => {
+    // Per tile, what the draft changed since it opened: writes from
+    // elsewhere meanwhile (another zoom's X) stay
+    const tileTargets = { ...config.tileTargets };
+    new Set([
+        ...Object.keys(snapshotTargets),
+        ...Object.keys(draftTargets),
+    ]).forEach((tileUuid) => {
+        const target = draftTargets[tileUuid];
+        if (isEqual(snapshotTargets[tileUuid], target)) return;
+        if (target === undefined) delete tileTargets[tileUuid];
+        else tileTargets[tileUuid] = target;
+    });
     const emptied = new Set(
         getEmptiedZooms(
             config.controls,
             draft.uuid,
-            snapshotTargets,
-            draftTargets,
+            config.tileTargets,
+            tileTargets,
         ).map(({ uuid }) => uuid),
     );
     const existing = config.controls.find(({ uuid }) => uuid === draft.uuid);
@@ -135,7 +148,7 @@ export const applyZoomDraft = ({
         : [...config.controls, draft];
     return {
         controls: controls.filter(({ uuid }) => !emptied.has(uuid)),
-        tileTargets: draftTargets,
+        tileTargets,
     };
 };
 /** A tile's target for the zoom: a field to re-grain, or null for a tile that only reads the parameter. */

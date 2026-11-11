@@ -60,6 +60,18 @@ describe('date zoom config writes', () => {
         expect(next.controls.map(({ uuid }) => uuid)).toEqual(['z1', 'z3']);
     });
 
+    it('applies only what the draft changed, over targets changed meanwhile', () => {
+        // Opened on z1 with z2 on t2; z2 removed elsewhere before Apply
+        const next = applyZoomDraft({
+            config: removeZoom(config, 'z2'),
+            draft: config.controls[0],
+            snapshotTargets: config.tileTargets,
+            draftTargets: { t2: target('z2'), t3: target('z1') },
+        });
+        expect(next.tileTargets).toEqual({ t3: target('z1') });
+        expect(next.controls.map(({ uuid }) => uuid)).toEqual(['z1', 'z3']);
+    });
+
     it('adds a new zoom last', () => {
         const added = { uuid: 'z4', name: 'Date zoom', granularity: 'Week' };
         expect(

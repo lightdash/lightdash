@@ -156,4 +156,5 @@ through `setControlGranularity`, cleared to the saved grain.
 
 Mapping (`startMapping`) keeps a start and one Undo step; Escape leaves it
 only while nothing changed, a press outside never. Apply removes a zoom the
-draft took the last tile from (`applyZoomDraft`).
+draft took the last tile from (`applyZoomDraft`), and writes only the tile
+targets the draft changed, so a zoom removed meanwhile stays gone.
