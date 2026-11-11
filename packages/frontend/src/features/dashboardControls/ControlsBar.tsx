@@ -1,5 +1,6 @@
 import { Box } from '@mantine/core';
 import { type ComponentProps, type FC, type ReactNode } from 'react';
+import { useCompactContentHeader } from '../../components/common/Page/useCompactContentHeader';
 import {
     selectControlSections,
     selectHasStoredControlOrder,
@@ -9,6 +10,7 @@ import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DateZoomCrossTabFieldsLoader } from '../dateZoom/components/DateZoomCrossTabFieldsLoader';
 import { AddControl } from './AddControl';
 import classes from './ControlsBar.module.css';
+import { ControlsLead } from './ControlsStrip';
 import { DateZoomMappingRow } from './DateZoomMappingRow';
 import { DateZoomPills } from './DateZoomPills';
 import { FilterPills } from './FilterPills';
@@ -17,8 +19,10 @@ import { ParameterMappingRow } from './ParameterMappingRow';
 import { ParameterPills } from './ParameterPills';
 import { SectionedFilters } from './SectionedFilters';
 import { SettledFilterFields } from './SettledFilterFields';
+import { useControlCounts } from './useControlCounts';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useDateZoomEditorSelector } from './useDateZoomEditor';
+import { useHasControlsToggle } from './useHasControlsToggle';
 import { useParameterEditorSelector } from './useParameterEditor';
 
 const NO_PARAMETERS = {};
@@ -31,11 +35,23 @@ type Props = Omit<
 // The shipped bar with its filter area swapped, in edit and view mode alike
 export const ControlsBar: FC<Props> = (props) => {
     const isSidebarOpen = useControlsSidebarSelector((c) => c.isSidebarOpen);
+    const compact = useCompactContentHeader();
+    const hasToggle = useHasControlsToggle(props.isEditMode);
+    const counts = useControlCounts();
     // Sections or a stored order need the sectioned bar; else a viewer's is flat
     const hasSections = useDashboardSelector(
         (state) =>
             selectControlSections(state).length > 0 ||
             selectHasStoredControlOrder(state),
+    );
+    const lead = (
+        <ControlsLead
+            counts={counts}
+            isOpen
+            onToggle={props.onCollapse}
+            // As the shipped Hide: not behind the narrow drawer
+            withToggle={hasToggle && !compact}
+        />
     );
     const filterRow = (
         <DashboardFiltersBar
@@ -58,19 +74,27 @@ export const ControlsBar: FC<Props> = (props) => {
             // Every pill carries its kind's icon; date zooms are pills too
             withGroupMarkers={false}
             withDateZoom={false}
+            // The strip's toggle collapses it instead
+            withHideButton={false}
             filterArea={
                 <SettledFilterFields>
                     {/* An editor's bar is always sectioned: its selection starts the first section */}
                     {!props.hasTilesThatSupportFilters ? (
                         // No tile takes filters or parameters: only date zoom
                         <>
+                            {lead}
                             {props.isEditMode && <AddControl />}
                             <DateZoomPills />
                         </>
                     ) : hasSections || props.isEditMode ? (
-                        <SectionedFilters activeTabUuid={props.activeTabUuid} />
+                        // In the flow, so its lines wrap back under the lead
+                        <SectionedFilters
+                            activeTabUuid={props.activeTabUuid}
+                            leading={lead}
+                        />
                     ) : (
                         <>
+                            {lead}
                             <AddControl />
                             <FilterPills activeTabUuid={props.activeTabUuid} />
                             <ParameterPills />

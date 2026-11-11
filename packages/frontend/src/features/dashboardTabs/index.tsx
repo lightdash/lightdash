@@ -64,7 +64,7 @@ import {
     useDashboardUnmetFilterRequirements,
 } from '../dashboard/store';
 import { ControlsBar } from '../dashboardControls/ControlsBar';
-import { DefaultZoomButton } from '../dashboardControls/DateZoomPills';
+import { ControlsSummary } from '../dashboardControls/ControlsStrip';
 import { useParameterBarControls } from '../dashboardControls/useParameterBarControls';
 import { useParameterEditorSelector } from '../dashboardControls/useParameterEditor';
 import addFilterClasses from '../dashboardFilters/AddFilterButton.module.css';
@@ -413,9 +413,18 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const [isFiltersCollapsed, setIsFiltersCollapsed] =
         useState<boolean>(false);
 
-    const isFiltersSummaryShown = isEditMode
+    // Editing, the floating edit bar's switch collapses the bar; with the
+    // controls and no edit bar, their toggle does, as in view mode
+    const isEditSwitchCollapse =
+        isEditMode &&
+        (editErgonomicsFlag?.enabled === true || !isDashboardControlsEnabled);
+    const isFiltersSummaryShown = isEditSwitchCollapse
         ? editFiltersVisibility === 'summary'
         : isFiltersCollapsed;
+    const setFiltersSummaryShown = (isShown: boolean) =>
+        isEditSwitchCollapse
+            ? onEditFiltersVisibilityChange(isShown ? 'summary' : 'all')
+            : setIsFiltersCollapsed(isShown);
 
     const [isHeaderStuck, setIsHeaderStuck] = useState<boolean>(false);
 
@@ -1128,24 +1137,27 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                             </Button>
                                         </Tooltip>
                                     )}
-                                    {isDashboardControlsEnabled && (
-                                        <DefaultZoomButton place="tabs" />
-                                    )}
                                 </Tabs.List>
                             )}
 
                             {editFiltersVisibility !== 'hidden' && (
                                 <div className={styles.filtersBar}>
-                                    {isFiltersSummaryShown ? (
+                                    {isFiltersSummaryShown &&
+                                    isDashboardControlsEnabled ? (
+                                        <ControlsSummary
+                                            isEditMode={isEditMode}
+                                            onExpand={() =>
+                                                setFiltersSummaryShown(false)
+                                            }
+                                        />
+                                    ) : isFiltersSummaryShown ? (
                                         <DashboardFiltersBarSummary
                                             filtersCount={totalFiltersCount}
                                             parametersCount={
                                                 totalParametersCount
                                             }
                                             dateZoomLabel={
-                                                // With the controls the default zoom is above the tiles, in view
-                                                isDateZoomDisabled ||
-                                                isDashboardControlsEnabled
+                                                isDateZoomDisabled
                                                     ? null
                                                     : getDateZoomSummaryLabel(
                                                           dateZoomGranularity,
@@ -1153,13 +1165,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                       )
                                             }
                                             onExpand={() =>
-                                                isEditMode
-                                                    ? onEditFiltersVisibilityChange(
-                                                          'all',
-                                                      )
-                                                    : setIsFiltersCollapsed(
-                                                          false,
-                                                      )
+                                                setFiltersSummaryShown(false)
                                             }
                                         />
                                     ) : (
@@ -1199,13 +1205,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                 isDateZoomDisabled
                                             }
                                             onCollapse={() =>
-                                                isEditMode
-                                                    ? onEditFiltersVisibilityChange(
-                                                          'summary',
-                                                      )
-                                                    : setIsFiltersCollapsed(
-                                                          true,
-                                                      )
+                                                setFiltersSummaryShown(true)
                                             }
                                         />
                                     )}
@@ -1213,11 +1213,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                             )}
                         </div>
                     </StickyWithDetection>
-
-                    {/* With no tabs row, its own line right above the tiles */}
-                    {isDashboardControlsEnabled && sortedTabs.length === 0 && (
-                        <DefaultZoomButton place="line" />
-                    )}
 
                     {showGuidedSetup && (
                         <GuidedFilterSetupOverlay

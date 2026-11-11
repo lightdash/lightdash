@@ -11,7 +11,7 @@ import {
 import { type DashboardStoryParameters } from './storyParameters';
 
 // The real bar: date zooms are pills among the controls, the default zoom
-// right above the tiles; each opens its popover
+// at the strip's start; each opens its popover
 const meta: Meta<typeof AddControlFlow> = {
     title: 'Dashboards/Controls/Date zoom popover',
     component: AddControlFlow,
@@ -183,9 +183,9 @@ export const NamedViewer: Story = {
     },
 };
 
-/** Default zoom is off the bar, on its own line above the tiles; clearing it leaves tiles their own grain. */
+/** Default zoom leads the strip, before the named zooms; clearing it leaves tiles their own grain. */
 export const Default: Story = {
-    name: 'Default zoom, above the tiles',
+    name: "Default zoom, at the strip's start",
     play: async ({ canvasElement, userEvent }) => {
         const page = onPage(canvasElement);
         await waitForApiIdle();
@@ -194,8 +194,7 @@ export const Default: Story = {
         const pills = [
             ...canvasElement.querySelectorAll('[data-date-zoom-pill]'),
         ];
-        await expect(pills.at(-1)).toBe(defaultPill);
-        await expect(defaultPill.closest('[role="tablist"]')).toBeNull();
+        await expect(pills.at(0)).toBe(defaultPill);
         await userEvent.click(defaultPill);
         const dialog = within(await popover(page));
         await waitFor(() =>
@@ -237,41 +236,7 @@ export const DefaultViewer: Story = {
     },
 };
 
-/** With tabs: the default zoom ends the tabs row. */
-export const DefaultTabs: Story = {
-    name: 'Default zoom, tabs row',
-    args: { withTabsRow: true },
-    play: async ({ canvasElement, userEvent }) => {
-        const page = onPage(canvasElement);
-        await waitForApiIdle();
-        const defaultPill = await pill(page, 'Default zoom');
-        await expect(defaultPill.closest('[role="tablist"]')).not.toBeNull();
-        await userEvent.click(defaultPill);
-        const dialog = within(await popover(page));
-        // The popover fades in
-        await waitFor(() =>
-            expect(
-                dialog.getByText(
-                    `Applies to the other ${TOTAL_TILE_COUNT - 3} tiles`,
-                ),
-            ).toBeVisible(),
-        );
-    },
-};
-
-/** A viewer's tabs row: the default zoom at its end. */
-export const DefaultTabsViewer: Story = {
-    name: 'Default zoom, tabs row, viewer',
-    args: { isEditMode: false, withTabsRow: true },
-    play: async ({ canvasElement }) => {
-        const page = onPage(canvasElement);
-        await waitForApiIdle();
-        const defaultPill = await pill(page, 'Default zoom');
-        await expect(defaultPill.closest('[role="tablist"]')).not.toBeNull();
-    },
-};
-
-/** No named zoom yet: the default zoom alone ends the bar. */
+/** No named zoom yet: the default zoom alone. */
 export const NoNamedZoom: Story = {
     name: 'Default zoom, no named zoom',
     parameters: {

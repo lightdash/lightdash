@@ -75,6 +75,8 @@ type Props = {
     withGroupMarkers?: boolean;
     /** The date zoom group on the right, its eye and menus (default true). */
     withDateZoom?: boolean;
+    /** The "Hide" button on the right, in view mode (default true). */
+    withHideButton?: boolean;
 };
 
 export const DashboardFiltersBar: FC<Props> = ({
@@ -101,6 +103,7 @@ export const DashboardFiltersBar: FC<Props> = ({
     isParametersColumn = false,
     withGroupMarkers = true,
     withDateZoom = true,
+    withHideButton = true,
 }) => {
     const compact = useCompactContentHeader();
     const [opened, { open, close }] = useDisclosure(false);
@@ -306,7 +309,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                         )}
 
                     {/* Hide button - only in view mode */}
-                    {!isEditMode && !compact && (
+                    {withHideButton && !isEditMode && !compact && (
                         <>
                             <Divider orientation="vertical" />
                             <Tooltip label="Hide filters">

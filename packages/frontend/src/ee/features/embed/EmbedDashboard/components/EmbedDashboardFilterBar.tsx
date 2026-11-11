@@ -7,7 +7,7 @@ import {
 } from '@lightdash/common';
 import { Box, Button, Divider, Group, Tooltip } from '@mantine/core';
 import { IconChevronUp } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
     selectActiveTabUuid,
@@ -21,11 +21,19 @@ import {
 } from '../../../../../features/dashboard/store';
 import { AddControl } from '../../../../../features/dashboardControls/AddControl';
 import { MappingSwap } from '../../../../../features/dashboardControls/ControlsBar';
+import {
+    ControlsCollapsedStrip,
+    ControlsLead,
+} from '../../../../../features/dashboardControls/ControlsStrip';
 import { DateZoomPills } from '../../../../../features/dashboardControls/DateZoomPills';
 import { FilterPills } from '../../../../../features/dashboardControls/FilterPills';
 import { ParameterPills } from '../../../../../features/dashboardControls/ParameterPills';
 import { SectionedFilters } from '../../../../../features/dashboardControls/SectionedFilters';
 import { SettledFilterFields } from '../../../../../features/dashboardControls/SettledFilterFields';
+import {
+    getControlTotal,
+    useControlCounts,
+} from '../../../../../features/dashboardControls/useControlCounts';
 import { useParameterBarControls } from '../../../../../features/dashboardControls/useParameterBarControls';
 import { DashboardFiltersBarSummary } from '../../../../../features/dashboardFilters/DashboardFiltersBarSummary';
 import { DateZoom } from '../../../../../features/dateZoom';
@@ -56,7 +64,9 @@ const ControlsFilterArea: FC<{
     canAddFilters: boolean;
     withParameters: boolean;
     withDateZooms: boolean;
-}> = ({ canAddFilters, withParameters, withDateZooms }) => {
+    /** The strip's start, in the flow so lines wrap back under it */
+    leading: ReactNode;
+}> = ({ canAddFilters, withParameters, withDateZooms, leading }) => {
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
     // Sections or a stored order: the bar the app's viewers get
     const isSectioned = useDashboardSelector(
@@ -83,6 +93,7 @@ const ControlsFilterArea: FC<{
             {isSectioned ? (
                 <SectionedFilters
                     activeTabUuid={activeTabUuid}
+                    leading={leading}
                     viewerActions={actions}
                     triggerClassName={triggerClassName}
                     withParameters={withParameters}
@@ -91,6 +102,7 @@ const ControlsFilterArea: FC<{
                 />
             ) : (
                 <>
+                    {leading}
                     {actions}
                     <FilterPills
                         activeTabUuid={activeTabUuid}
@@ -151,10 +163,19 @@ const EmbedDashboardFilterBar: FC<Props> = ({
     const hasVisibleParameters = totalParametersCount > 0;
     // With the controls on, the legacy parameters never show: none until the controls are built
     const showsLegacyParameters = parametersEnabled && !isControlsEnabled;
+    const counts = useControlCounts();
+    // What the controls strip shows, as the app's
+    const controlCounts = {
+        filters: shouldShowFilters ? counts.filters : 0,
+        parameters: parametersEnabled ? counts.parameters : 0,
+        dateZooms: withDateZoomPills ? counts.dateZooms : 0,
+    };
 
     // Collapsing hides filters and parameters; the shipped date zoom on the
     // right stays visible, pills in the flow collapse with them as in the app
-    const isCollapsible = totalFiltersCount > 0 || totalParametersCount > 0;
+    const isCollapsible = isControlsEnabled
+        ? getControlTotal(controlCounts) > 0
+        : totalFiltersCount > 0 || totalParametersCount > 0;
 
     // Interactivity may be enabled with nothing to show (hidden filters, or
     // none defined) — render nothing rather than an empty padded row
@@ -163,13 +184,19 @@ const EmbedDashboardFilterBar: FC<Props> = ({
     }
 
     if (isCollapsible && isCollapsed) {
-        return (
+        return isControlsEnabled ? (
+            <ControlsCollapsedStrip
+                className={embedContractClass('ld-dashboard-filters')}
+                counts={controlCounts}
+                withDefaultZoom={withDateZoomPills}
+                onExpand={() => setIsCollapsed(false)}
+            />
+        ) : (
             <DashboardFiltersBarSummary
                 filtersCount={totalFiltersCount}
                 parametersCount={totalParametersCount}
                 dateZoomLabel={
-                    // With the controls the default zoom is above the tiles, in view
-                    !dashboard.canDateZoom || withDateZoomPills
+                    !dashboard.canDateZoom
                         ? null
                         : getDateZoomSummaryLabel(
                               dateZoomGranularity,
@@ -181,6 +208,14 @@ const EmbedDashboardFilterBar: FC<Props> = ({
         );
     }
 
+    const lead = (
+        <ControlsLead
+            counts={controlCounts}
+            isOpen
+            onToggle={() => setIsCollapsed(true)}
+            withDefaultZoom={withDateZoomPills}
+        />
+    );
     const bar = (
         <Group
             className={embedContractClass(
@@ -202,9 +237,12 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                 miw={0}
                 className={isControlsEnabled ? styles.filterArea : undefined}
             >
+                {/* With filters, the lead is in their flow */}
+                {isControlsEnabled && !shouldShowFilters && lead}
                 {shouldShowFilters &&
                     (isControlsEnabled ? (
                         <ControlsFilterArea
+                            leading={lead}
                             canAddFilters={canAddFilters}
                             withParameters={
                                 parametersEnabled && useParameterControls
@@ -264,7 +302,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
                         />
                     </Box>
                 )}
-                {isCollapsible && (
+                {isCollapsible && !isControlsEnabled && (
                     <>
                         <Divider orientation="vertical" />
                         <Tooltip

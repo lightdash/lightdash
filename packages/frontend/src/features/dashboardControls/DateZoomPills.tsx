@@ -1,4 +1,12 @@
-import { ActionIcon, Box, Button, Group, Text, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    Divider,
+    Group,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import {
     IconCalendarSearch,
     IconCheck,
@@ -425,14 +433,10 @@ export const DateZoomPills: FC<Props> = ({
     );
 };
 
-type DefaultZoomPlace = 'tabs' | 'line';
-
-// The dashboard-wide default zoom, off the bar and right above the tiles: at
-// the tabs row's end, else on its own line. Never moved, picked or removed.
-// Hidden from viewers when nothing falls to it
-export const DefaultZoomButton: FC<{ place: DefaultZoomPlace }> = ({
-    place,
-}) => {
+// The dashboard-wide default zoom, at the controls strip's start after the
+// toggle, then a divider. Never moved, picked or removed. Hidden from viewers
+// when nothing falls to it
+export const DefaultZoomButton: FC = () => {
     const getUiString = useUiStrings();
     const contractClasses = useRailContractClasses();
     const isOpen = useDateZoomEditorSelector(
@@ -445,10 +449,6 @@ export const DefaultZoomButton: FC<{ place: DefaultZoomPlace }> = ({
         c.editingId === DEFAULT_ZOOM_ID && !c.isViewer ? c.pick : undefined,
     );
     const requestSwitch = useControlsSidebarSelector((c) => c.requestSwitch);
-    // Inert while tiles are chosen, as the bar it used to sit on
-    const isFilterMapping = useControlsSidebarSelector((c) => c.isMapping);
-    const isParameterMapping = useParameterEditorSelector((c) => c.isMapping);
-    const isDateZoomMapping = useDateZoomEditorSelector((c) => c.isMapping);
     const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
     const hasTiles = useDashboardSelector(
         (state) => (selectDashboardTiles(state)?.length ?? 0) > 0,
@@ -469,94 +469,83 @@ export const DefaultZoomButton: FC<{ place: DefaultZoomPlace }> = ({
               : (defaultGranularity ?? null);
     const isHidden = !isViewer && isDateZoomDisabled;
     const isInEffect = granularity !== null && tileCount > 0;
-    const isMapping =
-        isFilterMapping || isParameterMapping || isDateZoomMapping;
-    const button = (
-        <DateZoomEditorPopover isOpen={isOpen} isDefault>
-            <Tooltip
-                fz="xs"
-                openDelay={500}
-                label="Hidden from viewers"
-                disabled={!isHidden || isOpen}
-            >
-                <Button
-                    size="xs"
-                    variant="subtle"
-                    color="gray"
-                    data-date-zoom-pill={DEFAULT_ZOOM_ID}
-                    // The shipped Default zoom button's walkthrough
-                    // marker (view:Dashboard), kept on its equivalent
-                    data-tour-scope="view:Dashboard"
-                    data-tour-step="2"
-                    data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/view"
-                    data-tour-label="Open the date zoom"
-                    data-tour-title="Open and read a dashboard"
-                    data-tour-interactive="true"
-                    data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-dashboards"] >> [data-tour-anchor="dashboard-row"][data-tour-value="Jaffle Shop overview"]'
-                    data-tour-then='[data-tour-anchor="zoom-option"][data-tour-value="Month"]'
-                    data-tour-docs="explore/dashboards/date-zoom.mdx#intro:1"
-                    data-in-effect={isInEffect || undefined}
-                    data-open={isOpen || undefined}
-                    data-hidden={isHidden || undefined}
-                    aria-pressed={isOpen}
-                    classNames={{ root: contractClasses?.dateZoom }}
-                    leftSection={
-                        <MantineIcon
-                            icon={isHidden ? IconEyeOff : IconCalendarSearch}
-                            color="dimmed"
-                        />
-                    }
-                    rightSection={
-                        <MantineIcon
-                            icon={isOpen ? IconChevronUp : IconChevronDown}
-                            color="dimmed"
-                        />
-                    }
-                    onClick={() =>
-                        requestSwitch(() =>
-                            open({
-                                uuid: DEFAULT_ZOOM_ID,
-                                name: getUiString('dateZoom.defaultZoom'),
-                                granularity: granularity ?? '',
-                            }),
-                        )
-                    }
+    return (
+        <Group gap="xs" wrap="nowrap" mih={30}>
+            <DateZoomEditorPopover isOpen={isOpen} isDefault>
+                <Tooltip
+                    fz="xs"
+                    openDelay={500}
+                    label="Hidden from viewers"
+                    disabled={!isHidden || isOpen}
                 >
-                    {/* One text run: the label's flex would drop the space */}
-                    <Text span fz="xs">
-                        <Text span c="dimmed">
-                            {getUiString('dateZoom.defaultZoom')}{' '}
+                    <Button
+                        size="xs"
+                        variant="subtle"
+                        color="gray"
+                        data-date-zoom-pill={DEFAULT_ZOOM_ID}
+                        // The shipped Default zoom button's walkthrough
+                        // marker (view:Dashboard), kept on its equivalent
+                        data-tour-scope="view:Dashboard"
+                        data-tour-step="2"
+                        data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/view"
+                        data-tour-label="Open the date zoom"
+                        data-tour-title="Open and read a dashboard"
+                        data-tour-interactive="true"
+                        data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-dashboards"] >> [data-tour-anchor="dashboard-row"][data-tour-value="Jaffle Shop overview"]'
+                        data-tour-then='[data-tour-anchor="zoom-option"][data-tour-value="Month"]'
+                        data-tour-docs="explore/dashboards/date-zoom.mdx#intro:1"
+                        data-in-effect={isInEffect || undefined}
+                        data-open={isOpen || undefined}
+                        data-hidden={isHidden || undefined}
+                        aria-pressed={isOpen}
+                        classNames={{ root: contractClasses?.dateZoom }}
+                        leftSection={
+                            <MantineIcon
+                                icon={
+                                    isHidden ? IconEyeOff : IconCalendarSearch
+                                }
+                                color="dimmed"
+                            />
+                        }
+                        rightSection={
+                            <MantineIcon
+                                icon={isOpen ? IconChevronUp : IconChevronDown}
+                                color="dimmed"
+                            />
+                        }
+                        onClick={() =>
+                            requestSwitch(() =>
+                                open({
+                                    uuid: DEFAULT_ZOOM_ID,
+                                    name: getUiString('dateZoom.defaultZoom'),
+                                    granularity: granularity ?? '',
+                                }),
+                            )
+                        }
+                    >
+                        {/* One text run: the label's flex would drop the space */}
+                        <Text span fz="xs">
+                            <Text span c="dimmed">
+                                {getUiString('dateZoom.defaultZoom')}{' '}
+                            </Text>
+                            <Text
+                                span
+                                fw={isInEffect ? 600 : undefined}
+                                c={isInEffect ? undefined : 'dimmed'}
+                            >
+                                {granularity === null
+                                    ? getUiString('dateZoom.none')
+                                    : getGranularityLabel(
+                                          granularity,
+                                          customLabels,
+                                          getUiString,
+                                      )}
+                            </Text>
                         </Text>
-                        <Text
-                            span
-                            fw={isInEffect ? 600 : undefined}
-                            c={isInEffect ? undefined : 'dimmed'}
-                        >
-                            {granularity === null
-                                ? getUiString('dateZoom.none')
-                                : getGranularityLabel(
-                                      granularity,
-                                      customLabels,
-                                      getUiString,
-                                  )}
-                        </Text>
-                    </Text>
-                </Button>
-            </Tooltip>
-        </DateZoomEditorPopover>
-    );
-    return place === 'tabs' ? (
-        <Group ml="auto" pl="sm" wrap="nowrap" inert={isMapping || undefined}>
-            {button}
-        </Group>
-    ) : (
-        <Group
-            justify="flex-end"
-            px="lg"
-            pb="xs"
-            inert={isMapping || undefined}
-        >
-            {button}
+                    </Button>
+                </Tooltip>
+            </DateZoomEditorPopover>
+            <Divider orientation="vertical" />
         </Group>
     );
 };

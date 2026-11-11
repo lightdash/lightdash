@@ -137,7 +137,7 @@ const setup = ({
                 <ParameterEditorProvider isViewer={isViewer}>
                     <DateZoomEditorProvider isViewer={isViewer}>
                         <DateZoomPills />
-                        <DefaultZoomButton place="line" />
+                        <DefaultZoomButton />
                         <AddButton />
                         <button type="button" data-controls-pill="f1">
                             Region filter
@@ -418,16 +418,6 @@ describe('Date zoom editor', () => {
             within(dialog()).getByRole('button', { name: 'Apply' }),
         );
         expect(pill('Default zoom')).toHaveTextContent('Default zoom None');
-    });
-
-    it('keeps the default zoom off limits while tiles are chosen, as the bar', async () => {
-        const { user } = setup();
-        expect(pill('Default zoom').closest('[inert]')).toBeNull();
-        await user.click(pill('Revenue zoom'));
-        await user.click(
-            within(dialog()).getByRole('button', { name: /Choose tiles/ }),
-        );
-        expect(pill('Default zoom').closest('[inert]')).not.toBeNull();
     });
 
     it("applies a viewer's default zoom pick as the shipped menu did, tracked", async () => {
