@@ -1,3 +1,16 @@
+# [3.213.0](https://github.com/lightdash/lightdash/compare/3.212.0...3.213.0) (2026-11-11)
+
+
+### Bug Fixes
+
+* drop the empty space beside the tab menu while editing a dashboard ([#32398](https://github.com/lightdash/lightdash/issues/32398)) ([fa5c31d](https://github.com/lightdash/lightdash/commit/fa5c31dbe9578a5150674ac4e0427985d06243dd))
+
+
+### Features
+
+* **dashboards:** tidy up tiles from the edit toolbar ([#32396](https://github.com/lightdash/lightdash/issues/32396)) ([33a0a28](https://github.com/lightdash/lightdash/commit/33a0a285f04372f7ef91c5942a2cfc999f825e83))
+* **external-sources:** run external source explore queries on the NATS worker ([#32395](https://github.com/lightdash/lightdash/issues/32395)) ([6584dcc](https://github.com/lightdash/lightdash/commit/6584dccb59cc14186592adf1be3270af78cee3d5))
+
 # [3.212.0](https://github.com/lightdash/lightdash/compare/3.211.5...3.212.0) (2026-11-11)
 
 
