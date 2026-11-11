@@ -1,3 +1,11 @@
+## [3.217.1](https://github.com/lightdash/lightdash/compare/3.217.0...3.217.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **agent-identity:** let a person's own bearer token read their in-app agent answers ([#32414](https://github.com/lightdash/lightdash/issues/32414)) ([b6b0742](https://github.com/lightdash/lightdash/commit/b6b0742e91e1600619dbd26f9f25a38affe40874))
+* **merge:** offer dashboard filters on fields from every query a merged tile merges ([#32427](https://github.com/lightdash/lightdash/issues/32427)) ([2d4c38e](https://github.com/lightdash/lightdash/commit/2d4c38e7a41b50ad3af9799bc67e98a27c860ef4))
+
 # [3.217.0](https://github.com/lightdash/lightdash/compare/3.216.0...3.217.0) (2026-11-11)
 
 
