@@ -225,14 +225,12 @@ export const DateZoomEditorProvider: FC<{
         if (current === null) return;
         if (current.id === DEFAULT_ZOOM_ID) {
             if (isDirty(current) && current.isViewer) {
-                // As the shipped menu's pick; cleared is the saved default
+                // As the shipped menu's pick; cleared is its "Reset to default"
                 track({
                     name: EventName.DATE_ZOOM_CLICKED,
                     properties: { granularity: current.pick ?? 'default' },
                 });
-                setDateZoomGranularity(
-                    current.pick ?? defaultGranularity ?? undefined,
-                );
+                setDateZoomGranularity(current.pick ?? undefined);
             } else if (isDirty(current))
                 setDefaultDateZoomGranularity(current.pick ?? undefined);
         } else if (current.isViewer) {

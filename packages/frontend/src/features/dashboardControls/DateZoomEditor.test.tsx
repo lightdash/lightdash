@@ -379,6 +379,21 @@ describe('Date zoom editor', () => {
                 properties: { granularity: DateGranularity.WEEK },
             }),
         );
+
+        // Cleared is the shipped "Reset to default": no runtime grain
+        await user.click(pill('Default zoom'));
+        await user.click(
+            within(dialog()).getByRole('button', { name: 'Clear grain' }),
+        );
+        await user.click(
+            within(dialog()).getByRole('button', { name: 'Apply' }),
+        );
+        expect(store.getState().dateZoom.granularity).toBeUndefined();
+        expect(track).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                properties: { granularity: 'default' },
+            }),
+        );
     });
 
     it('cancels on Escape', async () => {
