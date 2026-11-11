@@ -18,6 +18,8 @@ export const SNOWFLAKE_PRIVATE_KEY_OPENSSH_MESSAGE =
 
 export class SnowflakePrivateKeyError extends ParameterError {}
 
+const MAX_PRIVATE_KEY_LENGTH = 16 * 1024;
+
 const PEM_LABELS = ['PRIVATE KEY', 'ENCRYPTED PRIVATE KEY', 'RSA PRIVATE KEY'];
 
 const MISSING_PASSPHRASE_CODES = new Set([
@@ -64,6 +66,10 @@ export const normalizeSnowflakePrivateKey = (
     privateKey: string,
     passphrase?: string,
 ): string => {
+    if (privateKey.length > MAX_PRIVATE_KEY_LENGTH)
+        throw new SnowflakePrivateKeyError(
+            SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE,
+        );
     const unquoted = privateKey.trim().replace(/^(["'])([\s\S]*)\1$/, '$2');
     const pem = unquoted.replace(/\\r\\n|\\n|\\r/g, '\n').trim();
     if (pem.includes('BEGIN OPENSSH PRIVATE KEY'))

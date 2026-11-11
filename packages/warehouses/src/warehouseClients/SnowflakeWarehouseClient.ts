@@ -40,7 +40,10 @@ import {
     processPromisesInBatches,
 } from '../utils/processPromisesInBatches';
 import { normalizeUnicode } from '../utils/sql';
-import { normalizeSnowflakePrivateKey } from './snowflakePrivateKey';
+import {
+    normalizeSnowflakePrivateKey,
+    SnowflakePrivateKeyError,
+} from './snowflakePrivateKey';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
@@ -1075,19 +1078,19 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     private async createConnection(
         connectionOptionsOverrides?: Partial<ConnectionOptions>,
     ): Promise<Connection> {
-        const connectionOptions = await this.getConnectionOptions(
-            connectionOptionsOverrides,
-        );
         let connection: Connection;
         try {
-            connection = createConnection(connectionOptions);
+            connection = createConnection(
+                await this.getConnectionOptions(connectionOptionsOverrides),
+            );
 
             await Util.promisify(connection.connect.bind(connection))();
         } catch (e: unknown) {
             const error = new WarehouseConnectionError(
                 `Snowflake error: ${getErrorMessage(e)}`,
             );
-            if (this.agentJobControls) error.cause = e;
+            if (this.agentJobControls || e instanceof SnowflakePrivateKeyError)
+                error.cause = e;
             throw error;
         }
         return connection;

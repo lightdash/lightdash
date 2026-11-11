@@ -19,6 +19,7 @@ import {
     exchangeDatabricksOAuthCredentials,
     SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_REQUIRED_MESSAGE,
     SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE,
+    SnowflakePrivateKeyError,
 } from '@lightdash/warehouses';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { buildAccount } from '../../auth/account/account.mock';
@@ -1614,7 +1615,7 @@ describe('Snowflake slots', () => {
             Object.assign(new Error('JWT token is invalid.'), {
                 code: '390144',
             }),
-            "Snowflake rejected the private key for this user. Check the user name, and that the key's public key is set on that user.",
+            "Snowflake rejected the private key for this user. Check the user name and account identifier, and that the key's public key is set on that user.",
             'private_key',
         ],
     ])(
@@ -1645,6 +1646,26 @@ describe('Snowflake slots', () => {
             );
         },
     );
+    it('returns the key message when the client wraps a key error', async () => {
+        const f = prepare();
+        const error = new WarehouseConnectionError(
+            `Snowflake error: ${SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE}`,
+        );
+        error.cause = new SnowflakePrivateKeyError(
+            SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE,
+        );
+        f.runQuery.mockRejectedValue(error);
+        const result = await f.service.test(
+            f.account,
+            'project',
+            null,
+            snowflakeSecrets,
+        );
+        expect(result).toMatchObject({
+            ok: false,
+            message: SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE,
+        });
+    });
     it('accepts a mislabelled one-line key and tests the connection', async () => {
         const f = prepare();
         const oneLine = `-----BEGIN RSA PRIVATE KEY----- ${snowflakePrivateKey

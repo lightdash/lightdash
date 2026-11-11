@@ -4,6 +4,7 @@ import {
     DimensionType,
     ForbiddenError,
     SnowflakeAuthenticationType,
+    WarehouseConnectionError,
 } from '@lightdash/common';
 import { generateKeyPairSync } from 'node:crypto';
 import {
@@ -1698,20 +1699,27 @@ describe('AI service account sessions', () => {
             });
         },
     );
-    it('rejects an unreadable key before it creates a connection', async () => {
-        const client = new SnowflakeWarehouseClient(
-            {
-                ...credentials,
-                authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
-                privateKey: 'slot-key',
-            },
-            { agentJobControls: true },
-        );
-        await expect(client.runQuery('SELECT 1', {})).rejects.toBeInstanceOf(
-            SnowflakePrivateKeyError,
-        );
-        expect(createConnection).not.toHaveBeenCalled();
-    });
+    it.each([false, true])(
+        'rejects an unreadable key as a connection error before it creates a connection, agentJobControls=%s',
+        async (agentJobControls) => {
+            const client = new SnowflakeWarehouseClient(
+                {
+                    ...credentials,
+                    authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
+                    privateKey: 'slot-key',
+                },
+                { agentJobControls },
+            );
+            const error = await client
+                .runQuery('SELECT 1', {})
+                .catch((e: unknown) => e);
+            expect(error).toBeInstanceOf(WarehouseConnectionError);
+            expect((error as Error).cause).toBeInstanceOf(
+                SnowflakePrivateKeyError,
+            );
+            expect(createConnection).not.toHaveBeenCalled();
+        },
+    );
     it.each([false, true])(
         'does not change ordinary sessions with agentSession=%s',
         async (agentSession) => {

@@ -170,4 +170,22 @@ describe('normalizeSnowflakePrivateKey', () => {
         expect((thrown as Error).message).toBe(message);
         expect(JSON.stringify(thrown)).not.toContain(body(key).slice(0, 20));
     });
+
+    it('rejects oversized input before parsing it', () => {
+        const oversized = `${pkcs8}${'A'.repeat(16 * 1024)}`;
+        const started = Date.now();
+        let thrown: unknown;
+        try {
+            normalizeSnowflakePrivateKey(oversized);
+        } catch (error) {
+            thrown = error;
+        }
+        expect(Date.now() - started).toBeLessThan(50);
+        expect(thrown).toBeInstanceOf(SnowflakePrivateKeyError);
+        expect((thrown as Error).message).toBe(
+            SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE,
+        );
+        expect(JSON.stringify(thrown)).not.toContain(body(pkcs8).slice(0, 20));
+        expect(String(thrown)).not.toContain('AAAAAAAA');
+    });
 });

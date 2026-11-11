@@ -195,6 +195,21 @@ describe('Snowflake AI service account test errors', () => {
             SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_REQUIRED_MESSAGE,
         ],
         [
+            'an unreadable key wrapped as a connection error',
+            Object.assign(
+                new WarehouseConnectionError(
+                    `Snowflake error: ${SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE}`,
+                ),
+                {
+                    cause: new SnowflakePrivateKeyError(
+                        SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE,
+                    ),
+                },
+            ),
+            'private_key_unreadable',
+            SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE,
+        ],
+        [
             'an SDK key parse error',
             wrapped('Invalid private key.', '404026'),
             'private_key_unreadable',
@@ -204,7 +219,7 @@ describe('Snowflake AI service account test errors', () => {
             'a JWT rejected by Snowflake',
             wrapped('JWT token is invalid.', '390144'),
             'private_key',
-            "Snowflake rejected the private key for this user. Check the user name, and that the key's public key is set on that user.",
+            "Snowflake rejected the private key for this user. Check the user name and account identifier, and that the key's public key is set on that user.",
         ],
         [
             'an unknown account host',

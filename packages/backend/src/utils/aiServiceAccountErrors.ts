@@ -162,7 +162,7 @@ export const getSnowflakeServiceAccountTestError = (
                 : {
                       category,
                       message:
-                          "Snowflake rejected the private key for this user. Check the user name, and that the key's public key is set on that user.",
+                          "Snowflake rejected the private key for this user. Check the user name and account identifier, and that the key's public key is set on that user.",
                   };
         case 'account_identifier':
             return {
