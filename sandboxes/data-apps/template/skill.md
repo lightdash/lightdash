@@ -785,11 +785,10 @@ const [period, setPeriod] = useAppState('period', 'last_month', { scope: 'url' }
   stays in plain `useState` — only state that defines *which view* the user is looking
   at belongs in the URL.
 - The `user` and `shared` scopes exist only when the build prompt says saved app state
-  is available — read `/app/references/app-state.md` before using them; view controls
-  then upgrade to `useAppState(key, default, { url: true })` (user scope mirrored into
-  the link), so a shared link wins until the person changes the control. Without that
-  prompt line, never pass `{ url: true }` or a `user`/`shared` scope: values would only
-  live in memory for the session. `{ scope: 'url' }` is the only form to use.
+  is available — read `/app/references/app-state.md` before using them (it also covers
+  mirroring a remembered view control into the link). Without that prompt line,
+  `{ scope: 'url' }` is the only option to pass — no other scope, no `url: true`:
+  anything else would only live in memory for the session.
 - `useUrlState(key, default)` and `useSharedAppState(key, default)` are aliases for the
   `url` and `shared` scopes; prefer the unified hook in new code.
 
