@@ -1,10 +1,18 @@
+/* A diff in a reply: one quiet file card, with the diff's own colours left to speak. */
 .block {
-    max-height: 320px;
+    max-height: 340px;
     overflow: auto;
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
-    --diffs-font-size: 11px;
-    --diffs-line-height: 16px;
+    background-color: var(--mantine-color-body);
+    --diffs-font-family: var(--mantine-font-family-monospace);
+    --diffs-font-size: 12px;
+    --diffs-line-height: 20px;
+    --diffs-gap-block: 6px;
+    /* The gutter blends into the card, so only changed lines carry colour. */
+    --diffs-bg-context-override: var(--mantine-color-body);
+    --diffs-bg-context-gutter-override: var(--mantine-color-body);
+    --diffs-fg-number-override: var(--mantine-color-ldGray-5);
 }
 
 /* Pins the diff to the app's colour scheme rather than the system's. */
@@ -15,6 +23,22 @@
     @mixin dark {
         color-scheme: dark;
     }
+}
+
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    justify-content: space-between;
+    padding: 8px var(--mantine-spacing-sm);
+    background-color: var(--mantine-color-ldGray-0);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.path {
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
 }
 
 .plain {
