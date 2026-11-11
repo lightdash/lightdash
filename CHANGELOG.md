@@ -1,3 +1,22 @@
+# [3.211.0](https://github.com/lightdash/lightdash/compare/3.210.2...3.211.0) (2026-11-11)
+
+
+### Bug Fixes
+
+* **ai-reviews:** send the client secret when connecting Linear ([#32387](https://github.com/lightdash/lightdash/issues/32387)) ([79185ee](https://github.com/lightdash/lightdash/commit/79185eea59bf041cd5a703a0611ee8a1ae566ccf))
+* **external-sources:** wait for a free per-organization query slot ([#32357](https://github.com/lightdash/lightdash/issues/32357)) ([7104ab7](https://github.com/lightdash/lightdash/commit/7104ab73c6c7f608c4471c023c92ae3597c785d5))
+
+
+### Features
+
+* **dashboards:** undo tile moves and list unsaved changes while editing ([#32353](https://github.com/lightdash/lightdash/issues/32353)) ([6729aae](https://github.com/lightdash/lightdash/commit/6729aae0aac2255d1e06d08e42a5d03ef5959b15))
+* **dashboards:** zoom the dashboard canvas in and out while editing ([#32362](https://github.com/lightdash/lightdash/issues/32362)) ([5ce649d](https://github.com/lightdash/lightdash/commit/5ce649d73825a2354cc94f3275b4ddcecb54c553))
+
+
+### Performance Improvements
+
+* **results-cache:** serve cache usage stats from a covering index ([#32380](https://github.com/lightdash/lightdash/issues/32380)) ([f7c3997](https://github.com/lightdash/lightdash/commit/f7c3997b6cd615ac9b8aa6bdcfd8d272e4c3487a))
+
 ## [3.210.2](https://github.com/lightdash/lightdash/compare/3.210.1...3.210.2) (2026-11-11)
 
 
