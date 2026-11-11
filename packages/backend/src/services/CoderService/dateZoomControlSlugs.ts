@@ -106,7 +106,7 @@ export const getDateZoomConfigWithIds = <C extends UploadedControl>(
 
 /** Each control gets the slug derived from its name, and each target its control's slug */
 export const getDateZoomConfigWithSlugs = <
-    C extends Pick<DateZoomControl, 'uuid' | 'name'>,
+    C extends Pick<DateZoomControl, 'uuid' | 'name'> & { slug?: string },
     T extends Pick<DateZoomTileTarget, 'controlUuid'>,
 >(config: {
     controls?: C[];
@@ -121,7 +121,8 @@ export const getDateZoomConfigWithSlugs = <
     });
     return {
         ...config,
-        controls: controls.map(({ uuid, ...control }, index) => ({
+        // Derived on every download: a stored slug is ignored
+        controls: controls.map(({ uuid, slug: _slug, ...control }, index) => ({
             uuid,
             slug: slugs[index],
             ...control,

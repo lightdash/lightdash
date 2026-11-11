@@ -173,6 +173,14 @@ describe('getDateZoomConfigWithIds', () => {
 });
 
 describe('getDateZoomConfigWithSlugs', () => {
+    it('writes the derived slug over a stored one', () => {
+        const stored = { ...saved[0], slug: 'stale' };
+        expect(
+            getDateZoomConfigWithSlugs({ controls: [stored], tileTargets: {} })
+                .controls,
+        ).toEqual([{ ...saved[0], slug: 'week' }]);
+    });
+
     it('accepts a stored config without controls or tile targets', () => {
         expect(getDateZoomConfigWithSlugs({})).toEqual({
             controls: [],
