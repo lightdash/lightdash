@@ -69,6 +69,8 @@ const mockTileHoverOwner = vi.hoisted(() => ({
 }));
 // Whether each draggable, by id, was last rendered disabled
 const mockDraggableDisabled = vi.hoisted(() => new Map<unknown, boolean>());
+// Ids whose drag a pointer press started
+const mockPointerDowns = vi.hoisted(() => [] as unknown[]);
 const mockDragEnd = vi.hoisted(() => ({
     handlers: [] as ((event: DragEndEvent) => void)[],
 }));
@@ -143,7 +145,20 @@ vi.mock('@dnd-kit/core', async (importOriginal) => {
         },
         useDraggable: (args: Parameters<typeof actual.useDraggable>[0]) => {
             mockDraggableDisabled.set(args.id, args.disabled ?? false);
-            return actual.useDraggable(args);
+            const real = actual.useDraggable(args);
+            const onPointerDown = real.listeners?.onPointerDown;
+            return onPointerDown === undefined
+                ? real
+                : {
+                      ...real,
+                      listeners: {
+                          ...real.listeners,
+                          onPointerDown: (event: unknown) => {
+                              mockPointerDowns.push(args.id);
+                              onPointerDown(event);
+                          },
+                      },
+                  };
         },
         useDroppable: (args: Parameters<typeof actual.useDroppable>[0]) => {
             const real = actual.useDroppable(args);
@@ -214,20 +229,24 @@ vi.mock('./FilterPills', async () => {
             id,
         });
         const selection = useBarSelection();
+        // A pill's box also holds buttons outside the pill, as a parameter's remove
         return (
-            <div
-                ref={setNodeRef}
-                data-dragging={isDragging || undefined}
-                {...listeners}
-                {...attributes}
-                data-controls-pill={id}
-                aria-pressed={selection?.selectedIds.includes(id) ?? false}
-                onClick={(event) => {
-                    if (event.metaKey || event.ctrlKey || event.shiftKey)
-                        selection?.pick(id, event.shiftKey);
-                }}
-            >
-                pill {id}
+            <div data-pill-draggable>
+                <div
+                    ref={setNodeRef}
+                    data-dragging={isDragging || undefined}
+                    {...listeners}
+                    {...attributes}
+                    data-controls-pill={id}
+                    aria-pressed={selection?.selectedIds.includes(id) ?? false}
+                    onClick={(event) => {
+                        if (event.metaKey || event.ctrlKey || event.shiftKey)
+                            selection?.pick(id, event.shiftKey);
+                    }}
+                >
+                    pill {id}
+                </div>
+                <button type="button">remove {id}</button>
             </div>
         );
     };
@@ -1409,6 +1428,26 @@ describe('SectionedFilters', () => {
             mockSidebar.current = { isViewer: false, isSidebarOpen: false };
             switchTab('tab-1');
             expect(mockDraggableDisabled.get('a')).toBe(false);
+        });
+
+        it('drags a section from anywhere on its capsule but its pills and actions', () => {
+            renderSectioned([rule('one', 'a')], 'tab-1');
+            const capsule = capsuleOf('Dates');
+            const press = (element: Element) => {
+                mockPointerDowns.length = 0;
+                fireEvent.pointerDown(element, { isPrimary: true, button: 0 });
+                return [...mockPointerDowns];
+            };
+            expect(press(capsule)).toEqual(['a']);
+            expect(press(foldOf('Dates'))).toEqual(['a']);
+            expect(press(screen.getByText('pill one'))).toEqual(['one']);
+            expect(press(screen.getByText('remove one'))).toEqual([]);
+            for (const name of ['Dates menu', /^Add( filter)? to Dates$/])
+                expect(
+                    press(within(capsule).getByRole('button', { name })),
+                ).toEqual([]);
+            // An empty section has no pills: all of it drags
+            expect(press(capsuleOf('Empty'))).toEqual(['c']);
         });
 
         it('drops a pill on a pill: it takes that place and section', () => {
