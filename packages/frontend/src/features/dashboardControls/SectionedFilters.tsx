@@ -150,8 +150,10 @@ import { useParameterEditorSelector } from './useParameterEditor';
 const ADD_FILTER_SELECTOR =
     '[data-filter-actions] > button[data-dashboard-filter-control]';
 const NEW_SECTION_SELECTOR = '[data-new-section]';
+// A pill's box holds its own drag and buttons (a parameter's remove, an
+// unresolved filter's), wherever they sit in it
 const NOT_SECTION_HANDLE =
-    '[data-controls-pill], [data-parameter-pill], [data-section-actions]';
+    '[data-pill-draggable], [data-controls-pill], [data-parameter-pill], [data-section-actions]';
 const pillSelector = (id: string) => `[data-controls-pill="${id}"]`;
 const sectionNameSelector = (id: string) => `[data-section-name="${id}"]`;
 const sectionAddSelector = (id: string) => `[data-section-add="${id}"]`;

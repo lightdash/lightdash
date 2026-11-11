@@ -229,20 +229,24 @@ vi.mock('./FilterPills', async () => {
             id,
         });
         const selection = useBarSelection();
+        // A pill's box also holds buttons outside the pill, as a parameter's remove
         return (
-            <div
-                ref={setNodeRef}
-                data-dragging={isDragging || undefined}
-                {...listeners}
-                {...attributes}
-                data-controls-pill={id}
-                aria-pressed={selection?.selectedIds.includes(id) ?? false}
-                onClick={(event) => {
-                    if (event.metaKey || event.ctrlKey || event.shiftKey)
-                        selection?.pick(id, event.shiftKey);
-                }}
-            >
-                pill {id}
+            <div data-pill-draggable>
+                <div
+                    ref={setNodeRef}
+                    data-dragging={isDragging || undefined}
+                    {...listeners}
+                    {...attributes}
+                    data-controls-pill={id}
+                    aria-pressed={selection?.selectedIds.includes(id) ?? false}
+                    onClick={(event) => {
+                        if (event.metaKey || event.ctrlKey || event.shiftKey)
+                            selection?.pick(id, event.shiftKey);
+                    }}
+                >
+                    pill {id}
+                </div>
+                <button type="button">remove {id}</button>
             </div>
         );
     };
@@ -1437,13 +1441,11 @@ describe('SectionedFilters', () => {
             expect(press(capsule)).toEqual(['a']);
             expect(press(foldOf('Dates'))).toEqual(['a']);
             expect(press(screen.getByText('pill one'))).toEqual(['one']);
-            expect(
-                press(
-                    within(capsule).getByRole('button', {
-                        name: 'Dates menu',
-                    }),
-                ),
-            ).toEqual([]);
+            expect(press(screen.getByText('remove one'))).toEqual([]);
+            for (const name of ['Dates menu', /^Add( filter)? to Dates$/])
+                expect(
+                    press(within(capsule).getByRole('button', { name })),
+                ).toEqual([]);
             // An empty section has no pills: all of it drags
             expect(press(capsuleOf('Empty'))).toEqual(['c']);
         });
