@@ -4,6 +4,7 @@ import {
     type ApiResponse,
     type SemanticLayerDraft,
     type SemanticLayerDraftedModels,
+    type SemanticLayerDraftState,
     type SemanticLayerDraftApplyResult,
     type SemanticLayerDraftImpact,
     type SemanticLayerDraftMoveDirection,
@@ -12,7 +13,7 @@ import {
     type SemanticLayerStatus,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
@@ -99,10 +100,36 @@ export const useSemanticLayerDraft = (
         projectUuid,
         '/draft',
         enabled,
+    );
+
+/**
+ * Keeps the draft on a page current without reading it on a timer: a cheap
+ * value is asked for instead, and the draft is read again only when it changes.
+ * Mounted once, on the page that shows the draft.
+ */
+export const useDraftFreshness = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { data } = useGet<SemanticLayerDraftState>(
+        ['semantic-layer-draft-state', projectUuid],
+        projectUuid,
+        '/draft/state',
+        true,
         undefined,
-        // A draft is replayed on what is live at each read, so reading again is how a person learns that live moved.
         DRAFT_POLL_MS,
     );
+    const seen = useRef<string | null>(null);
+    const fingerprint = data?.fingerprint ?? null;
+    useEffect(() => {
+        if (fingerprint === null) return;
+        const previous = seen.current;
+        seen.current = fingerprint;
+        // The first value is what the draft on screen was already read against.
+        if (previous === null || previous === fingerprint) return;
+        void queryClient.invalidateQueries({
+            queryKey: [DRAFT_KEY, projectUuid],
+        });
+    }, [fingerprint, projectUuid, queryClient]);
+};
 
 /** The names of the models this person has in development, for pages that only mark them. */
 export const useSemanticLayerDraftedModels = (

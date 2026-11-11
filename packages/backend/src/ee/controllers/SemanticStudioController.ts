@@ -7,6 +7,7 @@ import {
     type ApiSemanticLayerDraftKeepRequest,
     type ApiSemanticLayerDraftMoveRequest,
     type ApiSemanticLayerDraftResponse,
+    type ApiSemanticLayerDraftStateResponse,
     type ApiSemanticLayerDraftTakeLiveRequest,
     type ApiSemanticLayerDraftUsageResponse,
     type ApiSemanticLayerModelResponse,
@@ -90,6 +91,28 @@ export class SemanticStudioController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 modelName,
+            ),
+        };
+    }
+
+    /**
+     * A value that changes whenever this person's draft would read differently.
+     * @summary Get the state of my semantic layer draft
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/draft/state')
+    @OperationId('getSemanticLayerDraftState')
+    async getDraftState(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticLayerDraftStateResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getDraftState(
+                toSessionUser(req.account),
+                projectUuid,
             ),
         };
     }

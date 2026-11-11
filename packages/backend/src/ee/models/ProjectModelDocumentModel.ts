@@ -278,6 +278,42 @@ export class ProjectModelDocumentModel {
         });
     }
 
+    /** Runs one publish at a time for a person on a project, on whichever server it lands; a second one waits its turn. */
+    async withPublishLock<T>(
+        { projectUuid, userUuid }: DraftOwner,
+        publish: () => Promise<T>,
+    ): Promise<T> {
+        return this.database.transaction(async (trx) => {
+            await trx.raw('SELECT pg_advisory_xact_lock(hashtext(?))', [
+                `semantic-studio-publish:${projectUuid}:${userUuid}`,
+            ]);
+            return publish();
+        });
+    }
+
+    /** What decides how a person's draft reads, without any of its content: every model's live version and every open change on the project. */
+    async findDraftState(projectUuid: string): Promise<{
+        versions: { name: string; version: number }[];
+        changes: { uuid: string; userUuid: string; at: Date }[];
+    }> {
+        const [versions, changes] = await Promise.all([
+            this.database(ProjectModelDocumentsTableName)
+                .select({ name: 'name', version: 'document_version' })
+                .where('project_uuid', projectUuid)
+                .orderBy('name'),
+            this.database(ProjectModelDraftChangesTableName)
+                .select({
+                    uuid: 'project_model_draft_change_uuid',
+                    userUuid: 'created_by_user_uuid',
+                    at: 'created_at',
+                })
+                .where('project_uuid', projectUuid)
+                .where('status', 'draft')
+                .orderBy('created_at', 'asc'),
+        ]);
+        return { versions, changes };
+    }
+
     /** Bases a person's draft of one model on the given version, once they have seen what was published and kept their own; false, and nothing written, when live is no longer at that version. */
     async rebaseDraftChanges(
         owner: DraftOwner,

@@ -28,6 +28,7 @@ import {
     type SemanticLayerDraftModelInput,
     type SemanticLayerDraftMoveDirection,
     type SemanticLayerDraftReconciliation,
+    type SemanticLayerDraftState,
     type SemanticLayerDraftUsage,
     type SemanticLayerModelCode,
     type SemanticLayerStatus,
@@ -97,6 +98,8 @@ export type SemanticStudioServiceArguments = {
         | 'findDraftChanges'
         | 'findOtherDrafters'
         | 'swapDraftChanges'
+        | 'withPublishLock'
+        | 'findDraftState'
         | 'rebaseDraftChanges'
         | 'findDocumentsAt'
         | 'findPublishedSince'
@@ -682,6 +685,28 @@ export class SemanticStudioService extends BaseService {
                 ],
             ),
         ]);
+    }
+
+    /**
+     * A value that changes whenever this person's draft would read differently:
+     * live moved, their own changes moved, or someone else started or stopped
+     * drafting. Cheap, so a page can ask often and read the draft only on a change.
+     */
+    async getDraftState(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SemanticLayerDraftState> {
+        if (!(await this.canEditModels(user, projectUuid))) {
+            return { fingerprint: '' };
+        }
+        const state =
+            await this.projectModelDocumentModel.findDraftState(projectUuid);
+        return {
+            fingerprint: createHash('sha256')
+                .update(JSON.stringify(state))
+                .digest('hex')
+                .slice(0, 16),
+        };
     }
 
     /** The models a person has changes in development on, straight from what is stored: cheap enough for pages that only mark them. */
@@ -1306,12 +1331,15 @@ export class SemanticStudioService extends BaseService {
         model: string | null,
     ): Promise<SemanticLayerDraftApplyResult> {
         await this.assertCanEditModels(user, projectUuid);
-        // ponytail: per process, which covers repeated clicks and two tabs on one server; a lock in the database if two servers ever open the same pull request twice.
+        // Requests that arrive together on this server share one publish; one that lands elsewhere waits on the lock, then finds nothing left to publish.
         const key = `${projectUuid}:${user.userUuid}:${model ?? ''}`;
         const running = this.publishing.get(key);
         if (running) return running;
         const publish = (async () => {
-            const result = await this.applyDraftOnce(user, projectUuid, model);
+            const result = await this.projectModelDocumentModel.withPublishLock(
+                { projectUuid, userUuid: user.userUuid },
+                () => this.applyDraftOnce(user, projectUuid, model),
+            );
             // What is left of the draft now sits on different live models.
             await this.queueDraftImpactCheckAfterChange(user, projectUuid);
             return result;

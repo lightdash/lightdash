@@ -167,6 +167,12 @@ export type SemanticLayerDraftedModels = { models: string[] };
 export type ApiSemanticLayerDraftedModelsResponse =
     ApiSuccess<SemanticLayerDraftedModels>;
 
+/** A value that changes whenever a person's draft would read differently; opaque. */
+export type SemanticLayerDraftState = { fingerprint: string };
+
+export type ApiSemanticLayerDraftStateResponse =
+    ApiSuccess<SemanticLayerDraftState>;
+
 export type SemanticLayerDraftApplyResult = {
     /** Null when nothing went live. */
     exploreCount: number | null;

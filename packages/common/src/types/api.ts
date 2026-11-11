@@ -477,6 +477,7 @@ import {
     type ApiSemanticLayerDraftedModelsResponse,
     type ApiSemanticLayerDraftImpactResponse,
     type ApiSemanticLayerDraftResponse,
+    type ApiSemanticLayerDraftStateResponse,
     type ApiSemanticLayerDraftUsageResponse,
 } from './semanticStudio';
 import { type ShareUrl } from './share';
@@ -1889,6 +1890,7 @@ type ApiResults =
     | ApiProjectAiCredentialResponse['results']
     | ApiSemanticLayerDraftResponse['results']
     | ApiSemanticLayerDraftedModelsResponse['results']
+    | ApiSemanticLayerDraftStateResponse['results']
     | ApiSemanticLayerDraftApplyResponse['results']
     | ApiSemanticLayerDraftImpactResponse['results']
     | ApiSemanticLayerDraftUsageResponse['results'];

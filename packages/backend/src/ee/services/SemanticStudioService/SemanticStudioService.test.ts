@@ -364,6 +364,8 @@ const setup = ({
             findModelHistory,
             findDraftChanges: async () => drafts,
             findOtherDrafters: async () => otherDrafters,
+            withPublishLock: async (_owner, publish) => publish(),
+            findDraftState: async () => ({ versions: [], changes: [] }),
             swapDraftChanges: async (_owner, [first, second]) => {
                 const a = drafts.findIndex(
                     (change) => change.draftChangeUuid === first,

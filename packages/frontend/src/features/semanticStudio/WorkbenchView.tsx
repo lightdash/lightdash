@@ -109,6 +109,7 @@ import { getSemanticStudioUrl } from './urls';
 import { useExploreFields } from './useExploreFields';
 import {
     useKeepsSemanticLayerDraft,
+    useDraftFreshness,
     useSemanticLayerDraft,
     useSemanticLayerModel,
 } from './useSemanticLayerModel';
@@ -909,6 +910,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const isEmpty = view.project.explores.length === 0;
     const [searchParams, setSearchParams] = useSearchParams();
     const { data: draft } = useSemanticLayerDraft(view.project.id);
+    useDraftFreshness(view.project.id);
     const { data: project } = useProject(view.project.id);
     const chat = useSemanticStudioChat(view.project.id);
     const [isChatOpen, setIsChatOpen] = useChatOpen();
