@@ -29,6 +29,7 @@ import {
     getColumnAxisType,
     getTableCalculationAxisType,
     SortByDirection,
+    StackType,
     VizAggregationOptions,
     VizIndexType,
 } from '../visualizations/types';
@@ -393,8 +394,13 @@ function getCartesianPivotConfiguration(
         // groups past the pivot column limit must still count: fold them into
         // one "Other" group instead of dropping them. Summing only makes sense
         // for numeric values.
+        // Unstacking in the UI sets the layout to StackType.NONE ('none'),
+        // which is truthy, so compare against the stacked values.
+        const layoutStack = chartConfig.config.layout.stack;
         const isStacked =
-            !!chartConfig.config.layout.stack ||
+            layoutStack === true ||
+            layoutStack === StackType.NORMAL ||
+            layoutStack === StackType.PERCENT ||
             (chartConfig.config.eChartsConfig.series ?? []).some(
                 (series) => series.stack !== undefined || !!series.areaStyle,
             );

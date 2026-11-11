@@ -18,6 +18,7 @@ import {
 } from '../types/savedCharts';
 import {
     SortByDirection,
+    StackType,
     VizAggregationOptions,
     VizIndexType,
 } from '../visualizations/types';
@@ -1349,6 +1350,33 @@ describe('derivePivotConfigurationFromChart', () => {
                 })?.foldOverflowGroups,
             ).toBe(true);
         });
+
+        it('does not fold when stacking was switched off on the layout', () => {
+            const result = derive('orders_count', {
+                layout: {
+                    xField: 'orders_day',
+                    yField: ['orders_count'],
+                    stack: StackType.NONE,
+                },
+            });
+            expect(result).toBeDefined();
+            expect(result?.foldOverflowGroups).toBeUndefined();
+        });
+
+        it.each([StackType.NORMAL, StackType.PERCENT])(
+            'folds the overflow when the layout stack is %s',
+            (stack) => {
+                expect(
+                    derive('orders_count', {
+                        layout: {
+                            xField: 'orders_day',
+                            yField: ['orders_count'],
+                            stack,
+                        },
+                    })?.foldOverflowGroups,
+                ).toBe(true);
+            },
+        );
 
         it('does not fold when the chart is not stacked', () => {
             const result = derive('orders_count');
