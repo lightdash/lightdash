@@ -1,4 +1,12 @@
-import { ChartType, DimensionType, FieldType } from '@lightdash/common';
+import {
+    ChartType,
+    DimensionType,
+    FieldType,
+    OTHER_PIVOT_KEY,
+    OTHER_PIVOT_LABEL,
+    VizAggregationOptions,
+    type PivotConfiguration,
+} from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
@@ -119,6 +127,91 @@ describe('VisualizationWarning', () => {
             'Only the first 200 of 412 grouped columns are shown. Totals leave out the rest.',
         );
     });
+    describe('when the results hold an "Other" group', () => {
+        const chartConfig: PivotMismatchWarningProps['chartConfig'] = {
+            type: ChartType.CARTESIAN,
+            config: {
+                layout: { xField: 'orders_date', yField: ['orders_total'] },
+                eChartsConfig: {},
+            },
+        };
+        const resultsData: PivotMismatchWarningProps['resultsData'] = {
+            ...props.resultsData,
+            pivotDetails: {
+                totalColumnCount: 412,
+                indexColumn: undefined,
+                valuesColumns: [
+                    {
+                        referenceField: 'orders_total',
+                        pivotColumnName: `orders_total_any_${OTHER_PIVOT_KEY}`,
+                        aggregation: VizAggregationOptions.ANY,
+                        pivotValues: [
+                            {
+                                referenceField: 'orders_status',
+                                value: OTHER_PIVOT_KEY,
+                                formatted: OTHER_PIVOT_LABEL,
+                            },
+                        ],
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_status' }],
+                sortBy: undefined,
+                originalColumns: {},
+            },
+        };
+        const pivotConfiguration: PivotConfiguration = {
+            indexColumn: undefined,
+            valuesColumns: [],
+            groupByColumns: [{ reference: 'orders_status' }],
+            sortBy: undefined,
+        };
+
+        it('says the rest are added together while the chart is stacked', async () => {
+            renderWithProviders(
+                <VisualizationWarning
+                    {...props}
+                    chartConfig={chartConfig}
+                    resultsData={resultsData}
+                    dirtyPivotConfiguration={{
+                        ...pivotConfiguration,
+                        foldOverflowGroups: true,
+                    }}
+                    maxColumnLimit={200}
+                />,
+            );
+
+            await userEvent.hover(
+                screen.getByRole('img', { name: 'Results may be incorrect' }),
+            );
+
+            expect(await screen.findByRole('tooltip')).toHaveTextContent(
+                'The first 200 are shown and the rest are added together as "Other".',
+            );
+        });
+
+        it('asks for a re-run once the chart is no longer stacked', async () => {
+            renderWithProviders(
+                <VisualizationWarning
+                    {...props}
+                    chartConfig={chartConfig}
+                    resultsData={resultsData}
+                    dirtyPivotConfiguration={pivotConfiguration}
+                    maxColumnLimit={200}
+                />,
+            );
+
+            await userEvent.hover(
+                screen.getByRole('img', { name: 'Results may be incorrect' }),
+            );
+
+            const tooltip = await screen.findByRole('tooltip');
+            expect(tooltip).toHaveTextContent(
+                'Re-run the query to update them.',
+            );
+            expect(tooltip).not.toHaveTextContent('are shown and the rest');
+        });
+    });
+
     it('does not warn when every dimension is used', () => {
         renderWithProviders(
             <VisualizationWarning

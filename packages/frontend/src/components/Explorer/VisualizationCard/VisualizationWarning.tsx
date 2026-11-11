@@ -65,6 +65,17 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         [resultsData?.pivotDetails, maxColumnLimit],
     );
 
+    // The results fold groups past the column limit into "Other" (stacked
+    // charts), but the chart as configured now would not: stacking was
+    // switched off after the query ran.
+    const hasStaleOtherGroup = useMemo(
+        () =>
+            dirtyPivotConfiguration !== undefined &&
+            !dirtyPivotConfiguration.foldOverflowGroups &&
+            hasOtherPivotGroup(resultsData?.pivotDetails?.valuesColumns),
+        [dirtyPivotConfiguration, resultsData?.pivotDetails?.valuesColumns],
+    );
+
     // Determine if configured pivot dimensions are different from the ones used to compute the results
     const shouldShowPivotMismatch = useMemo(() => {
         // Determine pivot used to compute current results
@@ -117,7 +128,11 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
                 'Please re-run the query to fetch the latest data with correct group by settings.',
             );
         }
-        if (pivotColumnLimitMessage) {
+        if (hasStaleOtherGroup) {
+            _messages.push(
+                'These results add the groups past the column limit together as "Other", which only applies to stacked charts. Re-run the query to update them.',
+            );
+        } else if (pivotColumnLimitMessage) {
             _messages.push(pivotColumnLimitMessage);
         }
         return _messages;
@@ -127,6 +142,7 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         shouldShowPivotMismatch,
         unusedDimensionLabels,
         pivotColumnLimitMessage,
+        hasStaleOtherGroup,
     ]);
 
     if (messages.length === 0) return null;
