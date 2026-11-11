@@ -456,7 +456,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
                     formula: z
                         .string()
                         .describe(
-                            'Row-wise formula over merged column ids, e.g. `orders_orders_total_revenue / sessions_sessions_count`. Spreadsheet operators and functions; no SQL.',
+                            "Row-wise formula over merged column ids: `<source nodeId>_<fieldId>` for a source's column, `merge_<name>` for a join key. Sources `weekly_orders` and `weekly_sessions` give `weekly_orders_orders_total_revenue / weekly_sessions_sessions_count`. Spreadsheet operators and functions; no SQL.",
                         ),
                     format: z
                         .enum(['number', 'percent'])
@@ -476,7 +476,9 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
             .array(sortFieldSchema)
             .nullish()
             .default(null)
-            .describe('Sorts by merged column id. null keeps join-key order.'),
+            .describe(
+                'Sorts by merged column id (`merge_<name>`, `<source nodeId>_<fieldId>`). null keeps join-key order.',
+            ),
         limit: limitSchema,
     });
 

@@ -3735,7 +3735,7 @@
                                                 }
                                             ],
                                             "default": null,
-                                            "description": "Sorts by merged column id. null keeps join-key order."
+                                            "description": "Sorts by merged column id (`merge_<name>`, `<source nodeId>_<fieldId>`). null keeps join-key order."
                                         },
                                         "sources": {
                                             "description": "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects exactly its join-key dimensions plus metrics, and returns fewer rows than its limit: a node cut off at its limit is refused.",
@@ -3791,7 +3791,7 @@
                                                                 "description": "\"percent\" for ratios and shares (0.12 shows as 12%); null for a number."
                                                             },
                                                             "formula": {
-                                                                "description": "Row-wise formula over merged column ids, e.g. `orders_orders_total_revenue / sessions_sessions_count`. Spreadsheet operators and functions; no SQL.",
+                                                                "description": "Row-wise formula over merged column ids: `<source nodeId>_<fieldId>` for a source's column, `merge_<name>` for a join key. Sources `weekly_orders` and `weekly_sessions` give `weekly_orders_orders_total_revenue / weekly_sessions_sessions_count`. Spreadsheet operators and functions; no SQL.",
                                                                 "type": "string"
                                                             },
                                                             "name": {

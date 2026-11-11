@@ -19041,7 +19041,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                       },
                     ],
                     "default": null,
-                    "description": "Sorts by merged column id. null keeps join-key order.",
+                    "description": "Sorts by merged column id (\`merge_<name>\`, \`<source nodeId>_<fieldId>\`). null keeps join-key order.",
                   },
                   "sourceType": {
                     "const": "merge",
@@ -19101,7 +19101,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                               "description": ""percent" for ratios and shares (0.12 shows as 12%); null for a number.",
                             },
                             "formula": {
-                              "description": "Row-wise formula over merged column ids, e.g. \`orders_orders_total_revenue / sessions_sessions_count\`. Spreadsheet operators and functions; no SQL.",
+                              "description": "Row-wise formula over merged column ids: \`<source nodeId>_<fieldId>\` for a source's column, \`merge_<name>\` for a join key. Sources \`weekly_orders\` and \`weekly_sessions\` give \`weekly_orders_orders_total_revenue / weekly_sessions_sessions_count\`. Spreadsheet operators and functions; no SQL.",
                               "type": "string",
                             },
                             "name": {
