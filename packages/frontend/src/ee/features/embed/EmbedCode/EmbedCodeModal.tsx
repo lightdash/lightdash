@@ -54,8 +54,8 @@ import EmbedFiltersInteractivity from '../SettingsEmbed/EmbedFiltersInteractivit
 import EmbedWriteActionsForm from '../SettingsEmbed/EmbedWriteActionsForm';
 import classes from './EmbedCodeModal.module.css';
 import {
+    getEmbedCodeAvailability,
     getConfigAllowingTarget,
-    isTargetAllowed,
     type EmbedCodeTarget,
 } from './embedCodeUtils';
 
@@ -338,6 +338,13 @@ const EmbedCodeModal: FC<Props> = ({ projectUuid, target, onClose }) => {
         [showToastSuccess],
     );
     const embedConfig = useEmbedConfig(projectUuid);
+    const availability = getEmbedCodeAvailability({
+        isLoading: embedConfig.isInitialLoading,
+        errorStatusCode: embedConfig.error?.error.statusCode,
+        config: embedConfig.data,
+        target,
+    });
+    const canGenerateTestUrl = availability === 'ready';
     const settingsUrl = `/generalSettings/projectManagement/${projectUuid}/embed`;
 
     const embedJwt = useMemo<CreateEmbedJwt>(
@@ -361,62 +368,87 @@ const EmbedCodeModal: FC<Props> = ({ projectUuid, target, onClose }) => {
     );
 
     const renderStatus = () => {
-        if (embedConfig.isInitialLoading) return null;
-        if (embedConfig.isError || !embedConfig.data) {
-            return (
-                <Callout variant="warning" title="Embedding is not set up yet">
-                    Create an embed secret in{' '}
-                    <Anchor component={Link} to={settingsUrl} fz="sm">
-                        Settings → Embed
-                    </Anchor>{' '}
-                    before using this code.
-                </Callout>
-            );
+        switch (availability) {
+            case 'loading':
+            case 'ready':
+                return null;
+            case 'featureUnavailable':
+                return (
+                    <Callout
+                        variant="warning"
+                        title="Embedding is not available"
+                    >
+                        This project does not currently have access to the
+                        embedding feature.
+                    </Callout>
+                );
+            case 'notConfigured':
+                return (
+                    <Callout
+                        variant="warning"
+                        title="Embedding is not set up yet"
+                    >
+                        Create an embed secret in{' '}
+                        <Anchor component={Link} to={settingsUrl} fz="sm">
+                            Settings → Embed
+                        </Anchor>{' '}
+                        before generating a test URL.
+                    </Callout>
+                );
+            case 'targetNotAllowed': {
+                const config = embedConfig.data;
+                if (!config) return null;
+                return (
+                    <Callout
+                        variant="warning"
+                        title={`This ${target.type} is not allowed for embedding yet`}
+                    >
+                        <Stack gap="xs" align="flex-start">
+                            <Text fz="sm">
+                                Until it is on the allow list, the embed will be
+                                rejected. You can manage the full list in{' '}
+                                <Anchor
+                                    component={Link}
+                                    to={settingsUrl}
+                                    fz="sm"
+                                >
+                                    Settings → Embed
+                                </Anchor>
+                                .
+                            </Text>
+                            <Button
+                                size="xs"
+                                variant="default"
+                                loading={allowEmbedTarget.isLoading}
+                                onClick={() =>
+                                    allowEmbedTarget.mutate(
+                                        getConfigAllowingTarget(config, target),
+                                        {
+                                            onSuccess: () =>
+                                                showToastSuccess({
+                                                    title: `This ${target.type} is now allowed for embedding`,
+                                                }),
+                                            onError: ({ error }) =>
+                                                showToastApiError({
+                                                    title: `Could not allow this ${target.type} for embedding`,
+                                                    apiError: error,
+                                                }),
+                                        },
+                                    )
+                                }
+                            >
+                                Allow this {target.type}
+                            </Button>
+                        </Stack>
+                    </Callout>
+                );
+            }
+            default:
+                return assertUnreachable(
+                    availability,
+                    `Unknown embed code availability: ${availability}`,
+                );
         }
-        const config = embedConfig.data;
-        if (!isTargetAllowed(config, target)) {
-            return (
-                <Callout
-                    variant="warning"
-                    title={`This ${target.type} is not allowed for embedding yet`}
-                >
-                    <Stack gap="xs" align="flex-start">
-                        <Text fz="sm">
-                            Until it is on the allow list, the embed will be
-                            rejected. You can manage the full list in{' '}
-                            <Anchor component={Link} to={settingsUrl} fz="sm">
-                                Settings → Embed
-                            </Anchor>
-                            .
-                        </Text>
-                        <Button
-                            size="xs"
-                            variant="default"
-                            loading={allowEmbedTarget.isLoading}
-                            onClick={() =>
-                                allowEmbedTarget.mutate(
-                                    getConfigAllowingTarget(config, target),
-                                    {
-                                        onSuccess: () =>
-                                            showToastSuccess({
-                                                title: `This ${target.type} is now allowed for embedding`,
-                                            }),
-                                        onError: ({ error }) =>
-                                            showToastApiError({
-                                                title: `Could not allow this ${target.type} for embedding`,
-                                                apiError: error,
-                                            }),
-                                    },
-                                )
-                            }
-                        >
-                            Allow this {target.type}
-                        </Button>
-                    </Stack>
-                </Callout>
-            );
-        }
-        return null;
     };
 
     if (!health.data) return null;
@@ -507,6 +539,7 @@ const EmbedCodeModal: FC<Props> = ({ projectUuid, target, onClose }) => {
                                     <Button
                                         size="xs"
                                         variant="default"
+                                        disabled={!canGenerateTestUrl}
                                         loading={testEmbedUrl.isLoading}
                                         onClick={() =>
                                             testEmbedUrl.mutate(embedJwt, {

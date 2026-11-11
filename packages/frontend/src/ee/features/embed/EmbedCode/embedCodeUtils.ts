@@ -11,6 +11,13 @@ export type EmbedCodeTarget = {
     spaceUuid: string | null;
 };
 
+export type EmbedCodeAvailability =
+    | 'loading'
+    | 'featureUnavailable'
+    | 'notConfigured'
+    | 'targetNotAllowed'
+    | 'ready';
+
 export const isTargetAllowed = (
     config: DecodedEmbed,
     target: EmbedCodeTarget,
@@ -32,6 +39,24 @@ export const isTargetAllowed = (
                 `Unknown embed target: ${target.type}`,
             );
     }
+};
+
+export const getEmbedCodeAvailability = ({
+    isLoading,
+    errorStatusCode,
+    config,
+    target,
+}: {
+    isLoading: boolean;
+    errorStatusCode: number | undefined;
+    config: DecodedEmbed | undefined;
+    target: EmbedCodeTarget;
+}): EmbedCodeAvailability => {
+    if (isLoading) return 'loading';
+    if (errorStatusCode === 403) return 'featureUnavailable';
+    if (!config) return 'notConfigured';
+    if (!isTargetAllowed(config, target)) return 'targetNotAllowed';
+    return 'ready';
 };
 
 // PATCH replaces the allow list, so send the current configuration plus the target.

@@ -58,8 +58,32 @@ describe('useCanShowEmbedCode', () => {
         expect(result.current).toBe(false);
     });
 
+    it('hides the action while feature access is unresolved', () => {
+        vi.mocked(useServerFeatureFlag).mockReturnValue({
+            data: undefined,
+        } as ReturnType<typeof useServerFeatureFlag>);
+
+        const { result } = renderHook(() =>
+            useCanShowEmbedCode('project-uuid'),
+        );
+
+        expect(result.current).toBe(false);
+    });
+
     it('hides the action without project update permission', () => {
         can.mockReturnValue(false);
+
+        const { result } = renderHook(() =>
+            useCanShowEmbedCode('project-uuid'),
+        );
+
+        expect(result.current).toBe(false);
+    });
+
+    it('hides the action while the project is unresolved', () => {
+        vi.mocked(useProject).mockReturnValue({
+            data: undefined,
+        } as ReturnType<typeof useProject>);
 
         const { result } = renderHook(() =>
             useCanShowEmbedCode('project-uuid'),
