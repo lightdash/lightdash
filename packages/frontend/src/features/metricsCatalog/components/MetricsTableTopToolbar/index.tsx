@@ -185,7 +185,8 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
     }) => {
         const [search, setSearch] = useState(_search);
         const showCategories =
-            showCategoriesFilter && !hiddenFilters.includes('categories');
+            (showCategoriesFilter || selectedCategories.length > 0) &&
+            !hiddenFilters.includes('categories');
         const { embedToken } = useEmbed();
 
         useDebounce(
