@@ -24,13 +24,14 @@ import {
 } from '@mantine/core';
 import {
     createReactComponent,
+    IconArrowsJoin,
     IconChevronRight,
     IconCode,
     IconTable,
     type Icon,
 } from '@tabler/icons-react';
 import { clsx } from 'clsx';
-import { useId, useMemo, useState, type FC } from 'react';
+import { Fragment, useId, useMemo, useState, type FC } from 'react';
 import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
 import InlineErrorState from '../../../../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
@@ -38,10 +39,13 @@ import { ItemDetailMarkdown } from '../../../../../../../components/Explorer/Exp
 import { useCompiledSqlFromMetricQuery } from '../../../../../../../hooks/useCompiledSql';
 import { useExploreByProjectUuid } from '../../../../../../../hooks/useExplore';
 import { useUiStrings } from '../../../../../../providers/Embed/useUiStrings';
+import { MergeNodeDetails } from '../MergeNodeDetails';
 import { SemanticNodeDetails } from '../SemanticNodeDetails';
+import { useMergeNodeCopy } from '../useMergeNodeCopy';
 import { isLongCode } from './codeCollapse';
 import styles from './PipelineNotebook.module.css';
 import { hasQueryDetails, type QueryPanel } from './semanticQueryOf';
+import { type MergeNodeView } from './useMergeNodeView';
 
 type CellCode = { code: string; language: 'sql' | 'python' };
 
@@ -229,6 +233,70 @@ export const ExploreSource: FC<{
         </HoverCard>
     );
 };
+
+/** The merge in one line, as the Explorer's merge bar sums it up. */
+export const MergeSummary: FC<{ view: MergeNodeView }> = ({ view }) => {
+    const getUiString = useUiStrings();
+    const { joinTypeLabel } = useMergeNodeCopy();
+    const vars: Record<string, string> = {
+        key: view.summary.keyLabel,
+        rows: joinTypeLabel(view.summary),
+    };
+    const template = getUiString('aiAgent.composer.mergeNode.summary');
+    return (
+        <Group gap={4} wrap="nowrap" miw={0} className={styles.source}>
+            <MantineIcon icon={IconArrowsJoin} size={14} stroke={1.5} />
+            <Text fz="xs" c="dimmed" truncate>
+                {template.split(/(\{\w+\})/).map((part, index) => {
+                    const value = vars[part.slice(1, -1)];
+                    return value === undefined ? (
+                        // eslint-disable-next-line react/no-array-index-key
+                        <Fragment key={index}>{part}</Fragment>
+                    ) : (
+                        <Text
+                            // eslint-disable-next-line react/no-array-index-key
+                            key={index}
+                            span
+                            fz="xs"
+                            fw={500}
+                            className={styles.summaryValue}
+                        >
+                            {value}
+                        </Text>
+                    );
+                })}
+            </Text>
+        </Group>
+    );
+};
+
+export const MergeCellToggles: FC<{
+    openPanels: ReadonlySet<QueryPanel>;
+    onTogglePanel: (panel: QueryPanel) => void;
+}> = ({ openPanels, onTogglePanel }) => {
+    const getUiString = useUiStrings();
+    return (
+        <ToolbarToggle
+            label={getUiString('aiAgent.composer.mergeNode.setup')}
+            icon={IconFilterLines}
+            open={openPanels.has('details')}
+            onToggle={() => onTogglePanel('details')}
+        />
+    );
+};
+
+export const MergePanels: FC<{
+    view: MergeNodeView;
+    openPanels: ReadonlySet<QueryPanel>;
+}> = ({ view, openPanels }) => (
+    <Box className={styles.panels}>
+        <Collapse expanded={openPanels.has('details')}>
+            <Box className={styles.panel}>
+                <MergeNodeDetails {...view} />
+            </Box>
+        </Collapse>
+    </Box>
+);
 
 /** Toggles for a semantic cell's query views. */
 export const CellQueryToggles: FC<{
