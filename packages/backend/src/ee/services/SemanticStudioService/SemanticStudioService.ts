@@ -608,6 +608,12 @@ export class SemanticStudioService extends BaseService {
         projectUuid: string,
     ): Promise<Map<string, Explore | ExploreError | null> | null> {
         if (!(await this.canEditModels(user, projectUuid))) return null;
+        // Asked first: with nothing drafted there is no reason to read the live models, which for a repository is a network call.
+        const changes = await this.projectModelDocumentModel.findDraftChanges(
+            projectUuid,
+            user.userUuid,
+        );
+        if (changes.length === 0) return null;
         const draft = await this.loadDraft(projectUuid, user.userUuid, null);
         if (draft.writes.size === 0) return null;
         const { explores } = await this.checker.compile(
@@ -775,28 +781,27 @@ export class SemanticStudioService extends BaseService {
             draft.stored.find(({ name }) => name === model)?.version ?? null;
         const restores = buildModelPartRestore({
             live,
-            mine: draft.writes.get(model) ?? live,
+            // A draft that removes the model has nothing of its own at any path.
+            mine: draft.writes.has(model)
+                ? (draft.writes.get(model) ?? null)
+                : live,
             path,
         });
-        // One at a time: each is made on the draft the one before it left.
-        await restores.reduce(
-            (made, { yaml, remove }) =>
-                made.then(async () => {
-                    await this.projectModelDocumentModel.createDraftChange({
-                        projectUuid,
-                        userUuid: user.userUuid,
-                        promptUuid: null,
-                        models: [
-                            { name: model, yaml, remove, removeModel: false },
-                        ],
-                        baseVersions: draft.repo ? null : { [model]: version },
-                    });
-                }),
-            Promise.resolve(),
-        );
-        if (restores.length > 0) {
-            await this.queueDraftImpactCheckAfterChange(user, projectUuid);
-        }
+        if (restores.length === 0) return;
+        // One change, so a part is never left removed without its live definition put back.
+        await this.projectModelDocumentModel.createDraftChange({
+            projectUuid,
+            userUuid: user.userUuid,
+            promptUuid: null,
+            models: restores.map(({ yaml, remove }) => ({
+                name: model,
+                yaml,
+                remove,
+                removeModel: false,
+            })),
+            baseVersions: draft.repo ? null : { [model]: version },
+        });
+        await this.queueDraftImpactCheckAfterChange(user, projectUuid);
     }
 
     /** How each drafted model stands against what was published since the draft was based on it; a model with no recorded base is left out. */
@@ -805,11 +810,17 @@ export class SemanticStudioService extends BaseService {
         draft: LoadedDraft,
     ): Promise<Map<string, SemanticLayerDraftReconciliation>> {
         if (draft.repo) return new Map();
-        // The earliest change to a model is what the rest of its draft was built on.
+        // The oldest version any of a model's changes was made on, whatever order they are in now: a model that was not there is older than any version.
         const bases = new Map<string, number | null>();
         draft.changes.forEach(({ baseVersions }) =>
             Object.entries(baseVersions ?? {}).forEach(([model, version]) => {
-                if (!bases.has(model)) bases.set(model, version);
+                const known = bases.get(model);
+                if (
+                    known === undefined ||
+                    (known !== null && (version === null || version < known))
+                ) {
+                    bases.set(model, version);
+                }
             }),
         );
         const liveVersions = new Map(
@@ -830,9 +841,11 @@ export class SemanticStudioService extends BaseService {
         const results = draft.results.flat();
         const reconciled = new Map<string, SemanticLayerDraftReconciliation>();
         drafted.forEach(([model, version]) => {
-            if (version === (liveVersions.get(model) ?? null)) {
+            const liveVersion = liveVersions.get(model) ?? null;
+            if (version === liveVersion) {
                 reconciled.set(model, {
                     state: 'current',
+                    liveVersion,
                     merged: [],
                     conflicts: [],
                 });
@@ -840,9 +853,8 @@ export class SemanticStudioService extends BaseService {
             }
             // A base whose revision is gone cannot be set against anything.
             if (version !== null && !baseContents.has(model)) return;
-            reconciled.set(
-                model,
-                reconcileModel({
+            reconciled.set(model, {
+                ...reconcileModel({
                     base:
                         version === null
                             ? null
@@ -851,7 +863,8 @@ export class SemanticStudioService extends BaseService {
                     mine: draft.writes.get(model) ?? null,
                     draftedPaths: findDraftedPaths(model, results),
                 }),
-            );
+                liveVersion,
+            });
         });
         return reconciled;
     }
@@ -861,14 +874,23 @@ export class SemanticStudioService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         model: string,
+        /** The live version the person was shown; keeping over a later one would approve a change they never saw. */
+        seenLiveVersion: number | null,
     ): Promise<void> {
         await this.assertCanEditModels(user, projectUuid);
         const { stored, repo } = await this.loadStored(projectUuid);
         if (repo) return;
+        const liveVersion =
+            stored.find(({ name }) => name === model)?.version ?? null;
+        if (liveVersion !== seenLiveVersion) {
+            throw new ParameterError(
+                'This model was published again since you looked. Check what changed, then choose.',
+            );
+        }
         await this.projectModelDocumentModel.rebaseDraftChanges(
             { projectUuid, userUuid: user.userUuid },
             model,
-            stored.find(({ name }) => name === model)?.version ?? null,
+            liveVersion,
         );
     }
 

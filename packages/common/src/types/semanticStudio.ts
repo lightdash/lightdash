@@ -111,6 +111,8 @@ export type SemanticLayerDraftConflict = {
  */
 export type SemanticLayerDraftReconciliation = {
     state: 'current' | 'merged' | 'conflict';
+    /** The live version this was worked out against; null when the model is not live. Sent back when keeping the draft over it. */
+    liveVersion: number | null;
     /** Paths published since the draft was based that it does not touch. */
     merged: string[];
     conflicts: SemanticLayerDraftConflict[];
@@ -219,6 +221,11 @@ export type ApiSemanticLayerDraftUsageResponse =
 
 /** Which way a change moves in a draft's order. */
 export type SemanticLayerDraftMoveDirection = 'earlier' | 'later';
+
+export type ApiSemanticLayerDraftKeepRequest = {
+    /** The live version the person was shown, from the model's reconciliation. */
+    liveVersion: number | null;
+};
 
 export type ApiSemanticLayerDraftTakeLiveRequest = {
     /** The part to leave as it is live, such as `metrics.revenue.sql`. */

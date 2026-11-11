@@ -645,12 +645,16 @@ export class ProjectModelDocumentModel {
                 prompt_uuid: mixed[mixed.length - 1].prompt_uuid,
                 // Where the first of them was, so later changes still build on it.
                 created_at: mixed[0].created_at,
+                // The oldest base recorded for this model among them.
                 base_versions: JSON.stringify(
-                    Object.assign(
-                        {},
-                        ...mixed
-                            .map(({ base_versions: bases }) => bases ?? {})
-                            .reverse(),
+                    Object.fromEntries(
+                        mixed
+                            .flatMap(({ base_versions: bases }) =>
+                                bases && model in bases ? [bases[model]] : [],
+                            )
+                            .sort((a, b) => (a ?? -1) - (b ?? -1))
+                            .slice(0, 1)
+                            .map((version) => [model, version]),
                     ),
                 ),
                 models: JSON.stringify(

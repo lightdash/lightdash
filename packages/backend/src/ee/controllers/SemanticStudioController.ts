@@ -3,6 +3,7 @@ import {
     type ApiErrorPayload,
     type ApiSemanticLayerDraftApplyResponse,
     type ApiSemanticLayerDraftImpactResponse,
+    type ApiSemanticLayerDraftKeepRequest,
     type ApiSemanticLayerDraftMoveRequest,
     type ApiSemanticLayerDraftResponse,
     type ApiSemanticLayerDraftTakeLiveRequest,
@@ -306,12 +307,14 @@ export class SemanticStudioController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
         @Path() model: string,
+        @Body() body: ApiSemanticLayerDraftKeepRequest,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         await this.getService().keepDraftModel(
             toSessionUser(req.account),
             projectUuid,
             model,
+            body.liveVersion,
         );
         return { status: 'ok', results: undefined };
     }

@@ -1,6 +1,8 @@
 /** What a person needs around a draft before publishing it: what happened under it, who else is in it, each change in order, and what it does to the numbers. */
 import {
+    diffModelDocuments,
     getItemId,
+    readModelPart,
     type ApiError,
     type ApiQueryResults,
     type Metric,
@@ -184,7 +186,14 @@ export const ModelNotices: FC<{
                                 size="compact-xs"
                                 variant="default"
                                 loading={keep.isLoading}
-                                onClick={() => keep.mutate(model.model)}
+                                onClick={() =>
+                                    keep.mutate({
+                                        model: model.model,
+                                        liveVersion:
+                                            model.reconciliation?.liveVersion ??
+                                            null,
+                                    })
+                                }
                             >
                                 Keep mine
                             </Button>
@@ -264,8 +273,9 @@ const ChangeRow: FC<{
                         loading={discard.isLoading}
                         onClick={() =>
                             // The agent adds changes and cannot repair a stored one, so the stale one goes first.
-                            discard.mutate(change.draftChangeUuid, {
-                                onSuccess: () =>
+                            void discard
+                                .mutateAsync(change.draftChangeUuid)
+                                .then(() =>
                                     onAskAgent(
                                         [
                                             'A change in development stopped applying, so I discarded it.',
@@ -283,7 +293,9 @@ const ChangeRow: FC<{
                                             .filter(Boolean)
                                             .join(' '),
                                     ),
-                            })
+                                )
+                                // The failure is already shown as a toast.
+                                .catch(() => undefined)
                         }
                     >
                         Fix it
@@ -509,13 +521,29 @@ export const MetricComparison: FC<{
         'development',
         isAsked && ids.length > 0,
     );
-    // A metric the draft adds does not exist live, so the live side is read one metric at a time and may be missing.
+    // A metric the draft adds does not exist live, and asking for it there fails the whole query.
+    const added = diffModelDocuments(model.contentBefore, model.contentAfter)
+        .filter(({ kind }) => kind === 'added')
+        .map(({ path }) => path);
+    const liveIds = metrics
+        .filter(
+            ({ name }) =>
+                !added.some(
+                    (path) =>
+                        path.endsWith(`metrics.${name}`) ||
+                        readModelPart(
+                            model.contentAfter,
+                            `${path}.metrics.${name}`,
+                        ) !== null,
+                ),
+        )
+        .map((metric) => getItemId(metric));
     const live = useTotals(
         projectUuid,
         model.model,
-        ids,
+        liveIds,
         'live',
-        isAsked && ids.length > 0 && !isNewModel,
+        isAsked && liveIds.length > 0 && !isNewModel,
     );
     if (metrics.length === 0) return null;
     if (!isAsked) {

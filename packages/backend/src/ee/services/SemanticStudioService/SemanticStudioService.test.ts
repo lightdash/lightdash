@@ -1135,6 +1135,7 @@ describe('SemanticStudioService', () => {
             expect(context.drafts[0].baseVersions).toEqual({ orders: 1 });
             expect(await reconciliationOf(context)).toEqual({
                 state: 'current',
+                liveVersion: 1,
                 merged: [],
                 conflicts: [],
             });
@@ -1157,6 +1158,7 @@ describe('SemanticStudioService', () => {
             context.drafts[0].baseVersions = { orders: 0 };
             expect(await reconciliationOf(context)).toEqual({
                 state: 'merged',
+                liveVersion: 1,
                 merged: ['label'],
                 conflicts: [],
             });
@@ -1196,10 +1198,19 @@ describe('SemanticStudioService', () => {
                 'orders',
             ]);
             expect(context.commitCalls).toEqual([]);
+            await expect(
+                context.service.keepDraftModel(
+                    deployer,
+                    PROJECT_UUID,
+                    'orders',
+                    7,
+                ),
+            ).rejects.toThrow('published again');
             await context.service.keepDraftModel(
                 deployer,
                 PROJECT_UUID,
                 'orders',
+                1,
             );
             expect((await reconciliationOf(context))?.state).toBe('current');
         });
@@ -1239,6 +1250,31 @@ describe('SemanticStudioService', () => {
             expect(draft.models[0].reconciliation?.conflicts).toEqual([]);
             expect(draft.models[0].contentAfter).toContain('label: Sales');
             expect(draft.models[0].contentAfter).not.toContain('revenue');
+        });
+
+        it('still sees a conflict after the changes are reordered', async () => {
+            const context = await drafted(
+                setup({
+                    baseContents: [
+                        [
+                            'orders',
+                            orders.replace(
+                                '    sql: ${TABLE}.amount\n',
+                                '    sql: ${TABLE}.amount\n    metrics:\n      revenue:\n        type: count\n',
+                            ),
+                        ],
+                    ],
+                }),
+            );
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel('label: Sales\n')],
+                null,
+            );
+            context.drafts[0].baseVersions = { orders: 0 };
+            context.drafts.reverse();
+            expect((await reconciliationOf(context))?.state).toBe('conflict');
         });
 
         it('says nothing when the base was never recorded', async () => {
