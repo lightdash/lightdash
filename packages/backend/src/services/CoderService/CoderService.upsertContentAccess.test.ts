@@ -5576,5 +5576,18 @@ describe('CoderService dashboard control order as code', () => {
             );
             expect(zoomsOf(saved)).toEqual(zoomsOf(dashboard));
         });
+
+        it('downloads zooms and a zoom order as main does with the flag off', () => {
+            const file = download(
+                zoomDashboard({ controlOrder: zoomOrder }),
+                false,
+            );
+            expect(file).toEqual(
+                download(zoomDashboard({ controlOrder: undefined }), false),
+            );
+            expect(file.config).not.toHaveProperty('controlOrder');
+            expect(file.config?.dateZoomConfig).toEqual(shippedZooms);
+            expect(JSON.stringify(file)).not.toMatch(/controlSlug|dateZoom"/);
+        });
     });
 });
