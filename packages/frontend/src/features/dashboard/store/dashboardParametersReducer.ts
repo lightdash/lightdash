@@ -306,10 +306,19 @@ export const dashboardParametersReducer = (
                 state.parametersHaveChanged ||
                 !isEqual(state.parameters, savedParameters),
         };
+        // Only the viewer's own values outlive a saved change; copies of the
+        // old saved values follow the new ones
+        const viewerParameters = Object.fromEntries(
+            Object.entries(state.parameters).filter(
+                ([key, parameter]) =>
+                    key in state.parameterPicks ||
+                    !isEqual(parameter, state.savedParameters[key]),
+            ),
+        );
         return withParameters(
             next,
             reconcileDashboardParameters(
-                state.parameters,
+                viewerParameters,
                 savedParameters,
                 state.isEditMode,
             ),

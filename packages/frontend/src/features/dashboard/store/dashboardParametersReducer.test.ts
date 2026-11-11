@@ -47,6 +47,33 @@ describe('dashboardParametersReducer', () => {
             });
         });
 
+        it('follows a saved change for values the viewer did not set', () => {
+            const state = stateWith({
+                savedParameters: {
+                    status: { parameterName: 'status', value: 'Shipped' },
+                    region: { parameterName: 'region', value: 'EU' },
+                    removed: { parameterName: 'removed', value: 'x' },
+                },
+                parameters: {
+                    status: { parameterName: 'status', value: 'Shipped' },
+                    region: { parameterName: 'region', value: 'US' },
+                    removed: { parameterName: 'removed', value: 'x' },
+                },
+                parameterPicks: { region: 'US' },
+            });
+            const next = reducer(
+                state,
+                actions.setSavedParameters({
+                    status: { parameterName: 'status', value: 'Returned' },
+                    region: { parameterName: 'region', value: 'APAC' },
+                }),
+            );
+            expect(next.parameters).toEqual({
+                status: { parameterName: 'status', value: 'Returned' },
+                region: { parameterName: 'region', value: 'US' },
+            });
+        });
+
         it('replaces staged values with the saved object in edit mode', () => {
             const state = stateWith({
                 isEditMode: true,
