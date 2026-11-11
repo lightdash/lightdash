@@ -1,3 +1,15 @@
+# [3.217.0](https://github.com/lightdash/lightdash/compare/3.216.0...3.217.0) (2026-11-11)
+
+
+### Bug Fixes
+
+* **frontend:** refresh the explore list after saving a live data source ([#32356](https://github.com/lightdash/lightdash/issues/32356)) ([2bbe995](https://github.com/lightdash/lightdash/commit/2bbe995e627af7ccd3ca4ae7767d476b88b49cf6))
+
+
+### Features
+
+* **external-sources:** make external sources available without a feature flag ([#32423](https://github.com/lightdash/lightdash/issues/32423)) ([4740b7d](https://github.com/lightdash/lightdash/commit/4740b7d121e3b58aa57aa11e82a2d5eb3371a9f6))
+
 # [3.216.0](https://github.com/lightdash/lightdash/compare/3.215.0...3.216.0) (2026-11-11)
 
 
