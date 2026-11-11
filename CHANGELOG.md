@@ -1,3 +1,15 @@
+# [3.214.0](https://github.com/lightdash/lightdash/compare/3.213.3...3.214.0) (2026-11-11)
+
+
+### Bug Fixes
+
+* **ai-agent:** refuse visualize charts without a category axis, point to the breakdown step ([#32408](https://github.com/lightdash/lightdash/issues/32408)) ([1fcba4d](https://github.com/lightdash/lightdash/commit/1fcba4d573d7821dc20b33aa4dfd142e56fa6c4b))
+
+
+### Features
+
+* **embed:** allow results and chart exports in embedded Explore ([#32404](https://github.com/lightdash/lightdash/issues/32404)) ([a64958b](https://github.com/lightdash/lightdash/commit/a64958b20459eadffd62f28ed59da0916c1b2544))
+
 ## [3.213.3](https://github.com/lightdash/lightdash/compare/3.213.2...3.213.3) (2026-11-11)
 
 
