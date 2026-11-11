@@ -17158,6 +17158,15 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     aiWritebackEnabled = false;
                 }
 
+                // On a dbt project Semantic Studio proposes first: the pull request tools join only the turn the person asks for one.
+                if (
+                    isSemanticStudioThread &&
+                    !semanticStudioDrafts &&
+                    !options.toolHints?.includes('editDbtProject')
+                ) {
+                    aiWritebackEnabled = false;
+                }
+
                 // Advisory signal of which GitHub identity a writeback PR would be
                 // attributed to, so the prompt can tell the user and nudge unlinked
                 // users to link their personal GitHub. GitHub-only (GitLab uses a

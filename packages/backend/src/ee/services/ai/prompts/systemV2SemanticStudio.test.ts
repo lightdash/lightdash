@@ -12,23 +12,32 @@ const base = {
 
 describe('getSemanticStudioSystemPrompt', () => {
     it('explains the draft tools on a project that keeps a draft', () => {
-        const prompt = getSemanticStudioSystemPrompt({
-            ...base,
-            dbtRepository: null,
-        });
+        const prompt = getSemanticStudioSystemPrompt({ ...base, dbt: null });
         expect(prompt).toContain('proposeSemanticLayerChange');
         expect(prompt).not.toContain('editDbtProject');
     });
 
-    it('explains the repository tools on a dbt project and never the draft', () => {
+    it('has a dbt project propose a diff and never open a pull request unasked', () => {
         const prompt = getSemanticStudioSystemPrompt({
             ...base,
-            dbtRepository: ['## Repository context\nroot hint'],
+            dbt: {
+                opensPullRequest: false,
+                sections: ['## Repository context\nroot hint'],
+            },
+        });
+        expect(prompt).toContain('```diff');
+        expect(prompt).toContain('## Repository context');
+        expect(prompt).not.toContain('editDbtProject');
+        expect(prompt).not.toContain('proposeSemanticLayerChange');
+        expect(prompt).not.toContain('your draft');
+    });
+
+    it('opens the pull request on the turn the person asks for it', () => {
+        const prompt = getSemanticStudioSystemPrompt({
+            ...base,
+            dbt: { opensPullRequest: true, sections: [] },
         });
         expect(prompt).toContain('editDbtProject');
-        expect(prompt).toContain('## Repository context');
-        expect(prompt).not.toContain('proposeSemanticLayerChange');
-        expect(prompt).not.toContain('readSemanticModel');
-        expect(prompt).not.toContain('your draft');
+        expect(prompt).not.toContain('```diff');
     });
 });

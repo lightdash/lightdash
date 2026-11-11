@@ -361,26 +361,36 @@ export const getSystemPromptV2 = (
                           schema: args.warehouseSchema ?? null,
                       }
                     : null,
-                // Only a dbt project's Studio thread is given the writeback tools.
-                dbtRepository: promptSections.has('aiWriteback')
-                    ? [
-                          getAiWritebackSection({
-                              // The pull request card offers linking, so the reply stays short.
-                              attribution: null,
-                              siteUrl,
-                              canEditContent: false,
-                          }),
-                          ...(promptSections.has('repoFs')
-                              ? [
-                                    getRepoFsSection({
-                                        root: repoFsRoot,
-                                        supportsCodeSearch:
-                                            repoFsSupportsCodeSearch,
-                                    }),
-                                ]
-                              : []),
-                      ]
-                    : null,
+                // Only a dbt project's Studio thread reads the repository; the writeback tools join the turn that opens the pull request.
+                dbt:
+                    promptSections.has('repoFs') ||
+                    promptSections.has('aiWriteback')
+                        ? {
+                              opensPullRequest:
+                                  promptSections.has('aiWriteback'),
+                              sections: [
+                                  ...(promptSections.has('aiWriteback')
+                                      ? [
+                                            getAiWritebackSection({
+                                                // The pull request card offers linking, so the reply stays short.
+                                                attribution: null,
+                                                siteUrl,
+                                                canEditContent: false,
+                                            }),
+                                        ]
+                                      : []),
+                                  ...(promptSections.has('repoFs')
+                                      ? [
+                                            getRepoFsSection({
+                                                root: repoFsRoot,
+                                                supportsCodeSearch:
+                                                    repoFsSupportsCodeSearch,
+                                            }),
+                                        ]
+                                      : []),
+                              ],
+                          }
+                        : null,
             }),
         );
     }

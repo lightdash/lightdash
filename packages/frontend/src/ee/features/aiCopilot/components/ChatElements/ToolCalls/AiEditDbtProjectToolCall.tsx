@@ -590,7 +590,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
 
     if (metadata.status === 'pending') {
         return (
-            <Paper p="sm" radius="md">
+            <Paper p="sm" radius="md" className={styles.card}>
                 <Group gap="xs" align="center" wrap="nowrap">
                     <ThemeIcon
                         variant="light"

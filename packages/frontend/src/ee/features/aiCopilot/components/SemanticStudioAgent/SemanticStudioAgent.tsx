@@ -1,5 +1,6 @@
 import {
     type AiAgentSummary,
+    type AiAgentThread,
     type AiPromptContext,
     type AiPromptContextInput,
 } from '@lightdash/common';
@@ -14,7 +15,11 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconLayoutSidebarRightCollapse, IconPlus } from '@tabler/icons-react';
+import {
+    IconGitPullRequest,
+    IconLayoutSidebarRightCollapse,
+    IconPlus,
+} from '@tabler/icons-react';
 import { useEffect, useEffectEvent, useRef, type FC } from 'react';
 import { Provider } from 'react-redux';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -60,6 +65,16 @@ const withOpenModel = (
         context: [...item, ...(context ?? [])],
         optimisticContext: [...item, ...(optimisticContext ?? [])],
     };
+};
+
+/** Whether the agent's latest reply proposes a change that no pull request carries yet. */
+const hasOpenProposal = (messages: AiAgentThread['messages']): boolean => {
+    const last = messages.findLast(({ role }) => role === 'assistant');
+    return (
+        last?.role === 'assistant' &&
+        (last.message ?? '').includes('```diff') &&
+        !last.toolCalls.some(({ toolName }) => toolName === 'editDbtProject')
+    );
 };
 
 const useStartThread = (
@@ -230,6 +245,7 @@ const ExistingThread: FC<
                 ...withOpenModel({ modelName, fieldName }, { message }),
             }),
     );
+    const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
     if (isLoading || !thread) {
         return (
             <Center flex={1}>
@@ -237,6 +253,7 @@ const ExistingThread: FC<
             </Center>
         );
     }
+    const isBusy = isSending || isStreaming || isThreadPending;
     return (
         <AgentChatDisplay
             thread={thread}
@@ -246,9 +263,29 @@ const ExistingThread: FC<
             agentUuid={agent.uuid}
             renderArtifactsInline
         >
+            {!keepsDraft && !isBusy && hasOpenProposal(thread.messages) ? (
+                <Button
+                    size="xs"
+                    variant="default"
+                    mb="xs"
+                    leftSection={
+                        <MantineIcon icon={IconGitPullRequest} size={14} />
+                    }
+                    onClick={() =>
+                        void sendMessage({
+                            enableSqlMode: sqlMode,
+                            prompt: 'Open the pull request.',
+                            // The pull request tools only join a turn that carries this hint.
+                            toolHints: ['editDbtProject'],
+                        })
+                    }
+                >
+                    Open pull request
+                </Button>
+            ) : null}
             <AgentChatInput
                 accessCalloutVariant="inline"
-                loading={isSending || isStreaming || isThreadPending}
+                loading={isBusy}
                 onSubmit={(submitted) =>
                     void sendMessage({
                         enableSqlMode: sqlMode,

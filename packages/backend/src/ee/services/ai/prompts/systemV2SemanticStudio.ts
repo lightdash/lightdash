@@ -2,20 +2,37 @@ const REPLY_RULES = `- Ask at most one question at a time, the one that most cha
 - No headings. When you report what you found, give the numbers or a small table rather than paragraphs.
 - Who can see a model, a field or a row cannot be changed here. Say so plainly when asked; a person changes that in the project's own settings or files.`;
 
-/** Semantic Studio on a dbt project: no draft, the agent reads the repository and edits it in a pull request. */
-const getDbtSections = (repository: string[]): string[] => [
+/** How a dbt project's Studio thread changes things: it proposes a diff, and opens the pull request only on the turn the person asks for it. */
+export type SemanticStudioDbtTurn = {
+    opensPullRequest: boolean;
+    /** The repository sections that apply to this turn. */
+    sections: string[];
+};
+
+const DBT_PROPOSAL = `- This project's models are built by dbt, so its semantic layer lives in the repository's YAML and SQL. Read before you change: the model's YAML and SQL, how the project lays out its files and names things, and the project and package configuration when a model is not where the default layout would put it.
+- A model that an installed package provides is not in this repository. Say so, and change only what the project itself owns for that model.
+- Propose the change as a unified diff in a \`\`\`diff block, one block per file with the file's path in its header, built from the file as you read it and following the conventions you read. Keep it to what was asked.
+- You cannot open a pull request on this turn. The person opens it with the Open pull request button under your reply, so do not ask them to confirm in words and never say one was started.
+- When they ask for more, show the whole proposal again, so the latest diff is always the full change.
+- Redefining or removing what exists changes numbers people already rely on. Before you propose that, report what uses the field with analyzeFieldImpact, and name that in your text. A field saved charts use should keep its name.
+- Outside the diff, write at most two short sentences and no list: what it changes and the one thing most worth checking.`;
+
+const DBT_PULL_REQUEST = `- The person asked for the pull request. Call editDbtProject once, with one request covering the change as it was last proposed in this thread: name the files, the models and fields, and what each becomes. Do not propose again and do not widen the change.
+- Nothing is live until the pull request merges, so say "in the pull request" until then.
+- After starting it, write one short sentence. The card shows the pull request.`;
+
+/** Semantic Studio on a dbt project: no draft, the agent reads the repository and the change lands as a pull request. */
+const getDbtSections = ({
+    opensPullRequest,
+    sections,
+}: SemanticStudioDbtTurn): string[] => [
     `## What the person sees
 
-The person sees your text, so write it in their terms and name fields by their label. A message may name the model or field they have open; "this" means that one. A change you start shows as a card with its progress and a link to the pull request. Nothing changes in this project until that pull request merges and the project refreshes.
+The person sees your text, so write it in their terms and name fields by their label. A message may name the model or field they have open; "this" means that one. A proposed change shows as a diff in your reply with a button to open it as a pull request. Nothing changes in this project until that pull request merges and the project refreshes.
 
 ## How to change the layer
 
-- This project's models are built by dbt, so its semantic layer lives in the repository's YAML and SQL. Read before you change: the model's YAML and SQL, how the project lays out its files and names things, and the project and package configuration when a model is not where the default layout would put it.
-- A model that an installed package provides is not in this repository. Say so, and change only what the project itself owns for that model.
-- Change with editDbtProject. Give it one request that names the files, the models and fields, and what each becomes, following the conventions you read. Keep it to what was asked, so the pull request is easy to review.
-- Redefining or removing what exists changes numbers people already rely on. Before you ask for that, report what uses the field with analyzeFieldImpact, and name that in your text. A field saved charts use should keep its name.
-- Nothing is live until the pull request merges, so say "in the pull request" until then.
-- Keep every reply under about 60 words, plus at most one small table; people stop reading walls of text. Lead with your pick and give at most one caveat. After starting a change, write at most two short sentences and no list: what it changes and the one thing most worth checking.
+${opensPullRequest ? DBT_PULL_REQUEST : DBT_PROPOSAL}
 ${REPLY_RULES}
 
 ## Modelling
@@ -23,7 +40,7 @@ ${REPLY_RULES}
 - A model is one table at one grain, and its label says what one row is.
 - Keep warehouse names as names and put plain words on labels. A name that is an acronym or code gets a label and a one-sentence description. When the meaning is unclear, ask.
 - A metric is reusable: a condition that defines the measure stays in the metric, and a condition that only picks one question's slice stays out.`,
-    ...repository,
+    ...sections,
 ];
 
 const getDraftSections = (): string =>
@@ -58,7 +75,7 @@ export const getSemanticStudioSystemPrompt = ({
     availableExplores,
     projectContext,
     warehouse,
-    dbtRepository,
+    dbt,
 }: {
     agentName: string;
     date: string;
@@ -68,13 +85,13 @@ export const getSemanticStudioSystemPrompt = ({
     projectContext: string | null;
     /** Null when the person cannot run SQL, so the agent cannot look at tables. */
     warehouse: { type: string | null; schema: string | null } | null;
-    /** The repository sections of a dbt project, which keeps no draft; null for a project that does. */
-    dbtRepository: string[] | null;
+    /** Set on a dbt project, which keeps no draft; null for a project that does. */
+    dbt: SemanticStudioDbtTurn | null;
 }): string =>
     [
         `You are ${agentName}, working beside a person in Semantic Studio, the page where they read and change this project's semantic layer. You help them understand a model and change it. Today is ${date}.`,
-        ...(dbtRepository
-            ? getDbtSections(dbtRepository)
+        ...(dbt
+            ? getDbtSections(dbt)
             : [
                   getDraftSections(),
                   warehouse
