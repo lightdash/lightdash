@@ -1339,6 +1339,15 @@ describe('derivePivotConfigurationFromChart', () => {
             ).toBe(true);
         });
 
+        it('does not fold when the chart has its own column limit', () => {
+            const result = derive('orders_count', {
+                ...stackedSeries('orders_count'),
+                columnLimit: 5,
+            });
+            expect(result).toBeDefined();
+            expect(result?.foldOverflowGroups).toBeUndefined();
+        });
+
         it('folds the overflow when stacking is set on the layout', () => {
             expect(
                 derive('orders_count', {

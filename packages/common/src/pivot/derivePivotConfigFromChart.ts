@@ -404,8 +404,13 @@ function getCartesianPivotConfiguration(
             (chartConfig.config.eChartsConfig.series ?? []).some(
                 (series) => series.stack !== undefined || !!series.areaStyle,
             );
+        // A chart with its own Column limit shows only the first N groups on
+        // purpose, and "Other" would be one of the groups it hides, so there
+        // is nothing to fold.
+        const hasChartColumnLimit = (chartConfig.config.columnLimit ?? 0) > 0;
         const foldOverflowGroups =
             isStacked &&
+            !hasChartColumnLimit &&
             groupByColumns.length > 0 &&
             valuesColumns.length > 0 &&
             valuesColumns.every((col) => isNumericItem(fields[col.reference]));

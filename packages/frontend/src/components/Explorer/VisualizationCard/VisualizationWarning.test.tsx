@@ -258,6 +258,41 @@ describe('VisualizationWarning', () => {
         );
     });
 
+    it('does not warn about the column limit when the chart has its own smaller column limit', () => {
+        renderWithProviders(
+            <VisualizationWarning
+                {...props}
+                chartConfig={{
+                    type: ChartType.CARTESIAN,
+                    config: {
+                        layout: {
+                            xField: 'orders_date',
+                            yField: ['orders_status'],
+                        },
+                        eChartsConfig: {},
+                        columnLimit: 5,
+                    },
+                }}
+                resultsData={{
+                    ...props.resultsData,
+                    pivotDetails: {
+                        totalColumnCount: 412,
+                        indexColumn: undefined,
+                        valuesColumns: [],
+                        groupByColumns: undefined,
+                        sortBy: undefined,
+                        originalColumns: {},
+                    },
+                }}
+                maxColumnLimit={200}
+            />,
+        );
+
+        expect(
+            screen.queryByRole('img', { name: 'Results may be incorrect' }),
+        ).not.toBeInTheDocument();
+    });
+
     it('does not warn when every dimension is used', () => {
         renderWithProviders(
             <VisualizationWarning

@@ -11,8 +11,10 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import { isEqual } from 'es-toolkit/compat';
 import { useMemo, type FC } from 'react';
 import {
+    getChartColumnLimit,
     getPivotColumnLimitMessage,
     hasOtherPivotGroup,
+    isWithinChartColumnLimit,
 } from '../../../hooks/usePivotColumnLimitMessage';
 import { type InfiniteQueryResults } from '../../../hooks/useQueryResults';
 import MantineIcon from '../../common/MantineIcon';
@@ -63,6 +65,19 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
                 ),
             }),
         [resultsData?.pivotDetails, maxColumnLimit],
+    );
+
+    // The chart's own Column limit shows fewer groups than the results hold.
+    // The user chose what is shown, so the groups the server left out (or
+    // added together as "Other") make no difference and need no message.
+    const isWithinChartLimit = useMemo(
+        () =>
+            isWithinChartColumnLimit({
+                chartColumnLimit: getChartColumnLimit(chartConfig),
+                maxColumnLimit,
+                valuesColumns: resultsData?.pivotDetails?.valuesColumns,
+            }),
+        [chartConfig, maxColumnLimit, resultsData?.pivotDetails?.valuesColumns],
     );
 
     // The results fold groups past the column limit into "Other" (stacked
@@ -147,6 +162,7 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
                 'Please re-run the query to fetch the latest data with correct group by settings.',
             );
         }
+        if (isWithinChartLimit) return _messages;
         if (hasStaleOtherGroup) {
             _messages.push(
                 'These results add the groups past the column limit together as "Other", which only applies to stacked charts. Re-run the query to update them.',
@@ -167,6 +183,7 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         pivotColumnLimitMessage,
         hasStaleOtherGroup,
         isMissingOtherGroup,
+        isWithinChartLimit,
     ]);
 
     if (messages.length === 0) return null;

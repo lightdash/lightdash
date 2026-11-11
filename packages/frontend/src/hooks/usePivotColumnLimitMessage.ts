@@ -1,4 +1,8 @@
-import { type PivotValuesColumn } from '@lightdash/common';
+import {
+    ChartType,
+    type ChartConfig,
+    type PivotValuesColumn,
+} from '@lightdash/common';
 import useApp from '../providers/App/useApp';
 
 type PivotColumnLimitDetails =
@@ -17,6 +21,38 @@ export const hasOtherPivotGroup = (
     valuesColumns: PivotValuesColumn[] | undefined,
 ): boolean =>
     (valuesColumns ?? []).some((column) => column.isOtherGroup === true);
+
+/** The chart's own "Column limit" setting (cartesian charts). */
+export const getChartColumnLimit = (
+    chartConfig: ChartConfig | undefined,
+): number | undefined =>
+    chartConfig?.type === ChartType.CARTESIAN
+        ? chartConfig.config?.columnLimit
+        : undefined;
+
+/**
+ * True when the chart's own Column limit shows no more groups than the
+ * results hold. The user then chose what is shown, so the groups the server
+ * left out make no difference to the chart and need no warning.
+ * The server limit is shared between the chart's metrics.
+ */
+export const isWithinChartColumnLimit = ({
+    chartColumnLimit,
+    maxColumnLimit,
+    valuesColumns,
+}: {
+    chartColumnLimit: number | undefined;
+    maxColumnLimit: number | undefined;
+    valuesColumns: PivotValuesColumn[] | undefined;
+}): boolean => {
+    if (!chartColumnLimit || chartColumnLimit <= 0 || !maxColumnLimit) {
+        return false;
+    }
+    const metricCount =
+        new Set((valuesColumns ?? []).map((column) => column.referenceField))
+            .size || 1;
+    return chartColumnLimit <= Math.floor(maxColumnLimit / metricCount);
+};
 
 /**
  * Grouped (pivoted) queries return at most `maxColumnLimit` columns. Unless
@@ -48,9 +84,19 @@ export const getPivotColumnLimitMessage = ({
  */
 export const usePivotColumnLimitMessage = (
     pivotDetails: PivotColumnLimitDetails,
+    chartConfig?: ChartConfig,
 ): string | null => {
     const { health } = useApp();
     if (hasOtherPivotGroup(pivotDetails?.valuesColumns)) return null;
+    if (
+        isWithinChartColumnLimit({
+            chartColumnLimit: getChartColumnLimit(chartConfig),
+            maxColumnLimit: health.data?.pivotTable?.maxColumnLimit,
+            valuesColumns: pivotDetails?.valuesColumns,
+        })
+    ) {
+        return null;
+    }
     return getPivotColumnLimitMessage({
         totalColumnCount: pivotDetails?.totalColumnCount,
         maxColumnLimit: health.data?.pivotTable?.maxColumnLimit,

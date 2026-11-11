@@ -643,6 +643,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
         const savedMerge = chart.merge ?? null;
         const pivotColumnLimitMessage = usePivotColumnLimitMessage(
             resultsData.pivotDetails,
+            chart.chartConfig,
         );
         // A merged tile's filters echo per source; the other source's explore
         // is needed to label them.
@@ -2108,6 +2109,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMinimalProps> = (
     } = dashboardChartReadyQuery;
     const pivotColumnLimitMessage = usePivotColumnLimitMessage(
         resultsData.pivotDetails,
+        chart.chartConfig,
     );
     const showEditChart =
         onEditChart !== undefined &&

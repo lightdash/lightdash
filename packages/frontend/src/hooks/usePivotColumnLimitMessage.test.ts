@@ -1,5 +1,12 @@
+import {
+    VizAggregationOptions,
+    type PivotValuesColumn,
+} from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
-import { getPivotColumnLimitMessage } from './usePivotColumnLimitMessage';
+import {
+    getPivotColumnLimitMessage,
+    isWithinChartColumnLimit,
+} from './usePivotColumnLimitMessage';
 
 describe('getPivotColumnLimitMessage', () => {
     it('warns that groups are left out when they exceed the limit', () => {
@@ -35,6 +42,42 @@ describe('getPivotColumnLimitMessage', () => {
         'returns null for $totalColumnCount columns with a limit of $maxColumnLimit',
         (args) => {
             expect(getPivotColumnLimitMessage(args)).toBeNull();
+        },
+    );
+});
+
+describe('isWithinChartColumnLimit', () => {
+    const columnFor = (referenceField: string): PivotValuesColumn => ({
+        referenceField,
+        pivotColumnName: `${referenceField}_any_a`,
+        aggregation: VizAggregationOptions.ANY,
+        pivotValues: [],
+    });
+    const oneMetric = [columnFor('orders_total')];
+    const twoMetrics = [columnFor('orders_total'), columnFor('orders_count')];
+
+    it.each([
+        { chartColumnLimit: 5, valuesColumns: oneMetric, expected: true },
+        { chartColumnLimit: 200, valuesColumns: oneMetric, expected: true },
+        { chartColumnLimit: 201, valuesColumns: oneMetric, expected: false },
+        // Two metrics share the 200 columns, so each keeps 100 groups
+        { chartColumnLimit: 100, valuesColumns: twoMetrics, expected: true },
+        { chartColumnLimit: 150, valuesColumns: twoMetrics, expected: false },
+        {
+            chartColumnLimit: undefined,
+            valuesColumns: oneMetric,
+            expected: false,
+        },
+    ])(
+        'is $expected for a chart limit of $chartColumnLimit',
+        ({ chartColumnLimit, valuesColumns, expected }) => {
+            expect(
+                isWithinChartColumnLimit({
+                    chartColumnLimit,
+                    maxColumnLimit: 200,
+                    valuesColumns,
+                }),
+            ).toBe(expected);
         },
     );
 });
