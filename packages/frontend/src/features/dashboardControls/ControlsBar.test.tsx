@@ -1,4 +1,8 @@
-import { DashboardControlRefKind, FilterOperator } from '@lightdash/common';
+import {
+    DashboardControlRefKind,
+    FilterOperator,
+    type DashboardTile,
+} from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import { type ComponentProps, type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -435,6 +439,89 @@ describe('ControlsBar', () => {
         expect(
             screen.queryByRole('button', { name: 'Filters and parameters' }),
         ).not.toBeInTheDocument();
+    });
+
+    describe('on a dashboard whose tiles take no filters', () => {
+        const markdownOnly = (zoomable: boolean) => {
+            const store = createDashboardTestStore({
+                chartZoomableFieldsByTileUuid: zoomable
+                    ? {
+                          'tile-1': [
+                              {
+                                  fieldId: 'orders_date',
+                                  label: 'Order date',
+                                  tableName: 'orders',
+                              },
+                          ],
+                      }
+                    : {},
+            });
+            seedDashboardEditState(store, {
+                dashboardTiles: [
+                    {
+                        uuid: 'tile-1',
+                        type: 'markdown',
+                        properties: {},
+                    } as unknown as DashboardTile,
+                ],
+            });
+            return store;
+        };
+        const noFilterTiles = {
+            ...baseProps,
+            hasTilesThatSupportFilters: false,
+        };
+
+        it('shows a viewer the default zoom pill and no filters', () => {
+            renderWithAppProviders(
+                <DashboardStoreTestProvider store={markdownOnly(true)}>
+                    <ControlsBar {...noFilterTiles} />
+                </DashboardStoreTestProvider>,
+            );
+            expect(
+                screen.getByRole('button', { name: /^Default zoom is/ }),
+            ).toBeInTheDocument();
+            expect(screen.queryByTestId('filter-pills')).toBeNull();
+            expect(screen.queryByRole('button', { name: 'Add' })).toBeNull();
+        });
+
+        it('hides the default zoom pill from a viewer when no tile zooms', () => {
+            renderWithAppProviders(
+                <DashboardStoreTestProvider store={markdownOnly(false)}>
+                    <ControlsBar {...noFilterTiles} />
+                </DashboardStoreTestProvider>,
+            );
+            expect(
+                screen.queryByRole('button', { name: /^Default zoom is/ }),
+            ).toBeNull();
+        });
+
+        it('gives an editor Add and the default zoom pill', () => {
+            renderWithAppProviders(
+                <DashboardStoreTestProvider store={markdownOnly(true)}>
+                    <ControlsBar {...noFilterTiles} isEditMode />
+                </DashboardStoreTestProvider>,
+            );
+            expect(
+                screen.getByRole('button', { name: 'Add' }),
+            ).toBeInTheDocument();
+            expect(
+                screen.getByRole('button', { name: /^Default zoom is/ }),
+            ).toBeInTheDocument();
+            expect(screen.queryByTestId('sectioned-filters')).toBeNull();
+        });
+
+        it('leaves the shipped bar as it is: date zoom on the right, no filters', () => {
+            renderWithAppProviders(
+                <DashboardStoreTestProvider store={markdownOnly(true)}>
+                    <DashboardFiltersBar {...noFilterTiles} />
+                </DashboardStoreTestProvider>,
+            );
+            expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', { name: 'Add filter' }),
+            ).toBeNull();
+        });
     });
 
     it('keeps the capsules while a tile change reloads the filter fields', () => {

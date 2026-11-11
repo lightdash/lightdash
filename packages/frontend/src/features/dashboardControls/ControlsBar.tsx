@@ -40,6 +40,10 @@ export const ControlsBar: FC<Props> = (props) => {
     const filterRow = (
         <DashboardFiltersBar
             {...props}
+            // Date zoom shows on any dashboard with tiles, as the shipped right side
+            hasTilesThatSupportFilters={
+                props.hasTilesThatSupportFilters || props.hasDashboardTiles
+            }
             // Parameters are controls on this bar, after the filters; none until they are built
             parameters={NO_PARAMETERS}
             // The rail is on the page: a drawer over it would hide it
@@ -57,7 +61,14 @@ export const ControlsBar: FC<Props> = (props) => {
             filterArea={
                 <SettledFilterFields>
                     {/* An editor's bar is always sectioned: its selection starts the first section */}
-                    {hasSections || props.isEditMode ? (
+                    {!props.hasTilesThatSupportFilters ? (
+                        // No tile takes filters or parameters: only date zoom
+                        <>
+                            {props.isEditMode && <AddControl />}
+                            <DateZoomPills />
+                            <DefaultZoomPill />
+                        </>
+                    ) : hasSections || props.isEditMode ? (
                         <SectionedFilters activeTabUuid={props.activeTabUuid} />
                     ) : (
                         <>
