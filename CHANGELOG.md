@@ -1,3 +1,10 @@
+## [3.210.1](https://github.com/lightdash/lightdash/compare/3.210.0...3.210.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **snowflake:** accept mis-pasted shared agent account keys and say why Test failed ([#32377](https://github.com/lightdash/lightdash/issues/32377)) ([584947c](https://github.com/lightdash/lightdash/commit/584947cab7373f4310ff1bee6f10b3b26e381a8a)), closes [PKCS#8](https://github.com/PKCS/issues/8)
+
 # [3.210.0](https://github.com/lightdash/lightdash/compare/3.209.1...3.210.0) (2026-11-11)
 
 
