@@ -4,7 +4,7 @@ import {
     type DashboardTile,
 } from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
 import { vi, type Mock } from 'vitest';
 
@@ -222,6 +222,143 @@ describe('useDashboardTileParameterReferences', () => {
         expect(
             Object.keys(store.getState().parameters.tileListedParameterSources),
         ).toEqual(['tile-open']);
+    });
+
+    describe('a tile pointed at another chart', () => {
+        const failure = (tileUuid: string) => [
+            { tileUuid, parameterReferences: null, error: 'Request failed' },
+        ];
+        const swap = (store: ReturnType<typeof createDashboardTestStore>) =>
+            act(() => {
+                store.dispatch(
+                    dashboardEditActions.setTiles([
+                        tile(
+                            'tile-open',
+                            'tab-1',
+                            DashboardTileTypes.SAVED_CHART,
+                            'chart-9',
+                        ),
+                    ]),
+                );
+            });
+        const report = (
+            store: ReturnType<typeof createDashboardTestStore>,
+            references: string[],
+            values: Record<string, string>,
+        ) =>
+            act(() => {
+                store.dispatch(
+                    dashboardParametersActions.addParameterReferences({
+                        tileUuid: 'tile-open',
+                        references,
+                    }),
+                );
+                store.dispatch(
+                    dashboardParametersActions.setTileChartSavedParameters({
+                        tileUuid: 'tile-open',
+                        values,
+                    }),
+                );
+            });
+
+        it("keeps the new chart's own report when its listing fails late", async () => {
+            let failListing = () => {};
+            mockApi
+                .mockResolvedValueOnce([listedTile('tile-open', ['a.region'])])
+                .mockImplementationOnce(
+                    () =>
+                        new Promise((resolve) => {
+                            failListing = () => resolve(failure('tile-open'));
+                        }),
+                );
+            const store = setup(undefined, [tiles[0]]);
+            await waitFor(() =>
+                expect(
+                    store.getState().parameters.tileListedParameterReferences,
+                ).toEqual({ 'tile-open': ['a.region'] }),
+            );
+            swap(store);
+            await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(2));
+            report(store, ['b.status'], { status: 'Open' });
+            act(() => failListing());
+            await waitFor(() =>
+                expect(
+                    Object.keys(
+                        store.getState().parameters.tileFailedParameterSources,
+                    ),
+                ).toEqual(['tile-open']),
+            );
+            expect(store.getState().parameters.tileParameterReferences).toEqual(
+                { 'tile-open': ['b.status'] },
+            );
+            expect(
+                store.getState().parameters.tileChartSavedParameters,
+            ).toEqual({ 'tile-open': { status: 'Open' } });
+        });
+
+        it("leaves nothing of a failed but reported chart when the new one's listing fails", async () => {
+            mockApi.mockResolvedValue(failure('tile-open'));
+            const store = setup(undefined, [tiles[0]]);
+            await waitFor(() =>
+                expect(
+                    Object.keys(
+                        store.getState().parameters.tileFailedParameterSources,
+                    ),
+                ).toEqual(['tile-open']),
+            );
+            report(store, ['a.region'], { region: 'EU' });
+            swap(store);
+            await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(2));
+            await waitFor(() =>
+                expect(
+                    store.getState().parameters.tileFailedParameterSources[
+                        'tile-open'
+                    ],
+                ).toContain('chart-9'),
+            );
+            const { parameters } = store.getState();
+            expect(parameters.tileParameterReferences).toEqual({});
+            expect(parameters.tileQueryParameterReferences).toEqual({});
+            expect(parameters.tileChartSavedParameters).toEqual({});
+        });
+
+        it("refills from the new chart's listing", async () => {
+            mockApi
+                .mockResolvedValueOnce([listedTile('tile-open', ['a.region'])])
+                .mockResolvedValueOnce([listedTile('tile-open', ['b.status'])]);
+            const store = setup(undefined, [tiles[0]]);
+            await waitFor(() =>
+                expect(
+                    store.getState().parameters.tileParameterReferences,
+                ).toEqual({ 'tile-open': ['a.region'] }),
+            );
+            swap(store);
+            await waitFor(() =>
+                expect(
+                    store.getState().parameters.tileParameterReferences,
+                ).toEqual({ 'tile-open': ['b.status'] }),
+            );
+        });
+
+        it('wipes nothing on the first load', async () => {
+            mockApi.mockResolvedValue(failure('tile-open'));
+            const store = createDashboardTestStore();
+            store.dispatch(
+                dashboardParametersActions.addParameterReferences({
+                    tileUuid: 'tile-open',
+                    references: ['a.region'],
+                }),
+            );
+            setup(undefined, [tiles[0]], [], store);
+            await waitFor(() =>
+                expect(
+                    store.getState().parameters.tileParameterStateSources,
+                ).toHaveProperty('tile-open'),
+            );
+            expect(store.getState().parameters.tileParameterReferences).toEqual(
+                { 'tile-open': ['a.region'] },
+            );
+        });
     });
 
     it('keeps a good listing of the same source when a refetch fails for it', async () => {

@@ -42,6 +42,21 @@ export const useDashboardTileParameterReferences = ({
         !!projectUuid &&
         tilesKey !== '';
 
+    // A tile pointed at another chart drops what it had, before its new query reports
+    useEffect(() => {
+        if (dashboardControlsFlag?.enabled !== true) return;
+        store.dispatch(
+            dashboardParametersActions.resetChangedTileParameterSources(
+                Object.fromEntries(
+                    selectTileQuerySources(store.getState()).map((source) => [
+                        source.tileUuid,
+                        JSON.stringify(source),
+                    ]),
+                ),
+            ),
+        );
+    }, [dashboardControlsFlag?.enabled, store, tilesKey]);
+
     const { data } = useQuery<DashboardTileParameterReferences[], ApiError>({
         queryKey: [
             'dashboards',

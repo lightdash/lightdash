@@ -37,6 +37,8 @@ export type DashboardParametersState = {
     tileListedParameterSources: Record<string, string>;
     /** Sources the list failed for: settled for the controls, but unknown until the tile reports */
     tileFailedParameterSources: Record<string, string>;
+    /** The source each tile's parameter state belongs to */
+    tileParameterStateSources: Record<string, string>;
     tileChartSavedParameters: Record<string, ParametersValuesMap>;
     tileVirtualViewSavedParameters: Record<string, ParametersValuesMap>;
     /** Null until seeded, which happens only with the dashboard-controls flag on */
@@ -67,6 +69,7 @@ export const initialDashboardParametersState: DashboardParametersState = {
     tileListedParameterReferences: {},
     tileListedParameterSources: {},
     tileFailedParameterSources: {},
+    tileParameterStateSources: {},
     tileChartSavedParameters: {},
     tileVirtualViewSavedParameters: {},
     parameterControls: null,
@@ -152,6 +155,10 @@ export const dashboardParametersActions = {
     /** Each tile's source the list failed for (an error, refused, or an older server) */
     markParameterReferencesFailed: createAction<Record<string, string>>(
         'dashboardParameters/markParameterReferencesFailed',
+    ),
+    /** Each tile's current source: a tile whose source changed drops its parameter state */
+    resetChangedTileParameterSources: createAction<Record<string, string>>(
+        'dashboardParameters/resetChangedTileParameterSources',
     ),
     setTileChartSavedParameters: createAction<{
         tileUuid: string;
@@ -507,21 +514,10 @@ export const dashboardParametersReducer = (
             chartSavedValues,
             virtualViewSavedValues,
         } = action.payload;
-        const tileQueryParameterReferences = {
-            ...state.tileQueryParameterReferences,
-        };
         const tileChartSavedParameters = { ...state.tileChartSavedParameters };
         const tileVirtualViewSavedParameters = {
             ...state.tileVirtualViewSavedParameters,
         };
-        Object.entries(sources).forEach(([tileUuid, source]) => {
-            const previousSource = state.tileListedParameterSources[tileUuid];
-            if (previousSource !== undefined && previousSource !== source) {
-                delete tileQueryParameterReferences[tileUuid];
-                delete tileChartSavedParameters[tileUuid];
-                delete tileVirtualViewSavedParameters[tileUuid];
-            }
-        });
         const seed = (
             target: Record<string, ParametersValuesMap>,
             listed: Record<string, ParametersValuesMap>,
@@ -535,7 +531,6 @@ export const dashboardParametersReducer = (
             ...withListedReferences(
                 {
                     ...state,
-                    tileQueryParameterReferences,
                     tileChartSavedParameters,
                     tileVirtualViewSavedParameters,
                 },
@@ -558,38 +553,59 @@ export const dashboardParametersReducer = (
     if (
         dashboardParametersActions.markParameterReferencesFailed.match(action)
     ) {
-        // A tile listed for another source: what it had belonged to the previous chart
-        const stale = Object.keys(action.payload).filter((tileUuid) => {
-            const listed = state.tileListedParameterSources[tileUuid];
-            return listed !== undefined && listed !== action.payload[tileUuid];
-        });
         return {
             ...state,
-            tileListedParameterReferences: omit(
-                state.tileListedParameterReferences,
-                stale,
-            ),
-            tileListedParameterSources: omit(
-                state.tileListedParameterSources,
-                stale,
-            ),
-            tileParameterReferences: omit(state.tileParameterReferences, stale),
-            tileQueryParameterReferences: omit(
-                state.tileQueryParameterReferences,
-                stale,
-            ),
-            tileChartSavedParameters: omit(
-                state.tileChartSavedParameters,
-                stale,
-            ),
-            tileVirtualViewSavedParameters: omit(
-                state.tileVirtualViewSavedParameters,
-                stale,
-            ),
             tileFailedParameterSources: {
                 ...state.tileFailedParameterSources,
                 ...action.payload,
             },
+        };
+    }
+    if (
+        dashboardParametersActions.resetChangedTileParameterSources.match(
+            action,
+        )
+    ) {
+        const recorded = state.tileParameterStateSources;
+        const sources = action.payload;
+        const changed = Object.keys(sources).filter(
+            (tileUuid) =>
+                recorded[tileUuid] !== undefined &&
+                recorded[tileUuid] !== sources[tileUuid],
+        );
+        if (Object.keys(sources).every((t) => recorded[t] === sources[t]))
+            return state;
+        return {
+            ...state,
+            tileListedParameterReferences: omit(
+                state.tileListedParameterReferences,
+                changed,
+            ),
+            tileListedParameterSources: omit(
+                state.tileListedParameterSources,
+                changed,
+            ),
+            tileFailedParameterSources: omit(
+                state.tileFailedParameterSources,
+                changed,
+            ),
+            tileParameterReferences: omit(
+                state.tileParameterReferences,
+                changed,
+            ),
+            tileQueryParameterReferences: omit(
+                state.tileQueryParameterReferences,
+                changed,
+            ),
+            tileChartSavedParameters: omit(
+                state.tileChartSavedParameters,
+                changed,
+            ),
+            tileVirtualViewSavedParameters: omit(
+                state.tileVirtualViewSavedParameters,
+                changed,
+            ),
+            tileParameterStateSources: { ...recorded, ...sources },
         };
     }
     if (dashboardParametersActions.setTileChartSavedParameters.match(action)) {
@@ -707,6 +723,10 @@ export const dashboardParametersReducer = (
             state.tileFailedParameterSources,
             tileUuids,
         );
+        const tileParameterStateSources = keepTiles(
+            state.tileParameterStateSources,
+            tileUuids,
+        );
         const tileChartSavedParameters = keepTiles(
             state.tileChartSavedParameters,
             tileUuids,
@@ -722,6 +742,7 @@ export const dashboardParametersReducer = (
                 state.tileListedParameterReferences &&
             tileListedParameterSources === state.tileListedParameterSources &&
             tileFailedParameterSources === state.tileFailedParameterSources &&
+            tileParameterStateSources === state.tileParameterStateSources &&
             tileChartSavedParameters === state.tileChartSavedParameters &&
             tileVirtualViewSavedParameters ===
                 state.tileVirtualViewSavedParameters
@@ -733,6 +754,7 @@ export const dashboardParametersReducer = (
                   tileListedParameterReferences,
                   tileListedParameterSources,
                   tileFailedParameterSources,
+                  tileParameterStateSources,
                   tileChartSavedParameters,
                   tileVirtualViewSavedParameters,
               };
