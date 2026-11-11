@@ -1,4 +1,4 @@
-import { DateGranularity } from '@lightdash/common';
+import { DateGranularity, type DateZoomControl } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -16,6 +16,7 @@ const renderEditor = ({
     enabledGranularities = enabled,
     defaultGranularity = DateGranularity.MONTH as string | null,
     initialView = 'value' as EditorView,
+    namedZooms = [] as Pick<DateZoomControl, 'uuid' | 'name' | 'granularity'>[],
 } = {}) => {
     const onApply = vi.fn();
     renderWithProviders(
@@ -23,7 +24,13 @@ const renderEditor = ({
             enabledGranularities={enabledGranularities}
             defaultGranularity={defaultGranularity}
             customLabels={customLabels}
-            mode={{ kind: 'editor', tileCount: 3, initialView, onApply }}
+            mode={{
+                kind: 'editor',
+                tileCount: 3,
+                namedZooms,
+                initialView,
+                onApply,
+            }}
             onCancel={vi.fn()}
         />,
     );
@@ -121,6 +128,54 @@ describe('DefaultZoomPopover', () => {
         });
         expect(screen.getByRole('checkbox', { name: 'Week' })).toBeDisabled();
         expect(screen.getByRole('checkbox', { name: 'Day' })).toBeEnabled();
+    });
+
+    it('says the grains are for every date zoom', () => {
+        renderEditor({ initialView: 'settings' });
+        expect(
+            screen.getByText('For every date zoom on this dashboard.'),
+        ).toBeInTheDocument();
+    });
+
+    it.each([
+        [['Revenue zoom'], 'Revenue zoom uses Week'],
+        [
+            ['Revenue zoom', 'Orders zoom'],
+            'Revenue zoom and Orders zoom use Week',
+        ],
+        [
+            ['Revenue zoom', 'Orders zoom', 'Payments zoom'],
+            'Revenue zoom and 2 other zooms use Week',
+        ],
+    ])('locks a grain in use by %j, saying who', async (names, reason) => {
+        renderEditor({
+            initialView: 'settings',
+            namedZooms: names.map((name, index) => ({
+                uuid: `z${index}`,
+                name,
+                granularity: DateGranularity.WEEK,
+            })),
+        });
+        const week = screen.getByRole('checkbox', { name: 'Week' });
+        expect(week).toBeDisabled();
+        expect(screen.getByRole('checkbox', { name: 'Month' })).toBeEnabled();
+        await userEvent.hover(screen.getByText('Week'));
+        expect(await screen.findByRole('tooltip')).toHaveTextContent(reason);
+    });
+
+    it('names the zoom over the last-grain reason when both apply', async () => {
+        renderEditor({
+            enabledGranularities: [DateGranularity.WEEK],
+            defaultGranularity: null,
+            initialView: 'settings',
+            namedZooms: [
+                { uuid: 'z1', name: 'Revenue zoom', granularity: 'Week' },
+            ],
+        });
+        await userEvent.hover(screen.getByText('Week'));
+        expect(await screen.findByRole('tooltip')).toHaveTextContent(
+            'Revenue zoom uses Week',
+        );
     });
 
     it("tells a viewer that clearing goes back to the dashboard's default", async () => {

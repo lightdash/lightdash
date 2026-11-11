@@ -2,6 +2,7 @@ import {
     DateGranularity,
     interpolateUiString,
     isStandardDateGranularity,
+    type DateZoomControl,
 } from '@lightdash/common';
 import {
     Box,
@@ -37,6 +38,8 @@ type EditorMode = {
     kind: 'editor';
     /** Zoomable tiles in no named zoom: the N in "Zooms the other N tiles". */
     tileCount: number;
+    /** Named zooms: a checked grain one of them uses can't be unchecked. */
+    namedZooms: Pick<DateZoomControl, 'uuid' | 'name' | 'granularity'>[];
     initialView: PopoverView;
     onApply: (next: DefaultZoom) => void;
 };
@@ -66,19 +69,28 @@ const toggleGrain = (enabled: string[], grain: string): string[] => {
     ];
 };
 
+// "Revenue zoom uses Week", "A and B use Week", "A and 2 other zooms use Week"
+const formatGrainUsers = (names: string[], grainLabel: string): string => {
+    const [first, second] = names;
+    if (names.length === 1) return `${first} uses ${grainLabel}`;
+    if (names.length === 2) return `${first} and ${second} use ${grainLabel}`;
+    return `${first} and ${names.length - 1} other zooms use ${grainLabel}`;
+};
+
 const GrainCheckbox: FC<{
     label: string;
     checked: boolean;
-    isLast: boolean;
+    /** Why it can't be unchecked; null: it can. */
+    lockReason: string | null;
     onToggle: () => void;
-}> = ({ label, checked, isLast, onToggle }) => (
-    <Tooltip fz="xs" label="Viewers need at least one grain" disabled={!isLast}>
+}> = ({ label, checked, lockReason, onToggle }) => (
+    <Tooltip fz="xs" label={lockReason} disabled={lockReason === null}>
         <Box w="fit-content">
             <Checkbox
                 size="xs"
                 label={label}
                 checked={checked}
-                disabled={isLast}
+                disabled={lockReason !== null}
                 onChange={onToggle}
             />
         </Box>
@@ -204,12 +216,21 @@ export const DefaultZoomPopover: FC<Props> = ({
                         : null,
             };
         });
+    // Unchecking a grain a named zoom is at would leave viewers unable to pick it back
+    const getLockReason = (grain: string): string | null => {
+        if (!enabled.includes(grain)) return null;
+        const users = mode.namedZooms
+            .filter(({ granularity }) => granularity === grain)
+            .map(({ name }) => name);
+        if (users.length > 0) return formatGrainUsers(users, labelOf(grain));
+        return enabled.length === 1 ? 'Viewers need at least one grain' : null;
+    };
     const checkbox = (grain: string) => (
         <GrainCheckbox
             key={grain}
             label={labelOf(grain)}
             checked={enabled.includes(grain)}
-            isLast={enabled.length === 1 && enabled[0] === grain}
+            lockReason={getLockReason(grain)}
             onToggle={() => toggle(grain)}
         />
     );
@@ -224,9 +245,14 @@ export const DefaultZoomPopover: FC<Props> = ({
                 }}
             />
             <Stack gap="xs">
-                <Text size="xs" fw={600}>
-                    Grains viewers can pick
-                </Text>
+                <Stack gap={2}>
+                    <Text size="xs" fw={600}>
+                        Grains viewers can pick
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                        For every date zoom on this dashboard.
+                    </Text>
+                </Stack>
                 <SimpleGrid cols={2} spacing="xs" verticalSpacing={6}>
                     {STANDARD_GRAINS.map(checkbox)}
                 </SimpleGrid>

@@ -82,6 +82,7 @@ type StatefulDefaultZoomPopoverProps = {
     isViewer: boolean;
     /** Zoomable tiles in no named zoom. */
     tileCount: number;
+    namedZooms: Pick<DateZoomControl, 'uuid' | 'name' | 'granularity'>[];
     viewerGranularity: string | null;
     initialView: PopoverView;
     onApply: (next: {
@@ -99,6 +100,7 @@ export const StatefulDefaultZoomPopover: FC<
     defaultGranularity,
     isViewer,
     tileCount,
+    namedZooms,
     viewerGranularity,
     initialView,
     onApply,
@@ -120,7 +122,13 @@ export const StatefulDefaultZoomPopover: FC<
                               granularity: viewerGranularity,
                               onApply: onViewerApply,
                           }
-                        : { kind: 'editor', tileCount, initialView, onApply }
+                        : {
+                              kind: 'editor',
+                              tileCount,
+                              namedZooms,
+                              initialView,
+                              onApply,
+                          }
                 }
                 onCancel={() => {
                     setOpening((count) => count + 1);

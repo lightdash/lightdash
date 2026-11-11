@@ -1,7 +1,7 @@
 import { DateGranularity } from '@lightdash/common';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { type ComponentProps } from 'react';
-import { expect, fn, within } from 'storybook/test';
+import { expect, fn, waitFor, within } from 'storybook/test';
 import { withStoryFrame } from './decorators';
 import {
     createDateZoomControl,
@@ -48,6 +48,7 @@ const defaultZoom = {
         defaultGranularity: DateGranularity.MONTH,
         isViewer: false,
         tileCount: 4,
+        namedZooms: [],
         viewerGranularity: null,
         initialView: 'value',
         onApply: fn(),
@@ -335,7 +336,7 @@ export const DefaultNone: DefaultStory = {
     },
 };
 
-/** Settings lists every standard grain, then the dashboard's custom ones; checking one adds it. */
+/** Settings lists every standard grain, then the dashboard's custom ones, for every zoom; checking one adds it. */
 export const DefaultSettings: DefaultStory = {
     ...defaultZoom,
     name: 'Default zoom, settings, custom grain',
@@ -346,6 +347,9 @@ export const DefaultSettings: DefaultStory = {
     },
     play: async ({ canvas, userEvent }) => {
         await expect(canvas.getByText('Grains viewers can pick')).toBeVisible();
+        await expect(
+            canvas.getByText('For every date zoom on this dashboard.'),
+        ).toBeVisible();
         await expect(
             canvas.getByRole('checkbox', { name: 'Second' }),
         ).not.toBeChecked();
@@ -359,6 +363,48 @@ export const DefaultSettings: DefaultStory = {
         await expect(
             canvas.getByRole('button', { name: 'Settings: 7 grains' }),
         ).toHaveFocus();
+    },
+};
+
+/** Grains named zooms are at stay checked: viewers could not pick them back. */
+export const DefaultSettingsInUse: DefaultStory = {
+    ...defaultZoom,
+    name: 'Default zoom, settings, grains in use',
+    args: {
+        ...defaultZoom.args,
+        initialView: 'settings',
+        namedZooms: [
+            createDateZoomControl(),
+            createDateZoomControl({ uuid: 'zoom-orders', name: 'Orders zoom' }),
+            createDateZoomControl({
+                uuid: 'zoom-payments',
+                name: 'Payments zoom',
+                granularity: DateGranularity.MONTH,
+            }),
+        ],
+    },
+    play: async ({ canvas, canvasElement, userEvent }) => {
+        await expect(
+            canvas.getByText('For every date zoom on this dashboard.'),
+        ).toBeVisible();
+        await expect(
+            canvas.getByRole('checkbox', { name: 'Day' }),
+        ).toBeEnabled();
+        for (const [grain, reason] of [
+            ['Week', 'Revenue zoom and Orders zoom use Week'],
+            ['Month', 'Payments zoom uses Month'],
+        ]) {
+            const box = canvas.getByRole('checkbox', { name: grain });
+            await expect(box).toBeChecked();
+            await expect(box).toBeDisabled();
+            await userEvent.hover(canvas.getByText(grain));
+            // The tooltip fades in
+            const tooltip = await onPage(canvasElement).findByRole('tooltip', {
+                name: reason,
+            });
+            await waitFor(() => expect(tooltip).toBeVisible());
+            await userEvent.unhover(canvas.getByText(grain));
+        }
     },
 };
 
