@@ -63,6 +63,7 @@ export const lightdashConfigMock: LightdashConfig = {
             iosClientId: undefined,
             androidClientId: undefined,
         },
+        trustedProvisioner: null,
         oidc: {
             authMethod: undefined,
             authSigningAlg: undefined,

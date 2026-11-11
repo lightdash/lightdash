@@ -98,6 +98,8 @@ import { ProjectService } from './ProjectService/ProjectService';
 import { provisionTrainingProject } from './ProjectService/provisionTrainingProject';
 import { PromoteService } from './PromoteService/PromoteService';
 import { PromptService } from './PromptService/PromptService';
+import { OidcTokenVerifier } from './ProvisioningService/oidcTokenVerifier';
+import { ProvisioningService } from './ProvisioningService/ProvisioningService';
 import { PullRequestsService } from './PullRequestsService/PullRequestsService';
 import { QuerySourceRegistry } from './QuerySourceService/QuerySourceRegistry';
 import { QuerySourceService } from './QuerySourceService/QuerySourceService';
@@ -158,6 +160,7 @@ interface ServiceManifest {
     licenseService: LicenseService;
     notificationService: NotificationsService;
     managedSignInService: ManagedSignInService;
+    provisioningService: ProvisioningService;
     oauthService: OAuthService;
 
     organizationDesignService: OrganizationDesignService;
@@ -776,6 +779,23 @@ export class ServiceRepository
                     organizationSsoModel: this.models.getOrganizationSsoModel(),
                     managedSignInModel: this.models.getManagedSignInModel(),
                     getUserService: () => this.getUserService(),
+                }),
+        );
+    }
+
+    public getProvisioningService(): ProvisioningService {
+        return this.getService(
+            'provisioningService',
+            () =>
+                new ProvisioningService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    userModel: this.models.getUserModel(),
+                    emailModel: this.models.getEmailModel(),
+                    managedSignInModel: this.models.getManagedSignInModel(),
+                    getOrganizationService: () => this.getOrganizationService(),
+                    getPersonalAccessTokenService: () =>
+                        this.getPersonalAccessTokenService(),
+                    verifier: new OidcTokenVerifier(),
                 }),
         );
     }
