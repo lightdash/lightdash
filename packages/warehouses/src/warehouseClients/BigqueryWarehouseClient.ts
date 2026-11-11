@@ -54,7 +54,7 @@ import {
     type WarehouseNestedColumnShape,
     type WarehouseQueryEstimate,
 } from '@lightdash/common';
-import { pipeline, Transform } from 'stream';
+import { pipeline, Readable } from 'stream';
 import {
     WarehouseCatalog,
     WarehouseExecuteAsyncQuery,
@@ -67,8 +67,11 @@ import {
     processPromisesInBatches,
 } from '../utils/processPromisesInBatches';
 import { normalizeUnicode } from '../utils/sql';
+import { createRowBatchWriter } from '../utils/streamRows';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
+
+export const BIGQUERY_RESULTS_PAGE_SIZE = 100;
 
 const MAX_RECOMMENDATION_PROJECTS = 8;
 const MAX_RECOMMENDATION_REGIONS_PER_PROJECT = 3;
@@ -818,29 +821,28 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     private async streamResults(
         job: Job,
         streamCallback: (
-            data: WarehouseResults['rows'][number],
+            data: WarehouseResults['rows'],
         ) => void | Promise<void>,
         options: QueryResultsOptions = {},
     ) {
+        async function* readPages() {
+            let nextQuery: QueryResultsOptions | null = options;
+            while (nextQuery) {
+                const [rows, query]: QueryRowsResponse =
+                    // eslint-disable-next-line no-await-in-loop
+                    await job.getQueryResults({
+                        ...nextQuery,
+                        autoPaginate: false,
+                        maxResults: BIGQUERY_RESULTS_PAGE_SIZE,
+                    });
+                yield* rows;
+                nextQuery = query ?? null;
+            }
+        }
         return new Promise<void>((resolve, reject) => {
             pipeline(
-                job.getQueryResultsStream(options),
-                new Transform({
-                    objectMode: true,
-                    async transform(chunk, _encoding, callback) {
-                        try {
-                            const chunkParsed = parseRow(chunk);
-                            await streamCallback(chunkParsed);
-                            callback();
-                        } catch (err) {
-                            if (err instanceof Error) {
-                                callback(err);
-                            } else {
-                                callback(new Error(String(err)));
-                            }
-                        }
-                    },
-                }),
+                Readable.from(readPages()),
+                createRowBatchWriter(parseRow, streamCallback),
                 (err: NodeJS.ErrnoException | null) => {
                     if (err) {
                         reject(err);
@@ -870,7 +872,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 BigqueryWarehouseClient.getFieldsFromResponse(resultsMetadata);
 
             await this.streamResults(job, (chunk) =>
-                streamCallback({ fields, rows: [chunk] }),
+                streamCallback({ fields, rows: chunk }),
             );
         } catch (e: unknown) {
             this.throwIfGoogleOauthTokenError(e);
@@ -1342,7 +1344,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             if (resultsStreamCallback) {
                 const fetchPhaseStart = performance.now();
                 await this.streamResults(job, (row) =>
-                    resultsStreamCallback([row], fields),
+                    resultsStreamCallback(row, fields),
                 );
                 fetchMs = performance.now() - fetchPhaseStart;
             }

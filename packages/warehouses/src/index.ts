@@ -18,3 +18,5 @@ export * from './warehouseClients/SnowflakeWarehouseClient';
 export * from './warehouseClients/snowflakePrivateKey';
 export * from './warehouseClients/TrinoWarehouseClient';
 export * from './warehouseSqlBuilderFromType';
+
+export { createTimeBudgetYield } from './utils/streamRows';

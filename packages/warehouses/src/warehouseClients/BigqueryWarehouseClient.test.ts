@@ -1726,3 +1726,47 @@ describe('BigqueryWarehouseClient.getTablePartitioning', () => {
         );
     });
 });
+
+describe('BigQuery result streaming pages', () => {
+    it('caps SDK pages and sends identical parsed rows in batches', async () => {
+        const warehouse = new BigqueryWarehouseClient(credentials);
+        const rows = Array.from({ length: 203 }, (_, id) => ({
+            id,
+            value: null,
+        }));
+        const getQueryResults = vi
+            .fn()
+            .mockResolvedValueOnce([[], null, { schema: { fields: [] } }])
+            .mockResolvedValueOnce([
+                rows.slice(0, 100),
+                { pageToken: 'second' },
+            ])
+            .mockResolvedValueOnce([[], { pageToken: 'third' }])
+            .mockResolvedValueOnce([
+                rows.slice(100, 200),
+                { pageToken: 'last' },
+            ])
+            .mockResolvedValueOnce([rows.slice(200), null]);
+        warehouse.client.createQueryJob = vi.fn(async () => [
+            { id: 'job', getQueryResults },
+        ]) as unknown as BigQuery['createQueryJob'];
+        const batches: unknown[] = [];
+        await warehouse.streamQuery(
+            'SELECT 1',
+            ({ rows: batch }) => {
+                batches.push(...batch);
+            },
+            {},
+        );
+        expect(getQueryResults).toHaveBeenNthCalledWith(2, {
+            autoPaginate: false,
+            maxResults: 100,
+        });
+        expect(getQueryResults).toHaveBeenNthCalledWith(5, {
+            pageToken: 'last',
+            autoPaginate: false,
+            maxResults: 100,
+        });
+        expect(batches).toEqual(rows);
+    });
+});

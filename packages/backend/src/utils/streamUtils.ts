@@ -1,3 +1,5 @@
+import type { WarehouseResults } from '@lightdash/common';
+import { createTimeBudgetYield } from '@lightdash/warehouses';
 import split2 from 'split2';
 import { pipeline, Readable, Writable } from 'stream';
 
@@ -40,4 +42,23 @@ export function splitJsonlStream(stream: Readable): AsyncIterable<string> {
         // pipeline requires a callback; iteration surfaces errors so noop here
         () => {},
     );
+}
+
+export function createJsonlWriter(stream: Writable) {
+    const yieldIfNeeded = createTimeBudgetYield();
+    return async (rows: WarehouseResults['rows']): Promise<void> => {
+        let buffer = '';
+        for await (const row of rows) {
+            buffer += `${JSON.stringify(row)}\n`;
+            const yielding = yieldIfNeeded();
+            if (buffer.length >= 64 * 1024 || yielding) {
+                await writeWithBackpressure(stream, buffer);
+                buffer = '';
+                if (yielding) await yielding;
+            }
+        }
+        if (buffer.length > 0) await writeWithBackpressure(stream, buffer);
+        const yielding = yieldIfNeeded();
+        if (yielding) await yielding;
+    };
 }
