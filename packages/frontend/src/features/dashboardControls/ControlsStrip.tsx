@@ -20,6 +20,8 @@ type LeadProps = {
     withToggle?: boolean;
     /** The dashboard-wide default zoom (default true). */
     withDefaultZoom?: boolean;
+    /** Controls or "Add" follow the lead: the default zoom's divider. */
+    hasFollowing: boolean;
 };
 
 // The strip's start: the toggle, then the default zoom, each followed by a
@@ -30,6 +32,7 @@ export const ControlsLead: FC<LeadProps> = ({
     onToggle,
     withToggle = true,
     withDefaultZoom = true,
+    hasFollowing,
 }) => {
     const getUiString = useUiStrings();
     const total = getControlTotal(counts);
@@ -86,7 +89,9 @@ export const ControlsLead: FC<LeadProps> = ({
                     <Divider orientation="vertical" />
                 </Group>
             )}
-            {withDefaultZoom && <DefaultZoomButton />}
+            {withDefaultZoom && (
+                <DefaultZoomButton withDivider={hasFollowing} />
+            )}
         </>
     );
 };
@@ -159,6 +164,7 @@ export const ControlsCollapsedStrip: FC<CollapsedProps> = ({
             onToggle={onExpand}
             withToggle={withToggle}
             withDefaultZoom={withDefaultZoom}
+            hasFollowing={getControlTotal(counts) > 0}
         />
         <ControlsCountLine counts={counts} />
     </Group>

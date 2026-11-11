@@ -146,7 +146,7 @@ const setup = ({
                 <ParameterEditorProvider isViewer={isViewer}>
                     <DateZoomEditorProvider isViewer={isViewer}>
                         <DateZoomPills />
-                        <DefaultZoomButton />
+                        <DefaultZoomButton withDivider />
                         <AddButton />
                         <button type="button" data-controls-pill="f1">
                             Region filter

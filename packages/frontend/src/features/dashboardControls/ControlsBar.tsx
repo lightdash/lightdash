@@ -19,7 +19,7 @@ import { ParameterMappingRow } from './ParameterMappingRow';
 import { ParameterPills } from './ParameterPills';
 import { SectionedFilters } from './SectionedFilters';
 import { SettledFilterFields } from './SettledFilterFields';
-import { useControlCounts } from './useControlCounts';
+import { getControlTotal, useControlCounts } from './useControlCounts';
 import { useControlsSidebarSelector } from './useControlsSidebar';
 import { useDateZoomEditorSelector } from './useDateZoomEditor';
 import { useHasControlsToggle } from './useHasControlsToggle';
@@ -38,6 +38,10 @@ export const ControlsBar: FC<Props> = (props) => {
     const compact = useCompactContentHeader();
     const hasToggle = useHasControlsToggle(props.isEditMode);
     const counts = useControlCounts();
+    const canAddFilters = useControlsSidebarSelector((c) => c.canAddFilters);
+    // "Add" shows for an editor, and for a viewer who can add where tiles take filters
+    const hasAdd =
+        props.isEditMode || (canAddFilters && props.hasTilesThatSupportFilters);
     // Sections or a stored order need the sectioned bar; else a viewer's is flat
     const hasSections = useDashboardSelector(
         (state) =>
@@ -51,6 +55,7 @@ export const ControlsBar: FC<Props> = (props) => {
             onToggle={props.onCollapse}
             // As the shipped Hide: not behind the narrow drawer
             withToggle={hasToggle && !compact}
+            hasFollowing={getControlTotal(counts) > 0 || hasAdd}
         />
     );
     const filterRow = (

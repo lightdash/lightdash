@@ -436,9 +436,11 @@ export const DateZoomPills: FC<Props> = ({
 };
 
 // The dashboard-wide default zoom, at the controls strip's start after the
-// toggle, then a divider. Never moved, picked or removed. Hidden from viewers
-// when nothing falls to it
-export const DefaultZoomButton: FC = () => {
+// toggle, then a divider when controls follow. Never moved, picked or
+// removed. Hidden from viewers when nothing falls to it
+export const DefaultZoomButton: FC<{ withDivider: boolean }> = ({
+    withDivider,
+}) => {
     const getUiString = useUiStrings();
     const contractClasses = useRailContractClasses();
     const isOpen = useDateZoomEditorSelector(
@@ -547,7 +549,7 @@ export const DefaultZoomButton: FC = () => {
                     </Button>
                 </Tooltip>
             </DateZoomEditorPopover>
-            <Divider orientation="vertical" />
+            {withDivider && <Divider orientation="vertical" />}
         </Group>
     );
 };

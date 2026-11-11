@@ -214,6 +214,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
             isOpen
             onToggle={() => setIsCollapsed(true)}
             withDefaultZoom={withDateZoomPills}
+            hasFollowing={isCollapsible || canAddFilters}
         />
     );
     const bar = (

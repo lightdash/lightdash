@@ -23,7 +23,12 @@ vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
 }));
 // The real button has its own tests; pin the strip's composition
 vi.mock('./DateZoomPills', () => ({
-    DefaultZoomButton: () => <button>Default zoom Month</button>,
+    DefaultZoomButton: ({ withDivider }: { withDivider: boolean }) => (
+        <>
+            <button>Default zoom Month</button>
+            {withDivider && <hr data-testid="default-zoom-divider" />}
+        </>
+    ),
 }));
 vi.mock('./useControlCounts', async (importOriginal) => ({
     ...(await importOriginal<typeof ControlCountsModule>()),
@@ -63,6 +68,7 @@ const Strip = () => {
                 counts={counts}
                 isOpen
                 onToggle={() => setIsOpen(false)}
+                hasFollowing
             />
         </div>
     ) : (
@@ -74,6 +80,35 @@ const Strip = () => {
 };
 
 describe('ControlsLead', () => {
+    it('draws the divider after the default zoom only when something follows', () => {
+        const zero = { filters: 0, parameters: 0, dateZooms: 0 };
+        const divider = () => screen.queryByTestId('default-zoom-divider');
+        const { unmount } = renderWithProviders(
+            <ControlsLead
+                counts={zero}
+                isOpen
+                onToggle={vi.fn()}
+                hasFollowing={false}
+            />,
+        );
+        expect(divider()).not.toBeInTheDocument();
+        unmount();
+
+        const collapsed = renderWithProviders(
+            <ControlsCollapsedStrip counts={zero} onExpand={vi.fn()} />,
+        );
+        expect(divider()).not.toBeInTheDocument();
+        collapsed.unmount();
+
+        renderWithProviders(
+            <ControlsCollapsedStrip
+                counts={{ ...zero, filters: 1 }}
+                onExpand={vi.fn()}
+            />,
+        );
+        expect(divider()).toBeInTheDocument();
+    });
+
     it('keeps focus on the toggle as it collapses and expands the strip', async () => {
         const user = userEvent.setup();
         renderWithProviders(<Strip />);
