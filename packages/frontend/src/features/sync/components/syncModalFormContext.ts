@@ -1,3 +1,4 @@
+import { type Filters } from '@lightdash/common';
 import { createFormContext } from '@mantine/form';
 
 export interface SyncModalFormValues {
@@ -13,6 +14,8 @@ export interface SyncModalFormValues {
     };
     saveInNewTab: boolean;
     showFilters?: boolean;
+    customizeFilters: boolean;
+    chartFilters: Filters | undefined;
     useCachedResults: boolean;
 }
 
@@ -34,5 +37,7 @@ export const DEFAULT_VALUES: SyncModalFormValues = {
     },
     saveInNewTab: false,
     showFilters: false,
+    customizeFilters: false,
+    chartFilters: undefined,
     useCachedResults: false,
 };
