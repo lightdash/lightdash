@@ -2,7 +2,6 @@ import {
     ApiConnectorType,
     assertUnreachable,
     DimensionType,
-    generateSlug,
     getItemId,
     isDimension,
     SupportedDbtAdapter,
@@ -46,12 +45,11 @@ const DEFAULT_SQL_BUILDER = warehouseSqlBuilderFromType(
  *
  * - explore = `<prefix>_<model>`, e.g. `google_analytics_report`
  * - field id = `<explore>_<field>`, e.g. `google_analytics_report_sessions`
- * - the prefix is the source name, fixed when the source is first built and
- *   stored (`liveSourceName`); a future configurable prefix follows the
- *   same rule
- * - display names change no id: the source's display name seeds the prefix
- *   only at first build, and model or field labels never feed ids, so
- *   renaming a source or relabelling a field keeps every chart working
+ * - the prefix is set once, when a source is created or reattached, and
+ *   stored (`liveSourceName`). A deleted source's prefix stays held until a
+ *   source reattaches to it, so its charts can't read another target
+ * - display names change no id: renaming a source or relabelling a field
+ *   keeps every chart working
  * - models are only ever added: today's model of each integration stays
  *   as its permanent wide model, and planned models reserve their names
  *   up front (`plannedModelNames`) so a dbt explore can't take them first
@@ -69,15 +67,6 @@ export const getLegacyLiveSourceName = (
     connector: ApiConnectorType,
     connectionUuid: string,
 ) => `${connector}_${connectionUuid.replace(/-/g, '').slice(0, 8)}`;
-
-/** A new source's name before any clash suffix: `PostHog` → `posthog`. */
-export const getLiveSourceNameBase = (
-    connector: ApiConnectorType,
-    name: string,
-) => {
-    const base = generateSlug(name).replace(/-/g, '_');
-    return /^[a-z][a-z0-9_]*$/.test(base) ? base : connector;
-};
 
 export const getApiSourceBaseLayer = (
     connector: ApiConnectorType,

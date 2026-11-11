@@ -272,15 +272,60 @@ export type CreateExternalConnection = {
     oauthClientAuthMethod?: OAuthClientAuthMethod | null;
     customHeaders?: Record<string, string> | null; // static non-secret headers sent on every request
     apiSource?: ExternalConnectionApiSource | null;
+    /**
+     * Prefix of a new live source's explore names. Defaults to one derived
+     * from the name. It is set once and can't be changed afterwards.
+     */
+    explorePrefix?: string;
     secret?: string | null; // bearer token, api key, client secret, or service-account keyfile JSON; null for type 'none'
 };
 
 /** Omitted/blank `secret` means the stored secret is left unchanged. */
 export const LIVE_SOURCE_AI_HINT_MAX_LENGTH = 500;
 
-export type UpdateExternalConnection = Partial<CreateExternalConnection> & {
+export type UpdateExternalConnection = Partial<
+    Omit<CreateExternalConnection, 'explorePrefix'>
+> & {
     /** Live sources only. Empty or null clears it. */
     aiHint?: string | null;
+};
+
+/** Whether a new live source can use an explore prefix. */
+export type ExplorePrefixCheck = {
+    prefix: string;
+    /** The explore names the prefix gives; empty when its format is invalid. */
+    exploreNames: string[];
+    error: string | null;
+    /** A free prefix close to the one asked for, when it's taken. */
+    suggestion: string | null;
+    suggestionExploreNames: string[];
+};
+
+export type ApiExplorePrefixCheckResponse = {
+    status: 'ok';
+    results: ExplorePrefixCheck;
+};
+
+/** A deleted live source whose explore prefix a new source can take over. */
+export type ReattachableLiveSource = {
+    externalConnectionUuid: string;
+    name: string;
+    explorePrefix: string;
+    exploreNames: string[];
+    apiSource: ExternalConnectionApiSource;
+    deletedAt: Date;
+    usedByChartCount: number;
+    /** Reads the same target as the source being reattached. */
+    isSameTarget: boolean;
+};
+
+export type ApiReattachableLiveSourcesResponse = {
+    status: 'ok';
+    results: ReattachableLiveSource[];
+};
+
+export type ApiReattachLiveSourceRequest = {
+    deletedConnectionUuid: string;
 };
 
 export type AppExternalConnectionLink = {

@@ -1733,7 +1733,56 @@ export class SavedChartModel {
         );
     }
 
+    /** Non-deleted saved charts on any of these explores, each counted once. */
+    async getChartCountForExplores(
+        projectUuid: string,
+        exploreNames: string[],
+    ): Promise<number> {
+        if (exploreNames.length === 0) {
+            return 0;
+        }
+        const [{ count }] = await this.database
+            .countDistinct<{ count: string }[]>({
+                count: 'latest_versions.saved_query_id',
+            })
+            .from(this.getLatestChartVersions(projectUuid))
+            .innerJoin(
+                SavedChartVersionsTableName,
+                `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                'latest_versions.max',
+            )
+            .whereIn(
+                `${SavedChartVersionsTableName}.explore_name`,
+                exploreNames,
+            );
+        return Number(count);
+    }
+
     async getChartCountPerField(projectUuid: string, fieldIds: string[]) {
+        const results = await this.database
+            .select({
+                fieldId: `${SavedChartVersionFieldsTableName}.name`,
+            })
+            .count<{ fieldId: string; count: BigInt }[]>(
+                `latest_versions.saved_query_id`,
+            )
+            .from(SavedChartVersionFieldsTableName)
+            .innerJoin(
+                this.getLatestChartVersions(projectUuid),
+                `${SavedChartVersionFieldsTableName}.saved_queries_version_id`,
+                'latest_versions.max',
+            )
+            .whereIn(`${SavedChartVersionFieldsTableName}.name`, fieldIds)
+            .groupBy(`${SavedChartVersionFieldsTableName}.name`);
+
+        return results.map(({ fieldId, count }) => ({
+            fieldId,
+            count: Number(count), // Count returns by default as BigInt, so we need to cast to number
+        }));
+    }
+
+    /** The latest version of each non-deleted chart in the project. */
+    private getLatestChartVersions(projectUuid: string) {
         const relevantCharts = this.database
             .select(`${SavedChartsTableName}.saved_query_id`)
             .distinct()
@@ -1751,35 +1800,13 @@ export class SavedChartModel {
             .where(`${SavedChartsTableName}.project_uuid`, projectUuid)
             .whereNull(`${SavedChartsTableName}.deleted_at`);
 
-        // Get latest versions for these charts
-        const latestVersions = this.database
+        return this.database
             .select('saved_query_id')
             .max('saved_queries_version_id')
             .from(SavedChartVersionsTableName)
             .whereIn('saved_query_id', relevantCharts)
             .groupBy('saved_query_id')
             .as('latest_versions');
-
-        const results = await this.database
-            .select({
-                fieldId: `${SavedChartVersionFieldsTableName}.name`,
-            })
-            .count<{ fieldId: string; count: BigInt }[]>(
-                `latest_versions.saved_query_id`,
-            )
-            .from(SavedChartVersionFieldsTableName)
-            .innerJoin(
-                latestVersions,
-                `${SavedChartVersionFieldsTableName}.saved_queries_version_id`,
-                'latest_versions.max',
-            )
-            .whereIn(`${SavedChartVersionFieldsTableName}.name`, fieldIds)
-            .groupBy(`${SavedChartVersionFieldsTableName}.name`);
-
-        return results.map(({ fieldId, count }) => ({
-            fieldId,
-            count: Number(count), // Count returns by default as BigInt, so we need to cast to number
-        }));
     }
 
     /**

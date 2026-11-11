@@ -11,6 +11,7 @@ import { useSearchParams } from 'react-router';
 import MantineModal from '../../../components/common/MantineModal';
 import useHealth from '../../../hooks/health/useHealth';
 import { useDeleteExternalConnection } from '../../externalConnections/hooks/useDeleteExternalConnection';
+import { useLiveSourceFields } from '../../externalConnections/hooks/useLiveSourceFields';
 import { AddLiveSourceModal } from '../../externalConnections/liveSources/AddLiveSourceModal';
 import {
     getGoogleSignInUrl,
@@ -20,7 +21,10 @@ import { GoogleConnectionModal } from '../../externalConnections/liveSources/Goo
 import { GoogleSourcePickerModal } from '../../externalConnections/liveSources/GoogleSourcePickerModal';
 import { getLinkedInAdsSignInUrl } from '../../externalConnections/liveSources/linkedInAdsConnection';
 import { LinkedInAdsConnectionModal } from '../../externalConnections/liveSources/LinkedInAdsConnectionModal';
-import { getLiveSource } from '../../externalConnections/liveSources/liveSourceCatalog';
+import {
+    formatChartCount,
+    getLiveSource,
+} from '../../externalConnections/liveSources/liveSourceCatalog';
 import {
     getPostHogSignInUrl,
     toPostHogFormValues,
@@ -54,13 +58,26 @@ const RemoveLiveSourceModal: FC<{
         deleted: 'Live data source deleted',
         failed: 'Failed to delete live data source',
     });
+    const { data: fields } = useLiveSourceFields({
+        projectUuid,
+        connectionUuid: connection.externalConnectionUuid,
+    });
+    const chartCount = fields?.usedByChartCount;
+    const chartsNote =
+        chartCount === 0
+            ? ''
+            : ` ${
+                  chartCount === undefined
+                      ? 'Charts on it'
+                      : `${formatChartCount(chartCount)} ${chartCount === 1 ? 'uses it. It' : 'use it. They'}`
+              } will stop working until you reattach a source.`;
     return (
         <MantineModal
             opened
             onClose={onClose}
             title="Delete live data source"
             variant="delete"
-            description={`"${connection.name}" will be disconnected and its explores removed. Charts built on it stop working.`}
+            description={`"${connection.name}" will be disconnected and its explores removed.${chartsNote}`}
             cancelDisabled={isLoading}
             confirmLoading={isLoading}
             onConfirm={() =>

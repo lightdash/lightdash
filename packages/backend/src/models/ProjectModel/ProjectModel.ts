@@ -8897,7 +8897,7 @@ export class ProjectModel {
     /** Which of these explore names belong to something other than this live source. */
     async findExploreNamesTakenByOthers(
         projectUuid: string,
-        connectionUuid: string,
+        connectionUuid: string | null,
         names: string[],
     ): Promise<string[]> {
         if (names.length === 0) {
