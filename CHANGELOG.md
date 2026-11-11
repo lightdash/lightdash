@@ -1,3 +1,10 @@
+## [3.210.2](https://github.com/lightdash/lightdash/compare/3.210.1...3.210.2) (2026-11-11)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** drag sections from anywhere on the capsule ([#32385](https://github.com/lightdash/lightdash/issues/32385)) ([42804ff](https://github.com/lightdash/lightdash/commit/42804ff7046408f98c76c2189ff19fe83bf619d9))
+
 ## [3.210.1](https://github.com/lightdash/lightdash/compare/3.210.0...3.210.1) (2026-11-11)
 
 
