@@ -21,6 +21,16 @@ const errorCategories: readonly [string, RegExp][] = [
     ['timeout', /\btimed? ?out\b/i],
 ];
 
+const safeErrorCode = (
+    details: { code: unknown; sqlState: unknown } | null,
+): string | null => {
+    const code = details?.code ?? details?.sqlState;
+    return (typeof code === 'string' || typeof code === 'number') &&
+        /^[A-Za-z0-9_.-]{1,40}$/.test(String(code))
+        ? String(code)
+        : null;
+};
+
 export const redactCredentialError = (
     error: unknown,
 ): {
@@ -37,14 +47,16 @@ export const redactCredentialError = (
                       message: unknown;
                       code: unknown;
                       sqlState: unknown;
+                      cause: unknown;
                   })
                 : null;
-        const code = details?.code ?? details?.sqlState;
         const errorCode =
-            (typeof code === 'string' || typeof code === 'number') &&
-            /^[A-Za-z0-9_.-]{1,40}$/.test(String(code))
-                ? String(code)
-                : null;
+            safeErrorCode(details) ??
+            safeErrorCode(
+                typeof details?.cause === 'object' && details.cause !== null
+                    ? (details.cause as { code: unknown; sqlState: unknown })
+                    : null,
+            );
         const rawMessage = typeof error === 'string' ? error : details?.message;
         let message =
             typeof rawMessage === 'string'
