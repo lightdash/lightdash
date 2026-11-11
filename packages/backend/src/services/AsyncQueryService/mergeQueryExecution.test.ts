@@ -1,6 +1,7 @@
 import {
     DimensionType,
     FieldType,
+    getItemLabel,
     isMergeMetricSource,
     MergeJoinType,
     MetricType,
@@ -20,7 +21,7 @@ import {
     getMergeRowCapError,
     getMergeSourceLabels,
     planMergeSourceTotalLegs,
-    withBareCalculationLabels,
+    withBareCalculationItems,
 } from './mergeQueryExecution';
 
 const sourceQuery = (metrics: string[], calculations: string[] = []) =>
@@ -430,6 +431,18 @@ describe('buildMergeRowCapGuard', () => {
             ),
         ).toBeNull();
     });
+
+    test('checks a leg that ran at its own limit against that limit', () => {
+        const composerGuard = buildMergeRowCapGuard({
+            legLabelByReferenceTable: { merge_source_0: 'Orders' },
+            sourceRowCap: 500,
+            legLimitByReferenceTable: { merge_source_0: 1000 },
+        });
+        expect(composerGuard(completed({ merge_source_0: 600 }))).toBeNull();
+        expect(composerGuard(completed({ merge_source_0: 1000 }))).toBe(
+            'Orders returned its limit of 1000 rows, so the merged results would be missing data. Raise the limit of Orders or narrow it, then merge again.',
+        );
+    });
 });
 
 describe('planMergeSourceTotalLegs', () => {
@@ -504,43 +517,25 @@ describe('planMergeSourceTotalLegs', () => {
     });
 });
 
-describe('withBareCalculationLabels', () => {
-    test('labels a calculation by its own name and leaves other columns', () => {
-        expect(
-            withBareCalculationLabels(
-                {
-                    merge_month: {
-                        reference: 'merge_month',
-                        type: DimensionType.DATE,
-                        label: 'Merged Month',
-                    },
-                    merge_rate: {
-                        reference: 'merge_rate',
-                        type: DimensionType.NUMBER,
-                        label: 'Merged Revenue per item',
-                    },
-                },
-                {
-                    tableCalculations: [
-                        {
-                            name: 'rate',
-                            displayName: 'Revenue per item',
-                            sql: '',
-                        },
-                    ],
-                },
-            ),
-        ).toEqual({
-            merge_month: {
-                reference: 'merge_month',
-                type: DimensionType.DATE,
-                label: 'Merged Month',
+describe('withBareCalculationItems', () => {
+    test('drops the merged table label from calculations only', () => {
+        const item = (name: string) =>
+            ({
+                table: 'merge',
+                tableLabel: 'Merged',
+                name,
+                label: name,
+                fieldType: FieldType.METRIC,
+            }) as unknown as ItemsMap[string];
+        const items = withBareCalculationItems(
+            { merge_month: item('month'), merge_rate: item('rate') },
+            {
+                tableCalculations: [
+                    { name: 'rate', displayName: 'Rate', sql: '' },
+                ],
             },
-            merge_rate: {
-                reference: 'merge_rate',
-                type: DimensionType.NUMBER,
-                label: 'Revenue per item',
-            },
-        });
+        );
+        expect(getItemLabel(items.merge_rate)).toBe('rate');
+        expect(getItemLabel(items.merge_month)).toBe('Merged month');
     });
 });

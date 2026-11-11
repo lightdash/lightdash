@@ -462,7 +462,7 @@ import {
     getMergeResultSourceCutShortError,
     getMergeSourceLabels,
     planMergeSourceTotalLegs,
-    withBareCalculationLabels,
+    withBareCalculationItems,
 } from './mergeQueryExecution';
 import {
     buildMergeExecutedEvent,
@@ -15051,6 +15051,7 @@ export class AsyncQueryService extends ProjectService {
                 typedColumns: compiledMerge.typedColumns,
                 itemsMap: compiledMerge.itemsMap,
             }),
+            legsRunAtOwnLimit: false,
             requestParameters,
             pivotConfiguration,
         });
@@ -15167,7 +15168,10 @@ export class AsyncQueryService extends ProjectService {
                     .join(' ')}`,
             );
         }
-        return compiled;
+        return {
+            ...compiled,
+            itemsMap: withBareCalculationItems(compiled.itemsMap, mergeQuery),
+        };
     }
 
     /** Submits a composer merge node's join over its already-submitted source nodes. */
@@ -15206,6 +15210,7 @@ export class AsyncQueryService extends ProjectService {
                 mergeQuery,
                 parameters,
             },
+            legsRunAtOwnLimit: true,
             pivotConfiguration: undefined,
         });
         return this.executeAsyncDuckdbSourceQuery({
@@ -15217,19 +15222,7 @@ export class AsyncQueryService extends ProjectService {
             querySurface,
             parameters,
             invalidateCache,
-            plan:
-                plan.columns.mode === 'supplied'
-                    ? {
-                          ...plan,
-                          columns: {
-                              ...plan.columns,
-                              originalColumns: withBareCalculationLabels(
-                                  plan.columns.originalColumns,
-                                  mergeQuery,
-                              ),
-                          },
-                      }
-                    : plan,
+            plan,
         });
     }
 
@@ -15240,6 +15233,7 @@ export class AsyncQueryService extends ProjectService {
         compiledMerge,
         legReferenceBySourceId,
         labelBySourceId,
+        legsRunAtOwnLimit,
         requestParameters,
         pivotConfiguration,
     }: {
@@ -15248,6 +15242,8 @@ export class AsyncQueryService extends ProjectService {
         compiledMerge: RunnableCompiledMergeQuery;
         legReferenceBySourceId: Record<string, string>;
         labelBySourceId: Record<string, string>;
+        /** Composer legs run at their node's limit; the Explorer's at the cap. */
+        legsRunAtOwnLimit: boolean;
         requestParameters: ExecuteAsyncQueryRequestParams;
         pivotConfiguration: PivotConfiguration | undefined;
     }): {
@@ -15343,7 +15339,22 @@ export class AsyncQueryService extends ProjectService {
             engine: 'scopedToReferencedResults',
             // Only the legs this merge ran are checked against the cap; a
             // referenced result's row count is its own query's concern
-            guard: { legLabelByReferenceTable, sourceRowCap },
+            guard: {
+                legLabelByReferenceTable,
+                sourceRowCap,
+                ...(legsRunAtOwnLimit
+                    ? {
+                          legLimitByReferenceTable: Object.fromEntries(
+                              mergeQuery.sources
+                                  .filter(isMergeMetricSource)
+                                  .map((source) => [
+                                      referenceTableBySourceId[source.id],
+                                      source.metricQuery.limit,
+                                  ]),
+                          ),
+                      }
+                    : {}),
+            },
             referenceLabels: legLabelByReferenceTable,
         };
 

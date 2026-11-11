@@ -102,22 +102,22 @@ export const buildComposeMergeOriginalColumns = ({
         }),
     );
 
-/** A composer merge's calculation columns read as their own names, without the merged table's label. */
-export const withBareCalculationLabels = (
-    columns: ResultColumns,
+/** A composer merge's calculations read as their own names, without the merged table's label. */
+export const withBareCalculationItems = (
+    itemsMap: ItemsMap,
     mergeQuery: Pick<MergeQuery, 'tableCalculations'>,
-): ResultColumns =>
+): ItemsMap =>
     Object.fromEntries(
-        Object.entries(columns).map(([reference, column]) => {
-            const calculation = mergeQuery.tableCalculations.find(
+        Object.entries(itemsMap).map(([fieldId, item]) => {
+            const isCalculation = mergeQuery.tableCalculations.some(
                 ({ name }) =>
-                    getItemId({ table: MERGE_TABLE_NAME, name }) === reference,
+                    getItemId({ table: MERGE_TABLE_NAME, name }) === fieldId,
             );
             return [
-                reference,
-                calculation
-                    ? { ...column, label: calculation.displayName }
-                    : column,
+                fieldId,
+                isCalculation && isField(item)
+                    ? { ...item, tableLabel: '' }
+                    : item,
             ];
         }),
     );
@@ -253,9 +253,11 @@ export const buildMergeRowCapGuard =
     ({
         legLabelByReferenceTable,
         sourceRowCap,
+        legLimitByReferenceTable,
     }: {
         legLabelByReferenceTable: Record<string, string>;
         sourceRowCap: number;
+        legLimitByReferenceTable?: Record<string, number>;
     }): DuckdbQueryReferenceGuard =>
     (completed) =>
         getMergeRowCapError({
@@ -263,7 +265,7 @@ export const buildMergeRowCapGuard =
                 ([tableName, label]) => ({
                     label,
                     rowCount: completed[tableName]?.totalRowCount ?? null,
-                    limit: completed[tableName]?.metricQuery?.limit ?? null,
+                    limit: legLimitByReferenceTable?.[tableName] ?? null,
                 }),
             ),
             sourceRowCap,
