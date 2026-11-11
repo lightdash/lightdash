@@ -5,7 +5,7 @@ import { composerChartVizConfigSchema } from './composerChartVizConfigSchema';
 
 export const TOOL_VISUALIZE_DESCRIPTION = `Visualize a node's result for the user as a chart or table. Each call adds one card to the thread; a result stays hidden until it is visualized.
 
-A request to chart a single-number answer asks for the breakdown behind it: visualize the node that produced the number, one bar or point per row.
+A request to chart a single-number answer asks for the breakdown behind it: visualize the node that produced the number.
 
 nodeId names a node from a successful query call in this thread, in this turn or an earlier one, so a result can be visualized again with a different vizConfig without rerunning query. vizConfig references are that node's result columns, as listed in its query result.
 
