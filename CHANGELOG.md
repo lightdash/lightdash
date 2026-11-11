@@ -1,3 +1,10 @@
+## [3.213.3](https://github.com/lightdash/lightdash/compare/3.213.2...3.213.3) (2026-11-11)
+
+
+### Bug Fixes
+
+* **external-sources:** cap concurrent external source queries per process ([#32391](https://github.com/lightdash/lightdash/issues/32391)) ([8f6c80f](https://github.com/lightdash/lightdash/commit/8f6c80fac63e052ef74885d90d6abf3e7b79b95f))
+
 ## [3.213.2](https://github.com/lightdash/lightdash/compare/3.213.1...3.213.2) (2026-11-11)
 
 
