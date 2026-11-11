@@ -13,7 +13,7 @@ import { type Layout } from 'react-grid-layout';
  * get narrower columns. The breakpoints only decide where the phone stack
  * starts and where fit to screen is offered.
  */
-const GRID_DESKTOP_COLS = 36;
+export const GRID_DESKTOP_COLS = 36;
 
 /** The narrowest a tile can be resized to, in stored columns */
 const MIN_TILE_COLS = 4;
@@ -219,38 +219,129 @@ const doGridItemsOverlap = (a: Layout, b: Layout): boolean =>
     a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
 /**
- * Settles a drop made while tiles could overlap: the dropped tile stays where
- * it was put, and every tile it covers moves down until nothing overlaps.
+ * Settles a drop made while tiles could overlap: the dropped tiles stay where
+ * they were put, and every tile they cover moves down until nothing overlaps.
  */
 export const resolveDropOverlaps = (
     layout: Layout[],
-    droppedId: string,
+    droppedIds: string[],
 ): Layout[] => {
-    const dropped = layout.find((item) => item.i === droppedId);
-    if (!dropped) return layout;
-
+    const isDropped = (item: Layout) => droppedIds.includes(item.i);
     const settled = sortBy(
-        layout.filter((item) => item.i !== droppedId),
+        layout.filter((item) => !isDropped(item)),
         ['y', 'x'],
-    ).reduce<Layout[]>(
-        (placed, item) => {
-            const settle = (candidate: Layout): Layout => {
-                const blockers = placed.filter((other) =>
-                    doGridItemsOverlap(candidate, other),
-                );
-                return blockers.length === 0
-                    ? candidate
-                    : settle({
-                          ...candidate,
-                          y: Math.max(...blockers.map((b) => b.y + b.h)),
-                      });
-            };
-            return [...placed, settle(item)];
-        },
-        [dropped],
-    );
+    ).reduce<Layout[]>((placed, item) => {
+        const settle = (candidate: Layout): Layout => {
+            const blockers = placed.filter((other) =>
+                doGridItemsOverlap(candidate, other),
+            );
+            return blockers.length === 0
+                ? candidate
+                : settle({
+                      ...candidate,
+                      y: Math.max(...blockers.map((b) => b.y + b.h)),
+                  });
+        };
+        return [...placed, settle(item)];
+    }, layout.filter(isDropped));
     const settledById = new Map(settled.map((item) => [item.i, item]));
     return layout.map((item) => settledById.get(item.i) ?? item);
+};
+
+/** The share of a tile's width, at each side, that offers a slot beside it */
+const SNAP_ZONE_WIDTH_RATIO = 0.25;
+
+export type SnapTarget = {
+    tileId: string;
+    side: 'before' | 'after';
+};
+
+export type RowInsertion = {
+    /** Where the dragged tile lands */
+    slot: Layout;
+    /** The whole layout once the row has made room */
+    layout: Layout[];
+};
+
+/**
+ * Dropping a tile beside another one adds it to that tile's row: every tile
+ * starting on the same line shares the full width equally with the newcomer.
+ * No insertion when the shares would be narrower than a tile can be.
+ */
+export const getRowInsertion = ({
+    layout,
+    draggedId,
+    target,
+    cols,
+}: {
+    layout: Layout[];
+    draggedId: string;
+    target: SnapTarget;
+    cols: number;
+}): RowInsertion | null => {
+    const dragged = layout.find((item) => item.i === draggedId);
+    const targetItem = layout.find((item) => item.i === target.tileId);
+    if (!dragged || !targetItem || dragged.i === targetItem.i) return null;
+
+    const row = sortBy(
+        layout.filter(
+            (item) => item.i !== draggedId && item.y === targetItem.y,
+        ),
+        ['x'],
+    );
+    const index =
+        row.findIndex((item) => item.i === targetItem.i) +
+        (target.side === 'after' ? 1 : 0);
+    const count = row.length + 1;
+    const share = Math.floor(cols / count);
+    const minShare = Math.max(
+        ...[dragged, ...row].map((item) => item.minW ?? 1),
+    );
+    if (share < minShare) return null;
+
+    // Columns that don't divide evenly go to the leftmost tiles
+    const spare = cols - share * count;
+    const placed = [
+        ...row.slice(0, index),
+        { ...dragged, y: targetItem.y, h: targetItem.h },
+        ...row.slice(index),
+    ].map((item, position) => ({
+        ...item,
+        x: position * share + Math.min(position, spare),
+        w: share + (position < spare ? 1 : 0),
+    }));
+    const placedById = new Map(placed.map((item) => [item.i, item]));
+
+    return {
+        slot: placed[index],
+        layout: resolveDropOverlaps(
+            layout.map((item) => placedById.get(item.i) ?? item),
+            placed.map((item) => item.i),
+        ),
+    };
+};
+
+/** The tile under the pointer, when the pointer is in one of its side zones */
+export const getSnapTarget = (
+    pointer: { clientX: number; clientY: number },
+    draggedId: string,
+): SnapTarget | null => {
+    const tile = document
+        .elementsFromPoint(pointer.clientX, pointer.clientY)
+        .find(
+            (element): element is HTMLElement =>
+                element instanceof HTMLElement &&
+                element.matches('.react-grid-item[data-tile-uuid]') &&
+                element.dataset.tileUuid !== draggedId,
+        );
+    const tileId = tile?.dataset.tileUuid;
+    if (!tile || !tileId) return null;
+
+    const { left, width } = tile.getBoundingClientRect();
+    const position = (pointer.clientX - left) / width;
+    if (position < SNAP_ZONE_WIDTH_RATIO) return { tileId, side: 'before' };
+    if (position > 1 - SNAP_ZONE_WIDTH_RATIO) return { tileId, side: 'after' };
+    return null;
 };
 
 export type ResponsiveGridLayoutProps = {

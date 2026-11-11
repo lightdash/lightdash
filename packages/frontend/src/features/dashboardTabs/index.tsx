@@ -85,6 +85,9 @@ import {
     pinGridItem,
     resolveDropOverlaps,
     unpinGridItem,
+    getRowInsertion,
+    getSnapTarget,
+    GRID_DESKTOP_COLS,
     DEFAULT_ROW_HEIGHT,
     EDIT_ACTION_BAR_CLEARANCE,
     FINE_GRID_SCALE,
@@ -126,6 +129,7 @@ type TabGridPanelProps = {
     gridProps: DashboardGridProps;
     dashboardTabs: DashboardTab[];
     onDragStart: ItemCallback;
+    onDrag: ItemCallback;
     onDragStop: ItemCallback;
     onResizeStart: ItemCallback;
     onResizeStop: ItemCallback;
@@ -157,6 +161,7 @@ const TabGridPanel = memo<TabGridPanelProps>(
         gridProps,
         dashboardTabs,
         onDragStart,
+        onDrag,
         onDragStop,
         onResizeStart,
         onResizeStop,
@@ -178,6 +183,7 @@ const TabGridPanel = memo<TabGridPanelProps>(
                         key={gridProps.cols.lg}
                         {...gridProps}
                         onDragStart={onDragStart}
+                        onDrag={onDrag}
                         onDragStop={onDragStop}
                         onResizeStart={onResizeStart}
                         onResizeStop={onResizeStop}
@@ -226,7 +232,8 @@ const TabGridPanel = memo<TabGridPanelProps>(
         // Drop handlers close over the grid scale
         if (
             nextProps.isActive &&
-            (prevProps.onDragStop !== nextProps.onDragStop ||
+            (prevProps.onDrag !== nextProps.onDrag ||
+                prevProps.onDragStop !== nextProps.onDragStop ||
                 prevProps.onResizeStop !== nextProps.onResizeStop)
         )
             return false;
@@ -358,7 +365,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     );
     // The grid reports its whole layout on every stop, with stored overlaps
     // pushed apart, so a click that moved nothing must not apply it
-    const handleInteractionStop = useCallback<ItemCallback>(
+    const handleResizeStop = useCallback<ItemCallback>(
         (layout, before, after, _placeholder, _event, node) => {
             unpinGridItem(node);
             stopAutoScroll();
@@ -366,12 +373,64 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             if (hasGridItemMoved(before, after)) {
                 void handleUpdateTilesWithScaling(
                     isEditErgonomicsEnabled
-                        ? resolveDropOverlaps(layout, after.i)
+                        ? resolveDropOverlaps(layout, [after.i])
                         : layout,
                 );
             }
         },
         [handleUpdateTilesWithScaling, stopAutoScroll, isEditErgonomicsEnabled],
+    );
+    const getDragRowInsertion = useCallback(
+        (layout: Layout[], draggedId: string, event: MouseEvent) => {
+            if (!isEditErgonomicsEnabled) return null;
+            const target = getSnapTarget(event, draggedId);
+            return target
+                ? getRowInsertion({
+                      layout,
+                      draggedId,
+                      target,
+                      cols: GRID_DESKTOP_COLS * gridScale,
+                  })
+                : null;
+        },
+        [isEditErgonomicsEnabled, gridScale],
+    );
+    const handleDrag = useCallback<ItemCallback>(
+        (layout, _before, after, placeholder, event) => {
+            const insertion = getDragRowInsertion(layout, after.i, event);
+            // The grid draws the shadow from this object after the callback
+            if (insertion) {
+                const { x, y, w, h } = insertion.slot;
+                Object.assign(placeholder, { x, y, w, h });
+            }
+        },
+        [getDragRowInsertion],
+    );
+    const handleDragStop = useCallback<ItemCallback>(
+        (layout, before, after, placeholder, event, node) => {
+            const insertion = getDragRowInsertion(layout, after.i, event);
+            if (!insertion) {
+                handleResizeStop(
+                    layout,
+                    before,
+                    after,
+                    placeholder,
+                    event,
+                    node,
+                );
+                return;
+            }
+            unpinGridItem(node);
+            stopAutoScroll();
+            setIsInteracting(false);
+            void handleUpdateTilesWithScaling(insertion.layout);
+        },
+        [
+            getDragRowInsertion,
+            handleResizeStop,
+            handleUpdateTilesWithScaling,
+            stopAutoScroll,
+        ],
     );
     const handleWidthChange = useCallback(
         (cw: number) => setGridWidth(cw),
@@ -1293,14 +1352,13 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                   onDragStart={
                                                       handleInteractionStart
                                                   }
-                                                  onDragStop={
-                                                      handleInteractionStop
-                                                  }
+                                                  onDrag={handleDrag}
+                                                  onDragStop={handleDragStop}
                                                   onResizeStart={
                                                       handleInteractionStart
                                                   }
                                                   onResizeStop={
-                                                      handleInteractionStop
+                                                      handleResizeStop
                                                   }
                                                   onWidthChange={
                                                       handleWidthChange
@@ -1322,13 +1380,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                               onDragStart={
                                                   handleInteractionStart
                                               }
-                                              onDragStop={handleInteractionStop}
+                                              onDrag={handleDrag}
+                                              onDragStop={handleDragStop}
                                               onResizeStart={
                                                   handleInteractionStart
                                               }
-                                              onResizeStop={
-                                                  handleInteractionStop
-                                              }
+                                              onResizeStop={handleResizeStop}
                                               onWidthChange={handleWidthChange}
                                               layouts={allTilesLayouts}
                                           >

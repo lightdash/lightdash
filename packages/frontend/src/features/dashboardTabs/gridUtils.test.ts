@@ -17,6 +17,7 @@ import {
     getViewModeActiveTabTiles,
     hasGridItemMoved,
     resolveDropOverlaps,
+    getRowInsertion,
     getDashboardLayouts,
     getMobileGridLayout,
     getResponsiveGridLayoutProps,
@@ -323,19 +324,19 @@ describe('dropping a tile that was dragged over others', () => {
 
     it('leaves every tile alone when the drop lands on free space', () => {
         const layout = [item('a', 0, 0), item('b', 12, 0), item('c', 0, 4)];
-        expect(resolveDropOverlaps(layout, 'c')).toEqual(layout);
+        expect(resolveDropOverlaps(layout, ['c'])).toEqual(layout);
     });
 
     it('keeps the dropped tile in place and moves the covered tile below it', () => {
         const layout = [item('a', 0, 0), item('dropped', 0, 2)];
-        const result = resolveDropOverlaps(layout, 'dropped');
+        const result = resolveDropOverlaps(layout, ['dropped']);
         expect(position(result, 'dropped')).toEqual({ x: 0, y: 2 });
         expect(position(result, 'a')).toEqual({ x: 0, y: 6 });
     });
 
     it('puts a same-sized tile below when dropped exactly on top of it', () => {
         const layout = [item('a', 0, 0), item('dropped', 0, 0)];
-        const result = resolveDropOverlaps(layout, 'dropped');
+        const result = resolveDropOverlaps(layout, ['dropped']);
         expect(position(result, 'dropped')).toEqual({ x: 0, y: 0 });
         expect(position(result, 'a')).toEqual({ x: 0, y: 4 });
     });
@@ -347,7 +348,7 @@ describe('dropping a tile that was dragged over others', () => {
             item('b', 0, 6),
             item('beside', 12, 0),
         ];
-        const result = resolveDropOverlaps(layout, 'dropped');
+        const result = resolveDropOverlaps(layout, ['dropped']);
         expect(position(result, 'a')).toEqual({ x: 0, y: 4 });
         expect(position(result, 'b')).toEqual({ x: 0, y: 8 });
         expect(position(result, 'beside')).toEqual({ x: 12, y: 0 });
@@ -360,7 +361,7 @@ describe('dropping a tile that was dragged over others', () => {
             item('c', 6, 6, 12, 4),
             item('dropped', 6, 3, 12, 4),
         ];
-        const result = resolveDropOverlaps(layout, 'dropped');
+        const result = resolveDropOverlaps(layout, ['dropped']);
         const overlaps = result.flatMap((a, index) =>
             result
                 .slice(index + 1)
@@ -373,6 +374,116 @@ describe('dropping a tile that was dragged over others', () => {
                 ),
         );
         expect(overlaps).toEqual([]);
+    });
+});
+
+describe('dropping a tile beside another one', () => {
+    const item = (i: string, x: number, y: number, w = 12, h = 4) => ({
+        i,
+        x,
+        y,
+        w,
+        h,
+        minW: 4,
+    });
+    const shape = (layout: { i: string }[], i: string) => {
+        const { x, y, w, h } = layout.find((l) => l.i === i) as ReturnType<
+            typeof item
+        >;
+        return { x, y, w, h };
+    };
+    const insert = (
+        layout: ReturnType<typeof item>[],
+        tileId: string,
+        side: 'before' | 'after',
+    ) =>
+        getRowInsertion({
+            layout,
+            draggedId: 'dragged',
+            target: { tileId, side },
+            cols: 36,
+        });
+
+    it('splits a single-tile row in half', () => {
+        const layout = [item('a', 0, 0, 36), item('dragged', 0, 10)];
+        const result = insert(layout, 'a', 'after')!;
+        expect(shape(result.layout, 'a')).toEqual({ x: 0, y: 0, w: 18, h: 4 });
+        expect(result.slot).toMatchObject({ x: 18, y: 0, w: 18, h: 4 });
+    });
+
+    it('makes three equal tiles when dropped between two', () => {
+        const layout = [
+            item('a', 0, 0, 18),
+            item('b', 18, 0, 18),
+            item('dragged', 0, 10),
+        ];
+        const result = insert(layout, 'a', 'after')!;
+        expect(shape(result.layout, 'a')).toMatchObject({ x: 0, w: 12 });
+        expect(shape(result.layout, 'dragged')).toMatchObject({
+            x: 12,
+            y: 0,
+            w: 12,
+        });
+        expect(shape(result.layout, 'b')).toMatchObject({ x: 24, w: 12 });
+    });
+
+    it('puts the tile first when dropped before the first tile', () => {
+        const layout = [item('a', 0, 0, 36), item('dragged', 0, 10)];
+        const result = insert(layout, 'a', 'before')!;
+        expect(result.slot).toMatchObject({ x: 0, w: 18 });
+        expect(shape(result.layout, 'a')).toMatchObject({ x: 18, w: 18 });
+    });
+
+    it('takes the height of the row it joins', () => {
+        const layout = [item('a', 0, 0, 36, 7), item('dragged', 0, 10, 12, 3)];
+        expect(insert(layout, 'a', 'after')!.slot.h).toBe(7);
+    });
+
+    it('reorders within a row without changing the shares', () => {
+        const layout = [
+            item('a', 0, 0),
+            item('dragged', 12, 0),
+            item('b', 24, 0),
+        ];
+        const result = insert(layout, 'b', 'after')!;
+        expect(shape(result.layout, 'a')).toMatchObject({ x: 0, w: 12 });
+        expect(shape(result.layout, 'b')).toMatchObject({ x: 12, w: 12 });
+        expect(shape(result.layout, 'dragged')).toMatchObject({ x: 24, w: 12 });
+    });
+
+    it('gives leftover columns to the leftmost tiles', () => {
+        const layout = [
+            ...[0, 1, 2, 3].map((n) => item(`t${n}`, n * 9, 0, 9)),
+            item('dragged', 0, 10),
+        ];
+        const result = insert(layout, 't3', 'after')!;
+        const widths = ['t0', 't1', 't2', 't3', 'dragged'].map(
+            (i) => shape(result.layout, i).w,
+        );
+        expect(widths).toEqual([8, 7, 7, 7, 7]);
+    });
+
+    it('leaves tiles on other lines alone', () => {
+        const layout = [
+            item('a', 0, 0, 36),
+            item('below', 0, 4, 36),
+            item('dragged', 0, 10),
+        ];
+        const result = insert(layout, 'a', 'after')!;
+        expect(shape(result.layout, 'below')).toEqual({
+            x: 0,
+            y: 4,
+            w: 36,
+            h: 4,
+        });
+    });
+
+    it('offers no slot when the row is already as full as tiles allow', () => {
+        const layout = [
+            ...Array.from({ length: 9 }, (_, n) => item(`t${n}`, n * 4, 0, 4)),
+            item('dragged', 0, 10),
+        ];
+        expect(insert(layout, 't0', 'before')).toBeNull();
     });
 });
 
