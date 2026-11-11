@@ -934,19 +934,8 @@ export class AsyncQueryService extends ProjectService {
     private async resolveExternalSourceReference(
         projectUuid: string,
         explore: Explore,
-        featureFlagContext: {
-            userUuid: string;
-            organizationUuid: string;
-        },
-        identityEnabled: boolean,
+        attachmentOwnerUuid: string | null,
     ): Promise<ExternalSourceBinding> {
-        const { enabled } = await this.featureFlagModel.get({
-            user: featureFlagContext,
-            featureFlagId: FeatureFlags.ExternalSources,
-        });
-        if (!enabled) {
-            return { error: 'External sources are not enabled' };
-        }
         const ref = explore.externalSource;
         if (!ref) {
             return {
@@ -957,7 +946,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             ref.tableUuid,
             explore.baseTable,
-            identityEnabled ? featureFlagContext.userUuid : null,
+            attachmentOwnerUuid,
         );
     }
 
@@ -6743,11 +6732,7 @@ export class AsyncQueryService extends ProjectService {
                             ? await this.resolveExternalSourceReference(
                                   projectUuid,
                                   explore,
-                                  {
-                                      userUuid: account.user.id,
-                                      organizationUuid,
-                                  },
-                                  identityEnabled,
+                                  identityEnabled ? account.user.id : null,
                               )
                             : undefined;
 
@@ -13758,19 +13743,10 @@ export class AsyncQueryService extends ProjectService {
             userUuid: account.user.id,
             organizationUuid: account.organization.organizationUuid,
         };
-        const [externalSourcesFlag, composeSqlFlag] = await Promise.all([
-            this.featureFlagModel.get({
-                user,
-                featureFlagId: FeatureFlags.ExternalSources,
-            }),
-            this.featureFlagModel.get({
-                user,
-                featureFlagId: FeatureFlags.ComposeSqlRunner,
-            }),
-        ]);
-        if (!externalSourcesFlag.enabled) {
-            throw new ForbiddenError('External sources are not enabled');
-        }
+        const composeSqlFlag = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.ComposeSqlRunner,
+        });
         if (!composeSqlFlag.enabled) {
             throw new ForbiddenError('Compose SQL queries are not enabled');
         }

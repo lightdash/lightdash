@@ -188,15 +188,6 @@ export enum FeatureFlags {
     DesktopExperiments = 'desktop-experiments',
 
     /**
-     * External data sources: upload CSV files or connect Google Sheets as
-     * project tables. Tables are ingested to typed parquet in object storage,
-     * generated as explores (ExploreType.EXTERNAL_SOURCE), and queried on the
-     * DuckDB compose engine — so this requires the enterprise pre-aggregates
-     * engine and its S3 configuration. Off by default.
-     */
-    ExternalSources = 'external-sources',
-
-    /**
      * Prevent users from deleting their own AI agent threads. Admins can
      * still delete threads from the agent admin threads view. Off by default.
      */
