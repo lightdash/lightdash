@@ -5,6 +5,7 @@ import {
     DATA_APP_VIZ_TEMPLATE,
     defineUserAbility,
     ForbiddenError,
+    getUserAbilityBuilder,
     OrganizationMemberRole,
     ParameterError,
     ProjectType,
@@ -33,6 +34,23 @@ const sessionAccount = (
         { ...user, ability: defineUserAbility(user, []) },
         'session',
     );
+};
+
+// A Viewer with consumer access: can view data apps, cannot view Explore.
+const consumerAccount = () => {
+    const user = {
+        ...defaultSessionUser,
+        role: OrganizationMemberRole.VIEWER,
+        organizationUuid: 'org-1',
+        userUuid: 'consumer-1',
+    };
+    const ability = getUserAbilityBuilder({
+        user,
+        projectProfiles: [],
+        permissionsConfig: { pat: { enabled: false, allowedOrgRoles: [] } },
+        dataAppConsumerAccess: true,
+    }).builder.build();
+    return fromSession({ ...user, ability }, 'session');
 };
 
 const embeddedAccount = (appUuid = 'app-1') => {
@@ -208,6 +226,74 @@ describe('AppStateService', () => {
                     'app-1',
                 ),
             ).rejects.toBeInstanceOf(ForbiddenError);
+        });
+    });
+
+    describe('consumers (can view the app, cannot view Explore)', () => {
+        const stored = {
+            user: {
+                tab: { value: 'orders', updatedAt: '2026-10-20T00:00:00.000Z' },
+            },
+            shared: { commentary: sharedEntry },
+        };
+
+        it('reads their own state but no shared values', async () => {
+            const { service, appStateModel } = buildService();
+            appStateModel.getSnapshot.mockResolvedValue(stored);
+            await expect(
+                service.getSnapshot(consumerAccount(), 'proj-1', 'app-1'),
+            ).resolves.toEqual({ user: stored.user, shared: {} });
+        });
+
+        it('still gives users with Explore the shared values', async () => {
+            const { service, appStateModel } = buildService();
+            appStateModel.getSnapshot.mockResolvedValue(stored);
+            await expect(
+                service.getSnapshot(sessionAccount(), 'proj-1', 'app-1'),
+            ).resolves.toEqual(stored);
+        });
+
+        it('saves their own state', async () => {
+            const { service, appStateModel } = buildService();
+            await service.setUserState(
+                consumerAccount(),
+                'proj-1',
+                'app-1',
+                'tab',
+                'orders',
+            );
+            expect(appStateModel.upsertUserState).toHaveBeenCalledWith(
+                expect.objectContaining({ userUuid: 'consumer-1', key: 'tab' }),
+            );
+        });
+
+        it('cannot write shared values', async () => {
+            const { service, appStateModel } = buildService();
+            await expect(
+                service.setSharedState(
+                    consumerAccount(),
+                    'proj-1',
+                    'app-1',
+                    'commentary',
+                    'edited',
+                    3,
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(appStateModel.upsertSharedState).not.toHaveBeenCalled();
+        });
+
+        it('cannot read shared history', async () => {
+            const { service, appStateModel } = buildService();
+            await expect(
+                service.getSharedHistory(
+                    consumerAccount(),
+                    'proj-1',
+                    'app-1',
+                    'commentary',
+                    {},
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(appStateModel.getSharedHistory).not.toHaveBeenCalled();
         });
     });
 

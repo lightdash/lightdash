@@ -182,6 +182,30 @@ export class AppStateService extends BaseService {
         return { kind: 'user', user, app, context };
     }
 
+    // Shared values can hold data from queries a consumer cannot run
+    // (commentary, comments), so they stay with users who have Explore.
+    private canUseSharedState(
+        viewer: Extract<AuthorizedViewer, { kind: 'user' }>,
+    ): boolean {
+        return this.createAuditedAbility(viewer.user).can(
+            'view',
+            subject('Explore', {
+                organizationUuid: viewer.app.organization_uuid,
+                projectUuid: viewer.app.project_uuid,
+            }),
+        );
+    }
+
+    private assertCanUseSharedState(
+        viewer: Extract<AuthorizedViewer, { kind: 'user' }>,
+    ): void {
+        if (!this.canUseSharedState(viewer)) {
+            throw new ForbiddenError(
+                'Shared app state is not available with your access',
+            );
+        }
+    }
+
     private async authorizeWriter(
         account: Account,
         projectUuid: string,
@@ -310,10 +334,14 @@ export class AppStateService extends BaseService {
             projectUuid,
             appUuid,
         );
-        return this.appStateModel.getSnapshot(
+        const snapshot = await this.appStateModel.getSnapshot(
             appUuid,
             viewer.kind === 'user' ? viewer.user.userUuid : null,
         );
+        if (viewer.kind === 'user' && !this.canUseSharedState(viewer)) {
+            return { ...snapshot, shared: {} };
+        }
+        return snapshot;
     }
 
     async setUserState(
@@ -385,6 +413,7 @@ export class AppStateService extends BaseService {
             projectUuid,
             appUuid,
         );
+        this.assertCanUseSharedState(viewer);
         const result = await this.appStateModel.upsertSharedState({
             appUuid,
             key,
@@ -437,7 +466,12 @@ export class AppStateService extends BaseService {
             Math.max(1, options.limit ?? APP_STATE_HISTORY_DEFAULT_LIMIT),
             APP_STATE_HISTORY_MAX_LIMIT,
         );
-        await this.authorizeViewer(account, projectUuid, appUuid);
+        const viewer = await this.authorizeViewer(
+            account,
+            projectUuid,
+            appUuid,
+        );
+        if (viewer.kind === 'user') this.assertCanUseSharedState(viewer);
         const versions = await this.appStateModel.getSharedHistory(
             appUuid,
             key,
