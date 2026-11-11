@@ -205,10 +205,10 @@ export const useEditorSession = <S extends EditSession<M>, M>({
         );
     });
 
-    // Another kind's pill or "Add" while this one is edited: a clean edit
+    // Another kind's pill, its X or "Add" while this one is edited: a clean edit
     // closes and the click goes on; with unapplied changes the popover asks,
     // and the click is replayed once it is answered
-    const otherTargetSelector = `${getOtherPillsSelector(kind, false)}, ${ADD_SELECTOR}`;
+    const otherTargetSelector = `${getOtherPillsSelector(kind)}, ${ADD_SELECTOR}`;
     const isOpenForCapture = edit !== null;
     useEffect(() => {
         if (!isOpenForCapture) return undefined;

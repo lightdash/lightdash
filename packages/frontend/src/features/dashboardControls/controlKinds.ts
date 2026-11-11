@@ -31,14 +31,11 @@ const otherKinds = (kind: ControlKind) =>
         (other) => other !== kind,
     );
 
-/** The other kinds' pills (and with `withActions` their X): one editor open at a time, so each switches away. A new kind joins here. */
-export const getOtherPillsSelector = (
-    kind: ControlKind,
-    withActions: boolean,
-) =>
+/** The other kinds' pills and their X: one editor open at a time, so each switches away. A new kind joins here. */
+export const getOtherPillsSelector = (kind: ControlKind) =>
     otherKinds(kind)
         .flatMap((other) => {
             const { pill, action } = PILL_SELECTORS[other];
-            return withActions && action !== '' ? [pill, action] : [pill];
+            return action === '' ? [pill] : [pill, action];
         })
         .join(', ');

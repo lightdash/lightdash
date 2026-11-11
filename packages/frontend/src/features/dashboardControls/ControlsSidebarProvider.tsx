@@ -1772,7 +1772,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         dismiss,
         dismissOutside: requestClose,
         // A parameter's or a date zoom's pill switches as a filter's does
-        pillSelector: `[data-controls-pill], ${getOtherPillsSelector('filter', true)}`,
+        pillSelector: `[data-controls-pill], ${getOtherPillsSelector('filter')}`,
     });
 
     // Its own memo so a hover does not hand selectors a new object
