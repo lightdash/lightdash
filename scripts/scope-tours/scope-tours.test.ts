@@ -1598,8 +1598,10 @@ export const SavedCharts = () => (
     {
         const {
             DOCS_PIN_OVERRIDE,
+            GENERATED_FILES,
             docsHead,
             docsPinVerdict,
+            generatedChangesError,
             parseDocsPin,
             readDocsPin,
             root,
@@ -1642,6 +1644,20 @@ export const SavedCharts = () => (
             docsPinVerdict(pin, other, { CI: 'true', [DOCS_PIN_OVERRIDE]: '1' })
                 .level,
             'warning',
+        );
+
+        assert.strictEqual(generatedChangesError(''), undefined);
+        assert.strictEqual(generatedChangesError('\n'), undefined);
+        const [generated, released] = GENERATED_FILES;
+        const dirty = generatedChangesError(
+            ` M ${generated}\n?? ${released}\n`,
+        );
+        assert.ok(dirty !== undefined);
+        assert.ok(dirty.includes(`${generated}, ${released}.`));
+        assert.match(dirty, /commit or stash them first/);
+        assert.ok(!dirty.includes(' M ') && !dirty.includes('??'));
+        assert.ok(
+            !GENERATED_FILES.some((file) => file.endsWith('docs-pin.txt')),
         );
     }
 

@@ -59,7 +59,7 @@ The step text comes from the docs repository, and CI reads the docs at one commi
 
 **When to bump.** For a deliberate docs sync, or when a docs change must reach the walkthroughs (a corrected sentence, a renamed page).
 
-**How to bump.** With a clean docs checkout at `../mintlify-docs` or `LIGHTDASH_DOCS_DIR`:
+**How to bump.** With a clean docs checkout at `../mintlify-docs` or `LIGHTDASH_DOCS_DIR`, and no local changes to the generated files:
 
 ```sh
 pnpm scope-tours:bump-docs -- --dry-run      # the current pin and the docs head; changes nothing
@@ -72,7 +72,7 @@ The bump writes the new SHA to `docs-pin.txt`, checks the docs out at it (detach
 
 **What the diff means.** Each changed `body` is a docs sentence that changed upstream, and learners will see the new text. Read every one. A changed sentence is usually fine. A body that now says something different (a step that no longer tells the learner what to do) means the cited paragraph moved: the docs inserted or removed a paragraph, and a citation by position (`:p3:1`, `:li2`) now points at another one.
 
-**A citation move is a separate pull request.** Re-citing a docs paragraph (a `data-tour-docs` change, for example `:p3:1` to `:p4:1`) is the Learn owners' call. Do not hide it in a bump. Open the bump with the diff as it is and say which steps need a re-cite, or ask the Learn owners to re-cite first and bump after their change merges.
+**A citation move is a separate pull request.** Re-citing a docs paragraph (a `data-tour-docs` change, for example `:p3:1` to `:p4:1`) is the Learn owners' call. Do not hide it in a bump. The bump comes first: open it as its own pull request with the diff as it is, and say which steps need a re-cite. The Learn owners then open the re-cite as a separate pull request stacked on the bump, so it is generated against the bumped docs, and the two merge back to back, bump first. Never re-cite ahead of the pin: a re-cite that merges before the bump is generated against the old docs, where the new paragraph index points at another paragraph, so the step shows the wrong text or the generator fails with `paragraph N not found`. Do not merge the bump alone and leave a step with the wrong text: keep the gap as short as the back-to-back merge.
 
 ## Running the smoke
 

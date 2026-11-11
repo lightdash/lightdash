@@ -25,6 +25,30 @@ export const outputPath = path.join(
  */
 export const docsPinPath = path.join(root, 'scripts/scope-tours/docs-pin.txt');
 
+/** The files a docs bump regenerates, relative to the repository root. */
+export const GENERATED_FILES = [
+    'packages/frontend/src/features/scopeTours/generated.ts',
+    'packages/frontend/src/features/scopeTours/released.ts',
+    'packages/frontend/src/features/scopeTours/curriculum.ts',
+];
+
+/**
+ * Why a bump must not run, given `git status --porcelain` for the generated
+ * files: a bump regenerates them, so it would overwrite local changes.
+ * Undefined when they have none.
+ */
+export const generatedChangesError = (
+    porcelain: string,
+): string | undefined => {
+    const changed = porcelain
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line !== '')
+        .map((line) => line.replace(/^\S+\s+/, ''));
+    if (changed.length === 0) return undefined;
+    return `The generated files have local changes: ${changed.join(', ')}. A bump regenerates them, so commit or stash them first, then run this again.`;
+};
+
 /** Set to 1 to run against a docs checkout that is not at the pinned commit. */
 export const DOCS_PIN_OVERRIDE = 'SCOPE_TOURS_ALLOW_UNPINNED_DOCS';
 

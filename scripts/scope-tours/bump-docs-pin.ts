@@ -7,11 +7,12 @@
  *
  *   1. reads the target commit: --sha <sha>, else the head of the docs
  *      default branch (git ls-remote);
- *   2. writes it to docs-pin.txt;
+ *   2. stops when the generated files have local changes in this repository;
  *   3. checks the docs checkout (LIGHTDASH_DOCS_DIR, else ../mintlify-docs)
  *      out at that commit, detached; a checkout with local changes is left
  *      alone and the bump stops;
- *   4. runs pnpm scope-tours:generate and pnpm scope-tours:order, then prints
+ *   4. writes the commit to docs-pin.txt;
+ *   5. runs pnpm scope-tours:generate and pnpm scope-tours:order, then prints
  *      the diff of the pin and the generated files.
  *
  * Read the diff before you commit it. A citation move (a `data-tour-docs`
@@ -29,6 +30,8 @@ import {
     docsDir,
     docsHead,
     docsPinPath,
+    GENERATED_FILES,
+    generatedChangesError,
     parseDocsPin,
     readDocsPin,
     root,
@@ -36,12 +39,7 @@ import {
 
 const DOCS_REMOTE = 'https://github.com/lightdash/mintlify-docs';
 
-const GENERATED = [
-    path.relative(root, docsPinPath),
-    'packages/frontend/src/features/scopeTours/generated.ts',
-    'packages/frontend/src/features/scopeTours/released.ts',
-    'packages/frontend/src/features/scopeTours/curriculum.ts',
-];
+const GENERATED = [path.relative(root, docsPinPath), ...GENERATED_FILES];
 
 const git = (
     args: string[],
@@ -81,6 +79,10 @@ const main = () => {
         return;
     }
 
+    const generatedChanges = generatedChangesError(
+        git(['status', '--porcelain', '--', ...GENERATED_FILES]),
+    );
+    if (generatedChanges !== undefined) throw new Error(generatedChanges);
     if (docsHead() === undefined) {
         throw new Error(
             `${docsDir} is not a git checkout of the docs. Clone ${DOCS_REMOTE} there (or set LIGHTDASH_DOCS_DIR), check out ${sha} and run this again.`,
