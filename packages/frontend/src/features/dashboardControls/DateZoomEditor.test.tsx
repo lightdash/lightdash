@@ -190,7 +190,8 @@ const dialog = () => screen.getByRole('dialog');
 
 describe('Date zoom editor', () => {
     beforeEach(() => {
-        requestSwitch.mockClear();
+        requestSwitch.mockReset();
+        requestSwitch.mockImplementation((proceed: () => void) => proceed());
         removeParameter.mockClear();
         openFilter.mockClear();
         removeFilter.mockClear();
