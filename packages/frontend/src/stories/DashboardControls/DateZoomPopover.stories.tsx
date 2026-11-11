@@ -366,7 +366,7 @@ export const DefaultSettings: DefaultStory = {
     },
 };
 
-/** Grains named zooms are at stay checked: viewers could not pick them back. */
+/** Grains named zooms are at stay checked, saying which zoom or how many use them. */
 export const DefaultSettingsInUse: DefaultStory = {
     ...defaultZoom,
     name: 'Default zoom, settings, grains in use',
@@ -391,8 +391,8 @@ export const DefaultSettingsInUse: DefaultStory = {
             canvas.getByRole('checkbox', { name: 'Day' }),
         ).toBeEnabled();
         for (const [grain, reason] of [
-            ['Week', 'Revenue zoom and Orders zoom use Week'],
-            ['Month', 'Payments zoom uses Month'],
+            ['Week', 'Used by 2 date zooms'],
+            ['Month', 'Used by Payments zoom'],
         ]) {
             const box = canvas.getByRole('checkbox', { name: grain });
             await expect(box).toBeChecked();

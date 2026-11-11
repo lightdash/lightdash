@@ -69,13 +69,11 @@ const toggleGrain = (enabled: string[], grain: string): string[] => {
     ];
 };
 
-// "Revenue zoom uses Week", "A and B use Week", "A and 2 other zooms use Week"
-const formatGrainUsers = (names: string[], grainLabel: string): string => {
-    const [first, second] = names;
-    if (names.length === 1) return `${first} uses ${grainLabel}`;
-    if (names.length === 2) return `${first} and ${second} use ${grainLabel}`;
-    return `${first} and ${names.length - 1} other zooms use ${grainLabel}`;
-};
+// "Used by Revenue zoom", "Used by 3 date zooms": the checkbox names the grain
+const formatGrainUsers = (names: string[]): string =>
+    names.length === 1
+        ? `Used by ${names[0]}`
+        : `Used by ${names.length} date zooms`;
 
 const GrainCheckbox: FC<{
     label: string;
@@ -84,7 +82,13 @@ const GrainCheckbox: FC<{
     lockReason: string | null;
     onToggle: () => void;
 }> = ({ label, checked, lockReason, onToggle }) => (
-    <Tooltip fz="xs" label={lockReason} disabled={lockReason === null}>
+    <Tooltip
+        fz="xs"
+        multiline
+        w={220}
+        label={lockReason}
+        disabled={lockReason === null}
+    >
         <Box w="fit-content">
             <Checkbox
                 size="xs"
@@ -222,7 +226,7 @@ export const DefaultZoomPopover: FC<Props> = ({
         const users = mode.namedZooms
             .filter(({ granularity }) => granularity === grain)
             .map(({ name }) => name);
-        if (users.length > 0) return formatGrainUsers(users, labelOf(grain));
+        if (users.length > 0) return formatGrainUsers(users);
         return enabled.length === 1 ? 'Viewers need at least one grain' : null;
     };
     const checkbox = (grain: string) => (

@@ -138,14 +138,11 @@ describe('DefaultZoomPopover', () => {
     });
 
     it.each([
-        [['Revenue zoom'], 'Revenue zoom uses Week'],
-        [
-            ['Revenue zoom', 'Orders zoom'],
-            'Revenue zoom and Orders zoom use Week',
-        ],
+        [['Revenue zoom'], 'Used by Revenue zoom'],
+        [['Revenue zoom', 'Orders zoom'], 'Used by 2 date zooms'],
         [
             ['Revenue zoom', 'Orders zoom', 'Payments zoom'],
-            'Revenue zoom and 2 other zooms use Week',
+            'Used by 3 date zooms',
         ],
     ])('locks a grain in use by %j, saying who', async (names, reason) => {
         renderEditor({
@@ -174,7 +171,7 @@ describe('DefaultZoomPopover', () => {
         });
         await userEvent.hover(screen.getByText('Week'));
         expect(await screen.findByRole('tooltip')).toHaveTextContent(
-            'Revenue zoom uses Week',
+            'Used by Revenue zoom',
         );
     });
 
