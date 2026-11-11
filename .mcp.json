@@ -11,6 +11,10 @@
     "sentry": {
       "type": "http",
       "url": "https://mcp.sentry.dev/mcp"
+    },
+    "rainbow": {
+      "type": "http",
+      "url": "https://mcp.lightdash.rainbowmachine.dev/mcp"
     }
   }
 }
