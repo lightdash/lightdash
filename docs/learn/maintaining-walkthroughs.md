@@ -65,12 +65,10 @@ The step text comes from the docs repository, and CI reads the docs at one commi
 pnpm scope-tours:bump-docs -- --dry-run      # the current pin and the docs head; changes nothing
 pnpm scope-tours:bump-docs                   # pin the docs head
 pnpm scope-tours:bump-docs -- --sha <sha>    # pin a specific docs commit
-pnpm scope-tours:check
 ```
 
-The bump writes the new SHA to `docs-pin.txt`, checks the docs out at it (detached), runs `scope-tours:generate` and `scope-tours:order`, and prints the diff. Commit the pin and the generated files together, in one pull request.
+The bump runs `scope-tours:check` itself, so there is no separate check to run. It refuses a commit that is not on the docs `origin/main` and warns when the pin moves backwards. Then it checks the docs out at the commit (detached), writes the commit to `docs-pin.txt`, runs `scope-tours:generate` and `scope-tours:order`, and runs `scope-tours:check`. Last, it prints the diff stat, a table of the steps whose title or body changed (scope and step, title, old body, new body), and the full diff. Commit the pin and the generated files together, in one pull request.
 
-- The bump refuses a commit that is not on the docs `origin/main`, warns when the pin moves backwards, runs `scope-tours:check` itself, and prints a table of the steps whose title or body changed.
 - The scheduled `Scope tours docs drift` workflow opens or updates one issue when the docs head differs from the pin, and closes it when the pin catches up.
 - The Learn owners (the Customer Success team, Linear project Lightdash University) review each bump pull request with one checklist item: each changed card still matches its step title.
 
