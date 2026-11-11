@@ -88,7 +88,7 @@ import {
 } from './modelCode';
 import { ModelCodeView, ModelTabs } from './ModelTabs';
 import {
-    DraftBar,
+    DraftDevelopmentBar,
     DraftReview,
     DraftReviewHeading,
 } from './SemanticLayerDraft';
@@ -1046,12 +1046,12 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         pullRequest={development}
                                     />
                                 ) : null}
+                                {keepsDraft && !isBuildingFirstModel ? (
+                                    <DraftDevelopmentBar
+                                        projectUuid={view.project.id}
+                                    />
+                                ) : null}
                                 <Group gap="xs" wrap="nowrap" miw={0} ml="auto">
-                                    {isBuildingFirstModel ? null : (
-                                        <DraftBar
-                                            projectUuid={view.project.id}
-                                        />
-                                    )}
                                     {chat.isAvailable && !isChatOpen ? (
                                         <Button
                                             size="xs"

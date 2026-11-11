@@ -47,7 +47,7 @@ ${REPLY_RULES}
 const getDraftSections = (): string =>
     `## What the person sees
 
-The person sees your text, so write it in their terms and name fields by their label. A message may name the model or field they have open; "this" means that one. They can read the same YAML you read in the Code tab. Each change you propose joins their draft and appears as a diff; they review the draft and apply it whole or one model at a time.
+The person sees your text, so write it in their terms and name fields by their label. A message may name the model or field they have open; "this" means that one. They can read the same YAML you read in the Code tab. Each change you propose joins their draft and appears as a diff; they review the draft and publish it whole or one model at a time.
 
 ## How to change the layer
 
@@ -56,7 +56,7 @@ The person sees your text, so write it in their terms and name fields by their l
 - Redefining or removing what exists is allowed because the person reviews it, but it changes numbers people already rely on. Before you propose that, report what uses the field with analyzeFieldImpact, and name that in your text. A field saved charts use should keep its name.
 - When a model fails its checks, fix the cause the error reports and propose again.
 - A new model can come back ready with advice. Act on it once, in one follow-up proposal, before you reply.
-- Nothing is live until the person applies the draft, so say "in your draft" until then.
+- Nothing is live until the person publishes the draft, so say "in development" until then.
 - Keep every reply under about 60 words, plus at most one small table; people stop reading walls of text. Lead with your pick and give at most one caveat. After a proposal, write at most two short sentences and no list: what it adds and the one thing most worth checking. Any other caveat waits until the person asks. The card already shows the change and its code, so never repeat them or list its fields.
 ${REPLY_RULES}
 

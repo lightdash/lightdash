@@ -181,7 +181,7 @@ const IssueRow: FC<{ issue: Issue }> = ({ issue: { kind, model, detail } }) => {
 };
 
 const STATUS_LABELS = {
-    applied: 'Applied',
+    applied: 'Published',
     undone: 'Undone',
     discarded: 'Discarded',
 };
@@ -229,7 +229,11 @@ export const SemanticLayerProposalCard: FC<{
     );
     const settledLabel =
         settled && (pullRequestUrl ? 'Pull request' : STATUS_LABELS[settled]);
-    const status = settledLabel ? settledLabel : inDraft ? 'In draft' : null;
+    const status = settledLabel
+        ? settledLabel
+        : inDraft
+          ? 'In development'
+          : null;
     const getActions = (model: string) => {
         if (inDraft && draftChangeUuid) {
             return (

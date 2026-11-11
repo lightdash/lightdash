@@ -178,7 +178,7 @@ const NewThread: FC<
             <Stack flex={1} justify="center" align="center" px="md">
                 <Text fz="xs" c="dimmed" ta="center">
                     {keepsDraft
-                        ? 'Ask for a model, a metric or a join. Changes collect in your draft, and nothing goes live until you apply it.'
+                        ? 'Ask for a model, a metric or a join. Changes stay in development, and nothing goes live until you publish.'
                         : 'Ask for a model, a metric or a join. Changes go to your repository as a pull request, and nothing goes live until it merges.'}
                 </Text>
                 {showStarters ? (

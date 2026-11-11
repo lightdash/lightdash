@@ -9,6 +9,7 @@ import {
     isExploreError,
     NotFoundError,
     ParameterError,
+    ProjectType,
     ValidationTarget,
     type Explore,
     type ExploreError,
@@ -289,6 +290,8 @@ export class SemanticStudioService extends BaseService {
             // A dbt project keeps no draft: the agent edits the repository in a pull request.
             return {
                 enabled:
+                    // A preview is a look at a pull request's branch, not a place to start another.
+                    project.type !== ProjectType.PREVIEW &&
                     getWritebackConnectionSupport(dbtConnection)
                         .editDbtProject &&
                     (await this.findAccessBlocker(user, project)) === null &&
