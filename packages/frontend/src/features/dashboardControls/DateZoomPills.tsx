@@ -181,7 +181,7 @@ const DateZoomEditorPopover: FC<{
                     className={
                         contractClasses === null
                             ? editorClasses.dropdown
-                            : `${editorClasses.dropdown} ${contractClasses.rail} ${contractClasses.parameterDropdown}`
+                            : `${editorClasses.dropdown} ${contractClasses.rail} ${contractClasses.dateZoomDropdown}`
                     }
                 >
                     {isDefault ? (
@@ -321,7 +321,7 @@ const DateZoomPill: FC<{ entry: DateZoomBarEntry }> = ({ entry }) => {
                         aria-pressed={isOpen || isPicked}
                         classNames={{
                             label: filterClasses.label,
-                            root: contractClasses?.parameter,
+                            root: contractClasses?.dateZoom,
                         }}
                         className={`${filterClasses.button} ${filterClasses.plain}${
                             isPicked ? ` ${pillClasses.pickedPill}` : ''
@@ -510,7 +510,7 @@ export const DefaultZoomPill: FC = () => {
                         aria-pressed={isOpen}
                         classNames={{
                             label: filterClasses.label,
-                            root: contractClasses?.parameter,
+                            root: contractClasses?.dateZoom,
                         }}
                         className={`${filterClasses.button} ${filterClasses.plain}`}
                         leftSection={

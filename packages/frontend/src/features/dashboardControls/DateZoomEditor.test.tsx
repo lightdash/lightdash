@@ -21,6 +21,10 @@ import {
 import { DateZoomEditorProvider } from './DateZoomEditorProvider';
 import { DateZoomPills, DefaultZoomPill } from './DateZoomPills';
 import { ParameterEditorProvider } from './ParameterEditorProvider';
+import {
+    RailContractClasses,
+    type RailContractClassNames,
+} from './railContractClasses';
 import { useDateZoomEditorSelector } from './useDateZoomEditor';
 
 const { requestSwitch, track, embed } = vi.hoisted(() => ({
@@ -91,10 +95,12 @@ const setup = ({
     isViewer = false,
     controlGranularities = {},
     dateZoomGranularity,
+    contractClasses = null,
 }: {
     isViewer?: boolean;
     controlGranularities?: Record<string, string>;
     dateZoomGranularity?: DateGranularity;
+    contractClasses?: RailContractClassNames | null;
 } = {}) => {
     const store = createDashboardTestStore({
         isEditMode: !isViewer,
@@ -122,16 +128,18 @@ const setup = ({
     const user = userEvent.setup();
     renderWithProviders(
         <DashboardStoreTestProvider store={store}>
-            <ParameterEditorProvider isViewer={isViewer}>
-                <DateZoomEditorProvider isViewer={isViewer}>
-                    <DateZoomPills />
-                    <DefaultZoomPill />
-                    <AddButton />
-                    <button type="button" data-controls-pill="f1">
-                        Region filter
-                    </button>
-                </DateZoomEditorProvider>
-            </ParameterEditorProvider>
+            <RailContractClasses.Provider value={contractClasses}>
+                <ParameterEditorProvider isViewer={isViewer}>
+                    <DateZoomEditorProvider isViewer={isViewer}>
+                        <DateZoomPills />
+                        <DefaultZoomPill />
+                        <AddButton />
+                        <button type="button" data-controls-pill="f1">
+                            Region filter
+                        </button>
+                    </DateZoomEditorProvider>
+                </ParameterEditorProvider>
+            </RailContractClasses.Provider>
         </DashboardStoreTestProvider>,
     );
     const config = () => selectCurrentDateZoomConfig(store.getState());
@@ -394,6 +402,32 @@ describe('Date zoom editor', () => {
                 properties: { granularity: 'default' },
             }),
         );
+    });
+
+    it("puts an embed's date zoom contract classes on the pills and popovers", async () => {
+        const { user } = setup({
+            isViewer: true,
+            contractClasses: {
+                rail: 'rail',
+                addFilterDropdown: 'add-list',
+                filterDropdown: 'filter-list',
+                parameter: 'ld-dashboard-parameter',
+                parameterDropdown: 'ld-dashboard-parameter-dropdown',
+                dateZoom: 'ld-dashboard-date-zoom',
+                dateZoomDropdown: 'ld-dashboard-date-zoom-dropdown',
+            },
+        });
+        for (const name of ['Revenue zoom', 'Default zoom']) {
+            expect(pill(name)).toHaveClass('ld-dashboard-date-zoom');
+            expect(pill(name)).not.toHaveClass('ld-dashboard-parameter');
+            await user.click(pill(name));
+            const dropdown = document.querySelector('[data-controls-editor]');
+            expect(dropdown).toHaveClass('ld-dashboard-date-zoom-dropdown');
+            expect(dropdown).not.toHaveClass('ld-dashboard-parameter-dropdown');
+            await user.click(
+                within(dialog()).getByRole('button', { name: 'Cancel' }),
+            );
+        }
     });
 
     it('cancels on Escape', async () => {

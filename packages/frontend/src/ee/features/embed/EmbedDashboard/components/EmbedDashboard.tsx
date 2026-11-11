@@ -106,6 +106,8 @@ const RAIL_CONTRACT_CLASSES: RailContractClassNames = {
     filterDropdown: embedContractClass('ld-dashboard-filter-dropdown'),
     parameter: embedContractClass('ld-dashboard-parameter'),
     parameterDropdown: embedContractClass('ld-dashboard-parameter-dropdown'),
+    dateZoom: embedContractClass('ld-dashboard-date-zoom'),
+    dateZoomDropdown: embedContractClass('ld-dashboard-date-zoom-dropdown'),
 };
 
 const EMBED_EDIT_TILE_TYPES = [

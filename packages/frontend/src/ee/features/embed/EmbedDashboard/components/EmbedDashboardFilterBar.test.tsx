@@ -1,5 +1,6 @@
 import {
     DashboardControlRefKind,
+    DateGranularity,
     DEFAULT_UI_STRINGS,
     FilterInteractivityValues,
     FilterOperator,
@@ -11,6 +12,7 @@ import { screen, within } from '@testing-library/react';
 import { type ReactElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { dashboardParametersActions } from '../../../../../features/dashboard/store';
+import { RailContractClasses } from '../../../../../features/dashboardControls/railContractClasses';
 import {
     createDashboardTestStore,
     seedDashboardEditState,
@@ -93,6 +95,18 @@ vi.mock(
         }),
     }),
 );
+// The rail's state, which the page provides around the real date zoom pills
+vi.mock('../../../../../features/dashboardControls/useControlsSidebar', () => ({
+    useControlsSidebarSelector: (
+        selector: (c: Record<string, unknown>) => unknown,
+    ) =>
+        selector({
+            isMapping: false,
+            isSidebarOpen: false,
+            isViewer: true,
+            requestSwitch: (proceed: () => void) => proceed(),
+        }),
+}));
 vi.mock('../../../../../features/dashboardControls/ParameterPills', () => ({
     ParameterPills: () => <div data-testid="parameter-pills" />,
 }));
@@ -104,7 +118,9 @@ vi.mock('./EmbedDashboardFilters', () => ({
     EmbedResetFiltersButton: () => <button type="button">Reset</button>,
 }));
 vi.mock('../../../../../features/dateZoom', () => ({
-    DateZoom: () => null,
+    DateZoom: ({ dropdownClassName }: { dropdownClassName?: string }) => (
+        <div data-testid="shipped-date-zoom" className={dropdownClassName} />
+    ),
 }));
 
 const dashboard = (canAddFilters: boolean, areParametersEnabled = false) =>
@@ -370,6 +386,142 @@ describe('EmbedDashboardFilterBar', () => {
             ).toBeInTheDocument();
             expect(
                 screen.queryByTestId('parameter-pills'),
+            ).not.toBeInTheDocument();
+        });
+    });
+
+    describe('date zoom', () => {
+        const zoomStore = () => {
+            // The saved config, as the page's context has it
+            mockDashboardContext.current = {
+                dashboard: {
+                    config: {
+                        isDateZoomDisabled: false,
+                        dateZoomConfig: {
+                            controls: [
+                                {
+                                    uuid: 'z1',
+                                    name: 'Revenue zoom',
+                                    granularity: DateGranularity.WEEK,
+                                },
+                            ],
+                            tileTargets: {
+                                'tile-1': {
+                                    controlUuid: 'z1',
+                                    fieldId: 'orders_date',
+                                    tableName: 'orders',
+                                },
+                            },
+                        },
+                    },
+                },
+            };
+            const store = createDashboardTestStore({
+                chartZoomableFieldsByTileUuid: {
+                    'tile-1': [
+                        {
+                            fieldId: 'orders_date',
+                            label: 'Order date',
+                            tableName: 'orders',
+                        },
+                    ],
+                    'tile-2': [
+                        {
+                            fieldId: 'orders_date',
+                            label: 'Order date',
+                            tableName: 'orders',
+                        },
+                    ],
+                },
+            });
+            seedDashboardEditState(store, {
+                dashboardTiles: ['tile-1', 'tile-2'].map(
+                    (uuid) =>
+                        ({
+                            uuid,
+                            type: 'saved_chart',
+                            properties: {},
+                        }) as DashboardTile,
+                ),
+            });
+            return store;
+        };
+        const renderZoom = ({
+            isControlsEnabled,
+            shouldShowFilters = true,
+            isEditMode = false,
+        }: {
+            isControlsEnabled: boolean;
+            shouldShowFilters?: boolean;
+            isEditMode?: boolean;
+        }) =>
+            renderWithProviders(
+                <DashboardStoreTestProvider store={zoomStore()}>
+                    {/* As the embed page provides them */}
+                    <RailContractClasses.Provider
+                        value={{
+                            rail: 'ld-dashboard-filter-rail',
+                            addFilterDropdown:
+                                'ld-dashboard-add-filter-dropdown',
+                            filterDropdown: 'ld-dashboard-filter-dropdown',
+                            parameter: 'ld-dashboard-parameter',
+                            parameterDropdown:
+                                'ld-dashboard-parameter-dropdown',
+                            dateZoom: 'ld-dashboard-date-zoom',
+                            dateZoomDropdown: 'ld-dashboard-date-zoom-dropdown',
+                        }}
+                    >
+                        <EmbedDashboardFilterBar
+                            dashboard={{
+                                ...dashboard(true),
+                                canDateZoom: true,
+                            }}
+                            shouldShowFilters={shouldShowFilters}
+                            activeTiles={[]}
+                            isEditMode={isEditMode}
+                            isControlsEnabled={isControlsEnabled}
+                        />
+                    </RailContractClasses.Provider>
+                </DashboardStoreTestProvider>,
+            );
+        const zoomPill = (name: string) =>
+            screen.getByRole('button', { name: new RegExp(`^${name} is`) });
+
+        it('renders date zoom pills in the flow with the class contract, not the shipped group', () => {
+            renderZoom({ isControlsEnabled: true });
+            expect(zoomPill('Revenue zoom')).toHaveClass(
+                'ld-dashboard-date-zoom',
+            );
+            expect(zoomPill('Default zoom')).toHaveClass(
+                'ld-dashboard-date-zoom',
+            );
+            expect(
+                screen.queryByTestId('shipped-date-zoom'),
+            ).not.toBeInTheDocument();
+        });
+
+        it('renders date zoom pills when filters are hidden', () => {
+            renderZoom({ isControlsEnabled: true, shouldShowFilters: false });
+            expect(zoomPill('Revenue zoom')).toBeInTheDocument();
+            expect(zoomPill('Default zoom')).toBeInTheDocument();
+            expect(
+                screen.queryByTestId('shipped-date-zoom'),
+            ).not.toBeInTheDocument();
+        });
+
+        it.each([
+            ['the controls are off', { isControlsEnabled: false }],
+            [
+                'an editor is in edit mode',
+                { isControlsEnabled: false, isEditMode: true },
+            ],
+        ])('keeps the shipped date zoom group when %s', (_, props) => {
+            renderZoom(props);
+            const shipped = screen.getByTestId('shipped-date-zoom');
+            expect(shipped).toHaveClass('ld-dashboard-date-zoom-dropdown');
+            expect(shipped.parentElement).toHaveClass('ld-dashboard-date-zoom');
+            expect(
+                screen.queryByRole('button', { name: /^Default zoom is/ }),
             ).not.toBeInTheDocument();
         });
     });

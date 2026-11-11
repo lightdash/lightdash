@@ -575,7 +575,7 @@ type Props = {
     triggerClassName?: string;
     /** Parameter controls after the filters in each pass (default true; an embed may hide them). */
     withParameters?: boolean;
-    /** Date zooms after the parameter controls (default true; an embed keeps its own). */
+    /** Date zooms after the parameter controls (default true; off in an embed without date zoom). */
     withDateZooms?: boolean;
 };
 
