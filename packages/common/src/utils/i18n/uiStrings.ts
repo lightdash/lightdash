@@ -474,6 +474,14 @@ export const DEFAULT_UI_STRINGS = {
         "Set by {control} on {count} of this control's tiles",
     'controls.parameter.moveFrom': 'Move from {controls}?',
     'controls.parameter.nameList': '{list} and {name}',
+    'controls.dateZoom.zooms': 'Zooms {tiles}',
+    'controls.dateZoom.zoomsNoTiles': 'Zooms no tiles',
+    'controls.dateZoom.clearedUsesSavedGrain':
+        'If cleared, tiles use the saved grain, {grain}.',
+    'controls.dateZoom.clearedKeepsOwnGrain':
+        'If cleared, tiles keep their own grain.',
+    'controls.dateZoom.custom': 'Custom',
+    'controls.dateZoom.clearGrain': 'Clear grain',
     'filters.tileCard.locked': 'Tiles are locked while a filter is edited',
     'filters.tileCard.unreachable':
         'This tile has no field this filter can use',

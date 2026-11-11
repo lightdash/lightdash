@@ -1,5 +1,6 @@
 import {
     DashboardTileTypes,
+    DateGranularity,
     DimensionType,
     FieldType,
     FilterOperator,
@@ -7,6 +8,7 @@ import {
     UnitOfTime,
     type ApiError,
     type DashboardControlSection,
+    type DateZoomControl,
     type DashboardFilterRule,
     type DashboardTab,
     type FieldValueSearchResult,
@@ -712,4 +714,29 @@ export const createParameterControl = (
     tileUuids,
     sectionId: null,
     value,
+});
+
+/** The dashboard's custom grains, as the tiles' dbt project names them. */
+export const customGranularityLabels: Record<string, string> = {
+    fiscal_quarter: 'Fiscal quarter',
+    retail_week: 'Retail week',
+};
+
+/** The grains viewers can pick: the shipped list's usual five. */
+export const enabledGranularities: string[] = [
+    DateGranularity.DAY,
+    DateGranularity.WEEK,
+    DateGranularity.MONTH,
+    DateGranularity.QUARTER,
+    DateGranularity.YEAR,
+];
+
+/** A named zoom at Week, on no section, shown to viewers. */
+export const createDateZoomControl = (
+    overrides: Partial<DateZoomControl> = {},
+): DateZoomControl => ({
+    uuid: 'zoom-revenue',
+    name: 'Revenue zoom',
+    granularity: DateGranularity.WEEK,
+    ...overrides,
 });

@@ -13,21 +13,12 @@ import {
     Button,
     Group,
     Stack,
-    Switch,
     Text,
-    Title,
     Tooltip,
 } from '@mantine/core';
-import {
-    IconAdjustmentsHorizontal,
-    IconArrowLeft,
-    IconEye,
-    IconLayoutGrid,
-    IconPencil,
-    IconSettings,
-} from '@tabler/icons-react';
+import { IconAdjustmentsHorizontal, IconPencil } from '@tabler/icons-react';
 import { isEqual } from 'es-toolkit/compat';
-import { useId, useState, type FC } from 'react';
+import { useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import TruncatedText from '../../components/common/TruncatedText';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -38,11 +29,16 @@ import {
 import { ParameterInput } from '../parameters/components/ParameterInput';
 import { ShadowedReservedNameWarning } from '../parameters/components/ShadowedReservedNameWarning';
 import { getParameterDisplayValue } from '../parameters/utils/parameterDisplayValue';
+import {
+    SettingsChip,
+    SettingsHeader,
+    ShowToViewersSetting,
+    TilesChip,
+} from './ControlPopoverParts';
 import { focusParameterValueOnMount } from './editorFocus';
 import { formatTileCount, formatTilesOf } from './fieldLabels';
 import classes from './FilterEditor.module.css';
 import { EditorPrompt, type EditorView as PopoverView } from './FilterPopover';
-import { focusOnMount } from './mappingFocus';
 import { useRefocusAfter } from './nameFocus';
 import { NameInput } from './NameInput';
 import {
@@ -148,7 +144,6 @@ export const ParameterControlPopover: FC<Props> = ({
     onChooseTiles,
 }) => {
     const getUiString = useUiStrings();
-    const visibilityId = useId();
     const sections = useDashboardSelector(selectControlSections);
     // As the filter's Settings chip: the section is its whole summary
     const sectionName =
@@ -293,29 +288,13 @@ export const ParameterControlPopover: FC<Props> = ({
 
     const settingsView = (
         <Stack gap="sm" className={classes.content}>
-            <Group gap="xs" wrap="nowrap">
-                <Tooltip fz="xs" label="Back">
-                    <ActionIcon
-                        size="sm"
-                        aria-label="Back"
-                        ref={focusOnMount}
-                        onClick={() => {
-                            markBackFromSettings();
-                            setView('value');
-                        }}
-                    >
-                        <MantineIcon icon={IconArrowLeft} />
-                    </ActionIcon>
-                </Tooltip>
-                <Box miw={0}>
-                    <Title order={6} lh="sm">
-                        Settings
-                    </Title>
-                    <TruncatedText maxWidth="100%" fz="xs" c="dimmed">
-                        {name}
-                    </TruncatedText>
-                </Box>
-            </Group>
+            <SettingsHeader
+                name={name}
+                onBack={() => {
+                    markBackFromSettings();
+                    setView('value');
+                }}
+            />
             <Stack gap="sm">
                 <SectionSetting
                     sections={sections}
@@ -327,46 +306,14 @@ export const ParameterControlPopover: FC<Props> = ({
                         );
                     }}
                 />
-                <Stack gap={4}>
-                    <Group justify="space-between" wrap="nowrap">
-                        <Group gap={6} wrap="nowrap">
-                            <MantineIcon
-                                icon={IconEye}
-                                size="sm"
-                                color="ldGray.6"
-                            />
-                            <Text
-                                component="label"
-                                htmlFor={visibilityId}
-                                size="xs"
-                                fw={600}
-                            >
-                                Show to viewers
-                            </Text>
-                        </Group>
-                        <Switch
-                            id={visibilityId}
-                            size="xs"
-                            checked={!control.hidden}
-                            aria-describedby={`${visibilityId}-description`}
-                            onChange={({ currentTarget }) => {
-                                const { hidden: _hidden, ...rest } = control;
-                                onChange(
-                                    currentTarget.checked
-                                        ? rest
-                                        : { ...rest, hidden: true },
-                                );
-                            }}
-                        />
-                    </Group>
-                    <Text
-                        id={`${visibilityId}-description`}
-                        size="xs"
-                        c="dimmed"
-                    >
-                        The value still applies to its tiles when hidden.
-                    </Text>
-                </Stack>
+                <ShowToViewersSetting
+                    hidden={!!control.hidden}
+                    description="The value still applies to its tiles when hidden."
+                    onChange={(hidden) => {
+                        const { hidden: _hidden, ...rest } = control;
+                        onChange(hidden ? { ...rest, hidden: true } : rest);
+                    }}
+                />
             </Stack>
         </Stack>
     );
@@ -388,71 +335,16 @@ export const ParameterControlPopover: FC<Props> = ({
                 {view === 'settings' ? settingsView : valueView}
                 {view === 'value' && !isViewer && (
                     <Group gap="xs" align="center" px="md" pb="sm">
-                        {onChooseTiles === null ? (
-                            <Group gap={6} wrap="nowrap" mih={24} px={6}>
-                                <MantineIcon
-                                    icon={IconLayoutGrid}
-                                    size={14}
-                                    color="dimmed"
-                                />
-                                <Text span fz="xs" c="dimmed">
-                                    {sets}
-                                </Text>
-                            </Group>
-                        ) : (
-                            <Button
-                                variant="subtle"
-                                color="gray"
-                                size="compact-xs"
-                                mih={24}
-                                flex="0 0 auto"
-                                aria-label={`${sets}. ${chooseTiles}`}
-                                leftSection={
-                                    <MantineIcon
-                                        icon={IconLayoutGrid}
-                                        size={14}
-                                    />
-                                }
-                                onClick={onChooseTiles}
-                            >
-                                <Text span fz="xs">
-                                    <Text span fz="xs" c="dimmed">
-                                        {sets}
-                                    </Text>
-                                    {` · ${chooseTiles}`}
-                                </Text>
-                            </Button>
-                        )}
-                        <Button
-                            ref={focusSettingsChip}
-                            variant="subtle"
-                            color="gray"
-                            size="compact-xs"
-                            miw={0}
-                            mih={24}
-                            classNames={{
-                                root: classes.wrappingChip,
-                                label: classes.wrappingChipLabel,
-                            }}
-                            leftSection={
-                                <MantineIcon icon={IconSettings} size={14} />
-                            }
-                            aria-label={
-                                sectionName === null
-                                    ? 'Settings'
-                                    : `Settings: ${sectionName}`
-                            }
+                        <TilesChip
+                            label={sets}
+                            chooseTiles={chooseTiles}
+                            onChooseTiles={onChooseTiles}
+                        />
+                        <SettingsChip
+                            summary={sectionName}
+                            chipRef={focusSettingsChip}
                             onClick={() => setView('settings')}
-                        >
-                            <Text span fz="xs">
-                                Settings
-                                {sectionName !== null && (
-                                    <Text span fz="xs" c="dimmed">
-                                        {` · ${sectionName}`}
-                                    </Text>
-                                )}
-                            </Text>
-                        </Button>
+                        />
                     </Group>
                 )}
                 <Group
