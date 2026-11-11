@@ -1,3 +1,11 @@
+# [3.220.0](https://github.com/lightdash/lightdash/compare/3.219.0...3.220.0) (2026-11-11)
+
+
+### Features
+
+* **dashboards:** keep tiles in place while dragging or resizing in edit mode ([#32426](https://github.com/lightdash/lightdash/issues/32426)) ([dad1230](https://github.com/lightdash/lightdash/commit/dad1230cf41dedcc1f270bedb4a6cf9ff3ed9c60))
+* **dashboards:** snap dragged tiles into rows and empty spaces ([#32428](https://github.com/lightdash/lightdash/issues/32428)) ([224ead6](https://github.com/lightdash/lightdash/commit/224ead6b10c5bdc4bacdfd8e8297344832484a9a))
+
 # [3.219.0](https://github.com/lightdash/lightdash/compare/3.218.0...3.219.0) (2026-11-11)
 
 
