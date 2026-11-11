@@ -171,7 +171,8 @@ filter has a field.
 
 ## Pill hover (`useTileHover`)
 
-With no filter open, hovering an editor's pill sets `data-controls-hovered`
+With no control open, hovering an editor's filter, parameter or date zoom
+pill sets `data-controls-hovered`
 on its tiles' grid items directly (the mapping ring's 2px ink, no tint): no
 re-render, veil or scroll. Only the pill that marked last clears
 (`tileHoverOwner`), after `LEAVE_GRACE_MS`.

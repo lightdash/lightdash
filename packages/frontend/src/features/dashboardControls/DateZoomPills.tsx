@@ -54,6 +54,7 @@ import { useDateZoomEditorSelector } from './useDateZoomEditor';
 import { useIsControlEdited } from './useIsControlEdited';
 import { useParameterEditorSelector } from './useParameterEditor';
 import { usePillActionHover } from './usePillActionHover';
+import { useTileHover } from './useTileHover';
 
 const NO_TRANSITION = { duration: 0 };
 const DRAG_DATA = { kind: DATE_ZOOM_DRAG };
@@ -249,6 +250,12 @@ const DateZoomPill: FC<{ entry: DateZoomBarEntry }> = ({ entry }) => {
         DATE_ZOOM_PILL_SELECTOR,
     );
     const os = useOs();
+    // As a filter pill: in edit mode the tiles it zooms are marked on hover
+    const tileHover = useTileHover(
+        control.uuid,
+        !isViewer && !isEditing,
+        () => entry.tileUuids,
+    );
     const canEdit = !isViewer && !isNew;
     const isSelectable = selection !== null && canEdit && !isEditing;
     const isPicked =
@@ -307,6 +314,7 @@ const DateZoomPill: FC<{ entry: DateZoomBarEntry }> = ({ entry }) => {
                     onPointerLeave={trackAction}
                 >
                     <Button
+                        {...tileHover}
                         size="xs"
                         variant="default"
                         pos="relative"

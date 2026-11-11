@@ -22,6 +22,9 @@ import { DateZoomTileOverlays } from './DateZoomTileOverlay';
 import { DateZoomTilesBar } from './DateZoomTilesBar';
 import { useDateZoomEditorSelector } from './useDateZoomEditor';
 
+const { tileHoverOwner } = vi.hoisted(() => ({
+    tileHoverOwner: { current: null as string | null },
+}));
 vi.mock('./useControlsSidebar', () => ({
     useControlsSidebarSelector: (
         selector: (c: Record<string, unknown>) => unknown,
@@ -31,6 +34,7 @@ vi.mock('./useControlsSidebar', () => ({
             isSidebarOpen: false,
             isViewer: false,
             requestSwitch: (proceed: () => void) => proceed(),
+            tileHoverOwner,
         }),
 }));
 

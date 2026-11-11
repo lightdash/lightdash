@@ -4,7 +4,7 @@ import {
     type DashboardTile,
     type DateZoomConfig,
 } from '@lightdash/common';
-import { act, screen, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type FC } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -27,8 +27,9 @@ import {
 } from './railContractClasses';
 import { useDateZoomEditorSelector } from './useDateZoomEditor';
 
-const { requestSwitch, track, embed } = vi.hoisted(() => ({
+const { requestSwitch, track, embed, tileHoverOwner } = vi.hoisted(() => ({
     requestSwitch: vi.fn((proceed: () => void) => proceed()),
+    tileHoverOwner: { current: null as string | null },
     track: vi.fn(),
     embed: { isEmbedded: false },
 }));
@@ -45,6 +46,7 @@ vi.mock('./useControlsSidebar', () => ({
             isSidebarOpen: boolean;
             isViewer: boolean;
             requestSwitch: typeof requestSwitch;
+            tileHoverOwner: { current: string | null };
         }) => unknown,
     ) =>
         selector({
@@ -52,6 +54,7 @@ vi.mock('./useControlsSidebar', () => ({
             isSidebarOpen: false,
             isViewer: false,
             requestSwitch,
+            tileHoverOwner,
         }),
 }));
 
@@ -137,6 +140,9 @@ const setup = ({
                         <button type="button" data-controls-pill="f1">
                             Region filter
                         </button>
+                        {['tile-1', 'tile-2', 'tile-3'].map((uuid) => (
+                            <div key={uuid} data-tile-uuid={uuid} />
+                        ))}
                     </DateZoomEditorProvider>
                 </ParameterEditorProvider>
             </RailContractClasses.Provider>
@@ -441,5 +447,25 @@ describe('Date zoom editor', () => {
             await user.keyboard('{Escape}');
         });
         expect(config()).toEqual(saved);
+    });
+
+    it('marks the tiles a zoom sets while its pill is hovered, as a filter pill does', async () => {
+        const { user } = setup();
+        const marked = () =>
+            [
+                ...document.querySelectorAll<HTMLElement>(
+                    '[data-controls-hovered]',
+                ),
+            ].map((element) => element.dataset.tileUuid);
+        await user.hover(pill('Revenue zoom'));
+        expect(marked()).toEqual(['tile-1']);
+        await user.unhover(pill('Revenue zoom'));
+        await waitFor(() => expect(marked()).toEqual([]));
+    });
+
+    it('marks nothing for a viewer', async () => {
+        const { user } = setup({ isViewer: true });
+        await user.hover(pill('Revenue zoom'));
+        expect(document.querySelector('[data-controls-hovered]')).toBeNull();
     });
 });
