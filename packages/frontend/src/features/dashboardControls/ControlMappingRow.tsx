@@ -45,10 +45,8 @@ type Props = {
     /** After the count: the parameter's "through" and its key chips. */
     afterCount: ReactNode;
     onClearAll: () => void;
-    isClearAllDisabled: boolean;
     onCancel: () => void;
     onApply: () => void;
-    applyBlockedReason: string | null;
 };
 
 // A parameter's or a date zoom's mapping row: back, the open pill, its
@@ -64,12 +62,13 @@ export const ControlMappingRow: FC<Props> = ({
     total,
     afterCount,
     onClearAll,
-    isClearAllDisabled,
     onCancel,
     onApply,
-    applyBlockedReason,
 }) => {
     const getUiString = useUiStrings();
+    // A control on no tiles does nothing; its X removes it
+    const applyBlockedReason =
+        applied === 0 ? 'Choose at least one tile' : null;
     const format = (count: number) => {
         const tilesOf = formatTilesOf(getUiString, count, total);
         return `${tilesOf.count} ${tilesOf.noun}`;
@@ -126,7 +125,7 @@ export const ControlMappingRow: FC<Props> = ({
                 variant="subtle"
                 color="gray"
                 size="xs"
-                disabled={isClearAllDisabled}
+                disabled={applied === 0}
                 onClick={onClearAll}
             >
                 Clear all tiles

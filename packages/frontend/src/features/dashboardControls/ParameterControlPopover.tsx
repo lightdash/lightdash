@@ -89,6 +89,8 @@ type Props = {
     input: ParameterControlParameter;
     /** Distinct tiles it sets: the N in "Sets N of M tiles". */
     tileCount: number;
+    /** Its tiles were chosen in this edit: none left blocks Apply, as the mapping row's. */
+    hasChosenTiles: boolean;
     /** For a parameter whose options come from a field's values. */
     projectUuid: string;
     /** Resolves a `today` default on the project's calendar. */
@@ -123,6 +125,7 @@ export const ParameterControlPopover: FC<Props> = ({
     parameters,
     input,
     tileCount,
+    hasChosenTiles,
     projectUuid,
     projectTimezone,
     parameterValues,
@@ -179,9 +182,16 @@ export const ParameterControlPopover: FC<Props> = ({
                 : `${tilesOf.count} ${tilesOf.noun}`,
     });
     const chooseTiles = getUiString('controls.chooseTiles');
-    // Editors can save an empty assignment for later mapping.
+    // Editors can save an empty assignment for later mapping, unless they
+    // chose no tiles in this edit
     const applyBlockedReason =
-        tileCount > 0 || !isViewer ? null : getUiString('controls.setsNoTiles');
+        tileCount > 0
+            ? null
+            : isViewer
+              ? getUiString('controls.setsNoTiles')
+              : hasChosenTiles
+                ? 'Choose at least one tile'
+                : null;
 
     const valueView = (
         <Box ref={focusValueView}>

@@ -113,6 +113,7 @@ const ParameterEditorContent: FC<{
             parameters={entry.parameters}
             input={entry.input}
             tileCount={tileUuids.length}
+            hasChosenTiles={mappedControl !== undefined}
             totalTileCount={bar.totalTileCount}
             projectUuid={projectUuid}
             projectTimezone={null}

@@ -97,10 +97,8 @@ export const ParameterMappingRow: FC = () => {
             onClearAll={() =>
                 clearAllTiles((tiles ?? []).map(({ uuid }) => uuid))
             }
-            isClearAllDisabled={false}
             onCancel={cancelMapping}
             onApply={apply}
-            applyBlockedReason={null}
         />
     );
 };

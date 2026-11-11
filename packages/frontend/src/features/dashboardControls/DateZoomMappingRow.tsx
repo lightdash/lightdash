@@ -36,13 +36,8 @@ export const DateZoomMappingRow: FC = () => {
                     'clear',
                 )
             }
-            isClearAllDisabled={applied === 0}
             onCancel={cancelMapping}
             onApply={apply}
-            // As the popover's: a zoom on no tiles does nothing
-            applyBlockedReason={
-                applied === 0 ? 'Choose at least one tile' : null
-            }
         />
     );
 };
