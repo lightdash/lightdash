@@ -4,6 +4,7 @@ import { type ComponentProps } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type PendingChange } from '../../../features/dashboard/pendingChanges/getPendingChanges';
+import { type EditFiltersVisibility } from '../../../features/dashboardFilters/EditFiltersVisibilityControl';
 import { renderWithProviders } from '../../../testing/testUtils';
 import DashboardHeader from './DashboardHeader';
 
@@ -49,6 +50,8 @@ vi.mock('./PendingChangesButton', () => ({
 vi.mock('./TileLayoutHistoryButtons', () => ({
     TileLayoutHistoryButtons: () => null,
 }));
+vi.mock('./TidyTilesButton', () => ({ TidyTilesButton: () => null }));
+vi.mock('./CanvasZoomControls', () => ({ CanvasZoomControls: () => null }));
 vi.mock('./DashboardPerformanceWarning', () => ({
     DashboardPerformanceWarning: () => null,
 }));
@@ -56,6 +59,7 @@ vi.mock('./DashboardPerformanceWarning', () => ({
 const renderHeader = (
     isEditMode: boolean,
     pendingSettingsChanges: PendingChange[] | null = null,
+    editFiltersVisibility: EditFiltersVisibility | null = null,
 ) =>
     renderWithProviders(
         <MemoryRouter>
@@ -76,7 +80,7 @@ const renderHeader = (
                     isMovingDashboardToSpace: false,
                     isFitToScreen: false,
                     isFitToScreenAvailable: false,
-                    editFiltersVisibility: null,
+                    editFiltersVisibility,
                     pendingSettingsChanges,
                 } as ComponentProps<typeof DashboardHeader>)}
             />
@@ -119,4 +123,23 @@ describe('DashboardHeader editing badge', () => {
         renderHeader(true);
         expect(screen.queryByText('Editing')).not.toBeInTheDocument();
     });
+});
+
+describe('DashboardHeader edit bar visibility switch', () => {
+    beforeEach(() => {
+        mocks.userCanManageDashboard = true;
+    });
+
+    it.each([
+        [true, 'Controls visibility while editing', 'Controls'],
+        [false, 'Filters visibility while editing', 'Filters'],
+    ])(
+        'names the switch for the controls flag %s',
+        (isFlagOn, ariaLabel, label) => {
+            mocks.flagEnabled = isFlagOn;
+            renderHeader(true, null, 'all');
+            expect(screen.getByLabelText(ariaLabel)).toBeInTheDocument();
+            expect(screen.getByText(label)).toBeInTheDocument();
+        },
+    );
 });

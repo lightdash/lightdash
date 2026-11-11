@@ -9,14 +9,26 @@ const OPTIONS: {
     value: EditFiltersVisibility;
     label: string;
     tooltip: string;
+    controlsTooltip: string;
 }[] = [
-    { value: 'all', label: 'All', tooltip: 'Show every filter' },
+    {
+        value: 'all',
+        label: 'All',
+        tooltip: 'Show every filter',
+        controlsTooltip: 'Show every control',
+    },
     {
         value: 'summary',
         label: 'Hide',
         tooltip: 'Collapse filters into a one-line summary',
+        controlsTooltip: 'Collapse controls into a one-line summary',
     },
-    { value: 'hidden', label: 'Off', tooltip: 'Hide the filters bar' },
+    {
+        value: 'hidden',
+        label: 'Off',
+        tooltip: 'Hide the filters bar',
+        controlsTooltip: 'Hide the controls bar',
+    },
 ];
 
 const isEditFiltersVisibility = (
@@ -27,22 +39,25 @@ const isEditFiltersVisibility = (
 type Props = {
     value: EditFiltersVisibility;
     onChange: (value: EditFiltersVisibility) => void;
+    /** Names the dashboard's controls rather than its filters (default false). */
+    isControls?: boolean;
 };
 
 export const EditFiltersVisibilityControl: FC<Props> = ({
     value,
     onChange,
+    isControls = false,
 }) => (
     <Group gap="xs" wrap="nowrap">
         <Group gap="xxs" wrap="nowrap">
             <MantineIcon icon={IconFilter} color="dimmed" />
             <Text fz="xs" c="dimmed" fw={500}>
-                Filters
+                {isControls ? 'Controls' : 'Filters'}
             </Text>
         </Group>
         <SegmentedControl
             size="xs"
-            aria-label="Filters visibility while editing"
+            aria-label={`${isControls ? 'Controls' : 'Filters'} visibility while editing`}
             value={value}
             onChange={(next) => {
                 if (isEditFiltersVisibility(next)) onChange(next);
@@ -51,7 +66,9 @@ export const EditFiltersVisibilityControl: FC<Props> = ({
                 value: option.value,
                 label: (
                     <Tooltip
-                        label={option.tooltip}
+                        label={
+                            isControls ? option.controlsTooltip : option.tooltip
+                        }
                         position="bottom"
                         openDelay={200}
                     >

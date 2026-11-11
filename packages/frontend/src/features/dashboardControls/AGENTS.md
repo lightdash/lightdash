@@ -50,7 +50,8 @@ Gated on the flag:
   `ControlsSummary` instead of the collapsed `DashboardFiltersBarSummary`.
   Editing with the edit ergonomics flag, the floating bar's switch collapses
   the strip (no toggle); without it, the strip's toggle does, as in view.
-- `components/common/Dashboard/DashboardHeader.tsx`: the indigo "Editing"
+- `components/common/Dashboard/DashboardHeader.tsx`: `isControls` on
+  `EditFiltersVisibilityControl` (the switch says "Controls"); the indigo "Editing"
   badge before the name in edit mode, for users who can manage the dashboard;
   the `save` class, outlined by `DashboardHeader.module.css` under the guard's
   `[data-dashboard-header-guard][inert]`.
@@ -74,6 +75,7 @@ Openings (optional props, defaults are today's behaviour):
   `withDateZoom` (the controls bar passes `false` for both: no funnel,
   sliders or calendar circles, no date zoom group on the right), and
   `withHideButton` (`false`: the strip's toggle collapses it).
+- `EditFiltersVisibilityControl`: `isControls`.
 - `AddFilterButton`: `editModeAction`.
 - `FilterRequirements/FilterRequirementsButton`: `renderTarget` (must take a
   ref; the popover anchors on it).

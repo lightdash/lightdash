@@ -776,6 +776,9 @@ const DashboardHeader = memo(
                                 <EditFiltersVisibilityControl
                                     value={editFiltersVisibility}
                                     onChange={onEditFiltersVisibilityChange}
+                                    isControls={
+                                        dashboardControlsFlag?.enabled === true
+                                    }
                                 />
                             </ActionBar>
                         )}
