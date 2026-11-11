@@ -8758,6 +8758,11 @@ export class AppGenerateService extends BaseService {
             newVersion,
             source.data_references,
         );
+        await this.freezeConsumerDataReferences(
+            appUuid,
+            newVersion,
+            source.consumer_data_references,
+        );
         await this.appModel.updateStatusMessage(
             appUuid,
             newVersion,
@@ -9403,6 +9408,11 @@ export class AppGenerateService extends BaseService {
                 targetVersion,
                 sourceVersion.data_references,
             );
+            await this.freezeConsumerDataReferences(
+                targetAppUuid,
+                targetVersion,
+                sourceVersion.consumer_data_references,
+            );
             await this.appModel.updateStatusMessage(
                 targetAppUuid,
                 targetVersion,
@@ -9733,6 +9743,11 @@ export class AppGenerateService extends BaseService {
                 newVersion,
                 sourceVersion.data_references,
             );
+            await this.freezeConsumerDataReferences(
+                newAppUuid,
+                newVersion,
+                sourceVersion.consumer_data_references,
+            );
             await this.linkResolvedExternalConnections(
                 newAppUuid,
                 externalConnectionResources,
@@ -10000,6 +10015,11 @@ export class AppGenerateService extends BaseService {
                 newAppUuid,
                 newVersion,
                 sourceVersion.data_references,
+            );
+            await this.freezeConsumerDataReferences(
+                newAppUuid,
+                newVersion,
+                sourceVersion.consumer_data_references,
             );
             // Link back to the upstream app so a later promote updates it
             // instead of creating a duplicate.
@@ -12451,6 +12471,33 @@ export class AppGenerateService extends BaseService {
         const app = await this.appModel.getApp(appUuid, projectUuid);
         await this.assertAppsEnabled(user, app.template);
         await this.assertCanViewApp(user, app);
+        // With consumer access on, users without Explore only get the
+        // latest ready version.
+        if (
+            this.createAuditedAbility(user).cannot(
+                'view',
+                subject('Explore', {
+                    organizationUuid: user.organizationUuid!,
+                    projectUuid,
+                }),
+            ) &&
+            (
+                await this.featureFlagModel.get({
+                    user: {
+                        organizationUuid: user.organizationUuid,
+                        userUuid: user.userUuid,
+                    },
+                    featureFlagId: FeatureFlags.DataAppConsumerAccess,
+                })
+            ).enabled
+        ) {
+            const latest = await this.appModel.getLatestReadyVersion(appUuid);
+            if (!latest || latest.version !== version) {
+                throw new ForbiddenError(
+                    'This data app has a newer version. Reload the app to continue.',
+                );
+            }
+        }
 
         return mintPreviewToken(
             this.lightdashConfig.lightdashSecrets,
@@ -13392,16 +13439,30 @@ export class AppGenerateService extends BaseService {
             throw new ForbiddenError('Invalid data app query token');
         const { appUuid, version } = verified.payload;
         await this.assertCanViewQuerySource({ account, projectUuid, appUuid });
-        // Re-extraction reads the version's stored source, never the request.
-        const dataReferences = await this.getVersionDataReferences(
-            appUuid,
-            version,
-        );
-        if (!dataReferences)
+        // Only the latest ready version: removing a field from an app must
+        // also stop consumers querying it through an older version.
+        const latest = await this.appModel.getLatestReadyVersion(appUuid);
+        if (!latest || latest.version !== version)
+            throw new ForbiddenError(
+                'This data app has a newer version. Reload the app to continue.',
+            );
+        if (!latest.consumer_data_references)
             throw new ForbiddenError(
                 'This data app version has no saved data references',
             );
-        assertDataAppQueryAllowed(dataReferences, queryInputs);
+        const explore = await this.projectModel
+            .getExploreFromCache(
+                projectUuid,
+                queryInputs.metricQuery.exploreName,
+            )
+            .catch(() => undefined);
+        const baseTable =
+            explore && !isExploreError(explore) ? explore.baseTable : null;
+        assertDataAppQueryAllowed(
+            latest.consumer_data_references,
+            queryInputs,
+            baseTable,
+        );
         setQueryAppVersion(appUuid, version);
         return { appUuid, version };
     }
@@ -13504,6 +13565,27 @@ export class AppGenerateService extends BaseService {
         return provenance;
     }
 
+    // Never called from the refresh path: extractor changes must not widen
+    // what an existing version authorizes.
+    private async freezeConsumerDataReferences(
+        appUuid: string,
+        version: number,
+        dataReferences: PersistedDataAppDataReferences | null | undefined,
+    ): Promise<void> {
+        if (dataReferences == null) return;
+        try {
+            await this.appModel.freezeVersionConsumerDataReferences(
+                appUuid,
+                version,
+                dataReferences,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to freeze consumer data references for version ${version}: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
     private async persistVersionDataReferences(
         appUuid: string,
         version: number,
@@ -13532,6 +13614,11 @@ export class AppGenerateService extends BaseService {
             const dataReferences =
                 AppGenerateService.extractPersistedDataReferences(files);
             await this.persistVersionDataReferences(
+                appUuid,
+                version,
+                dataReferences,
+            );
+            await this.freezeConsumerDataReferences(
                 appUuid,
                 version,
                 dataReferences,

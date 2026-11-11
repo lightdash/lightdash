@@ -261,4 +261,58 @@ describe('data app consumer query authorization', () => {
             ).toThrow(ForbiddenError);
         }
     });
+
+    describe('explores named differently from their base table', () => {
+        const reportReferences = extractDataAppDataReferences([
+            {
+                path: 'src/App.tsx',
+                content: `
+                    import { query } from '@lightdash/query-sdk';
+                    query('orders_report')
+                        .dimensions(['country', 'customers.region'])
+                        .metrics(['orders_revenue']);
+                `,
+            },
+        ]);
+        const reportQuery = (dimensions: string[], metrics: string[]) => ({
+            metricQuery: {
+                ...metricQuery,
+                exploreName: 'orders_report',
+                dimensions,
+                metrics,
+            },
+        });
+
+        it('qualifies fields with the base table, like the SDK', () => {
+            expect(() =>
+                assertDataAppQueryAllowed(
+                    reportReferences,
+                    reportQuery(
+                        ['orders_country', 'customers_region'],
+                        ['orders_revenue'],
+                    ),
+                    'orders',
+                ),
+            ).not.toThrow();
+        });
+
+        it('rejects explore-name ids once the base table is known', () => {
+            expect(() =>
+                assertDataAppQueryAllowed(
+                    reportReferences,
+                    reportQuery(['orders_report_country'], []),
+                    'orders',
+                ),
+            ).toThrow(ForbiddenError);
+        });
+
+        it('falls back to the explore name when the base table is unknown', () => {
+            expect(() =>
+                assertDataAppQueryAllowed(
+                    reportReferences,
+                    reportQuery(['orders_report_country'], []),
+                ),
+            ).not.toThrow();
+        });
+    });
 });

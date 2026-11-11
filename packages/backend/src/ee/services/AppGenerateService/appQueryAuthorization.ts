@@ -19,10 +19,11 @@ export type DataAppQueryInputs = Pick<
     | 'pivotConfiguration'
 >;
 
-// Match the query SDK's field qualification, including joined-table dot refs.
-const qualify = (explore: string, field: string): string => {
+// Mirrors createFieldQualifier in @lightdash/query-sdk: ids use the
+// explore's base table, which differs from its name for meta.explores.
+const qualify = (table: string, field: string): string => {
     if (field.includes('.')) return field.replace('.', '_');
-    return field.startsWith(`${explore}_`) ? field : `${explore}_${field}`;
+    return field.startsWith(`${table}_`) ? field : `${table}_${field}`;
 };
 
 // Local metric names can be qualified with a joined table, not just the
@@ -44,6 +45,7 @@ export function assertDataAppQueryAllowed(
         dateZoom,
         pivotConfiguration,
     }: DataAppQueryInputs,
+    baseTable: string | null = null,
 ): void {
     const deny = (): never => {
         throw new ForbiddenError(
@@ -51,6 +53,7 @@ export function assertDataAppQueryAllowed(
         );
     };
     const explore = metricQuery.exploreName;
+    const fieldTable = baseTable ?? explore;
     const references = dataReferences.references.filter(
         (ref): ref is ExtractedQueryReference =>
             ref.kind === 'query' &&
@@ -78,7 +81,7 @@ export function assertDataAppQueryAllowed(
             ...ref.metricFilterFields,
             ...ref.sortFields,
         ].forEach((field) => {
-            const id = qualify(explore, field);
+            const id = qualify(fieldTable, field);
             if (!isLocalId(id, ref.localFields)) fields.add(id);
         });
         ref.parameterKeys.forEach((key) => parameterKeys.add(key));
@@ -99,7 +102,7 @@ export function assertDataAppQueryAllowed(
             ref.unresolved.length === 0
         ) {
             (ref.fields ?? (ref.field ? [ref.field] : [])).forEach((field) => {
-                const id = qualify(explore, field);
+                const id = qualify(fieldTable, field);
                 if (!isLocalId(id, localNames)) fields.add(id);
             });
         }
