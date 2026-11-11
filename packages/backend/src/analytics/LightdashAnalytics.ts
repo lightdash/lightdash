@@ -387,7 +387,7 @@ type MobileSignInCodeEvent = BaseTrack & {
         codeUuid: string;
         reason: 'show' | 'auto_refresh' | null;
         platform: string | null;
-        declinedBy: 'web' | 'failed_redeems' | null;
+        declinedBy: 'web' | 'phone' | 'failed_redeems' | null;
     };
 };
 

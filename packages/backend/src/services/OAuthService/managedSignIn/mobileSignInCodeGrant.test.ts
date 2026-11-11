@@ -135,6 +135,7 @@ describe('token exchange with a mobile sign-in code', () => {
         ['authorization_pending', undefined, 400],
         ['slow_down', undefined, 400],
         ['access_denied', 'declined', 400],
+        ['match_number_required', 'approved', 400],
         ['expired_token', undefined, 400],
         ['invalid_grant', 'wrong_number', 400],
         ['rate_limited', undefined, 429],
@@ -164,6 +165,30 @@ describe('token exchange with a mobile sign-in code', () => {
             expect(recordRedeemAllowed).not.toHaveBeenCalled();
         },
     );
+
+    it('passes an omitted match_number through as a probe and issues no token', async () => {
+        const redeem = vi.fn(async () => {
+            throw new MobileSignInOAuthError('match_number_required', {
+                description: 'approved',
+            });
+        }) as unknown as MobileSignInService['redeem'];
+        const { grant, saveToken } = createGrant({ redeem });
+        const { match_number: omitted, ...probeBody } = body;
+        const caught = await grant
+            .handle(createRequest(probeBody), client)
+            .catch((thrown: unknown) => thrown);
+        expect(omitted).toBe('42');
+        expect(redeem).toHaveBeenCalledWith(
+            expect.objectContaining({ matchNumber: undefined }),
+            expect.anything(),
+        );
+        expect(caught).toMatchObject({
+            name: 'match_number_required',
+            message: 'approved',
+            code: 400,
+        });
+        expect(saveToken).not.toHaveBeenCalled();
+    });
 
     it('rejects the mobile token type when the service is not wired', async () => {
         const { grant } = createGrant({ withMobile: false });

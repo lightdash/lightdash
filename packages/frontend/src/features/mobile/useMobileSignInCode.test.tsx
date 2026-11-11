@@ -99,6 +99,7 @@ const mockServer = ({
                     status: MobileSignInCodeStatus.PENDING,
                     expiresAt: expiries.get(codeUuid),
                     matchNumber: null,
+                    declinedBy: null,
                     device: null,
                 };
             }
@@ -112,7 +113,8 @@ const mockServer = ({
                     ? MobileSignInCodeStatus.EXPIRED
                     : claimedStatus,
                 expiresAt: new Date(START + CLAIM_MS).toISOString(),
-                matchNumber: '47',
+                matchNumber: approved && !isWindowOver ? '47' : null,
+                declinedBy: null,
                 device: { platform: 'ios', clientName: 'Lightdash iOS' },
             };
         },
@@ -397,7 +399,7 @@ describe('useMobileSignInCode', () => {
         act(() => result.current.show());
         await advance(MOBILE_SIGN_IN_POLL_INTERVAL_MS * 2);
         await waitFor(() => expect(result.current.phase).toBe('claimed'));
-        expect(result.current.state?.matchNumber).toBe('47');
+        expect(result.current.state?.matchNumber).toBeNull();
 
         await advance(TTL_MS + 1000);
         expect(result.current.phase).toBe('claimed');
@@ -406,6 +408,7 @@ describe('useMobileSignInCode', () => {
         act(() => result.current.approve());
         await waitFor(() => expect(result.current.phase).toBe('approved'));
         expect(server.approvals()).toEqual([{ nonce: 'nonce-1' }]);
+        expect(result.current.state?.matchNumber).toBe('47');
     });
 
     it('reports the expiry of a claimed code', async () => {

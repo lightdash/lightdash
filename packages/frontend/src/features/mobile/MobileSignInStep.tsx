@@ -188,32 +188,22 @@ const ConfirmModal: FC<StepContext> = ({ signIn, site, account, platform }) => (
         onConfirm={signIn.approve}
         confirmLoading={signIn.isDeciding}
     >
-        <Stack gap="md">
-            <Box component="dl" className={classes.confirmRows}>
-                {[
-                    [S.confirm.account, account],
-                    [S.confirm.site, site],
-                    ...(platform ? [[S.confirm.device, platform]] : []),
-                ].map(([label, value]) => (
-                    <Box key={label} className={classes.confirmRow}>
-                        <Text component="dt" size="sm" c="dimmed">
-                            {label}
-                        </Text>
-                        <Text component="dd" size="sm">
-                            {value}
-                        </Text>
-                    </Box>
-                ))}
-            </Box>
-            {signIn.state?.matchNumber && (
-                <Stack gap="xs" align="center">
-                    <Text size="sm" fw={600}>
-                        {S.typeOnPhone}
+        <Box component="dl" className={classes.confirmRows}>
+            {[
+                [S.confirm.account, account],
+                [S.confirm.site, site],
+                ...(platform ? [[S.confirm.device, platform]] : []),
+            ].map(([label, value]) => (
+                <Box key={label} className={classes.confirmRow}>
+                    <Text component="dt" size="sm" c="dimmed">
+                        {label}
                     </Text>
-                    <MatchNumber value={signIn.state.matchNumber} />
-                </Stack>
-            )}
-        </Stack>
+                    <Text component="dd" size="sm">
+                        {value}
+                    </Text>
+                </Box>
+            ))}
+        </Box>
     </MantineModal>
 );
 

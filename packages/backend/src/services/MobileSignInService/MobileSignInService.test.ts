@@ -378,34 +378,71 @@ describe('MobileSignInService analytics', () => {
 });
 
 describe('MobileSignInService.getState', () => {
-    it('shows the number only while the code is claimed or approved', async () => {
-        const findForSession = vi
-            .fn()
-            .mockResolvedValueOnce({
-                ...codeRow,
-                effective_status: MobileSignInCodeStatus.CLAIMED,
-                client_name: 'Lightdash iOS',
-            })
-            .mockResolvedValueOnce({
-                ...codeRow,
-                effective_status: MobileSignInCodeStatus.REDEEMED,
-                client_name: 'Lightdash iOS',
-            })
-            .mockResolvedValueOnce(null);
+    const stateFor = async (
+        status: MobileSignInCodeStatus,
+        declinedBy: string | null = null,
+    ) => {
+        const findForSession = vi.fn(async () => ({
+            ...codeRow,
+            effective_status: status,
+            declined_by: declinedBy,
+            client_name: 'Lightdash iOS',
+        }));
         const { service } = createService({ model: { findForSession } });
+        return service.getState(sessionUser, 'session-0000', 'code-0000');
+    };
 
-        expect(
-            await service.getState(sessionUser, 'session-0000', 'code-0000'),
-        ).toMatchObject({
+    it('never shows the number while the code is claimed', async () => {
+        const state = await stateFor(MobileSignInCodeStatus.CLAIMED);
+        expect(state).toMatchObject({
             status: MobileSignInCodeStatus.CLAIMED,
-            matchNumber: '07',
+            matchNumber: null,
+            declinedBy: null,
             device: { platform: 'ios', clientName: 'Lightdash iOS' },
         });
-        expect(
-            await service.getState(sessionUser, 'session-0000', 'code-0000'),
-        ).toMatchObject({
-            status: MobileSignInCodeStatus.REDEEMED,
+        expect(JSON.stringify(state)).not.toContain('07');
+    });
+
+    it('shows the number once the web approves', async () => {
+        expect(await stateFor(MobileSignInCodeStatus.APPROVED)).toMatchObject({
+            status: MobileSignInCodeStatus.APPROVED,
+            matchNumber: '07',
+        });
+    });
+
+    it.each([
+        MobileSignInCodeStatus.PENDING,
+        MobileSignInCodeStatus.EXPIRED,
+        MobileSignInCodeStatus.REDEEMED,
+        MobileSignInCodeStatus.DECLINED,
+    ])('hides the number when the code is %s', async (status) => {
+        expect(await stateFor(status)).toMatchObject({
+            status,
             matchNumber: null,
+        });
+    });
+
+    it.each(['web', 'phone', 'failed_redeems'])(
+        'says who declined: %s',
+        async (declinedBy) => {
+            expect(
+                await stateFor(MobileSignInCodeStatus.DECLINED, declinedBy),
+            ).toMatchObject({ declinedBy, matchNumber: null });
+        },
+    );
+
+    it('says who declined only for a declined code', async () => {
+        expect(
+            await stateFor(MobileSignInCodeStatus.EXPIRED, 'phone'),
+        ).toMatchObject({ declinedBy: null });
+        expect(
+            await stateFor(MobileSignInCodeStatus.DECLINED, null),
+        ).toMatchObject({ declinedBy: null });
+    });
+
+    it('answers 404 for a code of another session', async () => {
+        const { service } = createService({
+            model: { findForSession: vi.fn(async () => null) },
         });
         await expect(
             service.getState(sessionUser, 'session-0000', 'code-0000'),
@@ -466,6 +503,33 @@ describe('MobileSignInService.decide', () => {
             status: MobileSignInCodeStatus.PENDING,
         });
         await expect(run()).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    it('declines without a number, also after an approve', async () => {
+        const decide = vi.fn(async () => ({
+            outcome: 'decided',
+            row: { ...codeRow, status: 'declined', declined_by: 'web' },
+        }));
+        const { service, track } = createService({ model: { decide } });
+        expect(
+            await service.decide(
+                sessionUser,
+                'session-0000',
+                'code-0000',
+                'nonce',
+                'declined',
+                {},
+            ),
+        ).toEqual({
+            status: MobileSignInCodeStatus.DECLINED,
+            matchNumber: null,
+        });
+        expect(track).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'mobile_sign_in_code.declined',
+                properties: expect.objectContaining({ declinedBy: 'web' }),
+            }),
+        );
     });
 
     it('refuses to approve when managed sign-in now applies', async () => {
@@ -712,6 +776,275 @@ describe('MobileSignInService.redeem', () => {
             error: 'access_denied',
             description: 'user_not_allowed',
         });
+    });
+});
+
+describe('MobileSignInService token probe without match_number', () => {
+    const probeArgs = {
+        code,
+        clientId: 'client-0000-test',
+        codeVerifier: verifier,
+        matchNumber: undefined,
+        isScopeAllowed: async () => true,
+    };
+
+    it.each([
+        [
+            { outcome: 'authorization_pending' },
+            { error: 'authorization_pending', description: undefined },
+        ],
+        [
+            { outcome: 'match_number_required' },
+            { error: 'match_number_required', description: 'approved' },
+        ],
+        [
+            { outcome: 'declined' },
+            { error: 'access_denied', description: 'declined' },
+        ],
+        [
+            { outcome: 'expired' },
+            { error: 'expired_token', description: undefined },
+        ],
+        [
+            { outcome: 'slow_down' },
+            { error: 'slow_down', description: undefined },
+        ],
+        [
+            { outcome: 'code_mismatch' },
+            { error: 'invalid_grant', description: 'code_mismatch' },
+        ],
+    ])('maps %o and never reveals the number', async (outcome, expected) => {
+        const probe = vi.fn(async () => outcome);
+        const redeem = vi.fn();
+        const { service } = createService({ model: { probe, redeem } });
+        const error = await service
+            .redeem(probeArgs, { ip: '203.0.113.7' })
+            .catch((caught: unknown) => caught);
+        expect(error).toBeInstanceOf(MobileSignInOAuthError);
+        expect(error).toMatchObject({ ...expected, statusCode: 400 });
+        expect(
+            JSON.stringify((error as MobileSignInOAuthError).toJSON()),
+        ).not.toMatch(/[0-9]/);
+        expect(probe).toHaveBeenCalledWith({
+            code,
+            clientId: 'client-0000-test',
+            codeVerifier: verifier,
+        });
+        expect(redeem).not.toHaveBeenCalled();
+    });
+
+    it('does not count pending, approved or slow_down probes against the address', async () => {
+        const probe = vi
+            .fn()
+            .mockResolvedValueOnce({ outcome: 'authorization_pending' })
+            .mockResolvedValueOnce({ outcome: 'match_number_required' })
+            .mockResolvedValueOnce({ outcome: 'slow_down' });
+        const { service, incrementRateCounter } = createService({
+            model: { probe },
+        });
+        for (let poll = 0; poll < 3; poll += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            await service
+                .redeem(probeArgs, { ip: '203.0.113.7' })
+                .catch(() => undefined);
+        }
+        expect(probe).toHaveBeenCalledTimes(3);
+        expect(incrementRateCounter).not.toHaveBeenCalled();
+    });
+
+    it('runs the same verifier, user and availability checks as a redeem', async () => {
+        const probe = vi.fn();
+        const { service: badVerifier } = createService({ model: { probe } });
+        await expectOAuthError(
+            badVerifier.redeem({ ...probeArgs, codeVerifier: 'short' }, {}),
+            { error: 'invalid_request', description: 'code_verifier' },
+        );
+        const { service: managed } = createService({
+            managed: true,
+            model: { probe },
+        });
+        await expectOAuthError(managed.redeem(probeArgs, {}), {
+            error: 'access_denied',
+            description: 'managed_sign_in_required',
+        });
+        const { service: flagOff } = createService({
+            qrSignInEnabled: false,
+            model: { probe },
+        });
+        await expectOAuthError(flagOff.redeem(probeArgs, {}), {
+            error: 'access_denied',
+            description: 'qr_sign_in_disabled',
+            statusCode: 403,
+        });
+        expect(probe).not.toHaveBeenCalled();
+    });
+
+    it('treats a present but malformed match_number as today: invalid_request', async () => {
+        const probe = vi.fn();
+        const redeem = vi.fn();
+        const { service } = createService({ model: { probe, redeem } });
+        for (const matchNumber of ['', null, '7']) {
+            // eslint-disable-next-line no-await-in-loop
+            await expectOAuthError(
+                service.redeem({ ...probeArgs, matchNumber }, {}),
+                { error: 'invalid_request', description: 'match_number' },
+            );
+        }
+        expect(probe).not.toHaveBeenCalled();
+        expect(redeem).not.toHaveBeenCalled();
+    });
+});
+
+describe('MobileSignInService old-client compatibility', () => {
+    const oldClientArgs = (matchNumber: string) => ({
+        code,
+        clientId: 'client-0000-test',
+        codeVerifier: verifier,
+        matchNumber,
+        isScopeAllowed: async () => true,
+    });
+
+    it('keeps the number-first sequence: pending while claimed, redeem after the web approves', async () => {
+        const redeem = vi
+            .fn()
+            .mockResolvedValueOnce({ outcome: 'authorization_pending' })
+            .mockResolvedValueOnce({ outcome: 'authorization_pending' })
+            .mockResolvedValueOnce({ outcome: 'redeemed', row: codeRow });
+        const probe = vi.fn();
+        const { service, incrementRateCounter } = createService({
+            model: { redeem, probe },
+        });
+        for (let poll = 0; poll < 2; poll += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            await expectOAuthError(
+                service.redeem(oldClientArgs('07'), { ip: '203.0.113.7' }),
+                { error: 'authorization_pending' },
+            );
+        }
+        const redemption = await service.redeem(oldClientArgs('07'), {
+            ip: '203.0.113.7',
+        });
+        expect(redemption.user).toBe(sessionUser);
+        expect(redeem).toHaveBeenCalledTimes(3);
+        expect(redeem).toHaveBeenLastCalledWith(
+            expect.objectContaining({ matchNumber: 7 }),
+        );
+        expect(probe).not.toHaveBeenCalled();
+        expect(incrementRateCounter).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('MobileSignInService.cancelFromPhone', () => {
+    const body = {
+        code,
+        client_id: 'client-0000-test',
+        code_verifier: verifier,
+    };
+    const cancelledRow = {
+        ...codeRow,
+        status: 'declined',
+        declined_by: 'phone',
+    };
+
+    it('declines the code and tracks a phone decline once', async () => {
+        const cancelFromPhone = vi
+            .fn()
+            .mockResolvedValueOnce({
+                outcome: 'cancelled',
+                row: cancelledRow,
+                isRepeat: false,
+            })
+            .mockResolvedValueOnce({
+                outcome: 'cancelled',
+                row: cancelledRow,
+                isRepeat: true,
+            });
+        const { service, track } = createService({
+            model: { cancelFromPhone },
+        });
+        await expect(service.cancelFromPhone(body, {})).resolves.toBe(
+            undefined,
+        );
+        await expect(service.cancelFromPhone(body, {})).resolves.toBe(
+            undefined,
+        );
+        expect(cancelFromPhone).toHaveBeenCalledWith({
+            code,
+            clientId: 'client-0000-test',
+            codeVerifier: verifier,
+        });
+        const declines = track.mock.calls.filter(
+            ([event]) => event.event === 'mobile_sign_in_code.declined',
+        );
+        expect(declines).toHaveLength(1);
+        expect(declines[0][0]).toMatchObject({
+            properties: { declinedBy: 'phone', platform: 'ios' },
+        });
+    });
+
+    it.each([
+        [{ outcome: 'expired' }, { error: 'expired_token' }],
+        [
+            { outcome: 'code_mismatch' },
+            { error: 'invalid_grant', description: 'code_mismatch' },
+        ],
+        [
+            { outcome: 'declined' },
+            { error: 'invalid_grant', description: 'declined' },
+        ],
+        [
+            { outcome: 'redeemed' },
+            { error: 'invalid_grant', description: 'code_already_used' },
+        ],
+    ])('maps %o to an OAuth error', async (outcome, expected) => {
+        const { service } = createService({
+            model: { cancelFromPhone: vi.fn(async () => outcome) },
+        });
+        await expectOAuthError(service.cancelFromPhone(body, {}), {
+            ...expected,
+            statusCode: 400,
+        });
+    });
+
+    it.each([
+        ['code', { code: 'short' }],
+        ['code_verifier', { code_verifier: 'short' }],
+        ['code_verifier', { code_verifier: undefined }],
+        ['client_id', { client_id: undefined }],
+    ])('rejects a malformed %s', async (field, override) => {
+        const cancelFromPhone = vi.fn();
+        const { service } = createService({ model: { cancelFromPhone } });
+        await expectOAuthError(
+            service.cancelFromPhone({ ...body, ...override }, {}),
+            { error: 'invalid_request', description: field },
+        );
+        expect(cancelFromPhone).not.toHaveBeenCalled();
+    });
+
+    it('rejects a client that is not a mobile client', async () => {
+        const cancelFromPhone = vi.fn();
+        const { service } = createService({
+            client: false,
+            model: { cancelFromPhone },
+        });
+        await expectOAuthError(service.cancelFromPhone(body, {}), {
+            error: 'invalid_client',
+            statusCode: 401,
+        });
+        expect(cancelFromPhone).not.toHaveBeenCalled();
+    });
+
+    it('limits cancels per address with 429', async () => {
+        const cancelFromPhone = vi.fn();
+        const { service } = createService({
+            rateAllowed: false,
+            model: { cancelFromPhone },
+        });
+        await expectOAuthError(
+            service.cancelFromPhone(body, { ip: '203.0.113.7' }),
+            { error: 'rate_limited', statusCode: 429 },
+        );
+        expect(cancelFromPhone).not.toHaveBeenCalled();
     });
 });
 

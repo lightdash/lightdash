@@ -27,8 +27,15 @@ const claimedState: MobileSignInCodeState = {
     codeUuid: 'code-1',
     status: MobileSignInCodeStatus.CLAIMED,
     expiresAt: '2026-11-09T12:05:00.000Z',
-    matchNumber: '47',
+    matchNumber: null,
+    declinedBy: null,
     device: { platform: 'ios', clientName: 'Lightdash iOS' },
+};
+
+const approvedState: MobileSignInCodeState = {
+    ...claimedState,
+    status: MobileSignInCodeStatus.APPROVED,
+    matchNumber: '47',
 };
 
 const mockSignIn = (
@@ -132,7 +139,10 @@ describe('MobileSignInStep', () => {
         expect(within(dialog).getByText('j••••@example.com')).toBeVisible();
         expect(within(dialog).getByText('app.example.com')).toBeVisible();
         expect(within(dialog).getByText('iOS')).toBeVisible();
-        expect(within(dialog).getByText('4 7')).toBeInTheDocument();
+        expect(within(dialog).queryByText('4 7')).not.toBeInTheDocument();
+        expect(
+            within(dialog).queryByText('Type on your phone'),
+        ).not.toBeInTheDocument();
         expect(
             within(dialog).queryByText(/Expires in/),
         ).not.toBeInTheDocument();
@@ -151,7 +161,7 @@ describe('MobileSignInStep', () => {
         mockSignIn({
             phase: 'approved',
             code,
-            state: { ...claimedState, status: MobileSignInCodeStatus.APPROVED },
+            state: approvedState,
         });
         renderStep();
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -229,7 +239,7 @@ describe('MobileSignInStep', () => {
         mockSignIn({
             phase: 'approved',
             code,
-            state: { ...claimedState, status: MobileSignInCodeStatus.APPROVED },
+            state: approvedState,
         });
         renderStep();
         expect(screen.getByText('Type on your phone: 4 7')).toBeInTheDocument();
