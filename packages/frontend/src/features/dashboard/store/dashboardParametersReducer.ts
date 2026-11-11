@@ -701,6 +701,7 @@ export const dashboardParametersReducer = (
         dashboardEditActions.addControlSection.match(action)
     ) {
         return state.parameterControls === null ||
+            state.parameterControls.length === 0 ||
             state.areParameterControlsSaved ||
             state.haveParameterControlsChanged
             ? state
