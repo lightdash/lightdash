@@ -12,7 +12,9 @@ name: Scope tours docs refresh
 #
 # The pull request is opened with a GitHub App token, because a pull request
 # opened with GITHUB_TOKEN does not start CI. The token is created after every
-# script has run, and only on the schedule or a manual run from main.
+# script has run, and only on the schedule or a manual run from main. The job
+# makes the commit through the API, so GitHub signs it: main takes signed
+# commits only.
 #
 # pr.yml skips the preview, and the E2E suites that need it, for a pull request
 # the Renovate app opened. The body carries the deploy-preview keyword, which
@@ -181,10 +183,50 @@ jobs:
                       echo '`deploy-preview`: leave this word in. CI skips the preview and the E2E suites for a pull request the Renovate app opened, and this word asks for them.'
                   } > "$RUNNER_TEMP/body.md"
                   cat "$RUNNER_TEMP/body.md" >> "$GITHUB_STEP_SUMMARY"
+            # The commit is made through the API, not pushed with git, so GitHub
+            # signs it for the app. main takes signed commits only, and a pull
+            # request that holds an unsigned commit cannot merge. This step
+            # writes the request and sends nothing, so a dry run checks it too.
+            - name: Build the commit
+              if: steps.bump.outputs.open == 'true'
+              env:
+                  NEW: ${{ steps.bump.outputs.new }}
+              run: |
+                  files='scripts/scope-tours/docs-pin.txt packages/frontend/src/features/scopeTours/generated.ts packages/frontend/src/features/scopeTours/released.ts packages/frontend/src/features/scopeTours/curriculum.ts'
+                  echo '[]' > "$RUNNER_TEMP/additions.json"
+                  for file in $files; do
+                      if ! git diff --quiet -- "$file"; then
+                          # The API takes base64 with no line breaks in it.
+                          base64 < "$file" | tr -d '\n' > "$RUNNER_TEMP/contents.b64"
+                          jq --arg path "$file" --rawfile contents "$RUNNER_TEMP/contents.b64" \
+                              '. + [{path: $path, contents: $contents}]' \
+                              "$RUNNER_TEMP/additions.json" > "$RUNNER_TEMP/additions.next.json"
+                          mv "$RUNNER_TEMP/additions.next.json" "$RUNNER_TEMP/additions.json"
+                      fi
+                  done
+                  jq -n \
+                      --arg repository "$GITHUB_REPOSITORY" \
+                      --arg branch "$BRANCH" \
+                      --arg head "$GITHUB_SHA" \
+                      --arg headline "chore(learn): refresh walkthroughs from docs ${NEW:0:8}" \
+                      --slurpfile additions "$RUNNER_TEMP/additions.json" \
+                      '{
+                          query: "mutation ($input: CreateCommitOnBranchInput!) { createCommitOnBranch(input: $input) { commit { oid } } }",
+                          variables: {
+                              input: {
+                                  branch: { repositoryNameWithOwner: $repository, branchName: $branch },
+                                  expectedHeadOid: $head,
+                                  message: { headline: $headline },
+                                  fileChanges: { additions: $additions[0] }
+                              }
+                          }
+                      }' > "$RUNNER_TEMP/commit.json"
+                  jq -r '.variables.input | "The commit \"\(.message.headline)\" on \(.branch.branchName) holds: \([.fileChanges.additions[].path] | join(", "))"' "$RUNNER_TEMP/commit.json"
             # From here on: the schedule or a manual run only, never a pull
             # request. The Renovate app already pushes branches and opens pull
             # requests in this repository; the token is narrowed to those two
-            # permissions.
+            # permissions. Only the last step holds it, and uses it through the
+            # API: no checkout is made with it.
             - name: Create a token that can open the pull request
               id: app-token
               if: steps.bump.outputs.open == 'true' && github.event_name != 'pull_request'
@@ -194,36 +236,20 @@ jobs:
                   private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
                   permission-contents: write
                   permission-pull-requests: write
-            # A second checkout holds the app token, so the scripts above never
-            # ran next to it. It is the same commit the bump ran on.
-            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-              if: steps.bump.outputs.open == 'true' && github.event_name != 'pull_request'
-              with:
-                  ref: ${{ github.sha }}
-                  path: refresh-pr
-                  token: ${{ steps.app-token.outputs.token }}
             - name: Open the refresh pull request
               if: steps.bump.outputs.open == 'true' && github.event_name != 'pull_request'
               env:
                   GH_TOKEN: ${{ steps.app-token.outputs.token }}
-                  APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
-                  NEW: ${{ steps.bump.outputs.new }}
               run: |
-                  files='scripts/scope-tours/docs-pin.txt packages/frontend/src/features/scopeTours/generated.ts packages/frontend/src/features/scopeTours/released.ts packages/frontend/src/features/scopeTours/curriculum.ts'
-                  for file in $files; do
-                      cp "$file" "refresh-pr/$file"
-                  done
-                  cd refresh-pr
-                  bot="${APP_SLUG}[bot]"
-                  git config user.name "$bot"
-                  git config user.email "$(gh api "/users/$bot" --jq .id)+$bot@users.noreply.github.com"
-                  git checkout -B "$BRANCH"
-                  # shellcheck disable=SC2086
-                  git add -- $files
-                  git commit -m "chore(learn): refresh walkthroughs from docs ${NEW:0:8}"
-                  # The guard job found no open refresh pull request, so a branch
-                  # left behind by a closed one is safe to replace.
-                  git push --force origin "HEAD:refs/heads/$BRANCH"
+                  # The branch starts at the commit the bump ran on. The guard job
+                  # found no open refresh pull request, so a branch left behind by
+                  # a closed one is safe to move.
+                  if gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$BRANCH" --silent 2> /dev/null; then
+                      gh api --method PATCH "repos/$GITHUB_REPOSITORY/git/refs/heads/$BRANCH" -f "sha=$GITHUB_SHA" -F force=true --silent
+                  else
+                      gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" -f "ref=refs/heads/$BRANCH" -f "sha=$GITHUB_SHA" --silent
+                  fi
+                  gh api graphql --input "$RUNNER_TEMP/commit.json" --jq '"Committed " + .data.createCommitOnBranch.commit.oid'
                   url=$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" \
                       --title 'chore(learn): refresh walkthroughs from the docs' \
                       --body-file "$RUNNER_TEMP/body.md")
