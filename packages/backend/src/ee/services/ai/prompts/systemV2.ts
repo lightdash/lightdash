@@ -365,7 +365,8 @@ export const getSystemPromptV2 = (
                 dbtRepository: promptSections.has('aiWriteback')
                     ? [
                           getAiWritebackSection({
-                              attribution: writebackAttribution,
+                              // The pull request card offers linking, so the reply stays short.
+                              attribution: null,
                               siteUrl,
                               canEditContent: false,
                           }),

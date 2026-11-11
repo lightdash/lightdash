@@ -3,6 +3,7 @@ import {
     type ToolEditDbtProjectOutput,
 } from '@lightdash/common';
 import {
+    Anchor,
     Box,
     Button,
     getDefaultZIndex,
@@ -27,6 +28,7 @@ import {
 import confetti from 'canvas-confetti';
 import { useEffect, useRef, useState, type FC } from 'react';
 import { Link } from 'react-router';
+import { useGithubUserCredential } from '../../../../../../components/common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useClosePullRequest } from '../../../hooks/useClosePullRequest';
 import { useMergePullRequest } from '../../../hooks/useMergePullRequest';
@@ -100,6 +102,7 @@ export const PullRequestViewMenu: FC<{
                     <Button
                         variant="default"
                         size="compact-xs"
+                        className={styles.action}
                         leftSection={<MantineIcon icon={IconEye} size={14} />}
                         rightSection={
                             <MantineIcon icon={IconChevronDown} size={14} />
@@ -267,10 +270,11 @@ export const PullRequestActionButtons: FC<{
     };
 
     return (
-        <Button.Group>
+        <Button.Group className={styles.decision}>
             <Button
                 variant="default"
                 size="compact-xs"
+                className={styles.action}
                 loading={isClosing}
                 onBlur={disarm}
                 leftSection={
@@ -281,12 +285,19 @@ export const PullRequestActionButtons: FC<{
                 }
                 onClick={handleCloseClick}
             >
-                {closeArmed ? 'Confirm' : 'Close PR'}
+                {closeArmed ? (
+                    'Confirm'
+                ) : (
+                    <>
+                        Close<span className={styles.wordy}>&nbsp;PR</span>
+                    </>
+                )}
             </Button>
             <Button
                 ref={mergeButtonRef}
                 color="green"
                 size="compact-xs"
+                className={`${styles.action} ${styles.merge}`}
                 loading={isMerging}
                 disabled={!isMergeable(ciChecks)}
                 onBlur={disarm}
@@ -298,9 +309,35 @@ export const PullRequestActionButtons: FC<{
                 }
                 onClick={handleMergeClick}
             >
-                {mergeArmed ? 'Confirm' : 'Merge PR'}
+                {mergeArmed ? (
+                    'Confirm'
+                ) : (
+                    <>
+                        Merge<span className={styles.wordy}>&nbsp;PR</span>
+                    </>
+                )}
             </Button>
         </Button.Group>
+    );
+};
+
+const resolvedHostIsGithub = (prUrl: string): boolean =>
+    prUrl.startsWith('https://github.com/');
+
+/** One line offering to author pull requests as the person, shown until they link GitHub. */
+const LinkGithubHint: FC = () => {
+    const { data: credential } = useGithubUserCredential();
+    if (credential !== null) return null;
+    return (
+        <Anchor
+            component={Link}
+            to="/generalSettings/profile"
+            fz="xs"
+            c="dimmed"
+            className={styles.linkHint}
+        >
+            Link GitHub to open pull requests as you
+        </Anchor>
     );
 };
 
@@ -570,6 +607,10 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     const deletions = metadata.deletions ?? null;
     const hasDiffStat = additions !== null || deletions !== null;
     const title = 'Edited semantic layer';
+    const isOpenOnGithub =
+        resolvedHostIsGithub(metadata.prUrl) &&
+        !ciChecks?.merged &&
+        ciChecks?.state !== 'closed';
     const resolvedPrUrl = metadata.prUrl;
 
     return (
@@ -598,23 +639,28 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             color="ldGray.7"
                         />
                         <Stack gap={0}>
-                            <Text size="xs" fw={500}>
+                            <Text size="xs" fw={500} className={styles.wordy}>
                                 {title}
                             </Text>
                             {summary && (
                                 <Group gap={6} wrap="nowrap">
-                                    <Text size="xs" c="dimmed">
+                                    <Text size="xs" c="dimmed" truncate>
                                         {summary}
                                     </Text>
                                     {shortCommitSha && (
                                         <>
-                                            <Text size="xs" c="dimmed">
+                                            <Text
+                                                size="xs"
+                                                c="dimmed"
+                                                className={styles.commit}
+                                            >
                                                 ·
                                             </Text>
                                             <Text
                                                 size="xs"
                                                 c="dimmed"
                                                 ff="monospace"
+                                                className={styles.commit}
                                                 title={
                                                     metadata.commitSha ??
                                                     undefined
@@ -702,6 +748,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                         )}
                     </Box>
                 </Box>
+                {isOpenOnGithub ? <LinkGithubHint /> : null}
                 {!isBitbucket && (
                     <PullRequestCiChecks
                         prUrl={metadata.prUrl}

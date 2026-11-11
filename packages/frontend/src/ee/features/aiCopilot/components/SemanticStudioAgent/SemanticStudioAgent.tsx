@@ -282,7 +282,7 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
     if (!isEnabled || !agent) return null;
     if (!isOpen) return null;
     return (
-        <Box className={classes.panel}>
+        <Box className={classes.panel} data-quiet-cards>
             <Group className={classes.actions} gap={4} wrap="nowrap">
                 {thread ? (
                     <Tooltip label="New conversation">
