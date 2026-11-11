@@ -90,7 +90,7 @@ describe('VisualizationWarning', () => {
             );
         },
     );
-    it('warns that totals are incomplete when groups exceed the column limit', async () => {
+    it('warns that groups are left out when they exceed the column limit', async () => {
         renderWithProviders(
             <VisualizationWarning
                 {...props}
@@ -124,7 +124,7 @@ describe('VisualizationWarning', () => {
         );
 
         expect(await screen.findByRole('tooltip')).toHaveTextContent(
-            'Only the first 200 of 412 grouped columns are shown. Totals leave out the rest.',
+            'Only the first 200 of 412 grouped columns are shown and the rest are left out.',
         );
     });
     describe('when the results hold an "Other" group', () => {

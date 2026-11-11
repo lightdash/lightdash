@@ -42,7 +42,7 @@ export const getPivotColumnLimitMessage = ({
     if (hasOtherGroup) {
         return `This chart has ${totalColumnCount} grouped columns. The first ${maxColumnLimit} are shown and the rest are added together as "Other".`;
     }
-    return `Only the first ${maxColumnLimit} of ${totalColumnCount} grouped columns are shown. Totals leave out the rest. Filter the chart or group by a field with fewer values to see everything.`;
+    return `Only the first ${maxColumnLimit} of ${totalColumnCount} grouped columns are shown and the rest are left out. Filter the chart or group by a field with fewer values to see everything.`;
 };
 
 /**

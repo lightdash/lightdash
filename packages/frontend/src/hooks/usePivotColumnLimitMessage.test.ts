@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { getPivotColumnLimitMessage } from './usePivotColumnLimitMessage';
 
 describe('getPivotColumnLimitMessage', () => {
-    it('warns that totals are incomplete when groups exceed the limit', () => {
+    it('warns that groups are left out when they exceed the limit', () => {
         expect(
             getPivotColumnLimitMessage({
                 totalColumnCount: 412,
                 maxColumnLimit: 200,
             }),
         ).toBe(
-            'Only the first 200 of 412 grouped columns are shown. Totals leave out the rest. Filter the chart or group by a field with fewer values to see everything.',
+            'Only the first 200 of 412 grouped columns are shown and the rest are left out. Filter the chart or group by a field with fewer values to see everything.',
         );
     });
 
