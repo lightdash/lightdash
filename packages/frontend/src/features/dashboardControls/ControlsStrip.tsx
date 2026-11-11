@@ -48,9 +48,9 @@ export const ControlsLead: FC<LeadProps> = ({
                     >
                         <Button
                             size="xs"
+                            // No colour: the theme's full-text ghost
                             variant="subtle"
-                            color="gray"
-                            px="xs"
+                            fw={600}
                             aria-expanded={isOpen}
                             leftSection={
                                 <MantineIcon
@@ -63,25 +63,13 @@ export const ControlsLead: FC<LeadProps> = ({
                                 />
                             }
                             rightSection={
-                                <Badge
-                                    size="xs"
-                                    variant="light"
-                                    color="gray"
-                                    circle
-                                >
+                                <Badge size="xs" circle>
                                     {total}
                                 </Badge>
                             }
                             onClick={onToggle}
                         >
-                            <Text
-                                span
-                                fz="xs"
-                                fw={600}
-                                c="var(--mantine-color-text)"
-                            >
-                                {getUiString('controls.title')}
-                            </Text>
+                            {getUiString('controls.title')}
                         </Button>
                     </Tooltip>
                     <Divider orientation="vertical" />
