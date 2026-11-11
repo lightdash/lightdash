@@ -12,6 +12,7 @@ import {
 } from '@lightdash/common';
 import { createAction, type UnknownAction } from '@reduxjs/toolkit';
 import { isEqual, sortBy } from 'es-toolkit/compat';
+import { tidyTiles } from '../../dashboardTabs/gridUtils';
 
 /**
  * An unsaved edit of a saved setting. It applies only while the saved value
@@ -139,6 +140,8 @@ export const dashboardEditActions = {
     ),
     /** A drag or resize that ended: one undo step when a tile moved */
     moveTiles: createAction<TileLayout[]>('dashboardEdit/moveTiles'),
+    /** Closes gaps and widens rows to the full grid: one undo step */
+    tidyTiles: createAction('dashboardEdit/tidyTiles'),
     undoTileLayout: createAction('dashboardEdit/undoTileLayout'),
     redoTileLayout: createAction('dashboardEdit/redoTileLayout'),
     setCanvasZoom: createAction<number>('dashboardEdit/setCanvasZoom'),
@@ -329,6 +332,17 @@ const findStep = (state: DashboardEditState, direction: HistoryDirection) => {
         .findLast(({ placed }) => placed !== null);
 };
 
+const tilesInView = (state: DashboardEditState): Dashboard['tiles'] =>
+    (state.tiles ?? []).filter(
+        (tile) => shownTabOf(tile, state.tabs) === activeTabOf(state),
+    );
+
+const canMoveTilesTo = (state: DashboardEditState, layout: TileLayout[]) =>
+    state.tiles !== undefined && placeTiles(state.tiles, layout) !== null;
+
+export const canTidyTiles = (state: DashboardEditState) =>
+    canMoveTilesTo(state, tidyTiles(tilesInView(state)));
+
 export const canStepTileLayout = (
     state: DashboardEditState,
     direction: HistoryDirection,
@@ -348,6 +362,25 @@ const pushPast = (
         history.hasOtherTileChanges ||
         history.past.length >= TILE_LAYOUT_HISTORY_LIMIT,
 });
+
+const moveTilesTo = (
+    state: DashboardEditState,
+    layout: TileLayout[],
+): DashboardEditState => {
+    const { tiles } = state;
+    const placed = tiles === undefined ? null : placeTiles(tiles, layout);
+    if (tiles === undefined || placed === null) return state;
+    const step = snapshotOf(tiles, new Set(layout.map(({ uuid }) => uuid)));
+    return {
+        ...state,
+        tiles: placed,
+        haveTilesChanged: true,
+        tileLayoutHistory: {
+            ...pushPast(state.tileLayoutHistory, step),
+            future: [],
+        },
+    };
+};
 
 const stepThroughHistory = (
     state: DashboardEditState,
@@ -401,23 +434,10 @@ export const dashboardEditReducer = (
         return set(state, 'tiles', action.payload);
     }
     if (dashboardEditActions.moveTiles.match(action)) {
-        const { tiles } = state;
-        const placed =
-            tiles === undefined ? null : placeTiles(tiles, action.payload);
-        if (tiles === undefined || placed === null) return state;
-        const step = snapshotOf(
-            tiles,
-            new Set(action.payload.map(({ uuid }) => uuid)),
-        );
-        return {
-            ...state,
-            tiles: placed,
-            haveTilesChanged: true,
-            tileLayoutHistory: {
-                ...pushPast(state.tileLayoutHistory, step),
-                future: [],
-            },
-        };
+        return moveTilesTo(state, action.payload);
+    }
+    if (dashboardEditActions.tidyTiles.match(action)) {
+        return moveTilesTo(state, tidyTiles(tilesInView(state)));
     }
     if (dashboardEditActions.undoTileLayout.match(action)) {
         return stepThroughHistory(state, 'undo');

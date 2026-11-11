@@ -3,6 +3,7 @@ import {
     type DashboardTab,
     type DashboardTile,
 } from '@lightdash/common';
+import { sortBy } from 'es-toolkit/compat';
 import { type Layout } from 'react-grid-layout';
 
 /**
@@ -307,3 +308,77 @@ export const getResponsiveGridLayoutProps = ({
         containerPadding[1] - GRID_TILE_GUTTER,
     ],
 });
+
+type GridPlacement = { x: number; y: number; w: number; h: number };
+
+const sharesColumns = (a: GridPlacement, b: GridPlacement) =>
+    a.x < b.x + b.w && b.x < a.x + a.w;
+
+/**
+ * Slides every tile of one grid up until it rests on the tile above it or on
+ * the top. Columns, sizes and the top-to-bottom order stay as they are.
+ */
+export const closeTileGaps = <T extends GridPlacement>(tiles: T[]): T[] =>
+    sortBy(tiles, ['y', 'x']).reduce<T[]>(
+        (placed, tile) => [
+            ...placed,
+            {
+                ...tile,
+                y: Math.max(
+                    0,
+                    ...placed
+                        .filter((above) => sharesColumns(above, tile))
+                        .map((above) => above.y + above.h),
+                ),
+            },
+        ],
+        [],
+    );
+
+const snapToFineStep = (value: number) =>
+    Math.round(value * FINE_GRID_SCALE) / FINE_GRID_SCALE;
+
+/**
+ * Reading-order rows: a tile joins the row it starts in the top half of,
+ * unless it sits under a tile of that row, which starts the next row.
+ */
+const toRows = <T extends GridPlacement>(tiles: T[]): T[][] =>
+    sortBy(tiles, ['y', 'x']).reduce<T[][]>((rows, tile) => {
+        const row = rows.at(-1);
+        const joinsRow =
+            row !== undefined &&
+            tile.y < row[0].y + row[0].h / 2 &&
+            !row.some((placed) => sharesColumns(placed, tile));
+        return joinsRow
+            ? [...rows.slice(0, -1), [...row, tile]]
+            : [...rows, [tile]];
+    }, []);
+
+/** One row at `y`: full grid width in the tiles' proportions, tallest height */
+const justifyRow = <T extends GridPlacement>(row: T[], y: number): T[] => {
+    const leftToRight = sortBy(row, ['x']);
+    const totalWidth = leftToRight.reduce((sum, tile) => sum + tile.w, 0);
+    const h = Math.max(...leftToRight.map((tile) => tile.h));
+    const edgeAfter = (count: number) =>
+        snapToFineStep(
+            (leftToRight
+                .slice(0, count)
+                .reduce((sum, tile) => sum + tile.w, 0) *
+                GRID_DESKTOP_COLS) /
+                totalWidth,
+        );
+    return leftToRight.map((tile, index) => {
+        const x = edgeAfter(index);
+        return { ...tile, x, y, w: edgeAfter(index + 1) - x, h };
+    });
+};
+
+/**
+ * Justified rows: gaps close, then every row spans the whole grid at one
+ * height and rows stack with nothing between them. Reading order is kept.
+ */
+export const tidyTiles = <T extends GridPlacement>(tiles: T[]): T[] =>
+    toRows(closeTileGaps(tiles)).reduce<T[]>((placed, row) => {
+        const y = Math.max(0, ...placed.map((tile) => tile.y + tile.h));
+        return [...placed, ...justifyRow(row, y)];
+    }, []);

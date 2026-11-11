@@ -451,6 +451,50 @@ describe('tile layout undo and redo', () => {
     const xs = (state: typeof initialDashboardEditState) =>
         state.tiles?.map((t) => t.x);
 
+    it('tidies the tab in view only, as one undo step', () => {
+        const tabs = ['one', 'two'].map((uuid, order) => ({
+            uuid,
+            name: uuid,
+            order,
+        }));
+        const on = (uuid: string, tabUuid: string, y: number) => ({
+            ...tile(uuid),
+            tabUuid,
+            y,
+        });
+        const ys = (state: typeof initialDashboardEditState) =>
+            state.tiles?.map((t) => t.y);
+        const start = [
+            actions.setTabs(tabs),
+            actions.setActiveTab(tabs[0]),
+        ].reduce(
+            reducer,
+            editing([on('a', 'one', 5), on('b', 'one', 20), on('c', 'two', 9)]),
+        );
+
+        const tidy = reducer(start, actions.tidyTiles());
+        expect(ys(tidy)).toEqual([0, 3, 9]);
+        expect(tidy.haveTilesChanged).toBe(true);
+
+        expect(ys(reducer(tidy, actions.undoTileLayout()))).toEqual([5, 20, 9]);
+        expect(reducer(tidy, actions.tidyTiles())).toBe(tidy);
+    });
+
+    it('tidies gaps and row widths in one undo step', () => {
+        const start = editing([tile('a'), { ...tile('b', 6), y: 12 }]);
+        const placement = (state: typeof initialDashboardEditState) =>
+            state.tiles?.map(({ x, y, w }) => [x, y, w]);
+
+        const tidy = reducer(start, actions.tidyTiles());
+        expect(placement(tidy)).toEqual([
+            [0, 0, 18],
+            [18, 0, 18],
+        ]);
+        expect(placement(reducer(tidy, actions.undoTileLayout()))).toEqual(
+            placement(start),
+        );
+    });
+
     it('undoes and redoes a move', () => {
         const moved = reducer(editing([tile('a'), tile('b', 6)]), move('a', 3));
         expect(xs(moved)).toEqual([3, 6]);

@@ -11,6 +11,7 @@ import { isEqual } from 'es-toolkit/compat';
 import { type DashboardStoreState } from '.';
 import {
     canStepTileLayout,
+    canTidyTiles,
     isDateZoomConfigDraftCurrent,
     isDraftCurrent,
     type SavedDateZoomSettings,
@@ -24,6 +25,8 @@ export const selectCanUndoTileLayout = (state: DashboardStoreState) =>
     canStepTileLayout(state.edit, 'undo');
 export const selectCanRedoTileLayout = (state: DashboardStoreState) =>
     canStepTileLayout(state.edit, 'redo');
+export const selectCanTidyTiles = (state: DashboardStoreState) =>
+    canTidyTiles(state.edit);
 export const selectCanvasZoom = (state: DashboardStoreState) =>
     state.edit.canvasZoom;
 export const selectDashboardTabs = (state: DashboardStoreState) =>
