@@ -16,6 +16,7 @@ import {
     getGridTotalRows,
     getViewModeActiveTabTiles,
     hasGridItemMoved,
+    resolveDropOverlaps,
     getDashboardLayouts,
     getMobileGridLayout,
     getResponsiveGridLayoutProps,
@@ -305,6 +306,74 @@ describe('a drag or resize that ends', () => {
             expect(hasGridItemMoved(item, { ...item, ...change })).toBe(true);
         },
     );
+});
+
+describe('dropping a tile that was dragged over others', () => {
+    const item = (i: string, x: number, y: number, w = 12, h = 4) => ({
+        i,
+        x,
+        y,
+        w,
+        h,
+    });
+    const position = (layout: ReturnType<typeof item>[], i: string) => {
+        const { x, y } = layout.find((l) => l.i === i)!;
+        return { x, y };
+    };
+
+    it('leaves every tile alone when the drop lands on free space', () => {
+        const layout = [item('a', 0, 0), item('b', 12, 0), item('c', 0, 4)];
+        expect(resolveDropOverlaps(layout, 'c')).toEqual(layout);
+    });
+
+    it('keeps the dropped tile in place and moves the covered tile below it', () => {
+        const layout = [item('a', 0, 0), item('dropped', 0, 2)];
+        const result = resolveDropOverlaps(layout, 'dropped');
+        expect(position(result, 'dropped')).toEqual({ x: 0, y: 2 });
+        expect(position(result, 'a')).toEqual({ x: 0, y: 6 });
+    });
+
+    it('puts a same-sized tile below when dropped exactly on top of it', () => {
+        const layout = [item('a', 0, 0), item('dropped', 0, 0)];
+        const result = resolveDropOverlaps(layout, 'dropped');
+        expect(position(result, 'dropped')).toEqual({ x: 0, y: 0 });
+        expect(position(result, 'a')).toEqual({ x: 0, y: 4 });
+    });
+
+    it('moves tiles further down the column out of the way of a pushed tile', () => {
+        const layout = [
+            item('dropped', 0, 0),
+            item('a', 0, 2),
+            item('b', 0, 6),
+            item('beside', 12, 0),
+        ];
+        const result = resolveDropOverlaps(layout, 'dropped');
+        expect(position(result, 'a')).toEqual({ x: 0, y: 4 });
+        expect(position(result, 'b')).toEqual({ x: 0, y: 8 });
+        expect(position(result, 'beside')).toEqual({ x: 12, y: 0 });
+    });
+
+    it('leaves no two tiles overlapping', () => {
+        const layout = [
+            item('a', 0, 0, 12, 6),
+            item('b', 12, 0, 12, 6),
+            item('c', 6, 6, 12, 4),
+            item('dropped', 6, 3, 12, 4),
+        ];
+        const result = resolveDropOverlaps(layout, 'dropped');
+        const overlaps = result.flatMap((a, index) =>
+            result
+                .slice(index + 1)
+                .filter(
+                    (b) =>
+                        a.x < b.x + b.w &&
+                        a.x + a.w > b.x &&
+                        a.y < b.y + b.h &&
+                        a.y + a.h > b.y,
+                ),
+        );
+        expect(overlaps).toEqual([]);
+    });
 });
 
 describe('same grid at every window width', () => {

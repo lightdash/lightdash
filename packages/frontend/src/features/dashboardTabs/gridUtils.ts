@@ -187,6 +187,44 @@ export const hasGridItemMoved = (before: Layout, after: Layout): boolean =>
     before.w !== after.w ||
     before.h !== after.h;
 
+const doGridItemsOverlap = (a: Layout, b: Layout): boolean =>
+    a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+
+/**
+ * Settles a drop made while tiles could overlap: the dropped tile stays where
+ * it was put, and every tile it covers moves down until nothing overlaps.
+ */
+export const resolveDropOverlaps = (
+    layout: Layout[],
+    droppedId: string,
+): Layout[] => {
+    const dropped = layout.find((item) => item.i === droppedId);
+    if (!dropped) return layout;
+
+    const settled = sortBy(
+        layout.filter((item) => item.i !== droppedId),
+        ['y', 'x'],
+    ).reduce<Layout[]>(
+        (placed, item) => {
+            const settle = (candidate: Layout): Layout => {
+                const blockers = placed.filter((other) =>
+                    doGridItemsOverlap(candidate, other),
+                );
+                return blockers.length === 0
+                    ? candidate
+                    : settle({
+                          ...candidate,
+                          y: Math.max(...blockers.map((b) => b.y + b.h)),
+                      });
+            };
+            return [...placed, settle(item)];
+        },
+        [dropped],
+    );
+    const settledById = new Map(settled.map((item) => [item.i, item]));
+    return layout.map((item) => settledById.get(item.i) ?? item);
+};
+
 export type ResponsiveGridLayoutProps = {
     compactType: null;
     draggableCancel: string;

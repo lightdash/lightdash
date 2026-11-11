@@ -82,6 +82,7 @@ import GridTile from './GridTile';
 import {
     convertLayoutToBaseCoordinates,
     hasGridItemMoved,
+    resolveDropOverlaps,
     DEFAULT_ROW_HEIGHT,
     EDIT_ACTION_BAR_CLEARANCE,
     FINE_GRID_SCALE,
@@ -108,6 +109,7 @@ const EMPTY_LAYOUTS: DashboardLayouts = {
 // Unset outside edit mode, where the grid is never zoomed
 type DashboardGridProps = ReturnType<typeof getResponsiveGridLayoutProps> & {
     transformScale: number | undefined;
+    allowOverlap: boolean;
 };
 
 const DASHBOARD_GRID_BOTTOM_PADDING = 60;
@@ -319,10 +321,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         FeatureFlags.DashboardEditErgonomics,
     );
     // Editing gets a grid twice as fine; stored positions stay in base units
-    const gridScale =
-        isEditMode && editErgonomicsFlag?.enabled === true
-            ? FINE_GRID_SCALE
-            : 1;
+    const isEditErgonomicsEnabled =
+        isEditMode && editErgonomicsFlag?.enabled === true;
+    const gridScale = isEditErgonomicsEnabled ? FINE_GRID_SCALE : 1;
     const FiltersBar = isDashboardControlsEnabled
         ? ControlsBar
         : DashboardFiltersBar;
@@ -356,10 +357,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             stopAutoScroll();
             setIsInteracting(false);
             if (hasGridItemMoved(before, after)) {
-                void handleUpdateTilesWithScaling(layout);
+                void handleUpdateTilesWithScaling(
+                    isEditErgonomicsEnabled
+                        ? resolveDropOverlaps(layout, after.i)
+                        : layout,
+                );
             }
         },
-        [handleUpdateTilesWithScaling, stopAutoScroll],
+        [handleUpdateTilesWithScaling, stopAutoScroll, isEditErgonomicsEnabled],
     );
     const handleResizeStart = useCallback(() => {
         setIsInteracting(true);
@@ -532,8 +537,16 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         () => ({
             ...unzoomedGridProps,
             transformScale: isCanvasZoomable ? canvasZoom : undefined,
+            // Only mid-gesture, so the grid still pushes stored overlaps apart
+            allowOverlap: isEditErgonomicsEnabled && isInteracting,
         }),
-        [unzoomedGridProps, isCanvasZoomable, canvasZoom],
+        [
+            unzoomedGridProps,
+            isCanvasZoomable,
+            canvasZoom,
+            isEditErgonomicsEnabled,
+            isInteracting,
+        ],
     );
     const layoutsByTab = useMemo(() => {
         const map = new Map<string, DashboardLayouts>();
