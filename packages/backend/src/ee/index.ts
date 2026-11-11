@@ -1616,6 +1616,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     directAccessService: repository.getDirectAccessService(),
                     organizationSettingsModel:
                         models.getOrganizationSettingsModel(),
+                    getAppGenerateService: () =>
+                        repository.getAppGenerateService<AppGenerateService>(),
                     getDataAppCustomSqlProvenance: (args) =>
                         repository
                             .getAppGenerateService<AppGenerateService>()
