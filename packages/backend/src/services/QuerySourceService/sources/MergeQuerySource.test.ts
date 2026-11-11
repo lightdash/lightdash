@@ -168,6 +168,22 @@ describe('MergeQuerySource', () => {
         );
     });
 
+    it('refuses sources that set one parameter differently', async () => {
+        const { source, compileComposerMerge } = createSource();
+        await expect(
+            source.validateQuery(
+                args(merge, [
+                    orders,
+                    { ...payments, parameters: { 'orders.region': 'US' } },
+                    merge,
+                ]),
+            ),
+        ).rejects.toThrow(
+            'Merge node "revenue_vs_orders" reads nodes that set parameter "orders.region" differently.',
+        );
+        expect(compileComposerMerge).not.toHaveBeenCalled();
+    });
+
     it('refuses a pivot', async () => {
         const { source } = createSource();
         await expect(

@@ -1,5 +1,6 @@
 import {
     getMergeNodeMergeQuery,
+    getMergeNodeParameters,
     ParameterError,
     QuerySourceType,
     type FeatureFlags,
@@ -45,12 +46,10 @@ const assertSourceQuery = (query: SourceQuery): MergeSourceQuery => {
     return query;
 };
 
-const nodeName = (query: SourceQuery) => `node "${query.nodeId}"`;
+const nodeName = (query: SourceQuery) =>
+    query.nodeId ? `node "${query.nodeId}"` : 'node';
 
-/**
- * The merge's sources must be semanticLayer nodes of the submission that
- * already group by their join keys: they are the legs, read as they ran.
- */
+// Sources are the legs, read as they ran, so each must select its join keys.
 const toMergeQuery = (
     query: MergeSourceQuery,
     submission: SubmittedSourceQueries,
@@ -60,18 +59,15 @@ const toMergeQuery = (
             `Merge ${nodeName(query)} carries a pivotConfiguration, which merge queries do not support; pivot in a duckdb node that reads it.`,
         );
     }
-    query.sources.forEach(({ nodeId }) => {
-        const source = submission.find((node) => node.nodeId === nodeId);
-        if (source?.sourceType !== QuerySourceType.SEMANTIC_LAYER) {
-            throw new ParameterError(
-                `Merge ${nodeName(query)} reads "${nodeId}", which is not a semanticLayer node of this pipeline. A merge joins semanticLayer nodes; join other results with a duckdb node.`,
-            );
-        }
-    });
     const mergeQuery = getMergeNodeMergeQuery(query, submission);
     if (mergeQuery === null) {
+        const { nodeId } = query.sources.find(
+            (source) =>
+                submission.find((node) => node.nodeId === source.nodeId)
+                    ?.sourceType !== QuerySourceType.SEMANTIC_LAYER,
+        )!;
         throw new ParameterError(
-            `Merge ${nodeName(query)} reads a node that is not a semanticLayer node of this pipeline.`,
+            `Merge ${nodeName(query)} reads "${nodeId}", which is not a semanticLayer node of this pipeline. A merge joins semanticLayer nodes; join other results with a duckdb node.`,
         );
     }
     mergeQuery.joinKey.forEach((part) => {
@@ -90,28 +86,7 @@ const toMergeQuery = (
     return mergeQuery;
 };
 
-/** Each source node's own parameters, layered over the submission's. */
-const getMergeParameters = (
-    mergeQuery: MetricSourcedMergeQuery,
-    submission: SubmittedSourceQueries,
-    parameters: ParametersValuesMap,
-): ParametersValuesMap =>
-    Object.assign(
-        { ...parameters },
-        ...mergeQuery.sources.map(({ id }) => {
-            const node = submission.find(({ nodeId }) => nodeId === id);
-            return node?.sourceType === QuerySourceType.SEMANTIC_LAYER
-                ? (node.parameters ?? {})
-                : {};
-        }),
-    );
-
-/**
- * A merge as a query source: a declared join of semanticLayer nodes run
- * through the merge compiler, so its columns keep their fields' identity
- * and a join that would be wrong is refused before anything runs. The
- * referenced nodes are the legs; the merge submits only the join.
- */
+/** A merge node: compiled like an Explorer merge; it submits only the join over its source nodes. */
 export class MergeQuerySource implements QuerySourceClient {
     readonly definition: QuerySourceDefinition = {
         sourceType: QuerySourceType.MERGE,
@@ -152,15 +127,14 @@ export class MergeQuerySource implements QuerySourceClient {
         const prepared = (async () => {
             const query = assertSourceQuery(args.query);
             const mergeQuery = toMergeQuery(query, args.submission);
-            const parameters = getMergeParameters(
-                mergeQuery,
-                args.submission,
-                args.parameters,
-            );
+            const parameters = {
+                ...args.parameters,
+                ...getMergeNodeParameters(query, args.submission),
+            };
             const compiled = await this.asyncQueryService.compileComposerMerge({
                 account: args.account,
                 projectUuid: args.projectUuid,
-                nodeId: query.nodeId ?? 'merge',
+                nodeId: query.nodeId ?? null,
                 mergeQuery,
                 parameters,
                 userAttributeOverrides: args.userAttributeOverrides,

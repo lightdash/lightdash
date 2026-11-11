@@ -404,7 +404,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
             )
             .min(2)
             .describe(
-                "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects exactly its join-key dimensions plus metrics, and returns fewer rows than its limit: a node cut off at its limit is refused.",
+                "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects its join-key dimensions plus metrics; one source may keep another dimension when every other source sets repeatValues. Each returns fewer rows than its limit: a node cut off at its limit is refused.",
             ),
         joinKey: z
             .array(

@@ -171,12 +171,8 @@ export const getMergeSourceLabels = ({
     );
 
 /**
- * A leg that came back at the row cap, or at a lower limit of its own, may
- * have had more rows behind it, and the join cannot tell. Refuse on the
- * leg's own row count instead, naming the source to narrow. Known only once
- * the leg has run, so it lands as the merged query's error rather than a
- * pre-execution refusal. An unknown row count is not evidence, so it never
- * refuses.
+ * A leg at the row cap, or at its own lower limit, may have more rows behind it, so the
+ * join is refused naming the source. An unknown row count never refuses.
  */
 export const getMergeRowCapError = ({
     legs,

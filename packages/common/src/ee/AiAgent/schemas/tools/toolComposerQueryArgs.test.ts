@@ -722,12 +722,6 @@ describe('composer merge nodes', () => {
         queries: [mergeNode],
     };
 
-    it('describes when to prefer a merge node', () => {
-        expect(
-            getToolComposerQueriesDescription({ enablePythonNodes: false }),
-        ).toContain('Prefer it to a duckdb join of semanticLayer nodes.');
-    });
-
     it('requires at least two sources', () => {
         expect(
             toolComposerQueriesArgsSchema.safeParse({

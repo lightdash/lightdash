@@ -4,6 +4,7 @@ import type {
     ParametersValuesMap,
     PivotConfiguration,
     QueryExecutionContext,
+    QueryNodeId,
     QuerySourceDefinition,
     QuerySourceSchema,
     QuerySurface,
@@ -42,7 +43,9 @@ export type SourceQueryAiAttribution = {
 };
 
 /** A submission's queries, each under its own or its generated node id. */
-export type SubmittedSourceQueries = Array<SourceQuery & { nodeId: string }>;
+export type SubmittedSourceQueries = Array<
+    SourceQuery & { nodeId: QueryNodeId }
+>;
 
 export type ValidateSourceQueryArgs = SourceQueryExecutionContext & {
     account: Account;
@@ -101,10 +104,7 @@ export interface QuerySourceClient {
     requiredFeatureFlags: FeatureFlags[];
     scanSchema(args: ScanSchemaArgs): Promise<QuerySourceSchema>;
     getQueryReferences(query: SourceQuery): string[];
-    /**
-     * Refuses a query before any node of its submission is submitted, so a
-     * refusal never leaves upstream nodes running unreported.
-     */
+    /** Refuses a query before any node of its submission runs. */
     validateQuery?(args: ValidateSourceQueryArgs): Promise<void>;
     submitQuery(
         args: SubmitSourceQueryArgs,

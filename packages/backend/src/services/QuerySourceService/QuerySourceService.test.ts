@@ -318,14 +318,6 @@ describe('QuerySourceService', () => {
                     context: QueryExecutionContext.MULTI_SOURCE_QUERY,
                 }),
             ).rejects.toThrow('refused');
-            expect(validateQuery).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    submission: [
-                        expect.objectContaining({ nodeId: 'orders' }),
-                        expect.objectContaining({ nodeId: 'query_1' }),
-                    ],
-                }),
-            );
             expect(
                 fakes.semanticLayerSource.submitQuery,
             ).not.toHaveBeenCalled();

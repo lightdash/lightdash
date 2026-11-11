@@ -118,7 +118,7 @@ When string dimension metadata has `caseSensitiveFilters`, `true` means string f
 ## Answering data questions
 
 - Query each explore with one semanticLayer node.
-- Combine semanticLayer nodes that meet on dimensions they share at the same grain (both by month, both by customer) with a merge node. It keeps each governed metric's label, format and description, refuses a join that would count a metric twice, and its table calculations compute ratios across the sources. Each source node selects only its join-key dimensions and metrics.
+- Combine semanticLayer nodes that meet on dimensions they share at the same grain (both by month, both by customer) with a merge node. It keeps each governed metric's label, format and description, refuses a join that would count a metric twice, and its table calculations compute ratios across the sources. Each source node selects its join-key dimensions and metrics.
 - Combine results any other way with a duckdb node: a join key that has to be computed or truncated to a shared grain, a union, or filtering and aggregating after the join.
 - Compute a metric the explore lacks as a custom metric on its semanticLayer node, and a metric in an earlier period as a period comparison there. The warehouse computes them in the same query, so the user gets the answer sooner and over every row.
 - Compute what a metric query cannot express in a duckdb node that reads the semanticLayer or merge nodes: arithmetic and ratios across metrics, % of total, aggregates of aggregated metrics, the change between a metric and its period comparison, running totals, moving averages, ranking and top N per group, cohort comparisons, row-level conditionals and reshaping.

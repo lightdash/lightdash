@@ -1,6 +1,7 @@
 import assertUnreachable from '../utils/assertUnreachable';
 import { type QueryExecutionContext } from './analytics';
 import { type UUID } from './api/uuid';
+import { ParameterError } from './errors';
 import {
     type CustomDimension,
     type DimensionType,
@@ -56,11 +57,7 @@ export enum QuerySourceType {
     PYTHON = 'python',
     /** A query sent live to an external API, such as HogQL to PostHog. */
     API = 'api',
-    /**
-     * A declared join of semanticLayer nodes of the same submission, run
-     * through the merge compiler: no SQL, and its columns keep the governed
-     * fields' labels, formats and provenance.
-     */
+    /** A declared join of semanticLayer nodes, run through the merge compiler. */
     MERGE = 'merge',
 }
 
@@ -311,11 +308,8 @@ export type MergeSourceQueryInput = {
 };
 
 /**
- * A merge as a source query: semanticLayer nodes joined on shared keys. The
- * referenced nodes are the merge's legs, read as they ran, so each must
- * select its join keys and return fewer rows than its limit. Merged column
- * ids follow the merge naming rule: `<nodeId>_<fieldId>` for a source's
- * columns, `merge_<name>` for join keys and table calculations.
+ * semanticLayer nodes joined on shared keys; the nodes are the legs, read as they ran.
+ * Columns are `<nodeId>_<fieldId>`, and `merge_<name>` for keys and calculations.
  */
 export type MergeSourceQuery = {
     sourceType: QuerySourceType.MERGE;
@@ -500,11 +494,7 @@ export const getSourceQueryResultReferences = (
     }
 };
 
-/**
- * The merge a merge node runs: each source is the metric query of the
- * semanticLayer node it names, under that node's id. Null when a source is
- * not a semanticLayer node of `nodes`.
- */
+/** The merge a merge node runs, sources under their node ids; null when one is not a semanticLayer node. */
 export const getMergeNodeMergeQuery = (
     node: MergeSourceQuery,
     nodes: SourceQuery[],
@@ -529,3 +519,26 @@ export const getMergeNodeMergeQuery = (
         limit: getSourceQueryLimit(node),
     };
 };
+
+/** The parameters a merge node compiles with: its sources' own, which must agree. */
+export const getMergeNodeParameters = (
+    node: MergeSourceQuery,
+    nodes: SourceQuery[],
+): ParametersValuesMap =>
+    node.sources.reduce<ParametersValuesMap>((merged, { nodeId }) => {
+        const source = nodes.find((candidate) => candidate.nodeId === nodeId);
+        if (source?.sourceType !== QuerySourceType.SEMANTIC_LAYER) {
+            return merged;
+        }
+        Object.entries(source.parameters ?? {}).forEach(([name, value]) => {
+            if (
+                name in merged &&
+                JSON.stringify(merged[name]) !== JSON.stringify(value)
+            ) {
+                throw new ParameterError(
+                    `Merge node "${node.nodeId}" reads nodes that set parameter "${name}" differently. Give every source of the merge the same value for it.`,
+                );
+            }
+        });
+        return { ...merged, ...source.parameters };
+    }, {});

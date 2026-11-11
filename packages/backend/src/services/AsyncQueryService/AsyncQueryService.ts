@@ -541,6 +541,8 @@ import {
     type WarehouseExecutionSource,
 } from './types';
 
+const COMPOSE_MERGE_JOIN_NODE_ID = 'merge';
+
 /** A compiled merge that can run: no errors, the join core and full metadata. */
 export type RunnableCompiledMergeQuery = ApiCompiledMergeQueryResults & {
     coreSql: string;
@@ -15037,7 +15039,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             pivotConfiguration,
         };
-        const joinNodeId = 'merge';
+        const joinNodeId = COMPOSE_MERGE_JOIN_NODE_ID;
         const { joinNode, plan } = this.buildMergeJoin({
             nodeId: joinNodeId,
             mergeQuery,
@@ -15131,10 +15133,7 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    /**
-     * Compiles a composer merge node's merge over its semanticLayer nodes.
-     * A refusal throws with every reason, each naming the node at fault.
-     */
+    /** Compiles a composer merge node; a refusal throws with every reason. */
     async compileComposerMerge({
         account,
         projectUuid,
@@ -15145,7 +15144,7 @@ export class AsyncQueryService extends ProjectService {
     }: {
         account: Account;
         projectUuid: string;
-        nodeId: string;
+        nodeId: string | null;
         mergeQuery: MergeQuery;
         parameters: ParametersValuesMap;
         userAttributeOverrides: UserAttributeValueMap;
@@ -15159,7 +15158,7 @@ export class AsyncQueryService extends ProjectService {
         });
         if (!isRunnableCompiledMergeQuery(compiled)) {
             throw new ParameterError(
-                `Merge node "${nodeId}" cannot run: ${compiled.errors
+                `Merge node${nodeId ? ` "${nodeId}"` : ''} cannot run: ${compiled.errors
                     .map((error) => error.message)
                     .join(' ')}`,
             );
@@ -15167,11 +15166,7 @@ export class AsyncQueryService extends ProjectService {
         return compiled;
     }
 
-    /**
-     * Submits a composer merge node's join over legs that are already
-     * submitted: the merge's own semanticLayer nodes, by queryUuid. The
-     * guard refuses a leg that reached its own limit.
-     */
+    /** Submits a composer merge node's join over its already-submitted source nodes. */
     async submitComposerMergeJoin({
         account,
         projectUuid,
@@ -15195,8 +15190,8 @@ export class AsyncQueryService extends ProjectService {
         parameters: ParametersValuesMap;
         invalidateCache: boolean;
     }): Promise<{ queryUuid: string }> {
-        const { joinNode, plan } = this.buildMergeJoin({
-            nodeId: 'merge',
+        const { joinNode, references, plan } = this.buildMergeJoin({
+            nodeId: COMPOSE_MERGE_JOIN_NODE_ID,
             mergeQuery,
             compiledMerge,
             legReferenceBySourceId: legQueryUuidBySourceId,
@@ -15213,7 +15208,7 @@ export class AsyncQueryService extends ProjectService {
             account,
             projectUuid,
             sql: joinNode.sql,
-            references: joinNode.references as Record<string, string>,
+            references,
             context,
             querySurface,
             parameters,
@@ -15222,12 +15217,7 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
-    /**
-     * The join of a compiled merge as a duckdb node and its execution plan:
-     * the compile's columns supplied, a session scoped to the legs it reads,
-     * and the guard that refuses a leg cut off at its row limit. Legs are
-     * referenced by node id or queryUuid; the caller submits them.
-     */
+    /** A compiled merge's join as a duckdb node and its supplied-columns plan; the caller submits the legs. */
     private buildMergeJoin({
         nodeId,
         mergeQuery,
@@ -15244,7 +15234,11 @@ export class AsyncQueryService extends ProjectService {
         labelBySourceId: Record<string, string>;
         requestParameters: ExecuteAsyncQueryRequestParams;
         pivotConfiguration: PivotConfiguration | undefined;
-    }): { joinNode: DuckdbSourceQuery; plan: DuckdbQueryPlan } {
+    }): {
+        joinNode: DuckdbSourceQuery;
+        references: Record<string, string>;
+        plan: DuckdbQueryPlan;
+    } {
         const sourceRowCap = this.lightdashConfig.query.maxLimit;
         const columnOrder = Object.values(compiledMerge.fieldIdByColumn);
         const referenceTableBySourceId = Object.fromEntries(
@@ -15347,7 +15341,7 @@ export class AsyncQueryService extends ProjectService {
             throw new ParameterError(getErrorMessage(e));
         }
 
-        return { joinNode, plan };
+        return { joinNode, references, plan };
     }
 
     /**

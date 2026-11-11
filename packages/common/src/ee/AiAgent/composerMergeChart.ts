@@ -3,9 +3,9 @@ import {
     parseSavedMergeDefinition,
     type SavedMergeDefinition,
 } from '../../types/mergeQuery';
-import { type ParametersValuesMap } from '../../types/parameters';
 import {
     getMergeNodeMergeQuery,
+    getMergeNodeParameters,
     metricQueryOfSemanticNode,
     QuerySourceType,
 } from '../../types/querySources';
@@ -49,11 +49,7 @@ const getChart = (
     }
 };
 
-/**
- * The merged chart a composer version saves as when it presents a merge node.
- * Sources keep their node ids as names, so merged column ids, calc formulas
- * and sorts carry over unchanged. Null when it cannot be saved as one.
- */
+/** The merged chart a version presenting a merge node saves as, sources named by node id; null when it cannot. */
 export const getComposerMergeSavedChart = ({
     config,
     columns,
@@ -72,10 +68,9 @@ export const getComposerMergeSavedChart = ({
     const mergeQuery = getMergeNodeMergeQuery(node, config.queries);
     if (!mergeQuery) return null;
 
-    const sourceNodes = node.sources.map(({ nodeId }) =>
-        config.queries.find((query) => query.nodeId === nodeId),
+    const primaryNode = config.queries.find(
+        (query) => query.nodeId === node.sources[0]?.nodeId,
     );
-    const [primaryNode] = sourceNodes;
     if (primaryNode?.sourceType !== QuerySourceType.SEMANTIC_LAYER) {
         return null;
     }
@@ -96,14 +91,12 @@ export const getComposerMergeSavedChart = ({
         ]),
     );
     const pivotColumns = remapFieldIdsDeep(chart.pivotColumns, fieldIdMap);
-    // The merge runs every source's own parameters, later sources winning
-    const parameters = sourceNodes.reduce<ParametersValuesMap>(
-        (acc, source) =>
-            source?.sourceType === QuerySourceType.SEMANTIC_LAYER
-                ? { ...acc, ...source.parameters }
-                : acc,
-        {},
-    );
+    let parameters;
+    try {
+        parameters = getMergeNodeParameters(node, config.queries);
+    } catch {
+        return null;
+    }
 
     return {
         tableName: primaryNode.exploreName,

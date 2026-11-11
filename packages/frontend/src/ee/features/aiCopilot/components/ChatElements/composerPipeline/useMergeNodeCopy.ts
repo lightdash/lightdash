@@ -1,76 +1,47 @@
 import {
-    assertUnreachable,
     interpolateUiString,
     MergeJoinType,
+    type UiStringKey,
 } from '@lightdash/common';
 import { useCallback } from 'react';
 import { useUiStrings } from '../../../../../providers/Embed/useUiStrings';
 import { type MergeNodeSummary } from './mergeNodeSummary';
 
+const JOIN_TYPE_KEYS = {
+    [MergeJoinType.INNER]: {
+        label: 'aiAgent.composer.mergeNode.joinType.inner',
+        help: 'aiAgent.composer.mergeNode.joinTypeHelp.inner',
+    },
+    [MergeJoinType.LEFT]: {
+        label: 'aiAgent.composer.mergeNode.joinType.left',
+        help: 'aiAgent.composer.mergeNode.joinTypeHelp.left',
+    },
+    [MergeJoinType.FULL]: {
+        label: 'aiAgent.composer.mergeNode.joinType.full',
+        help: 'aiAgent.composer.mergeNode.joinTypeHelp.full',
+    },
+} as const satisfies Record<
+    MergeJoinType,
+    { label: UiStringKey; help: UiStringKey }
+>;
+
 /** Join type and repeat wording, as the Explorer's merge bar phrases them. */
 export const useMergeNodeCopy = () => {
     const getUiString = useUiStrings();
     const joinTypeLabel = useCallback(
-        (summary: MergeNodeSummary) => {
-            const vars = { source: summary.firstSourceTitle };
-            switch (summary.joinType) {
-                case MergeJoinType.INNER:
-                    return getUiString(
-                        'aiAgent.composer.mergeNode.joinType.inner',
-                    );
-                case MergeJoinType.LEFT:
-                    return interpolateUiString(
-                        getUiString('aiAgent.composer.mergeNode.joinType.left'),
-                        vars,
-                    );
-                case MergeJoinType.FULL:
-                    return getUiString(
-                        'aiAgent.composer.mergeNode.joinType.full',
-                    );
-                default:
-                    return assertUnreachable(
-                        summary.joinType,
-                        'Unknown join type',
-                    );
-            }
-        },
+        (summary: MergeNodeSummary) =>
+            interpolateUiString(
+                getUiString(JOIN_TYPE_KEYS[summary.joinType].label),
+                { source: summary.firstSourceTitle },
+            ),
         [getUiString],
     );
     const joinTypeHelp = useCallback(
-        (summary: MergeNodeSummary) => {
-            const vars = {
-                key: summary.keyLabel,
-                source: summary.firstSourceTitle,
-            };
-            switch (summary.joinType) {
-                case MergeJoinType.INNER:
-                    return interpolateUiString(
-                        getUiString(
-                            'aiAgent.composer.mergeNode.joinTypeHelp.inner',
-                        ),
-                        vars,
-                    );
-                case MergeJoinType.LEFT:
-                    return interpolateUiString(
-                        getUiString(
-                            'aiAgent.composer.mergeNode.joinTypeHelp.left',
-                        ),
-                        vars,
-                    );
-                case MergeJoinType.FULL:
-                    return interpolateUiString(
-                        getUiString(
-                            'aiAgent.composer.mergeNode.joinTypeHelp.full',
-                        ),
-                        vars,
-                    );
-                default:
-                    return assertUnreachable(
-                        summary.joinType,
-                        'Unknown join type',
-                    );
-            }
-        },
+        (summary: MergeNodeSummary) =>
+            interpolateUiString(
+                getUiString(JOIN_TYPE_KEYS[summary.joinType].help),
+                { key: summary.keyLabel, source: summary.firstSourceTitle },
+            ),
         [getUiString],
     );
     const repeatsHelp = useCallback(
