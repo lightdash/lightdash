@@ -14,6 +14,11 @@ name: Scope tours docs refresh
 # opened with GITHUB_TOKEN does not start CI. The token is created after every
 # script has run, and only on the schedule or a manual run from main.
 #
+# pr.yml skips the preview, and the E2E suites that need it, for a pull request
+# the Renovate app opened. The body carries the deploy-preview keyword, which
+# asks for the preview, so a refresh is tested like any other change to the
+# same files.
+#
 # On a pull request that changes this file the job runs the bump and prints
 # the pull request it would open. It creates no token, pushes nothing and
 # opens nothing.
@@ -170,6 +175,10 @@ jobs:
                       echo
                       # shellcheck disable=SC2016
                       echo 'Opened by `.github/workflows/scope-tours-docs-refresh.yml`. While this pull request is open the job does not run the bump again.'
+                      echo
+                      # Read by pr.yml (see the note at the top of this file).
+                      # shellcheck disable=SC2016
+                      echo '`deploy-preview`: leave this word in. CI skips the preview and the E2E suites for a pull request the Renovate app opened, and this word asks for them.'
                   } > "$RUNNER_TEMP/body.md"
                   cat "$RUNNER_TEMP/body.md" >> "$GITHUB_STEP_SUMMARY"
             # From here on: the schedule or a manual run only, never a pull
