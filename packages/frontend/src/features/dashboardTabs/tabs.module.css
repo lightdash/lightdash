@@ -162,6 +162,36 @@
     user-select: none;
 }
 
+/* The tile holds its place until the drop; only its shadow moves */
+.dropShadow :global(.react-grid-item.react-draggable-dragging),
+.dropShadow :global(.react-grid-item.resizing) {
+    top: var(--pinned-top) !important;
+    left: var(--pinned-left) !important;
+    width: var(--pinned-width) !important;
+    height: var(--pinned-height) !important;
+    z-index: 1;
+}
+
+/* Where the tile will land, drawn over the tiles it would push down */
+.dropShadow :global(.react-grid-item.react-grid-placeholder) {
+    background: none;
+    opacity: 1;
+    /* It is the only thing following the pointer, so it must not trail it */
+    transition: none;
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: var(--tile-gutter);
+        border-radius: var(--mantine-radius-md);
+        background: color-mix(
+            in srgb,
+            var(--mantine-color-ldGray-5) 35%,
+            transparent
+        );
+    }
+}
+
 /* Fit to screen jumping to another snap target: the tiles and the grid spring
    there together. A damped spring (stiffness 200, damping 18) sampled over
    the duration; browsers without linear() get a back-out bezier */

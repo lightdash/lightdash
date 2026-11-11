@@ -187,6 +187,34 @@ export const hasGridItemMoved = (before: Layout, after: Layout): boolean =>
     before.w !== after.w ||
     before.h !== after.h;
 
+const PINNED_GRID_ITEM_PROPERTIES = ['top', 'left', 'width', 'height'] as const;
+
+const findGridItem = (node: HTMLElement): HTMLElement | null =>
+    node.closest<HTMLElement>('.react-grid-item');
+
+/**
+ * Records where a tile sits as its drag or resize starts, so styles can hold
+ * it there while only the drop shadow follows the pointer.
+ */
+export const pinGridItem = (node: HTMLElement): void => {
+    const item = findGridItem(node);
+    if (!item) return;
+    PINNED_GRID_ITEM_PROPERTIES.forEach((property) =>
+        item.style.setProperty(
+            `--pinned-${property}`,
+            item.style.getPropertyValue(property),
+        ),
+    );
+};
+
+export const unpinGridItem = (node: HTMLElement): void => {
+    const item = findGridItem(node);
+    if (!item) return;
+    PINNED_GRID_ITEM_PROPERTIES.forEach((property) =>
+        item.style.removeProperty(`--pinned-${property}`),
+    );
+};
+
 const doGridItemsOverlap = (a: Layout, b: Layout): boolean =>
     a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
