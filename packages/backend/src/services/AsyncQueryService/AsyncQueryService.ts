@@ -1112,12 +1112,15 @@ export class AsyncQueryService extends ProjectService {
         }
         let args: RunAsyncWarehouseQueryArgs;
         let binding: ExternalSourceBinding;
+        let warehouseConnectionUuid: string | null;
         try {
             args = await this.buildWarehouseQueryArgs(
                 queryUuid,
                 queryTagsOverride,
             );
             const query = await this.getQueryHistoryFromHistory(queryUuid);
+            // The result producer is matched on it when a later reader reuses the result
+            warehouseConnectionUuid = query.warehouseConnectionUuid ?? null;
             const [tableUuid] =
                 query.requestParameters.externalSourceReferences ?? [];
             if (!tableUuid) {
@@ -1152,7 +1155,11 @@ export class AsyncQueryService extends ProjectService {
             return true;
         }
         await this.runExternalSourceQuery(
-            { ...args, query: executionPlan.warehouseQuery },
+            {
+                ...args,
+                query: executionPlan.warehouseQuery,
+                warehouseConnectionUuid,
+            },
             executionPlan.objectScope,
         );
         return true;
@@ -7363,11 +7370,70 @@ export class AsyncQueryService extends ProjectService {
                         );
                     }
 
+                    const runInMainLoop = () => {
+                        this.logger.info(
+                            `Executing query ${queryHistoryUuid} in the main loop`,
+                        );
+                        this.prometheusMetrics?.trackQueryStateTransition(
+                            QueryHistoryStatus.PENDING,
+                            QueryHistoryStatus.EXECUTING,
+                            context,
+                        );
+                        this.prometheusMetrics?.observeQueueWaitDuration(
+                            0,
+                            context,
+                        );
+
+                        const { query: warehouseSql, ...sharedAsyncQueryArgs } =
+                            warehouseArgs;
+                        const getRunQueryPromise = () => {
+                            switch (executionPlan.target) {
+                                case 'pre_aggregate':
+                                    return this.runAsyncPreAggregateQuery({
+                                        ...sharedAsyncQueryArgs,
+                                        resultProducer:
+                                            executionPlan.resultProducer,
+                                        preAggregateQuery:
+                                            executionPlan.preAggregateQuery,
+                                        warehouseQuery:
+                                            executionPlan.warehouseQuery,
+                                        preAggregateExecution:
+                                            executionPlan.preAggregateExecution,
+                                    });
+                                case 'external_source':
+                                    return this.runExternalSourceQuery(
+                                        warehouseArgs,
+                                        executionPlan.objectScope,
+                                    );
+                                case 'materialization':
+                                case 'warehouse':
+                                    return this.runAsyncWarehouseQuery(
+                                        warehouseArgs,
+                                    );
+                                default:
+                                    return assertUnreachable(
+                                        executionPlan,
+                                        `Unknown execution target`,
+                                    );
+                            }
+                        };
+                        const runQueryPromise = getRunQueryPromise();
+
+                        void runQueryPromise.catch((e) => {
+                            this.logger.error(
+                                `Async query ${queryHistoryUuid} failed: ${getErrorMessage(e)}`,
+                            );
+                            span.setStatus({
+                                code: 2, // ERROR
+                                message: getErrorMessage(e),
+                            });
+                        });
+                    };
+
                     if (
                         this.lightdashConfig.natsWorker.enabled &&
                         executionPlan.target === 'external_source'
                     ) {
-                        const { objectScope } = executionPlan;
                         await this.enqueueOnDuckdbWorker({
                             queryUuid: queryHistoryUuid,
                             projectUuid,
@@ -7379,12 +7445,7 @@ export class AsyncQueryService extends ProjectService {
                                 this.natsClient.enqueueExternalSourceQuery(
                                     payload,
                                 ),
-                            runInProcess: () => {
-                                void this.runExternalSourceQuery(
-                                    warehouseArgs,
-                                    objectScope,
-                                );
-                            },
+                            runInProcess: runInMainLoop,
                         });
                     } else if (
                         this.lightdashConfig.natsWorker.enabled &&
@@ -7485,63 +7546,7 @@ export class AsyncQueryService extends ProjectService {
                             } satisfies ExecuteAsyncQueryReturn;
                         }
                     } else {
-                        this.logger.info(
-                            `Executing query ${queryHistoryUuid} in the main loop`,
-                        );
-                        this.prometheusMetrics?.trackQueryStateTransition(
-                            QueryHistoryStatus.PENDING,
-                            QueryHistoryStatus.EXECUTING,
-                            context,
-                        );
-                        this.prometheusMetrics?.observeQueueWaitDuration(
-                            0,
-                            context,
-                        );
-
-                        const { query: warehouseSql, ...sharedAsyncQueryArgs } =
-                            warehouseArgs;
-                        const getRunQueryPromise = () => {
-                            switch (executionPlan.target) {
-                                case 'pre_aggregate':
-                                    return this.runAsyncPreAggregateQuery({
-                                        ...sharedAsyncQueryArgs,
-                                        resultProducer:
-                                            executionPlan.resultProducer,
-                                        preAggregateQuery:
-                                            executionPlan.preAggregateQuery,
-                                        warehouseQuery:
-                                            executionPlan.warehouseQuery,
-                                        preAggregateExecution:
-                                            executionPlan.preAggregateExecution,
-                                    });
-                                case 'external_source':
-                                    return this.runExternalSourceQuery(
-                                        warehouseArgs,
-                                        executionPlan.objectScope,
-                                    );
-                                case 'materialization':
-                                case 'warehouse':
-                                    return this.runAsyncWarehouseQuery(
-                                        warehouseArgs,
-                                    );
-                                default:
-                                    return assertUnreachable(
-                                        executionPlan,
-                                        `Unknown execution target`,
-                                    );
-                            }
-                        };
-                        const runQueryPromise = getRunQueryPromise();
-
-                        void runQueryPromise.catch((e) => {
-                            this.logger.error(
-                                `Async query ${queryHistoryUuid} failed: ${getErrorMessage(e)}`,
-                            );
-                            span.setStatus({
-                                code: 2, // ERROR
-                                message: getErrorMessage(e),
-                            });
-                        });
+                        runInMainLoop();
                     }
 
                     return {
@@ -13395,7 +13400,7 @@ export class AsyncQueryService extends ProjectService {
         return true;
     }
 
-    private async markClaimedQueryAsErrored(
+    public async markClaimedQueryAsErrored(
         queryUuid: string,
         error: string,
     ): Promise<void> {

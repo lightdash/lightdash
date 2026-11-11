@@ -153,6 +153,16 @@ export class NatsWorker {
             Logger.error(
                 `Worker ${workerLabel} received async query job on unexpected subject "${message.subject}"`,
             );
+            // The job is delivered once, so fail the row rather than leave it queued
+            const queryUuid = this.parseMessage(message)?.payload.queryUuid;
+            if (queryUuid) {
+                await this.asyncQueryService
+                    .markClaimedQueryAsErrored(
+                        queryUuid,
+                        'The worker that received this query cannot run it yet. Try again shortly.',
+                    )
+                    .catch(() => undefined);
+            }
             message.term();
             return;
         }

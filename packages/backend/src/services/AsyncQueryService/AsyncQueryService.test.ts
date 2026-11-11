@@ -31522,6 +31522,44 @@ describe('external source explore queries on the worker', () => {
         );
     });
 
+    it('records the stored warehouse connection on the result producer', async () => {
+        const f = setup();
+        f.history.warehouseConnectionUuid = 'connection-uuid';
+
+        await f.service.runAsyncExternalSourceQueryFromHistory(
+            'external-query',
+            'worker-1',
+        );
+
+        expect(
+            f.run.mock.calls[0][0].resultProducerOverride
+                ?.warehouseConnectionUuid,
+        ).toBe('connection-uuid');
+    });
+
+    it('errors the claimed row when the history row names no source table', async () => {
+        const f = setup();
+        f.history.requestParameters = {
+            ...f.history.requestParameters,
+            externalSourceReferences: undefined,
+        };
+
+        await expect(
+            f.service.runAsyncExternalSourceQueryFromHistory(
+                'external-query',
+                'worker-1',
+            ),
+        ).rejects.toThrow('External source reference not found');
+
+        expect(
+            f.service.queryHistoryModel.updateClaimedQueryToError,
+        ).toHaveBeenCalledWith(
+            'external-query',
+            expect.stringContaining('External source reference not found'),
+        );
+        expect(f.run).not.toHaveBeenCalled();
+    });
+
     it('errors the claimed row when the table is no longer ready', async () => {
         const f = setup();
         f.resolver.mockResolvedValueOnce({
