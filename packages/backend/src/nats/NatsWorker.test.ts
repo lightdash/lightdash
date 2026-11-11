@@ -33,6 +33,7 @@ describe('NatsWorker subject dispatch', () => {
         runAsyncWarehouseQueryFromHistory: vi.fn(async () => true),
         runAsyncDuckdbQueryFromHistory: vi.fn(async () => true),
         runAsyncExternalSourceQueryFromHistory: vi.fn(async () => true),
+        markClaimedQueryAsErrored: vi.fn(async () => undefined),
         runAsyncPreAggregateQueryFromHistory: vi.fn(async () => true),
     };
     const queryHistoryModel = {
@@ -98,6 +99,21 @@ describe('NatsWorker subject dispatch', () => {
             expect(message.ack).toHaveBeenCalled();
         },
     );
+
+    it('fails the query and drops the job when it has no runner for the subject', async () => {
+        const message = jobMessage('pre_aggregate.not_a_subject.jobs');
+
+        await buildWorker().handleMessage(message, 'worker-1');
+
+        expect(
+            asyncQueryService.markClaimedQueryAsErrored,
+        ).toHaveBeenCalledWith(
+            'query-1',
+            expect.stringContaining('cannot run'),
+        );
+        expect(message.term).toHaveBeenCalled();
+        expect(message.ack).not.toHaveBeenCalled();
+    });
 
     it('runs a DuckDB job that rode the pre-aggregate stream', async () => {
         const message = jobMessage(
