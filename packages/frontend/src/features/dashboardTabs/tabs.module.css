@@ -46,9 +46,10 @@
 
 .list {
     /* Quiet tabs: no grip, the whole tab drags. One trailing slot holds the
-       menu and the tab count in a single grid cell, as wide as the widest
-       count, so nothing in it ever changes the tab's width. The draggable
-       wrapper carries the attribute: its hover and focus reveal the menu */
+       menu and the tab count in a single grid cell. While a filter is open it
+       is as wide as the widest count, so no count changes the tab's width. The
+       draggable wrapper carries the attribute: its hover and focus reveal the
+       menu */
     [data-quiet-actions] {
         cursor: grab;
 
