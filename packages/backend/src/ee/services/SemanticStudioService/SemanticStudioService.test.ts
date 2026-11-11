@@ -17,6 +17,7 @@ import {
     type ExploreError,
     type LightdashModelFragment,
     type PossibleAbilities,
+    type Project,
     type SessionUser,
 } from '@lightdash/common';
 import { stringify } from 'yaml';
@@ -86,6 +87,24 @@ const deployer = withAbility([
     { subject: 'Project', action: 'view' },
 ]);
 const viewer = withAbility([]);
+const repoWriter = withAbility([
+    { subject: 'DeployProject', action: 'manage' },
+    { subject: 'Project', action: 'view' },
+    { subject: 'SourceCode', action: 'manage' },
+]);
+const PULL_REQUEST_URL = 'https://github.example/acme/analytics/pull/1';
+const GITHUB_REPO = {
+    type: DbtProjectType.GITHUB,
+    authorization_method: 'installation_id',
+    repository: 'acme/analytics',
+    branch: 'main',
+    project_sub_path: '/',
+} as const;
+const DBT_IN_GITHUB: Project['dbtConnection'] = GITHUB_REPO;
+const MODELS_IN_GITHUB: Project['dbtConnection'] = {
+    ...GITHUB_REPO,
+    semanticLayer: 'lightdash',
+};
 const validationError = (name: string, error: string): CreateValidation => ({
     name,
     error,
@@ -105,7 +124,8 @@ const validator = withAbility([
 const setup = ({
     stored = [{ name: 'orders', content: orders }],
     enabled = true,
-    dbtType = DbtProjectType.NONE,
+    dbtConnection = { type: DbtProjectType.NONE },
+    appInstalled = true,
     exploreTypes = [],
     rejectSql = null,
     rejectMetric = null,
@@ -116,7 +136,9 @@ const setup = ({
 }: {
     stored?: { name: string; content: string; version?: number }[];
     enabled?: boolean;
-    dbtType?: DbtProjectType;
+    /** A repository connection makes `stored` the models in that repository. */
+    dbtConnection?: Project['dbtConnection'];
+    appInstalled?: boolean;
     exploreTypes?: ExploreType[];
     rejectSql?: string | null;
     rejectMetric?: string | null;
@@ -215,6 +237,14 @@ const setup = ({
         ) => validationFor(explores ?? []),
     );
     let impactCheck: DraftImpactCheck | null = null;
+    const recordedPullRequests: string[] = [];
+    const openPullRequest = vi.fn(
+        async (_args: {
+            writes: Map<string, string | null>;
+            title: string;
+            body: string;
+        }) => ({ url: PULL_REQUEST_URL }),
+    );
     const queueImpactCheck = vi.fn(async () => undefined);
     const args: SemanticStudioServiceArguments = {
         featureFlagModel: {
@@ -227,7 +257,7 @@ const setup = ({
                 upstreamProjectUuid: undefined,
                 type: ProjectType.DEFAULT,
                 createdByUserUuid: USER_UUID,
-                dbtConnection: { type: dbtType },
+                dbtConnection,
             }),
             getAllExploreSummaries: async () =>
                 exploreTypes.map((type) => ({ type })),
@@ -255,7 +285,12 @@ const setup = ({
                 });
                 return draftChangeUuid;
             },
-            updateDraftChangeStatus: async ({ drafts: selection, status }) => {
+            updateDraftChangeStatus: async ({
+                drafts: selection,
+                status,
+                pullRequestUrl,
+            }) => {
+                if (pullRequestUrl) recordedPullRequests.push(pullRequestUrl);
                 const holds = (change: StoredDraftChange) =>
                     selection.changeUuids.includes(change.draftChangeUuid) &&
                     (selection.model === null ||
@@ -296,6 +331,19 @@ const setup = ({
         },
         schedulerClient: { checkSemanticLayerDraftImpact: queueImpactCheck },
         validationService: { generateValidation },
+        repoModels: {
+            isInstalled: async () => appInstalled,
+            load: async (_organizationUuid, connection) => ({
+                connection,
+                baseSha: 'base-sha',
+                documents: stored,
+                paths: new Map(
+                    stored.map(({ name }) => [name, `models/${name}.yml`]),
+                ),
+                modelsDirectory: 'models',
+            }),
+            openPullRequest,
+        },
         projectService: {
             getWarehouseSqlBuilderSettings: async () => ({
                 type: WarehouseTypes.POSTGRES,
@@ -316,6 +364,8 @@ const setup = ({
     return {
         service,
         upsert,
+        openPullRequest,
+        recordedPullRequests,
         commitCalls,
         setExplores,
         runSqlQuery,
@@ -857,7 +907,11 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
                 null,
             );
-            expect(outcome).toEqual({ exploreCount: null, failures: [] });
+            expect(outcome).toEqual({
+                exploreCount: null,
+                failures: [],
+                pullRequestUrl: null,
+            });
             expect(context.commitCalls).toEqual([]);
             expect(context.settled).toEqual(['applied']);
         });
@@ -1212,7 +1266,7 @@ describe('SemanticStudioService', () => {
             propose(setup({ enabled: false }), deployer),
         ).rejects.toThrow(ForbiddenError);
         await expect(
-            propose(setup({ dbtType: DbtProjectType.GITHUB }), deployer),
+            propose(setup({ dbtConnection: DBT_IN_GITHUB }), deployer),
         ).rejects.toThrow(ParameterError);
         expect(await setup().service.canEditModels(viewer, PROJECT_UUID)).toBe(
             false,
@@ -1303,9 +1357,96 @@ describe('SemanticStudioService', () => {
         it('shows nothing on a project with a dbt connection', async () => {
             expect(
                 await setup({
-                    dbtType: DbtProjectType.GITHUB,
+                    dbtConnection: DBT_IN_GITHUB,
                 }).service.getModel(deployer, PROJECT_UUID, 'orders'),
             ).toBeNull();
+        });
+    });
+
+    describe('a project whose models live in a repository', () => {
+        const repo = (overrides: Parameters<typeof setup>[0] = {}) =>
+            setup({ dbtConnection: MODELS_IN_GITHUB, ...overrides });
+
+        it('applies a draft as a pull request and takes nothing live', async () => {
+            const context = repo();
+            await context.service.proposeDraftChange(
+                repoWriter,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+            );
+            const outcome = await context.service.applyDraft(
+                repoWriter,
+                PROJECT_UUID,
+                null,
+            );
+            expect(outcome).toEqual({
+                exploreCount: null,
+                failures: [],
+                pullRequestUrl: PULL_REQUEST_URL,
+            });
+            const [{ writes, title }] = context.openPullRequest.mock.calls[0];
+            expect(writes.get('orders')).toContain('revenue');
+            expect(title).toBe('Update semantic layer: orders');
+            expect(context.recordedPullRequests).toEqual([PULL_REQUEST_URL]);
+            expect(context.commitCalls).toHaveLength(0);
+            expect(context.setExplores).not.toHaveBeenCalled();
+            expect(context.drafts).toHaveLength(0);
+        });
+
+        it('opens no pull request for a draft that stopped passing', async () => {
+            const context = repo();
+            context.drafts.push({
+                draftChangeUuid: 'draft-1',
+                promptUuid: null,
+                question: null,
+                createdAt: new Date(),
+                models: [draftModel('- not a mapping')],
+            });
+            const outcome = await context.service.applyDraft(
+                repoWriter,
+                PROJECT_UUID,
+                null,
+            );
+            expect(outcome.failures).not.toEqual([]);
+            expect(context.openPullRequest).not.toHaveBeenCalled();
+        });
+
+        it('says how a draft applies', async () => {
+            expect(
+                await repo().service.getStatus(repoWriter, PROJECT_UUID),
+            ).toEqual({ enabled: true, appliesAs: 'pull_request' });
+            expect(
+                await setup().service.getStatus(deployer, PROJECT_UUID),
+            ).toEqual({ enabled: true, appliesAs: 'live' });
+        });
+
+        it('needs permission to write to the repository, and the GitHub App', async () => {
+            expect(
+                await repo().service.canEditModels(deployer, PROJECT_UUID),
+            ).toBe(false);
+            expect(
+                await repo({ appInstalled: false }).service.canEditModels(
+                    repoWriter,
+                    PROJECT_UUID,
+                ),
+            ).toBe(false);
+        });
+
+        it('keeps no history of its own and undoes nothing', async () => {
+            const context = repo();
+            expect(
+                await context.service.getModel(
+                    repoWriter,
+                    PROJECT_UUID,
+                    'orders',
+                ),
+            ).toEqual(expect.objectContaining({ history: [] }));
+            expect(context.findModelHistory).not.toHaveBeenCalled();
+            await expect(
+                context.service.undo(repoWriter, PROJECT_UUID, ['change-set']),
+            ).rejects.toThrow();
+            expect(context.commitCalls).toHaveLength(0);
         });
     });
 

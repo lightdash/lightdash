@@ -244,11 +244,13 @@ export class ProjectModelDocumentModel {
                 {
                     draftChangeUuid: string;
                     status: SettledDraftChangeStatus;
+                    pullRequestUrl: string | null;
                     revertedBy: string | null;
                 }[]
             >({
                 draftChangeUuid: `${ProjectModelDraftChangesTableName}.project_model_draft_change_uuid`,
                 status: `${ProjectModelDraftChangesTableName}.status`,
+                pullRequestUrl: `${ProjectModelDraftChangesTableName}.applied_pull_request_url`,
                 revertedBy: `${ProjectModelChangeSetsTableName}.reverted_by_change_set_uuid`,
             })
             .where(
@@ -262,10 +264,13 @@ export class ProjectModelDocumentModel {
             .whereNot(`${ProjectModelDraftChangesTableName}.status`, 'draft')
             .orderBy(`${ProjectModelDraftChangesTableName}.created_at`, 'desc')
             .limit(SETTLED_DRAFT_CHANGES_LIMIT);
-        return rows.map(({ draftChangeUuid, status, revertedBy }) => ({
-            draftChangeUuid,
-            status: revertedBy ? 'undone' : status,
-        }));
+        return rows.map(
+            ({ draftChangeUuid, status, pullRequestUrl, revertedBy }) => ({
+                draftChangeUuid,
+                status: revertedBy ? 'undone' : status,
+                pullRequestUrl,
+            }),
+        );
     }
 
     async createDraftChange({
@@ -423,6 +428,7 @@ export class ProjectModelDocumentModel {
         outcome: {
             status: SettledDraftChangeStatus;
             applied_change_set_uuid: string | null;
+            applied_pull_request_url: string | null;
         },
     ): Promise<number> {
         const settling =
@@ -443,10 +449,13 @@ export class ProjectModelDocumentModel {
     async updateDraftChangeStatus({
         drafts,
         status,
+        pullRequestUrl,
         ...owner
     }: DraftOwner & {
         drafts: DraftSelection;
         status: SettledDraftChangeStatus;
+        /** The pull request an applied draft was sent as; null for anything else. */
+        pullRequestUrl: string | null;
     }): Promise<number> {
         return this.database.transaction((trx) =>
             ProjectModelDocumentModel.updateSelectedDraftChanges(
@@ -456,6 +465,7 @@ export class ProjectModelDocumentModel {
                 {
                     status,
                     applied_change_set_uuid: null,
+                    applied_pull_request_url: pullRequestUrl,
                 },
             ),
         );
@@ -566,6 +576,7 @@ export class ProjectModelDocumentModel {
                     {
                         status: 'applied',
                         applied_change_set_uuid: changeSetUuid,
+                        applied_pull_request_url: null,
                     },
                 );
             }

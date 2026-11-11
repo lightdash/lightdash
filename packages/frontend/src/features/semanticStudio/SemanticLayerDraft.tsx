@@ -14,7 +14,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { WorkerPoolContextProvider } from '@pierre/diffs/react';
-import { IconTable } from '@tabler/icons-react';
+import { IconExternalLink, IconTable } from '@tabler/icons-react';
 import { countBy, uniqBy } from 'es-toolkit/compat';
 import { useState, type FC } from 'react';
 import { Navigate, useSearchParams } from 'react-router';
@@ -25,6 +25,7 @@ import {
     PIERRE_HIGHLIGHTER_OPTIONS,
     PIERRE_POOL_OPTIONS,
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
+import useToaster from '../../hooks/toaster/useToaster';
 import { ChangeDiff } from './ChangeDiff';
 import {
     CHANGE_KIND_LABELS,
@@ -38,6 +39,7 @@ import {
 } from './modelCode';
 import classes from './SemanticLayerDraft.module.css';
 import {
+    useAppliesAsPullRequest,
     useApplySemanticLayerDraft,
     useCheckSemanticLayerDraftImpact,
     useDiscardSemanticLayerDraft,
@@ -174,6 +176,10 @@ const ApplyModal: FC<{
 }> = ({ projectUuid, draft, model, onClose }) => {
     const impact = useSemanticLayerDraftImpact(projectUuid, model);
     const apply = useApplySemanticLayerDraft(projectUuid);
+    const asPullRequest = useAppliesAsPullRequest(projectUuid);
+    const { showToastSuccess } = useToaster();
+    const models = model ?? draft.models.map((m) => m.model).join(', ');
+    const confirmLabel = asPullRequest ? 'Open pull request' : 'Apply';
     // Applying never waits for the check: an unchecked draft is applied knowingly, like one that breaks something.
     const isRisky =
         impact.data?.status !== 'done' || impact.data.breaks.length > 0;
@@ -182,22 +188,37 @@ const ApplyModal: FC<{
             opened
             onClose={onClose}
             title={model === null ? 'Apply your draft' : `Apply ${model}`}
-            confirmLabel={isRisky ? 'Apply anyway' : 'Apply'}
+            confirmLabel={isRisky ? `${confirmLabel} anyway` : confirmLabel}
             confirmLoading={apply.isLoading}
             onConfirm={() =>
                 apply.mutate(model, {
-                    onSuccess: (result) => {
-                        if (result.failures.length === 0) onClose();
+                    onSuccess: ({ failures, pullRequestUrl }) => {
+                        if (failures.length > 0) return;
+                        if (pullRequestUrl) {
+                            showToastSuccess({
+                                title: 'Pull request opened',
+                                action: {
+                                    children: 'View pull request',
+                                    icon: IconExternalLink,
+                                    onClick: () =>
+                                        window.open(
+                                            pullRequestUrl,
+                                            '_blank',
+                                            'noopener',
+                                        ),
+                                },
+                            });
+                        }
+                        onClose();
                     },
                 })
             }
         >
             <Stack gap="sm">
                 <Text fz="sm">
-                    Your changes to{' '}
-                    {model ?? draft.models.map((m) => m.model).join(', ')} go
-                    live for everyone on this project. Undo is on each
-                    model&apos;s History tab.
+                    {asPullRequest
+                        ? `Your changes to ${models} go to the project's repository as a pull request. They go live once it merges and the project refreshes.`
+                        : `Your changes to ${models} go live for everyone on this project. Undo is on each model's History tab.`}
                 </Text>
                 <DraftImpact projectUuid={projectUuid} model={model} />
                 <MessageList
@@ -243,6 +264,7 @@ const DraftActions: FC<{
     model: string | null;
 }> = ({ projectUuid, draft, model }) => {
     const discard = useDiscardSemanticLayerDraft(projectUuid);
+    const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const [applying, setApplying] = useState(false);
     const isAll = model === null && draft.models.length > 1;
     const blocked = cannotApply(draft, model);
@@ -268,7 +290,11 @@ const DraftActions: FC<{
                             if (!blocked) setApplying(true);
                         }}
                     >
-                        {isAll ? 'Apply all' : 'Apply'}
+                        {asPullRequest
+                            ? 'Open pull request'
+                            : isAll
+                              ? 'Apply all'
+                              : 'Apply'}
                     </Button>
                 </Tooltip>
             ) : null}

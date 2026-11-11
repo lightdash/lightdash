@@ -16,6 +16,8 @@ export type DbProjectModelDraftChange = {
     status: DraftChangeStatus;
     /** The change set that took this live; null when it was live already or never applied. */
     applied_change_set_uuid: string | null;
+    /** The pull request that carries this to the project's repository; null when it went live here or never applied. */
+    applied_pull_request_url: string | null;
     created_at: Date;
 };
 
@@ -26,6 +28,9 @@ export type ProjectModelDraftChangesTable = Knex.CompositeTableType<
         'project_uuid' | 'created_by_user_uuid' | 'prompt_uuid'
     > & { models: string; created_at?: Date },
     Partial<
-        Pick<DbProjectModelDraftChange, 'status' | 'applied_change_set_uuid'>
+        Pick<
+            DbProjectModelDraftChange,
+            'status' | 'applied_change_set_uuid' | 'applied_pull_request_url'
+        >
     > & { models?: string }
 >;

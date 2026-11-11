@@ -20,6 +20,7 @@ import {
     type SemanticLayerDraftItemResult,
     type SemanticLayerDraftModelInput,
     type SemanticLayerModelCode,
+    type SemanticLayerStatus,
     type SessionUser,
 } from '@lightdash/common';
 import { createHash } from 'node:crypto';
@@ -41,6 +42,12 @@ import {
     type DraftCheckerProjectService,
 } from './DraftChecker';
 import { foldDraft, withWrites } from './draftFold';
+import {
+    describePullRequest,
+    resolveRepoConnection,
+    type RepoModels,
+    type RepoModelSource,
+} from './repoModels';
 
 /** The parts of a project that decide whether its models are kept here. */
 type ModelProject = Pick<
@@ -50,7 +57,7 @@ type ModelProject = Pick<
     | 'upstreamProjectUuid'
     | 'type'
     | 'createdByUserUuid'
-> & { dbtConnection: Pick<Project['dbtConnection'], 'type'> };
+> & { dbtConnection: Project['dbtConnection'] };
 
 export type SemanticStudioServiceArguments = {
     featureFlagModel: Pick<FeatureFlagModel, 'get'>;
@@ -88,6 +95,10 @@ export type SemanticStudioServiceArguments = {
     validationService: Pick<ValidationService, 'generateValidation'>;
     projectService: Pick<ProjectService, 'setExplores'> &
         DraftCheckerProjectService;
+    repoModels: Pick<
+        RepoModelSource,
+        'isInstalled' | 'load' | 'openPullRequest'
+    >;
 };
 
 /** A proposal once it was checked on top of the person's draft. */
@@ -104,6 +115,9 @@ export type SemanticLayerDraftProposal = {
 
 /** A person's draft, replayed on what is live. */
 type LoadedDraft = {
+    organizationUuid: string;
+    /** The repository the models live in; null when they are kept on the server. */
+    repo: RepoModels | null;
     stored: ProjectModelDocument[];
     live: Map<string, string>;
     changes: StoredDraftChange[];
@@ -166,6 +180,8 @@ export class SemanticStudioService extends BaseService {
 
     private readonly schedulerClient: SemanticStudioServiceArguments['schedulerClient'];
 
+    private readonly repoModels: SemanticStudioServiceArguments['repoModels'];
+
     private readonly checker: DraftChecker;
 
     constructor(args: SemanticStudioServiceArguments) {
@@ -176,6 +192,7 @@ export class SemanticStudioService extends BaseService {
         this.projectService = args.projectService;
         this.validationService = args.validationService;
         this.schedulerClient = args.schedulerClient;
+        this.repoModels = args.repoModels;
         this.checker = new DraftChecker(args.projectService);
     }
 
@@ -214,12 +231,76 @@ export class SemanticStudioService extends BaseService {
         if (!enabled) {
             return new ForbiddenError('This feature is not enabled');
         }
-        if (project.dbtConnection.type !== DbtProjectType.NONE) {
+        if (project.dbtConnection.type === DbtProjectType.NONE) return null;
+        if (!resolveRepoConnection(project.dbtConnection)) {
             return new ParameterError(
-                'Only a project without a dbt connection keeps its models on the server',
+                'Models can be changed here for a project without a dbt connection, or one that keeps its models in GitHub',
             );
         }
-        return null;
+        // Applying sends a commit to the repository, so it needs what any write to it needs.
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('SourceCode', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid: project.projectUuid,
+                    isProtectedBranch: false,
+                }),
+            )
+        ) {
+            return new ForbiddenError(
+                "User does not have permission to change this project's repository",
+            );
+        }
+        return (await this.repoModels.isInstalled(project.organizationUuid))
+            ? null
+            : new ParameterError(
+                  'The GitHub App must be installed to change models that live in a repository',
+              );
+    }
+
+    /** Whether this person can change this project's models here, and what applying a draft would do. */
+    async getStatus(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SemanticLayerStatus> {
+        const project = await this.projectModel.get(projectUuid);
+        return {
+            enabled: (await this.findBlocker(user, project)) === null,
+            appliesAs: resolveRepoConnection(project.dbtConnection)
+                ? 'pull_request'
+                : 'live',
+        };
+    }
+
+    /** The project's models as they are live: read from its repository when they live there, from the server otherwise. */
+    private async loadStored(projectUuid: string): Promise<{
+        organizationUuid: string;
+        repo: RepoModels | null;
+        stored: ProjectModelDocument[];
+    }> {
+        const { organizationUuid, dbtConnection } =
+            await this.projectModel.get(projectUuid);
+        const connection = resolveRepoConnection(dbtConnection);
+        if (!connection) {
+            return {
+                organizationUuid,
+                repo: null,
+                stored: await this.projectModelDocumentModel.findDocuments(
+                    projectUuid,
+                ),
+            };
+        }
+        const repo = await this.repoModels.load(organizationUuid, connection);
+        return {
+            organizationUuid,
+            repo,
+            // A repository has commits, not versions; a draft is checked against the commit it was read at.
+            stored: repo.documents.map((document) => ({
+                ...document,
+                version: 0,
+            })),
+        };
     }
 
     private async assertCanEditModels(
@@ -244,9 +325,10 @@ export class SemanticStudioService extends BaseService {
     /** Explores deployed from a repository or the CLI would be replaced by the first model written here. */
     private async assertNoModelsFromElsewhere(
         projectUuid: string,
-        stored: ProjectModelDocument[],
+        { stored, repo }: Pick<LoadedDraft, 'stored' | 'repo'>,
     ): Promise<void> {
-        if (stored.length > 0) return;
+        // A repository is where its project's explores are meant to come from.
+        if (repo || stored.length > 0) return;
         const summaries =
             await this.projectModel.getAllExploreSummaries(projectUuid);
         if (
@@ -267,13 +349,15 @@ export class SemanticStudioService extends BaseService {
         userUuid: string,
         model: string | null,
     ): Promise<LoadedDraft> {
-        const [stored, drafted] = await Promise.all([
-            this.projectModelDocumentModel.findDocuments(projectUuid),
-            this.projectModelDocumentModel.findDraftChanges(
-                projectUuid,
-                userUuid,
-            ),
-        ]);
+        const [{ organizationUuid, repo, stored }, drafted] = await Promise.all(
+            [
+                this.loadStored(projectUuid),
+                this.projectModelDocumentModel.findDraftChanges(
+                    projectUuid,
+                    userUuid,
+                ),
+            ],
+        );
         const changes =
             model === null
                 ? drafted
@@ -287,6 +371,8 @@ export class SemanticStudioService extends BaseService {
             stored.map(({ name, content }) => [name, content]),
         );
         return {
+            organizationUuid,
+            repo,
             stored,
             live,
             changes,
@@ -304,16 +390,18 @@ export class SemanticStudioService extends BaseService {
         name: string,
     ): Promise<SemanticLayerModelCode | null> {
         if (!(await this.canEditModels(user, projectUuid))) return null;
-        const documents =
-            await this.projectModelDocumentModel.findDocuments(projectUuid);
-        const document = documents.find((doc) => doc.name === name);
+        const { stored, repo } = await this.loadStored(projectUuid);
+        const document = stored.find((doc) => doc.name === name);
         if (!document) return null;
         return {
             ...document,
-            history: await this.projectModelDocumentModel.findModelHistory(
-                projectUuid,
-                name,
-            ),
+            // A repository keeps its own history.
+            history: repo
+                ? []
+                : await this.projectModelDocumentModel.findModelHistory(
+                      projectUuid,
+                      name,
+                  ),
         };
     }
 
@@ -349,7 +437,7 @@ export class SemanticStudioService extends BaseService {
     ): Promise<SemanticLayerDraftProposal> {
         await this.assertCanEditModels(user, projectUuid);
         const draft = await this.loadDraft(projectUuid, user.userUuid, null);
-        await this.assertNoModelsFromElsewhere(projectUuid, draft.stored);
+        await this.assertNoModelsFromElsewhere(projectUuid, draft);
         const proposed = foldDraft(draft.live, [
             ...draft.changes.map((change) => change.models),
             models,
@@ -696,6 +784,7 @@ export class SemanticStudioService extends BaseService {
                     model: target.kind === 'model' ? target.model : null,
                 },
                 status: 'discarded',
+                pullRequestUrl: null,
             });
         if (discarded === 0 && target.kind !== 'all') {
             throw new NotFoundError('Nothing in the draft matches');
@@ -730,14 +819,18 @@ export class SemanticStudioService extends BaseService {
             if (model !== null && draft.changes.length === 0) {
                 throw new NotFoundError('Model not found');
             }
-            await this.assertNoModelsFromElsewhere(projectUuid, draft.stored);
+            await this.assertNoModelsFromElsewhere(projectUuid, draft);
             const unmergeable = draft.results
                 .flat()
                 .flatMap(({ model: name, error }) =>
                     error === null ? [] : [{ model: name, error }],
                 );
             if (unmergeable.length > 0) {
-                return { exploreCount: null, failures: unmergeable };
+                return {
+                    exploreCount: null,
+                    failures: unmergeable,
+                    pullRequestUrl: null,
+                };
             }
             const check = await this.checker.check(
                 user,
@@ -752,6 +845,7 @@ export class SemanticStudioService extends BaseService {
                         model: name,
                         error,
                     })),
+                    pullRequestUrl: null,
                 };
             }
             const drafts = {
@@ -767,8 +861,34 @@ export class SemanticStudioService extends BaseService {
                     userUuid: user.userUuid,
                     drafts,
                     status: 'applied',
+                    pullRequestUrl: null,
                 });
-                return { exploreCount: null, failures: [] };
+                return {
+                    exploreCount: null,
+                    failures: [],
+                    pullRequestUrl: null,
+                };
+            }
+            if (draft.repo) {
+                // The repository deploys the models once the pull request merges, so nothing goes live here.
+                const { url } = await this.repoModels.openPullRequest({
+                    organizationUuid: draft.organizationUuid,
+                    models: draft.repo,
+                    writes: check.writes,
+                    ...describePullRequest(draft.results.flat()),
+                });
+                await this.projectModelDocumentModel.updateDraftChangeStatus({
+                    projectUuid,
+                    userUuid: user.userUuid,
+                    drafts,
+                    status: 'applied',
+                    pullRequestUrl: url,
+                });
+                return {
+                    exploreCount: null,
+                    failures: [],
+                    pullRequestUrl: url,
+                };
             }
             const exploreCount = await this.commitDocuments(user, projectUuid, {
                 stored: draft.stored,
@@ -783,7 +903,7 @@ export class SemanticStudioService extends BaseService {
                     drafts,
                 },
             });
-            return { exploreCount, failures: [] };
+            return { exploreCount, failures: [], pullRequestUrl: null };
         });
     }
 
@@ -887,8 +1007,12 @@ export class SemanticStudioService extends BaseService {
         if (changeSets.some((set) => set.revertedByChangeSetUuid !== null)) {
             throw new ParameterError('This change was already undone');
         }
-        const stored =
-            await this.projectModelDocumentModel.findDocuments(projectUuid);
+        const { stored, repo } = await this.loadStored(projectUuid);
+        if (repo) {
+            throw new ParameterError(
+                'A change to this project is undone in its repository',
+            );
+        }
         const live = new Map(
             stored.map(({ name, content }) => [name, content]),
         );

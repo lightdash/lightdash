@@ -58,12 +58,10 @@ export class SemanticStudioController extends BaseController {
         assertRegisteredAccount(req.account);
         return {
             status: 'ok',
-            results: {
-                enabled: await this.getService().canEditModels(
-                    toSessionUser(req.account),
-                    projectUuid,
-                ),
-            },
+            results: await this.getService().getStatus(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
         };
     }
 
