@@ -219,11 +219,12 @@ export const useEditorSession = <S extends EditSession<M>, M>({
         if (!isOpenForCapture) return undefined;
         const handleClick = (event: MouseEvent) => {
             const current = latest.current;
+            if (current === null || !(event.target instanceof Element)) return;
             const target =
-                event.target instanceof Element
-                    ? event.target.closest<HTMLElement>(otherTargetSelector)
-                    : null;
-            if (current === null || target === null) return;
+                event.target.closest<HTMLElement>(otherTargetSelector);
+            if (target === null) return;
+            // What was clicked inside the pill (its X), not the pill itself
+            const clicked = event.target.closest<HTMLElement>('button');
             if (!isDirty(current)) {
                 cancel();
                 focusReturn.current = null;
@@ -231,7 +232,9 @@ export const useEditorSession = <S extends EditSession<M>, M>({
             }
             event.preventDefault();
             event.stopPropagation();
-            setPending({ proceed: () => target.click() });
+            const replayed =
+                clicked !== null && target.contains(clicked) ? clicked : target;
+            setPending({ proceed: () => replayed.click() });
             focusApply();
         };
         document.addEventListener('click', handleClick, true);

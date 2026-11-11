@@ -27,14 +27,23 @@ import {
 } from './railContractClasses';
 import { useDateZoomEditorSelector } from './useDateZoomEditor';
 
-const { requestSwitch, track, embed, tileHoverOwner, removeParameter } =
-    vi.hoisted(() => ({
-        requestSwitch: vi.fn((proceed: () => void) => proceed()),
-        removeParameter: vi.fn(),
-        tileHoverOwner: { current: null as string | null },
-        track: vi.fn(),
-        embed: { isEmbedded: false },
-    }));
+const {
+    requestSwitch,
+    track,
+    embed,
+    tileHoverOwner,
+    removeParameter,
+    openFilter,
+    removeFilter,
+} = vi.hoisted(() => ({
+    requestSwitch: vi.fn((proceed: () => void) => proceed()),
+    removeParameter: vi.fn(),
+    openFilter: vi.fn(),
+    removeFilter: vi.fn(),
+    tileHoverOwner: { current: null as string | null },
+    track: vi.fn(),
+    embed: { isEmbedded: false },
+}));
 vi.mock('../../ee/providers/Embed/useIsEmbedded', () => ({
     default: () => embed.isEmbedded,
 }));
@@ -142,6 +151,19 @@ const setup = ({
                         <button type="button" data-controls-pill="f1">
                             Region filter
                         </button>
+                        {/* As a filter pill: its X inside the pill */}
+                        <div data-controls-pill="f2" onClick={openFilter}>
+                            Status filter
+                            <button
+                                type="button"
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    removeFilter();
+                                }}
+                            >
+                                Remove filter
+                            </button>
+                        </div>
                         <button
                             type="button"
                             data-parameter-pill-action
@@ -170,6 +192,8 @@ describe('Date zoom editor', () => {
     beforeEach(() => {
         requestSwitch.mockClear();
         removeParameter.mockClear();
+        openFilter.mockClear();
+        removeFilter.mockClear();
         embed.isEmbedded = false;
     });
 
@@ -270,19 +294,20 @@ describe('Date zoom editor', () => {
             screen.getByText('Apply changes to Revenue zoom first?')
                 .parentElement as HTMLElement,
         ).getByRole('button', { name });
-    const editRevenueToDay = async (
+    const editRevenue = async (
         user: ReturnType<typeof userEvent.setup>,
+        grain = 'Day',
     ) => {
         await user.click(pill('Revenue zoom'));
         await user.click(
             within(dialog()).getByRole('combobox', { name: 'Revenue zoom' }),
         );
-        await user.click(await screen.findByRole('option', { name: 'Day' }));
+        await user.click(await screen.findByRole('option', { name: grain }));
     };
 
     it("asks before another zoom's X removes it, then removes it on Apply or Discard", async () => {
         const { user, config } = setup();
-        await editRevenueToDay(user);
+        await editRevenue(user);
         await user.click(removeButton('Orders zoom'));
         expect(config()).toEqual(saved);
         await user.click(promptButton('Apply'));
@@ -294,7 +319,7 @@ describe('Date zoom editor', () => {
 
     it("discards, then removes, on another zoom's X", async () => {
         const { user, config } = setup();
-        await editRevenueToDay(user);
+        await editRevenue(user);
         await user.click(removeButton('Orders zoom'));
         await user.click(screen.getByRole('button', { name: 'Discard' }));
         expect(config().controls).toEqual([saved.controls[0]]);
@@ -419,6 +444,30 @@ describe('Date zoom editor', () => {
         expect(removeParameter).toHaveBeenCalledTimes(1);
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
+
+    it.each(['Apply', 'Discard'] as const)(
+        "replays another kind's X after %s, not its pill",
+        async (answer) => {
+            const { user } = setup();
+            await editRevenue(user);
+            await user.click(
+                screen.getByRole('button', { name: 'Remove filter' }),
+            );
+            expect(removeFilter).not.toHaveBeenCalled();
+            await user.click(promptButton(answer));
+            expect(removeFilter).toHaveBeenCalledTimes(1);
+            expect(openFilter).not.toHaveBeenCalled();
+
+            // Applied, the grain is Day: another one makes it unapplied again
+            await editRevenue(user, 'Month');
+            await user.click(
+                screen.getByRole('button', { name: 'Remove parameter' }),
+            );
+            expect(removeParameter).not.toHaveBeenCalled();
+            await user.click(promptButton(answer));
+            expect(removeParameter).toHaveBeenCalledTimes(1);
+        },
+    );
 
     it("applies a viewer's pick at once, and clearing goes back to the saved grain", async () => {
         const { user, store } = setup({ isViewer: true });
