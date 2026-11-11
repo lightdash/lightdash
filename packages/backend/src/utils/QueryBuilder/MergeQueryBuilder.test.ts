@@ -458,6 +458,134 @@ describe('MergeQueryBuilder', () => {
             );
         });
 
+        describe('default order of order-dependent formulas', () => {
+            const withRegion = (source: MergeQuerySourceSql) => ({
+                ...source,
+                joinKeyColumnByName: {
+                    ...source.joinKeyColumnByName,
+                    region: 'region',
+                },
+            });
+            const withFormula = (
+                formula: string,
+                joinKeyNames = ['date_day'],
+            ) =>
+                new MergeQueryBuilder({
+                    sources: [sourceA, sourceB].map((source) =>
+                        joinKeyNames.includes('region')
+                            ? withRegion(source)
+                            : source,
+                    ),
+                    joinKeyNames,
+                    joinType: MergeJoinType.FULL,
+                    warehouseSqlBuilder: mockWarehouseSqlBuilder,
+                    tableCalculations: [
+                        {
+                            name: 'growth',
+                            displayName: 'Growth',
+                            sql: '',
+                            formula,
+                        },
+                        {
+                            name: 'other',
+                            displayName: 'Other',
+                            sql: '',
+                            formula: '=b_total_followers',
+                        },
+                    ],
+                });
+
+            it('orders an unordered window by the join key when unsorted', () => {
+                const builder = withFormula(
+                    '=a_new_organic / LAG(a_new_organic) - 1',
+                );
+                const expected = 'LAG("c0_0") OVER (ORDER BY "date_day")';
+                expect(collapse(builder.toCoreSql())).toContain(expected);
+                expect(collapse(builder.toSql())).toContain(expected);
+            });
+
+            it('orders by every join key part, in key order', () => {
+                expect(
+                    collapse(
+                        withFormula('=ROW_NUMBER()', [
+                            'date_day',
+                            'region',
+                        ]).toCoreSql(),
+                    ),
+                ).toContain(
+                    'ROW_NUMBER() OVER (ORDER BY "date_day", "region")',
+                );
+            });
+
+            it('orders by the merge sort, with its null placement', () => {
+                const sorts: MergeSort[] = [
+                    { column: 'c1_0', descending: true, nullsFirst: true },
+                    {
+                        column: 'date_day',
+                        descending: false,
+                        nullsFirst: false,
+                    },
+                ];
+                const builder = withFormula('=RUNNING_TOTAL(a_new_organic)');
+                const expected =
+                    'SUM("c0_0") OVER (ORDER BY "c1_0" DESC NULLS FIRST, "date_day" ASC NULLS LAST ROWS UNBOUNDED PRECEDING)';
+                expect(collapse(builder.toCoreSql(undefined, sorts))).toContain(
+                    expected,
+                );
+                expect(collapse(builder.toSql(undefined, sorts))).toContain(
+                    expected,
+                );
+            });
+
+            it('skips sorts on calculations, which a sibling window cannot name', () => {
+                const sorts: MergeSort[] = [
+                    { column: 'other', descending: true, nullsFirst: false },
+                    { column: 'c0_1', descending: false, nullsFirst: true },
+                ];
+                expect(
+                    collapse(
+                        withFormula('=LEAD(a_new_organic)').toCoreSql(
+                            undefined,
+                            sorts,
+                        ),
+                    ),
+                ).toContain(
+                    'LEAD("c0_0") OVER (ORDER BY "c0_1" ASC NULLS FIRST)',
+                );
+            });
+
+            it('falls back to the join key when every sort is on a calculation', () => {
+                expect(
+                    collapse(
+                        withFormula('=LAG(a_new_organic)').toCoreSql(
+                            undefined,
+                            [
+                                {
+                                    column: 'other',
+                                    descending: true,
+                                    nullsFirst: false,
+                                },
+                            ],
+                        ),
+                    ),
+                ).toContain('LAG("c0_0") OVER (ORDER BY "date_day")');
+            });
+
+            it('leaves a formula that names its order unchanged', () => {
+                const sorts: MergeSort[] = [
+                    { column: 'c1_0', descending: true, nullsFirst: true },
+                ];
+                const sql = collapse(
+                    withFormula(
+                        '=LAG(a_new_organic, ORDER BY merge_date_day DESC)',
+                    ).toCoreSql(undefined, sorts),
+                );
+                expect(sql).toContain(
+                    'LAG("c0_0") OVER (ORDER BY "date_day" DESC) AS "growth"',
+                );
+            });
+        });
+
         it('refuses a reference the merged result has no column for', () => {
             expect(() => withCalc('${a.nope}').toSql()).toThrow(
                 'has no column for',

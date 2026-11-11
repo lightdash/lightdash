@@ -387,15 +387,20 @@ export class MergeQueryBuilder {
      * The composable core: a self-contained single-statement SELECT with no
      * ORDER BY and no LIMIT — clean under `SELECT *`, so it can back a
      * virtual view and be queried further. Everything terminal lives in the
-     * wrapper.
+     * wrapper. `sorts` are the terminal wrapper's, so an order-dependent
+     * formula reads rows in the order they are shown.
      */
-    toCoreSql(outputAliasByColumn?: Record<string, string>): string {
+    toCoreSql(
+        outputAliasByColumn?: Record<string, string>,
+        sorts: MergeSort[] = [],
+    ): string {
         const sourceNodes = this.lowerToIr();
         const sql = this.withTableCalculations(
             [
                 `WITH ${this.assembleCtes(sourceNodes)}`,
                 this.getMergeRowsSelect(),
             ].join('\n'),
+            sorts,
         );
         return this.withOutputAliases(sql, outputAliasByColumn);
     }
@@ -423,7 +428,7 @@ export class MergeQueryBuilder {
         sorts: MergeSort[] = [],
     ): string {
         return applyMergeTerminalWrapper(
-            this.toCoreSql(outputAliasByColumn),
+            this.toCoreSql(outputAliasByColumn, sorts),
             this.buildTerminalWrapper(outputAliasByColumn, sorts),
         );
     }
@@ -503,6 +508,33 @@ export class MergeQueryBuilder {
         );
     }
 
+    /**
+     * Window order for a formula that names none: the terminal order, so
+     * `LAG(x)` reads the row shown above. Sorts on calculations are dropped,
+     * since a sibling in the same SELECT cannot name them; with none left,
+     * the join key, as in the terminal default.
+     */
+    private getFormulaDefaultOrderBy(
+        sorts: MergeSort[],
+    ): { column: string; direction?: 'ASC' | 'DESC'; nullsFirst?: boolean }[] {
+        const calculationNames = new Set(
+            this.tableCalculations.map((calculation) => calculation.name),
+        );
+        const orderable = this.orderableColumns();
+        const columnSorts = sorts.filter(
+            ({ column }) =>
+                orderable.has(column) && !calculationNames.has(column),
+        );
+        if (columnSorts.length === 0) {
+            return this.joinKeyNames.map((column) => ({ column }));
+        }
+        return columnSorts.map(({ column, descending, nullsFirst }) => ({
+            column,
+            direction: descending ? 'DESC' : 'ASC',
+            nullsFirst,
+        }));
+    }
+
     /** Every column the merged statement exposes to an ORDER BY. */
     private orderableColumns(): Set<string> {
         const columns = this.getColumns();
@@ -519,7 +551,10 @@ export class MergeQueryBuilder {
      * Wraps the merged statement so calculations see the merged row — the only
      * place a row-wise calculation across two queries is meaningful.
      */
-    private withTableCalculations(mergedSql: string): string {
+    private withTableCalculations(
+        mergedSql: string,
+        sorts: MergeSort[],
+    ): string {
         if (this.tableCalculations.length === 0) {
             return mergedSql;
         }
@@ -571,6 +606,7 @@ export class MergeQueryBuilder {
                       dialect: 'duckdb',
                       columns: formulaColumnByReference,
                       renderAggregate: (inner) => `${inner} OVER ()`,
+                      defaultOrderBy: this.getFormulaDefaultOrderBy(sorts),
                   })
                 : calculation.sql.replace(
                       mergeCalculationReferencePattern,
