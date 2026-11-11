@@ -294,6 +294,28 @@ export class SemanticStudioController extends BaseController {
     }
 
     /**
+     * Keeps this person's draft of a model over what was published to it since they started.
+     * @summary Keep my draft of a model over what was published since
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/draft/models/{model}/keep')
+    @OperationId('keepSemanticLayerDraftModel')
+    async keepDraftModel(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() model: string,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().keepDraftModel(
+            toSessionUser(req.account),
+            projectUuid,
+            model,
+        );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
      * Takes one change out of this person's draft.
      * @summary Discard a change from my semantic layer draft
      */

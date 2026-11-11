@@ -43,6 +43,8 @@ export type StoredDraftChange = {
     question: string | null;
     createdAt: Date;
     models: SemanticLayerDraftModelInput[];
+    /** The version each model was at when the change was made; null when that was not recorded. */
+    baseVersions: Record<string, number | null> | null;
 };
 
 export type ChangeSet = {
@@ -227,6 +229,7 @@ export class ProjectModelDocumentModel {
                 question: `${AiPromptTableName}.prompt`,
                 createdAt: `${ProjectModelDraftChangesTableName}.created_at`,
                 models: `${ProjectModelDraftChangesTableName}.models`,
+                baseVersions: `${ProjectModelDraftChangesTableName}.base_versions`,
             })
             .orderBy(`${ProjectModelDraftChangesTableName}.created_at`, 'asc');
     }
@@ -262,6 +265,57 @@ export class ProjectModelDocumentModel {
                 throw new NotFoundError('Nothing in the draft matches');
             }
         });
+    }
+
+    /** Bases a person's draft of one model on the given version, once they have seen what was published and kept their own. */
+    async rebaseDraftChanges(
+        owner: DraftOwner,
+        model: string,
+        version: number | null,
+    ): Promise<void> {
+        await ProjectModelDocumentModel.openDraftChanges(this.database, owner)
+            .whereRaw('models @> ?::jsonb', [JSON.stringify([{ name: model }])])
+            .update({
+                base_versions: this.database.raw(
+                    "jsonb_set(coalesce(base_versions, '{}'::jsonb), ?::text[], ?::jsonb)",
+                    [[model], JSON.stringify(version)],
+                ),
+            });
+    }
+
+    // ponytail: a model removed and made again restarts at version 1, so the newest revision with that version wins; key revisions by a document id if that ever matters.
+    /** What each of these models held at a given version, by model name; a version that was never written is left out. */
+    async findDocumentsAt(
+        projectUuid: string,
+        versions: Map<string, number>,
+    ): Promise<Map<string, string | null>> {
+        if (versions.size === 0) return new Map();
+        const rows = await this.database(ProjectModelRevisionsTableName)
+            .innerJoin(
+                ProjectModelChangeSetsTableName,
+                `${ProjectModelChangeSetsTableName}.project_model_change_set_uuid`,
+                `${ProjectModelRevisionsTableName}.project_model_change_set_uuid`,
+            )
+            .select<
+                { name: string; version: number; content: string | null }[]
+            >({
+                name: `${ProjectModelRevisionsTableName}.name`,
+                version: `${ProjectModelRevisionsTableName}.document_version`,
+                content: `${ProjectModelRevisionsTableName}.content_after`,
+            })
+            .where(
+                `${ProjectModelChangeSetsTableName}.project_uuid`,
+                projectUuid,
+            )
+            .whereIn(`${ProjectModelRevisionsTableName}.name`, [
+                ...versions.keys(),
+            ])
+            .orderBy(`${ProjectModelChangeSetsTableName}.created_at`, 'asc');
+        return new Map(
+            rows
+                .filter(({ name, version }) => versions.get(name) === version)
+                .map(({ name, content }) => [name, content]),
+        );
     }
 
     /** The models other people have unpublished changes to, with who; never what the changes are. */
@@ -431,9 +485,11 @@ export class ProjectModelDocumentModel {
         userUuid,
         promptUuid,
         models,
+        baseVersions,
     }: DraftOwner & {
         promptUuid: string | null;
         models: SemanticLayerDraftModelInput[];
+        baseVersions: Record<string, number | null> | null;
     }): Promise<string> {
         const [{ project_model_draft_change_uuid: draftChangeUuid }] =
             await this.database(ProjectModelDraftChangesTableName)
@@ -442,6 +498,10 @@ export class ProjectModelDocumentModel {
                     created_by_user_uuid: userUuid,
                     prompt_uuid: promptUuid,
                     models: JSON.stringify(models),
+                    base_versions:
+                        baseVersions === null
+                            ? null
+                            : JSON.stringify(baseVersions),
                 })
                 .returning('project_model_draft_change_uuid');
         return draftChangeUuid;
@@ -530,6 +590,7 @@ export class ProjectModelDocumentModel {
                 'prompt_uuid',
                 'created_at',
                 'models',
+                'base_versions',
             );
         const holding = rows.filter(({ models }) =>
             models.some(({ name }) => name === model),
@@ -564,6 +625,14 @@ export class ProjectModelDocumentModel {
                 prompt_uuid: mixed[mixed.length - 1].prompt_uuid,
                 // Where the first of them was, so later changes still build on it.
                 created_at: mixed[0].created_at,
+                base_versions: JSON.stringify(
+                    Object.assign(
+                        {},
+                        ...mixed
+                            .map(({ base_versions: bases }) => bases ?? {})
+                            .reverse(),
+                    ),
+                ),
                 models: JSON.stringify(
                     mixed.flatMap(({ models }) =>
                         models.filter(({ name }) => name === model),

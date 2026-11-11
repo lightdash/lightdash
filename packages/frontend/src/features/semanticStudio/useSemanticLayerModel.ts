@@ -229,6 +229,19 @@ export const useDiscardDraftChange = (projectUuid: string) =>
         changesLive: false,
     });
 
+/** Keeps the draft of a model over what was published to it since. */
+export const useKeepDraftModel = (projectUuid: string) =>
+    useWrite<undefined, string>({
+        projectUuid,
+        request: (model) => ({
+            path: `${toDraftPath(model)}/keep`,
+            method: 'POST',
+            body: undefined,
+        }),
+        errorTitle: 'Could not keep your version',
+        changesLive: false,
+    });
+
 /** Moves one change one place earlier or later in the draft. */
 export const useMoveDraftChange = (projectUuid: string) =>
     useWrite<

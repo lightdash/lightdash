@@ -22,6 +22,7 @@ import {
     type SemanticLayerDraftItemResult,
     type SemanticLayerDraftModelInput,
     type SemanticLayerDraftMoveDirection,
+    type SemanticLayerDraftReconciliation,
     type SemanticLayerDraftUsage,
     type SemanticLayerModelCode,
     type SemanticLayerStatus,
@@ -48,6 +49,7 @@ import {
     type DraftCheckerProjectService,
 } from './DraftChecker';
 import { foldDraft, withWrites } from './draftFold';
+import { findDraftedPaths, reconcileModel } from './reconcileDraft';
 import {
     describePullRequest,
     resolveRepoConnection,
@@ -90,6 +92,8 @@ export type SemanticStudioServiceArguments = {
         | 'findDraftChanges'
         | 'findOtherDrafters'
         | 'swapDraftChanges'
+        | 'rebaseDraftChanges'
+        | 'findDocumentsAt'
         | 'findPublishedSince'
         | 'findSettledDraftChanges'
         | 'createDraftChange'
@@ -520,6 +524,16 @@ export class SemanticStudioService extends BaseService {
                 userUuid: user.userUuid,
                 promptUuid,
                 models: passing,
+                // A repository has commits, not versions.
+                baseVersions: draft.repo
+                    ? null
+                    : Object.fromEntries(
+                          passing.map(({ name }) => [
+                              name,
+                              draft.stored.find((doc) => doc.name === name)
+                                  ?.version ?? null,
+                          ]),
+                      ),
             });
         await this.queueDraftImpactCheckAfterChange(user, projectUuid);
         return {
@@ -629,6 +643,7 @@ export class SemanticStudioService extends BaseService {
                 if (!startedAt.has(model)) startedAt.set(model, createdAt);
             }),
         );
+        const reconciliations = await this.reconcileDraft(projectUuid, draft);
         const [{ explores }, drafters, publishedSince] = await Promise.all([
             this.checker.compile(
                 projectUuid,
@@ -666,6 +681,7 @@ export class SemanticStudioService extends BaseService {
                     contentAfter,
                     explore:
                         explore && !isExploreError(explore) ? explore : null,
+                    reconciliation: reconciliations.get(model) ?? null,
                     alsoChanging: drafters
                         .filter(({ models }) => models.includes(model))
                         .map(({ name }) => name),
@@ -678,6 +694,79 @@ export class SemanticStudioService extends BaseService {
             })),
             settled,
         };
+    }
+
+    /** How each drafted model stands against what was published since the draft was based on it; a model with no recorded base is left out. */
+    private async reconcileDraft(
+        projectUuid: string,
+        draft: LoadedDraft,
+    ): Promise<Map<string, SemanticLayerDraftReconciliation>> {
+        if (draft.repo) return new Map();
+        // The earliest change to a model is what the rest of its draft was built on.
+        const bases = new Map<string, number | null>();
+        draft.changes.forEach(({ baseVersions }) =>
+            Object.entries(baseVersions ?? {}).forEach(([model, version]) => {
+                if (!bases.has(model)) bases.set(model, version);
+            }),
+        );
+        const liveVersions = new Map(
+            draft.stored.map(({ name, version }) => [name, version]),
+        );
+        const drafted = [...bases].filter(([model]) => draft.writes.has(model));
+        const baseContents =
+            await this.projectModelDocumentModel.findDocumentsAt(
+                projectUuid,
+                new Map(
+                    drafted.flatMap(([model, version]): [string, number][] =>
+                        version === null || version === liveVersions.get(model)
+                            ? []
+                            : [[model, version]],
+                    ),
+                ),
+            );
+        const results = draft.results.flat();
+        const reconciled = new Map<string, SemanticLayerDraftReconciliation>();
+        drafted.forEach(([model, version]) => {
+            if (version === (liveVersions.get(model) ?? null)) {
+                reconciled.set(model, {
+                    state: 'current',
+                    merged: [],
+                    conflicts: [],
+                });
+                return;
+            }
+            // A base whose revision is gone cannot be set against anything.
+            if (version !== null && !baseContents.has(model)) return;
+            reconciled.set(
+                model,
+                reconcileModel({
+                    base:
+                        version === null
+                            ? null
+                            : (baseContents.get(model) ?? null),
+                    live: draft.live.get(model) ?? null,
+                    mine: draft.writes.get(model) ?? null,
+                    draftedPaths: findDraftedPaths(model, results),
+                }),
+            );
+        });
+        return reconciled;
+    }
+
+    /** Keeps this person's draft of a model as it is over what was published to it since: the draft is based on live from here on. */
+    async keepDraftModel(
+        user: SessionUser,
+        projectUuid: string,
+        model: string,
+    ): Promise<void> {
+        await this.assertCanEditModels(user, projectUuid);
+        const { stored, repo } = await this.loadStored(projectUuid);
+        if (repo) return;
+        await this.projectModelDocumentModel.rebaseDraftChanges(
+            { projectUuid, userUuid: user.userUuid },
+            model,
+            stored.find(({ name }) => name === model)?.version ?? null,
+        );
     }
 
     /**

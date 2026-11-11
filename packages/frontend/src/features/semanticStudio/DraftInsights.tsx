@@ -5,6 +5,7 @@ import {
     type ApiQueryResults,
     type Metric,
     type SemanticLayerDraft,
+    type SemanticLayerDraftConflict,
     type SemanticLayerDraftModel,
 } from '@lightdash/common';
 import {
@@ -44,6 +45,7 @@ import classes from './DraftInsights.module.css';
 import { describeShift, pickComparedMetrics } from './metricComparison';
 import {
     useDiscardDraftChange,
+    useKeepDraftModel,
     useMoveDraftChange,
     useSemanticLayerDraftUsage,
 } from './useSemanticLayerModel';
@@ -53,21 +55,130 @@ const listNames = (names: string[]): string =>
         ? names.join(' and ')
         : `${names.slice(0, 2).join(', ')} and ${names.length - 2} more`;
 
+const describePath = (path: string): string =>
+    path === '' ? 'the whole model' : path;
+
+const SIDES: {
+    key: 'base' | 'live' | 'mine';
+    label: string;
+    absent: string;
+}[] = [
+    { key: 'base', label: 'When you started', absent: 'Not there' },
+    { key: 'live', label: 'Live now', absent: 'Removed' },
+    { key: 'mine', label: 'Yours', absent: 'Removed' },
+];
+
+/** One part that changed live and in the draft, with each version of it side by side. */
+const ConflictSides: FC<{ conflict: SemanticLayerDraftConflict }> = ({
+    conflict,
+}) => (
+    <Stack gap={4} className={classes.conflict}>
+        <Text fz="xs" fw={500} ff="monospace">
+            {describePath(conflict.path)}
+        </Text>
+        <Box className={classes.sides}>
+            {SIDES.map(({ key, label, absent }) => (
+                <Stack key={key} gap={2} miw={0}>
+                    <Text fz="xs" c="dimmed">
+                        {label}
+                    </Text>
+                    <Box component="pre" className={classes.side}>
+                        {conflict[key] ?? absent}
+                    </Box>
+                </Stack>
+            ))}
+        </Box>
+    </Stack>
+);
+
 /** What happened to a model outside this draft: a publish under it, or someone else's work in it. */
-export const ModelNotices: FC<{ model: SemanticLayerDraftModel }> = ({
-    model,
-}) => {
+export const ModelNotices: FC<{
+    projectUuid: string;
+    model: SemanticLayerDraftModel;
+    onAskAgent: (prompt: string) => void;
+}> = ({ projectUuid, model, onAskAgent }) => {
     const publishedAgo = useTimeAgo(model.publishedSince?.at ?? new Date());
-    if (!model.publishedSince && model.alsoChanging.length === 0) return null;
+    const keep = useKeepDraftModel(projectUuid);
+    const conflicts = model.reconciliation?.conflicts ?? [];
+    const merged = model.reconciliation?.merged ?? [];
+    const publisher = model.publishedSince?.by ?? 'Someone';
+    // Kept over what was published: the draft is based on live again.
+    const publishedUnder =
+        model.reconciliation?.state === 'current' ? null : model.publishedSince;
+    if (
+        !publishedUnder &&
+        model.alsoChanging.length === 0 &&
+        conflicts.length === 0
+    ) {
+        return null;
+    }
     return (
         <Stack gap={4} className={classes.notices}>
-            {model.publishedSince ? (
+            {conflicts.length > 0 ? (
+                <Stack gap="xs">
+                    <Group gap={6} wrap="nowrap">
+                        <MantineIcon
+                            icon={IconAlertTriangle}
+                            size={14}
+                            color="yellow"
+                        />
+                        <Text fz="xs" flex={1}>
+                            {publisher} published a change to{' '}
+                            {conflicts.length === 1
+                                ? 'a part'
+                                : `${conflicts.length} parts`}{' '}
+                            of this model that you changed too. Publishing puts
+                            yours in place of theirs.
+                        </Text>
+                        <Tooltip label="Has the agent propose a version that keeps both changes where it can.">
+                            <Button
+                                size="compact-xs"
+                                variant="default"
+                                onClick={() =>
+                                    onAskAgent(
+                                        [
+                                            `Someone published changes to the model ${model.model} in parts my changes in development also change.`,
+                                            ...conflicts.map(
+                                                ({ path, live, mine }) =>
+                                                    `${describePath(path)}: live now is ${live ?? 'removed'}; mine is ${mine ?? 'removed'}.`,
+                                            ),
+                                            'Read the model as it is live and propose a change that keeps both where they can be combined. Where they cannot, say so and ask me which to keep.',
+                                        ].join(' '),
+                                    )
+                                }
+                            >
+                                Combine
+                            </Button>
+                        </Tooltip>
+                        <Tooltip label="Your version goes live when you publish, and this stops being flagged.">
+                            <Button
+                                size="compact-xs"
+                                variant="default"
+                                loading={keep.isLoading}
+                                onClick={() => keep.mutate(model.model)}
+                            >
+                                Keep mine
+                            </Button>
+                        </Tooltip>
+                    </Group>
+                    {conflicts.map((conflict) => (
+                        <ConflictSides
+                            key={conflict.path}
+                            conflict={conflict}
+                        />
+                    ))}
+                </Stack>
+            ) : null}
+            {publishedUnder && conflicts.length === 0 ? (
                 <Group gap={6} wrap="nowrap">
                     <MantineIcon icon={IconGitMerge} size={14} color="dimmed" />
                     <Text fz="xs" c="dimmed">
-                        {model.publishedSince.by ?? 'Someone'} published a
-                        change to this model {publishedAgo}, after you started.
-                        Your changes are shown on top of it.
+                        {publisher} published a change to this model{' '}
+                        {publishedAgo}, after you started
+                        {merged.length > 0
+                            ? `, in ${listNames(merged.map(describePath))}, which you did not touch`
+                            : ''}
+                        . Your changes are shown on top of it.
                     </Text>
                 </Group>
             ) : null}
@@ -484,7 +595,15 @@ export const PublishChecklist: FC<{
                 (model === null || entry.model === model),
         ),
     ).length;
-    const movedUnder = models.filter((entry) => entry.publishedSince);
+    const conflicted = models.filter(
+        (entry) => entry.reconciliation?.state === 'conflict',
+    );
+    const movedUnder = models.filter(
+        (entry) =>
+            entry.publishedSince &&
+            entry.reconciliation?.state !== 'current' &&
+            !conflicted.includes(entry),
+    );
     const others = [
         ...new Set(models.flatMap(({ alsoChanging }) => alsoChanging)),
     ];
@@ -514,12 +633,35 @@ export const PublishChecklist: FC<{
                   },
               ]
             : []),
-        movedUnder.length > 0
-            ? {
-                  state: 'attention',
-                  text: `${listNames(movedUnder.map((entry) => entry.model))} changed live after you started`,
-              }
-            : { state: 'ok', text: 'Nothing was published under your changes' },
+        ...(conflicted.length > 0
+            ? [
+                  {
+                      state: 'attention' as const,
+                      text: `${listNames(conflicted.map((entry) => entry.model))} changed live in parts you changed too`,
+                  },
+              ]
+            : []),
+        ...(movedUnder.length > 0
+            ? [
+                  {
+                      // Published elsewhere in the model, and the draft already sits on top of it.
+                      state: movedUnder.every(
+                          (entry) => entry.reconciliation?.state === 'merged',
+                      )
+                          ? ('ok' as const)
+                          : ('attention' as const),
+                      text: `${listNames(movedUnder.map((entry) => entry.model))} changed live after you started, outside what you changed`,
+                  },
+              ]
+            : []),
+        ...(movedUnder.length === 0 && conflicted.length === 0
+            ? [
+                  {
+                      state: 'ok' as const,
+                      text: 'Nothing was published under your changes',
+                  },
+              ]
+            : []),
         ...(others.length > 0
             ? [
                   {

@@ -610,7 +610,11 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                     />
                                 ) : null}
                             </Group>
-                            <ModelNotices model={modelChange} />
+                            <ModelNotices
+                                projectUuid={projectUuid}
+                                model={modelChange}
+                                onAskAgent={onAskAgent}
+                            />
                             <ChangeDiff
                                 modelName={modelChange.model}
                                 change={modelChange}
