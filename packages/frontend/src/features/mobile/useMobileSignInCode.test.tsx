@@ -220,24 +220,24 @@ describe('useMobileSignInCode with autoShow', () => {
         expect(server.mints()).toEqual([{ reason: 'show' }]);
     });
 
-    it('stays hidden after Hide code until the user shows it again', async () => {
+    it('keeps the code shown until it expires, then shows a new one', async () => {
         const server = mockServer();
         const { result } = renderAutoShown();
         await waitFor(() => expect(result.current.phase).toBe('showing'));
 
-        act(() => result.current.hide());
-        await advance(TTL_MS * 2);
-        expect(result.current.phase).toBe('hidden');
-        expect(server.mints()).toHaveLength(1);
-        expect(server.deletes()).toEqual(['/user/mobile/sign-in-codes/code-1']);
+        await advance(TTL_MS - 5000);
+        expect(result.current.phase).toBe('showing');
+        expect(result.current.code?.codeUuid).toBe('code-1');
+        expect(server.deletes()).toEqual([]);
 
-        act(() => result.current.show());
+        await advance(10_000);
         await waitFor(() =>
             expect(result.current.code?.codeUuid).toBe('code-2'),
         );
+        expect(result.current.phase).toBe('showing');
         expect(server.mints()).toEqual([
             { reason: 'show' },
-            { reason: 'show' },
+            { reason: 'auto_refresh' },
         ]);
     });
 
@@ -440,7 +440,7 @@ describe('useMobileSignInCode', () => {
         );
     });
 
-    it('cancels the code on Hide code and when the page closes', async () => {
+    it('cancels the code when step 2 closes and when the page closes', async () => {
         const server = mockServer();
         const { result, unmount } = renderHookWithProviders(() =>
             useMobileSignInCode(),

@@ -178,6 +178,9 @@ describe('MobileSettingsPage with mobile-qr-sign-in on', () => {
         expect(
             screen.queryByRole('button', { name: 'Show sign-in code' }),
         ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Hide code' }),
+        ).not.toBeInTheDocument();
         expect(signInCalls('POST')).toHaveLength(1);
 
         await userEvent.click(

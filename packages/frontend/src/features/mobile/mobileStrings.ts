@@ -30,7 +30,6 @@ export const MOBILE_STRINGS = {
 
 export const MOBILE_SIGN_IN_STRINGS = {
     showCode: 'Show sign-in code',
-    hideCode: 'Hide code',
     newCode: 'Show a new code',
     anotherPhone: 'Sign in another phone',
     qrLabel: 'Sign-in QR code',

@@ -109,16 +109,6 @@ const ShownCode: FC<StepContext> = ({ signIn }) =>
             </Box>
             <Stack gap="sm" className={classes.details}>
                 <Text size="sm">{MOBILE_STRINGS.waitingForScan}</Text>
-                <Group>
-                    <Button
-                        size="xs"
-                        variant="default"
-                        onClick={signIn.hide}
-                        autoFocus
-                    >
-                        {S.hideCode}
-                    </Button>
-                </Group>
             </Stack>
         </Group>
     ) : null;
@@ -132,9 +122,6 @@ const ApprovedNumber: FC<StepContext> = ({ signIn }) =>
                 {S.typeOnPhone}
             </Text>
             <MatchNumber value={signIn.state.matchNumber} />
-            <Button size="xs" variant="default" onClick={signIn.hide} autoFocus>
-                {S.hideCode}
-            </Button>
         </Stack>
     ) : null;
 
