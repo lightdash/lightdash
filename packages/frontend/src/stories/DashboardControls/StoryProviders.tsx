@@ -1,6 +1,7 @@
 import {
     getItemId,
     type Dashboard,
+    type DashboardConfig,
     type DashboardControlSection,
     type WeekDay,
 } from '@lightdash/common';
@@ -28,6 +29,9 @@ import {
     DASHBOARD_UUID,
     dashboardFilters,
     fields,
+    manyFields,
+    manyFieldsByTile,
+    manyFieldsTiles,
     parameterList,
     parameters,
     itemsMap,
@@ -38,19 +42,44 @@ import {
     tiles,
 } from './fixtures';
 
-const filterFields = Object.values(fields);
-const filterFieldIndex = new Map(
-    filterFields.map((field, index) => [getItemId(field), index]),
-);
-const savedQueryFilters = Object.fromEntries(
-    Object.entries(availableTileFilters).map(([tileUuid, tileFields]) => [
-        tileUuid,
-        tileFields.flatMap((field) => {
-            const index = filterFieldIndex.get(getItemId(field));
-            return index === undefined ? [] : [index];
-        }),
-    ]),
-);
+// The dashboard's fields and tiles: the usual six tiles, or one tile over a
+// 2,000-field project
+const getDataset = (isManyFields: boolean) =>
+    isManyFields
+        ? {
+              filterFields: manyFields,
+              tiles: manyFieldsTiles,
+              availableTileFilters: manyFieldsByTile,
+          }
+        : { filterFields: Object.values(fields), tiles, availableTileFilters };
+
+const getSavedQueryFilters = ({
+    filterFields,
+    availableTileFilters: tileFilters,
+}: ReturnType<typeof getDataset>) => {
+    const filterFieldIndex = new Map(
+        filterFields.map((field, index) => [getItemId(field), index]),
+    );
+    return Object.fromEntries(
+        Object.entries(tileFilters).map(([tileUuid, tileFields]) => [
+            tileUuid,
+            tileFields.flatMap((field) => {
+                const index = filterFieldIndex.get(getItemId(field));
+                return index === undefined ? [] : [index];
+            }),
+        ]),
+    );
+};
+
+/** The saved date zoom settings a story starts from. */
+export type DateZoomStorySettings = Partial<
+    Pick<
+        DashboardConfig,
+        | 'dateZoomGranularities'
+        | 'defaultDateZoomGranularity'
+        | 'dateZoomConfig'
+    >
+>;
 
 const tracking = {
     data: {},
@@ -59,7 +88,14 @@ const tracking = {
     identify: action('identify'),
 };
 
-const createStore = (sections: DashboardControlSection[]) => {
+const createStore = ({
+    sections,
+    hasParameters,
+    isManyFields,
+    dateZoom,
+}: Omit<FrameProps, 'startOfWeek' | 'children'>) => {
+    const dataset = getDataset(isManyFields);
+    const { filterFields, tiles: datasetTiles } = dataset;
     const store = seedDashboardEditState(
         createDashboardTestStore({
             dashboardFilters,
@@ -68,15 +104,15 @@ const createStore = (sections: DashboardControlSection[]) => {
                 availableFilters: {
                     allFilterableFields: filterFields,
                     allFilterableMetrics: [],
-                    savedQueryFilters,
+                    savedQueryFilters: getSavedQueryFilters(dataset),
                     savedQueryMetricFilters: {},
                     hiddenFilterableFieldIds: [],
                 },
                 queryDashboard: {
                     uuid: DASHBOARD_UUID,
                     filters: dashboardFilters,
-                    tiles,
-                    config: { controlSections: sections },
+                    tiles: datasetTiles,
+                    config: { controlSections: sections, ...dateZoom },
                 } as unknown as Dashboard,
             },
         }),
@@ -85,13 +121,16 @@ const createStore = (sections: DashboardControlSection[]) => {
                 config: {
                     controlSections: sections,
                     isDateZoomDisabled: false,
+                    ...dateZoom,
                 },
             },
             dashboardTabs: tabs,
-            dashboardTiles: tiles,
+            dashboardTiles: datasetTiles,
             activeTab: tabs[0],
         },
     );
+    // No tile uses a parameter: the bar's "Add filter" goes straight to fields
+    if (!hasParameters) return store;
     const sources = Object.fromEntries(
         selectTileQuerySources(store.getState()).map((source) => [
             source.tileUuid,
@@ -106,7 +145,7 @@ const createStore = (sections: DashboardControlSection[]) => {
                 parameterList.map(({ key, definition }) => [key, definition]),
             ),
             references: Object.fromEntries(
-                tiles.map(({ uuid }) => [
+                datasetTiles.map(({ uuid }) => [
                     uuid,
                     parameterList
                         .filter(({ tileUuids }) => tileUuids.includes(uuid))
@@ -140,19 +179,26 @@ type FrameProps = PropsWithChildren<{
     startOfWeek: WeekDay | null;
     /** The dashboard's control sections. */
     sections: DashboardControlSection[];
+    /** Tiles use the fixture parameters; false: none does. */
+    hasParameters: boolean;
+    /** One tile over 2,000 fields instead of the usual six. */
+    isManyFields: boolean;
+    /** Saved date zoom settings; none: the shipped defaults. */
+    dateZoom: DateZoomStorySettings;
 }>;
 
 // Everything the shipped pickers and settings need, answered offline, fed
 // as the shipped editor's `FilterSettings` feeds `FiltersProvider`
 const DashboardControlsProviders: FC<FrameProps> = ({
     startOfWeek,
-    sections,
     children,
+    ...options
 }) => {
     const [queryClient] = useState(() =>
         createQueryClient({ queries: { retry: false } }),
     );
-    const [store] = useState(() => createStore(sections));
+    const [store] = useState(() => createStore(options));
+    const dataset = getDataset(options.isManyFields);
     return (
         <MemoryRouter initialEntries={[`/projects/${PROJECT_UUID}`]}>
             <QueryClientProvider client={queryClient}>
@@ -164,9 +210,9 @@ const DashboardControlsProviders: FC<FrameProps> = ({
                                 itemsMap={itemsMap}
                                 startOfWeek={startOfWeek ?? undefined}
                                 dashboardFilters={dashboardFilters}
-                                dashboardTiles={tiles}
+                                dashboardTiles={dataset.tiles}
                                 filterableFieldsByTileUuid={
-                                    availableTileFilters
+                                    dataset.availableTileFilters
                                 }
                                 activeTabUuid={tabs[0]?.uuid}
                                 parameterValues={parameterValues}
@@ -190,9 +236,14 @@ const DashboardControlsProviders: FC<FrameProps> = ({
 
 /** The providers and the page margin every dashboard controls story uses. */
 export const StoryFrame: FC<FrameProps> = ({ children, ...props }) => (
-    // The store is built on mount: new sections build a new one
+    // The store is built on mount: new options build a new one
     <DashboardControlsProviders
-        key={props.sections.map(({ id, name }) => `${id}:${name}`).join('|')}
+        key={[
+            ...props.sections.map(({ id, name }) => `${id}:${name}`),
+            props.hasParameters,
+            props.isManyFields,
+            JSON.stringify(props.dateZoom),
+        ].join('|')}
         {...props}
     >
         <Box p="xl">{children}</Box>

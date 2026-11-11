@@ -8,11 +8,13 @@ import { tabs } from './fixtures';
 const noop = () => {};
 
 /** The dashboard bar with deterministic fields, tiles and saved controls. */
-export const AddControlFlow: FC = () => (
-    <ControlsSidebarProvider isEditMode>
+export const AddControlFlow: FC<{ isEditMode?: boolean }> = ({
+    isEditMode = true,
+}) => (
+    <ControlsSidebarProvider isEditMode={isEditMode}>
         <FilterBarPopoversProvider>
             <ControlsBar
-                isEditMode
+                isEditMode={isEditMode}
                 activeTabUuid={tabs[0]?.uuid}
                 hasTilesThatSupportFilters
                 hasDashboardTiles
