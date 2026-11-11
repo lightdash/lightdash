@@ -6,10 +6,9 @@ import {
     Tooltip,
     useComputedColorScheme,
 } from '@mantine/core';
-import { getSingularPatch } from '@pierre/diffs';
-import { FileDiff, Virtualizer } from '@pierre/diffs/react';
+import { PatchDiff, Virtualizer } from '@pierre/diffs/react';
 import { IconArrowsDiagonal, IconFileDiff } from '@tabler/icons-react';
-import { useMemo, useState, type FC } from 'react';
+import { useState, type FC } from 'react';
 import { type CustomRendererProps } from 'streamdown';
 import { AiMarkdownErrorBoundary } from '../../../../../components/common/AiMarkdown/AiMarkdownErrorBoundary';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -26,18 +25,13 @@ type DiffProps = { patch: string; overflow: 'scroll' | 'wrap' };
 
 const DrawnDiff: FC<DiffProps> = ({ patch, overflow }) => {
     const colorScheme = useComputedColorScheme('light');
-    // Plain text draws at once; a highlighted language draws later, and under StrictMode that later never comes.
-    const fileDiff = useMemo(
-        () => ({ ...getSingularPatch(patch), lang: 'text' as const }),
-        [patch],
-    );
     // Outside its own viewport the diff never draws once its header is turned off.
     return (
         <Virtualizer>
-            <FileDiff
+            <PatchDiff
                 // The diff does not redraw when its patch changes.
                 key={patch}
-                fileDiff={fileDiff}
+                patch={patch}
                 className={classes.host}
                 options={{
                     diffStyle: 'unified',
