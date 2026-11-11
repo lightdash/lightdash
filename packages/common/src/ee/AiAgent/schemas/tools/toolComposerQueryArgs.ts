@@ -103,11 +103,20 @@ const DUCKDB_ALIAS_GUIDANCE =
 const getComposerNodeKindsDescription = ({
     enablePythonNodes,
     sqlNote,
-}: ComposerQueriesDescriptionOptions & { sqlNote: string }) => `Node kinds:
+    listMergeKind,
+}: ComposerQueriesDescriptionOptions & {
+    sqlNote: string;
+    // The MCP description has no room for it under the client text limit
+    listMergeKind: boolean;
+}) => `Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
 - "sql": raw SQL against the project warehouse; ${sqlNote}.
-- "external": DuckDB SQL over uploaded or connected tables declared in "tables".
-- "merge": joins semanticLayer nodes on dimensions they share at the same grain, without SQL. Its columns keep each governed field's label, format and description, and it refuses a join that would count a metric twice. Prefer it to a duckdb join of semanticLayer nodes.
+- "external": DuckDB SQL over uploaded or connected tables declared in "tables".${
+    listMergeKind
+        ? `
+- "merge": joins semanticLayer nodes on dimensions they share at the same grain, without SQL. Its columns keep each governed field's label, format and description, and it refuses a join that would count a metric twice. Prefer it to a duckdb join of semanticLayer nodes.`
+        : ''
+}
 - "duckdb": DuckDB SQL over other results declared in "references".${
     enablePythonNodes
         ? `
@@ -115,7 +124,9 @@ const getComposerNodeKindsDescription = ({
         : ''
 }
 
-A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: aggregate in the referenced node itself.`;
+A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: aggregate in the referenced node itself.
+
+A duckdb node that only reshapes another duckdb node's result (adds a column, filters, renames, re-sorts) belongs in that node's SQL: write one duckdb node over the original's references, under a new node id if the original is from an earlier call. Each duckdb step waits for the one it reads.`;
 
 export const getToolComposerQueriesDescription = ({
     enablePythonNodes,
@@ -126,6 +137,7 @@ export const getToolComposerQueriesDescription = ({
 ${getComposerNodeKindsDescription({
     enablePythonNodes,
     sqlNote: 'may need user approval',
+    listMergeKind: true,
 })}
 
 Reuse across calls: a node id names one node for the whole thread. To build on a node from an earlier call, read its node id in "references" without resubmitting it; it is copied into this pipeline with everything it reads and served from cache when possible. Resubmitting a node id with a different definition is an error, so give a changed node a new node id.`;
@@ -135,6 +147,7 @@ export const MCP_TOOL_QUERY_DESCRIPTION = `Run a pipeline: up to ${MAX_SOURCE_QU
 ${getComposerNodeKindsDescription({
     enablePythonNodes: true,
     sqlNote: 'available only when run_sql is',
+    listMergeKind: false,
 })}
 
 A python node's "code" defines \`def run(inputs, params)\`, and semanticLayer "filters" are flat expression strings; each field documents its contract.

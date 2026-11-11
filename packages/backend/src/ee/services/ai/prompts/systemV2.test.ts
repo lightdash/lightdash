@@ -311,7 +311,7 @@ describe('getSystemPromptV2 custom chart types', () => {
             enableDataAccess: true,
         };
         const offer =
-            'end the reply with this line on its own: "Want me to save this as a Document you can share?"';
+            'end the reply with this line on its own: "Want me to turn this analysis into a Document, a shareable report with these charts and a written summary?"';
 
         const nudged = promptText({
             ...documentArgs,
@@ -319,6 +319,10 @@ describe('getSystemPromptV2 custom chart types', () => {
         });
         expect(nudged).toContain(offer);
         expect(nudged).toContain('Offer only once per conversation');
+        expect(nudged).toContain('at least 3 charts across several turns');
+        expect(nudged).not.toContain(
+            'an earlier reply in this conversation also created one',
+        );
         expect(nudged).toContain(
             'When looking for existing content, include Documents',
         );
@@ -362,7 +366,7 @@ describe('getSystemPromptV2 custom chart types', () => {
 
         expect(content).not.toContain('## Documents');
         expect(content).toContain(
-            'Want me to save this as a Document you can share?',
+            'Want me to turn this analysis into a Document, a shareable report with these charts and a written summary?',
         );
     });
 });

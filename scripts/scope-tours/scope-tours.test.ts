@@ -1593,6 +1593,74 @@ export const SavedCharts = () => (
         assert.deepStrictEqual(readRecordedDays(file), days);
     }
 
+    // The docs pin: one 40-character lowercase SHA; a docs checkout at
+    // another commit warns locally and fails in CI unless overridden.
+    {
+        const {
+            DOCS_PIN_OVERRIDE,
+            GENERATED_FILES,
+            docsHead,
+            docsPinVerdict,
+            generatedChangesError,
+            parseDocsPin,
+            readDocsPin,
+            root,
+        } = await import('./lib');
+        const pin = 'a'.repeat(40);
+        const other = 'b'.repeat(40);
+        assert.strictEqual(parseDocsPin(`${pin}\n`), pin);
+        for (const bad of [
+            '',
+            'abc',
+            pin.toUpperCase(),
+            ` ${pin}`,
+            `${pin}0`,
+        ]) {
+            assert.throws(() => parseDocsPin(bad), /40-character/);
+        }
+        assert.match(readDocsPin(), /^[0-9a-f]{40}$/);
+        assert.strictEqual(docsHead(docs), undefined);
+        assert.match(docsHead(root) ?? '', /^[0-9a-f]{40}$/);
+
+        assert.strictEqual(
+            docsPinVerdict(pin, pin, { CI: 'true' }).level,
+            'ok',
+        );
+        const local = docsPinVerdict(pin, other, {});
+        assert.strictEqual(local.level, 'warning');
+        assert.ok(local.message.includes(pin) && local.message.includes(other));
+        assert.strictEqual(
+            docsPinVerdict(pin, other, { CI: 'false' }).level,
+            'warning',
+        );
+        const ci = docsPinVerdict(pin, other, { CI: 'true' });
+        assert.strictEqual(ci.level, 'error');
+        assert.ok(ci.message.includes(pin) && ci.message.includes(other));
+        assert.strictEqual(
+            docsPinVerdict(pin, undefined, { CI: 'true' }).level,
+            'error',
+        );
+        assert.strictEqual(
+            docsPinVerdict(pin, other, { CI: 'true', [DOCS_PIN_OVERRIDE]: '1' })
+                .level,
+            'warning',
+        );
+
+        assert.strictEqual(generatedChangesError(''), undefined);
+        assert.strictEqual(generatedChangesError('\n'), undefined);
+        const [generated, released] = GENERATED_FILES;
+        const dirty = generatedChangesError(
+            ` M ${generated}\n?? ${released}\n`,
+        );
+        assert.ok(dirty !== undefined);
+        assert.ok(dirty.includes(`${generated}, ${released}.`));
+        assert.match(dirty, /commit or stash them first/);
+        assert.ok(!dirty.includes(' M ') && !dirty.includes('??'));
+        assert.ok(
+            !GENERATED_FILES.some((file) => file.endsWith('docs-pin.txt')),
+        );
+    }
+
     console.log('scope-tours: all checks passed');
 };
 

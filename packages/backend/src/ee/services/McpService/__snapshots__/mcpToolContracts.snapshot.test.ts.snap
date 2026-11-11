@@ -10611,11 +10611,12 @@ Node kinds:
 - "semanticLayer": a metric query against an explore. Result columns are the requested field ids.
 - "sql": raw SQL against the project warehouse; available only when run_sql is.
 - "external": DuckDB SQL over uploaded or connected tables declared in "tables".
-- "merge": joins semanticLayer nodes on dimensions they share at the same grain, without SQL. Its columns keep each governed field's label, format and description, and it refuses a join that would count a metric twice. Prefer it to a duckdb join of semanticLayer nodes.
 - "duckdb": DuckDB SQL over other results declared in "references".
 - "python": pandas code over other results declared in "references".
 
 A node reads only the rows its references returned, so a referenced result that reached its limit is incomplete: aggregate in the referenced node itself.
+
+A duckdb node that only reshapes another duckdb node's result (adds a column, filters, renames, re-sorts) belongs in that node's SQL: write one duckdb node over the original's references, under a new node id if the original is from an earlier call. Each duckdb step waits for the one it reads.
 
 A python node's "code" defines \`def run(inputs, params)\`, and semanticLayer "filters" are flat expression strings; each field documents its contract.
 
