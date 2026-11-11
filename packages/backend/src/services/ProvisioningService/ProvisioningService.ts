@@ -3,11 +3,12 @@ import {
     ForbiddenError,
     NotFoundError,
     ParameterError,
+    TooManyRequestsError,
+    validateOrganizationNameOrThrow,
     validatePassword,
     type ProvisionedOrganization,
     type ProvisionOrganizationRequest,
 } from '@lightdash/common';
-import { createHash } from 'crypto';
 import type {
     AuthTrustedProvisionerConfig,
     LightdashConfig,
@@ -15,24 +16,34 @@ import type {
 import Logger from '../../logging/logger';
 import type { EmailModel } from '../../models/EmailModel';
 import type { ManagedSignInModel } from '../../models/ManagedSignInModel';
+import type { OrganizationAllowedEmailDomainsModel } from '../../models/OrganizationAllowedEmailDomainsModel';
 import type { UserModel } from '../../models/UserModel';
+import { hashSignedJwtContent } from '../../utils/jwtContentHash';
 import { BaseService } from '../BaseService';
 import type { OrganizationService } from '../OrganizationService/OrganizationService';
 import { OidcTokenRejection, OidcTokenVerifier } from './oidcTokenVerifier';
 
 const OWNER_LOCAL_PART_PATTERN = /^[a-z0-9][a-z0-9._+-]{0,63}$/;
 
+// Counted per process before any token work, so a flood cannot drive key fetches.
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 30;
+
 type ProvisioningServiceArguments = {
     lightdashConfig: LightdashConfig;
     userModel: UserModel;
     emailModel: EmailModel;
     managedSignInModel: ManagedSignInModel;
+    organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     getOrganizationService: () => OrganizationService;
     verifier: OidcTokenVerifier;
 };
 
-const hashToken = (token: string): string =>
-    createHash('sha256').update(token).digest('hex');
+type ValidatedRequest = {
+    organizationName: string;
+    email: string;
+    password: string;
+};
 
 export class ProvisioningService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -43,9 +54,13 @@ export class ProvisioningService extends BaseService {
 
     private readonly managedSignInModel: ManagedSignInModel;
 
+    private readonly organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
+
     private readonly getOrganizationService: () => OrganizationService;
 
     private readonly verifier: OidcTokenVerifier;
+
+    private rateLimitWindow = { startedAt: 0, requests: 0 };
 
     constructor(args: ProvisioningServiceArguments) {
         super();
@@ -53,14 +68,33 @@ export class ProvisioningService extends BaseService {
         this.userModel = args.userModel;
         this.emailModel = args.emailModel;
         this.managedSignInModel = args.managedSignInModel;
+        this.organizationAllowedEmailDomainsModel =
+            args.organizationAllowedEmailDomainsModel;
         this.getOrganizationService = args.getOrganizationService;
         this.verifier = args.verifier;
     }
 
-    private async authenticate(
+    private countRequest(): void {
+        const now = Date.now();
+        if (now - this.rateLimitWindow.startedAt >= RATE_LIMIT_WINDOW_MS) {
+            this.rateLimitWindow = { startedAt: now, requests: 0 };
+        }
+        this.rateLimitWindow.requests += 1;
+        if (this.rateLimitWindow.requests > RATE_LIMIT_MAX_REQUESTS) {
+            throw new TooManyRequestsError();
+        }
+    }
+
+    private static reject(detail: string): never {
+        Logger.warn(`Organization provisioning rejected: ${detail}`);
+        throw new AuthorizationError('Identity token was rejected');
+    }
+
+    /** Checks the token and its subject; returns the subject and the token's expiry. */
+    private async verifyIdentity(
         idToken: string,
         config: AuthTrustedProvisionerConfig,
-    ): Promise<string> {
+    ): Promise<{ subject: string; expiresAt: Date }> {
         try {
             const claims = await this.verifier.verify(
                 idToken,
@@ -72,45 +106,65 @@ export class ProvisioningService extends BaseService {
                     `subject ${claims.subject} is not trusted`,
                 );
             }
-            const claimed = await this.managedSignInModel.claimTokenUse(
-                hashToken(idToken),
-                claims.expiresAt,
-            );
-            if (!claimed) {
-                throw new OidcTokenRejection('token was already used');
-            }
-            return claims.subject;
+            return claims;
         } catch (error) {
             if (error instanceof OidcTokenRejection) {
-                Logger.warn(
-                    `Organization provisioning rejected: ${error.message}`,
-                );
-                throw new AuthorizationError('Identity token was rejected');
+                return ProvisioningService.reject(error.message);
             }
             throw error;
         }
     }
 
-    private static parseOwnerEmail(
-        ownerEmail: string,
-        { ownerEmailPrefix, ownerEmailDomain }: AuthTrustedProvisionerConfig,
-    ): string {
-        const email = ownerEmail.trim().toLowerCase();
+    private static validateRequest(
+        request: ProvisionOrganizationRequest,
+        ownerEmailDomain: string,
+    ): ValidatedRequest {
+        const organizationName = request.organizationName.trim();
+        validateOrganizationNameOrThrow(organizationName);
+
+        const email = request.ownerEmail.trim().toLowerCase();
         const separator = email.lastIndexOf('@');
-        const localPart = email.slice(0, separator);
-        const domain = email.slice(separator + 1);
         if (
             separator < 1 ||
-            domain !== ownerEmailDomain ||
-            !OWNER_LOCAL_PART_PATTERN.test(localPart) ||
-            !localPart.startsWith(ownerEmailPrefix) ||
-            localPart.length === ownerEmailPrefix.length
+            email.slice(separator + 1) !== ownerEmailDomain ||
+            !OWNER_LOCAL_PART_PATTERN.test(email.slice(0, separator))
         ) {
             throw new ParameterError(
-                `Owner email must look like ${ownerEmailPrefix}<name>@${ownerEmailDomain}`,
+                `Owner email must be an address at ${ownerEmailDomain}`,
             );
         }
-        return email;
+        if (!validatePassword(request.ownerPassword)) {
+            throw new ParameterError(
+                'Owner password does not meet the password requirements',
+            );
+        }
+        return { organizationName, email, password: request.ownerPassword };
+    }
+
+    /**
+     * A verified user can join any organization that allows their email
+     * domain, so owners must live on a domain no organization allows.
+     */
+    private async assertOwnerDomainIsReserved(
+        ownerEmailDomain: string,
+    ): Promise<void> {
+        if (!this.lightdashConfig.allowMultiOrgs) {
+            throw new ForbiddenError(
+                'This instance does not allow more than one organization',
+            );
+        }
+        if (
+            await this.organizationAllowedEmailDomainsModel.isEmailDomainAllowedByAnyOrganization(
+                ownerEmailDomain,
+            )
+        ) {
+            Logger.error(
+                `Organization provisioning refused: an organization allows the owner email domain ${ownerEmailDomain}`,
+            );
+            throw new ForbiddenError(
+                'The owner email domain is allowed by an organization',
+            );
+        }
     }
 
     async provisionOrganization(
@@ -121,45 +175,51 @@ export class ProvisioningService extends BaseService {
         if (config === null) {
             throw new NotFoundError('Organization provisioning is not enabled');
         }
+        this.countRequest();
         if (idToken === null) {
             throw new AuthorizationError('Identity token is required');
         }
-        const subject = await this.authenticate(idToken, config);
-
-        const organizationName = request.organizationName.trim();
-        if (organizationName.length === 0) {
-            throw new ParameterError('Organization name is required');
-        }
-        const email = ProvisioningService.parseOwnerEmail(
-            request.ownerEmail,
+        const { subject, expiresAt } = await this.verifyIdentity(
+            idToken,
             config,
         );
-        if (!validatePassword(request.ownerPassword)) {
-            throw new ParameterError(
-                'Owner password does not meet the password requirements',
+        const { organizationName, email, password } =
+            ProvisioningService.validateRequest(
+                request,
+                config.ownerEmailDomain,
             );
-        }
-        if (!this.lightdashConfig.allowMultiOrgs) {
-            throw new ForbiddenError(
-                'This instance does not allow more than one organization',
-            );
+        await this.assertOwnerDomainIsReserved(config.ownerEmailDomain);
+
+        const claimed = await this.managedSignInModel.claimTokenUse(
+            hashSignedJwtContent(idToken),
+            expiresAt,
+        );
+        if (!claimed) {
+            ProvisioningService.reject('token was already used');
         }
 
         const user = await this.userModel.createUser(
-            {
-                firstName: 'Demo',
-                lastName: 'Owner',
-                email,
-                password: request.ownerPassword,
-            },
+            { firstName: 'Demo', lastName: 'Owner', email, password },
             true,
             true,
         );
+        try {
+            await this.getOrganizationService().createAndJoinOrg(
+                await this.userModel.findSessionUserByUUID(user.userUuid),
+                { name: organizationName },
+            );
+        } catch (error) {
+            // Never leave an owner without an organization behind.
+            await this.userModel.delete(user.userUuid).catch((cause) => {
+                Logger.error(
+                    `Organization provisioning could not remove owner ${user.userUuid} after a failed organization`,
+                    { cause },
+                );
+            });
+            throw error;
+        }
+        // Verified last: an owner without an organization is never verified.
         await this.emailModel.verifyUserEmailIfExists(user.userUuid, email);
-        await this.getOrganizationService().createAndJoinOrg(
-            await this.userModel.findSessionUserByUUID(user.userUuid),
-            { name: organizationName },
-        );
 
         const owner = await this.userModel.findSessionUserByUUID(user.userUuid);
         if (owner.organizationUuid === undefined) {

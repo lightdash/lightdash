@@ -12,6 +12,9 @@ const CLOCK_TOLERANCE_SECONDS = 5;
 
 const DISCOVERY_TTL_MS = 60 * 60 * 1000;
 
+// A failed lookup is remembered briefly so bad requests cannot each trigger a fetch.
+const DISCOVERY_FAILURE_TTL_MS = 10 * 1000;
+
 export type OidcTokenClaims = {
     subject: string;
     expiresAt: Date;
@@ -30,8 +33,9 @@ type OpenIdConfiguration = {
 };
 
 type Discovery = {
-    keySet: JWTVerifyGetKey;
+    keySet: Promise<JWTVerifyGetKey>;
     fetchedAt: number;
+    failed: boolean;
 };
 
 export type OidcTokenVerifierOptions = {
@@ -80,11 +84,7 @@ export class OidcTokenVerifier {
         this.createKeySet = options.createKeySet;
     }
 
-    private async getKeySet(issuer: string): Promise<JWTVerifyGetKey> {
-        const cached = this.discoveryCache.get(issuer);
-        if (cached && Date.now() - cached.fetchedAt < DISCOVERY_TTL_MS) {
-            return cached.keySet;
-        }
+    private async discoverKeySet(issuer: string): Promise<JWTVerifyGetKey> {
         if (!isHttpsUrl(issuer)) {
             throw new OidcTokenRejection('issuer is not an https URL');
         }
@@ -109,9 +109,28 @@ export class OidcTokenVerifier {
                 'OpenID configuration does not describe the issuer',
             );
         }
-        const keySet = this.createKeySet(configuration.jwks_uri);
-        this.discoveryCache.set(issuer, { keySet, fetchedAt: Date.now() });
-        return keySet;
+        return this.createKeySet(configuration.jwks_uri);
+    }
+
+    // Concurrent callers share one lookup, and its result or failure is cached.
+    private getKeySet(issuer: string): Promise<JWTVerifyGetKey> {
+        const cached = this.discoveryCache.get(issuer);
+        const ttl = cached?.failed
+            ? DISCOVERY_FAILURE_TTL_MS
+            : DISCOVERY_TTL_MS;
+        if (cached && Date.now() - cached.fetchedAt < ttl) {
+            return cached.keySet;
+        }
+        const entry: Discovery = {
+            keySet: this.discoverKeySet(issuer),
+            fetchedAt: Date.now(),
+            failed: false,
+        };
+        entry.keySet.catch(() => {
+            entry.failed = true;
+        });
+        this.discoveryCache.set(issuer, entry);
+        return entry.keySet;
     }
 
     async verify(

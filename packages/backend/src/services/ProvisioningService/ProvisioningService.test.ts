@@ -4,6 +4,7 @@ import {
     ForbiddenError,
     NotFoundError,
     ParameterError,
+    TooManyRequestsError,
     type SessionUser,
 } from '@lightdash/common';
 import {
@@ -11,12 +12,14 @@ import {
     exportJWK,
     generateKeyPair,
     SignJWT,
+    type JWTVerifyGetKey,
     type KeyLike,
 } from 'jose';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { EmailModel } from '../../models/EmailModel';
 import type { ManagedSignInModel } from '../../models/ManagedSignInModel';
+import type { OrganizationAllowedEmailDomainsModel } from '../../models/OrganizationAllowedEmailDomainsModel';
 import type { UserModel } from '../../models/UserModel';
 import type { OrganizationService } from '../OrganizationService/OrganizationService';
 import { OidcTokenVerifier } from './oidcTokenVerifier';
@@ -25,8 +28,8 @@ import { ProvisioningService } from './ProvisioningService';
 const ISSUER = 'https://issuer.example.com';
 const AUDIENCE = 'https://lightdash.example.com/api/v1/provisioning';
 const SUBJECT = '112233445566778899000';
-const OWNER_DOMAIN = 'example.com';
-const OWNER_EMAIL = `demo+acme@${OWNER_DOMAIN}`;
+const OWNER_DOMAIN = 'demo.example.com';
+const OWNER_EMAIL = `acme-x7k2@${OWNER_DOMAIN}`;
 const OWNER_PASSWORD = 'correct-horse-9!';
 const REQUEST = {
     organizationName: 'Acme',
@@ -39,18 +42,18 @@ const owner = {
     userUuid: 'user-uuid-1',
     organizationUuid: 'org-uuid-1',
     email: OWNER_EMAIL,
-    abilityRules: [],
 } as unknown as SessionUser;
 
 let privateKey: KeyLike;
 let otherPrivateKey: KeyLike;
+let keySet: JWTVerifyGetKey;
 let verifier: OidcTokenVerifier;
 
 beforeAll(async () => {
     const pair = await generateKeyPair('RS256');
     privateKey = pair.privateKey;
     otherPrivateKey = (await generateKeyPair('RS256')).privateKey;
-    const keySet = createLocalJWKSet({
+    keySet = createLocalJWKSet({
         keys: [{ ...(await exportJWK(pair.publicKey)), alg: 'RS256' }],
     });
     verifier = new OidcTokenVerifier({
@@ -85,39 +88,56 @@ const signToken = async (
         .sign(overrides.signWithOtherKey ? otherPrivateKey : privateKey);
 };
 
-const buildService = (
-    config: Partial<Pick<LightdashConfig, 'allowMultiOrgs'>> & {
-        trustedProvisioner?: LightdashConfig['auth']['trustedProvisioner'];
-    } = {},
-) => {
+type ServiceOptions = {
+    allowMultiOrgs: boolean;
+    trustedProvisioner: LightdashConfig['auth']['trustedProvisioner'];
+    ownerDomainAllowed: boolean;
+};
+
+const buildService = (options: Partial<ServiceOptions> = {}) => {
     const userModel = {
         createUser: vi.fn(async () => ({ userUuid: owner.userUuid })),
         findSessionUserByUUID: vi.fn(async () => owner),
+        delete: vi.fn(async () => {}),
     };
     const emailModel = { verifyUserEmailIfExists: vi.fn(async () => []) };
-    const managedSignInModel = { claimTokenUse: vi.fn(async () => true) };
+    // Behaves like the table: the first claim of a hash wins.
+    const usedTokens = new Set<string>();
+    const managedSignInModel = {
+        claimTokenUse: vi.fn(async (tokenHash: string) => {
+            if (usedTokens.has(tokenHash)) return false;
+            usedTokens.add(tokenHash);
+            return true;
+        }),
+    };
+    const organizationAllowedEmailDomainsModel = {
+        isEmailDomainAllowedByAnyOrganization: vi.fn(
+            async () => options.ownerDomainAllowed ?? false,
+        ),
+    };
     const organizationService = { createAndJoinOrg: vi.fn(async () => {}) };
     const service = new ProvisioningService({
         lightdashConfig: {
             ...lightdashConfigMock,
-            allowMultiOrgs: config.allowMultiOrgs ?? true,
+            allowMultiOrgs: options.allowMultiOrgs ?? true,
             auth: {
                 ...lightdashConfigMock.auth,
                 trustedProvisioner:
-                    config.trustedProvisioner === undefined
+                    options.trustedProvisioner === undefined
                         ? {
                               issuer: ISSUER,
                               audience: AUDIENCE,
                               subjects: [SUBJECT],
-                              ownerEmailPrefix: 'demo+',
                               ownerEmailDomain: OWNER_DOMAIN,
                           }
-                        : config.trustedProvisioner,
+                        : options.trustedProvisioner,
             },
         },
         userModel: userModel as unknown as UserModel,
         emailModel: emailModel as unknown as EmailModel,
         managedSignInModel: managedSignInModel as unknown as ManagedSignInModel,
+        organizationAllowedEmailDomainsModel:
+            organizationAllowedEmailDomainsModel as unknown as OrganizationAllowedEmailDomainsModel,
         getOrganizationService: () =>
             organizationService as unknown as OrganizationService,
         verifier,
@@ -127,19 +147,20 @@ const buildService = (
         userModel,
         emailModel,
         managedSignInModel,
+        organizationAllowedEmailDomainsModel,
         organizationService,
     };
 };
 
 describe('ProvisioningService', () => {
-    it('creates a verified owner and an organization', async () => {
+    it('creates the owner, then the organization, then verifies the email', async () => {
         const mocks = buildService();
 
         const result = await mocks.service.provisionOrganization(
             await signToken(),
             {
                 organizationName: ' Acme ',
-                ownerEmail: ' Demo+Acme@Example.com',
+                ownerEmail: ' Acme-X7K2@Demo.Example.com',
                 ownerPassword: OWNER_PASSWORD,
             },
         );
@@ -158,14 +179,34 @@ describe('ProvisioningService', () => {
             true,
             true,
         );
-        expect(mocks.emailModel.verifyUserEmailIfExists).toHaveBeenCalledWith(
-            'user-uuid-1',
-            OWNER_EMAIL,
-        );
         expect(mocks.organizationService.createAndJoinOrg).toHaveBeenCalledWith(
             owner,
             { name: 'Acme' },
         );
+        expect(mocks.emailModel.verifyUserEmailIfExists).toHaveBeenCalledWith(
+            'user-uuid-1',
+            OWNER_EMAIL,
+        );
+        expect(
+            mocks.organizationService.createAndJoinOrg.mock
+                .invocationCallOrder[0],
+        ).toBeLessThan(
+            mocks.emailModel.verifyUserEmailIfExists.mock
+                .invocationCallOrder[0],
+        );
+    });
+
+    it('removes the owner and never verifies it when the organization fails', async () => {
+        const mocks = buildService();
+        mocks.organizationService.createAndJoinOrg.mockRejectedValue(
+            new Error('database unavailable'),
+        );
+
+        await expect(
+            mocks.service.provisionOrganization(await signToken(), REQUEST),
+        ).rejects.toThrow('database unavailable');
+        expect(mocks.userModel.delete).toHaveBeenCalledWith('user-uuid-1');
+        expect(mocks.emailModel.verifyUserEmailIfExists).not.toHaveBeenCalled();
     });
 
     it('is not found when no trusted provisioner is configured', async () => {
@@ -203,26 +244,32 @@ describe('ProvisioningService', () => {
         expect(userModel.createUser).not.toHaveBeenCalled();
     });
 
-    it('rejects a token that was already used', async () => {
-        const { service, userModel, managedSignInModel } = buildService();
-        managedSignInModel.claimTokenUse.mockResolvedValue(false);
+    it.each([
+        ['the same token', (token: string) => token],
+        ['the token with padding added', (token: string) => `${token}=`],
+        ['the token with a trailing character', (token: string) => `${token}!`],
+    ])('accepts a token once and rejects %s after', async (_name, vary) => {
+        const { service, userModel } = buildService();
+        const token = await signToken();
 
+        await service.provisionOrganization(token, REQUEST);
         await expect(
-            service.provisionOrganization(await signToken(), REQUEST),
+            service.provisionOrganization(vary(token), REQUEST),
         ).rejects.toThrow(AuthorizationError);
-        expect(userModel.createUser).not.toHaveBeenCalled();
+        expect(userModel.createUser).toHaveBeenCalledTimes(1);
     });
 
     it.each([
-        `person@${OWNER_DOMAIN}`,
-        `demo@${OWNER_DOMAIN}`,
-        `demo+@${OWNER_DOMAIN}`,
-        `notdemo+acme@${OWNER_DOMAIN}`,
-        `demo+acme@evil.${OWNER_DOMAIN}`,
-        `demo+acme@${OWNER_DOMAIN}.evil.com`,
-        `demo+acme@other.com@${OWNER_DOMAIN}`,
-    ])('rejects the owner email %s', async (ownerEmail) => {
-        const { service, userModel } = buildService();
+        'person@example.com',
+        `acme@evil.${OWNER_DOMAIN}`,
+        `acme@${OWNER_DOMAIN}.evil.com`,
+        `acme@other.com@${OWNER_DOMAIN}`,
+        `ac me@${OWNER_DOMAIN}`,
+        `acmé@${OWNER_DOMAIN}`,
+        `acme\n@${OWNER_DOMAIN}`,
+        `@${OWNER_DOMAIN}`,
+    ])('rejects the owner email %j', async (ownerEmail) => {
+        const { service, userModel, managedSignInModel } = buildService();
 
         await expect(
             service.provisionOrganization(await signToken(), {
@@ -231,18 +278,24 @@ describe('ProvisioningService', () => {
             }),
         ).rejects.toThrow(ParameterError);
         expect(userModel.createUser).not.toHaveBeenCalled();
+        // A bad request does not use up the token.
+        expect(managedSignInModel.claimTokenUse).not.toHaveBeenCalled();
     });
 
-    it('rejects an empty organization name', async () => {
-        const { service } = buildService();
+    it.each(['  ', 'a\u0000b', '<script>'])(
+        'rejects the organization name %j',
+        async (organizationName) => {
+            const { service, userModel } = buildService();
 
-        await expect(
-            service.provisionOrganization(await signToken(), {
-                ...REQUEST,
-                organizationName: '  ',
-            }),
-        ).rejects.toThrow(ParameterError);
-    });
+            await expect(
+                service.provisionOrganization(await signToken(), {
+                    ...REQUEST,
+                    organizationName,
+                }),
+            ).rejects.toThrow(ParameterError);
+            expect(userModel.createUser).not.toHaveBeenCalled();
+        },
+    );
 
     it('rejects a weak owner password', async () => {
         const { service, userModel } = buildService();
@@ -265,6 +318,19 @@ describe('ProvisioningService', () => {
         expect(userModel.createUser).not.toHaveBeenCalled();
     });
 
+    it('refuses when an organization allows the owner email domain', async () => {
+        const mocks = buildService({ ownerDomainAllowed: true });
+
+        await expect(
+            mocks.service.provisionOrganization(await signToken(), REQUEST),
+        ).rejects.toThrow(ForbiddenError);
+        expect(
+            mocks.organizationAllowedEmailDomainsModel
+                .isEmailDomainAllowedByAnyOrganization,
+        ).toHaveBeenCalledWith(OWNER_DOMAIN);
+        expect(mocks.userModel.createUser).not.toHaveBeenCalled();
+    });
+
     it('reports a conflict when the owner already exists', async () => {
         const { service, userModel, organizationService } = buildService();
         userModel.createUser.mockRejectedValue(
@@ -276,10 +342,22 @@ describe('ProvisioningService', () => {
         ).rejects.toThrow(AlreadyExistsError);
         expect(organizationService.createAndJoinOrg).not.toHaveBeenCalled();
     });
+
+    it('limits how many requests it handles in a minute', async () => {
+        const { service } = buildService();
+        const attempts = Array.from({ length: 30 }, () =>
+            service.provisionOrganization(null, REQUEST).catch(() => null),
+        );
+        await Promise.all(attempts);
+
+        await expect(
+            service.provisionOrganization(await signToken(), REQUEST),
+        ).rejects.toThrow(TooManyRequestsError);
+    });
 });
 
 describe('OidcTokenVerifier', () => {
-    const createKeySet = () => createLocalJWKSet({ keys: [] });
+    const createKeySet = () => keySet;
 
     it.each([
         ['a different issuer', { issuer: 'https://evil.example.com' }],
@@ -315,5 +393,43 @@ describe('OidcTokenVerifier', () => {
             ),
         ).rejects.toThrow('issuer is not an https URL');
         expect(fetchConfiguration).not.toHaveBeenCalled();
+    });
+
+    it('looks the issuer up once for concurrent and later tokens', async () => {
+        const fetchConfiguration = vi.fn(async (issuer: string) => ({
+            issuer,
+            jwks_uri: `${issuer}/keys`,
+        }));
+        const oidcVerifier = new OidcTokenVerifier({
+            fetchOpenIdConfiguration: fetchConfiguration,
+            createKeySet,
+        });
+
+        await Promise.all([
+            oidcVerifier.verify(await signToken(), ISSUER, AUDIENCE),
+            oidcVerifier.verify(await signToken(), ISSUER, AUDIENCE),
+        ]);
+        await oidcVerifier.verify(await signToken(), ISSUER, AUDIENCE);
+
+        expect(fetchConfiguration).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not repeat a failed lookup for every token', async () => {
+        const fetchConfiguration = vi.fn(async () => {
+            throw new Error('unreachable');
+        });
+        const oidcVerifier = new OidcTokenVerifier({
+            fetchOpenIdConfiguration: fetchConfiguration,
+            createKeySet,
+        });
+
+        await expect(
+            oidcVerifier.verify(await signToken(), ISSUER, AUDIENCE),
+        ).rejects.toThrow('unreachable');
+        await expect(
+            oidcVerifier.verify(await signToken(), ISSUER, AUDIENCE),
+        ).rejects.toThrow('unreachable');
+
+        expect(fetchConfiguration).toHaveBeenCalledTimes(1);
     });
 });
