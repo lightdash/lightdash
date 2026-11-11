@@ -89,14 +89,7 @@ export const MergeSourceTree: FC<{
                             }
                             setIsChoosingExplore(false);
                         }}
-                        onExploreCreated={(exploreName) => {
-                            merge.setSourceExplore(
-                                source.id,
-                                exploreName,
-                                nameByHandle,
-                            );
-                            setIsChoosingExplore(false);
-                        }}
+                        hideExternalSourceExplores
                     />
                 </Box>
             </Stack>

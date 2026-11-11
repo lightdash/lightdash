@@ -8,7 +8,6 @@ import { ActionIcon, Menu, Text } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconDots,
-    IconGitMerge,
     IconInfoCircle,
     IconPencil,
     IconPlugConnected,
@@ -33,16 +32,12 @@ type Props = {
     projectUuid: string;
     explore: Explore;
     sourceRef: ExternalSourceRef;
-    canMergeAnotherQuery: boolean;
-    onAddMergeSource: () => void;
 };
 
 export const ExternalSourceExploreMenu: FC<Props> = ({
     projectUuid,
     explore,
     sourceRef,
-    canMergeAnotherQuery,
-    onAddMergeSource,
 }) => {
     const navigate = useNavigate();
     const { user } = useApp();
@@ -62,7 +57,7 @@ export const ExternalSourceExploreMenu: FC<Props> = ({
     const [isDeleteOpen, deleteHandlers] = useDisclosure(false);
     const [previewRef, setPreviewRef] = useState<ExternalSourceRef>();
 
-    if (!canManage && !canMergeAnotherQuery) {
+    if (!canManage) {
         return null;
     }
 
@@ -78,17 +73,6 @@ export const ExternalSourceExploreMenu: FC<Props> = ({
                     </ActionIcon>
                 </Menu.Target>
                 <Menu.Dropdown>
-                    {canMergeAnotherQuery && (
-                        <Menu.Item
-                            leftSection={<MantineIcon icon={IconGitMerge} />}
-                            onClick={onAddMergeSource}
-                        >
-                            <Text fz="xs" fw={500}>
-                                Merge another query
-                            </Text>
-                        </Menu.Item>
-                    )}
-                    {canMergeAnotherQuery && canManage && <Menu.Divider />}
                     {canManage && (
                         <>
                             {sourceRef.sourceType ===
