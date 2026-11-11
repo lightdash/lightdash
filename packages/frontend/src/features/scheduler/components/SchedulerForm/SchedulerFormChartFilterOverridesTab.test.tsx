@@ -4,8 +4,8 @@ import {
     FilterOperator,
     SupportedDbtAdapter,
     getFilterRulesFromGroup,
+    type CompiledDimension,
     type Explore,
-    type FilterableDimension,
     type FilterRule,
     type Filters,
     type ItemsMap,
@@ -20,7 +20,7 @@ import {
     type SchedulerChartFilterSource,
 } from './SchedulerFormChartFilterOverridesTab';
 
-const statusField: FilterableDimension = {
+const statusField: CompiledDimension = {
     fieldType: FieldType.DIMENSION,
     type: DimensionType.STRING,
     name: 'status',
@@ -28,13 +28,17 @@ const statusField: FilterableDimension = {
     table: 'orders',
     tableLabel: 'Orders',
     sql: '${TABLE}.status',
+    compiledSql: 'orders.status',
+    tablesReferences: ['orders'],
     hidden: false,
 };
 
-const paymentField: FilterableDimension = {
+const paymentField: CompiledDimension = {
     ...statusField,
     name: 'payment_method',
     label: 'Payment method',
+    sql: '${TABLE}.payment_method',
+    compiledSql: 'orders.payment_method',
 };
 
 const itemsMap: ItemsMap = {
