@@ -447,3 +447,20 @@ An existing extra cannot change its type with either flag value; add a new
 connection instead. It does not remove
 saved connections or change query execution. Mixed-type extras keep their own
 user-credential requirement; same-type extras still inherit the original's.
+
+## BigQuery OAuth Drive access
+
+`bigquery-oauth-drive-access` is organization-scoped and off by default. When on,
+"Sign in with Google" for BigQuery (`/login/bigquery`) also requests
+`https://www.googleapis.com/auth/drive.readonly`, so personal BigQuery
+credentials can query external tables backed by Google Sheets or other Drive
+files. BigQuery rejects `drive.file`, `spreadsheets` and `spreadsheets.readonly`
+for these tables.
+
+`drive.readonly` is a restricted Google scope. Only enable the flag for an
+organization once the instance's OAuth app is verified for it; until then users
+see Google's unverified-app screen, which counts towards the 100-user cap.
+Existing users must sign in to BigQuery again to grant the scope. The Google
+login with `AUTH_GOOGLE_INCLUDE_BIGQUERY_SCOPE` does not request it, because the
+organization is unknown at login. Disabling the flag stops new requests for the
+scope; it does not revoke tokens already granted.
