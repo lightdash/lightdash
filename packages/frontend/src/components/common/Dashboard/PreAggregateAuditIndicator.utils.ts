@@ -1,5 +1,7 @@
 import {
+    preAggregateFallbackReasonLabels,
     preAggregateMissReasonLabels,
+    type PreAggregateFallbackReason,
     type PreAggregateMatchMiss,
 } from '@lightdash/common';
 
@@ -13,4 +15,17 @@ export function formatTileMissReason(
         return `${label}: ${fieldDisplay}`;
     }
     return label;
+}
+
+export function formatPreAggregateFallbackReason(
+    reason: PreAggregateFallbackReason,
+): string {
+    return preAggregateFallbackReasonLabels[reason] ?? reason;
+}
+
+export function formatPreAggregateFallbackTooltip(
+    preAggregateName: string,
+    reason: PreAggregateFallbackReason,
+): string {
+    return `Pre-aggregate matched (${preAggregateName}). Served from warehouse: ${formatPreAggregateFallbackReason(reason)}`;
 }

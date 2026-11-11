@@ -190,6 +190,7 @@ import {
     type QueryHistory,
     type QueryResultProducer,
     type QueryResultReader,
+    type QueryResultsPreAggregate,
     type QuerySurface,
     type QueryUsageMetadata,
     type ReadyQueryResultsPage,
@@ -576,6 +577,24 @@ type ExecuteMergeQueryInternalArgs = Omit<
     pivotInput?:
         | { type: 'chart'; chart: MergeQueryChart }
         | { type: 'resolved'; configuration: PivotConfiguration };
+};
+
+export const getQueryResultsPreAggregate = (
+    queryHistory: Pick<
+        QueryHistory,
+        'preAggregateExecution' | 'preAggregateFallbackReason'
+    >,
+): QueryResultsPreAggregate | null => {
+    if (
+        queryHistory.preAggregateExecution === null &&
+        queryHistory.preAggregateFallbackReason === null
+    ) {
+        return null;
+    }
+    return {
+        execution: queryHistory.preAggregateExecution,
+        fallbackReason: queryHistory.preAggregateFallbackReason,
+    };
 };
 
 export const QUEUED_QUERY_EXPIRED_MESSAGE =
@@ -2810,13 +2829,7 @@ export class AsyncQueryService extends ProjectService {
                               )
                             : null,
                 },
-                preAggregate: queryHistory.preAggregateExecution
-                    ? {
-                          execution: queryHistory.preAggregateExecution,
-                          fallbackReason:
-                              queryHistory.preAggregateFallbackReason,
-                      }
-                    : null,
+                preAggregate: getQueryResultsPreAggregate(queryHistory),
             },
             status,
             pivotDetails:

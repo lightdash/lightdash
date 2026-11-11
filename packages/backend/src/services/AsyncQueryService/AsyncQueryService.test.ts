@@ -297,6 +297,7 @@ import {
 import { WarehouseClientFactory } from '../WarehouseClientFactory/WarehouseClientFactory';
 import {
     AsyncQueryService,
+    getQueryResultsPreAggregate,
     QUEUED_QUERY_EXPIRED_MESSAGE,
 } from './AsyncQueryService';
 import {
@@ -31385,5 +31386,49 @@ describe('results cache stats', () => {
                 7,
             ),
         ).rejects.toThrow(ForbiddenError);
+    });
+});
+
+describe('getQueryResultsPreAggregate', () => {
+    it('returns null when no pre-aggregate matched', () => {
+        expect(
+            getQueryResultsPreAggregate({
+                preAggregateExecution: null,
+                preAggregateFallbackReason: null,
+            }),
+        ).toBeNull();
+    });
+
+    it('returns the engine for a served pre-aggregate', () => {
+        expect(
+            getQueryResultsPreAggregate({
+                preAggregateExecution: 'duckdb',
+                preAggregateFallbackReason: null,
+            }),
+        ).toEqual({ execution: 'duckdb', fallbackReason: null });
+    });
+
+    it('returns the engine and reason for an execution fallback', () => {
+        expect(
+            getQueryResultsPreAggregate({
+                preAggregateExecution: 'project_warehouse',
+                preAggregateFallbackReason: 'external_execution_error',
+            }),
+        ).toEqual({
+            execution: 'project_warehouse',
+            fallbackReason: 'external_execution_error',
+        });
+    });
+
+    it('returns the reason for a near-expiry skip that has no engine', () => {
+        expect(
+            getQueryResultsPreAggregate({
+                preAggregateExecution: null,
+                preAggregateFallbackReason: 'materialization_near_expiry',
+            }),
+        ).toEqual({
+            execution: null,
+            fallbackReason: 'materialization_near_expiry',
+        });
     });
 });

@@ -3371,17 +3371,28 @@ describe('pre-aggregate materialization expiry', () => {
         },
     );
 
-    it.each(['-1', '1.5', 'abc'])('rejects a lifecycle of %s', (value) => {
-        process.env.PRE_AGGREGATES_MATERIALIZATION_LIFECYCLE_DAYS = value;
-        expect(() => parsePreAggregateMaterializationExpiryConfig()).toThrow(
-            ParseError,
-        );
-    });
+    it.each(['-1', '1.5', '2.9', '3abc', '1e1', 'abc'])(
+        'rejects a lifecycle of %s',
+        (value) => {
+            process.env.PRE_AGGREGATES_MATERIALIZATION_LIFECYCLE_DAYS = value;
+            expect(() =>
+                parsePreAggregateMaterializationExpiryConfig(),
+            ).toThrow(ParseError);
+        },
+    );
 
-    it.each(['0', '-1', 'abc'])('rejects a margin of %s', (value) => {
-        process.env.PRE_AGGREGATES_MATERIALIZATION_EXPIRY_MARGIN_DAYS = value;
-        expect(() => parsePreAggregateMaterializationExpiryConfig()).toThrow(
-            ParseError,
-        );
-    });
+    it.each(['0', '-1', '1.5', '2.9', '3abc', '1e1', 'abc'])(
+        'rejects a margin of %s',
+        (value) => {
+            process.env.PRE_AGGREGATES_MATERIALIZATION_EXPIRY_MARGIN_DAYS =
+                value;
+            expect(() =>
+                parsePreAggregateMaterializationExpiryConfig(),
+            ).toThrow(
+                new ParseError(
+                    `Cannot parse environment variable "PRE_AGGREGATES_MATERIALIZATION_EXPIRY_MARGIN_DAYS". Value must be a positive integer but PRE_AGGREGATES_MATERIALIZATION_EXPIRY_MARGIN_DAYS=${value}`,
+                ),
+            );
+        },
+    );
 });

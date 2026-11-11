@@ -22,6 +22,10 @@ import MantineIcon from '../common/MantineIcon';
 import InfoRow from '../common/PageHeader/InfoRow';
 import tileClasses from './DashboardTiles.module.css';
 import { TileHeaderPopover } from './TileBase/TileHeaderPopover';
+import {
+    getResultSource,
+    isServedFromPreAggregate,
+} from './tileExecutionInfo.utils';
 
 type TileExecutionInfoProps = {
     cacheMetadata: CacheMetadata;
@@ -31,32 +35,6 @@ type TileExecutionInfoProps = {
     totalResults: number | undefined;
     targetVariant?: 'actionIcon' | 'menuItem';
 };
-
-// `cacheMetadata.preAggregate.hit` is the plan-time match; `preAggregate` from
-// results metadata is the post-execution truth, including warehouse fallback.
-function getResultSource(
-    cacheMetadata: CacheMetadata,
-    preAggregate: QueryResultsPreAggregate | null,
-): string {
-    if (cacheMetadata.cacheHit) return 'Result cache';
-    if (preAggregate) {
-        if (preAggregate.fallbackReason !== null)
-            return 'Warehouse (pre-aggregate failed)';
-        return preAggregate.execution === 'duckdb'
-            ? 'DuckDB pre-aggregate'
-            : 'External pre-aggregate';
-    }
-    if (cacheMetadata.preAggregate?.hit) return 'DuckDB pre-aggregate';
-    return 'Warehouse';
-}
-
-function isServedFromPreAggregate(
-    cacheMetadata: CacheMetadata,
-    preAggregate: QueryResultsPreAggregate | null,
-): boolean {
-    if (preAggregate) return preAggregate.fallbackReason === null;
-    return cacheMetadata.preAggregate?.hit ?? false;
-}
 
 const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
     cacheMetadata,
