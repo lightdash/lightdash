@@ -1,4 +1,4 @@
-import { Button, Tooltip } from '@mantine/core';
+import { ActionIcon, Tooltip } from '@mantine/core';
 import { IconLayoutDashboard } from '@tabler/icons-react';
 import { memo } from 'react';
 import {
@@ -17,20 +17,18 @@ export const TidyTilesButton = memo(() => {
         <Tooltip
             label={
                 canTidy
-                    ? 'Close gaps and even out rows'
+                    ? 'Tidy: close gaps and even out rows'
                     : 'Tiles are already tidy'
             }
         >
-            <Button
-                size="xs"
-                variant="default"
-                radius="md"
-                leftSection={<MantineIcon icon={IconLayoutDashboard} />}
+            <ActionIcon
+                size="md"
+                aria-label="Tidy tiles"
                 disabled={!canTidy}
                 onClick={() => dispatch(dashboardEditActions.tidyTiles())}
             >
-                Tidy
-            </Button>
+                <MantineIcon icon={IconLayoutDashboard} />
+            </ActionIcon>
         </Tooltip>
     );
 });
