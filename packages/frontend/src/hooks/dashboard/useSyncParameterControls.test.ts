@@ -137,7 +137,7 @@ describe('useSyncParameterControls', () => {
         expect(store.getState().parameters.parameterControls).toEqual([]);
     });
 
-    it('continues using legacy values until discovery completes', () => {
+    it('fills from the tiles own reports when the listing never settles', () => {
         const store = createDashboardTestStore();
         store.dispatch(
             dashboardEditActions.setTiles([
@@ -158,7 +158,13 @@ describe('useSyncParameterControls', () => {
                 }),
             );
         });
-        expect(store.getState().parameters.parameterControls).toBeNull();
+        expect(
+            store
+                .getState()
+                .parameters.parameterControls?.map(({ parameters }) =>
+                    Object.keys(parameters),
+                ),
+        ).toEqual([['region']]);
     });
 
     it('waits for every query tile before filling', () => {

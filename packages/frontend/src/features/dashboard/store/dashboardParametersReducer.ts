@@ -558,8 +558,34 @@ export const dashboardParametersReducer = (
     if (
         dashboardParametersActions.markParameterReferencesFailed.match(action)
     ) {
+        // A tile listed for another source: what it had belonged to the previous chart
+        const stale = Object.keys(action.payload).filter((tileUuid) => {
+            const listed = state.tileListedParameterSources[tileUuid];
+            return listed !== undefined && listed !== action.payload[tileUuid];
+        });
         return {
             ...state,
+            tileListedParameterReferences: omit(
+                state.tileListedParameterReferences,
+                stale,
+            ),
+            tileListedParameterSources: omit(
+                state.tileListedParameterSources,
+                stale,
+            ),
+            tileParameterReferences: omit(state.tileParameterReferences, stale),
+            tileQueryParameterReferences: omit(
+                state.tileQueryParameterReferences,
+                stale,
+            ),
+            tileChartSavedParameters: omit(
+                state.tileChartSavedParameters,
+                stale,
+            ),
+            tileVirtualViewSavedParameters: omit(
+                state.tileVirtualViewSavedParameters,
+                stale,
+            ),
             tileFailedParameterSources: {
                 ...state.tileFailedParameterSources,
                 ...action.payload,

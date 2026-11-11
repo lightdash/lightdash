@@ -99,10 +99,13 @@ export const useDashboardTileParameterReferences = ({
                 : [],
         );
         const completeTiles = new Set(complete.map(({ tileUuid }) => tileUuid));
+        const { tileListedParameterSources } = store.getState().parameters;
+        // A failed refetch keeps a good listing of the same source
         const failed = data.filter(
             ({ tileUuid }) =>
                 sourceByTile[tileUuid] !== undefined &&
-                !completeTiles.has(tileUuid),
+                !completeTiles.has(tileUuid) &&
+                tileListedParameterSources[tileUuid] !== sourceByTile[tileUuid],
         );
         if (failed.length > 0)
             store.dispatch(

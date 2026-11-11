@@ -16,7 +16,10 @@ vi.mock('../useServerOrClientFeatureFlag', () => ({
 }));
 
 import { sharedLightdashApi, type LightdashApi } from '../../api';
-import { dashboardEditActions } from '../../features/dashboard/store';
+import {
+    dashboardEditActions,
+    dashboardParametersActions,
+} from '../../features/dashboard/store';
 import { LightdashApiContext } from '../../providers/LightdashApi/LightdashApiContext';
 import { createDashboardTestStore } from '../../testing/dashboardStore';
 import { useDashboardTileParameterReferences } from './useDashboardTileParameterReferences';
@@ -72,8 +75,8 @@ const setup = (
     embedApi?: LightdashApi,
     dashboardTiles = tiles,
     tabs: DashboardTab[] = [],
+    store = createDashboardTestStore(),
 ) => {
-    const store = createDashboardTestStore();
     store.dispatch(dashboardEditActions.setTiles(dashboardTiles));
     store.dispatch(dashboardEditActions.setTabs(tabs));
     const queryClient = new QueryClient({
@@ -219,6 +222,48 @@ describe('useDashboardTileParameterReferences', () => {
         expect(
             Object.keys(store.getState().parameters.tileListedParameterSources),
         ).toEqual(['tile-open']);
+    });
+
+    it('keeps a good listing of the same source when a refetch fails for it', async () => {
+        mockApi.mockResolvedValue([
+            {
+                tileUuid: 'tile-open',
+                parameterReferences: null,
+                error: 'Request failed',
+            },
+            {
+                tileUuid: 'tile-sql',
+                parameterReferences: null,
+                error: 'Request failed',
+            },
+        ]);
+        const store = createDashboardTestStore();
+        store.dispatch(
+            dashboardParametersActions.addDiscoveredParameterReferences({
+                references: { 'tile-open': ['orders.region'] },
+                definitions: {},
+                sources: {
+                    'tile-open': JSON.stringify({
+                        tileUuid: 'tile-open',
+                        savedChartUuid: 'chart-1',
+                        savedSqlUuid: null,
+                    }),
+                },
+                chartSavedValues: { 'tile-open': {} },
+                virtualViewSavedValues: { 'tile-open': {} },
+            }),
+        );
+        setup(undefined, tiles, [], store);
+        await waitFor(() =>
+            expect(
+                Object.keys(
+                    store.getState().parameters.tileFailedParameterSources,
+                ),
+            ).toEqual(['tile-sql']),
+        );
+        expect(
+            store.getState().parameters.tileListedParameterReferences,
+        ).toEqual({ 'tile-open': ['orders.region'] });
     });
 
     it('sends a large dashboard in requests of at most 200 tiles', async () => {

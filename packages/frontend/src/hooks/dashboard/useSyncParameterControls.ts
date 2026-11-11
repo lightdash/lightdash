@@ -46,6 +46,7 @@ export const useSyncParameterControls = ({
         const sync = () => {
             const {
                 tileParameterReferences,
+                tileQueryParameterReferences,
                 tileListedParameterSources,
                 tileFailedParameterSources,
                 parameterDefinitions,
@@ -72,11 +73,17 @@ export const useSyncParameterControls = ({
                 (dashboardTiles === undefined ||
                     querySources.some((source) => {
                         const key = JSON.stringify(source);
-                        // A failed listing is settled: the tile reports from its own query
+                        // A failed listing is settled: the tile reports from its own query.
+                        // Own reports carry no source; a source change clears them once listed
                         return (
                             tileListedParameterSources[source.tileUuid] !==
                                 key &&
-                            tileFailedParameterSources[source.tileUuid] !== key
+                            tileFailedParameterSources[source.tileUuid] !==
+                                key &&
+                            !Object.hasOwn(
+                                tileQueryParameterReferences,
+                                source.tileUuid,
+                            )
                         );
                     }))
             ) {

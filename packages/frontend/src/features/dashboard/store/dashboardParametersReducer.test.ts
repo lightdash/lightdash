@@ -490,6 +490,61 @@ describe('dashboardParametersReducer', () => {
             });
         });
 
+        it("drops a tile's previous chart when its new chart's listing fails", () => {
+            const listed = reducer(
+                stateWith(),
+                actions.addDiscoveredParameterReferences({
+                    references: { 'tile-1': ['region'], 'tile-2': ['status'] },
+                    definitions: {},
+                    sources: { 'tile-1': 'chart-1', 'tile-2': 'chart-2' },
+                    chartSavedValues: {
+                        'tile-1': { region: 'EU' },
+                        'tile-2': { status: 'Open' },
+                    },
+                    virtualViewSavedValues: { 'tile-1': {}, 'tile-2': {} },
+                }),
+            );
+            const ran = reducer(
+                listed,
+                actions.addParameterReferences({
+                    tileUuid: 'tile-1',
+                    references: ['region'],
+                }),
+            );
+            const next = reducer(
+                ran,
+                actions.markParameterReferencesFailed({
+                    'tile-1': 'replacement',
+                    'tile-2': 'chart-2',
+                }),
+            );
+            expect(next.tileListedParameterReferences).toEqual({
+                'tile-2': ['status'],
+            });
+            expect(next.tileListedParameterSources).toEqual({
+                'tile-2': 'chart-2',
+            });
+            expect(next.tileParameterReferences).toEqual({
+                'tile-2': ['status'],
+            });
+            expect(next.tileQueryParameterReferences).toEqual({});
+            expect(next.tileChartSavedParameters).toEqual({
+                'tile-2': { status: 'Open' },
+            });
+            expect(next.tileVirtualViewSavedParameters).toEqual({
+                'tile-2': {},
+            });
+            expect(
+                reducer(
+                    next,
+                    actions.addParameterReferences({
+                        tileUuid: 'tile-1',
+                        references: null,
+                    }),
+                ).tileParameterReferences['tile-1'],
+            ).toEqual([]);
+        });
+
         it('clears a failed listing once the tile is listed', () => {
             const failed = reducer(
                 stateWith(),
