@@ -1,4 +1,5 @@
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { subject } from '@casl/ability';
 import {
     DATA_REFERENCE_EXTRACTOR_VERSION,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
@@ -7,8 +8,10 @@ import {
     FeatureFlags,
     ForbiddenError,
     getCustomSqlFieldKey,
+    getUserAbilityBuilder,
     LIGHTDASH_APP_PREVIEW_TOKEN_MAX_AGE_SECONDS,
     NotFoundError,
+    OrganizationMemberRole,
     ParameterError,
     TooManyRequestsError,
     type DataAppCode,
@@ -3114,6 +3117,82 @@ describe('AppGenerateService.authorizeConsumerQuery', () => {
         await expect(service.authorizeConsumerQuery(request)).rejects.toThrow(
             ForbiddenError,
         );
+    });
+
+    describe('custom role with view:DataApp and no Explore', () => {
+        const CUSTOM_ROLE_UUID = 'custom-role-uuid';
+        const ability = getUserAbilityBuilder({
+            user: {
+                role: OrganizationMemberRole.MEMBER,
+                organizationUuid: PROJECT_ORG_UUID,
+                userUuid: USER_UUID,
+                roleUuid: CUSTOM_ROLE_UUID,
+            },
+            projectProfiles: [],
+            permissionsConfig: {
+                pat: { enabled: false, allowedOrgRoles: [] },
+            },
+            customRoleScopes: {
+                [CUSTOM_ROLE_UUID]: [
+                    'view:Project',
+                    'view:Space',
+                    'view:DataApp',
+                ],
+            },
+            customRolesEnabled: true,
+        }).builder.build();
+        const setupCustomRole = (opts: { consumerAccessEnabled?: boolean }) => {
+            const result = setup(opts);
+            result.spacePermissionService.resolveAccess.mockResolvedValue({
+                inheritsFromOrgOrProject: true,
+                access: [],
+            });
+            vi.spyOn(
+                result.service as unknown as {
+                    createAuditedAbility: () => unknown;
+                },
+                'createAuditedAbility',
+            ).mockReturnValue(ability);
+            return result;
+        };
+
+        it('is a consumer: it can view the app but not Explore', () => {
+            expect(
+                ability.can(
+                    'view',
+                    subject('DataApp', {
+                        organizationUuid: PROJECT_ORG_UUID,
+                        projectUuid: PROJECT_UUID,
+                        inheritsFromOrgOrProject: true,
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Explore', {
+                        organizationUuid: PROJECT_ORG_UUID,
+                        projectUuid: PROJECT_UUID,
+                    }),
+                ),
+            ).toBe(false);
+        });
+
+        it('runs app queries through the snapshot when the flag is on', async () => {
+            const { service } = setupCustomRole({});
+            await expect(
+                service.authorizeConsumerQuery(request),
+            ).resolves.toEqual({ appUuid: NEW_APP_UUID, version: 2 });
+        });
+
+        it('is denied when the flag is off', async () => {
+            const { service } = setupCustomRole({
+                consumerAccessEnabled: false,
+            });
+            await expect(
+                service.authorizeConsumerQuery(request),
+            ).rejects.toThrow(ForbiddenError);
+        });
     });
 
     it('rejects a query for fields missing from the snapshot', async () => {
