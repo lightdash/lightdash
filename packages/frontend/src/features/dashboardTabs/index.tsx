@@ -78,6 +78,7 @@ import { TabEditModal } from './EditTabModal';
 import GridTile from './GridTile';
 import {
     convertLayoutToBaseCoordinates,
+    hasGridItemMoved,
     DEFAULT_ROW_HEIGHT,
     FINE_GRID_SCALE,
     FIT_TO_SCREEN_GRID_BOTTOM_PADDING,
@@ -114,9 +115,9 @@ type TabGridPanelProps = {
     gridProps: ReturnType<typeof getResponsiveGridLayoutProps>;
     dashboardTabs: DashboardTab[];
     onDragStart: () => void;
-    onDragStop: (layout: Layout[]) => void;
+    onDragStop: (layout: Layout[], before: Layout, after: Layout) => void;
     onResizeStart: () => void;
-    onResizeStop: (layout: Layout[]) => void;
+    onResizeStop: (layout: Layout[], before: Layout, after: Layout) => void;
     onWidthChange: (width: number) => void;
     onDeleteTile: (tile: IDashboard['tiles'][number]) => Promise<void>;
     onEditTile: (tile: IDashboard['tiles'][number]) => void;
@@ -341,11 +342,15 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         setIsInteracting(true);
         startAutoScroll();
     }, [startAutoScroll]);
-    const handleDragStop = useCallback(
-        (layout: Layout[]) => {
+    // The grid reports its whole layout on every stop, with stored overlaps
+    // pushed apart, so a click that moved nothing must not apply it
+    const handleInteractionStop = useCallback(
+        (layout: Layout[], before: Layout, after: Layout) => {
             stopAutoScroll();
             setIsInteracting(false);
-            void handleUpdateTilesWithScaling(layout);
+            if (hasGridItemMoved(before, after)) {
+                void handleUpdateTilesWithScaling(layout);
+            }
         },
         [handleUpdateTilesWithScaling, stopAutoScroll],
     );
@@ -353,14 +358,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         setIsInteracting(true);
         startAutoScroll();
     }, [startAutoScroll]);
-    const handleResizeStop = useCallback(
-        (layout: Layout[]) => {
-            stopAutoScroll();
-            setIsInteracting(false);
-            void handleUpdateTilesWithScaling(layout);
-        },
-        [handleUpdateTilesWithScaling, stopAutoScroll],
-    );
     const handleWidthChange = useCallback(
         (cw: number) => setGridWidth(cw),
         [setGridWidth],
@@ -1251,12 +1248,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                   gridProps={gridProps}
                                                   dashboardTabs={dashboardTabs}
                                                   onDragStart={handleDragStart}
-                                                  onDragStop={handleDragStop}
+                                                  onDragStop={
+                                                      handleInteractionStop
+                                                  }
                                                   onResizeStart={
                                                       handleResizeStart
                                                   }
                                                   onResizeStop={
-                                                      handleResizeStop
+                                                      handleInteractionStop
                                                   }
                                                   onWidthChange={
                                                       handleWidthChange
@@ -1276,9 +1275,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                               key={gridProps.cols.lg}
                                               {...gridProps}
                                               onDragStart={handleDragStart}
-                                              onDragStop={handleDragStop}
+                                              onDragStop={handleInteractionStop}
                                               onResizeStart={handleResizeStart}
-                                              onResizeStop={handleResizeStop}
+                                              onResizeStop={
+                                                  handleInteractionStop
+                                              }
                                               onWidthChange={handleWidthChange}
                                               layouts={allTilesLayouts}
                                           >

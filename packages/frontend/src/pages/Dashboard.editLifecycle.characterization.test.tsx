@@ -500,12 +500,12 @@ describe('edit lifecycle: layout edits and save', () => {
         await waitFor(() => expect(changed()).toBe('false'));
     });
 
-    it('a drop back in place still marks the dashboard dirty', async () => {
+    it('a drop back in place leaves nothing to save', async () => {
         renderDashboard(`${DASHBOARD_PATH}/edit`);
         await waitForLoaded();
 
         await click('Drop in place');
-        expect(changed()).toBe('true');
+        expect(changed()).toBe('false');
         expect(tiles()).toEqual(makeDashboard().tiles);
     });
 

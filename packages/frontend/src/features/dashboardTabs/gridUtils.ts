@@ -177,6 +177,13 @@ export const convertLayoutToBaseCoordinates = (
         h: item.h / gridScale,
     }));
 
+/** Whether a drag or resize left the tile somewhere else or at another size */
+export const hasGridItemMoved = (before: Layout, after: Layout): boolean =>
+    before.x !== after.x ||
+    before.y !== after.y ||
+    before.w !== after.w ||
+    before.h !== after.h;
+
 export type ResponsiveGridLayoutProps = {
     compactType: null;
     draggableCancel: string;
