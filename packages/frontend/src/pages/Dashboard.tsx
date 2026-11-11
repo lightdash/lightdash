@@ -61,6 +61,10 @@ import {
     useReopenDraftMutation,
 } from '../features/contentAsCode/hooks/useContentDrafts';
 import {
+    settingChange,
+    type PendingChange,
+} from '../features/dashboard/pendingChanges/getPendingChanges';
+import {
     getSafeTemporaryFilters,
     selectActiveTab,
     selectDashboardCustomMetrics,
@@ -115,6 +119,7 @@ import { type EditFiltersVisibility } from '../features/dashboardFilters/EditFil
 import { getDimensionFiltersToSave } from '../features/dashboardFilters/FilterConfiguration/utils';
 import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
+import { ACTUAL_SIZE_ZOOM } from '../features/dashboardTabs/canvasZoomUtils';
 import { useFitToScreen } from '../features/dashboardTabs/useFitToScreen';
 import { isLeavingTrainingCopy } from '../features/scopeTours/trainingCopy';
 import {
@@ -519,31 +524,19 @@ const Dashboard: FC = () => {
 
     const handleUpdateTiles = useCallback(
         async (layout: Layout[]) => {
-            setDashboardTiles((currentDashboardTiles) =>
-                currentDashboardTiles?.map((tile) => {
-                    const layoutTile = layout.find(({ i }) => i === tile.uuid);
-                    if (
-                        layoutTile &&
-                        (tile.x !== layoutTile.x ||
-                            tile.y !== layoutTile.y ||
-                            tile.h !== layoutTile.h ||
-                            tile.w !== layoutTile.w)
-                    ) {
-                        return {
-                            ...tile,
-                            x: layoutTile.x,
-                            y: layoutTile.y,
-                            h: layoutTile.h,
-                            w: layoutTile.w,
-                        };
-                    }
-                    return tile;
-                }),
+            dashboardDispatch(
+                dashboardEditActions.moveTiles(
+                    layout.map(({ i, x, y, w, h }) => ({
+                        uuid: i,
+                        x,
+                        y,
+                        w,
+                        h,
+                    })),
+                ),
             );
-
-            setHaveTilesChanged(true);
         },
-        [setDashboardTiles, setHaveTilesChanged],
+        [dashboardDispatch],
     );
 
     const handleAddTiles = useCallback(
@@ -891,24 +884,113 @@ const Dashboard: FC = () => {
         isEditMode,
     ]);
 
+    // Areas that only track a changed flag; the rest is diffed item by item
+    const settingsChanges = useMemo(
+        () =>
+            (
+                [
+                    [
+                        haveCustomMetricsChanged,
+                        settingChange('custom-metrics', 'Custom metrics'),
+                    ],
+                    [
+                        hasDateZoomDisabledChanged,
+                        settingChange(
+                            'date-zoom-disabled',
+                            'Date zoom for viewers',
+                        ),
+                    ],
+                    [
+                        hasAddFilterDisabledChanged,
+                        settingChange(
+                            'add-filter-disabled',
+                            'Add filter for viewers',
+                        ),
+                    ],
+                    [
+                        hasRequiredFiltersNoteChanged,
+                        settingChange(
+                            'required-filters-note',
+                            'Filter rules note for viewers',
+                        ),
+                    ],
+                    [
+                        haveDateZoomGranularitiesChanged,
+                        settingChange(
+                            'date-zoom-granularities',
+                            'Date zoom granularities',
+                        ),
+                    ],
+                    [
+                        hasDefaultDateZoomGranularityChanged,
+                        settingChange(
+                            'default-date-zoom',
+                            'Default date zoom granularity',
+                        ),
+                    ],
+                    [
+                        hasDateZoomConfigChanged,
+                        settingChange('date-zoom-config', 'Date zoom controls'),
+                    ],
+                    [
+                        haveControlSectionsChanged,
+                        settingChange(
+                            'control-sections',
+                            'Filter bar sections',
+                        ),
+                    ],
+                    [
+                        hasControlOrderChanged,
+                        settingChange(
+                            'control-order',
+                            'Filter bar order',
+                            'reordered',
+                        ),
+                    ],
+                    [
+                        haveParameterControlsChanged,
+                        settingChange(
+                            'parameter-controls',
+                            'Parameter controls',
+                        ),
+                    ],
+                    [
+                        havePinnedParametersChanged,
+                        settingChange('pinned-parameters', 'Pinned parameters'),
+                    ],
+                    [
+                        hasParameterOrderChanged,
+                        settingChange(
+                            'parameter-order',
+                            'Parameter order',
+                            'reordered',
+                        ),
+                    ],
+                ] satisfies [boolean, PendingChange][]
+            ).flatMap(([hasChanged, pending]) => (hasChanged ? [pending] : [])),
+        [
+            haveCustomMetricsChanged,
+            hasDateZoomDisabledChanged,
+            hasAddFilterDisabledChanged,
+            hasRequiredFiltersNoteChanged,
+            haveDateZoomGranularitiesChanged,
+            hasDefaultDateZoomGranularityChanged,
+            hasDateZoomConfigChanged,
+            haveControlSectionsChanged,
+            hasControlOrderChanged,
+            haveParameterControlsChanged,
+            havePinnedParametersChanged,
+            hasParameterOrderChanged,
+        ],
+    );
+
     const hasDashboardChanged =
         haveTilesChanged ||
-        haveCustomMetricsChanged ||
         haveFiltersChanged ||
         hasTemporaryFilters ||
         haveTabsChanged ||
-        hasDateZoomDisabledChanged ||
-        hasAddFilterDisabledChanged ||
-        hasRequiredFiltersNoteChanged ||
         parametersHaveChanged ||
-        haveParameterControlsChanged ||
-        havePinnedParametersChanged ||
-        hasParameterOrderChanged ||
-        haveControlSectionsChanged ||
-        hasControlOrderChanged ||
-        haveDateZoomGranularitiesChanged ||
-        hasDefaultDateZoomGranularityChanged ||
-        hasDateZoomConfigChanged;
+        settingsChanges.length > 0;
 
     // Block navigating away if there are unsaved changes
     const blocker = useBlocker(({ nextLocation }) => {
@@ -1010,6 +1092,7 @@ const Dashboard: FC = () => {
 
     const handleEnterEditMode = useCallback(async () => {
         resetDashboardFilters();
+        dashboardDispatch(dashboardEditActions.setCanvasZoom(ACTUAL_SIZE_ZOOM));
 
         await refreshDashboardVersion();
 
@@ -1030,6 +1113,7 @@ const Dashboard: FC = () => {
         projectUrlIdentifier,
         dashboardIdentifier,
         resetDashboardFilters,
+        dashboardDispatch,
         refreshDashboardVersion,
         navigate,
         activeTab?.uuid,
@@ -1536,6 +1620,10 @@ const Dashboard: FC = () => {
             fitToScreen.isAvailable && !isFitToScreenDefault,
         onToggleFitToScreen: handleToggleFitToScreen,
         editFiltersVisibility: effectiveEditFiltersVisibility,
+        pendingSettingsChanges:
+            isEditMode && editErgonomicsFlag.data?.enabled === true
+                ? settingsChanges
+                : null,
         onEditFiltersVisibilityChange: setEditFiltersVisibility,
         hasDashboardChanged,
         onAddTiles: handleAddTiles,

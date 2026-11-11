@@ -60,6 +60,7 @@ type CreateComposeEngineWarehouseClientArgs = {
     resourceLimits?: DuckdbResourceLimits;
     instanceCacheKey?: string;
     organizationConcurrencyLimit?: number;
+    organizationConcurrencyAcquireTimeoutMs?: number;
 };
 
 type CreateComposeEngineWarehouseClient = (
@@ -134,6 +135,8 @@ export class ComposeEngineClient {
                         instanceCacheKey: warehouseArgs.instanceCacheKey,
                         organizationConcurrencyLimit:
                             warehouseArgs.organizationConcurrencyLimit,
+                        organizationConcurrencyAcquireTimeoutMs:
+                            warehouseArgs.organizationConcurrencyAcquireTimeoutMs,
                         logger: Logger,
                         enableQueryProfiling: true,
                         onQueryProfile: (profile) => {
@@ -261,6 +264,11 @@ export class ComposeEngineClient {
                     session.storage === 'externalSources'
                         ? this.lightdashConfig.externalSources
                               .maxConcurrentDuckdbQueriesPerOrganization
+                        : undefined,
+                organizationConcurrencyAcquireTimeoutMs:
+                    session.storage === 'externalSources'
+                        ? this.lightdashConfig.externalSources
+                              .duckdbQuerySlotWaitTimeoutMs
                         : undefined,
             });
         }

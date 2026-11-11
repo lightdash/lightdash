@@ -1,4 +1,5 @@
-import { ForbiddenError, NotFoundError } from '@lightdash/common'; // pragma: allowlist secret
+import { LinearConnectError, NotFoundError } from '@lightdash/common'; // pragma: allowlist secret
+import Logger from '../../logging/logger';
 import {
     createLinearIssue,
     exchangeLinearCodeForToken,
@@ -6,8 +7,17 @@ import {
     getLinearOrganization,
     getLinearProjects,
     getLinearTeams,
+    LinearTokenRequestError,
     linkLinearIssueUrl,
 } from './Linear';
+
+const exchange = () =>
+    exchangeLinearCodeForToken(
+        'code-1',
+        { clientId: 'client-1', clientSecret: 'secret-1' },
+        'https://app.example.com/callback',
+        'verifier-1',
+    );
 
 describe('Linear client', () => {
     afterEach(() => {
@@ -45,14 +55,7 @@ describe('Linear client', () => {
         });
         vi.stubGlobal('fetch', fetchMock);
 
-        await expect(
-            exchangeLinearCodeForToken(
-                'code-1',
-                'client-1',
-                'https://app.example.com/callback',
-                'verifier-1',
-            ),
-        ).resolves.toEqual({
+        await expect(exchange()).resolves.toEqual({
             token: 'access-1',
             refreshToken: 'refresh-1',
         });
@@ -65,7 +68,8 @@ describe('Linear client', () => {
             }),
         );
         const request = fetchMock.mock.calls[0][1];
-        expect(request.body.get('client_secret')).toBeNull();
+        expect(request.body.get('client_id')).toBe('client-1');
+        expect(request.body.get('client_secret')).toBe('secret-1');
         expect(request.body.get('code_verifier')).toBe('verifier-1');
     });
 
@@ -78,14 +82,83 @@ describe('Linear client', () => {
             }),
         );
 
-        await expect(
-            exchangeLinearCodeForToken(
-                'code-1',
-                'client-1',
-                'https://app.example.com/callback',
-                'verifier-1',
-            ),
-        ).rejects.toBeInstanceOf(ForbiddenError);
+        await expect(exchange()).rejects.toMatchObject({
+            reason: LinearConnectError.UNKNOWN,
+            statusCode: 403,
+        });
+    });
+
+    it.each([
+        [400, { error: 'invalid_client' }, LinearConnectError.INVALID_CLIENT],
+        [400, { error: 'invalid_secret' }, LinearConnectError.INVALID_CLIENT],
+        [
+            400,
+            { error: 'unauthorized_client' },
+            LinearConnectError.UNAUTHORIZED_CLIENT,
+        ],
+        [400, { error: 'invalid_grant' }, LinearConnectError.INVALID_GRANT],
+        [400, { error: 'invalid_request' }, LinearConnectError.UNKNOWN],
+        [503, {}, LinearConnectError.LINEAR_UNAVAILABLE],
+    ])('maps a %s token response %j to %s', async (status, body, reason) => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockResolvedValue({
+                ok: false,
+                status,
+                json: async () => body,
+            }),
+        );
+
+        const error = await exchange().catch((e) => e);
+        expect(error).toBeInstanceOf(LinearTokenRequestError);
+        expect(error.reason).toBe(reason);
+    });
+
+    it('treats an unreachable or non-JSON token endpoint as unavailable', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockRejectedValue(new Error('ECONNRESET')),
+        );
+        await expect(exchange()).rejects.toMatchObject({
+            reason: LinearConnectError.LINEAR_UNAVAILABLE,
+            statusCode: 502,
+        });
+
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockResolvedValue({
+                ok: false,
+                status: 502,
+                json: async () => {
+                    throw new SyntaxError('Unexpected token <');
+                },
+            }),
+        );
+        await expect(exchange()).rejects.toMatchObject({
+            reason: LinearConnectError.LINEAR_UNAVAILABLE,
+        });
+    });
+
+    it("logs Linear's reason when the token request is rejected", async () => {
+        const warnSpy = vi.spyOn(Logger, 'warn');
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockResolvedValue({
+                ok: false,
+                status: 400,
+                json: async () => ({
+                    error: 'invalid_grant',
+                    error_description: 'code_verifier mismatch',
+                }),
+            }),
+        );
+
+        await expect(exchange()).rejects.toThrow(
+            'Invalid Linear authentication token',
+        );
+        expect(warnSpy).toHaveBeenCalledWith(
+            'Linear token request failed with status 400: invalid_grant: code_verifier mismatch',
+        );
     });
 
     it('loads organization, teams, and team-scoped projects', async () => {

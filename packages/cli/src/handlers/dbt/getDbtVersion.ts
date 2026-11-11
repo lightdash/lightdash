@@ -18,7 +18,8 @@ import * as styles from '../../styles';
 const DBT_CORE_VERSION_REGEX = /installed:.*/;
 const DBT_CLOUD_CLI_REGEX = /dbt Cloud CLI.*/;
 const DBT_FUSION_VERSION_REGEX = /dbt-fusion.*/;
-const DBT_V2_VERSION_REGEX = /^dbt 2\.\d+\.\d+\S*/m;
+// dbt v2 prints `dbt 2.x.y` or `dbt-oss 2.x.y` depending on the distribution
+const DBT_V2_VERSION_REGEX = /^dbt(?:-oss)? 2\.\d+\.\d+\S*/m;
 
 const getDbtCLIVersion = async () => {
     // Callers that already know the dbt version (the Learn sandbox pins the
@@ -54,7 +55,7 @@ const getDbtCLIVersion = async () => {
 
         const v2Version = logs.match(DBT_V2_VERSION_REGEX);
         if (v2Version) {
-            return v2Version[0]; // eg: dbt 2.0.6
+            return v2Version[0]; // eg: dbt 2.0.6, dbt-oss 2.0.11
         }
 
         const version = logs.match(DBT_CORE_VERSION_REGEX);

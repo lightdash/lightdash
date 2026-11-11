@@ -1,3 +1,59 @@
+## [3.210.2](https://github.com/lightdash/lightdash/compare/3.210.1...3.210.2) (2026-11-11)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** drag sections from anywhere on the capsule ([#32385](https://github.com/lightdash/lightdash/issues/32385)) ([42804ff](https://github.com/lightdash/lightdash/commit/42804ff7046408f98c76c2189ff19fe83bf619d9))
+
+## [3.210.1](https://github.com/lightdash/lightdash/compare/3.210.0...3.210.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **snowflake:** accept mis-pasted shared agent account keys and say why Test failed ([#32377](https://github.com/lightdash/lightdash/issues/32377)) ([584947c](https://github.com/lightdash/lightdash/commit/584947cab7373f4310ff1bee6f10b3b26e381a8a)), closes [PKCS#8](https://github.com/PKCS/issues/8)
+
+# [3.210.0](https://github.com/lightdash/lightdash/compare/3.209.1...3.210.0) (2026-11-11)
+
+
+### Features
+
+* **data-apps:** one useAppState hook over url, user and shared scopes ([#32376](https://github.com/lightdash/lightdash/issues/32376)) ([23e79bb](https://github.com/lightdash/lightdash/commit/23e79bb021a50f2aa1c58ed508dd78b09065c0f5))
+
+## [3.209.1](https://github.com/lightdash/lightdash/compare/3.209.0...3.209.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **cli:** detect dbt when the version banner reads dbt-oss 2.x ([#32374](https://github.com/lightdash/lightdash/issues/32374)) ([aa2ecf7](https://github.com/lightdash/lightdash/commit/aa2ecf735a62a088d1d3870a8366bcd33a184ed0))
+
+# [3.209.0](https://github.com/lightdash/lightdash/compare/3.208.0...3.209.0) (2026-11-11)
+
+
+### Features
+
+* **sync:** customize chart filters per Google Sheets sync ([#32325](https://github.com/lightdash/lightdash/issues/32325)) ([4b8596f](https://github.com/lightdash/lightdash/commit/4b8596f8d04bea07221549cf4d084f90286938d9))
+
+# [3.208.0](https://github.com/lightdash/lightdash/compare/3.207.0...3.208.0) (2026-11-10)
+
+
+### Features
+
+* support additional_dimensions at the model level ([#32352](https://github.com/lightdash/lightdash/issues/32352)) ([807de1b](https://github.com/lightdash/lightdash/commit/807de1b1584cebf74a3c8a3c8b67841380c8a898))
+
+# [3.207.0](https://github.com/lightdash/lightdash/compare/3.206.0...3.207.0) (2026-11-10)
+
+
+### Features
+
+* combine joined fields at the explore level ([#32334](https://github.com/lightdash/lightdash/issues/32334)) ([c69be06](https://github.com/lightdash/lightdash/commit/c69be063eb019041ce58ffd5f9c4937c0a758db7))
+
+# [3.206.0](https://github.com/lightdash/lightdash/compare/3.205.2...3.206.0) (2026-11-10)
+
+
+### Features
+
+* **mobile:** publish the Play App Signing fingerprint in assetlinks.json by default ([#32360](https://github.com/lightdash/lightdash/issues/32360)) ([b6ccdd6](https://github.com/lightdash/lightdash/commit/b6ccdd61e7f776f8b8e8b206f58268f17354363c))
+
 ## [3.205.2](https://github.com/lightdash/lightdash/compare/3.205.1...3.205.2) (2026-11-10)
 
 

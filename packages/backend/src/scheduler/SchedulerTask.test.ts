@@ -31,6 +31,7 @@ import {
     UnexpectedGoogleSheetsError,
     VizAggregationOptions,
     VizIndexType,
+    WarehouseConnectionError,
     type Account,
     type CapturedQuery,
     type CompileProjectPayload,
@@ -53,6 +54,10 @@ import {
     type SendNowScheduler,
     type UploadGsheetPayload,
 } from '@lightdash/common';
+import {
+    SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE,
+    SnowflakePrivateKeyError,
+} from '@lightdash/warehouses';
 import ExecutionContext from 'node-execution-context';
 import type { Mock } from 'vitest';
 import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
@@ -3452,6 +3457,22 @@ describe('uploadGsheets — app branch', () => {
         await expect(run()).rejects.toMatchObject({
             name: 'SchedulerDeliveryError',
             isNonRetryable: false,
+        } satisfies Partial<SchedulerDeliveryError>);
+    });
+
+    it('reports an unreadable Snowflake key as a non-retryable delivery failure', async () => {
+        const { run, getRawAsyncQueryResults } = setup();
+        const error = new WarehouseConnectionError(
+            `Snowflake error: ${SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE}`,
+        );
+        error.cause = new SnowflakePrivateKeyError(
+            SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE,
+        );
+        getRawAsyncQueryResults.mockRejectedValue(error);
+
+        await expect(run()).rejects.toMatchObject({
+            name: 'SchedulerDeliveryError',
+            isNonRetryable: true,
         } satisfies Partial<SchedulerDeliveryError>);
     });
 

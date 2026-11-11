@@ -232,6 +232,11 @@ export type DuckdbWarehouseClientOptions = {
     /** Process-local per-organization cap for isolated S3 query clients. */
     organizationConcurrencyLimit?: number;
     /**
+     * How long a query waits in FIFO order for a free per-organization slot
+     * before it fails. Without it, a query over the cap fails at once.
+     */
+    organizationConcurrencyAcquireTimeoutMs?: number;
+    /**
      * Confine the instance to its storage bucket(s) and a private temp
      * directory. Serve sessions only read object storage, so they have no
      * use for anything else on disk or on the network.
@@ -715,6 +720,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
 
     private readonly organizationConcurrencyLimit?: number;
 
+    private readonly organizationConcurrencyAcquireTimeoutMs: number;
+
     private readonly objectStorageOnly: boolean;
 
     private allowsPreAggregateFileReads = false;
@@ -866,6 +873,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         this.projectUuid = options?.projectUuid;
         this.organizationConcurrencyLimit =
             options?.organizationConcurrencyLimit;
+        this.organizationConcurrencyAcquireTimeoutMs =
+            options?.organizationConcurrencyAcquireTimeoutMs ?? 0;
         this.objectStorageOnly = options?.objectStorageOnly ?? false;
     }
 
@@ -977,17 +986,34 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         };
     }
 
-    private static tryAcquireOrganizationConcurrency(
+    private static async acquireOrganizationConcurrency(
         organizationUuid: string,
         limit: number,
-    ): (() => void) | undefined {
+        timeoutMs: number,
+    ): Promise<(() => void) | undefined> {
         const key = `${limit}:${organizationUuid}`;
         const budget =
             DuckdbWarehouseClient.organizationConcurrencyBudgets.get(key) ??
             new ConcurrencyBudget(limit);
         DuckdbWarehouseClient.organizationConcurrencyBudgets.set(key, budget);
-        if (!budget.tryAcquire()) return undefined;
+        const acquired =
+            timeoutMs > 0
+                ? await budget.acquire(timeoutMs)
+                : budget.tryAcquire();
+        if (!acquired) {
+            if (budget.isIdle()) {
+                DuckdbWarehouseClient.organizationConcurrencyBudgets.delete(
+                    key,
+                );
+            }
+            return undefined;
+        }
+        let released = false;
         return () => {
+            if (released) {
+                return;
+            }
+            released = true;
             budget.release();
             if (budget.isIdle()) {
                 DuckdbWarehouseClient.organizationConcurrencyBudgets.delete(
@@ -1744,6 +1770,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             (budget) => budget.reset(),
         );
         DuckdbWarehouseClient.embeddedOrganizationConcurrencyBudgets.clear();
+        DuckdbWarehouseClient.organizationConcurrencyBudgets.forEach((budget) =>
+            budget.reset(),
+        );
+        DuckdbWarehouseClient.organizationConcurrencyBudgets.clear();
     }
 
     async close(): Promise<void> {
@@ -2553,24 +2583,23 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         ) => void,
         querySql?: string,
     ): Promise<T> {
-        const releaseOrganizationConcurrency =
-            !this.embeddedConfig &&
-            organizationUuid &&
-            this.organizationConcurrencyLimit
-                ? DuckdbWarehouseClient.tryAcquireOrganizationConcurrency(
-                      organizationUuid,
-                      this.organizationConcurrencyLimit,
-                  )
-                : undefined;
+        let releaseOrganizationConcurrency: (() => void) | undefined;
         if (
             !this.embeddedConfig &&
             organizationUuid &&
-            this.organizationConcurrencyLimit &&
-            !releaseOrganizationConcurrency
+            this.organizationConcurrencyLimit
         ) {
-            throw new WarehouseQueryError(
-                'External source query capacity is full. Try again shortly.',
-            );
+            releaseOrganizationConcurrency =
+                await DuckdbWarehouseClient.acquireOrganizationConcurrency(
+                    organizationUuid,
+                    this.organizationConcurrencyLimit,
+                    this.organizationConcurrencyAcquireTimeoutMs,
+                );
+            if (!releaseOrganizationConcurrency) {
+                throw new WarehouseQueryError(
+                    'External source query capacity is full. Try again shortly.',
+                );
+            }
         }
         try {
             if (this.parquetConfig) {

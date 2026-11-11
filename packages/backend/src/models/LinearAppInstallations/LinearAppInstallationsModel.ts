@@ -17,6 +17,7 @@ export type LinearAuth = {
     token: string;
     refreshToken: string | null;
     clientId: string | null;
+    clientSecret: string | null;
 };
 
 export class LinearAppInstallationsModel {
@@ -59,6 +60,9 @@ export class LinearAppInstallationsModel {
             organizationName: installation.linear_organization_name,
             organizationUrlKey: installation.linear_organization_url_key,
             requiresReconnect: installation.oauth_client_id === null,
+            requiresClientSecret:
+                installation.oauth_client_id !== null &&
+                installation.encrypted_linear_client_secret === null,
         };
     }
 
@@ -79,6 +83,7 @@ export class LinearAppInstallationsModel {
             token: string;
             refreshToken: string | null;
             clientId: string;
+            clientSecret: string;
             organizationName: string;
             organizationUrlKey: string;
         },
@@ -95,6 +100,9 @@ export class LinearAppInstallationsModel {
                     ? this.encryptionUtil.encrypt(args.refreshToken)
                     : null,
                 oauth_client_id: args.clientId,
+                encrypted_linear_client_secret: this.encryptionUtil.encrypt(
+                    args.clientSecret,
+                ),
                 linear_organization_name: args.organizationName,
                 linear_organization_url_key: args.organizationUrlKey,
                 created_by_user_uuid: user.userUuid,
@@ -110,6 +118,9 @@ export class LinearAppInstallationsModel {
                     ? this.encryptionUtil.encrypt(args.refreshToken)
                     : null,
                 oauth_client_id: args.clientId,
+                encrypted_linear_client_secret: this.encryptionUtil.encrypt(
+                    args.clientSecret,
+                ),
                 linear_organization_name: args.organizationName,
                 linear_organization_url_key: args.organizationUrlKey,
                 updated_by_user_uuid: user.userUuid,
@@ -124,6 +135,7 @@ export class LinearAppInstallationsModel {
                 'encrypted_access_token',
                 'encrypted_refresh_token',
                 'oauth_client_id',
+                'encrypted_linear_client_secret',
             ])
             .first();
 
@@ -139,6 +151,12 @@ export class LinearAppInstallationsModel {
                 ? this.decrypt(auth.encrypted_refresh_token, 'refresh token')
                 : null,
             clientId: auth.oauth_client_id,
+            clientSecret: auth.encrypted_linear_client_secret
+                ? this.decrypt(
+                      auth.encrypted_linear_client_secret,
+                      'client secret',
+                  )
+                : null,
         };
     }
 

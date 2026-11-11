@@ -1,26 +1,29 @@
-# Saved app state (`useAppState`, `useSharedAppState`)
+# Saved app state (`useAppState` — `user` and `shared` scopes)
 
 > Read this when the build prompt says saved app state is available. It covers remembering what a person entered, values every viewer shares, and who changed what.
 
-Lightdash stores values the app saves, so they come back on the next open, on any device. Two hooks, both `useState`-shaped, both JSON values:
+Lightdash stores values the app saves, so they come back on the next open, on any device. One `useState`-shaped hook, JSON values, scope picked per call site:
 
 ```tsx
-import { useAppState, useSharedAppState } from '@lightdash/query-sdk';
+import { useAppState } from '@lightdash/query-sdk';
 
 const [filters, setFilters] = useAppState('filters', DEFAULT_FILTERS);          // this person only
-const [targets, setTargets] = useSharedAppState('targets', {});                 // every viewer
+const [targets, setTargets] = useAppState('targets', {}, { scope: 'shared' });  // every viewer
 ```
 
-- **`useAppState(key, default)`** saves per person. Only that person reads it back. Overwrites in place, no history.
-- **`useSharedAppState(key, default)`** saves one value every viewer of the app reads. Each write is a version with its author and time; `client.appState.history(key)` lists them newest first.
+- **`user` (the default)** saves per person. Only that person reads it back. Overwrites in place, no history.
+- **`shared`** saves one value every viewer of the app reads. Each write is a version with its author and time; `client.appState.history(key)` lists them newest first.
+- **`url`** is the third scope — link semantics, not storage; it is covered in the main skill ("App state — one hook, pick a scope") and is always available.
+- `useSharedAppState(key, default)` is an alias for `{ scope: 'shared' }`; prefer the unified hook in new code.
 
 ## Pick the scope from what is being saved
 
-| Saving… | Hook |
+| Saving… | Scope |
 | --- | --- |
-| A person's own inputs: filters, selections, sort, active tab, collapsed panels, draft text, preferences | `useAppState` |
-| Something other people read: comments, targets, annotations, approvals, assignments, notes, AI commentary | `useSharedAppState` |
-| "Who changed what", an audit trail, a change log | `useSharedAppState` plus `client.appState.history(key)` |
+| Part of the link you'd share — what defines *which view* this is | `'url'` (see the main skill) |
+| A person's own inputs: filters, selections, sort, active tab, collapsed panels, draft text, preferences | `'user'` |
+| Something other people read: comments, targets, annotations, approvals, assignments, notes, AI commentary | `'shared'` |
+| "Who changed what", an audit trail, a change log | `'shared'` plus `client.appState.history(key)` |
 
 Prompt words that mean shared: comments, targets, annotations, approvals, "everyone", "the team", "who changed". When it is genuinely unclear whether a value is personal or for everyone ("save the targets"), ask one question before building: *Should everyone see these targets, or only the person who sets them?* That is the only storage question to ask.
 
@@ -36,7 +39,7 @@ Prompt words that mean shared: comments, targets, annotations, approvals, "every
 ## Shared values: updater or plain value
 
 ```tsx
-const [comments, setComments] = useSharedAppState('comments', []);
+const [comments, setComments] = useAppState('comments', [], { scope: 'shared' });
 
 // Additive edit: use the updater form. If someone else wrote in between, the
 // updater is re-applied on their value and retried, so both comments land.
@@ -48,11 +51,11 @@ setComments((prev) => [...prev, { id: crypto.randomUUID(), text, at: new Date().
 setTargets(nextTargets);
 ```
 
-The third element of both hooks carries state you should use:
+The hook's third element carries state you should use (`version`/`updatedAt`/`updatedBy` exist in `shared` scope only):
 
 ```tsx
 const [targets, setTargets, { loading, error, persisted, version, updatedAt, updatedBy }] =
-    useSharedAppState('targets', {});
+    useAppState('targets', {}, { scope: 'shared' });
 ```
 
 - `loading`: true until the saved values have loaded. Render the defaults meanwhile; do not block the page.
@@ -93,4 +96,4 @@ Render the list; diff two versions' values yourself if the user asked for "what 
 - Do not use these hooks when the build prompt does not say saved app state is available: values would only live in memory for the session.
 - Do not store query results or large datasets. The data lives in the warehouse; save selections and inputs.
 - Do not build your own persistence (localStorage, cookies) for the same purpose.
-- Do not put a person's private inputs in `useSharedAppState`.
+- Do not put a person's private inputs in the `shared` scope.

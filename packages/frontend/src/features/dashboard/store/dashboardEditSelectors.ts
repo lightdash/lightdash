@@ -10,6 +10,7 @@ import { createSelector } from '@reduxjs/toolkit';
 import { isEqual } from 'es-toolkit/compat';
 import { type DashboardStoreState } from '.';
 import {
+    canStepTileLayout,
     isDateZoomConfigDraftCurrent,
     isDraftCurrent,
     type SavedDateZoomSettings,
@@ -19,6 +20,12 @@ export const selectDashboardTiles = (state: DashboardStoreState) =>
     state.edit.tiles;
 export const selectHaveTilesChanged = (state: DashboardStoreState) =>
     state.edit.haveTilesChanged;
+export const selectCanUndoTileLayout = (state: DashboardStoreState) =>
+    canStepTileLayout(state.edit, 'undo');
+export const selectCanRedoTileLayout = (state: DashboardStoreState) =>
+    canStepTileLayout(state.edit, 'redo');
+export const selectCanvasZoom = (state: DashboardStoreState) =>
+    state.edit.canvasZoom;
 export const selectDashboardTabs = (state: DashboardStoreState) =>
     state.edit.tabs;
 export const selectHaveTabsChanged = (state: DashboardStoreState) =>

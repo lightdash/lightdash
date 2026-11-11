@@ -1305,7 +1305,7 @@ export const addFiltersToMetricQuery = (
  * unmatched override on the same field (an override authored against a rule
  * the chart has since recreated). Mirrors getDashboardDimensionOverrideMatches.
  */
-const getChartFilterRuleOverrideMatches = (
+export const getChartFilterRuleOverrideMatches = (
     savedRules: FilterRule[],
     overrides: FilterRule[],
 ): {

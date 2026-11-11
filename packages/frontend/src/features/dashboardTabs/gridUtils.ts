@@ -38,6 +38,8 @@ export const getBreakpointForWidth = (
 };
 
 export const GRID_MARGIN: [number, number] = [10, 10];
+// Room for the floating edit action bar, so it never covers the last row
+export const EDIT_ACTION_BAR_CLEARANCE = 80;
 export const GRID_CONTAINER_PADDING: [number, number] = [10, 0];
 
 /**
@@ -176,6 +178,13 @@ export const convertLayoutToBaseCoordinates = (
         y: item.y / gridScale,
         h: item.h / gridScale,
     }));
+
+/** Whether a drag or resize left the tile somewhere else or at another size */
+export const hasGridItemMoved = (before: Layout, after: Layout): boolean =>
+    before.x !== after.x ||
+    before.y !== after.y ||
+    before.w !== after.w ||
+    before.h !== after.h;
 
 export type ResponsiveGridLayoutProps = {
     compactType: null;

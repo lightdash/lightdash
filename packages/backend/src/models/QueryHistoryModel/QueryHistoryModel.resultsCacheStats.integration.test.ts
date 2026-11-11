@@ -12,7 +12,10 @@ import {
     createMigratedDatabase,
     type MigratedDatabase,
 } from '../../testing/migratedDatabase';
-import { QueryHistoryModel } from './QueryHistoryModel';
+import {
+    getQueryHistoryRequestColumns,
+    QueryHistoryModel,
+} from './QueryHistoryModel';
 
 vi.mock('../../config/lightdashConfig', async () => ({
     lightdashConfig: (await import('../../config/lightdashConfig.mock'))
@@ -25,6 +28,7 @@ const thresholds = {
     minMisses: 2,
     minShareOfRuns: 0.2,
     minWarehouseTimeMs: 1000,
+    maxTtlSeconds: 30 * 24 * 60 * 60,
 };
 
 describe('QueryHistoryModel results cache stats', () => {
@@ -119,6 +123,10 @@ describe('QueryHistoryModel results cache stats', () => {
             .delete();
     });
 
+    const recommendationRows = async () =>
+        (await model.getResultsCacheStatsRows(projectUuid, 7, thresholds))
+            .recommendationRows;
+
     const insertRun = async ({
         minutesAgo,
         cacheKey = 'key-a',
@@ -134,6 +142,7 @@ describe('QueryHistoryModel results cache stats', () => {
         requestParameters,
         exploreName = 'orders',
         invalidated = false,
+        filled = true,
     }: {
         minutesAgo: number;
         cacheKey?: string;
@@ -149,8 +158,10 @@ describe('QueryHistoryModel results cache stats', () => {
         requestParameters?: object;
         exploreName?: string;
         invalidated?: boolean;
+        filled?: boolean;
     }) => {
         const createdAt = new Date(Date.now() - minutesAgo * MINUTE);
+        const params = requestParameters ?? (withChart ? { chartUuid } : {});
         const resultsCreatedAt = hit
             ? new Date(createdAt.getTime() - MINUTE)
             : new Date(createdAt.getTime() + 1000);
@@ -161,8 +172,16 @@ describe('QueryHistoryModel results cache stats', () => {
             compiled_sql: 'select 1',
             metric_query: { exploreName },
             fields: {},
-            request_parameters:
-                requestParameters ?? (withChart ? { chartUuid } : {}),
+            request_parameters: params,
+            ...(filled
+                ? {
+                      ...getQueryHistoryRequestColumns(
+                          params as never,
+                          { exploreName } as never,
+                      ),
+                      warehouse_bytes_billed: hit ? null : bytesBilled,
+                  }
+                : {}),
             status,
             cache_key: cacheKey,
             created_at: createdAt,
@@ -195,7 +214,9 @@ describe('QueryHistoryModel results cache stats', () => {
         });
         await insertRun({ minutesAgo: 5, status: 'error' });
 
-        const rows = await model.getResultsCacheContextStats(projectUuid, 7);
+        const rows = (
+            await model.getResultsCacheStatsRows(projectUuid, 7, thresholds)
+        ).contextRows;
 
         expect(rows).toEqual([
             {
@@ -205,6 +226,51 @@ describe('QueryHistoryModel results cache stats', () => {
                 warehouseTimeOnMissesMs: 5000,
                 warehouseTimeSavedMs: 5000,
                 bytesBilledSaved: 1024,
+            },
+        ]);
+    });
+
+    test('attributes time saved to the context of each hit', async () => {
+        const produced = await insertRun({
+            minutesAgo: 60,
+            warehouseMs: 3000,
+            bytesBilled: 10,
+        });
+        await insertRun({ minutesAgo: 30, hit: true, fileName: produced });
+        await insertRun({
+            minutesAgo: 20,
+            hit: true,
+            fileName: produced,
+            context: QueryExecutionContext.DASHBOARD,
+        });
+        await insertRun({
+            minutesAgo: 10,
+            context: QueryExecutionContext.DASHBOARD,
+            warehouseMs: 700,
+        });
+
+        const { contextRows } = await model.getResultsCacheStatsRows(
+            projectUuid,
+            7,
+            thresholds,
+        );
+
+        expect(contextRows).toEqual([
+            {
+                context: QueryExecutionContext.CHART,
+                runs: 2,
+                hits: 1,
+                warehouseTimeOnMissesMs: 3000,
+                warehouseTimeSavedMs: 3000,
+                bytesBilledSaved: 10,
+            },
+            {
+                context: QueryExecutionContext.DASHBOARD,
+                runs: 2,
+                hits: 1,
+                warehouseTimeOnMissesMs: 700,
+                warehouseTimeSavedMs: 3000,
+                bytesBilledSaved: 10,
             },
         ]);
     });
@@ -235,11 +301,7 @@ describe('QueryHistoryModel results cache stats', () => {
         });
         await insertRun({ minutesAgo: 10, hit: true });
 
-        const rows = await model.getResultsCacheRecommendationRows(
-            projectUuid,
-            7,
-            thresholds,
-        );
+        const rows = await recommendationRows();
 
         expect(rows).toEqual([
             {
@@ -264,11 +326,7 @@ describe('QueryHistoryModel results cache stats', () => {
                 context: QueryExecutionContext.SCHEDULED_DELIVERY,
             });
         }
-        const rows = await model.getResultsCacheRecommendationRows(
-            projectUuid,
-            7,
-            thresholds,
-        );
+        const rows = await recommendationRows();
         expect(rows.map((row) => row.reason)).toEqual([
             ResultsCacheStatsMissReason.SCHEDULED_REFRESH,
         ]);
@@ -287,9 +345,7 @@ describe('QueryHistoryModel results cache stats', () => {
             // eslint-disable-next-line no-await-in-loop
             await insertRun({ minutesAgo: 40 - i, hit: true });
         }
-        await expect(
-            model.getResultsCacheRecommendationRows(projectUuid, 7, thresholds),
-        ).resolves.toEqual([]);
+        await expect(recommendationRows()).resolves.toEqual([]);
     });
 
     test('a group with exactly minMisses passes and one fewer is hidden', async () => {
@@ -307,11 +363,7 @@ describe('QueryHistoryModel results cache stats', () => {
             withChart: false,
         });
 
-        const rows = await model.getResultsCacheRecommendationRows(
-            projectUuid,
-            7,
-            thresholds,
-        );
+        const rows = await recommendationRows();
 
         expect(rows.map((row) => [row.chartKind, row.misses])).toEqual([
             ['chart', 2],
@@ -342,11 +394,7 @@ describe('QueryHistoryModel results cache stats', () => {
             withChart: false,
         });
 
-        const rows = await model.getResultsCacheRecommendationRows(
-            projectUuid,
-            7,
-            thresholds,
-        );
+        const rows = await recommendationRows();
 
         expect(rows.map((row) => [row.chartKind, row.warehouseTimeMs])).toEqual(
             [['chart', 1000]],
@@ -371,11 +419,7 @@ describe('QueryHistoryModel results cache stats', () => {
             });
         }
 
-        const rows = await model.getResultsCacheRecommendationRows(
-            projectUuid,
-            7,
-            thresholds,
-        );
+        const rows = await recommendationRows();
 
         expect(rows).toEqual([
             {
@@ -401,9 +445,139 @@ describe('QueryHistoryModel results cache stats', () => {
             });
         }
 
-        await expect(
-            model.getResultsCacheRecommendationRows(projectUuid, 7, thresholds),
-        ).resolves.toEqual([]);
+        await expect(recommendationRows()).resolves.toEqual([]);
+    });
+
+    test('looks back for producers as far as the longest TTL allows', async () => {
+        const produced = await insertRun({
+            minutesAgo: 45 * 24 * 60,
+            warehouseMs: 4000,
+            bytesBilled: 32,
+        });
+        await insertRun({ minutesAgo: 30, hit: true, fileName: produced });
+        const savedMs = async (maxTtlSeconds: number) =>
+            (
+                await model.getResultsCacheStatsRows(projectUuid, 7, {
+                    ...thresholds,
+                    maxTtlSeconds,
+                })
+            ).contextRows[0].warehouseTimeSavedMs;
+
+        await expect(savedMs(30 * 24 * 60 * 60)).resolves.toBe(0);
+        await expect(savedMs(60 * 24 * 60 * 60)).resolves.toBe(4000);
+    });
+
+    test.each([
+        ['every row', () => true],
+        ['some rows', (index: number) => index % 2 === 0],
+    ])(
+        'reads %s written before the copied columns existed from JSON',
+        async (_name, isUnfilled) => {
+            const scenario = async (unfilled: (index: number) => boolean) => {
+                const produced = await insertRun({
+                    minutesAgo: 8 * 24 * 60,
+                    warehouseMs: 5000,
+                    bytesBilled: 64,
+                    filled: !unfilled(0),
+                });
+                await insertRun({
+                    minutesAgo: 60,
+                    hit: true,
+                    fileName: produced,
+                    filled: !unfilled(1),
+                });
+                for (const [index, minutesAgo] of [50, 40, 30].entries()) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await insertRun({
+                        minutesAgo,
+                        reason: ResultsCacheMissReason.EXPIRED,
+                        bytesBilled: 8,
+                        filled: !unfilled(index + 2),
+                    });
+                }
+                for (const [index, minutesAgo] of [25, 20].entries()) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await insertRun({
+                        minutesAgo,
+                        reason: ResultsCacheMissReason.EXPIRED,
+                        exploreName: 'sql_query_explorer',
+                        requestParameters: {
+                            sql: 'select 1',
+                            resultSource: {
+                                savedSqlUuid,
+                                dashboardUuid: null,
+                                tileUuid: null,
+                            },
+                        },
+                        filled: !unfilled(index + 5),
+                    });
+                }
+                const stats = await model.getResultsCacheStatsRows(
+                    projectUuid,
+                    7,
+                    thresholds,
+                );
+                const replay = await model.getResultsCacheTtlReplayRows(
+                    projectUuid,
+                    30,
+                    100,
+                );
+                await database('query_history')
+                    .where('project_uuid', projectUuid)
+                    .delete();
+                return {
+                    stats,
+                    totals: replay.totals,
+                    replayRuns: replay.runs.map(
+                        ({ createdAt, resultsCreatedAt, ...run }) => run,
+                    ),
+                };
+            };
+
+            const filled = await scenario(() => false);
+            const unfilled = await scenario(isUnfilled);
+
+            expect(filled.stats.contextRows).toEqual([
+                {
+                    context: QueryExecutionContext.CHART,
+                    runs: 6,
+                    hits: 1,
+                    warehouseTimeOnMissesMs: 10000,
+                    warehouseTimeSavedMs: 5000,
+                    bytesBilledSaved: 64,
+                },
+            ]);
+            expect(
+                filled.stats.recommendationRows.map((row) => row.chartKind),
+            ).toEqual(['chart', 'sqlChart']);
+            expect(unfilled).toEqual(filled);
+        },
+    );
+
+    test('a hit counts time saved from a producer created before the window', async () => {
+        const produced = await insertRun({
+            minutesAgo: 8 * 24 * 60,
+            warehouseMs: 4000,
+            bytesBilled: 32,
+        });
+        await insertRun({ minutesAgo: 30, hit: true, fileName: produced });
+
+        const { contextRows } = await model.getResultsCacheStatsRows(
+            projectUuid,
+            7,
+            thresholds,
+        );
+
+        expect(contextRows).toEqual([
+            {
+                context: QueryExecutionContext.CHART,
+                runs: 1,
+                hits: 1,
+                warehouseTimeOnMissesMs: 0,
+                warehouseTimeSavedMs: 4000,
+                bytesBilledSaved: 32,
+            },
+        ]);
     });
 
     test('cleared results only count when they would still be fresh', async () => {
@@ -468,7 +642,9 @@ describe('QueryHistoryModel results cache stats', () => {
         });
 
         await expect(
-            model.getResultsCacheContextStats(projectUuid, 7),
+            model
+                .getResultsCacheStatsRows(projectUuid, 7, thresholds)
+                .then((stats) => stats.contextRows),
         ).resolves.toEqual([]);
         const { totals, runs } = await model.getResultsCacheTtlReplayRows(
             projectUuid,

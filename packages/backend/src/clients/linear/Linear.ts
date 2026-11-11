@@ -2,12 +2,15 @@ import {
     ForbiddenError,
     getErrorMessage,
     LightdashError, // pragma: allowlist secret
+    LinearConnectError,
     NotFoundError,
     UnexpectedServerError,
     type LinearCreatedIssue,
+    type LinearOAuthCredentials,
     type LinearProject,
     type LinearTeam,
 } from '@lightdash/common'; // pragma: allowlist secret
+import Logger from '../../logging/logger';
 
 const LINEAR_AUTHORIZE_URL = 'https://linear.app/oauth/authorize';
 const LINEAR_TOKEN_URL = 'https://api.linear.app/oauth/token';
@@ -61,6 +64,8 @@ export type LinearTokens = {
 type LinearTokenResponse = {
     access_token?: string;
     refresh_token?: string;
+    error?: string;
+    error_description?: string;
 };
 
 export const getLinearAuthorizationUrl = (
@@ -84,12 +89,65 @@ export const getLinearAuthorizationUrl = (
     return `${LINEAR_AUTHORIZE_URL}?${params.toString()}`;
 };
 
+export class LinearTokenRequestError extends LightdashError {
+    readonly reason: LinearConnectError;
+
+    constructor(reason: LinearConnectError) {
+        const unavailable = reason === LinearConnectError.LINEAR_UNAVAILABLE;
+        super({
+            message: unavailable
+                ? 'Linear is unavailable'
+                : 'Invalid Linear authentication token',
+            name: 'LinearTokenRequestError',
+            statusCode: unavailable ? 502 : 403,
+            data: { reason },
+        });
+        this.reason = reason;
+    }
+}
+
+const getTokenErrorReason = (
+    status: number,
+    error: string | undefined,
+): LinearConnectError => {
+    if (status >= 500) return LinearConnectError.LINEAR_UNAVAILABLE;
+    switch (error) {
+        case 'invalid_client':
+        case 'invalid_secret':
+            return LinearConnectError.INVALID_CLIENT;
+        case 'unauthorized_client':
+            return LinearConnectError.UNAUTHORIZED_CLIENT;
+        case 'invalid_grant':
+            return LinearConnectError.INVALID_GRANT;
+        default:
+            return LinearConnectError.UNKNOWN;
+    }
+};
+
+const readTokenResponse = async (
+    response: Response,
+): Promise<LinearTokenResponse> => {
+    try {
+        return (await response.json()) as LinearTokenResponse;
+    } catch {
+        return {};
+    }
+};
+
 const parseTokenResponse = async (
     response: Response,
 ): Promise<LinearTokens> => {
-    const body = (await response.json()) as LinearTokenResponse;
+    const body = await readTokenResponse(response);
     if (!response.ok || !body.access_token) {
-        throw new ForbiddenError('Invalid Linear authentication token');
+        const reason = [body.error, body.error_description]
+            .filter(Boolean)
+            .join(': ');
+        Logger.warn(
+            `Linear token request failed with status ${response.status}: ${reason || 'no access token returned'}`,
+        );
+        throw new LinearTokenRequestError(
+            getTokenErrorReason(response.status, body.error),
+        );
     }
 
     return {
@@ -101,34 +159,38 @@ const parseTokenResponse = async (
 const requestLinearToken = async (
     body: URLSearchParams,
 ): Promise<LinearTokens> => {
+    let response: Response;
     try {
-        const response = await fetch(LINEAR_TOKEN_URL, {
+        response = await fetch(LINEAR_TOKEN_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
             body,
         });
-
-        return await parseTokenResponse(response);
     } catch (error) {
-        if (error instanceof LightdashError) {
-            throw error;
-        }
-        throw new UnexpectedServerError(getErrorMessage(error));
+        Logger.warn(
+            `Linear token request could not reach Linear: ${getErrorMessage(error)}`,
+        );
+        throw new LinearTokenRequestError(
+            LinearConnectError.LINEAR_UNAVAILABLE,
+        );
     }
+
+    return parseTokenResponse(response);
 };
 
 export const exchangeLinearCodeForToken = async (
     code: string,
-    clientId: string,
+    credentials: LinearOAuthCredentials,
     redirectUri: string,
     codeVerifier: string,
 ): Promise<LinearTokens> =>
     requestLinearToken(
         new URLSearchParams({
             grant_type: 'authorization_code',
-            client_id: clientId,
+            client_id: credentials.clientId,
+            client_secret: credentials.clientSecret,
             redirect_uri: redirectUri,
             code,
             code_verifier: codeVerifier,
@@ -138,11 +200,13 @@ export const exchangeLinearCodeForToken = async (
 export const refreshLinearToken = async (
     refreshToken: string,
     clientId: string,
+    clientSecret: string | null,
 ): Promise<LinearTokens> =>
     requestLinearToken(
         new URLSearchParams({
             grant_type: 'refresh_token',
             client_id: clientId,
+            ...(clientSecret ? { client_secret: clientSecret } : {}),
             refresh_token: refreshToken,
         }),
     );

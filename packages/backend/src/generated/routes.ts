@@ -19689,6 +19689,7 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
                 baseTable: { dataType: 'string', required: true },
+                combineJoinedFields: { dataType: 'boolean' },
                 groups: { dataType: 'array', array: { dataType: 'string' } },
                 groupLabel: { dataType: 'string' },
                 tags: {
@@ -68953,6 +68954,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                combineJoinedFields: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 baseTable: {
                     dataType: 'union',
                     subSchemas: [
@@ -74354,6 +74362,13 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
+                combineJoinedFields: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 tables: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {},
@@ -74549,6 +74564,13 @@ const models: TsoaRoute.Models = {
                 dataType: 'union',
                 subSchemas: [
                     { ref: 'DbtExploreIdentity' },
+                    { dataType: 'undefined' },
+                ],
+            },
+            combineJoinedFields: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'boolean' },
                     { dataType: 'undefined' },
                 ],
             },

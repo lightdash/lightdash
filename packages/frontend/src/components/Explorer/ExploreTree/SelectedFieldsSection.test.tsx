@@ -5,7 +5,7 @@ import {
     type Dimension,
     type Metric,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Provider } from 'react-redux';
 import { createExplorerStore } from '../../../features/explorer/store';
@@ -213,5 +213,84 @@ describe('SelectedFieldsSection source-aware actions', () => {
         expect(
             screen.queryByRole('menuitem', { name: 'Create custom metric' }),
         ).not.toBeInTheDocument();
+    });
+});
+
+describe('combined selected fields', () => {
+    it('keeps selection order without table headings and disambiguates identical labels', async () => {
+        const user = userEvent.setup();
+        const onDeselect = vi.fn();
+        const fields = ['buyer', 'seller'].map((table) => ({
+            fieldId: `${table}_id`,
+            item: {
+                ...item,
+                table,
+                name: 'id',
+                label: 'ID',
+                description: undefined,
+            },
+            tableLabel: 'People',
+            isDimension: true,
+        }));
+        renderWithProviders(
+            <Provider store={createExplorerStore()}>
+                <SelectedFieldsSection
+                    fields={fields}
+                    onDeselect={onDeselect}
+                    combinedSourceLabels={
+                        new Map([
+                            ['buyer', 'People (buyer)'],
+                            ['seller', 'People (seller)'],
+                        ])
+                    }
+                />
+            </Provider>,
+        );
+        const list = screen.getByTestId('SelectedFieldsSection');
+        expect(within(list).queryByText('People')).not.toBeInTheDocument();
+        expect(
+            within(list)
+                .getAllByText(/^People \(/)
+                .map((node) => node.textContent),
+        ).toEqual(['People (buyer)', 'People (seller)']);
+        const buyer = screen.getByTestId('selected-field-buyer_id');
+        await user.hover(within(buyer).getByTitle('ID'));
+        expect(
+            await screen.findByText('Source table: People (buyer)'),
+        ).toBeVisible();
+        await user.click(buyer);
+        expect(onDeselect).toHaveBeenCalledWith('buyer_id', true);
+    });
+
+    it('keeps the source in hover details when the selected label is unique', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(
+            <Provider store={createExplorerStore()}>
+                <SelectedFieldsSection
+                    fields={[
+                        {
+                            fieldId: 'subscriptions_customer_id',
+                            item: { ...item, description: undefined },
+                            tableLabel: 'Subscriptions',
+                            isDimension: true,
+                        },
+                    ]}
+                    onDeselect={vi.fn()}
+                    combinedSourceLabels={
+                        new Map([['subscriptions', 'Subscriptions']])
+                    }
+                />
+            </Provider>,
+        );
+        expect(screen.queryByText('Subscriptions')).not.toBeInTheDocument();
+        await user.hover(screen.getByTitle('Customer id'));
+        expect(
+            await screen.findByText('Source table: Subscriptions'),
+        ).toBeVisible();
+    });
+
+    it('preserves table headings when combining is off', () => {
+        renderSelectedDimension();
+        expect(screen.getByText('Subscriptions')).toBeVisible();
     });
 });

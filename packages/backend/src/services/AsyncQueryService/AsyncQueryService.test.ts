@@ -31170,23 +31170,25 @@ describe('findResultsCache miss reasons', () => {
 
 describe('results cache stats', () => {
     const build = (canManage: boolean) => {
-        const getResultsCacheRecommendationRows = vi.fn(async () => []);
+        const getResultsCacheStatsRows = vi.fn(async () => ({
+            contextRows: [
+                {
+                    context: QueryExecutionContext.DASHBOARD,
+                    runs: 4,
+                    hits: 2,
+                    warehouseTimeOnMissesMs: 10,
+                    warehouseTimeSavedMs: 20,
+                },
+            ],
+            recommendationRows: [],
+        }));
         const getResultsCacheTtlReplayRows = vi.fn(async () => ({
             totals: { runs: 4, hits: 2 },
             runs: [],
         }));
         const service = getMockedAsyncQueryService(lightdashConfigMock, {
             queryHistoryModel: {
-                getResultsCacheContextStats: vi.fn(async () => [
-                    {
-                        context: QueryExecutionContext.DASHBOARD,
-                        runs: 4,
-                        hits: 2,
-                        warehouseTimeOnMissesMs: 10,
-                        warehouseTimeSavedMs: 20,
-                    },
-                ]),
-                getResultsCacheRecommendationRows,
+                getResultsCacheStatsRows,
                 getResultsCacheTtlReplayRows,
             } as unknown as QueryHistoryModel,
             projectModel: {
@@ -31209,7 +31211,7 @@ describe('results cache stats', () => {
         });
         return {
             service,
-            getResultsCacheRecommendationRows,
+            getResultsCacheStatsRows,
             getResultsCacheTtlReplayRows,
         };
     };
@@ -31265,9 +31267,9 @@ describe('results cache stats', () => {
     });
 
     test('passes scheduled contexts and thresholds to the recommendation query', async () => {
-        const { service, getResultsCacheRecommendationRows } = build(true);
+        const { service, getResultsCacheStatsRows } = build(true);
         await service.getResultsCacheStats(buildAccount(), 'project', 7);
-        expect(getResultsCacheRecommendationRows).toHaveBeenCalledWith(
+        expect(getResultsCacheStatsRows).toHaveBeenCalledWith(
             'project',
             7,
             expect.objectContaining({
@@ -31275,7 +31277,52 @@ describe('results cache stats', () => {
                     QueryExecutionContext.SCHEDULED_DELIVERY,
                 ]),
                 minMisses: 5,
+                maxTtlSeconds: MAX_RESULTS_CACHE_TTL_SECONDS,
             }),
+        );
+    });
+
+    test('looks back as far as the instance default TTL when it exceeds the project cap', async () => {
+        const getResultsCacheStatsRows = vi.fn(async () => ({
+            contextRows: [],
+            recommendationRows: [],
+        }));
+        const instanceTtlSeconds = MAX_RESULTS_CACHE_TTL_SECONDS * 2;
+        const service = getMockedAsyncQueryService(
+            {
+                ...lightdashConfigMock,
+                results: {
+                    ...lightdashConfigMock.results,
+                    cacheStateTimeSeconds: instanceTtlSeconds,
+                },
+            },
+            {
+                queryHistoryModel: {
+                    getResultsCacheStatsRows,
+                } as unknown as QueryHistoryModel,
+                projectModel: {
+                    getSummary: vi.fn(async () => ({
+                        organizationUuid: 'org',
+                        projectUuid: 'project',
+                    })),
+                } as unknown as ProjectModel,
+            } as never,
+        );
+        vi.spyOn(
+            service as unknown as {
+                createAuditedAbility: () => {
+                    cannot: (action: string) => boolean;
+                };
+            },
+            'createAuditedAbility',
+        ).mockReturnValue({ cannot: () => false });
+
+        await service.getResultsCacheStats(buildAccount(), 'project', 7);
+
+        expect(getResultsCacheStatsRows).toHaveBeenCalledWith(
+            'project',
+            7,
+            expect.objectContaining({ maxTtlSeconds: instanceTtlSeconds }),
         );
     });
 

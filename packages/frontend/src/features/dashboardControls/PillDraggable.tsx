@@ -45,6 +45,7 @@ export const PillDraggable: FC<{
             className={`${classes.pillDrag} ${
                 isInBarContext ? classes.barDraggable : dndClasses.draggable
             }`}
+            data-pill-draggable
             data-can-drag={!isDisabled || undefined}
             data-dragging={
                 (isInBarContext ? isDragging : !!transform) || undefined

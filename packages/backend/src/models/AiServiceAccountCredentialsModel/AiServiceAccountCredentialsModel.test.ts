@@ -335,6 +335,14 @@ describe('Snowflake credential payloads', () => {
             privateKey: snowflakeEncryptedKey,
             privateKeyPass: snowflakePassphrase,
         },
+        {
+            ...snowflakeSecrets,
+            privateKey: snowflakeEncryptedKey
+                .replace(/ENCRYPTED PRIVATE KEY/g, 'RSA PRIVATE KEY')
+                .trim()
+                .replace(/\n/g, ' '),
+            privateKeyPass: snowflakePassphrase,
+        },
     ])(
         'accepts usable RSA private keys without changing stored material',
         (credentials) => {
@@ -379,7 +387,7 @@ describe('Snowflake credential payloads', () => {
                     ...override,
                 });
             } catch (error) {
-                expect(String(error)).not.toMatch(/BEGIN|wrong|routing/);
+                expect(String(error)).not.toMatch(/-----BEGIN|wrong|routing/);
             }
         },
     );

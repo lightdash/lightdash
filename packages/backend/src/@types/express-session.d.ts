@@ -32,6 +32,7 @@ declare module 'express-session' {
             state?: string | undefined;
             linear?: {
                 clientId: string;
+                encryptedClientSecret: string;
                 codeVerifier: string;
                 redirectUri: string;
             };

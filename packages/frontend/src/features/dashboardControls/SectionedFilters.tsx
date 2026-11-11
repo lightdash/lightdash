@@ -150,6 +150,10 @@ import { useParameterEditorSelector } from './useParameterEditor';
 const ADD_FILTER_SELECTOR =
     '[data-filter-actions] > button[data-dashboard-filter-control]';
 const NEW_SECTION_SELECTOR = '[data-new-section]';
+// A pill's box holds its own drag and buttons (a parameter's remove, an
+// unresolved filter's), wherever they sit in it
+const NOT_SECTION_HANDLE =
+    '[data-pill-draggable], [data-controls-pill], [data-parameter-pill], [data-section-actions]';
 const pillSelector = (id: string) => `[data-controls-pill="${id}"]`;
 const sectionNameSelector = (id: string) => `[data-section-name="${id}"]`;
 const sectionAddSelector = (id: string) => `[data-section-add="${id}"]`;
@@ -216,7 +220,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
         id: section.id,
         data: { kind: SECTION_DRAG },
     });
-    // An editor drags the capsule by its head to place the section
+    // An editor drags the capsule from anywhere but its pills and actions
     const isDraggable = actions !== null && !actions.isLocked && !isRenaming;
     const head = useDraggable({
         id: section.id,
@@ -267,17 +271,12 @@ const SectionCapsule: FC<CapsuleProps> = ({
                 </Text>
             </UnstyledButton>
         ) : (
-            // The head drags the capsule (a pointer only: the keys stay the
-            // chevron's and the name's)
             <Group
                 ref={head.setNodeRef}
                 gap={0}
                 wrap="nowrap"
                 className={classes.head}
                 data-section-head
-                onPointerDown={(event) =>
-                    head.listeners?.onPointerDown?.(event)
-                }
             >
                 {/* An editor's chevron only folds; the name renames */}
                 <Tooltip label={chevronLabel}>
@@ -343,6 +342,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
             className={`${classes.actions} ${pillClasses.inert}`}
             inert={actions.isLocked || undefined}
             data-section-end
+            data-section-actions
         >
             {drop === 'into' && <DropLine side="before" />}
             <AddControl
@@ -377,14 +377,26 @@ const SectionCapsule: FC<CapsuleProps> = ({
             }
             data-dragging={head.isDragging || undefined}
             data-can-drag={isDraggable || undefined}
+            // A pointer anywhere on the capsule drags it, except on a pill (its
+            // own drag), the trailing actions or a portalled menu
+            onPointerDown={
+                isDraggable
+                    ? (event) => {
+                          if (
+                              event.target instanceof Element &&
+                              event.currentTarget.contains(event.target) &&
+                              event.target.closest(NOT_SECTION_HANDLE) === null
+                          )
+                              head.listeners?.onPointerDown?.(event);
+                      }
+                    : undefined
+            }
         >
             {(drop === 'before' || drop === 'after') && (
                 <DropLine side={drop} top={dropTop} />
             )}
             {headNode}
             {isFolded ? (
-                // An editor drags the capsule by its count too, the open
-                // hand showing it moves, as a pill's does
                 <Text
                     span
                     id={summaryId}
@@ -392,11 +404,6 @@ const SectionCapsule: FC<CapsuleProps> = ({
                     c="dimmed"
                     className={classes.summary}
                     data-section-end={actions !== null || undefined}
-                    onPointerDown={
-                        isDraggable
-                            ? (event) => head.listeners?.onPointerDown?.(event)
-                            : undefined
-                    }
                 >
                     {summary}
                 </Text>
