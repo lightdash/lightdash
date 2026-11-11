@@ -13,7 +13,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconCalendar } from '@tabler/icons-react';
+import { IconCalendar, IconListCheck } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -248,28 +248,44 @@ export const DefaultZoomPopover: FC<Props> = ({
                     setView('value');
                 }}
             />
-            <Stack gap="xs">
-                <Stack gap={2}>
-                    <Text size="xs" fw={600}>
-                        Grains viewers can pick
-                    </Text>
-                    <Text size="xs" c="dimmed">
-                        For every date zoom on this dashboard.
-                    </Text>
-                </Stack>
-                <SimpleGrid cols={2} spacing="xs" verticalSpacing={6}>
-                    {STANDARD_GRAINS.map(checkbox)}
-                </SimpleGrid>
-                {custom.length > 0 && (
-                    <>
+            <Stack gap="sm">
+                {/* A setting row, as Lock: its label and caption, then its
+                    control, every gap the rows' 6px */}
+                <Stack gap={6}>
+                    <Stack gap={4}>
+                        <Group gap={6} wrap="nowrap">
+                            <MantineIcon
+                                icon={IconListCheck}
+                                size="sm"
+                                color="ldGray.6"
+                            />
+                            <Text size="xs" fw={600}>
+                                Grains viewers can pick
+                            </Text>
+                        </Group>
                         <Text size="xs" c="dimmed">
-                            {getUiString('controls.dateZoom.custom')}
+                            For every date zoom on this dashboard.
                         </Text>
-                        <SimpleGrid cols={2} spacing="xs" verticalSpacing={6}>
-                            {custom.map(checkbox)}
-                        </SimpleGrid>
-                    </>
-                )}
+                    </Stack>
+                    <SimpleGrid cols={2} spacing="xs" verticalSpacing={6}>
+                        {STANDARD_GRAINS.map(checkbox)}
+                    </SimpleGrid>
+                    {custom.length > 0 && (
+                        <>
+                            {/* As the select's group label */}
+                            <Text size="xs" fw={500} c="dimmed">
+                                {getUiString('controls.dateZoom.custom')}
+                            </Text>
+                            <SimpleGrid
+                                cols={2}
+                                spacing="xs"
+                                verticalSpacing={6}
+                            >
+                                {custom.map(checkbox)}
+                            </SimpleGrid>
+                        </>
+                    )}
+                </Stack>
             </Stack>
         </Stack>
     );
