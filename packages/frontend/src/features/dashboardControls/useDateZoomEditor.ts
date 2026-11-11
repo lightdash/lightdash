@@ -1,6 +1,11 @@
 import { type DateZoomControl } from '@lightdash/common';
 import { createContext, useContextSelector } from 'use-context-selector';
-import { type DateZoomTileTargets } from './dateZoomControls';
+import {
+    type DateZoomMapping,
+    type DateZoomTileTargets,
+    type ZoomTileChange,
+} from './dateZoomControls';
+import { type FieldApply } from './useControlsSidebar';
 
 export type DateZoomEditorValue = {
     /** The zoom in the popover, or null. */
@@ -33,6 +38,21 @@ export type DateZoomEditorValue = {
     setSection: (id: string, sectionId: string | null) => void;
     /** Edit mode: the pill's X takes the zoom off the bar. */
     remove: (id: string) => void;
+    /** Choosing the draft's tiles: the mapping row stands in for the popover. */
+    isMapping: boolean;
+    /** What mapping shows, computed once; null while not mapping. */
+    mapping: DateZoomMapping | null;
+    /** The last change in mapping, while Undo can take it back. */
+    mappingUndo: FieldApply | null;
+    /** "Choose tiles": the popover gives way to the mapping row. */
+    startMapping: () => void;
+    /** The back arrow: the popover again, tile choices kept in the draft. */
+    endMapping: () => void;
+    /** Tile choices back to where mapping started, then the popover. */
+    cancelMapping: () => void;
+    /** Puts the draft on (or takes it off) tiles; Undo can take it back. */
+    setTiles: (changes: ZoomTileChange[], kind: FieldApply['kind']) => void;
+    undoMapping: () => void;
 };
 
 export const DateZoomEditorContext = createContext<DateZoomEditorValue | null>(
@@ -58,6 +78,14 @@ const NO_EDITOR: DateZoomEditorValue = {
     resolvePending: noop,
     setSection: noop,
     remove: noop,
+    isMapping: false,
+    mapping: null,
+    mappingUndo: null,
+    startMapping: noop,
+    endMapping: noop,
+    cancelMapping: noop,
+    setTiles: noop,
+    undoMapping: noop,
 };
 
 /** Callbacks are stable; select a slice so a pill re-renders only for its own. */

@@ -14,6 +14,7 @@ import { getParameterTabCounts } from './parameterPeers';
 import { getTakeableTabCounts, getTilesOnTab } from './peers';
 import classes from './TabCounts.module.css';
 import { useControlsSidebarSelector } from './useControlsSidebar';
+import { useDateZoomMapping } from './useDateZoomMapping';
 import { useParameterMapping } from './useParameterMapping';
 import { usePortalTargets } from './usePortalTargets';
 import { useSqlColumnsByTile } from './useSqlColumnsByTile';
@@ -60,6 +61,26 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
     );
     const sqlColumnsByTile = useSqlColumnsByTile(rule);
     const parameterMapping = useParameterMapping();
+    const dateZoomMapping = useDateZoomMapping();
+    // A control's tiles are chosen, by takeable and set tiles
+    const controlMapping =
+        parameterMapping !== null
+            ? {
+                  name: parameterMapping.name,
+                  verb: 'set',
+                  takeable: parameterMapping.takeableTileUuids,
+                  set: parameterMapping.setTileUuids,
+              }
+            : dateZoomMapping !== null
+              ? {
+                    name: dateZoomMapping.name,
+                    verb: 'zoomed',
+                    takeable: dateZoomMapping.takeableTileUuids,
+                    set: dateZoomMapping.zoomedTileUuids,
+                }
+              : null;
+    const mappedTakeable = controlMapping?.takeable ?? null;
+    const mappedSet = controlMapping?.set ?? null;
 
     const tabUuids = useMemo(
         () => dashboardTabs.map((tab) => tab.uuid),
@@ -69,7 +90,7 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
     const isEnabled = dashboardTabs.length > 0 && !isViewer;
     // An embed editor's plain tabs have no slot: the count goes in the tab
     const isInSlot = hasTabSlots && !isViewer;
-    const isFilterOpen = rule !== null || parameterMapping !== null;
+    const isFilterOpen = rule !== null || controlMapping !== null;
     const targets = usePortalTargets(
         tabUuids,
         isInSlot ? getTabSlotSelector : getTabSelector,
@@ -93,9 +114,9 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
     // The whole filter, whichever chip is hovered or selected, over the tiles
     // that can take it: the tabs add up to the mapping row's "of m"
     const counts = useMemo(() => {
-        if (parameterMapping !== null) {
-            const takeable = new Set(parameterMapping.takeableTileUuids);
-            const set = new Set(parameterMapping.setTileUuids);
+        if (mappedTakeable !== null && mappedSet !== null) {
+            const takeable = new Set(mappedTakeable);
+            const set = new Set(mappedSet);
             return getParameterTabCounts({
                 tiles: dashboardTiles ?? [],
                 tabs: dashboardTabs,
@@ -117,7 +138,8 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
         dashboardTabs,
         fieldsByTile,
         sqlColumnsByTile,
-        parameterMapping,
+        mappedTakeable,
+        mappedSet,
     ]);
 
     // Every tile on the tab: no count is wider, so none reflows the tabs
@@ -154,7 +176,7 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
                 if (!element) return null;
                 // Counts show only while tiles are chosen: the slot stays, empty
                 const count =
-                    parameterMapping !== null
+                    controlMapping !== null
                         ? counts[tab.uuid]
                         : rule === null || isPlaceholder || !isMapping
                           ? null
@@ -171,11 +193,11 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
                         label={
                             countValues &&
                             interpolateUiString(
-                                parameterMapping !== null
-                                    ? // Editors only map parameters
+                                controlMapping !== null
+                                    ? // Editors only map parameters and date zooms
                                       countValues.total === 1
-                                        ? '{applied} of {total} tile on this tab is set by {subject}'
-                                        : '{applied} of {total} tiles on this tab are set by {subject}'
+                                        ? `{applied} of {total} tile on this tab is ${controlMapping.verb} by {subject}`
+                                        : `{applied} of {total} tiles on this tab are ${controlMapping.verb} by {subject}`
                                     : getUiString(
                                           countValues.total === 1
                                               ? 'controls.tabCountTooltip.singular'
@@ -183,7 +205,7 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
                                       ),
                                 {
                                     ...countValues,
-                                    subject: parameterMapping?.name ?? subject,
+                                    subject: controlMapping?.name ?? subject,
                                 },
                             )
                         }

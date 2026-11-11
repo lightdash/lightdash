@@ -2,6 +2,7 @@ import {
     type DashboardControlSection,
     type DateZoomConfig,
     type DateZoomControl,
+    type DateZoomTileTarget,
 } from '@lightdash/common';
 
 /** What a date zoom pill's drag carries, so drops tell it from the others. */
@@ -121,3 +122,135 @@ export const applyZoomDraft = ({
         tileTargets: draftTargets,
     };
 };
+/** A tile's target for the zoom: a field to re-grain, or null for a tile that only reads the parameter. */
+export type ZoomTileChange = {
+    tileUuid: string;
+    /** Null: the tile leaves the zoom. */
+    target: Pick<DateZoomTileTarget, 'fieldId' | 'tableName'> | null;
+};
+
+/** The zoom set on (or taken off) each tile; a tile in another zoom moves. */
+export const setZoomTiles = (
+    targets: DateZoomTileTargets,
+    controlUuid: string,
+    changes: ZoomTileChange[],
+): DateZoomTileTargets => {
+    const next = { ...targets };
+    changes.forEach(({ tileUuid, target }) => {
+        if (target === null) {
+            if (next[tileUuid]?.controlUuid === controlUuid)
+                delete next[tileUuid];
+        } else next[tileUuid] = { controlUuid, ...target };
+    });
+    return next;
+};
+
+/** A tile on the grid while a zoom's tiles are chosen. */
+export type DateZoomTileCard =
+    | { kind: 'none' }
+    | {
+          /** A date field to re-grain, or (`param`) only the reserved parameter. */
+          kind: 'field' | 'param';
+          /** Its zoomable fields, for `field`; empty for `param`. */
+          fieldIds: string[];
+          fieldLabels: string[];
+          fieldTables: string[];
+          /** Its field in this zoom; null for a `param` tile in it, undefined when not in it. */
+          fieldId: string | null | undefined;
+          /** Another zoom has it: Move asks first, and warns when it is that zoom's last tile. */
+          takenBy: { name: string; isLast: boolean } | null;
+      };
+
+export type DateZoomMapping = {
+    /** The draft's name, as its pill reads. */
+    name: string;
+    cardByTile: Record<string, DateZoomTileCard>;
+    /** Tiles a zoom can take, on any tab. */
+    takeableTileUuids: string[];
+    /** Tiles in this zoom. */
+    zoomedTileUuids: string[];
+};
+
+/** What choosing a zoom's tiles shows, from the eligible tiles and the draft's targets */
+export const getDateZoomMapping = ({
+    draft,
+    controls,
+    targets,
+    tileUuids,
+    eligible,
+}: {
+    draft: DateZoomControl;
+    controls: DateZoomControl[];
+    targets: DateZoomTileTargets;
+    /** Every tile on the dashboard. */
+    tileUuids: string[];
+    eligible: {
+        tileUuid: string;
+        fields: { fieldId: string; label: string; tableName: string }[];
+        isParamOnly: boolean;
+    }[];
+}): DateZoomMapping => {
+    const byTile = new Map(eligible.map((entry) => [entry.tileUuid, entry]));
+    const cardOf = (tileUuid: string): DateZoomTileCard => {
+        const entry = byTile.get(tileUuid);
+        if (entry === undefined) return { kind: 'none' };
+        const target = targets[tileUuid];
+        const other =
+            target !== undefined && target.controlUuid !== draft.uuid
+                ? controls.find(({ uuid }) => uuid === target.controlUuid)
+                : undefined;
+        return {
+            kind: entry.isParamOnly ? 'param' : 'field',
+            fieldIds: entry.fields.map(({ fieldId }) => fieldId),
+            fieldLabels: entry.fields.map(({ label }) => label),
+            fieldTables: entry.fields.map(({ tableName }) => tableName),
+            fieldId:
+                target?.controlUuid === draft.uuid ? target.fieldId : undefined,
+            takenBy:
+                other === undefined
+                    ? null
+                    : {
+                          name: other.name,
+                          isLast:
+                              getZoomTileUuids(targets, other.uuid).length ===
+                              1,
+                      },
+        };
+    };
+    return {
+        name: draft.name,
+        cardByTile: Object.fromEntries(
+            tileUuids.map((tileUuid) => [tileUuid, cardOf(tileUuid)]),
+        ),
+        takeableTileUuids: eligible.map(({ tileUuid }) => tileUuid),
+        zoomedTileUuids: getZoomTileUuids(targets, draft.uuid),
+    };
+};
+
+/** Bulk add: each tile in no zoom on its first field, or with no field when it only reads the parameter */
+export const getBulkZoomChanges = (
+    mapping: DateZoomMapping,
+    tileUuids: string[],
+): ZoomTileChange[] =>
+    tileUuids.flatMap((tileUuid): ZoomTileChange[] => {
+        const card = mapping.cardByTile[tileUuid];
+        if (
+            card === undefined ||
+            card.kind === 'none' ||
+            card.takenBy !== null ||
+            card.fieldId !== undefined
+        )
+            return [];
+        if (card.kind === 'param')
+            return [{ tileUuid, target: { fieldId: null, tableName: null } }];
+        if (card.fieldIds.length === 0) return [];
+        return [
+            {
+                tileUuid,
+                target: {
+                    fieldId: card.fieldIds[0],
+                    tableName: card.fieldTables[0],
+                },
+            },
+        ];
+    });

@@ -47,7 +47,6 @@ import { usePillActionHover } from './usePillActionHover';
 
 const NO_TRANSITION = { duration: 0 };
 const DRAG_DATA = { kind: DATE_ZOOM_DRAG };
-const noop = () => {};
 
 // The open zoom's popover, wired to the provider, the only writer
 const DateZoomEditorContent: FC = () => {
@@ -62,6 +61,7 @@ const DateZoomEditorContent: FC = () => {
     const apply = useDateZoomEditorSelector((c) => c.apply);
     const cancel = useDateZoomEditorSelector((c) => c.cancel);
     const resolvePending = useDateZoomEditorSelector((c) => c.resolvePending);
+    const startMapping = useDateZoomEditorSelector((c) => c.startMapping);
     const config = useDashboardDateZoomConfig();
     const granularities = useDashboardDateZoomGranularities();
     const customLabels = useDashboardSelector(
@@ -92,7 +92,7 @@ const DateZoomEditorContent: FC = () => {
                           ).length,
                           totalTileCount: eligibleTiles.length,
                           initialView: 'value',
-                          onChooseTiles: noop,
+                          onChooseTiles: startMapping,
                           onChange: update,
                       }
             }
@@ -113,7 +113,9 @@ const DateZoomEditorPopover: FC<{ isOpen: boolean; children: ReactNode }> = ({
     const contractClasses = useRailContractClasses();
     const filterMapping = useControlsSidebarSelector((c) => c.isMapping);
     const parameterMapping = useParameterEditorSelector((c) => c.isMapping);
-    const isShown = isOpen && !filterMapping && !parameterMapping;
+    const dateZoomMapping = useDateZoomEditorSelector((c) => c.isMapping);
+    const isShown =
+        isOpen && !filterMapping && !parameterMapping && !dateZoomMapping;
     return (
         <Popover
             opened={isShown}

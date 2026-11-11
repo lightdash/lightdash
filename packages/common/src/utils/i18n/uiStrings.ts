@@ -482,6 +482,15 @@ export const DEFAULT_UI_STRINGS = {
         'If cleared, tiles keep their own grain.',
     'controls.dateZoom.custom': 'Custom',
     'controls.dateZoom.clearGrain': 'Clear grain',
+    'controls.dateZoom.zoomsWord': 'zooms',
+    'controls.dateZoom.backToDateZoom': 'Back to date zoom',
+    'controls.dateZoom.dateField': 'Date field',
+    'controls.dateZoom.stopZooming': 'Stop zooming this tile',
+    'controls.dateZoom.usesParameter': 'Uses the date zoom parameter',
+    'controls.dateZoom.inZoom': 'In {zoom}',
+    'controls.dateZoom.noDateField': 'This tile has no date to zoom',
+    'controls.dateZoom.tilesLocked':
+        'Tiles are locked while a date zoom is edited',
     'filters.tileCard.locked': 'Tiles are locked while a filter is edited',
     'filters.tileCard.unreachable':
         'This tile has no field this filter can use',
