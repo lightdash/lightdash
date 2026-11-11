@@ -1994,6 +1994,26 @@ describe('DuckdbWarehouseClient', () => {
             await first;
         });
 
+        it('holds a query over the process-wide ceiling until any organization frees a slot', async () => {
+            const run = (index: number) =>
+                createClient().runQuery(`SELECT 'q${index}' AS val`, {
+                    organization_uuid: `org-${index}`,
+                });
+            const running = [1, 2, 3, 4, 5, 6, 7, 8].map(run);
+            await vi.waitFor(() => expect(startedQueries()).toHaveLength(8));
+
+            const ninth = run(9);
+            await new Promise((resolve) => {
+                setTimeout(resolve, 50);
+            });
+            expect(startedQueries()).not.toContain('q9');
+
+            finish('q1');
+            await vi.waitFor(() => expect(startedQueries()).toContain('q9'));
+            [2, 3, 4, 5, 6, 7, 8, 9].forEach((index) => finish(`q${index}`));
+            await Promise.all([...running, ninth]);
+        });
+
         it('hands freed slots to waiting queries in arrival order', async () => {
             const first = createClient().runQuery("SELECT 'q1' AS val", tags);
             await vi.waitFor(() => expect(startedQueries()).toEqual(['q1']));

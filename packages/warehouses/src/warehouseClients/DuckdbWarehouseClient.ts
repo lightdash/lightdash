@@ -577,6 +577,12 @@ const EMBEDDED_MAX_CONCURRENT_QUERIES_PER_ORGANIZATION =
         4,
     );
 
+// ponytail: process-wide ceiling for organization-capped sessions only; merge-join sessions stay uncapped.
+const ORGANIZATION_CAPPED_MAX_CONCURRENT_QUERIES =
+    getPositiveIntegerEnvironmentVariable(
+        'EXTERNAL_SOURCES_MAX_CONCURRENT_DUCKDB_QUERIES',
+        8,
+    );
 const EMBEDDED_CONCURRENCY_ACQUIRE_TIMEOUT_MS =
     getPositiveIntegerEnvironmentVariable(
         'PLAYGROUND_CONCURRENCY_ACQUIRE_TIMEOUT_MS',
@@ -685,6 +691,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         string,
         ConcurrencyBudget
     >();
+
+    private static readonly organizationCappedProcessBudget =
+        new ConcurrencyBudget(ORGANIZATION_CAPPED_MAX_CONCURRENT_QUERIES);
 
     private static readonly sqlBuilder = new DuckdbSqlBuilder();
 
@@ -991,6 +1000,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         limit: number,
         timeoutMs: number,
     ): Promise<(() => void) | undefined> {
+        const acquireDeadline = Date.now() + timeoutMs;
         const key = `${limit}:${organizationUuid}`;
         const budget =
             DuckdbWarehouseClient.organizationConcurrencyBudgets.get(key) ??
@@ -1008,18 +1018,35 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             }
             return undefined;
         }
-        let released = false;
-        return () => {
-            if (released) {
-                return;
-            }
-            released = true;
+        const releaseOrganization = () => {
             budget.release();
             if (budget.isIdle()) {
                 DuckdbWarehouseClient.organizationConcurrencyBudgets.delete(
                     key,
                 );
             }
+        };
+        // Organization slot first, so one organization's queue cannot hold process slots
+        const processBudget =
+            DuckdbWarehouseClient.organizationCappedProcessBudget;
+        const processAcquired =
+            timeoutMs > 0
+                ? await processBudget.acquire(
+                      Math.max(0, acquireDeadline - Date.now()),
+                  )
+                : processBudget.tryAcquire();
+        if (!processAcquired) {
+            releaseOrganization();
+            return undefined;
+        }
+        let released = false;
+        return () => {
+            if (released) {
+                return;
+            }
+            released = true;
+            processBudget.release();
+            releaseOrganization();
         };
     }
 
@@ -1774,6 +1801,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             budget.reset(),
         );
         DuckdbWarehouseClient.organizationConcurrencyBudgets.clear();
+        DuckdbWarehouseClient.organizationCappedProcessBudget.reset();
     }
 
     async close(): Promise<void> {
@@ -2589,12 +2617,21 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             organizationUuid &&
             this.organizationConcurrencyLimit
         ) {
+            const waitStartedAt = Date.now();
             releaseOrganizationConcurrency =
                 await DuckdbWarehouseClient.acquireOrganizationConcurrency(
                     organizationUuid,
                     this.organizationConcurrencyLimit,
                     this.organizationConcurrencyAcquireTimeoutMs,
                 );
+            const waitMs = Date.now() - waitStartedAt;
+            if (waitMs > 0 || !releaseOrganizationConcurrency) {
+                this.logger?.info('DuckDB query slot wait', {
+                    organizationUuid,
+                    waitMs,
+                    acquired: !!releaseOrganizationConcurrency,
+                });
+            }
             if (!releaseOrganizationConcurrency) {
                 throw new WarehouseQueryError(
                     'External source query capacity is full. Try again shortly.',
