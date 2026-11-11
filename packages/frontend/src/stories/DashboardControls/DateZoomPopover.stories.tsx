@@ -156,7 +156,7 @@ export const ChooseTiles: Story = {
             if (element === null) throw new Error('No mapping row');
             return element;
         });
-        await expect(row).toHaveTextContent('zooms2 of 5 tiles');
+        await expect(row).toHaveTextContent('applies to2 of 5 tiles');
         // The tiles bar slides in
         const bar = await page.findByRole('region', {
             name: 'Tiles zoomed by Revenue zoom',
