@@ -1,3 +1,10 @@
+## [3.211.1](https://github.com/lightdash/lightdash/compare/3.211.0...3.211.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **dashboards:** keep parameter control state stable across tabs ([#32359](https://github.com/lightdash/lightdash/issues/32359)) ([dc9ed2e](https://github.com/lightdash/lightdash/commit/dc9ed2e4009f8a1df657e52ae121d03c94829803))
+
 # [3.211.0](https://github.com/lightdash/lightdash/compare/3.210.2...3.211.0) (2026-11-11)
 
 

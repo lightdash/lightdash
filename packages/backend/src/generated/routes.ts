@@ -79281,6 +79281,14 @@ const models: TsoaRoute.Models = {
                             enums: [null],
                             required: true,
                         },
+                        virtualViewSavedValues: {
+                            ref: 'ParametersValuesMap',
+                            required: true,
+                        },
+                        chartSavedValues: {
+                            ref: 'ParametersValuesMap',
+                            required: true,
+                        },
                         parameterDefinitions: { ref: 'ParameterDefinitions' },
                         parameterReferences: {
                             dataType: 'array',

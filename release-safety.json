@@ -1,51 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.211.0",
-  "previousVersion": "3.210.2",
-  "releaseDate": "2026-11-11T12:28:49.655Z",
+  "version": "3.211.1",
+  "previousVersion": "3.211.0",
+  "releaseDate": "2026-11-11T12:50:41.953Z",
   "migrations": {
-    "present": true,
-    "count": 3,
-    "coreCount": 3,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261110150000_add_query_history_results_cache_stats_columns.ts",
-        "edition": "core",
-        "tables": [
-          "query_history"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      },
-      {
-        "name": "20261110150100_index_query_history_results_cache_stats.ts",
-        "edition": "core",
-        "tables": [
-          "query_history"
-        ],
-        "heaviness": {
-          "locksTable": false,
-          "rewritesTable": false,
-          "scansTable": true
-        }
-      },
-      {
-        "name": "20261111120000_add_linear_client_secret.ts",
-        "edition": "core",
-        "tables": [
-          "linear_app_installations"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,
@@ -57,10 +20,8 @@
       "breaking": false,
       "changes": [],
       "breakingCount": 0,
-      "advisories": [
-        "GET /api/v1/linear/install — deleted the `query` request parameter `clientId`"
-      ],
-      "advisoryCount": 1
+      "advisories": [],
+      "advisoryCount": 0
     },
     "mcp": {
       "checked": true,
