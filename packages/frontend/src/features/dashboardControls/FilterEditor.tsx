@@ -2,7 +2,7 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
-import { Box, Group } from '@mantine/core';
+import { Box } from '@mantine/core';
 import { useCallback, useMemo, type FC, type ReactNode } from 'react';
 import FiltersProvider from '../../components/common/Filters/FiltersProvider';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
@@ -26,7 +26,7 @@ import { ControlEditorPopover } from './ControlEditorPopover';
 import { focusStartOnMount } from './editorFocus';
 import { FieldsAndTiles } from './FieldsAndTiles';
 import classes from './FilterEditor.module.css';
-import { EditorActions, EditorPrompt, FilterPopover } from './FilterPopover';
+import { EditorActions, EditorFrame, FilterPopover } from './FilterPopover';
 import { canTileTakeFilter } from './peers';
 import { findFilterRule } from './sidebarState';
 import { useAppliedTileCount } from './useAppliedTileCount';
@@ -61,43 +61,27 @@ const PlaceholderEditor: FC<{ rule: DashboardFilterRule }> = ({ rule }) => {
         [],
     );
     return (
-        <Box
-            className={classes.root}
-            role="dialog"
-            aria-label={name}
-            ref={focusOnMount}
+        <EditorFrame
+            name={name}
+            applyBlockedReason={applyBlockedReason}
+            isAsking={isAsking}
+            onResolvePending={resolvePending}
+            rootRef={focusOnMount}
+            // A new filter shows only its field search until a field is picked
+            footer={
+                isNew ? null : (
+                    <EditorActions
+                        applyBlockedReason={applyBlockedReason}
+                        isApplyDisabled
+                        isAsking={isAsking}
+                        onCancel={discard}
+                        onApply={close}
+                    />
+                )
+            }
         >
-            {isAsking && (
-                <EditorPrompt
-                    name={name}
-                    applyBlockedReason={applyBlockedReason}
-                    onResolvePending={resolvePending}
-                />
-            )}
-            <Box
-                className={classes.body}
-                data-dimmed={isAsking || undefined}
-                inert={isAsking || undefined}
-            >
-                <Box className={classes.content}>{fieldsAndTiles}</Box>
-                {/* A new filter shows only its field search until a field is picked */}
-                {!isNew && (
-                    <Group
-                        justify="flex-end"
-                        wrap="nowrap"
-                        className={classes.footer}
-                    >
-                        <EditorActions
-                            applyBlockedReason={applyBlockedReason}
-                            isApplyDisabled
-                            isAsking={isAsking}
-                            onCancel={discard}
-                            onApply={close}
-                        />
-                    </Group>
-                )}
-            </Box>
-        </Box>
+            <Box className={classes.content}>{fieldsAndTiles}</Box>
+        </EditorFrame>
     );
 };
 

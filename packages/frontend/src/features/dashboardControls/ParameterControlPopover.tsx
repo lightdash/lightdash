@@ -7,15 +7,7 @@ import {
     type ParameterValue,
     type UiStringResolver,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Button,
-    Group,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Box, Group, Stack, Text, Tooltip } from '@mantine/core';
 import { IconAdjustmentsHorizontal, IconPencil } from '@tabler/icons-react';
 import { isEqual } from 'es-toolkit/compat';
 import { useState, type FC } from 'react';
@@ -38,7 +30,11 @@ import {
 import { focusParameterValueOnMount } from './editorFocus';
 import { formatTileCount, formatTilesOf } from './fieldLabels';
 import classes from './FilterEditor.module.css';
-import { EditorPrompt, type EditorView as PopoverView } from './FilterPopover';
+import {
+    EditorActions,
+    EditorFrame,
+    type EditorView as PopoverView,
+} from './FilterPopover';
 import { useRefocusAfter } from './nameFocus';
 import { NameInput } from './NameInput';
 import {
@@ -319,62 +315,37 @@ export const ParameterControlPopover: FC<Props> = ({
     );
 
     return (
-        <Box className={classes.root} role="dialog" aria-label={name}>
-            {isAsking && (
-                <EditorPrompt
-                    name={name}
+        <EditorFrame
+            name={name}
+            applyBlockedReason={applyBlockedReason}
+            isAsking={isAsking}
+            onResolvePending={onResolvePending}
+            footer={
+                <EditorActions
                     applyBlockedReason={applyBlockedReason}
-                    onResolvePending={onResolvePending}
+                    isApplyDisabled={false}
+                    isAsking={isAsking}
+                    applyLabel={applyLabel}
+                    onCancel={onCancel}
+                    onApply={onApply}
                 />
-            )}
-            <Box
-                className={classes.body}
-                data-dimmed={isAsking || undefined}
-                inert={isAsking || undefined}
-            >
-                {view === 'settings' ? settingsView : valueView}
-                {view === 'value' && !isViewer && (
-                    <Group gap="xs" align="center" px="md" pb="sm">
-                        <TilesChip
-                            label={sets}
-                            chooseTiles={chooseTiles}
-                            onChooseTiles={onChooseTiles}
-                        />
-                        <SettingsChip
-                            summary={sectionName}
-                            chipRef={focusSettingsChip}
-                            onClick={() => setView('settings')}
-                        />
-                    </Group>
-                )}
-                <Group
-                    justify="flex-end"
-                    wrap="nowrap"
-                    className={classes.footer}
-                >
-                    <Group gap="xs" wrap="nowrap" flex="0 0 auto">
-                        <Button variant="default" size="xs" onClick={onCancel}>
-                            {getUiString('filters.actions.cancel')}
-                        </Button>
-                        <Tooltip
-                            fz="xs"
-                            label={applyBlockedReason}
-                            disabled={applyBlockedReason === null}
-                        >
-                            <Box>
-                                <Button
-                                    size="xs"
-                                    data-controls-apply
-                                    disabled={applyBlockedReason !== null}
-                                    onClick={onApply}
-                                >
-                                    {applyLabel ?? getUiString('filters.apply')}
-                                </Button>
-                            </Box>
-                        </Tooltip>
-                    </Group>
+            }
+        >
+            {view === 'settings' ? settingsView : valueView}
+            {view === 'value' && !isViewer && (
+                <Group gap="xs" align="center" px="md" pb="sm">
+                    <TilesChip
+                        label={sets}
+                        chooseTiles={chooseTiles}
+                        onChooseTiles={onChooseTiles}
+                    />
+                    <SettingsChip
+                        summary={sectionName}
+                        chipRef={focusSettingsChip}
+                        onClick={() => setView('settings')}
+                    />
                 </Group>
-            </Box>
-        </Box>
+            )}
+        </EditorFrame>
     );
 };

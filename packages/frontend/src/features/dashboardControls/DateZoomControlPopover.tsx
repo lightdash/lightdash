@@ -21,7 +21,7 @@ import { formatTileCount, formatTilesOf } from './fieldLabels';
 import classes from './FilterEditor.module.css';
 import {
     EditorActions,
-    EditorPrompt,
+    EditorFrame,
     type EditorView as PopoverView,
 } from './FilterPopover';
 import { GrainSelect } from './GrainSelect';
@@ -186,35 +186,23 @@ export const DateZoomControlPopover: FC<Props> = ({
 
     // As the parameter popover: the question over a dimmed, inert body
     const frame = (applyBlockedReason: string | null, body: ReactNode) => (
-        <Box className={classes.root} role="dialog" aria-label={name}>
-            {isAsking && (
-                <EditorPrompt
-                    name={name}
+        <EditorFrame
+            name={name}
+            applyBlockedReason={applyBlockedReason}
+            isAsking={isAsking}
+            onResolvePending={onResolvePending}
+            footer={
+                <EditorActions
                     applyBlockedReason={applyBlockedReason}
-                    onResolvePending={onResolvePending}
+                    isApplyDisabled={false}
+                    isAsking={isAsking}
+                    onCancel={onCancel}
+                    onApply={onApply}
                 />
-            )}
-            <Box
-                className={classes.body}
-                data-dimmed={isAsking || undefined}
-                inert={isAsking || undefined}
-            >
-                {body}
-                <Group
-                    justify="flex-end"
-                    wrap="nowrap"
-                    className={classes.footer}
-                >
-                    <EditorActions
-                        applyBlockedReason={applyBlockedReason}
-                        isApplyDisabled={false}
-                        isAsking={isAsking}
-                        onCancel={onCancel}
-                        onApply={onApply}
-                    />
-                </Group>
-            </Box>
-        </Box>
+            }
+        >
+            {body}
+        </EditorFrame>
     );
 
     if (mode.kind === 'viewer') return frame(null, valueView);

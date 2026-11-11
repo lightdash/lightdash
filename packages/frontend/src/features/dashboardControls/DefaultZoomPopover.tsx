@@ -7,7 +7,7 @@ import { TilesChip } from './ControlPopoverParts';
 import { focusParameterValueOnMount } from './editorFocus';
 import { formatTileCount } from './fieldLabels';
 import classes from './FilterEditor.module.css';
-import { EditorActions, EditorPrompt } from './FilterPopover';
+import { EditorActions, EditorFrame } from './FilterPopover';
 import { GrainSelect } from './GrainSelect';
 
 type EditorMode = {
@@ -56,67 +56,51 @@ export const DefaultZoomPopover: FC<Props> = ({
     const caption = getCaption();
 
     const frame = (body: ReactNode) => (
-        <Box className={classes.root} role="dialog" aria-label={title}>
-            {isAsking && (
-                <EditorPrompt
-                    name={title}
+        <EditorFrame
+            name={title}
+            applyBlockedReason={null}
+            isAsking={isAsking}
+            onResolvePending={onResolvePending}
+            footer={
+                <EditorActions
                     applyBlockedReason={null}
-                    onResolvePending={onResolvePending}
+                    isApplyDisabled={false}
+                    isAsking={isAsking}
+                    onCancel={onCancel}
+                    onApply={onApply}
                 />
-            )}
-            <Box
-                className={classes.body}
-                data-dimmed={isAsking || undefined}
-                inert={isAsking || undefined}
-            >
-                <Box ref={focusParameterValueOnMount}>
-                    <Group
-                        gap="xs"
-                        wrap="nowrap"
-                        className={classes.editorHeader}
-                    >
-                        <MantineIcon
-                            icon={IconCalendarSearch}
-                            size={16}
-                            color="dimmed"
-                        />
-                        <Text fw={500} truncate>
-                            {title}
-                        </Text>
-                    </Group>
-                    <Stack gap="xs" className={classes.content}>
-                        <GrainSelect
-                            label={title}
-                            granularities={enabledGranularities}
-                            customLabels={customLabels}
-                            value={value}
-                            placeholder={getUiString('dateZoom.none')}
-                            isClearable
-                            onChange={onChange}
-                        />
-                        {caption !== null && (
-                            <Text fz="xs" c="dimmed">
-                                {caption}
-                            </Text>
-                        )}
-                    </Stack>
-                </Box>
-                {body}
-                <Group
-                    justify="flex-end"
-                    wrap="nowrap"
-                    className={classes.footer}
-                >
-                    <EditorActions
-                        applyBlockedReason={null}
-                        isApplyDisabled={false}
-                        isAsking={isAsking}
-                        onCancel={onCancel}
-                        onApply={onApply}
+            }
+        >
+            <Box ref={focusParameterValueOnMount}>
+                <Group gap="xs" wrap="nowrap" className={classes.editorHeader}>
+                    <MantineIcon
+                        icon={IconCalendarSearch}
+                        size={16}
+                        color="dimmed"
                     />
+                    <Text fw={500} truncate>
+                        {title}
+                    </Text>
                 </Group>
+                <Stack gap="xs" className={classes.content}>
+                    <GrainSelect
+                        label={title}
+                        granularities={enabledGranularities}
+                        customLabels={customLabels}
+                        value={value}
+                        placeholder={getUiString('dateZoom.none')}
+                        isClearable
+                        onChange={onChange}
+                    />
+                    {caption !== null && (
+                        <Text fz="xs" c="dimmed">
+                            {caption}
+                        </Text>
+                    )}
+                </Stack>
             </Box>
-        </Box>
+            {body}
+        </EditorFrame>
     );
 
     if (mode.kind === 'viewer') return frame(null);
