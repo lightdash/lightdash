@@ -645,4 +645,18 @@ describe('getControlsToSave', () => {
         expect(saved.dimensions.map(({ id }) => id)).toEqual(['a', 'b']);
         expect(saved.haveControlSectionsChanged).toBe(false);
     });
+
+    it('writes no parameter controls with a reorder when there are none', () => {
+        const saved = getControlsToSave({
+            ...base,
+            controlOrder: [
+                { kind: DashboardControlRefKind.FILTER, id: 'a' },
+                { kind: DashboardControlRefKind.SECTION, id: 's' },
+            ],
+            hasControlOrderChanged: true,
+            parameterInputs: { ...parameterInputs, parameterControls: [] },
+        });
+        expect(saved.controlOrderToSave).not.toBeNull();
+        expect(saved.parameterControlsToSave).toBeNull();
+    });
 });

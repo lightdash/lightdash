@@ -1255,8 +1255,8 @@ export const SectionedFilters: FC<Props> = ({
             );
         });
 
-    // Sections always sit below the filters outside any section
-    const isSectionsOwnLine = lines.length > 0 || naming !== null;
+    // Saved sections sit below the filters outside any section; a new one is named inline
+    const isSectionsOwnLine = lines.length > 0;
 
     // Named last, in the entry's place at the bar's end, wherever it was
     // started, so nothing before it moves
@@ -1872,7 +1872,7 @@ export const SectionedFilters: FC<Props> = ({
                                         <AddControl />
                                     </UnsectionTarget>
                                     {pills}
-                                    {/* A first section is named where its capsule lands */}
+                                    {/* A first section is named inline, where its capsule lands */}
                                     <Box
                                         className={classes.sections}
                                         data-own-line={
