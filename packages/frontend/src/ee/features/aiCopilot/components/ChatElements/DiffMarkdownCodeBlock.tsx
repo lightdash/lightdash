@@ -34,7 +34,6 @@ const Diff: FC<{
                 key={patch}
                 patch={patch}
                 className={classes.host}
-                disableWorkerPool
                 options={{
                     diffStyle: 'unified',
                     // The header is ours: Pierre's carries a loud change icon.

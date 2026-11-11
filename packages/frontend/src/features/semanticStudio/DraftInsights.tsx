@@ -36,7 +36,10 @@ import { ConfirmDeleteButton } from '../../components/common/ConfirmDeleteButton
 import MantineIcon from '../../components/common/MantineIcon';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
-import { DEVELOPMENT_VIEW_HEADER } from './developmentView';
+import {
+    DEVELOPMENT_PREVIEW_HEADER,
+    DEVELOPMENT_VIEW_HEADER,
+} from './developmentView';
 import classes from './DraftInsights.module.css';
 import { describeShift, pickComparedMetrics } from './metricComparison';
 import {
@@ -317,6 +320,8 @@ const useTotals = (
                 headers: {
                     [DEVELOPMENT_VIEW_HEADER]:
                         side === 'development' ? 'true' : 'false',
+                    // A draft is read from the draft itself, never from another project's preview.
+                    [DEVELOPMENT_PREVIEW_HEADER]: '',
                 },
                 body: JSON.stringify({
                     exploreName,

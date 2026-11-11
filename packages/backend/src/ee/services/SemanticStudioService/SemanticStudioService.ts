@@ -71,7 +71,11 @@ export type SemanticStudioServiceArguments = {
         get: (projectUuid: string) => Promise<ModelProject>;
         getAllExploreSummaries: (
             projectUuid: string,
-        ) => Promise<{ type?: ExploreType }[]>;
+        ) => Promise<{ name: string; type?: ExploreType }[]>;
+        findExploresFromCache: (
+            projectUuid: string,
+            key: 'name',
+        ) => Promise<Record<string, Explore | ExploreError>>;
         deleteCachedExplores: (
             projectUuid: string,
             names: string[],
@@ -556,6 +560,51 @@ export class SemanticStudioService extends BaseService {
                 explore.name,
                 explore,
             ]),
+        ]);
+    }
+
+    /**
+     * Every explore as a dbt project's pull request leaves it, read from the preview
+     * project built from that branch; null when this is not such a preview or the
+     * person may not use it. A dbt project keeps no draft, so this is how its
+     * unpublished changes are queried on the live project.
+     */
+    async findPreviewExplores(
+        user: SessionUser,
+        projectUuid: string,
+        previewProjectUuid: string,
+    ): Promise<Map<string, Explore | ExploreError | null> | null> {
+        const status = await this.getStatus(user, projectUuid);
+        if (!status.enabled || status.appliesAs !== 'dbt_pull_request') {
+            return null;
+        }
+        const preview = await this.projectModel.get(previewProjectUuid);
+        if (
+            preview.type !== ProjectType.PREVIEW ||
+            preview.upstreamProjectUuid !== projectUuid ||
+            this.createAuditedAbility(user).cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid: preview.organizationUuid,
+                    projectUuid: preview.projectUuid,
+                }),
+            )
+        ) {
+            return null;
+        }
+        const [live, explores] = await Promise.all([
+            this.projectModel.getAllExploreSummaries(projectUuid),
+            this.projectModel.findExploresFromCache(previewProjectUuid, 'name'),
+        ]);
+        return new Map<string, Explore | ExploreError | null>([
+            // A model the branch removes is in the live project and not in its preview.
+            ...live.map(({ name }): [string, null] => [name, null]),
+            ...Object.values(explores).map(
+                (explore): [string, Explore | ExploreError] => [
+                    explore.name,
+                    explore,
+                ],
+            ),
         ]);
     }
 

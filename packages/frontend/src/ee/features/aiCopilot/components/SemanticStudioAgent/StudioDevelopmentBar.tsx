@@ -1,9 +1,17 @@
-import { Anchor, Button, Group, Text } from '@mantine/core';
-import { IconExternalLink } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    Anchor,
+    Button,
+    Group,
+    Text,
+    Tooltip,
+} from '@mantine/core';
+import { IconExternalLink, IconEye, IconEyeOff } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { DevelopmentBar } from '../../../../../features/semanticStudio/DevelopmentBar';
+import { useDevelopmentView } from '../../../../../features/semanticStudio/developmentView';
 import { useMergePullRequest } from '../../hooks/useMergePullRequest';
 import { isMergeable } from '../ChatElements/ToolCalls/pullRequestActions';
 import { type StudioPullRequest } from './useStudioPullRequest';
@@ -17,6 +25,7 @@ export const StudioDevelopmentBar: FC<{
         pullRequest;
     const { mutate: merge, isLoading } = useMergePullRequest(projectUuid);
     const [armed, setArmed] = useState(false);
+    const [isTrying, setIsTrying] = useDevelopmentView();
     const number = /\/(\d+)\/?$/.exec(prUrl)?.[1];
     return (
         <DevelopmentBar
@@ -48,18 +57,35 @@ export const StudioDevelopmentBar: FC<{
             }
         >
             {previewProjectUuid ? (
-                <Button
-                    component={Link}
-                    to={`/projects/${previewProjectUuid}/semantic-layer`}
-                    target="_blank"
-                    size="xs"
-                    variant="default"
-                    rightSection={
-                        <MantineIcon icon={IconExternalLink} size={14} />
-                    }
-                >
-                    Preview
-                </Button>
+                <>
+                    <Tooltip label="Open the preview project built from this pull request">
+                        <ActionIcon
+                            component={Link}
+                            to={`/projects/${previewProjectUuid}/semantic-layer`}
+                            target="_blank"
+                            aria-label="Open the preview project"
+                        >
+                            <MantineIcon icon={IconExternalLink} />
+                        </ActionIcon>
+                    </Tooltip>
+                    <Tooltip label="Explore and your charts read the pull request's models. Only you see them.">
+                        <Button
+                            size="xs"
+                            variant="default"
+                            leftSection={
+                                <MantineIcon
+                                    icon={isTrying ? IconEyeOff : IconEye}
+                                    size={14}
+                                />
+                            }
+                            onClick={() =>
+                                setIsTrying(!isTrying, previewProjectUuid)
+                            }
+                        >
+                            {isTrying ? 'Back to live' : 'Try my changes'}
+                        </Button>
+                    </Tooltip>
+                </>
             ) : null}
             <Button
                 size="xs"

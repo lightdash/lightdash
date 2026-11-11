@@ -47,6 +47,7 @@ import {
 import { useStudioPullRequest } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
 import { useProject } from '../../hooks/useProject';
 import { LiveSourceBetaBadge } from '../externalConnections/liveSources/LiveSourceBetaBadge';
+import { useDevelopmentView } from './developmentView';
 import { useExternalSourceActions } from './externalSources/externalSourceActions';
 import { ExternalSourceManager } from './externalSources/ExternalSourceManager';
 import {
@@ -877,6 +878,13 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const keepsDraft = useKeepsSemanticLayerDraft(view.project.id);
     const pullRequest = useStudioPullRequest(view.project.id);
     const development = !keepsDraft && pullRequest?.isOpen ? pullRequest : null;
+    const [isTryingChanges, setIsTryingChanges] = useDevelopmentView();
+    // A dbt project's changes are tried through its pull request's preview, so there is nothing to try once that closes.
+    const hasClosedPullRequest =
+        !keepsDraft && !!pullRequest?.ciChecks && !pullRequest.isOpen;
+    useEffect(() => {
+        if (hasClosedPullRequest && isTryingChanges) setIsTryingChanges(false);
+    }, [hasClosedPullRequest, isTryingChanges, setIsTryingChanges]);
     const isCode =
         chat.isAvailable &&
         keepsDraft &&
