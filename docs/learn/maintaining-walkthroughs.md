@@ -57,7 +57,7 @@ The step text comes from the docs repository, and CI reads the docs at one commi
 
 `generate`, `order` and `check` compare the docs checkout with the pin. At another commit they print a warning that names both commits. In CI (`CI` is set) the warning is an error. `SCOPE_TOURS_ALLOW_UNPINNED_DOCS=1` turns the error back into a warning, for a preview of what another docs commit would change. CI never sets it.
 
-**When to bump.** For a deliberate docs sync, or when a docs change must reach the walkthroughs (a corrected sentence, a renamed page).
+**When to bump.** Usually you do not: the scheduled refresh (below) runs the bump every weekday. Bump by hand when a docs change must reach the walkthroughs sooner (a corrected sentence, a renamed page), or when a new citation needs a docs commit newer than the pin.
 
 **How to bump.** With a clean docs checkout at `../mintlify-docs` or `LIGHTDASH_DOCS_DIR`, and no local changes to the generated files:
 
@@ -69,12 +69,13 @@ pnpm scope-tours:bump-docs -- --sha <sha>    # pin a specific docs commit
 
 The bump runs `scope-tours:check` itself, so there is no separate check to run. It refuses a commit that is not on the docs `origin/main` and warns when the pin moves backwards. Then it checks the docs out at the commit (detached), writes the commit to `docs-pin.txt`, runs `scope-tours:generate` and `scope-tours:order`, and runs `scope-tours:check`. Last, it prints the diff stat, a table of the steps whose title or body changed (scope and step, title, old body, new body), and the full diff. Commit the pin and the generated files together, in one pull request.
 
-- The scheduled `Scope tours docs drift` workflow opens or updates one issue when the docs head differs from the pin, and closes it when the pin catches up.
-- The Learn owners (the Customer Success team, Linear project Lightdash University) review each bump pull request with one checklist item: each changed card still matches its step title.
+The Learn owners (the Customer Success team, Linear project Lightdash University) review each bump pull request with one checklist item: each changed card still matches its step title.
+
+**The scheduled refresh.** `Scope tours docs refresh` (`.github/workflows/scope-tours-docs-refresh.yml`) runs the bump against the docs head every weekday at 06:00 UTC, and on a manual run from `main`. If no generated file would change, it opens nothing and the pin stays where it is. If one would change, or the bump stops because a citation broke, it opens one pull request (`chore(learn): refresh walkthroughs from the docs`, branch `learn/docs-refresh`) and assigns it to the Learn owner. The body holds the changed-steps table, or the error when the bump stopped. It ends with the word `deploy-preview`: CI skips the preview and the E2E suites for a pull request the Renovate app opened, and that word asks for them, so leave it in. While that pull request is open the workflow does not run the bump again, so commits pushed to it are safe. Merge it or close it; the next run starts from the pin on `main`.
 
 **What the diff means.** Each changed `body` is a docs sentence that changed upstream, and learners will see the new text. Read every one. A changed sentence is usually fine. A body that now says something different (a step that no longer tells the learner what to do) means the cited paragraph moved: the docs inserted or removed a paragraph, and a citation by position (`:p3:1`, `:li2`) now points at another one.
 
-**A citation move is a separate pull request.** Re-citing a docs paragraph (a `data-tour-docs` change, for example `:p3:1` to `:p4:1`) is the Learn owners' call. Do not hide it in a bump. The bump comes first: open it as its own pull request with the diff as it is, and say which steps need a re-cite. The Learn owners then open the re-cite as a separate pull request stacked on the bump, so it is generated against the bumped docs, and the two merge back to back, bump first. Never re-cite ahead of the pin: a re-cite that merges before the bump is generated against the old docs, where the new paragraph index points at another paragraph, so the step shows the wrong text or the generator fails with `paragraph N not found`. Do not merge the bump alone and leave a step with the wrong text: keep the gap as short as the back-to-back merge.
+**A re-cite merges with its bump.** Re-citing a docs paragraph (a `data-tour-docs` change, for example `:p3:1` to `:p4:1`) is the Learn owners' call. On a refresh pull request they push the re-cite and the regenerated files to that same branch, so the pin, the citation and the text merge together. If you bumped by hand and are not a Learn owner, open the bump with the diff as it is, say which steps need a re-cite, and ask the Learn owners to push it to your pull request. Never re-cite ahead of the pin: a re-cite that merges before the bump is generated against the old docs, where the new paragraph index points at another paragraph, so the step shows the wrong text or the generator fails with `paragraph N not found`. Do not merge a bump that leaves a step with the wrong text.
 
 ## Running the smoke
 

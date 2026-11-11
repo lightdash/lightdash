@@ -20,8 +20,10 @@
  *      generated files.
  *
  * Read the diff before you commit it. A citation move (a `data-tour-docs`
- * change, for example a `:pN` paragraph index) is not part of a bump: it goes
- * in a separate pull request (docs/learn/maintaining-walkthroughs.md).
+ * change, for example a `:pN` paragraph index) is the Learn owners' call and
+ * merges in the same pull request as the bump
+ * (docs/learn/maintaining-walkthroughs.md). The scheduled Scope tours docs
+ * refresh workflow runs this command and opens that pull request.
  *
  * Usage: pnpm scope-tours:bump-docs [-- --sha <sha>] [--dry-run]
  *   --sha <sha>  pin this docs commit instead of the default branch head
