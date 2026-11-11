@@ -698,6 +698,7 @@ import {
 } from './agentSelectionPrompt';
 import { canAccessAiAgent, canAccessAiAgentThread } from './aiAgentAccess';
 import { deriveAiAgentThreadLiveStatus } from './aiAgentThreadLiveStatus';
+import { getArtifactRunAccount } from './artifactRunAccount';
 import { isComposerQueriesEnabled } from './composerQueriesGate';
 import {
     isAnalysisInvestigationThread,
@@ -4317,6 +4318,7 @@ export class AiAgentService extends BaseService {
         // the builtin groupBy path.
         customChartType?: DataAppVizChart,
         userAttributeOverrides?: UserAttributeValueMap,
+        account: RegisteredAccount = fromSession(user),
     ) {
         const explore = await this.getExplore(
             user,
@@ -4378,7 +4380,7 @@ export class AiAgentService extends BaseService {
 
         const asyncQuery = await this.asyncQueryService.executeAsyncMetricQuery(
             {
-                account: fromSession(user),
+                account,
                 projectUuid,
                 metricQuery: metricQueryWithCustomMetrics,
                 context: QueryExecutionContext.AI,
@@ -4427,6 +4429,7 @@ export class AiAgentService extends BaseService {
         toolArgs: ToolRunQueryArgsTransformed,
         querySurface: QuerySurface,
         userAttributeOverrides?: UserAttributeValueMap,
+        account: RegisteredAccount = fromSession(user),
     ) {
         const mergeQuery = await this.buildAiMergeQuery(
             user,
@@ -4434,7 +4437,7 @@ export class AiAgentService extends BaseService {
             toolArgs,
         );
         const outcome = await this.asyncQueryService.executeAsyncMergeQuery({
-            account: fromSession(user),
+            account,
             projectUuid,
             mergeQuery,
             context: QueryExecutionContext.AI,
@@ -10214,6 +10217,7 @@ export class AiAgentService extends BaseService {
         },
         execute: () => Promise<T>,
         getQueryUuids: (result: T) => string[],
+        account: RegisteredAccount = fromSession(user),
     ): Promise<T> {
         const { enabled } = await this.featureFlagService.get({
             user,
@@ -10233,13 +10237,14 @@ export class AiAgentService extends BaseService {
             { projectUuid, agentUuid, source: artifact },
             execute,
             getQueryUuids,
-            (account, queryUuid) =>
+            (bindingAccount, queryUuid) =>
                 this.asyncQueryService.bindQueryToArtifact(
-                    account,
+                    bindingAccount,
                     projectUuid,
                     queryUuid,
                     { agentUuid, artifactUuid, versionUuid },
                 ),
+            account,
         );
     }
 
@@ -10296,13 +10301,15 @@ export class AiAgentService extends BaseService {
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
             cachedQueryUuid?: string;
         },
+        callerAccount?: RegisteredAccount,
     ): Promise<ApiAiAgentArtifactVizQuery> {
         if (options.cachedQueryUuid !== undefined || options.runtimeOptions)
             return this.executeArtifactVizQuery(user, options);
+        const account = getArtifactRunAccount(user, callerAccount);
         return this.executeArtifactQueriesAsOwner(
             user,
             options,
-            () => this.executeArtifactVizQuery(user, options),
+            () => this.executeArtifactVizQuery(user, options, account),
             (vizQuery) =>
                 isAiAgentComposerArtifactVizQuery(vizQuery)
                     ? [
@@ -10312,6 +10319,7 @@ export class AiAgentService extends BaseService {
                               : []),
                       ]
                     : [vizQuery.query.queryUuid],
+            account,
         );
     }
 
@@ -10367,6 +10375,7 @@ export class AiAgentService extends BaseService {
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
             cachedQueryUuid?: string;
         },
+        account: RegisteredAccount = fromSession(user),
     ): Promise<ApiAiAgentArtifactVizQuery> {
         // Timed from the top: the browser blocks on the whole call.
         const vizQueryStartedAt = Date.now();
@@ -10458,6 +10467,7 @@ export class AiAgentService extends BaseService {
                 parsed,
                 await this.getArtifactQuerySurface(artifact.promptUuid),
                 runtimeOptions?.userAttributeOverrides,
+                account,
             );
             this.analytics.track({
                 event: 'ai_agent.artifact_viz_query',
@@ -10514,7 +10524,6 @@ export class AiAgentService extends BaseService {
                     : null;
             const stageNodeId =
                 stage?.status === 'ok' ? stage.query.nodeId : null;
-            const account = fromSession(user);
             const { queries: allSubmissions } =
                 await this.querySourceService.submitQueries({
                     account,
@@ -10613,7 +10622,7 @@ export class AiAgentService extends BaseService {
 
             // Re-executes as the viewer — same trust model as viewing a saved SQL chart.
             const query = await this.asyncQueryService.executeAsyncSqlQuery({
-                account: fromSession(user),
+                account,
                 projectUuid,
                 sql: artifact.chartConfig.sql,
                 limit: artifact.chartConfig.limit,
@@ -10684,6 +10693,7 @@ export class AiAgentService extends BaseService {
             await this.getArtifactQuerySurface(artifact.promptUuid),
             customChartType,
             runtimeOptions?.userAttributeOverrides,
+            account,
         );
 
         const metadata = {
@@ -10734,15 +10744,22 @@ export class AiAgentService extends BaseService {
             chartIndex: number;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
+        callerAccount?: RegisteredAccount,
     ): Promise<ApiAiAgentThreadMessageVizQuery> {
-        const execute = () =>
-            this.executeDashboardArtifactChartVizQuery(user, options);
-        if (options.runtimeOptions) return execute();
+        if (options.runtimeOptions)
+            return this.executeDashboardArtifactChartVizQuery(user, options);
+        const account = getArtifactRunAccount(user, callerAccount);
         return this.executeArtifactQueriesAsOwner(
             user,
             options,
-            execute,
+            () =>
+                this.executeDashboardArtifactChartVizQuery(
+                    user,
+                    options,
+                    account,
+                ),
             (vizQuery) => [vizQuery.query.queryUuid],
+            account,
         );
     }
 
@@ -10763,6 +10780,7 @@ export class AiAgentService extends BaseService {
             chartIndex: number;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
+        account: RegisteredAccount = fromSession(user),
     ): Promise<ApiAiAgentThreadMessageVizQuery> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
@@ -10850,6 +10868,7 @@ export class AiAgentService extends BaseService {
             await this.getArtifactQuerySurface(artifact.promptUuid),
             undefined,
             runtimeOptions?.userAttributeOverrides,
+            account,
         );
 
         const metadata = {

@@ -2247,6 +2247,7 @@ export class AiAgentController extends BaseController {
                     versionUuid,
                     cachedQueryUuid,
                 },
+                req.account,
             ),
         };
     }
@@ -2399,6 +2400,7 @@ export class AiAgentController extends BaseController {
                         versionUuid,
                         chartIndex,
                     },
+                    req.account,
                 ),
         };
     }
