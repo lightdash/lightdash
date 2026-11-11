@@ -784,11 +784,12 @@ const [period, setPeriod] = useAppState('period', 'last_month', { scope: 'url' }
 - Ephemeral UI state (open dropdowns, hover, modal visibility, in-progress form input)
   stays in plain `useState` — only state that defines *which view* the user is looking
   at belongs in the URL.
-- When the prompt says saved app state is available, read `/app/references/app-state.md`
-  and use the `user` and `shared` scopes there; view controls then use
-  `useAppState(key, default, { url: true })` (user scope mirrored into the link), so a
-  shared link wins until the person changes the control. Without that line in the
-  prompt, `'url'` is the only scope to use.
+- The `user` and `shared` scopes exist only when the build prompt says saved app state
+  is available — read `/app/references/app-state.md` before using them; view controls
+  then upgrade to `useAppState(key, default, { url: true })` (user scope mirrored into
+  the link), so a shared link wins until the person changes the control. Without that
+  prompt line, never pass `{ url: true }` or a `user`/`shared` scope: values would only
+  live in memory for the session. `{ scope: 'url' }` is the only form to use.
 - `useUrlState(key, default)` and `useSharedAppState(key, default)` are aliases for the
   `url` and `shared` scopes; prefer the unified hook in new code.
 
