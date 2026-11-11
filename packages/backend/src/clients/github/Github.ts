@@ -11,6 +11,7 @@ import {
 } from '@lightdash/common';
 import { App } from '@octokit/app';
 import { Octokit as OctokitRest } from '@octokit/rest';
+import { Readable } from 'node:stream';
 import Logger from '../../logging/logger';
 
 const { createAppAuth } = require('@octokit/auth-app');
@@ -404,6 +405,35 @@ export const getFileContent = async ({
  * `truncated` is true when the repo exceeds the API's tree-entry limit, in which
  * case the returned list is incomplete.
  */
+/** A repository's files at a ref as one gzipped tar stream: a single request, however many files it holds. */
+export const getRepoArchiveStream = async ({
+    owner,
+    repo,
+    ref,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    ref: string;
+    token: string;
+}): Promise<Readable> => {
+    const response = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/tarball/${encodeURI(ref)}`,
+        {
+            headers: {
+                authorization: `Bearer ${token}`,
+                accept: 'application/vnd.github+json',
+            },
+        },
+    );
+    if (!response.ok || !response.body) {
+        throw new Error(
+            `Could not download ${owner}/${repo}: ${response.status}`,
+        );
+    }
+    return Readable.from(response.body);
+};
+
 export const getRepoTree = async ({
     owner,
     repo,

@@ -90,6 +90,10 @@ export class RepoFileSystem implements IFileSystem {
         return new RepoFileSystem(repoFs, [...all].sort());
     }
 
+    readsFromMemory(): Promise<boolean> {
+        return this.repoFs.readsFromMemory();
+    }
+
     async readFile(path: string): Promise<string> {
         const content = await this.repoFs.readFile(toRepoRelative(path));
         if (content === null) throw enoent(path);

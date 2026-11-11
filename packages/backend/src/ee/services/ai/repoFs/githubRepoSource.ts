@@ -1,6 +1,11 @@
 import { getErrorMessage, NotFoundError } from '@lightdash/common';
+import { type Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
+import { createGunzip } from 'node:zlib';
+import { extract } from 'tar-stream';
 import {
     getFileContent,
+    getRepoArchiveStream,
     getRepoTree,
     isGithubRateLimitError,
     searchRepoCode,
@@ -41,6 +46,57 @@ export const rethrowAsRecoverable = (error: unknown): never => {
     throw error;
 };
 
+// The Contents API serves no file above 1MB, so the archive keeps the same line.
+const MAX_ARCHIVE_FILE_BYTES = 1024 * 1024;
+// ponytail: the archive is the whole repo, so a larger one (a monorepo around a small dbt project) is read file by file; fetch its blobs in batches if that case matters.
+const MAX_ARCHIVE_REPO_BYTES = 50 * 1024 * 1024;
+
+/**
+ * The text files of a repository archive under `prefix`, keyed relative to it;
+ * null once they would hold more than `maxBytes`.
+ * Symlinks, binaries, oversized and denied files are left out.
+ */
+export const readRepoArchive = async (
+    archive: Readable,
+    { prefix, maxBytes }: { prefix: string; maxBytes: number },
+): Promise<Map<string, string> | null> => {
+    const files = new Map<string, string>();
+    let kept = 0;
+    let tooLarge = false;
+    const extractor = extract();
+    const piped = pipeline(archive, createGunzip(), extractor);
+    try {
+        for await (const entry of extractor) {
+            const { type, name, size = 0 } = entry.header;
+            // GitHub wraps the tree in one "<owner>-<repo>-<sha>/" folder.
+            const repoPath = name.slice(name.indexOf('/') + 1);
+            const path = repoPath.slice(prefix.length);
+            const chunks: Buffer[] = [];
+            const wanted =
+                type === 'file' &&
+                size <= MAX_ARCHIVE_FILE_BYTES &&
+                repoPath.startsWith(prefix) &&
+                !isDeniedRepoPath(path);
+            for await (const chunk of entry) {
+                if (wanted) chunks.push(chunk);
+            }
+            const content = Buffer.concat(chunks);
+            if (wanted && !content.includes(0)) {
+                kept += content.length;
+                if (kept > maxBytes) {
+                    tooLarge = true;
+                    archive.destroy();
+                }
+                files.set(path, content.toString('utf-8'));
+            }
+        }
+        await piped;
+    } catch (error) {
+        if (!tooLarge) throw error;
+    }
+    return tooLarge ? null : files;
+};
+
 /**
  * A read-only {@link RepoSource} backed by the GitHub API (Git Trees + Contents)
  * using an App installation token — no clone, no sandbox. `readFile` returns
@@ -72,6 +128,8 @@ export const createGithubRepoSource = ({
     const root =
         subPath === '.' || subPath === '' ? '' : subPath.replace(/\/+$/, '');
     const prefix = root ? `${root}/` : '';
+    // The size of the whole repo, known once its tree is listed.
+    let repoBytes: number | null = null;
     return {
         label: `${owner}/${repo}@${branch}${root ? `/${root}` : ''}`,
         listAllPaths: async () => {
@@ -82,6 +140,7 @@ export const createGithubRepoSource = ({
                 branch,
                 token,
             }).catch(rethrowAsRecoverable);
+            repoBytes = files.reduce((total, { size }) => total + size, 0);
             const durationMs = Date.now() - start;
             Logger.info(
                 `[repoShell] github tree fetched in ${durationMs}ms (${
@@ -111,6 +170,47 @@ export const createGithubRepoSource = ({
                 }))
                 .filter((f) => !isDeniedRepoPath(f.path));
             return { files: scoped, truncated };
+        },
+        readAll: async (maxBytes) => {
+            if (repoBytes === null || repoBytes > MAX_ARCHIVE_REPO_BYTES) {
+                return null;
+            }
+            const start = Date.now();
+            try {
+                const files = await readRepoArchive(
+                    await getRepoArchiveStream({
+                        owner,
+                        repo,
+                        ref: branch,
+                        token,
+                    }),
+                    { prefix, maxBytes },
+                );
+                const durationMs = Date.now() - start;
+                Logger.info(
+                    `[repoShell] github archive ${
+                        files
+                            ? `read in ${durationMs}ms (${files.size} files)`
+                            : 'too large to hold'
+                    }`,
+                    {
+                        event: 'ai.repofs.github.archive',
+                        repo: `${owner}/${repo}`,
+                        branch,
+                        fileCount: files?.size ?? null,
+                        durationMs,
+                    },
+                );
+                onTiming?.({ kind: 'archive', durationMs });
+                return files;
+            } catch (error) {
+                // The per-file path still works, and reports a rate limit properly.
+                Logger.warn(
+                    `[repoShell] github archive failed, reading file by file: ${getErrorMessage(error)}`,
+                    { event: 'ai.repofs.github.archive_error' },
+                );
+                return null;
+            }
         },
         searchCode: async (query) => {
             const start = Date.now();

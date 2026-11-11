@@ -1,6 +1,7 @@
 import { NotFoundError, UnexpectedGitError } from '@lightdash/common';
 import {
     getFileContent,
+    getRepoArchiveStream,
     getRepoTree,
     isGithubRateLimitError,
     searchRepoCode,
@@ -247,5 +248,39 @@ describe('githubRepoSource onTiming (metrics hook)', () => {
         expect(onTiming).toHaveBeenCalledWith(
             expect.objectContaining({ kind: 'file', outcome: 'error' }),
         );
+    });
+});
+
+describe('githubRepoSource.readAll', () => {
+    const mockArchive = getRepoArchiveStream as import('vitest').MockedFunction<
+        typeof getRepoArchiveStream
+    >;
+    const listed = (size: number) =>
+        mockGetRepoTree.mockResolvedValue({
+            files: [{ path: 'models/a.sql', size }],
+            truncated: false,
+        });
+
+    beforeEach(() => {
+        mockArchive.mockReset();
+    });
+
+    it('skips the archive of a repo too large to download whole', async () => {
+        listed(51 * 1024 * 1024);
+        const repo = source();
+        await repo.listAllPaths();
+        expect(await repo.readAll?.(1024)).toBeNull();
+        expect(mockArchive).not.toHaveBeenCalled();
+    });
+
+    it('falls back to reading file by file when the download fails', async () => {
+        listed(10);
+        mockArchive.mockImplementation(async () => {
+            throw new Error('boom');
+        });
+        const repo = source();
+        await repo.listAllPaths();
+        expect(await repo.readAll?.(1024)).toBeNull();
+        expect(mockArchive).toHaveBeenCalledTimes(1);
     });
 });

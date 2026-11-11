@@ -24,6 +24,12 @@ export interface RepoSource {
     /** File content as UTF-8, or null if missing/too large/binary. */
     readFile(path: string): Promise<string | null>;
     searchCode?(query: string): Promise<RepoCodeSearchMatch[]>;
+    /**
+     * Every readable text file's content in one fetch, keyed like
+     * {@link listAllPaths}; null when it would hold more than `maxBytes` or
+     * could not be fetched, and the caller reads file by file instead.
+     */
+    readAll?(maxBytes: number): Promise<Map<string, string> | null>;
 }
 
 const normalizePath = (input: string): string => {
@@ -82,6 +88,9 @@ export class RepoFs {
 
     private cacheBytes = 0;
 
+    // The whole repo's text, once a source could hand it over in one fetch.
+    private allPromise: Promise<Map<string, string> | null> | null = null;
+
     private readonly maxCacheBytes: number;
 
     constructor(source: RepoSource, maxCacheBytes: number = MAX_CACHE_BYTES) {
@@ -138,6 +147,22 @@ export class RepoFs {
             sortedPaths: [...fileMap.keys()].sort(),
             truncated,
         };
+    }
+
+    private loadAll(index: RepoIndex): Promise<Map<string, string> | null> {
+        if (!this.allPromise) {
+            // A truncated tree cannot say which paths exist, so it keeps the per-file path.
+            this.allPromise =
+                this.source.readAll && !index.truncated
+                    ? this.source.readAll(this.maxCacheBytes)
+                    : Promise.resolve(null);
+        }
+        return this.allPromise;
+    }
+
+    /** Whether file reads are served from memory with no further fetches; the first call does the one fetch. */
+    async readsFromMemory(): Promise<boolean> {
+        return (await this.loadAll(await this.ensureIndex())) !== null;
     }
 
     async isFile(path: string): Promise<boolean> {
@@ -319,6 +344,9 @@ export class RepoFs {
             this.cacheWrite(normalized, null);
             return null;
         }
+        // A file the whole-repo fetch left out is binary or too large, which reads as absent either way.
+        const all = await this.loadAll(index);
+        if (all) return all.get(normalized) ?? null;
         const content = await this.source.readFile(normalized);
         this.cacheWrite(normalized, content);
         return content;

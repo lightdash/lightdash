@@ -1,0 +1,76 @@
+import { Readable } from 'node:stream';
+import { gzipSync } from 'node:zlib';
+import { pack } from 'tar-stream';
+import { readRepoArchive } from './githubRepoSource';
+
+vi.mock('../../../../clients/github/Github');
+
+type Entry = { name: string; content: string | Buffer } | { link: string };
+
+const archive = async (entries: Entry[]): Promise<Readable> => {
+    const tar = pack();
+    entries.forEach((entry) => {
+        if ('link' in entry) {
+            tar.entry({
+                name: `acme-jaffle-abc123/${entry.link}`,
+                type: 'symlink',
+                linkname: '../secrets',
+            });
+        } else {
+            tar.entry(
+                { name: `acme-jaffle-abc123/${entry.name}` },
+                entry.content,
+            );
+        }
+    });
+    tar.finalize();
+    const chunks: Buffer[] = [];
+    for await (const chunk of tar) chunks.push(chunk);
+    return Readable.from([gzipSync(Buffer.concat(chunks))]);
+};
+
+describe('readRepoArchive', () => {
+    const entries: Entry[] = [
+        { name: 'README.md', content: '# hi' },
+        { name: 'dbt/models/a.sql', content: 'select 1' },
+        { name: 'dbt/models/schema.yml', content: 'version: 2' },
+        { name: 'dbt/.env', content: 'SECRET=1' },
+        { name: 'dbt/logo.png', content: Buffer.from([1, 0, 2]) },
+        { name: 'dbt/big.csv', content: 'x'.repeat(1024 * 1024 + 1) },
+        { link: 'dbt/models/link.sql' },
+    ];
+
+    it('keeps the text files of the whole repo', async () => {
+        const files = await readRepoArchive(await archive(entries), {
+            prefix: '',
+            maxBytes: 1024,
+        });
+        expect([...(files ?? new Map()).keys()].sort()).toEqual([
+            'README.md',
+            'dbt/models/a.sql',
+            'dbt/models/schema.yml',
+        ]);
+    });
+
+    it('keeps only what is under the sub path, relative to it', async () => {
+        const files = await readRepoArchive(await archive(entries), {
+            prefix: 'dbt/',
+            maxBytes: 1024,
+        });
+        expect(files).toEqual(
+            new Map([
+                ['models/a.sql', 'select 1'],
+                ['models/schema.yml', 'version: 2'],
+            ]),
+        );
+    });
+
+    it('holds nothing once the text passes the limit', async () => {
+        expect(
+            await readRepoArchive(await archive(entries), {
+                prefix: '',
+                maxBytes: 10,
+            }),
+        ).toBeNull();
+    });
+});

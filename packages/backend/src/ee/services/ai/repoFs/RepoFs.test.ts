@@ -147,3 +147,43 @@ describe('RepoFs file cache LRU eviction', () => {
         expect(source.reads['b.sql']).toBe(2);
     });
 });
+
+describe('RepoFs with a source that hands over the whole repo', () => {
+    const files = { 'models/a.sql': 'select 1', 'models/b.sql': 'select 2' };
+
+    it('reads every file from one fetch and never per file', async () => {
+        const source = instrumentedSource(files);
+        let fetches = 0;
+        const repo = new RepoFs({
+            ...source,
+            readAll: async () => {
+                fetches += 1;
+                return new Map(Object.entries(files));
+            },
+        });
+        const out = await repo.readFiles(['models/a.sql', 'models/b.sql']);
+        expect(out.get('models/b.sql')).toBe('select 2');
+        expect(await repo.readFile('models/a.sql')).toBe('select 1');
+        expect(fetches).toBe(1);
+        expect(source.reads).toEqual({});
+        expect(await repo.readsFromMemory()).toBe(true);
+    });
+
+    it('reads a file the fetch left out as absent', async () => {
+        const source = instrumentedSource({ ...files, 'logo.png': 'binary' });
+        const repo = new RepoFs({
+            ...source,
+            readAll: async () => new Map(Object.entries(files)),
+        });
+        expect(await repo.readFile('logo.png')).toBeNull();
+        expect(source.reads).toEqual({});
+    });
+
+    it('reads file by file when the repo is too large to hold', async () => {
+        const source = instrumentedSource(files);
+        const repo = new RepoFs({ ...source, readAll: async () => null });
+        expect(await repo.readFile('models/a.sql')).toBe('select 1');
+        expect(source.reads).toEqual({ 'models/a.sql': 1 });
+        expect(await repo.readsFromMemory()).toBe(false);
+    });
+});
