@@ -100,6 +100,8 @@ export const useDashboardTileParameterReferences = ({
         const complete = data.flatMap((result) =>
             result.error === null &&
             result.parameterDefinitions !== undefined &&
+            // older servers omit saved values; leave those tiles unlisted
+            'chartSavedValues' in result &&
             sourceByTile[result.tileUuid] !== undefined
                 ? [result]
                 : [],

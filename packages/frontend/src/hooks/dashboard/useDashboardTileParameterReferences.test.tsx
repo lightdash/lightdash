@@ -167,6 +167,25 @@ describe('useDashboardTileParameterReferences', () => {
         );
     });
 
+    it('does not list tiles from older responses without saved values', async () => {
+        mockApi.mockResolvedValue([
+            {
+                tileUuid: 'tile-open',
+                parameterReferences: ['region'],
+                parameterDefinitions: {},
+                error: null,
+            },
+        ]);
+        const store = setup(undefined, [tiles[0]]);
+        await waitFor(() => expect(mockApi).toHaveBeenCalled());
+        expect(store.getState().parameters.tileListedParameterSources).toEqual(
+            {},
+        );
+        expect(store.getState().parameters.tileChartSavedParameters).toEqual(
+            {},
+        );
+    });
+
     it('sends a large dashboard in requests of at most 200 tiles', async () => {
         const manyTiles = Array.from({ length: 450 }, (_, index) =>
             tile(
