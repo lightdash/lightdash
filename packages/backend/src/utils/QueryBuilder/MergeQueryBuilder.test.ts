@@ -47,6 +47,11 @@ const sourceB: MergeQuerySourceSql = {
     valueColumns: ['total_followers'],
 };
 
+const withRegion = (source: MergeQuerySourceSql) => ({
+    ...source,
+    joinKeyColumnByName: { ...source.joinKeyColumnByName, region: 'region' },
+});
+
 const build = (
     joinType: MergeJoinType,
     sources: MergeQuerySourceSql[] = [sourceA, sourceB],
@@ -198,13 +203,6 @@ describe('MergeQueryBuilder', () => {
 
     describe('composite join keys', () => {
         it('joins on every key part', () => {
-            const withRegion = (source: MergeQuerySourceSql) => ({
-                ...source,
-                joinKeyColumnByName: {
-                    ...source.joinKeyColumnByName,
-                    region: 'region',
-                },
-            });
             const sql = collapse(
                 new MergeQueryBuilder({
                     sources: [withRegion(sourceA), withRegion(sourceB)],
@@ -459,23 +457,12 @@ describe('MergeQueryBuilder', () => {
         });
 
         describe('default order of order-dependent formulas', () => {
-            const withRegion = (source: MergeQuerySourceSql) => ({
-                ...source,
-                joinKeyColumnByName: {
-                    ...source.joinKeyColumnByName,
-                    region: 'region',
-                },
-            });
             const withFormula = (
                 formula: string,
                 joinKeyNames = ['date_day'],
             ) =>
                 new MergeQueryBuilder({
-                    sources: [sourceA, sourceB].map((source) =>
-                        joinKeyNames.includes('region')
-                            ? withRegion(source)
-                            : source,
-                    ),
+                    sources: [withRegion(sourceA), withRegion(sourceB)],
                     joinKeyNames,
                     joinType: MergeJoinType.FULL,
                     warehouseSqlBuilder: mockWarehouseSqlBuilder,

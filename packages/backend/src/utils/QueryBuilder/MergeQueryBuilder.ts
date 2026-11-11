@@ -13,7 +13,10 @@ import {
     type MergeTerminalWrapper,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
-import { compile as compileFormula } from '@lightdash/formula';
+import {
+    compile as compileFormula,
+    type CompileOptions,
+} from '@lightdash/formula';
 import { applyLimitToSqlQuery } from './utils';
 
 /**
@@ -387,8 +390,7 @@ export class MergeQueryBuilder {
      * The composable core: a self-contained single-statement SELECT with no
      * ORDER BY and no LIMIT — clean under `SELECT *`, so it can back a
      * virtual view and be queried further. Everything terminal lives in the
-     * wrapper. `sorts` are the terminal wrapper's, so an order-dependent
-     * formula reads rows in the order they are shown.
+     * wrapper. `sorts` are the terminal wrapper's, so formulas order by them.
      */
     toCoreSql(
         outputAliasByColumn?: Record<string, string>,
@@ -508,15 +510,11 @@ export class MergeQueryBuilder {
         );
     }
 
-    /**
-     * Window order for a formula that names none: the terminal order, so
-     * `LAG(x)` reads the row shown above. Sorts on calculations are dropped,
-     * since a sibling in the same SELECT cannot name them; with none left,
-     * the join key, as in the terminal default.
-     */
+    /** Window order for a formula that names none. Skips calculation sorts:
+     * a sibling in the same SELECT cannot name them. */
     private getFormulaDefaultOrderBy(
         sorts: MergeSort[],
-    ): { column: string; direction?: 'ASC' | 'DESC'; nullsFirst?: boolean }[] {
+    ): CompileOptions['defaultOrderBy'] {
         const calculationNames = new Set(
             this.tableCalculations.map((calculation) => calculation.name),
         );
