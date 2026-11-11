@@ -15,13 +15,27 @@ import {
     IconLayoutGrid,
     IconSettings,
 } from '@tabler/icons-react';
-import { useId, type FC, type Ref } from 'react';
+import { useId, type FC, type ReactNode, type Ref } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import TruncatedText from '../../components/common/TruncatedText';
 import classes from './FilterEditor.module.css';
 import { focusOnMount } from './mappingFocus';
 
 // The parameter popover's pieces, shared by the controls built like it
+
+/** A setting's line and its caption, at the gap the filter's Required uses. */
+export const CaptionedSetting: FC<{
+    caption: string;
+    captionId?: string;
+    children: ReactNode;
+}> = ({ caption, captionId, children }) => (
+    <Stack gap="xs">
+        {children}
+        <Text id={captionId} size="xs" c="dimmed">
+            {caption}
+        </Text>
+    </Stack>
+);
 
 /** Back, "Settings" and the control's name under it; Back takes focus. */
 export const SettingsHeader: FC<{ name: string; onBack: () => void }> = ({
@@ -58,7 +72,7 @@ export const ShowToViewersSetting: FC<{
 }> = ({ hidden, description, onChange }) => {
     const id = useId();
     return (
-        <Stack gap={4}>
+        <CaptionedSetting caption={description} captionId={`${id}-description`}>
             <Group justify="space-between" wrap="nowrap">
                 <Group gap={6} wrap="nowrap">
                     <MantineIcon icon={IconEye} size="sm" color="ldGray.6" />
@@ -76,10 +90,7 @@ export const ShowToViewersSetting: FC<{
                     }
                 />
             </Group>
-            <Text id={`${id}-description`} size="xs" c="dimmed">
-                {description}
-            </Text>
-        </Stack>
+        </CaptionedSetting>
     );
 };
 

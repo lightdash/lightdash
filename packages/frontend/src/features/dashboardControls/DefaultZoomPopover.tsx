@@ -18,7 +18,12 @@ import { useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { getGranularityLabel } from '../dateZoom/utils';
-import { SettingsChip, SettingsHeader, TilesChip } from './ControlPopoverParts';
+import {
+    CaptionedSetting,
+    SettingsChip,
+    SettingsHeader,
+    TilesChip,
+} from './ControlPopoverParts';
 import { splitGrains } from './dateZoomGrains';
 import { focusParameterValueOnMount } from './editorFocus';
 import { formatTileCount } from './fieldLabels';
@@ -250,9 +255,9 @@ export const DefaultZoomPopover: FC<Props> = ({
             />
             <Stack gap="sm">
                 {/* A setting row, as Lock: its label and caption, then its
-                    control, every gap the rows' 6px */}
+                    control at the rows' 6px */}
                 <Stack gap={6}>
-                    <Stack gap={4}>
+                    <CaptionedSetting caption="For every date zoom on this dashboard.">
                         <Group gap={6} wrap="nowrap">
                             <MantineIcon
                                 icon={IconListCheck}
@@ -263,10 +268,7 @@ export const DefaultZoomPopover: FC<Props> = ({
                                 Grains viewers can pick
                             </Text>
                         </Group>
-                        <Text size="xs" c="dimmed">
-                            For every date zoom on this dashboard.
-                        </Text>
-                    </Stack>
+                    </CaptionedSetting>
                     <SimpleGrid cols={2} spacing="xs" verticalSpacing={6}>
                         {STANDARD_GRAINS.map(checkbox)}
                     </SimpleGrid>
