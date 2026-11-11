@@ -9,7 +9,10 @@ import {
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { isPreAggregatesEnabled } from '../../preAggregates/isPreAggregatesEnabled';
 import { PreAggregateStrategy } from './PreAggregateStrategy';
-import { type PreAggregationDuckDbClient } from './PreAggregationDuckDbClient';
+import {
+    PreAggregationDuckDbResolveReason,
+    type PreAggregationDuckDbClient,
+} from './PreAggregationDuckDbClient';
 import { type PreAggregationExternalResolver } from './PreAggregationExternalResolver';
 
 const makeStrategy = ({ preAggregatesEnabled = true } = {}) => {
@@ -95,6 +98,40 @@ describe('PreAggregateStrategy.resolveExecution', () => {
         });
         expect(duckDbClient.resolve).toHaveBeenCalledTimes(1);
         expect(externalResolver.resolve).not.toHaveBeenCalled();
+    });
+
+    test('a near-expiry skip carries the materialization_near_expiry fallback reason', async () => {
+        const { strategy, duckDbClient } = makeStrategy();
+        duckDbClient.resolve.mockResolvedValue({
+            resolved: false,
+            reason: PreAggregationDuckDbResolveReason.MATERIALIZATION_NEAR_EXPIRY,
+        });
+
+        const result = await strategy.resolveExecution(
+            resolveExecutionParams(),
+        );
+
+        expect(result).toEqual(
+            expect.objectContaining({
+                resolved: false,
+                isFatal: false,
+                fallbackReason: 'materialization_near_expiry',
+            }),
+        );
+    });
+
+    test('other resolve misses carry no fallback reason', async () => {
+        const { strategy, duckDbClient } = makeStrategy();
+        duckDbClient.resolve.mockResolvedValue({
+            resolved: false,
+            reason: PreAggregationDuckDbResolveReason.NO_ACTIVE_MATERIALIZATION,
+        });
+
+        const result = await strategy.resolveExecution(
+            resolveExecutionParams(),
+        );
+
+        expect(result).not.toHaveProperty('fallbackReason');
     });
 
     test('external routes resolve via the external resolver with project_warehouse execution', async () => {

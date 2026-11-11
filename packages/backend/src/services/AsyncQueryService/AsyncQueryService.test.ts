@@ -5284,6 +5284,7 @@ describe('AsyncQueryService', () => {
                 preAggregates: {
                     enabled: false,
                     parquetEnabled: false,
+                    materializationExpiry: { lifecycleDays: 30, marginDays: 1 },
                     materializationMaxRows: null,
                     duckdbQueryMemoryLimit: null,
                 },
@@ -5328,6 +5329,76 @@ describe('AsyncQueryService', () => {
 
             // Strategy's resolveExecution is called but returns not-resolved,
             // so execution falls back to warehouse
+            expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledTimes(1);
+            expect(runAsyncPreAggregateQuerySpy).not.toHaveBeenCalled();
+        });
+
+        test('records materialization_near_expiry on query history when a near-expiry materialization is skipped', async () => {
+            const mockStrategy = makeMockStrategy({
+                resolved: false,
+                reason: 'too close to storage expiry',
+                isFatal: false,
+                fallbackReason: 'materialization_near_expiry',
+            });
+            const service = getMockedAsyncQueryService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            (service as AnyType).preAggregateStrategy = mockStrategy;
+            (
+                service.queryHistoryModel.create as import('vitest').Mock
+            ).mockResolvedValue({
+                queryUuid: 'test-query-uuid',
+            });
+
+            const runAsyncWarehouseQuerySpy = vi
+                .spyOn(service, 'runAsyncWarehouseQuery')
+                .mockResolvedValue(undefined);
+            const runAsyncPreAggregateQuerySpy = vi
+                .spyOn(service, 'runAsyncPreAggregateQuery')
+                .mockResolvedValue(undefined);
+
+            await service['executeAsyncQuery'](
+                {
+                    inheritedFromProjectUuid: null,
+                    aiPrincipalUuid: null,
+                    account: sessionAccount,
+                    projectUuid,
+                    context: QueryExecutionContext.EXPLORE,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    invalidateCache: false,
+                    queryComposer: createQueryComposerMock({
+                        userAccessControls: {
+                            userAttributes: {},
+                            intrinsicUserAttributes: {},
+                        },
+                        availableParameterDefinitions: {},
+                    }),
+                    preAggregationRoute: {
+                        sourceExploreName: metricQueryMock.exploreName,
+                        preAggregateName: 'orders_daily',
+                        mode: 'opportunistic',
+                    },
+                    warehouseCredentials: warehouseCredentialsMock,
+                    warehouseConnectionUuid: null,
+                },
+                { query: metricQueryMock },
+            );
+
+            expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
+                'test-query-uuid',
+                projectUuid,
+                {
+                    pre_aggregate_fallback_reason:
+                        'materialization_near_expiry',
+                },
+                sessionAccount,
+            );
             expect(runAsyncWarehouseQuerySpy).toHaveBeenCalledTimes(1);
             expect(runAsyncPreAggregateQuerySpy).not.toHaveBeenCalled();
         });

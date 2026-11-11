@@ -597,6 +597,7 @@ type AsyncQueryExecutionPlan =
           warehouseQuery: string;
           preAggregateResolved?: false;
           preAggregateResolveReason?: string;
+          preAggregateFallbackReason?: PreAggregateFallbackReason;
       }
     | {
           target: 'pre_aggregate';
@@ -4340,6 +4341,9 @@ export class AsyncQueryService extends ProjectService {
             warehouseQuery,
             preAggregateResolved: false,
             preAggregateResolveReason: resolution.reason,
+            ...(resolution.fallbackReason
+                ? { preAggregateFallbackReason: resolution.fallbackReason }
+                : {}),
         };
     }
 
@@ -7242,6 +7246,24 @@ export class AsyncQueryService extends ProjectService {
                                     executionPlan.preAggregateQuery,
                                 pre_aggregate_execution:
                                     executionPlan.preAggregateExecution,
+                            },
+                            account,
+                        );
+                    }
+
+                    if (
+                        executionPlan.target === 'warehouse' &&
+                        executionPlan.preAggregateFallbackReason
+                    ) {
+                        this.prometheusMetrics?.incrementPreAggregateFallback(
+                            executionPlan.preAggregateFallbackReason,
+                        );
+                        await this.queryHistoryModel.update(
+                            queryHistoryUuid,
+                            projectUuid,
+                            {
+                                pre_aggregate_fallback_reason:
+                                    executionPlan.preAggregateFallbackReason,
                             },
                             account,
                         );

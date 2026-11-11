@@ -24,6 +24,7 @@ import {
     getUserAttributesSetupConfig,
     parseConfig,
     parseOrganizationMemberRoleArray,
+    parsePreAggregateMaterializationExpiryConfig,
     parseUsageEventsS3Config,
 } from './parseConfig';
 
@@ -3322,5 +3323,65 @@ describe('dbt source disk configuration', () => {
             sourceFetchDiskBudgetBytes: 1073741824,
             sourceFetchDiskPerSourceBytes: 134217728,
         });
+    });
+});
+
+describe('pre-aggregate materialization expiry', () => {
+    it('defaults to a 30 day lifecycle with a 1 day margin', () => {
+        expect(parsePreAggregateMaterializationExpiryConfig()).toEqual({
+            lifecycleDays: 30,
+            marginDays: 1,
+        });
+        expect(parseConfig().preAggregates.materializationExpiry).toEqual({
+            lifecycleDays: 30,
+            marginDays: 1,
+        });
+    });
+
+    it('reads both values from the environment', () => {
+        process.env.PRE_AGGREGATES_MATERIALIZATION_LIFECYCLE_DAYS = '14';
+        process.env.PRE_AGGREGATES_MATERIALIZATION_EXPIRY_MARGIN_DAYS = '3';
+        expect(parsePreAggregateMaterializationExpiryConfig()).toEqual({
+            lifecycleDays: 14,
+            marginDays: 3,
+        });
+    });
+
+    it('turns the check off with a lifecycle of 0', () => {
+        process.env.PRE_AGGREGATES_MATERIALIZATION_LIFECYCLE_DAYS = '0';
+        expect(
+            parsePreAggregateMaterializationExpiryConfig().lifecycleDays,
+        ).toBeNull();
+    });
+
+    it.each([
+        ['30', '30'],
+        ['30', '31'],
+        ['1', '1'],
+    ])(
+        'rejects a margin that is not less than the lifecycle (%s days, %s margin)',
+        (lifecycle, margin) => {
+            process.env.PRE_AGGREGATES_MATERIALIZATION_LIFECYCLE_DAYS =
+                lifecycle;
+            process.env.PRE_AGGREGATES_MATERIALIZATION_EXPIRY_MARGIN_DAYS =
+                margin;
+            expect(() =>
+                parsePreAggregateMaterializationExpiryConfig(),
+            ).toThrow(ParseError);
+        },
+    );
+
+    it.each(['-1', '1.5', 'abc'])('rejects a lifecycle of %s', (value) => {
+        process.env.PRE_AGGREGATES_MATERIALIZATION_LIFECYCLE_DAYS = value;
+        expect(() => parsePreAggregateMaterializationExpiryConfig()).toThrow(
+            ParseError,
+        );
+    });
+
+    it.each(['0', '-1', 'abc'])('rejects a margin of %s', (value) => {
+        process.env.PRE_AGGREGATES_MATERIALIZATION_EXPIRY_MARGIN_DAYS = value;
+        expect(() => parsePreAggregateMaterializationExpiryConfig()).toThrow(
+            ParseError,
+        );
     });
 });

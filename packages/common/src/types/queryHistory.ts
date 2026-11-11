@@ -39,7 +39,8 @@ export type PreAggregateExecutionEngine = 'duckdb' | 'project_warehouse';
 // Why a matched pre-aggregate query was served from the source warehouse instead
 export type PreAggregateFallbackReason =
     | 'duckdb_execution_error'
-    | 'external_execution_error';
+    | 'external_execution_error'
+    | 'materialization_near_expiry';
 
 /** A direct semantic field reference captured at query execution time. */
 export type SemanticFieldReference = {

@@ -137,6 +137,8 @@ describe('PreAggregationDuckDbClient', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date('2024-01-02T00:00:00.000Z'));
         QueryComposerMock.mockImplementation(function MockQueryComposer(this: {
             getSql: () => string;
         }) {
@@ -146,6 +148,7 @@ describe('PreAggregationDuckDbClient', () => {
     });
 
     afterEach(() => {
+        vi.useRealTimers();
         vi.restoreAllMocks();
     });
 
@@ -497,5 +500,150 @@ describe('PreAggregationDuckDbClient', () => {
                 }),
             }),
         );
+    });
+
+    describe('materialization near storage expiry', () => {
+        const DAY_MS = 24 * 60 * 60 * 1000;
+        const now = new Date('2024-03-01T00:00:00.000Z');
+
+        const materializedDaysAgo = (days: number, extraMs = 0) => ({
+            materializationUuid: 'mat-old',
+            queryUuid: 'mat-query-old',
+            materializationUri: 's3://mock_preagg_bucket/old.jsonl',
+            format: 'jsonl' as const,
+            columns: null,
+            materializedAt: new Date(now.getTime() - days * DAY_MS - extraMs),
+            totalBytes: 1,
+        });
+
+        const configWithExpiry = (
+            materializationExpiry: (typeof lightdashConfigMock)['preAggregates']['materializationExpiry'],
+        ) => ({
+            ...lightdashConfigMock,
+            preAggregates: {
+                ...lightdashConfigMock.preAggregates,
+                enabled: true,
+                materializationExpiry,
+            },
+        });
+
+        beforeEach(() => {
+            vi.setSystemTime(now);
+        });
+
+        test('skips an active materialization at the cutoff so the query goes to the warehouse', async () => {
+            const { client, projectModel } = getClient({
+                lightdashConfig: configWithExpiry({
+                    lifecycleDays: 30,
+                    marginDays: 1,
+                }),
+                activeMaterialization: materializedDaysAgo(29),
+            });
+
+            const result = await client.resolve({
+                ...baseResolveArgs,
+                preAggregationRoute: {
+                    ...baseResolveArgs.preAggregationRoute,
+                    mode: 'opportunistic' as const,
+                },
+            });
+
+            expect(result).toEqual({
+                resolved: false,
+                reason: PreAggregationDuckDbResolveReason.MATERIALIZATION_NEAR_EXPIRY,
+            });
+            expect(projectModel.getExploreFromCache).not.toHaveBeenCalled();
+            expect(QueryComposerMock).not.toHaveBeenCalled();
+        });
+
+        test('skips an active materialization older than the lifecycle age', async () => {
+            const { client } = getClient({
+                lightdashConfig: configWithExpiry({
+                    lifecycleDays: 30,
+                    marginDays: 1,
+                }),
+                activeMaterialization: materializedDaysAgo(45),
+            });
+
+            const result = await client.resolve(baseResolveArgs);
+
+            expect(result).toEqual({
+                resolved: false,
+                reason: PreAggregationDuckDbResolveReason.MATERIALIZATION_NEAR_EXPIRY,
+            });
+        });
+
+        test('serves an active materialization just inside the cutoff', async () => {
+            const { client } = getClient({
+                lightdashConfig: configWithExpiry({
+                    lifecycleDays: 30,
+                    marginDays: 1,
+                }),
+                activeMaterialization: materializedDaysAgo(29, -1),
+            });
+
+            const result = await client.resolve(baseResolveArgs);
+
+            expect(result).toEqual({
+                resolved: true,
+                query: 'SELECT * FROM test',
+            });
+        });
+
+        test('moves the cutoff with the configured lifecycle and margin', async () => {
+            const tenDaysOld = materializedDaysAgo(10);
+
+            const shortLifecycle = getClient({
+                lightdashConfig: configWithExpiry({
+                    lifecycleDays: 14,
+                    marginDays: 4,
+                }),
+                activeMaterialization: tenDaysOld,
+            });
+            expect(
+                await shortLifecycle.client.resolve(baseResolveArgs),
+            ).toEqual({
+                resolved: false,
+                reason: PreAggregationDuckDbResolveReason.MATERIALIZATION_NEAR_EXPIRY,
+            });
+
+            const widerMargin = getClient({
+                lightdashConfig: configWithExpiry({
+                    lifecycleDays: 14,
+                    marginDays: 3,
+                }),
+                activeMaterialization: tenDaysOld,
+            });
+            expect(await widerMargin.client.resolve(baseResolveArgs)).toEqual({
+                resolved: true,
+                query: 'SELECT * FROM test',
+            });
+        });
+
+        test('serves any age when the lifecycle check is off', async () => {
+            const { client } = getClient({
+                lightdashConfig: configWithExpiry({
+                    lifecycleDays: null,
+                    marginDays: 1,
+                }),
+                activeMaterialization: materializedDaysAgo(365),
+            });
+
+            expect(await client.resolve(baseResolveArgs)).toEqual({
+                resolved: true,
+                query: 'SELECT * FROM test',
+            });
+        });
+
+        test('explains the near-expiry skip when the route requires a pre-aggregate', () => {
+            expect(
+                PreAggregationDuckDbClient.getPreAggregationResolutionErrorMessage(
+                    {
+                        route: baseResolveArgs.preAggregationRoute,
+                        reason: PreAggregationDuckDbResolveReason.MATERIALIZATION_NEAR_EXPIRY,
+                    },
+                ),
+            ).toContain('too close to storage expiry');
+        });
     });
 });

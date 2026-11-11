@@ -18,6 +18,7 @@ import {
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type MetricQuery,
+    type PreAggregateFallbackReason,
     type QueryExecutionContext,
     type QueryResultProducer,
 } from '@lightdash/common';
@@ -126,7 +127,12 @@ export type ResolveExecutionArgs = {
 
 export type PreAggregateExecutionResolution =
     | { resolved: true; query: string; execution: PreAggregateExecutionEngine }
-    | { resolved: false; reason: string; isFatal: boolean };
+    | {
+          resolved: false;
+          reason: string;
+          isFatal: boolean;
+          fallbackReason?: PreAggregateFallbackReason;
+      };
 
 /* eslint-disable class-methods-use-this */
 export class NoOpPreAggregateStrategy implements PreAggregateStrategy {

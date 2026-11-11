@@ -50,7 +50,7 @@ const fixture = () => {
         materializationUri: 's3://bucket/folder/results.jsonl',
         format: 'jsonl' as const,
         columns: null,
-        materializedAt: new Date(0),
+        materializedAt: new Date(),
         totalBytes: 100,
     };
     const getExploreFromCache = vi.fn(async () => ({
