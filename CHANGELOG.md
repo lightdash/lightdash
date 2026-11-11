@@ -1,3 +1,10 @@
+## [3.211.5](https://github.com/lightdash/lightdash/compare/3.211.4...3.211.5) (2026-11-11)
+
+
+### Bug Fixes
+
+* **ai-writeback:** validate dbt connection host on org git token paths ([#32389](https://github.com/lightdash/lightdash/issues/32389)) ([e207ceb](https://github.com/lightdash/lightdash/commit/e207ceb480e394c7ce50f676057bf4a2807588e6))
+
 ## [3.211.4](https://github.com/lightdash/lightdash/compare/3.211.3...3.211.4) (2026-11-11)
 
 
