@@ -156,17 +156,21 @@ const selectTileQueryParameterReferences = (state: DashboardStoreState) =>
     state.parameters.tileQueryParameterReferences;
 const selectTileListedParameterReferences = (state: DashboardStoreState) =>
     state.parameters.tileListedParameterReferences;
+const selectTileFailedParameterSources = (state: DashboardStoreState) =>
+    state.parameters.tileFailedParameterSources;
 
 // A tile counts once it ran, or once it was listed with its saved values
 const isTileParameterStateKnown = (
     tileUuid: string,
     queryReferences: Record<string, string[] | null>,
     listedReferences: Record<string, string[]>,
+    failedSources: Record<string, string>,
     chartValues: Record<string, ParametersValuesMap>,
     virtualValues: Record<string, ParametersValuesMap>,
 ) =>
     Object.hasOwn(queryReferences, tileUuid) ||
     (Object.hasOwn(listedReferences, tileUuid) &&
+        !Object.hasOwn(failedSources, tileUuid) &&
         Object.hasOwn(chartValues, tileUuid) &&
         Object.hasOwn(virtualValues, tileUuid));
 
@@ -259,6 +263,7 @@ export const selectMissingRequiredParameters = createSelector(
         selectTileParameterReferences,
         selectTileQueryParameterReferences,
         selectTileListedParameterReferences,
+        selectTileFailedParameterSources,
         selectTileChartSavedParameters,
         selectTileVirtualViewSavedParameters,
         selectAppliedParameterValues,
@@ -269,6 +274,7 @@ export const selectMissingRequiredParameters = createSelector(
         tileParameterReferences,
         tileQueryParameterReferences,
         tileListedParameterReferences,
+        tileFailedParameterSources,
         tileChartSavedParameters,
         tileVirtualViewSavedParameters,
         appliedParameterValues,
@@ -283,6 +289,7 @@ export const selectMissingRequiredParameters = createSelector(
                         tileUuid,
                         tileQueryParameterReferences,
                         tileListedParameterReferences,
+                        tileFailedParameterSources,
                         tileChartSavedParameters,
                         tileVirtualViewSavedParameters,
                     ),
@@ -308,6 +315,7 @@ export const selectMissingParametersByTile = createSelector(
         selectTileParameterReferences,
         selectTileQueryParameterReferences,
         selectTileListedParameterReferences,
+        selectTileFailedParameterSources,
         selectTileChartSavedParameters,
         selectTileVirtualViewSavedParameters,
         selectAppliedParameterValues,
@@ -318,6 +326,7 @@ export const selectMissingParametersByTile = createSelector(
         references,
         queryReferences,
         listedReferences,
+        failedSources,
         chartValues,
         virtualValues,
         dashboardValues,
@@ -331,6 +340,7 @@ export const selectMissingParametersByTile = createSelector(
                         tileUuid,
                         queryReferences,
                         listedReferences,
+                        failedSources,
                         chartValues,
                         virtualValues,
                     ),

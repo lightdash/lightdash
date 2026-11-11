@@ -475,6 +475,106 @@ describe('dashboardParametersReducer', () => {
             expect(next.tileChartSavedParameters).toEqual({});
         });
 
+        it('keepTileParameterState drops removed tiles failed listings', () => {
+            const next = reducer(
+                stateWith({
+                    tileFailedParameterSources: {
+                        'tile-1': 'chart-1',
+                        'tile-2': 'chart-2',
+                    },
+                }),
+                actions.keepTileParameterState(['tile-1']),
+            );
+            expect(next.tileFailedParameterSources).toEqual({
+                'tile-1': 'chart-1',
+            });
+        });
+
+        it("drops a tile's parameter state when its source changes, and only then", () => {
+            const reported = [
+                actions.addParameterReferences({
+                    tileUuid: 'tile-1',
+                    references: ['region'],
+                }),
+                actions.setTileChartSavedParameters({
+                    tileUuid: 'tile-1',
+                    values: { region: 'EU' },
+                }),
+                actions.markParameterReferencesFailed({ 'tile-1': 'chart-1' }),
+            ].reduce(reducer, stateWith());
+            const recorded = reducer(
+                reported,
+                actions.resetChangedTileParameterSources({
+                    'tile-1': 'chart-1',
+                }),
+            );
+            expect(recorded.tileParameterReferences).toEqual({
+                'tile-1': ['region'],
+            });
+            expect(
+                reducer(
+                    recorded,
+                    actions.resetChangedTileParameterSources({
+                        'tile-1': 'chart-1',
+                    }),
+                ),
+            ).toBe(recorded);
+            const swapped = reducer(
+                recorded,
+                actions.resetChangedTileParameterSources({
+                    'tile-1': 'chart-2',
+                }),
+            );
+            expect(swapped.tileParameterReferences).toEqual({});
+            expect(swapped.tileQueryParameterReferences).toEqual({});
+            expect(swapped.tileChartSavedParameters).toEqual({});
+            expect(swapped.tileFailedParameterSources).toEqual({});
+            expect(swapped.tileParameterStateSources).toEqual({
+                'tile-1': 'chart-2',
+            });
+        });
+
+        it("keeps a tile's own report when a late listing fails", () => {
+            const next = [
+                actions.addParameterReferences({
+                    tileUuid: 'tile-1',
+                    references: ['status'],
+                }),
+                actions.markParameterReferencesFailed({ 'tile-1': 'chart-2' }),
+            ].reduce(
+                reducer,
+                stateWith({
+                    tileListedParameterSources: { 'tile-1': 'chart-1' },
+                }),
+            );
+            expect(next.tileParameterReferences).toEqual({
+                'tile-1': ['status'],
+            });
+        });
+
+        it('clears a failed listing once the tile is listed', () => {
+            const failed = reducer(
+                stateWith(),
+                actions.markParameterReferencesFailed({
+                    'tile-1': 'chart-1',
+                    'tile-2': 'chart-2',
+                }),
+            );
+            const next = reducer(
+                failed,
+                actions.addDiscoveredParameterReferences({
+                    references: { 'tile-1': ['region'] },
+                    definitions: {},
+                    sources: { 'tile-1': 'chart-1' },
+                    chartSavedValues: { 'tile-1': {} },
+                    virtualViewSavedValues: { 'tile-1': {} },
+                }),
+            );
+            expect(next.tileFailedParameterSources).toEqual({
+                'tile-2': 'chart-2',
+            });
+        });
+
         it('keepTileParameterState returns the same state when nothing is dropped', () => {
             const state = stateWith({
                 tileParameterReferences: { 'tile-1': ['status'] },
@@ -543,8 +643,14 @@ describe('dashboardParametersReducer', () => {
 
         it('replaces the values when the tile points at another chart', () => {
             const next = [
+                actions.resetChangedTileParameterSources({
+                    'tile-1': 'chart-1',
+                }),
                 listing({ 'tile-1': { region: 'listed' } }),
                 ...tileReport,
+                actions.resetChangedTileParameterSources({
+                    'tile-1': 'chart-2',
+                }),
                 listing({ 'tile-1': { region: 'other' } }, 'chart-2'),
             ].reduce(reducer, stateWith());
             expect(next.tileChartSavedParameters['tile-1']).toEqual({

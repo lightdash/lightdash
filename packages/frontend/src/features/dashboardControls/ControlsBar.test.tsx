@@ -392,15 +392,19 @@ describe('ControlsBar', () => {
         ).toBe('parameter-pills');
     });
 
-    it('keeps legacy parameter pills while controls are unavailable', () => {
-        renderWithProviders(
-            <ControlsBar
-                {...baseProps}
-                parameters={{ region: { label: 'Region' } }}
-            />,
-        );
-        expect(screen.getByTestId('parameters')).toHaveTextContent('region');
-    });
+    it.each([false, true])(
+        'renders no legacy parameters while controls are not built (edit mode: %s)',
+        (isEditMode) => {
+            renderWithProviders(
+                <ControlsBar
+                    {...baseProps}
+                    isEditMode={isEditMode}
+                    parameters={{ region: { label: 'Region' } }}
+                />,
+            );
+            expect(screen.queryByTestId('parameters')).not.toBeInTheDocument();
+        },
+    );
 
     it('collapses into a drawer trigger on compact viewports in view mode', () => {
         mockCompact.current = true;

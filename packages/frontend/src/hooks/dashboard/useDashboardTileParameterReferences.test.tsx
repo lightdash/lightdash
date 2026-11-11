@@ -4,8 +4,8 @@ import {
     type DashboardTile,
 } from '@lightdash/common';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@testing-library/react';
-import type { PropsWithChildren } from 'react';
+import { act, render, renderHook, waitFor } from '@testing-library/react';
+import { useEffect, useSyncExternalStore, type PropsWithChildren } from 'react';
 import { vi, type Mock } from 'vitest';
 
 vi.mock('../../api');
@@ -16,7 +16,11 @@ vi.mock('../useServerOrClientFeatureFlag', () => ({
 }));
 
 import { sharedLightdashApi, type LightdashApi } from '../../api';
-import { dashboardEditActions } from '../../features/dashboard/store';
+import {
+    dashboardEditActions,
+    dashboardParametersActions,
+    selectTileQuerySourcesKey,
+} from '../../features/dashboard/store';
 import { LightdashApiContext } from '../../providers/LightdashApi/LightdashApiContext';
 import { createDashboardTestStore } from '../../testing/dashboardStore';
 import { useDashboardTileParameterReferences } from './useDashboardTileParameterReferences';
@@ -72,8 +76,8 @@ const setup = (
     embedApi?: LightdashApi,
     dashboardTiles = tiles,
     tabs: DashboardTab[] = [],
+    store = createDashboardTestStore(),
 ) => {
-    const store = createDashboardTestStore();
     store.dispatch(dashboardEditActions.setTiles(dashboardTiles));
     store.dispatch(dashboardEditActions.setTabs(tabs));
     const queryClient = new QueryClient({
@@ -184,6 +188,265 @@ describe('useDashboardTileParameterReferences', () => {
         );
     });
 
+    it('marks tiles whose listing errored, or came from an older server, as failed', async () => {
+        mockApi.mockResolvedValue([
+            listedTile('tile-open', ['orders.region']),
+            {
+                tileUuid: 'tile-unopened',
+                parameterReferences: ['region'],
+                parameterDefinitions: {},
+                error: null,
+            },
+            {
+                tileUuid: 'tile-sql',
+                parameterReferences: null,
+                error: 'No access',
+            },
+        ]);
+        const store = setup();
+        await waitFor(() =>
+            expect(
+                store.getState().parameters.tileFailedParameterSources,
+            ).toEqual({
+                'tile-unopened': JSON.stringify({
+                    tileUuid: 'tile-unopened',
+                    savedChartUuid: 'chart-2',
+                    savedSqlUuid: null,
+                }),
+                'tile-sql': JSON.stringify({
+                    tileUuid: 'tile-sql',
+                    savedChartUuid: null,
+                    savedSqlUuid: 'sql-1',
+                }),
+            }),
+        );
+        expect(
+            Object.keys(store.getState().parameters.tileListedParameterSources),
+        ).toEqual(['tile-open']);
+    });
+
+    describe('a tile pointed at another chart', () => {
+        const failure = (tileUuid: string) => [
+            { tileUuid, parameterReferences: null, error: 'Request failed' },
+        ];
+        const swap = (store: ReturnType<typeof createDashboardTestStore>) =>
+            act(() => {
+                store.dispatch(
+                    dashboardEditActions.setTiles([
+                        tile(
+                            'tile-open',
+                            'tab-1',
+                            DashboardTileTypes.SAVED_CHART,
+                            'chart-9',
+                        ),
+                    ]),
+                );
+            });
+        const report = (
+            store: ReturnType<typeof createDashboardTestStore>,
+            references: string[],
+            values: Record<string, string>,
+        ) =>
+            act(() => {
+                store.dispatch(
+                    dashboardParametersActions.addParameterReferences({
+                        tileUuid: 'tile-open',
+                        references,
+                    }),
+                );
+                store.dispatch(
+                    dashboardParametersActions.setTileChartSavedParameters({
+                        tileUuid: 'tile-open',
+                        values,
+                    }),
+                );
+            });
+
+        it("keeps the new chart's own report when its listing fails late", async () => {
+            let failListing = () => {};
+            mockApi
+                .mockResolvedValueOnce([listedTile('tile-open', ['a.region'])])
+                .mockImplementationOnce(
+                    () =>
+                        new Promise((resolve) => {
+                            failListing = () => resolve(failure('tile-open'));
+                        }),
+                );
+            const store = setup(undefined, [tiles[0]]);
+            await waitFor(() =>
+                expect(
+                    store.getState().parameters.tileListedParameterReferences,
+                ).toEqual({ 'tile-open': ['a.region'] }),
+            );
+            swap(store);
+            await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(2));
+            report(store, ['b.status'], { status: 'Open' });
+            act(() => failListing());
+            await waitFor(() =>
+                expect(
+                    Object.keys(
+                        store.getState().parameters.tileFailedParameterSources,
+                    ),
+                ).toEqual(['tile-open']),
+            );
+            expect(store.getState().parameters.tileParameterReferences).toEqual(
+                { 'tile-open': ['b.status'] },
+            );
+            expect(
+                store.getState().parameters.tileChartSavedParameters,
+            ).toEqual({ 'tile-open': { status: 'Open' } });
+        });
+
+        it("leaves nothing of a failed but reported chart when the new one's listing fails", async () => {
+            mockApi.mockResolvedValue(failure('tile-open'));
+            const store = setup(undefined, [tiles[0]]);
+            await waitFor(() =>
+                expect(
+                    Object.keys(
+                        store.getState().parameters.tileFailedParameterSources,
+                    ),
+                ).toEqual(['tile-open']),
+            );
+            report(store, ['a.region'], { region: 'EU' });
+            swap(store);
+            await waitFor(() => expect(mockApi).toHaveBeenCalledTimes(2));
+            await waitFor(() =>
+                expect(
+                    store.getState().parameters.tileFailedParameterSources[
+                        'tile-open'
+                    ],
+                ).toContain('chart-9'),
+            );
+            const { parameters } = store.getState();
+            expect(parameters.tileParameterReferences).toEqual({});
+            expect(parameters.tileQueryParameterReferences).toEqual({});
+            expect(parameters.tileChartSavedParameters).toEqual({});
+        });
+
+        it("refills from the new chart's listing", async () => {
+            mockApi
+                .mockResolvedValueOnce([listedTile('tile-open', ['a.region'])])
+                .mockResolvedValueOnce([listedTile('tile-open', ['b.status'])]);
+            const store = setup(undefined, [tiles[0]]);
+            await waitFor(() =>
+                expect(
+                    store.getState().parameters.tileParameterReferences,
+                ).toEqual({ 'tile-open': ['a.region'] }),
+            );
+            swap(store);
+            await waitFor(() =>
+                expect(
+                    store.getState().parameters.tileParameterReferences,
+                ).toEqual({ 'tile-open': ['b.status'] }),
+            );
+        });
+
+        it('wipes nothing on the first load', async () => {
+            mockApi.mockResolvedValue(failure('tile-open'));
+            const store = createDashboardTestStore();
+            store.dispatch(
+                dashboardParametersActions.addParameterReferences({
+                    tileUuid: 'tile-open',
+                    references: ['a.region'],
+                }),
+            );
+            setup(undefined, [tiles[0]], [], store);
+            await waitFor(() =>
+                expect(
+                    store.getState().parameters.tileParameterStateSources,
+                ).toHaveProperty('tile-open'),
+            );
+            expect(store.getState().parameters.tileParameterReferences).toEqual(
+                { 'tile-open': ['a.region'] },
+            );
+        });
+
+        it('keeps a report the new chart makes in the same render as the swap', async () => {
+            mockApi.mockReturnValue(new Promise(() => {}));
+            const store = createDashboardTestStore();
+            store.dispatch(dashboardEditActions.setTiles([tiles[0]]));
+            // A cached chart reports from its tile's effect in the commit that swaps it
+            const Tile = () => {
+                const key = useSyncExternalStore(store.subscribe, () =>
+                    selectTileQuerySourcesKey(store.getState()),
+                );
+                useEffect(() => {
+                    if (!key.includes('chart-9')) return;
+                    store.dispatch(
+                        dashboardParametersActions.setTileChartSavedParameters({
+                            tileUuid: 'tile-open',
+                            values: { status: 'Open' },
+                        }),
+                    );
+                }, [key]);
+                return null;
+            };
+            const Dashboard = () => {
+                useDashboardTileParameterReferences({
+                    store,
+                    projectUuid: 'project-uuid',
+                });
+                return <Tile />;
+            };
+            render(
+                <QueryClientProvider client={new QueryClient()}>
+                    <Dashboard />
+                </QueryClientProvider>,
+            );
+            await waitFor(() =>
+                expect(
+                    store.getState().parameters.tileParameterStateSources,
+                ).toHaveProperty('tile-open'),
+            );
+            swap(store);
+            expect(
+                store.getState().parameters.tileChartSavedParameters,
+            ).toEqual({ 'tile-open': { status: 'Open' } });
+        });
+    });
+
+    it('keeps a good listing of the same source when a refetch fails for it', async () => {
+        mockApi.mockResolvedValue([
+            {
+                tileUuid: 'tile-open',
+                parameterReferences: null,
+                error: 'Request failed',
+            },
+            {
+                tileUuid: 'tile-sql',
+                parameterReferences: null,
+                error: 'Request failed',
+            },
+        ]);
+        const store = createDashboardTestStore();
+        store.dispatch(
+            dashboardParametersActions.addDiscoveredParameterReferences({
+                references: { 'tile-open': ['orders.region'] },
+                definitions: {},
+                sources: {
+                    'tile-open': JSON.stringify({
+                        tileUuid: 'tile-open',
+                        savedChartUuid: 'chart-1',
+                        savedSqlUuid: null,
+                    }),
+                },
+                chartSavedValues: { 'tile-open': {} },
+                virtualViewSavedValues: { 'tile-open': {} },
+            }),
+        );
+        setup(undefined, tiles, [], store);
+        await waitFor(() =>
+            expect(
+                Object.keys(
+                    store.getState().parameters.tileFailedParameterSources,
+                ),
+            ).toEqual(['tile-sql']),
+        );
+        expect(
+            store.getState().parameters.tileListedParameterReferences,
+        ).toEqual({ 'tile-open': ['orders.region'] });
+    });
+
     it('sends a large dashboard in requests of at most 200 tiles', async () => {
         const manyTiles = Array.from({ length: 450 }, (_, index) =>
             tile(
@@ -246,6 +509,16 @@ describe('useDashboardTileParameterReferences', () => {
         expect(listed['tile-199']).toEqual(['orders.region']);
         expect(listed['tile-200']).toBeUndefined();
         expect(listed['tile-449']).toEqual(['orders.region']);
+        await waitFor(() =>
+            expect(
+                Object.keys(
+                    store.getState().parameters.tileFailedParameterSources,
+                ),
+            ).toHaveLength(200),
+        );
+        expect(
+            store.getState().parameters.tileFailedParameterSources['tile-200'],
+        ).toBeDefined();
     });
 
     it("requests through the embed's API client, which sends its token", async () => {
