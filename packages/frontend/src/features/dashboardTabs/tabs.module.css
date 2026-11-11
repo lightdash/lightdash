@@ -170,14 +170,23 @@
     width: var(--pinned-width) !important;
     height: var(--pinned-height) !important;
     z-index: 1;
+    /* Dimmed to show which tile the shadow stands for */
+    opacity: 0.5;
+    transition: opacity 120ms var(--grid-ease-out);
+}
+
+.dropShadow,
+.gridSettling {
+    --grid-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 /* Where the tile will land, drawn over the tiles it would push down */
 .dropShadow :global(.react-grid-item.react-grid-placeholder) {
     background: none;
     opacity: 1;
-    /* It is the only thing following the pointer, so it must not trail it */
-    transition: none;
+    /* It is the only thing following the pointer, so its position must not
+       trail it */
+    transition: opacity 100ms var(--grid-ease-out);
 
     &::after {
         content: '';
@@ -189,6 +198,40 @@
             var(--mantine-color-ldGray-5) 35%,
             transparent
         );
+    }
+}
+
+@starting-style {
+    .dropShadow :global(.react-grid-item.react-grid-placeholder) {
+        opacity: 0;
+    }
+}
+
+/* Jumping into a row slot is a change of state, so it eases there */
+.dropShadowSnapped :global(.react-grid-item.react-grid-placeholder) {
+    transition:
+        opacity 100ms var(--grid-ease-out),
+        left 150ms var(--grid-ease-out),
+        top 150ms var(--grid-ease-out),
+        width 150ms var(--grid-ease-out),
+        height 150ms var(--grid-ease-out);
+}
+
+/* After a drop, tiles travel and change size together. Keep DROP_SETTLE_MS in
+   step with the duration */
+.gridSettling :global(.react-grid-item) {
+    transition-property: left, top, width, height, opacity;
+    transition-duration: 200ms;
+    transition-timing-function: var(--grid-ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dropShadowSnapped :global(.react-grid-item.react-grid-placeholder) {
+        transition: opacity 100ms var(--grid-ease-out);
+    }
+
+    .gridSettling :global(.react-grid-item) {
+        transition-property: opacity;
     }
 }
 

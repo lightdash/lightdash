@@ -119,6 +119,9 @@ type DashboardGridProps = ReturnType<typeof getResponsiveGridLayoutProps> & {
 
 const DASHBOARD_GRID_BOTTOM_PADDING = 60;
 
+/** A little longer than the drop transition in tabs.module.css */
+const DROP_SETTLE_MS = 260;
+
 type TabGridPanelProps = {
     tabUuid: string;
     tiles: DashboardTile[];
@@ -338,6 +341,17 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         : DashboardFiltersBar;
 
     const [isInteracting, setIsInteracting] = useState(false);
+    const [isShadowSnapped, setIsShadowSnapped] = useState(false);
+    // Just after a drop, while tiles travel to where the drop put them
+    const [isSettling, setIsSettling] = useState(false);
+    useEffect(() => {
+        if (!isSettling) return;
+        const timer = window.setTimeout(
+            () => setIsSettling(false),
+            DROP_SETTLE_MS,
+        );
+        return () => window.clearTimeout(timer);
+    }, [isSettling]);
 
     const showGridLines = isEditMode && isInteracting;
 
@@ -365,11 +379,19 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     );
     // The grid reports its whole layout on every stop, with stored overlaps
     // pushed apart, so a click that moved nothing must not apply it
-    const handleResizeStop = useCallback<ItemCallback>(
-        (layout, before, after, _placeholder, _event, node) => {
+    const endInteraction = useCallback(
+        (node: HTMLElement) => {
             unpinGridItem(node);
             stopAutoScroll();
             setIsInteracting(false);
+            setIsShadowSnapped(false);
+            setIsSettling(isEditErgonomicsEnabled);
+        },
+        [stopAutoScroll, isEditErgonomicsEnabled],
+    );
+    const handleResizeStop = useCallback<ItemCallback>(
+        (layout, before, after, _placeholder, _event, node) => {
+            endInteraction(node);
             if (hasGridItemMoved(before, after)) {
                 void handleUpdateTilesWithScaling(
                     isEditErgonomicsEnabled
@@ -378,7 +400,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 );
             }
         },
-        [handleUpdateTilesWithScaling, stopAutoScroll, isEditErgonomicsEnabled],
+        [handleUpdateTilesWithScaling, endInteraction, isEditErgonomicsEnabled],
     );
     const getDragRowInsertion = useCallback(
         (layout: Layout[], draggedId: string, event: MouseEvent) => {
@@ -398,6 +420,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const handleDrag = useCallback<ItemCallback>(
         (layout, _before, after, placeholder, event) => {
             const insertion = getDragRowInsertion(layout, after.i, event);
+            setIsShadowSnapped(insertion !== null);
             // The grid draws the shadow from this object after the callback
             if (insertion) {
                 const { x, y, w, h } = insertion.slot;
@@ -420,16 +443,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 );
                 return;
             }
-            unpinGridItem(node);
-            stopAutoScroll();
-            setIsInteracting(false);
+            endInteraction(node);
             void handleUpdateTilesWithScaling(insertion.layout);
         },
         [
             getDragRowInsertion,
             handleResizeStop,
             handleUpdateTilesWithScaling,
-            stopAutoScroll,
+            endInteraction,
         ],
     );
     const handleWidthChange = useCallback(
@@ -1305,6 +1326,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                 gridProps.allowOverlap
                                     ? styles.dropShadow
                                     : undefined,
+                                isShadowSnapped
+                                    ? styles.dropShadowSnapped
+                                    : undefined,
+                                isSettling ? styles.gridSettling : undefined,
                             ]
                                 .filter(Boolean)
                                 .join(' ')}
