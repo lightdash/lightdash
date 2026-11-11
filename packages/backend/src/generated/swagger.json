@@ -15703,6 +15703,16 @@
                     "hasSecret": {
                         "type": "boolean"
                     },
+                    "targetLabel": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The name the connection picker showed for the source's target."
+                    },
+                    "aiHint": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "What an admin says this live source is for. Reaches the AI agent."
+                    },
                     "liveSourceName": {
                         "type": "string",
                         "nullable": true,
@@ -16220,6 +16230,10 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "explorePrefix": {
+                        "type": "string",
+                        "description": "Prefix of a new live source's explore names. Defaults to one derived\nfrom the name. It is set once and can't be changed afterwards."
+                    },
                     "apiSource": {
                         "allOf": [
                             {
@@ -16615,7 +16629,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Partial_CreateExternalConnection_": {
+            "Partial_Omit_CreateExternalConnection.explorePrefix__": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -16736,8 +16750,21 @@
                 "description": "Make all properties in T optional"
             },
             "UpdateExternalConnection": {
-                "$ref": "#/components/schemas/Partial_CreateExternalConnection_",
-                "description": "Omitted/blank `secret` means the stored secret is left unchanged."
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Partial_Omit_CreateExternalConnection.explorePrefix__"
+                    },
+                    {
+                        "properties": {
+                            "aiHint": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Live sources only. Empty or null clears it."
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
             },
             "LiveSourceFieldEditor": {
                 "properties": {
@@ -16847,11 +16874,21 @@
                         "nullable": true,
                         "description": "ISO timestamp of the last scan, or null when the source was never scanned."
                     },
+                    "usedByChartCount": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Saved charts on any of the source's explores, each counted once."
+                    },
                     "exploreName": {
                         "type": "string"
                     }
                 },
-                "required": ["fields", "scannedAt", "exploreName"],
+                "required": [
+                    "fields",
+                    "scannedAt",
+                    "usedByChartCount",
+                    "exploreName"
+                ],
                 "type": "object"
             },
             "ApiLiveSourceFieldsResponse": {
@@ -17311,6 +17348,130 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "ExplorePrefixCheck": {
+                "properties": {
+                    "suggestionExploreNames": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "suggestion": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "A free prefix close to the one asked for, when it's taken."
+                    },
+                    "error": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "exploreNames": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "The explore names the prefix gives; empty when its format is invalid."
+                    },
+                    "prefix": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "suggestionExploreNames",
+                    "suggestion",
+                    "error",
+                    "exploreNames",
+                    "prefix"
+                ],
+                "type": "object",
+                "description": "Whether a new live source can use an explore prefix."
+            },
+            "ApiExplorePrefixCheckResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExplorePrefixCheck"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ReattachableLiveSource": {
+                "properties": {
+                    "isSameTarget": {
+                        "type": "boolean",
+                        "description": "Reads the same target as the source being reattached."
+                    },
+                    "usedByChartCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "deletedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "apiSource": {
+                        "$ref": "#/components/schemas/ExternalConnectionApiSource"
+                    },
+                    "exploreNames": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "explorePrefix": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "externalConnectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "isSameTarget",
+                    "usedByChartCount",
+                    "deletedAt",
+                    "apiSource",
+                    "exploreNames",
+                    "explorePrefix",
+                    "name",
+                    "externalConnectionUuid"
+                ],
+                "type": "object",
+                "description": "A deleted live source whose explore prefix a new source can take over."
+            },
+            "ApiReattachableLiveSourcesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ReattachableLiveSource"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiReattachLiveSourceRequest": {
+                "properties": {
+                    "deletedConnectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["deletedConnectionUuid"],
                 "type": "object"
             },
             "Pick_Organization.name-or-organizationUuid-or-createdAt_": {
@@ -20616,6 +20777,10 @@
                         },
                         "required": ["nested", "or"],
                         "type": "object"
+                    },
+                    "definitionHash": {
+                        "type": "string",
+                        "description": "Hash of what the integration's code defines for this explore. Absent on\nexplores built before hashes, which counts as out of date."
                     },
                     "baseVersion": {
                         "type": "number",
@@ -58808,6 +58973,7 @@
                     "consolidateAiAgentMemoryPartition",
                     "cleanMcpToolCalls",
                     "cleanRateCounters",
+                    "rebuildOutdatedApiSourceExplores",
                     "cleanDataAppAnalyses",
                     "cleanAiDeepResearchReports",
                     "cleanAiAgentThreads",
@@ -77484,7 +77650,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.217.1",
+        "version": "3.218.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

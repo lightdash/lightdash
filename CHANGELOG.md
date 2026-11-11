@@ -1,3 +1,16 @@
+# [3.218.0](https://github.com/lightdash/lightdash/compare/3.217.1...3.218.0) (2026-11-11)
+
+
+### Bug Fixes
+
+* **live-sources:** rebuild existing sources when integration code changes ([#32271](https://github.com/lightdash/lightdash/issues/32271)) ([2a686bc](https://github.com/lightdash/lightdash/commit/2a686bc442c78b2175aec33841d48f2dcf5045e0))
+
+
+### Features
+
+* **live-sources:** add Source ID and reattach for deleted sources ([#32275](https://github.com/lightdash/lightdash/issues/32275)) ([81e937e](https://github.com/lightdash/lightdash/commit/81e937eb5ea92288783a685f9a7bbe9a904a2f5d))
+* **live-sources:** tell agents which target each source reads ([#32274](https://github.com/lightdash/lightdash/issues/32274)) ([a4190f2](https://github.com/lightdash/lightdash/commit/a4190f25f0d1c3d5483b6e77c4215fe54f83a410))
+
 ## [3.217.1](https://github.com/lightdash/lightdash/compare/3.217.0...3.217.1) (2026-11-11)
 
 
