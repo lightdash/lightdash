@@ -184,6 +184,27 @@ describe('MergeQuerySource', () => {
         expect(compileComposerMerge).not.toHaveBeenCalled();
     });
 
+    it('refuses a pivoted source node', async () => {
+        const { source } = createSource();
+        await expect(
+            source.validateQuery(
+                args(merge, [
+                    orders,
+                    {
+                        ...payments,
+                        pivotConfiguration: {
+                            indexColumn: undefined,
+                            valuesColumns: [],
+                            groupByColumns: undefined,
+                            sortBy: undefined,
+                        },
+                    },
+                    merge,
+                ]),
+            ),
+        ).rejects.toThrow('which is pivoted');
+    });
+
     it('refuses a pivot', async () => {
         const { source } = createSource();
         await expect(

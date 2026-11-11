@@ -70,6 +70,16 @@ const toMergeQuery = (
             `Merge ${nodeName(query)} reads "${nodeId}", which is not a semanticLayer node of this pipeline. A merge joins semanticLayer nodes; join other results with a duckdb node.`,
         );
     }
+    const pivoted = query.sources.find(
+        ({ nodeId }) =>
+            submission.find((node) => node.nodeId === nodeId)
+                ?.pivotConfiguration !== undefined,
+    );
+    if (pivoted) {
+        throw new ParameterError(
+            `Merge ${nodeName(query)} reads "${pivoted.nodeId}", which is pivoted. Merge its unpivoted node and pivot the merge's result instead.`,
+        );
+    }
     mergeQuery.joinKey.forEach((part) => {
         mergeQuery.sources.forEach((source) => {
             const fieldId = part.fieldIdBySourceId[source.id];
