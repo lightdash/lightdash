@@ -213,7 +213,10 @@ import {
 } from './dashboardReferences';
 import { preserveDashboardTileUuids } from './dashboardTileIdentity';
 import { resolveDataAppVizBinding } from './dataAppVizBinding';
-import { getDateZoomConfigWithIds } from './dateZoomControlSlugs';
+import {
+    getDateZoomConfigWithIds,
+    getDateZoomConfigWithSlugs,
+} from './dateZoomControlSlugs';
 import { normalizeFilterIds, stripFilterIds } from './filterIds';
 import {
     getContentConnectionName,
@@ -2205,6 +2208,13 @@ export class CoderService extends BaseService {
                             config.parameterControls,
                         ),
                     }),
+                    // Zoom slugs appear under the same condition as filter slugs
+                    ...(orderedControls &&
+                        config.dateZoomConfig && {
+                            dateZoomConfig: getDateZoomConfigWithSlugs(
+                                config.dateZoomConfig,
+                            ),
+                        }),
                     ...(orderedControls &&
                         storedOrder !== undefined && {
                             controlOrder: getControlOrderAsCode({

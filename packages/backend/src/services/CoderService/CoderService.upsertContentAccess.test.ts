@@ -5344,6 +5344,76 @@ describe('CoderService dashboard control order as code', () => {
             expect(zoomsOf(saved).targets[0].controlUuid).toBe(weekly.uuid);
         });
 
+        const shippedZooms = {
+            controls: [
+                { uuid: 'week-uuid', name: 'Week', granularity: 'WEEK' },
+                {
+                    uuid: 'month-uuid',
+                    name: 'Month',
+                    granularity: 'MONTH',
+                    sectionSlug: 'calendar',
+                },
+            ],
+            tileTargets: {
+                orders: { controlUuid: 'week-uuid', ...zoomTarget },
+                customers: { controlUuid: 'month-uuid', ...zoomTarget },
+            },
+        };
+
+        it.each([
+            ['the flag off', zoomDashboard(), false, false],
+            ['the flag off for agents', zoomDashboard(), false, true],
+            [
+                'no stored order',
+                zoomDashboard({ controlOrder: undefined }),
+                true,
+                false,
+            ],
+        ])(
+            'downloads zooms as shipped with %s',
+            (_case, dashboard, enabled, withFilterSlugs) => {
+                const file = download(dashboard, enabled, withFilterSlugs);
+                expect(file.config?.dateZoomConfig).toEqual(shippedZooms);
+                expect(JSON.stringify(file)).not.toContain('controlSlug');
+            },
+        );
+
+        it.each([
+            ['a stored order', zoomDashboard(), false],
+            ['agent reads', zoomDashboard({ controlOrder: undefined }), true],
+        ])(
+            'writes zoom slugs beside the uuids for %s',
+            (_case, dashboard, withFilterSlugs) => {
+                expect(
+                    download(dashboard, true, withFilterSlugs).config
+                        ?.dateZoomConfig,
+                ).toEqual({
+                    controls: [
+                        { ...shippedZooms.controls[0], slug: 'week' },
+                        { ...shippedZooms.controls[1], slug: 'month' },
+                    ],
+                    tileTargets: {
+                        orders: {
+                            ...shippedZooms.tileTargets.orders,
+                            controlSlug: 'week',
+                        },
+                        customers: {
+                            ...shippedZooms.tileTargets.customers,
+                            controlSlug: 'month',
+                        },
+                    },
+                });
+            },
+        );
+
+        it('round-trips a download with zoom slugs', async () => {
+            const dashboard = zoomDashboard();
+            const saved = await upload(download(dashboard, true), {
+                saved: dashboard,
+            });
+            expect(zoomsOf(saved)).toEqual(savedZooms);
+        });
+
         it('rejects a target whose controlSlug matches no zoom', async () => {
             const file = handWritten();
             expect(
