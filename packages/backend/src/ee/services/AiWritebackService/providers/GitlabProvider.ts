@@ -86,7 +86,7 @@ const asGitlabInstallation = (
  * misconfiguration) the token is silently rejected as "Invalid GitLab access
  * token"; fail early with an actionable message instead.
  */
-const assertSameHost = (
+export const assertSameHost = (
     connection: GitlabConnection,
     installation: GitlabInstallation,
 ): void => {

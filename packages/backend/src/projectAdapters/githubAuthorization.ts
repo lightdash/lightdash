@@ -5,6 +5,7 @@ import {
     ParameterError,
 } from '@lightdash/common';
 import { getInstallationToken } from '../clients/github/Github';
+import { DEFAULT_GITHUB_HOST_DOMAIN } from '../utils/credentialDestination';
 
 // Worded for "this connection" because the same errors surface for a project's
 // own connection and for its additional dbt sources.
@@ -60,3 +61,15 @@ export const getGithubToken = async (
         throw error;
     }
 };
+
+/**
+ * Host a GitHub dbt clone targets. GitHub App installation tokens are minted
+ * by (and only valid against) github.com, so a connection-configured host
+ * must never receive them; a PAT may legitimately target GitHub Enterprise.
+ */
+export const getGithubCloneHostDomain = (
+    config: DbtGithubProjectConfig,
+): string | undefined =>
+    config.authorization_method === 'installation_id'
+        ? DEFAULT_GITHUB_HOST_DOMAIN
+        : config.host_domain;
