@@ -249,6 +249,20 @@ describe('Date zoom editor', () => {
         expect(Object.keys(config().tileTargets)).toEqual(['tile-2']);
     });
 
+    it('moves a zoom one place with Alt and an arrow on a bar without sections, keeping focus', async () => {
+        const { user, config } = setup();
+        pill('Revenue zoom').focus();
+        await user.keyboard('{Alt>}{ArrowRight}{/Alt}');
+        expect(config().controls.map(({ uuid }) => uuid)).toEqual(['z2', 'z1']);
+        expect(
+            screen.getByText('Revenue zoom moved after Orders zoom'),
+        ).toBeInTheDocument();
+        await waitFor(() => expect(pill('Revenue zoom')).toHaveFocus());
+        // Nothing past the end
+        await user.keyboard('{Alt>}{ArrowRight}{/Alt}');
+        expect(config().controls.map(({ uuid }) => uuid)).toEqual(['z2', 'z1']);
+    });
+
     it('opens a new zoom on its name, at the first grain, with Apply blocked', async () => {
         const { user, config } = setup();
         await user.click(screen.getByRole('button', { name: 'Add it' }));

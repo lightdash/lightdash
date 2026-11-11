@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
     applyZoomDraft,
     getEmptiedZooms,
+    moveZoom,
     removeZoom,
     setZoomSection,
 } from './dateZoomControls';
@@ -69,6 +70,14 @@ describe('date zoom config writes', () => {
                 draftTargets: { ...config.tileTargets, t3: target('z4') },
             }).controls.at(-1),
         ).toEqual(added);
+    });
+
+    it("moves a zoom to another's place in the list", () => {
+        const order = (next: DateZoomConfig) =>
+            next.controls.map(({ uuid }) => uuid);
+        expect(order(moveZoom(config, 'z1', 'z2'))).toEqual(['z2', 'z1', 'z3']);
+        expect(order(moveZoom(config, 'z3', 'z2'))).toEqual(['z1', 'z3', 'z2']);
+        expect(moveZoom(config, 'z1', 'gone')).toBe(config);
     });
 
     it('moves and removes a zoom', () => {

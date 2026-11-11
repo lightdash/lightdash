@@ -214,7 +214,8 @@ Each one has broken before or would break silently.
   come from `getOtherPillsSelector` (`controlKinds.ts`): a new kind joins
   `PILL_SELECTORS` there.
 - **The date zoom config has one writer on the bar**, the date zoom editor:
-  Apply, a section move and the X write the dashboard draft
+  Apply, a section move, an Alt+arrow move without sections and the X
+  write the dashboard draft
   (`setDateZoomConfig`); Save is the only save. Writes read the config from
   the store at call time (`selectCurrentDateZoomConfig`), so several in one
   tick (a selection's section move) all land.

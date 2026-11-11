@@ -60,6 +60,20 @@ export const setZoomSection = (
     ),
 });
 
+/** The zoom in the other's place in the list: a move along a bar without sections. */
+export const moveZoom = (
+    config: DateZoomConfig,
+    controlUuid: string,
+    overUuid: string,
+): DateZoomConfig => {
+    const from = config.controls.findIndex(({ uuid }) => uuid === controlUuid);
+    const to = config.controls.findIndex(({ uuid }) => uuid === overUuid);
+    if (from === -1 || to === -1 || from === to) return config;
+    const controls = config.controls.filter((_, index) => index !== from);
+    controls.splice(to, 0, config.controls[from]);
+    return { ...config, controls };
+};
+
 /** The zoom and its tile targets gone; other zooms as they are. */
 export const removeZoom = (
     config: DateZoomConfig,

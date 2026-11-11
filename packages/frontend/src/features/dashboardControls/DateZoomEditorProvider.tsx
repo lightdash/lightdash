@@ -1,4 +1,5 @@
 import { DateGranularity, type DateZoomControl } from '@lightdash/common';
+import { VisuallyHidden } from '@mantine/core';
 import { isEqual } from 'es-toolkit/compat';
 import {
     useEffect,
@@ -29,6 +30,7 @@ import {
     DEFAULT_DATE_ZOOM_NAME,
     DEFAULT_ZOOM_ID,
     dateZoomPillSelector,
+    moveZoom,
     removeZoom,
     setZoomSection,
     setZoomTiles,
@@ -288,6 +290,32 @@ export const DateZoomEditorProvider: FC<{
         if (current !== null) setState({ ...current, pick: granularity });
     });
 
+    const [announcement, setAnnouncement] = useState({ text: '', count: 0 });
+    // As a parameter's move: the list order is the bar's without sections
+    const move = useStableCallback((id: string, overId: string) => {
+        const current = selectCurrentDateZoomConfig(store.getState());
+        const moved = moveZoom(current, id, overId);
+        if (moved === current) return;
+        const pill = findPill(id);
+        const hadFocus = pill !== null && document.activeElement === pill;
+        setDateZoomConfig(moved);
+        const indexIn = (list: DateZoomControl[]) =>
+            list.findIndex(({ uuid }) => uuid === id);
+        const nameOf = (uuid: string) =>
+            current.controls.find((control) => control.uuid === uuid)?.name ??
+            uuid;
+        setAnnouncement(({ count }) => ({
+            text: `${nameOf(id)} moved ${
+                indexIn(moved.controls) < indexIn(current.controls)
+                    ? 'before'
+                    : 'after'
+            } ${nameOf(overId)}`,
+            count: count + 1,
+        }));
+        // Once the bar has redrawn: a moved node loses focus
+        if (hadFocus) setTimeout(() => findPill(id)?.focus());
+    });
+
     const remove = useStableCallback((id: string) =>
         session.remove(id, () =>
             setDateZoomConfig(
@@ -318,6 +346,7 @@ export const DateZoomEditorProvider: FC<{
             cancel,
             resolvePending,
             setSection,
+            move,
             remove,
             isMapping: edit?.mapping != null,
             mapping,
@@ -346,6 +375,7 @@ export const DateZoomEditorProvider: FC<{
             cancel,
             resolvePending,
             setSection,
+            move,
             remove,
         ],
     );
@@ -354,6 +384,12 @@ export const DateZoomEditorProvider: FC<{
         <DateZoomEditorContext.Provider value={value}>
             {children}
             <DateZoomFocusReturn target={session.focusReturn} />
+            {/* Moves are an editor's. Not a second `status` role: the filter moves own that one */}
+            {!isViewer && (
+                <VisuallyHidden aria-live="polite">
+                    <span key={announcement.count}>{announcement.text}</span>
+                </VisuallyHidden>
+            )}
         </DateZoomEditorContext.Provider>
     );
 };

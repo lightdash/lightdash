@@ -36,6 +36,8 @@ export type DateZoomEditorValue = {
     resolvePending: (isApply: boolean) => void;
     /** Edit mode: a drag, a keyboard move or the selection bar, on the dashboard at once. */
     setSection: (id: string, sectionId: string | null) => void;
+    /** Edit mode: Alt with an arrow on a bar without sections, to the other's place. */
+    move: (id: string, overId: string) => void;
     /** Edit mode: the pill's X takes the zoom off the bar. */
     remove: (id: string) => void;
     /** Choosing the draft's tiles: the mapping row stands in for the popover. */
@@ -77,6 +79,7 @@ const NO_EDITOR: DateZoomEditorValue = {
     cancel: noop,
     resolvePending: noop,
     setSection: noop,
+    move: noop,
     remove: noop,
     isMapping: false,
     mapping: null,

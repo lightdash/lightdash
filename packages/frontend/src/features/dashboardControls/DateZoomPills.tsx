@@ -190,7 +190,11 @@ const DateZoomPillLabel: FC<{
 
 const REMOVE_LABEL = 'Remove date zoom';
 
-const DateZoomPill: FC<{ entry: DateZoomBarEntry }> = ({ entry }) => {
+const DateZoomPill: FC<{
+    entry: DateZoomBarEntry;
+    /** The pass's pills in order: Alt with an arrow moves past one. */
+    neighbourIds: string[];
+}> = ({ entry, neighbourIds }) => {
     const getUiString = useUiStrings();
     const contractClasses = useRailContractClasses();
     const { control, isNew } = entry;
@@ -199,6 +203,7 @@ const DateZoomPill: FC<{ entry: DateZoomBarEntry }> = ({ entry }) => {
     );
     const isViewer = useDateZoomEditorSelector((c) => c.isViewer);
     const open = useDateZoomEditorSelector((c) => c.open);
+    const move = useDateZoomEditorSelector((c) => c.move);
     const remove = useDateZoomEditorSelector((c) => c.remove);
     // The open popover's grain and name, as the draft has them
     const draft = useDateZoomEditorSelector((c) =>
@@ -231,9 +236,14 @@ const DateZoomPill: FC<{ entry: DateZoomBarEntry }> = ({ entry }) => {
         pillSelector: DATE_ZOOM_PILL_SELECTOR,
         canSelect: canEdit && !isEditing,
         open: () => requestSwitch(() => open(control)),
-        // Moves are an editor's, on the sectioned bar
         canMove: canEdit,
-        moveAlong: null,
+        moveAlong: (direction) => {
+            const index = neighbourIds.indexOf(control.uuid);
+            const overId =
+                neighbourIds[index + (direction === 'left' ? -1 : 1)];
+            if (index !== -1 && overId !== undefined)
+                move(control.uuid, overId);
+        },
         // As a filter pill: in edit mode the tiles it zooms are marked
         isTileHoverEnabled: !isViewer && !isEditing,
         getTileUuids: () => entry.tileUuids,
@@ -381,10 +391,15 @@ export const DateZoomPills: FC<Props> = ({
                   ),
                   ...passEntries.filter(({ isNew }) => isNew),
               ];
+    const neighbourIds = shown
+        .filter(({ isNew }) => !isNew)
+        .map(({ control }) => control.uuid);
     return (
         <>
             {shown.map((entry) => {
-                const pill = <DateZoomPill entry={entry} />;
+                const pill = (
+                    <DateZoomPill entry={entry} neighbourIds={neighbourIds} />
+                );
                 if (!isInBarContext || isViewer || entry.isNew)
                     return <Fragment key={entry.control.uuid}>{pill}</Fragment>;
                 return (
