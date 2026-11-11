@@ -42,6 +42,15 @@ export type PreAggregateFallbackReason =
     | 'external_execution_error'
     | 'materialization_near_expiry';
 
+export const preAggregateFallbackReasonLabels: Record<
+    PreAggregateFallbackReason,
+    string
+> = {
+    duckdb_execution_error: 'DuckDB read failed',
+    external_execution_error: 'external pre-aggregate failed',
+    materialization_near_expiry: 'pre-aggregate expired, refresh it',
+};
+
 /** A direct semantic field reference captured at query execution time. */
 export type SemanticFieldReference = {
     fieldId: string;

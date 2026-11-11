@@ -145,6 +145,23 @@ const getNonNegativeIntegerFromEnvironmentVariable = (
     return value;
 };
 
+const getStrictPositiveIntegerFromEnvironmentVariable = (
+    name: string,
+    defaultValue: number,
+): number => {
+    const raw = process.env[name];
+    if (!raw) {
+        return defaultValue;
+    }
+    const value = Number(raw);
+    if (!/^\d+$/.test(raw) || !Number.isSafeInteger(value) || value < 1) {
+        throw new ParseError(
+            `Cannot parse environment variable "${name}". Value must be a positive integer but ${name}=${raw}`,
+        );
+    }
+    return value;
+};
+
 export const getFloatFromEnvironmentVariable = (
     name: string,
 ): number | undefined => {
@@ -1139,7 +1156,7 @@ export const parsePreAggregateMaterializationExpiryConfig = (): {
         'PRE_AGGREGATES_MATERIALIZATION_LIFECYCLE_DAYS',
         30,
     );
-    const marginDays = getPositiveIntegerFromEnvironmentVariable(
+    const marginDays = getStrictPositiveIntegerFromEnvironmentVariable(
         'PRE_AGGREGATES_MATERIALIZATION_EXPIRY_MARGIN_DAYS',
         1,
     );

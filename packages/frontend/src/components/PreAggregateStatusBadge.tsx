@@ -9,7 +9,10 @@ import {
 } from '../features/explorer/store';
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
 import { usePreAggregateCacheEnabled } from '../hooks/usePreAggregateCacheEnabled';
-import { formatTileMissReason } from './common/Dashboard/PreAggregateAuditIndicator.utils';
+import {
+    formatPreAggregateFallbackTooltip,
+    formatTileMissReason,
+} from './common/Dashboard/PreAggregateAuditIndicator.utils';
 import classes from './PreAggregateStatusBadge.module.css';
 
 const PreAggregateStatusBadge: FC = memo(() => {
@@ -46,7 +49,10 @@ const PreAggregateStatusBadge: FC = memo(() => {
             if (resultsPreAggregate?.fallbackReason != null) {
                 return {
                     color: 'orange',
-                    tooltip: `Pre-aggregate matched (${result.preAggregateName}) but failed to serve. Results came from the warehouse`,
+                    tooltip: formatPreAggregateFallbackTooltip(
+                        result.preAggregateName,
+                        resultsPreAggregate.fallbackReason,
+                    ),
                     icon: 'bolt-off',
                 };
             }
