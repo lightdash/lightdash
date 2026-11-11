@@ -86,6 +86,8 @@ import {
     resolveDropOverlaps,
     unpinGridItem,
     getRowInsertion,
+    getGapFill,
+    getPointerCell,
     getSnapTarget,
     GRID_DESKTOP_COLS,
     DEFAULT_ROW_HEIGHT,
@@ -402,24 +404,43 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         },
         [handleUpdateTilesWithScaling, endInteraction, isEditErgonomicsEnabled],
     );
-    const getDragRowInsertion = useCallback(
-        (layout: Layout[], draggedId: string, event: MouseEvent) => {
+    // A slot beside the tile under the pointer, else the empty space under it
+    const getDragSnap = useCallback(
+        (
+            layout: Layout[],
+            before: Layout,
+            event: MouseEvent,
+            node: HTMLElement,
+        ) => {
             if (!isEditErgonomicsEnabled) return null;
-            const target = getSnapTarget(event, draggedId);
-            return target
-                ? getRowInsertion({
-                      layout,
-                      draggedId,
-                      target,
-                      cols: GRID_DESKTOP_COLS * gridScale,
-                  })
-                : null;
+            const cols = GRID_DESKTOP_COLS * gridScale;
+            const target = getSnapTarget(event, before.i);
+            if (target) {
+                return getRowInsertion({
+                    layout,
+                    draggedId: before.i,
+                    target,
+                    cols,
+                });
+            }
+            return getGapFill({
+                layout,
+                draggedId: before.i,
+                cols,
+                // The dragged tile is held where it started, so it measures
+                // the grid
+                cell: getPointerCell({
+                    pointer: event,
+                    tile: before,
+                    tileRect: node.getBoundingClientRect(),
+                }),
+            });
         },
         [isEditErgonomicsEnabled, gridScale],
     );
     const handleDrag = useCallback<ItemCallback>(
-        (layout, _before, after, placeholder, event) => {
-            const insertion = getDragRowInsertion(layout, after.i, event);
+        (layout, before, _after, placeholder, event, node) => {
+            const insertion = getDragSnap(layout, before, event, node);
             setIsShadowSnapped(insertion !== null);
             // The grid draws the shadow from this object after the callback
             if (insertion) {
@@ -427,11 +448,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 Object.assign(placeholder, { x, y, w, h });
             }
         },
-        [getDragRowInsertion],
+        [getDragSnap],
     );
     const handleDragStop = useCallback<ItemCallback>(
         (layout, before, after, placeholder, event, node) => {
-            const insertion = getDragRowInsertion(layout, after.i, event);
+            const insertion = getDragSnap(layout, before, event, node);
             if (!insertion) {
                 handleResizeStop(
                     layout,
@@ -447,7 +468,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             void handleUpdateTilesWithScaling(insertion.layout);
         },
         [
-            getDragRowInsertion,
+            getDragSnap,
             handleResizeStop,
             handleUpdateTilesWithScaling,
             endInteraction,

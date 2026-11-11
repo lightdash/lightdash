@@ -256,7 +256,7 @@ export type SnapTarget = {
     side: 'before' | 'after';
 };
 
-export type RowInsertion = {
+export type SnapPlacement = {
     /** Where the dragged tile lands */
     slot: Layout;
     /** The whole layout once the row has made room */
@@ -278,7 +278,7 @@ export const getRowInsertion = ({
     draggedId: string;
     target: SnapTarget;
     cols: number;
-}): RowInsertion | null => {
+}): SnapPlacement | null => {
     const dragged = layout.find((item) => item.i === draggedId);
     const targetItem = layout.find((item) => item.i === target.tileId);
     if (!dragged || !targetItem || dragged.i === targetItem.i) return null;
@@ -318,6 +318,106 @@ export const getRowInsertion = ({
             layout.map((item) => placedById.get(item.i) ?? item),
             placed.map((item) => item.i),
         ),
+    };
+};
+
+export type GridCell = { x: number; y: number };
+
+/**
+ * The grid cell under the pointer, measured from a tile whose place on screen
+ * and in the grid are both known. Tiles sit edge to edge, so any tile gives
+ * the size of a cell, zoom included.
+ */
+export const getPointerCell = ({
+    pointer,
+    tile,
+    tileRect,
+}: {
+    pointer: { clientX: number; clientY: number };
+    tile: Layout;
+    tileRect: { left: number; top: number; width: number; height: number };
+}): GridCell => ({
+    x:
+        tile.x +
+        Math.floor(
+            (pointer.clientX - tileRect.left) / (tileRect.width / tile.w),
+        ),
+    y:
+        tile.y +
+        Math.floor(
+            (pointer.clientY - tileRect.top) / (tileRect.height / tile.h),
+        ),
+});
+
+/**
+ * Dropping a tile on empty space fills that space: the tile stretches to the
+ * tiles and grid edges around the cell. Space with nothing below it ends where
+ * the tiles beside it end; with none beside it either there is no gap to fill.
+ */
+export const getGapFill = ({
+    layout,
+    draggedId,
+    cell,
+    cols,
+}: {
+    layout: Layout[];
+    draggedId: string;
+    cell: GridCell;
+    cols: number;
+}): SnapPlacement | null => {
+    const dragged = layout.find((item) => item.i === draggedId);
+    if (!dragged || cell.x < 0 || cell.x >= cols || cell.y < 0) return null;
+
+    const others = layout.filter((item) => item.i !== draggedId);
+    const onLine = others.filter(
+        (item) => item.y <= cell.y && cell.y < item.y + item.h,
+    );
+    if (onLine.some((item) => item.x <= cell.x && cell.x < item.x + item.w))
+        return null;
+
+    const left = Math.max(
+        0,
+        ...onLine
+            .filter((item) => item.x + item.w <= cell.x)
+            .map((item) => item.x + item.w),
+    );
+    const right = Math.min(
+        cols,
+        ...onLine.filter((item) => item.x > cell.x).map((item) => item.x),
+    );
+    const inColumn = others.filter(
+        (item) => item.x < right && item.x + item.w > left,
+    );
+    const top = Math.max(
+        0,
+        ...inColumn
+            .filter((item) => item.y + item.h <= cell.y)
+            .map((item) => item.y + item.h),
+    );
+    const bottom = Math.min(
+        ...inColumn.filter((item) => item.y > cell.y).map((item) => item.y),
+        ...(onLine.length > 0
+            ? [Math.max(...onLine.map((item) => item.y + item.h))]
+            : []),
+    );
+
+    const slot = {
+        ...dragged,
+        x: left,
+        y: top,
+        w: right - left,
+        h: bottom - top,
+    };
+    if (
+        !Number.isFinite(bottom) ||
+        slot.w < (dragged.minW ?? 1) ||
+        slot.h < (dragged.minH ?? 1)
+    )
+        return null;
+
+    return {
+        slot,
+        layout: layout.map((item) => (item.i === draggedId ? slot : item)),
     };
 };
 

@@ -18,6 +18,8 @@ import {
     hasGridItemMoved,
     resolveDropOverlaps,
     getRowInsertion,
+    getGapFill,
+    getPointerCell,
     getDashboardLayouts,
     getMobileGridLayout,
     getResponsiveGridLayoutProps,
@@ -484,6 +486,119 @@ describe('dropping a tile beside another one', () => {
             item('dragged', 0, 10),
         ];
         expect(insert(layout, 't0', 'before')).toBeNull();
+    });
+});
+
+describe('dropping a tile on empty space', () => {
+    const item = (i: string, x: number, y: number, w = 12, h = 4) => ({
+        i,
+        x,
+        y,
+        w,
+        h,
+        minW: 4,
+        minH: 1,
+    });
+    const fill = (layout: ReturnType<typeof item>[], x: number, y: number) =>
+        getGapFill({ layout, draggedId: 'dragged', cell: { x, y }, cols: 36 });
+
+    it('fills a hole between two tiles in a row', () => {
+        const layout = [
+            item('a', 0, 0),
+            item('b', 24, 0),
+            item('below', 0, 4, 36),
+            item('dragged', 0, 20, 30, 9),
+        ];
+        expect(fill(layout, 15, 2)!.slot).toMatchObject({
+            x: 12,
+            y: 0,
+            w: 12,
+            h: 4,
+        });
+    });
+
+    it('fills the rest of the last row, as tall as the tiles beside it', () => {
+        const layout = [item('a', 0, 0, 12, 6), item('dragged', 0, 20)];
+        expect(fill(layout, 30, 3)!.slot).toMatchObject({
+            x: 12,
+            y: 0,
+            w: 24,
+            h: 6,
+        });
+    });
+
+    it('stops at the tiles above and below the space', () => {
+        const layout = [
+            item('above', 0, 0, 36),
+            item('below', 0, 10, 36),
+            item('dragged', 0, 20),
+        ];
+        expect(fill(layout, 5, 7)!.slot).toMatchObject({
+            x: 0,
+            y: 4,
+            w: 36,
+            h: 6,
+        });
+    });
+
+    it('counts the place the tile left as empty', () => {
+        const layout = [
+            item('a', 0, 0),
+            item('dragged', 12, 0),
+            item('b', 24, 0),
+        ];
+        expect(fill(layout, 13, 1)!.slot).toMatchObject({ x: 12, w: 12 });
+    });
+
+    it('moves no other tile', () => {
+        const layout = [
+            item('a', 0, 0),
+            item('b', 24, 0),
+            item('dragged', 0, 20),
+        ];
+        const result = fill(layout, 15, 2)!;
+        expect(result.layout.filter((l) => l.i !== 'dragged')).toEqual(
+            layout.filter((l) => l.i !== 'dragged'),
+        );
+    });
+
+    it('offers nothing over another tile', () => {
+        const layout = [item('a', 0, 0), item('dragged', 0, 20)];
+        expect(fill(layout, 3, 2)).toBeNull();
+    });
+
+    it('offers nothing in open space with no tile beside or below it', () => {
+        const layout = [item('a', 0, 0), item('dragged', 0, 20)];
+        expect(fill(layout, 20, 9)).toBeNull();
+    });
+
+    it('offers nothing when the space is narrower than a tile can be', () => {
+        const layout = [
+            item('a', 0, 0, 17),
+            item('b', 19, 0, 17),
+            item('dragged', 0, 20),
+        ];
+        expect(fill(layout, 17, 1)).toBeNull();
+    });
+});
+
+describe('finding the grid cell under the pointer', () => {
+    const tile = { i: 't', x: 12, y: 4, w: 12, h: 6 };
+    const tileRect = { left: 300, top: 200, width: 240, height: 180 };
+    const cellAt = (clientX: number, clientY: number) =>
+        getPointerCell({ pointer: { clientX, clientY }, tile, tileRect });
+
+    it('reads the cell inside the measuring tile', () => {
+        expect(cellAt(300, 200)).toEqual({ x: 12, y: 4 });
+        expect(cellAt(539, 379)).toEqual({ x: 23, y: 9 });
+    });
+
+    it('reads cells left of and above the measuring tile', () => {
+        expect(cellAt(70, 50)).toEqual({ x: 0, y: -1 });
+    });
+
+    it('reads cells right of and below the measuring tile', () => {
+        expect(cellAt(560, 410)).toEqual({ x: 25, y: 11 });
     });
 });
 
