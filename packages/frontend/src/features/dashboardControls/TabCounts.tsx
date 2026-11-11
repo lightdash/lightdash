@@ -62,25 +62,11 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
     const sqlColumnsByTile = useSqlColumnsByTile(rule);
     const parameterMapping = useParameterMapping();
     const dateZoomMapping = useDateZoomMapping();
-    // A control's tiles are chosen, by takeable and set tiles
-    const controlMapping =
-        parameterMapping !== null
-            ? {
-                  name: parameterMapping.name,
-                  verb: 'set',
-                  takeable: parameterMapping.takeableTileUuids,
-                  set: parameterMapping.setTileUuids,
-              }
-            : dateZoomMapping !== null
-              ? {
-                    name: dateZoomMapping.name,
-                    verb: 'zoomed',
-                    takeable: dateZoomMapping.takeableTileUuids,
-                    set: dateZoomMapping.zoomedTileUuids,
-                }
-              : null;
-    const mappedTakeable = controlMapping?.takeable ?? null;
-    const mappedSet = controlMapping?.set ?? null;
+    // A control's tiles are chosen, by takeable and applied tiles
+    const controlMapping = parameterMapping ?? dateZoomMapping;
+    const controlVerb = parameterMapping !== null ? 'set' : 'zoomed';
+    const mappedTakeable = controlMapping?.takeableTileUuids ?? null;
+    const mappedSet = controlMapping?.appliedTileUuids ?? null;
 
     const tabUuids = useMemo(
         () => dashboardTabs.map((tab) => tab.uuid),
@@ -196,8 +182,8 @@ export const TabCounts: FC<Props> = ({ hasTabSlots = false }) => {
                                 controlMapping !== null
                                     ? // Editors only map parameters and date zooms
                                       countValues.total === 1
-                                        ? `{applied} of {total} tile on this tab is ${controlMapping.verb} by {subject}`
-                                        : `{applied} of {total} tiles on this tab are ${controlMapping.verb} by {subject}`
+                                        ? `{applied} of {total} tile on this tab is ${controlVerb} by {subject}`
+                                        : `{applied} of {total} tiles on this tab are ${controlVerb} by {subject}`
                                     : getUiString(
                                           countValues.total === 1
                                               ? 'controls.tabCountTooltip.singular'

@@ -170,7 +170,7 @@ export type DateZoomMapping = {
     /** Tiles a zoom can take, on any tab. */
     takeableTileUuids: string[];
     /** Tiles in this zoom. */
-    zoomedTileUuids: string[];
+    appliedTileUuids: string[];
 };
 
 /** What choosing a zoom's tiles shows, from the eligible tiles and the draft's targets */
@@ -225,7 +225,7 @@ export const getDateZoomMapping = ({
             tileUuids.map((tileUuid) => [tileUuid, cardOf(tileUuid)]),
         ),
         takeableTileUuids: eligible.map(({ tileUuid }) => tileUuid),
-        zoomedTileUuids: getZoomTileUuids(targets, draft.uuid),
+        appliedTileUuids: getZoomTileUuids(targets, draft.uuid),
     };
 };
 

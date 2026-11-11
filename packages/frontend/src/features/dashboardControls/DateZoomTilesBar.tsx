@@ -58,7 +58,7 @@ export const DateZoomTilesBar: FC = () => {
                 setTiles(
                     tileUuids
                         .filter((uuid) =>
-                            mapping.zoomedTileUuids.includes(uuid),
+                            mapping.appliedTileUuids.includes(uuid),
                         )
                         .map((tileUuid) => ({ tileUuid, target: null })),
                     'clear',

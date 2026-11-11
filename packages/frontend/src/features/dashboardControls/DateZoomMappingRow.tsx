@@ -15,7 +15,7 @@ export const DateZoomMappingRow: FC = () => {
     const apply = useDateZoomEditorSelector((c) => c.apply);
     const setTiles = useDateZoomEditorSelector((c) => c.setTiles);
     if (mapping === null) return null;
-    const applied = mapping.zoomedTileUuids.length;
+    const applied = mapping.appliedTileUuids.length;
     return (
         <ControlMappingRow
             backLabel={getUiString('controls.dateZoom.backToDateZoom')}
@@ -29,7 +29,7 @@ export const DateZoomMappingRow: FC = () => {
             afterCount={null}
             onClearAll={() =>
                 setTiles(
-                    mapping.zoomedTileUuids.map((tileUuid) => ({
+                    mapping.appliedTileUuids.map((tileUuid) => ({
                         tileUuid,
                         target: null,
                     })),

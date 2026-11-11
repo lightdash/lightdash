@@ -73,7 +73,7 @@ export const ParameterMappingRow: FC = () => {
             name={mapping.name}
             isInEffect={mapping.control.value !== null}
             verb="sets"
-            applied={mapping.setTileUuids.length}
+            applied={mapping.appliedTileUuids.length}
             total={mapping.takeableTileUuids.length}
             // "[pill] sets 4 of 6 tiles through [chips]"
             afterCount={
