@@ -1678,6 +1678,31 @@ export const parseStoredMergeDefinition = ({
     }
 };
 
+/** The explore names a stored merge queries beside the chart's own; empty when it cannot be read. */
+export const getStoredMergeQueryExploreNames = ({
+    schemaVersion,
+    value,
+}: {
+    schemaVersion: number;
+    value: unknown;
+}): string[] => {
+    switch (schemaVersion) {
+        case SAVED_MERGE_QUERY_SCHEMA_VERSION: {
+            const merge = parseSavedMergeDefinition(value);
+            return merge ? getMergeDefinitionQueryExploreNames(merge) : [];
+        }
+        case SAVED_MERGE_QUERY_SCHEMA_VERSION_V2:
+            return (parseSavedMergeQuery(value)?.sources ?? []).flatMap(
+                (source) =>
+                    source.kind === 'query'
+                        ? [source.metricQuery.exploreName]
+                        : [],
+            );
+        default:
+            return [];
+    }
+};
+
 /** Normalizes either supported request shape to the saved schema v3 definition. */
 export const normalizeSavedMergeDefinition = (
     value: SavedMergeDefinition | SavedMergeQuery,

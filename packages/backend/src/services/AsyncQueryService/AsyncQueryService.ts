@@ -8558,12 +8558,10 @@ export class AsyncQueryService extends ProjectService {
                 savedChartUuids,
             );
         const explores = await Promise.all(
-            [...new Set(savedCharts.map((chart) => chart.tableName))].map(
-                (tableName) =>
-                    this.projectModel.getExploreFromCache(
-                        projectUuid,
-                        tableName,
-                    ),
+            [
+                ...new Set(savedCharts.flatMap((chart) => chart.exploreNames)),
+            ].map((exploreName) =>
+                this.projectModel.getExploreFromCache(projectUuid, exploreName),
             ),
         );
         const isFieldInDashboardExplores = explores.some(
