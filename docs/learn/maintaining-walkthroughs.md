@@ -36,9 +36,11 @@ To tell whether you caused a failure, run the same command on `main`. If it fail
 
 2. **Keep the attributes on the equivalent control.** When you refactor, every `data-tour-*` attribute stays on the element a user clicks to do the same thing. When a control moves to another component, its attributes move with it. When you rename a `data-tour-nav` or `data-tour-anchor` value, update every path that names it (`git grep -n 'the-old-value' -- packages/frontend/src`). The two homepage components (`PinnedItemsPanel/index.tsx` and `DayOneHomepage.tsx`) carry the same result markers; change one, change both.
 
-3. **Run the checks locally.** They read the docs from `../mintlify-docs` (a checkout of `lightdash/mintlify-docs` beside this repository) or from `LIGHTDASH_DOCS_DIR`.
+3. **Run the checks locally.** They read the docs from `../mintlify-docs` (a checkout of `lightdash/mintlify-docs` beside this repository) or from `LIGHTDASH_DOCS_DIR`. Check the docs out at the pinned commit (see *The docs pin*), so your output matches CI. At another commit the scripts print a warning that names both commits.
 
     ```sh
+    git -C ../mintlify-docs fetch origin "$(cat scripts/scope-tours/docs-pin.txt)"
+    git -C ../mintlify-docs checkout --detach "$(cat scripts/scope-tours/docs-pin.txt)"
     pnpm common-build            # if common is not built yet
     pnpm scope-tours:generate
     pnpm scope-tours:order
@@ -48,6 +50,31 @@ To tell whether you caused a failure, run the same command on `main`. If it fail
     Commit any change to `generated.ts` and `curriculum.ts`. Read the diff: a step whose title or text changed is a change learners will see.
 
 4. **If the click path changed, run the smoke** for the walkthroughs you found in step 1.
+
+## The docs pin
+
+The step text comes from the docs repository, and CI reads the docs at one commit: the SHA in `scripts/scope-tours/docs-pin.txt`. A docs edit therefore does not change what CI generates, and it cannot fail a pull request that did not cause it. A docs edit reaches the walkthroughs only when someone moves the pin.
+
+`generate`, `order` and `check` compare the docs checkout with the pin. At another commit they print a warning that names both commits. In CI (`CI` is set) the warning is an error. `SCOPE_TOURS_ALLOW_UNPINNED_DOCS=1` turns the error back into a warning, for a preview of what another docs commit would change. CI never sets it.
+
+**When to bump.** For a deliberate docs sync, or when a docs change must reach the walkthroughs (a corrected sentence, a renamed page).
+
+**How to bump.** With a clean docs checkout at `../mintlify-docs` or `LIGHTDASH_DOCS_DIR`, and no local changes to the generated files:
+
+```sh
+pnpm scope-tours:bump-docs -- --dry-run      # the current pin and the docs head; changes nothing
+pnpm scope-tours:bump-docs                   # pin the docs head
+pnpm scope-tours:bump-docs -- --sha <sha>    # pin a specific docs commit
+```
+
+The bump runs `scope-tours:check` itself, so there is no separate check to run. It refuses a commit that is not on the docs `origin/main` and warns when the pin moves backwards. Then it checks the docs out at the commit (detached), writes the commit to `docs-pin.txt`, runs `scope-tours:generate` and `scope-tours:order`, and runs `scope-tours:check`. Last, it prints the diff stat, a table of the steps whose title or body changed (scope and step, title, old body, new body), and the full diff. Commit the pin and the generated files together, in one pull request.
+
+- The scheduled `Scope tours docs drift` workflow opens or updates one issue when the docs head differs from the pin, and closes it when the pin catches up.
+- The Learn owners (the Customer Success team, Linear project Lightdash University) review each bump pull request with one checklist item: each changed card still matches its step title.
+
+**What the diff means.** Each changed `body` is a docs sentence that changed upstream, and learners will see the new text. Read every one. A changed sentence is usually fine. A body that now says something different (a step that no longer tells the learner what to do) means the cited paragraph moved: the docs inserted or removed a paragraph, and a citation by position (`:p3:1`, `:li2`) now points at another one.
+
+**A citation move is a separate pull request.** Re-citing a docs paragraph (a `data-tour-docs` change, for example `:p3:1` to `:p4:1`) is the Learn owners' call. Do not hide it in a bump. The bump comes first: open it as its own pull request with the diff as it is, and say which steps need a re-cite. The Learn owners then open the re-cite as a separate pull request stacked on the bump, so it is generated against the bumped docs, and the two merge back to back, bump first. Never re-cite ahead of the pin: a re-cite that merges before the bump is generated against the old docs, where the new paragraph index points at another paragraph, so the step shows the wrong text or the generator fails with `paragraph N not found`. Do not merge the bump alone and leave a step with the wrong text: keep the gap as short as the back-to-back merge.
 
 ## Running the smoke
 
@@ -132,7 +159,9 @@ The lessons borrow anchors they do not own: the terminal's command box and Run b
 
 `Scope walkthrough checks` (`.github/workflows/scope-tours-check.yml`) runs these steps in order. The first one that fails is the one to read.
 
-**Docs checkout is complete.** The docs repository could not be checked out. This is CI setup, not your change: re-run the job, then ask the Learn owners.
+**Read the pinned docs commit.** `scripts/scope-tours/docs-pin.txt` does not hold one 40-character lowercase commit SHA. Put back the SHA (`git checkout origin/main -- scripts/scope-tours/docs-pin.txt`), or bump it with `pnpm scope-tours:bump-docs`.
+
+**Docs checkout is complete.** The docs repository could not be checked out at the pinned commit. This is CI setup, not your change: re-run the job, then ask the Learn owners.
 
 **Build common.** An ordinary build error in `packages/common`. Fix it as you would anywhere else.
 
@@ -148,7 +177,7 @@ The lessons borrow anchors they do not own: the terminal's command box and Run b
 - `staleDispositions`: a listed scope now has a walkthrough or no longer exists. Remove the entry.
 - `pending` or `related`: a listed gap that blocks a release. Ask the Learn owners.
 
-**Generated tours are up to date.** Either the generator threw (the log names the file, selector or docs citation; see the table below), or `generated.ts` differs from what the markers and docs produce now. For a diff, run `pnpm scope-tours:generate` and commit. If the diff changes step text and you did not touch any `data-tour-*` attribute, the docs changed upstream; committing the regenerated file is fine.
+**Generated tours are up to date.** The check runs against the pinned docs commit, so a docs edit alone no longer fails it. Either the generator threw (the log names the file, selector or docs citation; see the table below), or `generated.ts` differs from what the markers and the pinned docs produce. For a diff, check the docs out at the pinned commit, run `pnpm scope-tours:generate` and commit. If the diff changes step text and you did not touch any `data-tour-*` attribute, your docs checkout is probably not at the pin: the log names both commits. To bring a docs change in, bump the pin (see *The docs pin*).
 
 **The teaching order is up to date.** `curriculum.ts` differs from what the docs produce now. Run `pnpm scope-tours:order` and commit. `No concept could be read from the title of` means a docs page title changed upstream; ask the Learn owners.
 
@@ -168,6 +197,7 @@ The lessons borrow anchors they do not own: the terminal's command box and Run b
 | `... is a typed field with no data-tour-suggest` | A text field on a path is new or lost its suggestion | Add `data-tour-suggest` (learners never have to invent input), or give the product a default |
 | `title is over 12 words` | A `data-tour-label` or `data-tour-hint` grew | Shorten it |
 | `Docs anchor not found: ...`, `paragraph N not found`, `sentence range out of bounds`, `list item N not found` | The cited docs section was renamed or edited upstream | Not yours unless you edited `data-tour-docs`; ask the Learn owners to re-cite |
+| `Docs checkout is at <sha>, not the pinned commit <sha>` | The docs checkout is at another commit than `docs-pin.txt`. In CI this is an error | Check the docs out at the pin, or bump the pin (see *The docs pin*) |
 | `docs page ... not found under ...` | Locally: no docs checkout, or `LIGHTDASH_DOCS_DIR` is wrong. In CI: a docs page moved | Fix the path locally; in CI ask the Learn owners |
 | `body is over 60 words`, `Docs link off the docs site is not allowed` | A cited docs sentence grew or gained an outside link | Ask the Learn owners |
 | Anything about result markers, looks, `data-tour-busy`, optional hops or the last step | Walkthrough authoring rules | See the `add-scope-walkthrough` skill, or ask the Learn owners |
