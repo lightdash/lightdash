@@ -79,6 +79,7 @@ import { AddTabModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
 import DuplicateTabModal from './DuplicateTabModal';
 import { TabEditModal } from './EditTabModal';
+import { isEditSwitchCollapse } from './filtersCollapse';
 import GridTile from './GridTile';
 import {
     convertLayoutToBaseCoordinates,
@@ -413,16 +414,16 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const [isFiltersCollapsed, setIsFiltersCollapsed] =
         useState<boolean>(false);
 
-    // Editing, the floating edit bar's switch collapses the bar; with the
-    // controls and no edit bar, their toggle does, as in view mode
-    const isEditSwitchCollapse =
-        isEditMode &&
-        (editErgonomicsFlag?.enabled === true || !isDashboardControlsEnabled);
-    const isFiltersSummaryShown = isEditSwitchCollapse
+    const isEditSwitch = isEditSwitchCollapse({
+        isEditMode,
+        isEditErgonomicsEnabled: editErgonomicsFlag?.enabled === true,
+        isDashboardControlsEnabled,
+    });
+    const isFiltersSummaryShown = isEditSwitch
         ? editFiltersVisibility === 'summary'
         : isFiltersCollapsed;
     const setFiltersSummaryShown = (isShown: boolean) =>
-        isEditSwitchCollapse
+        isEditSwitch
             ? onEditFiltersVisibilityChange(isShown ? 'summary' : 'all')
             : setIsFiltersCollapsed(isShown);
 
