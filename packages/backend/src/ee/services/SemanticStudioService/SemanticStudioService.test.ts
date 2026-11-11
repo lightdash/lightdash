@@ -1166,6 +1166,15 @@ describe('SemanticStudioService', () => {
                     mine: 'type: sum',
                 },
             ]);
+            const refused = await context.service.applyDraft(
+                deployer,
+                PROJECT_UUID,
+                null,
+            );
+            expect(refused.failures.map(({ model }) => model)).toEqual([
+                'orders',
+            ]);
+            expect(context.commitCalls).toEqual([]);
             await context.service.keepDraftModel(
                 deployer,
                 PROJECT_UUID,

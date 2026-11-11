@@ -127,8 +127,8 @@ export const ModelNotices: FC<{
                             {conflicts.length === 1
                                 ? 'a part'
                                 : `${conflicts.length} parts`}{' '}
-                            of this model that you changed too. Publishing puts
-                            yours in place of theirs.
+                            of this model that you changed too. Choose before
+                            publishing: yours would replace theirs.
                         </Text>
                         <Tooltip label="Has the agent propose a version that keeps both changes where it can.">
                             <Button
@@ -637,7 +637,7 @@ export const PublishChecklist: FC<{
             ? [
                   {
                       state: 'attention' as const,
-                      text: `${listNames(conflicted.map((entry) => entry.model))} changed live in parts you changed too`,
+                      text: `${listNames(conflicted.map((entry) => entry.model))} changed live in parts you changed too. Keep yours or combine them to publish`,
                   },
               ]
             : []),

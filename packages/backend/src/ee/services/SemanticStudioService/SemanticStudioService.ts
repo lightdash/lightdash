@@ -1180,6 +1180,26 @@ export class SemanticStudioService extends BaseService {
                     pullRequestUrl: null,
                 };
             }
+            // Publishing would put this person's version in place of one they have not looked at.
+            const contested = [
+                ...(await this.reconcileDraft(projectUuid, draft)),
+            ].flatMap(([name, { state }]) =>
+                state === 'conflict'
+                    ? [
+                          {
+                              model: name,
+                              error: 'Someone published a change to a part of this model that you changed too. Keep yours or combine them before publishing.',
+                          },
+                      ]
+                    : [],
+            );
+            if (contested.length > 0) {
+                return {
+                    exploreCount: null,
+                    failures: contested,
+                    pullRequestUrl: null,
+                };
+            }
             const check = await this.checker.check(
                 user,
                 projectUuid,
