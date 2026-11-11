@@ -44,6 +44,12 @@ div.markdown {
     background-color: transparent;
 }
 
+/* Hover previews sit beside a 14px row, so the description reads one step smaller. */
+.previewDropdown div.markdown {
+    font-size: var(--mantine-font-size-xs);
+    line-height: var(--mantine-line-height-xs);
+}
+
 .description {
     overflow: hidden;
 

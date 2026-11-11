@@ -552,7 +552,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                 </HoverCard.Target>
                                 <HoverCard.Dropdown
                                     hidden={!isHover}
-                                    p="md"
+                                    p="sm"
                                     miw={400}
                                     mah={500}
                                     /**

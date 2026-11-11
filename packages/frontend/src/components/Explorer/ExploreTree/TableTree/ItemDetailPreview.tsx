@@ -183,7 +183,7 @@ export const ItemDetailPreview: FC<{
                 <Box ta="right">
                     <Button
                         variant="subtle"
-                        size="compact-sm"
+                        size="compact-xs"
                         rightSection={
                             <MantineIcon icon={IconArrowRight} size="sm" />
                         }
@@ -362,7 +362,7 @@ export const TableItemDetailPreview = ({
                  * of readability.
                  */
                 maw={500}
-                p="md"
+                p="sm"
                 className={classes.previewDropdown}
                 /**
                  * If we don't stop propagation, users may unintentionally toggle dimensions/metrics

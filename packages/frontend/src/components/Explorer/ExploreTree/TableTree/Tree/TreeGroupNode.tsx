@@ -203,7 +203,7 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
                         </HoverCard.Target>
                         <HoverCard.Dropdown
                             hidden={!isHover}
-                            p="md"
+                            p="sm"
                             /**
                              * Takes up space to the right, so it's OK to go fairly wide in the interest
                              * of readability.
