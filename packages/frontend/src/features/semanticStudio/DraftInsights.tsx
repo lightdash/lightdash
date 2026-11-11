@@ -47,6 +47,7 @@ import {
     useDiscardDraftChange,
     useKeepDraftModel,
     useMoveDraftChange,
+    useTakeLiveDraftPart,
     useSemanticLayerDraftUsage,
 } from './useSemanticLayerModel';
 
@@ -69,27 +70,47 @@ const SIDES: {
 ];
 
 /** One part that changed live and in the draft, with each version of it side by side. */
-const ConflictSides: FC<{ conflict: SemanticLayerDraftConflict }> = ({
-    conflict,
-}) => (
-    <Stack gap={4} className={classes.conflict}>
-        <Text fz="xs" fw={500} ff="monospace">
-            {describePath(conflict.path)}
-        </Text>
-        <Box className={classes.sides}>
-            {SIDES.map(({ key, label, absent }) => (
-                <Stack key={key} gap={2} miw={0}>
-                    <Text fz="xs" c="dimmed">
-                        {label}
-                    </Text>
-                    <Box component="pre" className={classes.side}>
-                        {conflict[key] ?? absent}
-                    </Box>
-                </Stack>
-            ))}
-        </Box>
-    </Stack>
-);
+const ConflictSides: FC<{
+    projectUuid: string;
+    model: string;
+    conflict: SemanticLayerDraftConflict;
+}> = ({ projectUuid, model, conflict }) => {
+    const takeLive = useTakeLiveDraftPart(projectUuid);
+    return (
+        <Stack gap={4} className={classes.conflict}>
+            <Group gap="xs" justify="space-between" wrap="nowrap">
+                <Text fz="xs" fw={500} ff="monospace" truncate>
+                    {describePath(conflict.path)}
+                </Text>
+                <Tooltip label="Drops your change to this part and keeps what is live. The rest of your changes stay.">
+                    <Button
+                        size="compact-xs"
+                        variant="subtle"
+                        flex="none"
+                        loading={takeLive.isLoading}
+                        onClick={() =>
+                            takeLive.mutate({ model, path: conflict.path })
+                        }
+                    >
+                        Take theirs
+                    </Button>
+                </Tooltip>
+            </Group>
+            <Box className={classes.sides}>
+                {SIDES.map(({ key, label, absent }) => (
+                    <Stack key={key} gap={2} miw={0}>
+                        <Text fz="xs" c="dimmed">
+                            {label}
+                        </Text>
+                        <Box component="pre" className={classes.side}>
+                            {conflict[key] ?? absent}
+                        </Box>
+                    </Stack>
+                ))}
+            </Box>
+        </Stack>
+    );
+};
 
 /** What happened to a model outside this draft: a publish under it, or someone else's work in it. */
 export const ModelNotices: FC<{
@@ -150,7 +171,7 @@ export const ModelNotices: FC<{
                                 Combine
                             </Button>
                         </Tooltip>
-                        <Tooltip label="Your version goes live when you publish, and this stops being flagged.">
+                        <Tooltip label="Keeps your version of every part still listed. It goes live when you publish.">
                             <Button
                                 size="compact-xs"
                                 variant="default"
@@ -164,6 +185,8 @@ export const ModelNotices: FC<{
                     {conflicts.map((conflict) => (
                         <ConflictSides
                             key={conflict.path}
+                            projectUuid={projectUuid}
+                            model={model.model}
                             conflict={conflict}
                         />
                     ))}
@@ -182,16 +205,18 @@ export const ModelNotices: FC<{
                     </Text>
                 </Group>
             ) : null}
-            {model.alsoChanging.length > 0 ? (
-                <Group gap={6} wrap="nowrap">
+            {model.alsoChanging.map(({ name, paths }) => (
+                <Group key={name} gap={6} wrap="nowrap">
                     <MantineIcon icon={IconUsers} size={14} color="dimmed" />
                     <Text fz="xs" c="dimmed">
-                        {listNames(model.alsoChanging)} also{' '}
-                        {model.alsoChanging.length === 1 ? 'has' : 'have'}{' '}
-                        changes in development on this model.
+                        {name} is also changing{' '}
+                        {paths.length > 0
+                            ? listNames(paths.map(describePath))
+                            : 'this model'}
+                        , in development.
                     </Text>
                 </Group>
-            ) : null}
+            ))}
         </Stack>
     );
 };
@@ -215,7 +240,7 @@ const ChangeRow: FC<{
             </Text>
             <Box miw={0} flex={1}>
                 <Text fz="sm" truncate>
-                    {change.question ?? 'A change with no question'}
+                    {change.question ?? 'A change made in the review'}
                 </Text>
                 <Text fz="xs" c={failed.length > 0 ? 'red' : 'dimmed'} truncate>
                     {failed.length > 0
@@ -605,7 +630,11 @@ export const PublishChecklist: FC<{
             !conflicted.includes(entry),
     );
     const others = [
-        ...new Set(models.flatMap(({ alsoChanging }) => alsoChanging)),
+        ...new Set(
+            models.flatMap(({ alsoChanging }) =>
+                alsoChanging.map(({ name }) => name),
+            ),
+        ),
     ];
     const checks: { state: CheckState; text: string }[] = [
         failing > 0
@@ -694,5 +723,71 @@ export const PublishChecklist: FC<{
                 </Group>
             ))}
         </Stack>
+    );
+};
+
+/** What pressing Publish does, said before the dialog: who sees it, what moves, and the way back. */
+export const PublishEffect: FC<{
+    projectUuid: string;
+    asPullRequest: boolean;
+}> = ({ projectUuid, asPullRequest }) => {
+    const { data } = useSemanticLayerDraftUsage(projectUuid);
+    const charts = new Set(
+        (data?.fields ?? []).flatMap(({ charts: read }) =>
+            read.map(({ uuid }) => uuid),
+        ),
+    ).size;
+    return (
+        <Text fz="xs" c="dimmed">
+            {asPullRequest
+                ? 'Publishing opens a pull request. Nothing is live until it merges.'
+                : 'Publishing goes live for everyone on this project.'}
+            {charts > 0
+                ? ` ${charts} saved ${charts === 1 ? 'chart' : 'charts'} will show different numbers.`
+                : ''}
+            {asPullRequest ? '' : " Undo is on each model's History tab."}
+        </Text>
+    );
+};
+
+const EXPLAINER_KEY = 'semantic-studio-draft-explainer-seen';
+
+const hasSeenExplainer = (): boolean => {
+    try {
+        return localStorage.getItem(EXPLAINER_KEY) !== null;
+    } catch {
+        return true;
+    }
+};
+
+/** Shown until dismissed, the first time someone has changes in development. */
+export const DraftExplainer: FC = () => {
+    const [isSeen, setIsSeen] = useState(hasSeenExplainer);
+    if (isSeen) return null;
+    return (
+        <Paper variant="dotted" p="sm">
+            <Group gap="sm" justify="space-between" wrap="nowrap">
+                <Text fz="sm">
+                    These changes are in development: only you see them, and
+                    nothing is live until you publish. Try them on real charts
+                    first with Try my changes.
+                </Text>
+                <Button
+                    size="compact-xs"
+                    variant="default"
+                    flex="none"
+                    onClick={() => {
+                        try {
+                            localStorage.setItem(EXPLAINER_KEY, '1');
+                        } catch {
+                            // Without storage it shows again next time.
+                        }
+                        setIsSeen(true);
+                    }}
+                >
+                    Got it
+                </Button>
+            </Group>
+        </Paper>
     );
 };

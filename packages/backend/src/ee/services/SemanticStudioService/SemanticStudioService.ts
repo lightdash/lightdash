@@ -1,6 +1,9 @@
 import { subject } from '@casl/ability';
 import {
+    buildModelPartRestore,
     DbtProjectType,
+    diffModelDocuments,
+    doModelPathsOverlap,
     ExploreType,
     FeatureFlags,
     ForbiddenError,
@@ -18,6 +21,7 @@ import {
     type Project,
     type SemanticLayerDraft,
     type SemanticLayerDraftApplyResult,
+    type SemanticLayerDrafter,
     type SemanticLayerDraftImpact,
     type SemanticLayerDraftItemResult,
     type SemanticLayerDraftModelInput,
@@ -172,6 +176,7 @@ const EMPTY_DRAFT: SemanticLayerDraft = {
     models: [],
     errors: [],
     settled: [],
+    othersDrafting: [],
 };
 
 const failed = (
@@ -449,16 +454,60 @@ export class SemanticStudioService extends BaseService {
         const { stored, repo } = await this.loadStored(projectUuid);
         const document = stored.find((doc) => doc.name === name);
         if (!document) return null;
+        // A repository keeps its own history.
+        const history = repo
+            ? []
+            : await this.projectModelDocumentModel.findModelHistory(
+                  projectUuid,
+                  name,
+              );
+        const pathsOf = (change: (typeof history)[number]) =>
+            diffModelDocuments(change.contentBefore, change.contentAfter).map(
+                ({ path }) => path,
+            );
         return {
             ...document,
-            // A repository keeps its own history.
-            history: repo
-                ? []
-                : await this.projectModelDocumentModel.findModelHistory(
-                      projectUuid,
-                      name,
-                  ),
+            history: history.map((change, index) => {
+                // Newest first, so the change before this one comes after it.
+                const previous = history.at(index + 1);
+                const overwritten =
+                    previous && previous.by !== change.by && !previous.reverted
+                        ? pathsOf(previous).filter(
+                              (path) =>
+                                  // Building on a model someone made is not writing over them.
+                                  path !== '' &&
+                                  pathsOf(change).some((written) =>
+                                      doModelPathsOverlap(path, written),
+                                  ),
+                          )
+                        : [];
+                return {
+                    ...change,
+                    replaced:
+                        previous && overwritten.length > 0
+                            ? { by: previous.by, paths: overwritten }
+                            : null,
+                };
+            }),
         };
+    }
+
+    /** Who else is drafting each model and which parts, read by replaying their drafts on what is live. */
+    private static describeOtherDrafts(
+        live: Map<string, string>,
+        drafters: { name: string; changes: SemanticLayerDraftModelInput[][] }[],
+    ): Map<string, SemanticLayerDrafter[]> {
+        const byModel = new Map<string, SemanticLayerDrafter[]>();
+        drafters.forEach(({ name, changes }) => {
+            const results = foldDraft(live, changes).results.flat();
+            [...new Set(results.map(({ model }) => model))].forEach((model) => {
+                byModel.set(model, [
+                    ...(byModel.get(model) ?? []),
+                    { name, paths: findDraftedPaths(model, results) },
+                ]);
+            });
+        });
+        return byModel;
     }
 
     /** Runs a write again when another one landed first. */
@@ -635,7 +684,20 @@ export class SemanticStudioService extends BaseService {
                 user.userUuid,
             ),
         ]);
-        if (draft.changes.length === 0) return { ...EMPTY_DRAFT, settled };
+        const others = SemanticStudioService.describeOtherDrafts(
+            draft.live,
+            await this.projectModelDocumentModel.findOtherDrafters(
+                projectUuid,
+                user.userUuid,
+            ),
+        );
+        const othersDrafting = [...others].map(([model, drafters]) => ({
+            model,
+            drafters,
+        }));
+        if (draft.changes.length === 0) {
+            return { ...EMPTY_DRAFT, settled, othersDrafting };
+        }
         // When each model first joined the draft: what was published after that happened under it.
         const startedAt = new Map<string, Date>();
         draft.changes.forEach(({ createdAt }, index) =>
@@ -644,14 +706,10 @@ export class SemanticStudioService extends BaseService {
             }),
         );
         const reconciliations = await this.reconcileDraft(projectUuid, draft);
-        const [{ explores }, drafters, publishedSince] = await Promise.all([
+        const [{ explores }, publishedSince] = await Promise.all([
             this.checker.compile(
                 projectUuid,
                 withWrites(draft.live, draft.writes),
-            ),
-            this.projectModelDocumentModel.findOtherDrafters(
-                projectUuid,
-                user.userUuid,
             ),
             this.projectModelDocumentModel.findPublishedSince(
                 projectUuid,
@@ -682,9 +740,7 @@ export class SemanticStudioService extends BaseService {
                     explore:
                         explore && !isExploreError(explore) ? explore : null,
                     reconciliation: reconciliations.get(model) ?? null,
-                    alsoChanging: drafters
-                        .filter(({ models }) => models.includes(model))
-                        .map(({ name }) => name),
+                    alsoChanging: others.get(model) ?? [],
                     publishedSince: publishedSince.get(model) ?? null,
                 };
             }),
@@ -693,7 +749,54 @@ export class SemanticStudioService extends BaseService {
                 message: errors.map(({ message }) => message).join('; '),
             })),
             settled,
+            othersDrafting,
         };
+    }
+
+    /** Leaves one part of this person's drafted model as it is live, by adding the changes that put it back. */
+    async takeLiveDraftPart(
+        user: SessionUser,
+        projectUuid: string,
+        model: string,
+        path: string,
+    ): Promise<void> {
+        await this.assertCanEditModels(user, projectUuid);
+        const draft = await this.loadDraft(projectUuid, user.userUuid, model);
+        const live = draft.live.get(model);
+        // With the model gone live, or the whole of it in question, theirs is the model without this draft.
+        if (live === undefined || path === '') {
+            await this.discardDraft(user, projectUuid, {
+                kind: 'model',
+                model,
+            });
+            return;
+        }
+        const version =
+            draft.stored.find(({ name }) => name === model)?.version ?? null;
+        const restores = buildModelPartRestore({
+            live,
+            mine: draft.writes.get(model) ?? live,
+            path,
+        });
+        // One at a time: each is made on the draft the one before it left.
+        await restores.reduce(
+            (made, { yaml, remove }) =>
+                made.then(async () => {
+                    await this.projectModelDocumentModel.createDraftChange({
+                        projectUuid,
+                        userUuid: user.userUuid,
+                        promptUuid: null,
+                        models: [
+                            { name: model, yaml, remove, removeModel: false },
+                        ],
+                        baseVersions: draft.repo ? null : { [model]: version },
+                    });
+                }),
+            Promise.resolve(),
+        );
+        if (restores.length > 0) {
+            await this.queueDraftImpactCheckAfterChange(user, projectUuid);
+        }
     }
 
     /** How each drafted model stands against what was published since the draft was based on it; a model with no recorded base is left out. */

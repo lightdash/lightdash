@@ -134,14 +134,10 @@ export const doModelPathsOverlap = (a: string, b: string): boolean =>
     a.startsWith(`${b}.`) ||
     b.startsWith(`${a}.`);
 
-/** The YAML at a path of a model, for showing one version of a part beside another; null when the part is not there. */
-export const readModelPart = (
-    contents: string | null,
-    path: string,
-): string | null => {
-    if (contents === null) return null;
-    if (path === '') return contents.trimEnd();
-    const value = path.split('.').reduce<{
+/** The value at a path of a model as parsed YAML; undefined when the part is not there. */
+const readModelPartValue = (contents: string | null, path: string): unknown => {
+    if (contents === null) return undefined;
+    return path.split('.').reduce<{
         at: unknown;
         list: string | null;
     }>(
@@ -163,8 +159,100 @@ export const readModelPart = (
         },
         { at: parseModel(contents), list: null },
     ).at;
+};
+
+/** The YAML at a path of a model, for showing one version of a part beside another; null when the part is not there. */
+export const readModelPart = (
+    contents: string | null,
+    path: string,
+): string | null => {
+    if (contents === null) return null;
+    if (path === '') return contents.trimEnd();
+    const value = readModelPartValue(contents, path);
     if (value === undefined) return null;
     return isObject(value) || Array.isArray(value)
         ? stringify(value).trimEnd()
         : String(value);
+};
+
+/** Whether a path names a whole definition (a field or a join) and not one key of something. */
+const isWholePart = (segments: string[]): boolean =>
+    segments.length === 2
+        ? segments[0] in NAMED_LISTS || segments[0] === 'metrics'
+        : segments.length === 4 && segments[0] === 'dimensions';
+
+/** Wraps a value in the shape a fragment gives the part at a path. */
+const nestAt = (
+    segments: string[],
+    value: unknown,
+    live: string,
+): YamlObject => {
+    const [head, name, ...rest] = segments;
+    if (name === undefined) return { [head]: value };
+    const inner = (keys: string[]): unknown =>
+        keys.length === 0 ? value : { [keys[0]]: inner(keys.slice(1)) };
+    if (head === 'dimensions') {
+        return {
+            dimensions: [
+                rest.length === 0 ? value : { name, ...asObject(inner(rest)) },
+            ],
+        };
+    }
+    if (head === 'joins') {
+        const { join, alias } = asObject(
+            readModelPartValue(live, `joins.${name}`),
+        );
+        return {
+            joins: [
+                rest.length === 0
+                    ? value
+                    : {
+                          join,
+                          ...(alias === undefined ? {} : { alias }),
+                          ...asObject(inner(rest)),
+                      },
+            ],
+        };
+    }
+    return { [head]: { [name]: inner(rest) } };
+};
+
+/**
+ * The changes that leave one part of a drafted model as it is live, in the
+ * order to make them: each is a fragment to merge and the parts to remove.
+ * Empty when the draft already matches live there.
+ */
+export const buildModelPartRestore = ({
+    live,
+    mine,
+    path,
+}: {
+    live: string;
+    mine: string | null;
+    path: string;
+}): { yaml: string | null; remove: string[] }[] => {
+    const segments = path.split('.');
+    const liveValue = readModelPartValue(live, path);
+    const hasMine = readModelPartValue(mine, path) !== undefined;
+    if (isWholePart(segments)) {
+        return [
+            // Removed first, so what comes back is exactly the live definition and not a merge of the two.
+            ...(hasMine ? [{ yaml: null, remove: [path] }] : []),
+            ...(liveValue === undefined
+                ? []
+                : [
+                      {
+                          yaml: stringify(nestAt(segments, liveValue, live)),
+                          remove: [],
+                      },
+                  ]),
+        ];
+    }
+    if (liveValue === undefined && !hasMine) return [];
+    return [
+        {
+            yaml: stringify(nestAt(segments, liveValue ?? null, live)),
+            remove: [],
+        },
+    ];
 };

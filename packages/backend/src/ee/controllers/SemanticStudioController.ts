@@ -5,6 +5,7 @@ import {
     type ApiSemanticLayerDraftImpactResponse,
     type ApiSemanticLayerDraftMoveRequest,
     type ApiSemanticLayerDraftResponse,
+    type ApiSemanticLayerDraftTakeLiveRequest,
     type ApiSemanticLayerDraftUsageResponse,
     type ApiSemanticLayerModelResponse,
     type ApiSemanticLayerStatusResponse,
@@ -311,6 +312,30 @@ export class SemanticStudioController extends BaseController {
             toSessionUser(req.account),
             projectUuid,
             model,
+        );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Leaves one part of this person's drafted model as it is live.
+     * @summary Take the live version of one part of my drafted model
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/draft/models/{model}/take-live')
+    @OperationId('takeLiveSemanticLayerDraftPart')
+    async takeLiveDraftPart(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() model: string,
+        @Body() body: ApiSemanticLayerDraftTakeLiveRequest,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().takeLiveDraftPart(
+            toSessionUser(req.account),
+            projectUuid,
+            model,
+            body.path,
         );
         return { status: 'ok', results: undefined };
     }

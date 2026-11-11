@@ -331,7 +331,11 @@ describe('Project model documents on PostgreSQL', () => {
             ]),
         });
         expect(await model.findOtherDrafters(projectUuid, userUuid)).toEqual([
-            { name: 'Ada Lovelace', models: ['orders'] },
+            {
+                name: 'Ada Lovelace',
+                models: ['orders'],
+                changes: [[expect.objectContaining({ name: 'orders' })]],
+            },
         ]);
         expect(
             await model.findOtherDrafters(projectUuid, other.user_uuid),

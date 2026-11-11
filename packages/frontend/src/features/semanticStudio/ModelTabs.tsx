@@ -204,6 +204,10 @@ const HistoryPane: FC<{
                                 >
                                     {CHANGE_KIND_VERBS[getChangeKind(change)]}{' '}
                                     {dayjs(change.createdAt).fromNow()}
+                                    {change.by ? ` by ${change.by}` : ''}
+                                    {change.replaced
+                                        ? `, replacing ${change.replaced.by ?? 'someone'}'s ${change.replaced.paths.join(', ')}`
+                                        : ''}
                                     {change.otherModels.length > 0
                                         ? `, along with ${change.otherModels.join(', ')}`
                                         : ''}

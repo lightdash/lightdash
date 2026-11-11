@@ -242,6 +242,19 @@ export const useKeepDraftModel = (projectUuid: string) =>
         changesLive: false,
     });
 
+/** Leaves one part of a drafted model as it is live. */
+export const useTakeLiveDraftPart = (projectUuid: string) =>
+    useWrite<undefined, { model: string; path: string }>({
+        projectUuid,
+        request: ({ model, path }) => ({
+            path: `${toDraftPath(model)}/take-live`,
+            method: 'POST',
+            body: JSON.stringify({ path }),
+        }),
+        errorTitle: 'Could not take the live version',
+        changesLive: false,
+    });
+
 /** Moves one change one place earlier or later in the draft. */
 export const useMoveDraftChange = (projectUuid: string) =>
     useWrite<

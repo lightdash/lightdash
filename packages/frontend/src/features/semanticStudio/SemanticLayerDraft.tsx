@@ -39,7 +39,9 @@ import {
     DraftUsage,
     MetricComparison,
     ModelNotices,
+    DraftExplainer,
     PublishChecklist,
+    PublishEffect,
 } from './DraftInsights';
 import {
     CHANGE_KIND_LABELS,
@@ -374,35 +376,52 @@ const PreviewToggle: FC<{
 
 /** Says so once when someone publishes to a model this person has in development, since the page does not reload for it. */
 const usePublishedUnderNotice = (draft: SemanticLayerDraft | undefined) => {
-    const { showToastInfo } = useToaster();
+    const { showToastInfo, showToastWarning } = useToaster();
+    const [, setSearchParams] = useSearchParams();
     // Null until the first read, which is not news: it was already so when the page opened.
     const seen = useRef<Set<string> | null>(null);
     useEffect(() => {
         if (!draft) return;
-        const current = draft.models.flatMap(({ model, publishedSince }) =>
-            publishedSince
-                ? [
-                      {
-                          key: `${model}@${new Date(publishedSince.at).getTime()}`,
-                          model,
-                          by: publishedSince.by,
-                      },
-                  ]
-                : [],
+        const current = draft.models.flatMap(
+            ({ model, publishedSince, reconciliation }) =>
+                publishedSince
+                    ? [
+                          {
+                              key: `${model}@${new Date(publishedSince.at).getTime()}`,
+                              model,
+                              by: publishedSince.by,
+                              isConflict: reconciliation?.state === 'conflict',
+                          },
+                      ]
+                    : [],
         );
         const known = seen.current;
         seen.current = new Set(current.map(({ key }) => key));
         if (known === null) return;
         current
             .filter(({ key }) => !known.has(key))
-            .forEach(({ model, by }) =>
-                showToastInfo({
-                    title: `${by ?? 'Someone'} published a change to ${model}`,
-                    subtitle:
-                        'Your changes in development are now shown on top of it.',
-                }),
+            .forEach(({ model, by, isConflict }) =>
+                isConflict
+                    ? showToastWarning({
+                          title: `${by ?? 'Someone'} changed a part of ${model} that you changed too`,
+                          subtitle:
+                              'Choose which version to keep before you publish.',
+                          action: {
+                              children: 'See both',
+                              icon: IconEye,
+                              onClick: () =>
+                                  setSearchParams({
+                                      [DRAFT_PARAM]: DRAFT_REVIEW,
+                                  }),
+                          },
+                      })
+                    : showToastInfo({
+                          title: `${by ?? 'Someone'} published a change to ${model}`,
+                          subtitle:
+                              'It is outside what you changed, and your changes sit on top of it.',
+                      }),
             );
-    }, [draft, showToastInfo]);
+    }, [draft, showToastInfo, showToastWarning, setSearchParams]);
 };
 
 /** A draft in the toolbar: what it changes, the way to its review and back, and publishing it. */
@@ -548,12 +567,18 @@ export const DraftReview: FC<DraftReviewProps> = ({
     draft,
     onAskAgent,
 }) => {
+    const asPullRequest = useAppliesAsPullRequest(projectUuid);
     // Applying or discarding the last change leaves nothing to review.
     if (draft.changes.length === 0) {
         return <Navigate to={{ search: '' }} replace />;
     }
     return (
         <Stack gap="md" className={classes.review}>
+            <DraftExplainer />
+            <PublishEffect
+                projectUuid={projectUuid}
+                asPullRequest={asPullRequest}
+            />
             <MessageList
                 variant="danger"
                 title="This cannot be applied yet"

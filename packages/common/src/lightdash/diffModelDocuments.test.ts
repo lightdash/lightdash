@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    buildModelPartRestore,
     diffModelDocuments,
     doModelPathsOverlap,
     readModelPart,
@@ -133,5 +134,58 @@ describe('readModelPart', () => {
         expect(readModelPart(base, 'metrics.missing')).toBeNull();
         expect(readModelPart(base, 'dimensions.missing.sql')).toBeNull();
         expect(readModelPart(null, 'label')).toBeNull();
+    });
+});
+
+describe('buildModelPartRestore', () => {
+    it('sets one key back to what is live', () => {
+        expect(
+            buildModelPartRestore({
+                live: base,
+                mine: base.replace('type: sum', 'type: max'),
+                path: 'dimensions.amount.metrics.revenue.type',
+            }),
+        ).toEqual([
+            {
+                yaml: 'dimensions:\n  - name: amount\n    metrics:\n      revenue:\n        type: sum\n',
+                remove: [],
+            },
+        ]);
+    });
+
+    it('removes a definition live does not have, and puts back one it does', () => {
+        const withoutRatio = base.replace(
+            'metrics:\n  ratio:\n    type: number\n    sql: a / b\n',
+            '',
+        );
+        expect(
+            buildModelPartRestore({
+                live: withoutRatio,
+                mine: base,
+                path: 'metrics.ratio',
+            }),
+        ).toEqual([{ yaml: null, remove: ['metrics.ratio'] }]);
+        expect(
+            buildModelPartRestore({
+                live: base,
+                mine: withoutRatio,
+                path: 'metrics.ratio',
+            }),
+        ).toEqual([
+            {
+                yaml: 'metrics:\n  ratio:\n    type: number\n    sql: a / b\n',
+                remove: [],
+            },
+        ]);
+    });
+
+    it('needs nothing when the draft already matches', () => {
+        expect(
+            buildModelPartRestore({
+                live: base,
+                mine: base,
+                path: 'description',
+            }),
+        ).toEqual([]);
     });
 });

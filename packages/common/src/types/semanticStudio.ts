@@ -37,6 +37,10 @@ export type SemanticLayerModelChange = {
     contentAfter: string | null;
     /** The other models the same change set wrote; undoing it reverts them too. */
     otherModels: string[];
+    /** Who made the change; null when that person is gone. */
+    by: string | null;
+    /** The parts this change wrote over that someone else had changed just before; null when it wrote over nobody. */
+    replaced: { by: string | null; paths: string[] } | null;
 };
 
 export type SemanticLayerModelCode = {
@@ -112,6 +116,9 @@ export type SemanticLayerDraftReconciliation = {
     conflicts: SemanticLayerDraftConflict[];
 };
 
+/** Someone else with a draft of a model, and the parts of it they are changing. */
+export type SemanticLayerDrafter = { name: string; paths: string[] };
+
 /** A model as the draft leaves it, against what is live. */
 export type SemanticLayerDraftModel = {
     model: string;
@@ -123,8 +130,8 @@ export type SemanticLayerDraftModel = {
     explore: Explore | null;
     /** How this model's draft stands against what was published since it was based; null when the base was not recorded. */
     reconciliation: SemanticLayerDraftReconciliation | null;
-    /** Other people with unpublished changes to this model, by name; never what they changed. */
-    alsoChanging: string[];
+    /** Other people with unpublished changes to this model, and the parts each is changing; never the content. */
+    alsoChanging: SemanticLayerDrafter[];
     /** The latest change someone else published to this model since this draft first touched it; null when none. */
     publishedSince: { by: string | null; at: Date } | null;
 };
@@ -144,6 +151,8 @@ export type SemanticLayerDraft = {
     /** Models the draft leaves unable to compile. */
     errors: { model: string; message: string }[];
     settled: SemanticLayerSettledDraftChange[];
+    /** Every model other people have unpublished changes to, whether or not this draft touches it. */
+    othersDrafting: { model: string; drafters: SemanticLayerDrafter[] }[];
 };
 
 export type ApiSemanticLayerDraftResponse = ApiSuccess<SemanticLayerDraft>;
@@ -210,6 +219,11 @@ export type ApiSemanticLayerDraftUsageResponse =
 
 /** Which way a change moves in a draft's order. */
 export type SemanticLayerDraftMoveDirection = 'earlier' | 'later';
+
+export type ApiSemanticLayerDraftTakeLiveRequest = {
+    /** The part to leave as it is live, such as `metrics.revenue.sql`. */
+    path: string;
+};
 
 export type ApiSemanticLayerDraftMoveRequest = {
     direction: SemanticLayerDraftMoveDirection;

@@ -160,7 +160,7 @@ export class ProjectModelDocumentModel {
     async findModelHistory(
         projectUuid: string,
         name: string,
-    ): Promise<SemanticLayerModelChange[]> {
+    ): Promise<Omit<SemanticLayerModelChange, 'replaced'>[]> {
         const changeSetUuid = `${ProjectModelRevisionsTableName}.project_model_change_set_uuid`;
         const rows = await this.database(ProjectModelRevisionsTableName)
             .innerJoin(
@@ -173,8 +173,15 @@ export class ProjectModelDocumentModel {
                 `${AiPromptTableName}.ai_prompt_uuid`,
                 `${ProjectModelChangeSetsTableName}.prompt_uuid`,
             )
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${ProjectModelChangeSetsTableName}.created_by_user_uuid`,
+            )
             .select({
                 changeSetUuid,
+                firstName: `${UserTableName}.first_name`,
+                lastName: `${UserTableName}.last_name`,
                 contentBefore: `${ProjectModelRevisionsTableName}.content_before`,
                 contentAfter: `${ProjectModelRevisionsTableName}.content_after`,
                 source: `${ProjectModelChangeSetsTableName}.kind`,
@@ -200,8 +207,12 @@ export class ProjectModelDocumentModel {
                 .orderBy('name'),
             (other) => other.project_model_change_set_uuid,
         );
-        return rows.map(({ revertedBy, ...row }) => ({
+        return rows.map(({ revertedBy, firstName, lastName, ...row }) => ({
             ...row,
+            by:
+                typeof firstName === 'string'
+                    ? `${firstName} ${lastName ?? ''}`.trim()
+                    : null,
             reverted: revertedBy !== null,
             otherModels: (others[row.changeSetUuid] ?? []).map(
                 (other) => other.name,
@@ -322,7 +333,14 @@ export class ProjectModelDocumentModel {
     async findOtherDrafters(
         projectUuid: string,
         userUuid: string,
-    ): Promise<{ name: string; models: string[] }[]> {
+    ): Promise<
+        {
+            name: string;
+            models: string[];
+            /** Their draft, oldest change first. */
+            changes: SemanticLayerDraftModelInput[][];
+        }[]
+    > {
         const rows = await this.database(ProjectModelDraftChangesTableName)
             .innerJoin(
                 UserTableName,
@@ -334,7 +352,7 @@ export class ProjectModelDocumentModel {
                     userUuid: string;
                     firstName: string;
                     lastName: string;
-                    models: { name: string }[];
+                    models: SemanticLayerDraftModelInput[];
                 }[]
             >({
                 userUuid: `${UserTableName}.user_uuid`,
@@ -350,7 +368,8 @@ export class ProjectModelDocumentModel {
             .whereNot(
                 `${ProjectModelDraftChangesTableName}.created_by_user_uuid`,
                 userUuid,
-            );
+            )
+            .orderBy(`${ProjectModelDraftChangesTableName}.created_at`, 'asc');
         return Object.values(groupBy(rows, (row) => row.userUuid)).map(
             (changes) => ({
                 name: `${changes[0].firstName} ${changes[0].lastName}`.trim(),
@@ -361,6 +380,7 @@ export class ProjectModelDocumentModel {
                         ),
                     ),
                 ],
+                changes: changes.map(({ models }) => models),
             }),
         );
     }
