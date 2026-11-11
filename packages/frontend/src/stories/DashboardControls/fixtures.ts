@@ -740,3 +740,35 @@ export const createDateZoomControl = (
     granularity: DateGranularity.WEEK,
     ...overrides,
 });
+
+const orderDate = {
+    fieldId: 'orders_order_date',
+    label: 'Order date',
+    tableName: 'orders',
+};
+
+/** The date fields each tile can be zoomed on: every tile but payments. */
+export const zoomableFieldsByTile = Object.fromEntries(
+    tiles
+        .filter(({ uuid }) => uuid !== 'tile-payments')
+        .map(({ uuid }) => [uuid, [orderDate]]),
+);
+
+/** Revenue zoom at Week on the revenue and weekly tiles; the default at Month. */
+export const dateZoomSettings = {
+    dateZoomGranularities: enabledGranularities,
+    defaultDateZoomGranularity: DateGranularity.MONTH,
+    dateZoomConfig: {
+        controls: [createDateZoomControl()],
+        tileTargets: Object.fromEntries(
+            ['tile-revenue', 'tile-weekly'].map((tileUuid) => [
+                tileUuid,
+                {
+                    controlUuid: 'zoom-revenue',
+                    fieldId: orderDate.fieldId,
+                    tableName: orderDate.tableName,
+                },
+            ]),
+        ),
+    },
+};

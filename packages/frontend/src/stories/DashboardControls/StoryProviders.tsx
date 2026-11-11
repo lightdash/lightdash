@@ -40,6 +40,7 @@ import {
     storyLightdashApi,
     tabs,
     tiles,
+    zoomableFieldsByTile,
 } from './fixtures';
 
 // The dashboard's fields and tiles: the usual six tiles, or one tile over a
@@ -100,6 +101,7 @@ const createStore = ({
         createDashboardTestStore({
             dashboardFilters,
             isEditMode: true,
+            chartZoomableFieldsByTileUuid: zoomableFieldsByTile,
             source: {
                 availableFilters: {
                     allFilterableFields: filterFields,
