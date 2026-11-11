@@ -174,6 +174,10 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
             ),
         onError: ({ error }) => {
             showToastApiError({ title: errorTitle, apiError: error });
+            // A refusal often means the draft on screen is out of date.
+            void queryClient.invalidateQueries({
+                queryKey: [DRAFT_KEY, projectUuid],
+            });
         },
     });
 };

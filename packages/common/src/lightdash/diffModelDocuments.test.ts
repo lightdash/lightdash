@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-    buildModelPartRestore,
     diffModelDocuments,
     doModelPathsOverlap,
     readModelPart,
+    restoreModelParts,
 } from './diffModelDocuments';
 
 const base = `type: model
@@ -137,55 +137,91 @@ describe('readModelPart', () => {
     });
 });
 
-describe('buildModelPartRestore', () => {
-    it('sets one key back to what is live', () => {
-        expect(
-            buildModelPartRestore({
-                live: base,
-                mine: base.replace('type: sum', 'type: max'),
-                path: 'dimensions.amount.metrics.revenue.type',
-            }),
-        ).toEqual([
-            {
-                yaml: 'dimensions:\n  - name: amount\n    metrics:\n      revenue:\n        type: sum\n',
-                remove: [],
-            },
-        ]);
+describe('restoreModelParts', () => {
+    const restore = (mine: string, live: string, path: string) =>
+        restoreModelParts({ contents: mine, live, paths: [path] });
+
+    it.each([
+        [
+            'a key of a nested metric',
+            'dimensions.amount.metrics.revenue.type',
+            base.replace('type: sum', 'type: max'),
+        ],
+        [
+            'a top-level key',
+            'label',
+            base.replace('label: Orders', 'label: Sales'),
+        ],
+        [
+            'a key of a join',
+            'joins.customers.sql_on',
+            base.replace('x = y', 'a = b'),
+        ],
+        [
+            'a whole metric the draft redefined',
+            'metrics.ratio',
+            base.replace('sql: a / b', 'sql: b / a\n    label: Ratio'),
+        ],
+        [
+            'a whole dimension the draft removed',
+            'dimensions.status',
+            base.replace(
+                '  - name: status\n    type: string\n    sql: status\n',
+                '',
+            ),
+        ],
+        [
+            'a whole metric the draft removed',
+            'metrics.ratio',
+            base.replace(
+                'metrics:\n  ratio:\n    type: number\n    sql: a / b\n',
+                '',
+            ),
+        ],
+    ])('puts back %s', (_case, path, mine) => {
+        expect(mine).not.toBe(base);
+        const { contents, restored } = restore(mine, base, path);
+        expect(restored).toEqual([path]);
+        expect(readModelPart(contents, path)).toBe(readModelPart(base, path));
+        expect(diffModelDocuments(base, contents)).toEqual([]);
     });
 
-    it('removes a definition live does not have, and puts back one it does', () => {
-        const withoutRatio = base.replace(
+    it('removes what live does not have', () => {
+        const live = base.replace(
             'metrics:\n  ratio:\n    type: number\n    sql: a / b\n',
             '',
         );
-        expect(
-            buildModelPartRestore({
-                live: withoutRatio,
-                mine: base,
-                path: 'metrics.ratio',
-            }),
-        ).toEqual([{ yaml: null, remove: ['metrics.ratio'] }]);
-        expect(
-            buildModelPartRestore({
-                live: base,
-                mine: withoutRatio,
-                path: 'metrics.ratio',
-            }),
-        ).toEqual([
-            {
-                yaml: 'metrics:\n  ratio:\n    type: number\n    sql: a / b\n',
-                remove: [],
-            },
-        ]);
+        const { contents, restored } = restore(base, live, 'metrics.ratio');
+        expect(restored).toEqual(['metrics.ratio']);
+        expect(readModelPart(contents, 'metrics.ratio')).toBeNull();
     });
 
-    it('needs nothing when the draft already matches', () => {
-        expect(
-            buildModelPartRestore({
-                live: base,
-                mine: base,
-                path: 'description',
-            }),
-        ).toEqual([]);
+    it('leaves no empty map behind when it removes the last nested definition', () => {
+        const live = base.replace(
+            '    metrics:\n      revenue:\n        type: sum\n',
+            '',
+        );
+        const { contents } = restore(
+            base,
+            live,
+            'dimensions.amount.metrics.revenue',
+        );
+        expect(contents).toBe(live);
+    });
+
+    it('keeps the rest of the draft', () => {
+        const mine = base
+            .replace('label: Orders', 'label: Sales')
+            .replace('type: sum', 'type: max');
+        const { contents } = restore(mine, base, 'label');
+        expect(contents).toContain('label: Orders');
+        expect(contents).toContain('type: max');
+    });
+
+    it('does nothing where the draft already matches', () => {
+        expect(restore(base, base, 'label')).toEqual({
+            contents: base,
+            restored: [],
+        });
     });
 });

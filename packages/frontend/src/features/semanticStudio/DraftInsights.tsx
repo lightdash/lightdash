@@ -92,7 +92,13 @@ const ConflictSides: FC<{
                 <Text fz="xs" fw={500} ff="monospace" truncate>
                     {describePath(conflict.path)}
                 </Text>
-                <Tooltip label="Drops your change to this part and keeps what is live. The rest of your changes stay.">
+                <Tooltip
+                    label={
+                        conflict.path === ''
+                            ? 'Drops everything you changed on this model and keeps what is live.'
+                            : 'Drops your change to this part and keeps what is live. The rest of your changes stay.'
+                    }
+                >
                     <Button
                         size="compact-xs"
                         variant="subtle"
@@ -102,7 +108,7 @@ const ConflictSides: FC<{
                             takeLive.mutate({ model, path: conflict.path })
                         }
                     >
-                        Take theirs
+                        {conflict.path === '' ? 'Discard mine' : 'Take theirs'}
                     </Button>
                 </Tooltip>
             </Group>
@@ -714,7 +720,11 @@ export const PublishChecklist: FC<{
                       )
                           ? ('ok' as const)
                           : ('attention' as const),
-                      text: `${listNames(movedUnder.map(labelOf))} changed live after you started, outside what you changed. Yours goes on top`,
+                      text: movedUnder.every(
+                          (entry) => entry.reconciliation?.state === 'merged',
+                      )
+                          ? `${listNames(movedUnder.map(labelOf))} changed live after you started, outside what you changed. Yours goes on top`
+                          : `${listNames(movedUnder.map(labelOf))} changed live after you started, and it could not be set against yours. Look at it in the review first`,
                   },
               ]
             : []),

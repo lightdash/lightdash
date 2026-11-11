@@ -250,6 +250,7 @@ const setup = ({
         async (_projectUuid: string, _names: string[]) => undefined,
     );
     const drafts: StoredDraftChange[] = [];
+    const requestedBases: [string, number][] = [];
     const settled: ('applied' | 'discarded')[] = [];
     const generateValidation = vi.fn(
         async (
@@ -337,7 +338,10 @@ const setup = ({
         projectModelDocumentModel: {
             findDocuments: async () =>
                 stored.map((doc) => ({ version: 1, ...doc })),
-            findDocumentsAt: async () => new Map(baseContents),
+            findDocumentsAt: async (_projectUuid, versions) => {
+                requestedBases.push(...versions);
+                return new Map(baseContents);
+            },
             rebaseDraftChanges: async (_owner, model, version) => {
                 drafts.forEach((change, index) => {
                     drafts[index] = {
@@ -469,6 +473,7 @@ const setup = ({
         deleteCachedExplores,
         findModelHistory,
         drafts,
+        requestedBases,
         settled,
         generateValidation,
         queueImpactCheck,
@@ -1248,8 +1253,15 @@ describe('SemanticStudioService', () => {
                 PROJECT_UUID,
             );
             expect(draft.models[0].reconciliation?.conflicts).toEqual([]);
-            expect(draft.models[0].contentAfter).toContain('label: Sales');
-            expect(draft.models[0].contentAfter).not.toContain('revenue');
+            // Live exactly, plus the one change the draft kept.
+            expect(draft.models[0].contentAfter).toBe(
+                `${orders}label: Sales\n`,
+            );
+            expect(context.drafts.at(-1)?.models).toEqual([
+                expect.objectContaining({
+                    restore: ['dimensions.amount.metrics.revenue'],
+                }),
+            ]);
         });
 
         it('still sees a conflict after the changes are reordered', async () => {
@@ -1275,6 +1287,8 @@ describe('SemanticStudioService', () => {
             context.drafts[0].baseVersions = { orders: 0 };
             context.drafts.reverse();
             expect((await reconciliationOf(context))?.state).toBe('conflict');
+            // The oldest base is the one read, whichever change comes first.
+            expect(context.requestedBases.at(-1)).toEqual(['orders', 0]);
         });
 
         it('says nothing when the base was never recorded', async () => {

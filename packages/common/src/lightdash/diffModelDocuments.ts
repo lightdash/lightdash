@@ -1,5 +1,13 @@
 import { isEqual } from 'es-toolkit/compat';
-import { parse, stringify } from 'yaml';
+import {
+    isMap,
+    isNode,
+    isSeq,
+    parse,
+    parseDocument,
+    stringify,
+    type Document,
+} from 'yaml';
 
 /** One part of a model that differs between two versions of its YAML, addressed the way a fragment's changes are. */
 export type ModelPartChange = {
@@ -175,84 +183,106 @@ export const readModelPart = (
         : String(value);
 };
 
-/** Whether a path names a whole definition (a field or a join) and not one key of something. */
-const isWholePart = (segments: string[]): boolean =>
-    segments.length === 2
-        ? segments[0] in NAMED_LISTS || segments[0] === 'metrics'
-        : segments.length === 4 && segments[0] === 'dimensions';
+type Located = {
+    /** Where the part is, or where it would go. */
+    at: (string | number)[];
+    exists: boolean;
+    /** Set when a named entry is missing from its list: the keys below it that the path goes on to name. */
+    below: string[] | null;
+};
 
-/** Wraps a value in the shape a fragment gives the part at a path. */
-const nestAt = (
-    segments: string[],
-    value: unknown,
-    live: string,
-): YamlObject => {
-    const [head, name, ...rest] = segments;
-    if (name === undefined) return { [head]: value };
-    const inner = (keys: string[]): unknown =>
-        keys.length === 0 ? value : { [keys[0]]: inner(keys.slice(1)) };
-    if (head === 'dimensions') {
-        return {
-            dimensions: [
-                rest.length === 0 ? value : { name, ...asObject(inner(rest)) },
-            ],
-        };
+/** Finds a part in a parsed document by the path changes are reported under. */
+const locate = (doc: Document, path: string): Located => {
+    const segments = path.split('.');
+    const at: (string | number)[] = [];
+    for (let index = 0; index < segments.length; index += 1) {
+        const segment = segments[index];
+        const node: unknown = doc.getIn([...at, segment]);
+        const name = segments[index + 1];
+        if (segment in NAMED_LISTS && isSeq(node) && name !== undefined) {
+            const entry = node.items.findIndex(
+                (item) =>
+                    isMap(item) &&
+                    NAMED_LISTS[segment](asObject(item.toJSON())) === name,
+            );
+            if (entry === -1) {
+                return {
+                    at: [...at, segment],
+                    exists: false,
+                    below: segments.slice(index + 2),
+                };
+            }
+            at.push(segment, entry);
+            index += 1;
+        } else {
+            at.push(segment);
+        }
     }
-    if (head === 'joins') {
-        const { join, alias } = asObject(
-            readModelPartValue(live, `joins.${name}`),
-        );
-        return {
-            joins: [
-                rest.length === 0
-                    ? value
-                    : {
-                          join,
-                          ...(alias === undefined ? {} : { alias }),
-                          ...asObject(inner(rest)),
-                      },
-            ],
-        };
-    }
-    return { [head]: { [name]: inner(rest) } };
+    return { at, exists: doc.hasIn(at), below: null };
 };
 
 /**
- * The changes that leave one part of a drafted model as it is live, in the
- * order to make them: each is a fragment to merge and the parts to remove.
- * Empty when the draft already matches live there.
+ * Leaves parts of a drafted model exactly as they are live, whatever live holds
+ * when this runs: the live definition is copied over, and a part live does not
+ * have is removed. Returns the paths it changed.
  */
-export const buildModelPartRestore = ({
+export const restoreModelParts = ({
+    contents,
     live,
-    mine,
-    path,
+    paths,
 }: {
+    contents: string;
     live: string;
-    mine: string | null;
-    path: string;
-}): { yaml: string | null; remove: string[] }[] => {
-    const segments = path.split('.');
-    const liveValue = readModelPartValue(live, path);
-    const hasMine = readModelPartValue(mine, path) !== undefined;
-    if (isWholePart(segments)) {
-        return [
-            // Removed first, so what comes back is exactly the live definition and not a merge of the two.
-            ...(hasMine ? [{ yaml: null, remove: [path] }] : []),
-            ...(liveValue === undefined
-                ? []
-                : [
-                      {
-                          yaml: stringify(nestAt(segments, liveValue, live)),
-                          remove: [],
-                      },
-                  ]),
-        ];
-    }
-    if (liveValue === undefined && !hasMine) return [];
-    return [
-        {
-            yaml: stringify(nestAt(segments, liveValue ?? null, live)),
-            remove: [],
-        },
-    ];
+    paths: string[];
+}): { contents: string; restored: string[] } => {
+    const doc = parseDocument(contents);
+    const liveDoc = parseDocument(live);
+    const restored = paths.filter((path) => {
+        if (readModelPart(doc.toString(), path) === readModelPart(live, path)) {
+            return false;
+        }
+        const theirs = locate(liveDoc, path);
+        const mine = locate(doc, path);
+        if (!theirs.exists) {
+            if (!mine.exists) return false;
+            doc.deleteIn(mine.at);
+            // An emptied map of definitions goes with its last entry, as when a part is removed by hand.
+            const parent = mine.at.slice(0, -1);
+            const siblings: unknown = doc.getIn(parent);
+            if (
+                parent.length > 1 &&
+                isMap(siblings) &&
+                siblings.items.length === 0
+            ) {
+                doc.deleteIn(parent);
+            }
+            return true;
+        }
+        const node: unknown = liveDoc.getIn(theirs.at, true);
+        const copy = isNode(node) ? node.clone() : node;
+        if (mine.below === null) {
+            doc.setIn(mine.at, copy);
+            return true;
+        }
+        // A key of an entry the draft does not have: there is nothing of the draft's there to put back.
+        if (mine.below.length > 0) return false;
+        const list: unknown = doc.getIn(mine.at);
+        const position = theirs.at.at(-1);
+        if (isSeq(list)) {
+            list.items.splice(
+                typeof position === 'number'
+                    ? Math.min(position, list.items.length)
+                    : list.items.length,
+                0,
+                copy,
+            );
+        } else {
+            doc.setIn(mine.at, doc.createNode([copy]));
+        }
+        return true;
+    });
+    return {
+        contents: restored.length > 0 ? doc.toString() : contents,
+        restored,
+    };
 };

@@ -74,6 +74,8 @@ export type SemanticLayerDraftModelInput = {
     /** Paths to remove, such as dimensions.amount.metrics.revenue. */
     remove: string[];
     removeModel: boolean;
+    /** Paths left as they are live, whatever live holds when the draft is read. Absent on changes made before this existed. */
+    restore?: string[];
 };
 
 /** One change in a person's draft, replayed on what is live whenever it is read. */

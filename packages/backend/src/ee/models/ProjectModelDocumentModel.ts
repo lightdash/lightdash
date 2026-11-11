@@ -321,6 +321,10 @@ export class ProjectModelDocumentModel {
             .whereIn(`${ProjectModelRevisionsTableName}.name`, [
                 ...versions.keys(),
             ])
+            // Narrowed here so no other version's YAML is read; the exact pairing is checked below.
+            .whereIn(`${ProjectModelRevisionsTableName}.document_version`, [
+                ...new Set(versions.values()),
+            ])
             .orderBy(`${ProjectModelChangeSetsTableName}.created_at`, 'asc');
         return new Map(
             rows
@@ -423,6 +427,14 @@ export class ProjectModelDocumentModel {
             .whereIn(`${ProjectModelRevisionsTableName}.name`, [
                 ...since.keys(),
             ])
+            // Nothing older than the oldest start can count; each model's own start is checked below.
+            .where(
+                `${ProjectModelChangeSetsTableName}.created_at`,
+                '>',
+                new Date(
+                    Math.min(...[...since.values()].map((at) => at.getTime())),
+                ),
+            )
             .where((builder) =>
                 builder
                     .whereNull(

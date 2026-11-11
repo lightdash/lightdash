@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    buildModelPartRestore,
     DbtProjectType,
     diffModelDocuments,
     doModelPathsOverlap,
@@ -14,6 +13,7 @@ import {
     NotFoundError,
     ParameterError,
     ProjectType,
+    readModelPart,
     ValidationTarget,
     type Explore,
     type ExploreError,
@@ -779,26 +779,30 @@ export class SemanticStudioService extends BaseService {
         }
         const version =
             draft.stored.find(({ name }) => name === model)?.version ?? null;
-        const restores = buildModelPartRestore({
-            live,
-            // A draft that removes the model has nothing of its own at any path.
-            mine: draft.writes.has(model)
-                ? (draft.writes.get(model) ?? null)
-                : live,
-            path,
-        });
-        if (restores.length === 0) return;
-        // One change, so a part is never left removed without its live definition put back.
+        const mine = draft.writes.has(model)
+            ? (draft.writes.get(model) ?? null)
+            : live;
+        // Nothing of the draft's differs there, or the draft removes the whole model.
+        if (
+            mine === null ||
+            readModelPart(mine, path) === readModelPart(live, path)
+        ) {
+            return;
+        }
+        // Stored as "as live", not as a copy of what is live now, so it follows live if that changes again.
         await this.projectModelDocumentModel.createDraftChange({
             projectUuid,
             userUuid: user.userUuid,
             promptUuid: null,
-            models: restores.map(({ yaml, remove }) => ({
-                name: model,
-                yaml,
-                remove,
-                removeModel: false,
-            })),
+            models: [
+                {
+                    name: model,
+                    yaml: null,
+                    remove: [],
+                    removeModel: false,
+                    restore: [path],
+                },
+            ],
             baseVersions: draft.repo ? null : { [model]: version },
         });
         await this.queueDraftImpactCheckAfterChange(user, projectUuid);
@@ -812,8 +816,10 @@ export class SemanticStudioService extends BaseService {
         if (draft.repo) return new Map();
         // The oldest version any of a model's changes was made on, whatever order they are in now: a model that was not there is older than any version.
         const bases = new Map<string, number | null>();
-        draft.changes.forEach(({ baseVersions }) =>
+        draft.changes.forEach(({ baseVersions, models }) =>
             Object.entries(baseVersions ?? {}).forEach(([model, version]) => {
+                // A base outlives the model's part of a change that was since applied or discarded on its own.
+                if (!models.some(({ name }) => name === model)) return;
                 const known = bases.get(model);
                 if (
                     known === undefined ||

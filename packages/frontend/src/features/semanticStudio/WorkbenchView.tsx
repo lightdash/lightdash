@@ -677,6 +677,8 @@ const MainPane: FC<{
                         modelName={explore.id}
                         fields={
                             <ExploreBody
+                                // Its live or in-development switch belongs to one model.
+                                key={explore.id}
                                 view={view}
                                 exploreId={explore.id}
                                 openFieldId={openFieldId}

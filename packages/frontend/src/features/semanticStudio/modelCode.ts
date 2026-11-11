@@ -42,6 +42,7 @@ export const findFieldLine = (
 
 /** A changed part in plain words: the key and what it is on, or the name of a whole field or join. */
 const describePart = (path: string): string => {
+    if (path === '') return 'the whole model';
     const segments = path.split('.');
     const isKey = segments.length % 2 === 1 && segments.length > 1;
     return isKey
