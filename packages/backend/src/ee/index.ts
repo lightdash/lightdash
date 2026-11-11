@@ -138,6 +138,7 @@ import { ReleaseHighlightsService } from './services/ReleaseHighlightsService/Re
 import { RoadmapService } from './services/RoadmapService/RoadmapService';
 import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import { ScimService } from './services/ScimService/ScimService';
+import { developmentViewMiddleware } from './services/SemanticStudioService/developmentViewMiddleware';
 import { RepoModelSource } from './services/SemanticStudioService/repoModels';
 import { SemanticStudioService } from './services/SemanticStudioService/SemanticStudioService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
@@ -1847,6 +1848,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             },
             (expressApp: Express) => {
                 expressApp.use('/api/v1/scim/v2', scimRequestLoggingMiddleware);
+            },
+            (expressApp: Express) => {
+                expressApp.use(developmentViewMiddleware);
             },
         ],
         schedulerWorkerFactory: (context) =>

@@ -776,6 +776,59 @@ describe('SemanticStudioService', () => {
         });
     });
 
+    describe('the development view of a draft', () => {
+        it('compiles the drafted models for the person who drafted them', async () => {
+            const context = setup();
+            expect(
+                await context.service.findDevelopmentExplores(
+                    deployer,
+                    PROJECT_UUID,
+                ),
+            ).toBeNull();
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+            );
+            const explores = await context.service.findDevelopmentExplores(
+                deployer,
+                PROJECT_UUID,
+            );
+            const drafted = explores?.get('orders');
+            expect(
+                drafted && !isExploreError(drafted)
+                    ? Object.keys(drafted.tables.orders.metrics)
+                    : [],
+            ).toContain('revenue');
+            expect(context.setExplores).not.toHaveBeenCalled();
+        });
+
+        it('marks a model the draft removes, and is nothing to someone who cannot change the project', async () => {
+            const context = setup();
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel(null, { removeModel: true })],
+                null,
+            );
+            expect(
+                (
+                    await context.service.findDevelopmentExplores(
+                        deployer,
+                        PROJECT_UUID,
+                    )
+                )?.get('orders'),
+            ).toBeNull();
+            expect(
+                await context.service.findDevelopmentExplores(
+                    viewer,
+                    PROJECT_UUID,
+                ),
+            ).toBeNull();
+        });
+    });
+
     describe('settling the draft', () => {
         it('applies every change as one change set that names the latest question', async () => {
             const context = setup();

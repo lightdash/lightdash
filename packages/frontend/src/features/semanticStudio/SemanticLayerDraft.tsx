@@ -14,9 +14,14 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { WorkerPoolContextProvider } from '@pierre/diffs/react';
-import { IconExternalLink, IconTable } from '@tabler/icons-react';
+import {
+    IconExternalLink,
+    IconEye,
+    IconEyeOff,
+    IconTable,
+} from '@tabler/icons-react';
 import { countBy, uniqBy } from 'es-toolkit/compat';
-import { useState, type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { Navigate, useSearchParams } from 'react-router';
 import Callout from '../../components/common/Callout';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -28,6 +33,7 @@ import {
 import useToaster from '../../hooks/toaster/useToaster';
 import { ChangeDiff } from './ChangeDiff';
 import { DevelopmentBar } from './DevelopmentBar';
+import { useDevelopmentView } from './developmentView';
 import {
     CHANGE_KIND_LABELS,
     count,
@@ -306,6 +312,28 @@ const DraftActions: FC<{
     );
 };
 
+/** Switches the person's own queries between the live models and their changes in development. */
+const PreviewToggle: FC<{
+    isPreviewing: boolean;
+    onChange: (next: boolean) => void;
+}> = ({ isPreviewing, onChange }) => (
+    <Tooltip label="Explore and your charts read your changes. Only you see them.">
+        <Button
+            size="xs"
+            variant="default"
+            leftSection={
+                <MantineIcon
+                    icon={isPreviewing ? IconEyeOff : IconEye}
+                    size={14}
+                />
+            }
+            onClick={() => onChange(!isPreviewing)}
+        >
+            {isPreviewing ? 'Back to live' : 'Try my changes'}
+        </Button>
+    </Tooltip>
+);
+
 /** A draft in the toolbar: what it changes, the way to its review and back, and publishing it. */
 export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     projectUuid,
@@ -313,7 +341,13 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const { data: draft } = useSemanticLayerDraft(projectUuid);
     const [searchParams, setSearchParams] = useSearchParams();
     const [publishing, setPublishing] = useState(false);
-    if (!draft || draft.changes.length === 0) return null;
+    const [isPreviewing, setIsPreviewing] = useDevelopmentView();
+    const isEmpty = !draft || draft.changes.length === 0;
+    // Once nothing is in development there is nothing to preview.
+    useEffect(() => {
+        if (draft && isEmpty && isPreviewing) setIsPreviewing(false);
+    }, [draft, isEmpty, isPreviewing, setIsPreviewing]);
+    if (isEmpty) return null;
     const reviewing = searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW;
     const blocked = cannotApply(draft, null);
     return (
@@ -326,6 +360,10 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                 </Text>
             }
         >
+            <PreviewToggle
+                isPreviewing={isPreviewing}
+                onChange={setIsPreviewing}
+            />
             <Button
                 size="xs"
                 variant="default"
@@ -393,19 +431,32 @@ const DraftNotes: FC<{ draft: SemanticLayerDraft }> = ({ draft }) => {
 
 type DraftProps = { projectUuid: string; draft: SemanticLayerDraft };
 
-export const DraftReviewHeading: FC<DraftProps> = ({ projectUuid, draft }) => (
-    <Group className={classes.heading} gap="xs" wrap="nowrap">
-        <Badge color="orange" flex="none">
-            In development
-        </Badge>
-        <Text fz="sm" fw={500} truncate flex={1}>
-            {draft.models.length > 0
-                ? summarizeDraftModels(draft)
-                : 'Already live, nothing to publish'}
-        </Text>
-        <DraftActions projectUuid={projectUuid} draft={draft} model={null} />
-    </Group>
-);
+export const DraftReviewHeading: FC<DraftProps> = ({ projectUuid, draft }) => {
+    const [isPreviewing, setIsPreviewing] = useDevelopmentView();
+    return (
+        <Group className={classes.heading} gap="xs" wrap="nowrap">
+            <Badge color="orange" flex="none">
+                In development
+            </Badge>
+            <Text fz="sm" fw={500} truncate flex={1}>
+                {draft.models.length > 0
+                    ? summarizeDraftModels(draft)
+                    : 'Already live, nothing to publish'}
+            </Text>
+            {draft.models.length > 0 ? (
+                <PreviewToggle
+                    isPreviewing={isPreviewing}
+                    onChange={setIsPreviewing}
+                />
+            ) : null}
+            <DraftActions
+                projectUuid={projectUuid}
+                draft={draft}
+                model={null}
+            />
+        </Group>
+    );
+};
 
 export const DraftReview: FC<DraftProps> = ({ projectUuid, draft }) => {
     // Applying or discarding the last change leaves nothing to review.

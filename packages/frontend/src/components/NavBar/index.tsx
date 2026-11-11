@@ -7,6 +7,7 @@ import {
 import { Box } from '@mantine/core';
 import { clsx } from 'clsx';
 import { memo } from 'react';
+import { useDevelopmentView } from '../../features/semanticStudio/developmentView';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { useOrganizationAccess } from '../../hooks/organization/useOrganizationAccess';
 import { useActiveProjectUuid } from '../../hooks/useActiveProject';
@@ -21,6 +22,7 @@ import { isPlaygroundProvisioningSource } from '../../utils/playgroundProject';
 import { getProjectUrlIdentifier } from '../../utils/projectUrl';
 import { BANNER_HEIGHT, NAVBAR_HEIGHT } from '../common/Page/constants';
 import { DashboardExplorerBanner } from './DashboardExplorerBanner';
+import { DevelopmentViewBanner } from './DevelopmentViewBanner';
 import { ImpersonationBanner } from './ImpersonationBanner';
 import classes from './index.module.css';
 import { MainNavBarContent } from './MainNavBarContent';
@@ -127,8 +129,11 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
             }),
         ) === true;
 
+    const [isDevelopmentView] = useDevelopmentView();
+
     const hasBanner =
         isImpersonating ||
+        isDevelopmentView ||
         (isCurrentProjectPreview && !isTrainingCopy) ||
         showSampleDataBanner ||
         showTrialWarning;
@@ -155,6 +160,8 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
             >
                 {isImpersonating ? (
                     <ImpersonationBanner />
+                ) : isDevelopmentView ? (
+                    <DevelopmentViewBanner />
                 ) : isCurrentProjectPreview && !isTrainingCopy ? (
                     <PreviewBanner
                         expiresAt={project?.expiresAt ?? null}
