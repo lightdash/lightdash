@@ -263,6 +263,7 @@ import {
 } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
 import type { ConnectionRouteWithOriginal } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
+import type { AsyncQueryJobPayload } from '../../nats/natsConfig';
 import PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import {
     compileMetricQuery,
@@ -550,6 +551,8 @@ type RunnableCompiledMergeQuery = ApiCompiledMergeQueryResults & {
     typedColumns: NonNullable<ApiCompiledMergeQueryResults['typedColumns']>;
     columns: NonNullable<ApiCompiledMergeQueryResults['columns']>;
 };
+
+const SCHEDULED_CHART_DISPATCH_RETRY_MS = 30_000;
 
 const isRunnableCompiledMergeQuery = (
     compiled: ApiCompiledMergeQueryResults,
@@ -6490,6 +6493,38 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    private scheduleUnclaimedChartQueryRetry(payload: AsyncQueryJobPayload) {
+        const { queryUuid } = payload;
+        const { queueTimeoutMs } = this.lightdashConfig.natsWorker;
+        if (queueTimeoutMs <= SCHEDULED_CHART_DISPATCH_RETRY_MS) return;
+
+        setTimeout(() => {
+            void this.queryHistoryModel
+                .getByQueryUuid(queryUuid)
+                .then(async (query) => {
+                    if (
+                        query?.status !== QueryHistoryStatus.QUEUED ||
+                        Date.now() - query.createdAt.getTime() >= queueTimeoutMs
+                    ) {
+                        return;
+                    }
+
+                    // Reuse the query UUID so the worker's atomic claim protects against duplicate execution.
+                    const { jobId } =
+                        await this.natsClient.enqueueWarehouseQuery(payload);
+                    this.logger.info(
+                        `Re-enqueued unclaimed scheduled chart query ${queryUuid} on NATS with job ${jobId}`,
+                    );
+                })
+                .catch((error) => {
+                    this.logger.warn(
+                        `Failed to re-enqueue unclaimed scheduled chart query ${queryUuid}`,
+                        { error },
+                    );
+                });
+        }, SCHEDULED_CHART_DISPATCH_RETRY_MS).unref();
+    }
+
     private async executePreparedAsyncQuery(
         args: PreparedAsyncQueryArgs,
         requestParameters: ExecuteAsyncQueryRequestParams,
@@ -7288,9 +7323,26 @@ export class AsyncQueryService extends ProjectService {
                                 `Enqueued query ${queryHistoryUuid} on NATS with job ${jobId}`,
                             );
 
-                            await this.queryHistoryModel.updateStatusToQueued(
-                                queryHistoryUuid,
-                            );
+                            const queued =
+                                await this.queryHistoryModel.updateStatusToQueued(
+                                    queryHistoryUuid,
+                                );
+                            if (
+                                queued > 0 &&
+                                executionPlan.target === 'warehouse' &&
+                                warehouseCredentialsType ===
+                                    WarehouseTypes.SNOWFLAKE &&
+                                (context ===
+                                    QueryExecutionContext.SCHEDULED_CHART ||
+                                    context ===
+                                        QueryExecutionContext.SCHEDULED_DELIVERY) &&
+                                'chartUuid' in requestParameters &&
+                                !('dashboardUuid' in requestParameters)
+                            ) {
+                                this.scheduleUnclaimedChartQueryRetry(
+                                    natsPayload,
+                                );
+                            }
                             this.prometheusMetrics?.trackQueryStateTransition(
                                 QueryHistoryStatus.PENDING,
                                 QueryHistoryStatus.QUEUED,
