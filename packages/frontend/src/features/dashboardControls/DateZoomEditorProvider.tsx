@@ -316,13 +316,19 @@ export const DateZoomEditorProvider: FC<{
         if (hadFocus) setTimeout(() => findPill(id)?.focus());
     });
 
-    const remove = useStableCallback((id: string) =>
+    // Another zoom's X asks first on unapplied changes, as its pill does
+    const remove = useStableCallback((id: string) => {
+        const current = latest.current;
+        if (current !== null && current.id !== id && isDirty(current)) {
+            session.ask(() => remove(id));
+            return;
+        }
         session.remove(id, () =>
             setDateZoomConfig(
                 removeZoom(selectCurrentDateZoomConfig(store.getState()), id),
             ),
-        ),
-    );
+        );
+    });
 
     const mapping = useDateZoomMappingModel(
         edit?.mapping ? edit.draft : null,

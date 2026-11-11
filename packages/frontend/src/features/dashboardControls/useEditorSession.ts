@@ -113,6 +113,12 @@ export const useEditorSession = <S extends EditSession<M>, M>({
         if (focusId !== null) end(focusId);
     });
 
+    /** Asks "Apply changes first?"; `proceed` runs once it is answered. */
+    const ask = (proceed: () => void) => {
+        setPending({ proceed });
+        focusApply();
+    };
+
     // The same pill toggles; another one switches when clean, else the
     // popover asks
     const open = useStableCallback((id: string, start: () => void) => {
@@ -123,8 +129,7 @@ export const useEditorSession = <S extends EditSession<M>, M>({
             return;
         }
         if (current !== null && isDirty(current)) {
-            setPending({ proceed: start });
-            focusApply();
+            ask(start);
             return;
         }
         start();
@@ -282,6 +287,7 @@ export const useEditorSession = <S extends EditSession<M>, M>({
         latest,
         focusReturn,
         isAsking,
+        ask,
         begin,
         end,
         cancel,

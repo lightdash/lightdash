@@ -350,7 +350,9 @@ const DateZoomPill: FC<{
                                 radius="xl"
                                 className={classes.removeAction}
                                 aria-label={REMOVE_LABEL}
-                                onClick={() => remove(control.uuid)}
+                                onClick={() =>
+                                    requestSwitch(() => remove(control.uuid))
+                                }
                             >
                                 <MantineIcon size="sm" icon={IconX} />
                             </ActionIcon>

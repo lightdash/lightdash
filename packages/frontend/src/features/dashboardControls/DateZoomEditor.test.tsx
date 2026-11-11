@@ -260,6 +260,66 @@ describe('Date zoom editor', () => {
         expect(Object.keys(config().tileTargets)).toEqual(['tile-2']);
     });
 
+    const removeButton = (name: string) =>
+        within(pill(name).parentElement!).getByRole('button', {
+            name: 'Remove date zoom',
+        });
+    // The prompt's own Apply, not the popover's
+    const promptButton = (name: 'Apply' | 'Discard') =>
+        within(
+            screen.getByText('Apply changes to Revenue zoom first?')
+                .parentElement as HTMLElement,
+        ).getByRole('button', { name });
+    const editRevenueToDay = async (
+        user: ReturnType<typeof userEvent.setup>,
+    ) => {
+        await user.click(pill('Revenue zoom'));
+        await user.click(
+            within(dialog()).getByRole('combobox', { name: 'Revenue zoom' }),
+        );
+        await user.click(await screen.findByRole('option', { name: 'Day' }));
+    };
+
+    it("asks before another zoom's X removes it, then removes it on Apply or Discard", async () => {
+        const { user, config } = setup();
+        await editRevenueToDay(user);
+        await user.click(removeButton('Orders zoom'));
+        expect(config()).toEqual(saved);
+        await user.click(promptButton('Apply'));
+        expect(config().controls).toEqual([
+            { ...saved.controls[0], granularity: DateGranularity.DAY },
+        ]);
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it("discards, then removes, on another zoom's X", async () => {
+        const { user, config } = setup();
+        await editRevenueToDay(user);
+        await user.click(removeButton('Orders zoom'));
+        await user.click(screen.getByRole('button', { name: 'Discard' }));
+        expect(config().controls).toEqual([saved.controls[0]]);
+    });
+
+    it("removes at once on another zoom's X when nothing is unapplied", async () => {
+        const { user, config } = setup();
+        await user.click(pill('Revenue zoom'));
+        await user.click(removeButton('Orders zoom'));
+        expect(
+            screen.queryByText('Apply changes to Revenue zoom first?'),
+        ).not.toBeInTheDocument();
+        expect(config().controls).toEqual([saved.controls[0]]);
+    });
+
+    it("waits on a filter's edit before a zoom's X removes it", async () => {
+        const { user, config } = setup();
+        requestSwitch.mockImplementationOnce(() => {});
+        await user.click(removeButton('Orders zoom'));
+        expect(requestSwitch).toHaveBeenCalledTimes(1);
+        expect(config()).toEqual(saved);
+        act(() => requestSwitch.mock.calls[0][0]());
+        expect(config().controls).toEqual([saved.controls[0]]);
+    });
+
     it('moves a zoom one place with Alt and an arrow on a bar without sections, keeping focus', async () => {
         const { user, config } = setup();
         pill('Revenue zoom').focus();
