@@ -1,0 +1,222 @@
+name: Scope tours docs refresh
+
+# Moves the docs pin forward (scripts/scope-tours/docs-pin.txt). The scope
+# walkthrough check reads the docs at the pinned commit, so a docs edit reaches
+# the walkthroughs only through a bump. This job runs the bump against the
+# latest docs. When the text or order learners see would change, or the bump
+# stops because a citation broke, it opens one pull request for the Learn
+# owners. When nothing would change it opens nothing and the pin stays put.
+#
+# One refresh pull request is open at a time. While it is open the job does not
+# run the bump, so a fix pushed to that pull request is never overwritten.
+#
+# The pull request is opened with a GitHub App token, because a pull request
+# opened with GITHUB_TOKEN does not start CI. The token is created after every
+# script has run, and only on the schedule or a manual run from main.
+#
+# On a pull request that changes this file the job runs the bump and prints
+# the pull request it would open. It creates no token, pushes nothing and
+# opens nothing.
+
+on:
+    schedule:
+        - cron: '0 6 * * 1-5'
+    workflow_dispatch:
+    pull_request:
+        paths:
+            - '.github/workflows/scope-tours-docs-refresh.yml'
+            - 'scripts/scope-tours/bump-docs-pin.ts'
+
+permissions:
+    contents: read
+    pull-requests: read
+
+concurrency:
+    group: scope-tours-docs-refresh-${{ github.event.pull_request.number || 'main' }}
+    cancel-in-progress: false
+
+env:
+    BRANCH: learn/docs-refresh
+    # The Learn owner, who gets the pull request assigned.
+    OWNER: jelstongreen
+
+jobs:
+    guard:
+        name: Is a refresh pull request already open?
+        if: github.repository == 'lightdash/lightdash' && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main')
+        runs-on: ubuntu-latest
+        timeout-minutes: 5
+        outputs:
+            number: ${{ steps.open.outputs.number }}
+        steps:
+            - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+              with:
+                  egress-policy: audit
+            - name: Look for an open refresh pull request
+              id: open
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  number=''
+                  # A pull request run is a dry run, so it never waits on this.
+                  if [ "$GITHUB_EVENT_NAME" != 'pull_request' ]; then
+                      number=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --state open \
+                          --json number,isCrossRepository \
+                          --jq '[.[] | select(.isCrossRepository | not)][0].number // empty')
+                  fi
+                  echo "number=$number" >> "$GITHUB_OUTPUT"
+                  if [ -n "$number" ]; then
+                      echo "Refresh pull request #$number is open, so this run did nothing. Merge or close it first." >> "$GITHUB_STEP_SUMMARY"
+                  fi
+
+    refresh:
+        name: Refresh the walkthroughs from the latest docs
+        needs: guard
+        if: needs.guard.outputs.number == ''
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        steps:
+            - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+              with:
+                  egress-policy: audit
+            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+            - uses: ./.github/workflows/_setup_node_pnpm
+            # After the setup action: it cleans the workspace, which would remove
+            # a docs checkout made before it. The bump compares the pin with the
+            # docs history, so the history is fetched in full (without the file
+            # contents of old commits).
+            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+              with:
+                  repository: lightdash/mintlify-docs
+                  path: mintlify-docs
+                  fetch-depth: 0
+                  filter: blob:none
+                  persist-credentials: false
+            - name: Build common
+              run: pnpm common-build
+            - name: Bump the pin to the latest docs
+              id: bump
+              env:
+                  LIGHTDASH_DOCS_DIR: ${{ github.workspace }}/mintlify-docs
+              run: |
+                  generated='packages/frontend/src/features/scopeTours/generated.ts packages/frontend/src/features/scopeTours/released.ts packages/frontend/src/features/scopeTours/curriculum.ts'
+                  old=$(cat scripts/scope-tours/docs-pin.txt)
+                  status=0
+                  pnpm scope-tours:bump-docs > "$RUNNER_TEMP/bump.log" 2>&1 || status=$?
+                  cat "$RUNNER_TEMP/bump.log"
+                  new=$(cat scripts/scope-tours/docs-pin.txt)
+                  if [ "$status" -ne 0 ] && [ "$new" = "$old" ]; then
+                      echo "::error title=The bump failed before it moved the pin::Nothing was opened. The log above has the reason."
+                      exit 1
+                  fi
+                  # shellcheck disable=SC2086
+                  if [ "$status" -eq 0 ] && git diff --quiet -- $generated; then
+                      echo "open=false" >> "$GITHUB_OUTPUT"
+                      echo "The walkthroughs are unchanged at docs \`${new:0:8}\`, so there is nothing to refresh. The pin stays at \`${old:0:8}\`." >> "$GITHUB_STEP_SUMMARY"
+                      exit 0
+                  fi
+                  passed=false
+                  if [ "$status" -eq 0 ]; then passed=true; fi
+                  {
+                      echo "open=true"
+                      echo "passed=$passed"
+                      echo "old=$old"
+                      echo "new=$new"
+                  } >> "$GITHUB_OUTPUT"
+            - name: Write the pull request body
+              if: steps.bump.outputs.open == 'true'
+              env:
+                  OLD: ${{ steps.bump.outputs.old }}
+                  NEW: ${{ steps.bump.outputs.new }}
+                  PASSED: ${{ steps.bump.outputs.passed }}
+              run: |
+                  docs=https://github.com/lightdash/mintlify-docs
+                  guide="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/main/docs/learn/maintaining-walkthroughs.md"
+                  {
+                      echo "Moves the docs pin from [\`${OLD:0:8}\`]($docs/commit/$OLD) to [\`${NEW:0:8}\`]($docs/commit/$NEW) and regenerates the Learn walkthroughs from it. [Docs changes in this range]($docs/compare/$OLD...$NEW)."
+                      echo
+                      if [ "$PASSED" = 'true' ]; then
+                          echo '### Changed steps'
+                          echo
+                          # The table rows are docs sentences. An @name in one is
+                          # written as an entity, so it notifies nobody.
+                          if grep -q '^| ' "$RUNNER_TEMP/bump.log"; then
+                              grep '^| ' "$RUNNER_TEMP/bump.log" | sed 's/@/\&#64;/g'
+                          else
+                              echo 'No step title or body changed. The diff shows what moved in the teaching order.'
+                          fi
+                      else
+                          echo '> [!WARNING]'
+                          echo '> The bump stopped before it finished, so this pull request holds only what it had written by then. The errors below say why.'
+                          echo
+                          echo '```'
+                          # The error lines if the log has any, else its tail.
+                          # shellcheck disable=SC2016
+                          if grep -E '^Error: |: error: | error\(s\), ' "$RUNNER_TEMP/bump.log" > "$RUNNER_TEMP/bump-errors.log"; then
+                              head -n 30 "$RUNNER_TEMP/bump-errors.log"
+                          else
+                              tail -n 40 "$RUNNER_TEMP/bump.log"
+                          fi | sed -e $'s/\x1b\\[[0-9;]*m//g' -e 's/```/` ` `/g'
+                          echo '```'
+                          echo
+                          echo "[Full log]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)"
+                      fi
+                      echo
+                      echo '### Review'
+                      echo
+                      echo '- [ ] Each changed card still matches its step title.'
+                      echo
+                      echo "A body that now says something unrelated, or a bump that stopped, means the cited text moved in the docs. Fix the \`data-tour-docs\` attribute on this branch, regenerate with the docs at the new pin, and push here. [maintaining-walkthroughs.md]($guide) names each failure and its fix."
+                      echo
+                      # shellcheck disable=SC2016
+                      echo 'Opened by `.github/workflows/scope-tours-docs-refresh.yml`. While this pull request is open the job does not run the bump again.'
+                  } > "$RUNNER_TEMP/body.md"
+                  cat "$RUNNER_TEMP/body.md" >> "$GITHUB_STEP_SUMMARY"
+            # From here on: the schedule or a manual run only, never a pull
+            # request. The Renovate app already pushes branches and opens pull
+            # requests in this repository; the token is narrowed to those two
+            # permissions.
+            - name: Create a token that can open the pull request
+              id: app-token
+              if: steps.bump.outputs.open == 'true' && github.event_name != 'pull_request'
+              uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
+              with:
+                  app-id: 3732288
+                  private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+                  permission-contents: write
+                  permission-pull-requests: write
+            # A second checkout holds the app token, so the scripts above never
+            # ran next to it. It is the same commit the bump ran on.
+            - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+              if: steps.bump.outputs.open == 'true' && github.event_name != 'pull_request'
+              with:
+                  ref: ${{ github.sha }}
+                  path: refresh-pr
+                  token: ${{ steps.app-token.outputs.token }}
+            - name: Open the refresh pull request
+              if: steps.bump.outputs.open == 'true' && github.event_name != 'pull_request'
+              env:
+                  GH_TOKEN: ${{ steps.app-token.outputs.token }}
+                  APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+                  NEW: ${{ steps.bump.outputs.new }}
+              run: |
+                  files='scripts/scope-tours/docs-pin.txt packages/frontend/src/features/scopeTours/generated.ts packages/frontend/src/features/scopeTours/released.ts packages/frontend/src/features/scopeTours/curriculum.ts'
+                  for file in $files; do
+                      cp "$file" "refresh-pr/$file"
+                  done
+                  cd refresh-pr
+                  bot="${APP_SLUG}[bot]"
+                  git config user.name "$bot"
+                  git config user.email "$(gh api "/users/$bot" --jq .id)+$bot@users.noreply.github.com"
+                  git checkout -B "$BRANCH"
+                  # shellcheck disable=SC2086
+                  git add -- $files
+                  git commit -m "chore(learn): refresh walkthroughs from docs ${NEW:0:8}"
+                  # The guard job found no open refresh pull request, so a branch
+                  # left behind by a closed one is safe to replace.
+                  git push --force origin "HEAD:refs/heads/$BRANCH"
+                  url=$(gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH" \
+                      --title 'chore(learn): refresh walkthroughs from the docs' \
+                      --body-file "$RUNNER_TEMP/body.md")
+                  echo "Opened $url" >> "$GITHUB_STEP_SUMMARY"
+                  gh pr edit "$url" --add-assignee "$OWNER" || echo "::warning::Could not assign $url to $OWNER"
