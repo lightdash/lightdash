@@ -1,6 +1,7 @@
 import {
     MobileSignInRefusal,
     type MobileSignInCodeState,
+    type MobileSignInDeclinedBy,
 } from '@lightdash/common';
 import {
     Box,
@@ -117,11 +118,19 @@ const ClaimedNote: FC<StepContext> = () => null;
 
 const ApprovedNumber: FC<StepContext> = ({ signIn }) =>
     signIn.state?.matchNumber ? (
-        <Stack gap="xs" align="flex-start">
+        <Stack gap="sm" align="flex-start">
             <Text size="sm" fw={600}>
                 {S.typeOnPhone}
             </Text>
             <MatchNumber value={signIn.state.matchNumber} />
+            <Button
+                size="xs"
+                variant="default"
+                onClick={signIn.decline}
+                loading={signIn.isDeciding}
+            >
+                {S.cancel}
+            </Button>
         </Stack>
     ) : null;
 
@@ -134,9 +143,23 @@ const ExpiredCode: FC<StepContext> = ({ signIn }) => (
     </Stack>
 );
 
+const DECLINED_TITLES: Record<MobileSignInDeclinedBy, string> = {
+    web: S.declined,
+    phone: S.cancelledOnPhone,
+    failed_redeems: S.tooManyWrongNumbers,
+};
+
 const DeclinedCode: FC<StepContext> = ({ signIn }) => (
     <Stack gap="sm" align="flex-start">
-        <Callout variant="neutral" title={S.declined} w="100%" />
+        <Callout
+            variant="neutral"
+            title={
+                signIn.state?.declinedBy
+                    ? DECLINED_TITLES[signIn.state.declinedBy]
+                    : S.declined
+            }
+            w="100%"
+        />
         <Button size="xs" variant="default" onClick={signIn.show}>
             {S.newCode}
         </Button>

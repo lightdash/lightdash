@@ -2,6 +2,7 @@ import {
     MobileSignInCodeStatus,
     MobileSignInRefusal,
     type ApiError,
+    type MobileSignInDeclinedBy,
 } from '@lightdash/common';
 import { act, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -55,6 +56,7 @@ const mockServer = ({
     let mints = 0;
     let polls = 0;
     let approved = false;
+    let declinedBy: MobileSignInDeclinedBy | null = null;
     const expiries = new Map<string, string>();
     api.mockImplementation(
         async ({
@@ -89,9 +91,26 @@ const mockServer = ({
                     matchNumber: '47',
                 };
             }
+            if (method === 'POST' && url.endsWith('/decline')) {
+                declinedBy = 'web';
+                return {
+                    status: MobileSignInCodeStatus.DECLINED,
+                    matchNumber: null,
+                };
+            }
             if (method === 'DELETE') return undefined;
             const codeUuid = url.split('/').pop() ?? '';
             polls += 1;
+            if (declinedBy) {
+                return {
+                    codeUuid,
+                    status: MobileSignInCodeStatus.DECLINED,
+                    expiresAt: new Date(START + CLAIM_MS).toISOString(),
+                    matchNumber: null,
+                    declinedBy,
+                    device: { platform: 'ios', clientName: 'Lightdash iOS' },
+                };
+            }
             const isClaimed = polls > claimAfterPolls;
             if (!isClaimed) {
                 return {
@@ -132,6 +151,13 @@ const mockServer = ({
             of('POST', (url) => url.endsWith('/approve')).map(
                 (call) => call.body,
             ),
+        declines: () =>
+            of('POST', (url) => url.endsWith('/decline')).map(
+                (call) => call.body,
+            ),
+        cancelOnPhone: () => {
+            declinedBy = 'phone';
+        },
     };
 };
 
@@ -392,6 +418,65 @@ describe('useMobileSignInCode', () => {
         await advance(TTL_MS * 3);
         expect(server.mints()).toHaveLength(mintsAtStop);
     }, 60_000);
+
+    it('leaves the number state within one poll when the phone cancels', async () => {
+        const server = mockServer({ claimAfterPolls: 1 });
+        const { result } = renderHookWithProviders(() => useMobileSignInCode());
+        act(() => result.current.show());
+        await advance(MOBILE_SIGN_IN_POLL_INTERVAL_MS * 2);
+        await waitFor(() => expect(result.current.phase).toBe('claimed'));
+        act(() => result.current.approve());
+        await waitFor(() => expect(result.current.phase).toBe('approved'));
+        expect(result.current.state?.matchNumber).toBe('47');
+
+        server.cancelOnPhone();
+        const pollsBefore = server.polls();
+        await advance(MOBILE_SIGN_IN_POLL_INTERVAL_MS);
+        expect(server.polls()).toBe(pollsBefore + 1);
+        expect(result.current.phase).toBe('declined');
+        expect(result.current.state).toMatchObject({
+            declinedBy: 'phone',
+            matchNumber: null,
+        });
+
+        await advance(MOBILE_SIGN_IN_POLL_INTERVAL_MS * 3);
+        expect(server.polls()).toBe(pollsBefore + 1);
+    });
+
+    it('declines on the server when the user cancels after the confirm', async () => {
+        const server = mockServer({ claimAfterPolls: 1 });
+        const { result } = renderHookWithProviders(() => useMobileSignInCode());
+        act(() => result.current.show());
+        await advance(MOBILE_SIGN_IN_POLL_INTERVAL_MS * 2);
+        await waitFor(() => expect(result.current.phase).toBe('claimed'));
+        act(() => result.current.approve());
+        await waitFor(() => expect(result.current.phase).toBe('approved'));
+
+        act(() => result.current.decline());
+        await waitFor(() => expect(result.current.phase).toBe('declined'));
+        expect(server.declines()).toEqual([{ nonce: 'nonce-1' }]);
+        expect(result.current.state?.declinedBy).toBe('web');
+        expect(server.deletes()).toEqual([]);
+    });
+
+    it('keeps the number until the claim window ends, then shows the code as expired', async () => {
+        const server = mockServer({ claimAfterPolls: 1 });
+        const { result } = renderHookWithProviders(() => useMobileSignInCode());
+        act(() => result.current.show());
+        await advance(MOBILE_SIGN_IN_POLL_INTERVAL_MS * 2);
+        await waitFor(() => expect(result.current.phase).toBe('claimed'));
+        act(() => result.current.approve());
+        await waitFor(() => expect(result.current.phase).toBe('approved'));
+
+        await advance(CLAIM_MS - Date.now() + START - 5_000);
+        expect(result.current.phase).toBe('approved');
+        expect(result.current.state?.matchNumber).toBe('47');
+
+        await advance(10_000);
+        expect(result.current.phase).toBe('expired');
+        expect(result.current.state?.matchNumber).toBeNull();
+        expect(server.mints()).toHaveLength(1);
+    });
 
     it('stops refreshing once a phone claims the code and approves with the nonce', async () => {
         const server = mockServer({ claimAfterPolls: 1 });
