@@ -67,7 +67,18 @@ export const ControlsLead: FC<LeadProps> = ({
                                     {total}
                                 </Badge>
                             }
-                            onClick={onToggle}
+                            data-controls-toggle
+                            onClick={() => {
+                                onToggle();
+                                // The other state's toggle replaces this one
+                                setTimeout(() =>
+                                    document
+                                        .querySelector<HTMLElement>(
+                                            '[data-controls-toggle]',
+                                        )
+                                        ?.focus(),
+                                );
+                            }}
                         >
                             {getUiString('controls.title')}
                         </Button>

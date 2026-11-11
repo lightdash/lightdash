@@ -1,8 +1,13 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../testing/testUtils';
-import { ControlsCollapsedStrip, ControlsSummary } from './ControlsStrip';
+import {
+    ControlsCollapsedStrip,
+    ControlsLead,
+    ControlsSummary,
+} from './ControlsStrip';
 import type * as ControlCountsModule from './useControlCounts';
 
 const mockEditErgonomics = vi.hoisted(() => ({ current: false }));
@@ -45,6 +50,42 @@ describe('ControlsCollapsedStrip', () => {
         );
         expect(single).toHaveTextContent(/1 filter · 3 date zooms$/);
         expect(single).not.toHaveTextContent('parameter');
+    });
+});
+
+// As the bar: open and collapsed are different subtrees
+const Strip = () => {
+    const [isOpen, setIsOpen] = useState(true);
+    const counts = { filters: 2, parameters: 0, dateZooms: 0 };
+    return isOpen ? (
+        <div>
+            <ControlsLead
+                counts={counts}
+                isOpen
+                onToggle={() => setIsOpen(false)}
+            />
+        </div>
+    ) : (
+        <ControlsCollapsedStrip
+            counts={counts}
+            onExpand={() => setIsOpen(true)}
+        />
+    );
+};
+
+describe('ControlsLead', () => {
+    it('keeps focus on the toggle as it collapses and expands the strip', async () => {
+        const user = userEvent.setup();
+        renderWithProviders(<Strip />);
+        const toggle = () => screen.getByRole('button', { name: /^Controls/ });
+        await user.tab();
+        expect(toggle()).toHaveFocus();
+        await user.keyboard('{Enter}');
+        expect(toggle()).toHaveAttribute('aria-expanded', 'false');
+        await waitFor(() => expect(toggle()).toHaveFocus());
+        await user.keyboard('{Enter}');
+        expect(toggle()).toHaveAttribute('aria-expanded', 'true');
+        await waitFor(() => expect(toggle()).toHaveFocus());
     });
 });
 
