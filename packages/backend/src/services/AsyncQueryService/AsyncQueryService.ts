@@ -591,6 +591,16 @@ type DownloadAsyncQueryResultsInternal =
     | (ApiDownloadAsyncQueryResultsAsCsv & { s3FileUrl?: string })
     | (ApiDownloadAsyncQueryResultsAsXlsx & { s3FileUrl?: string });
 
+// A source table's ingested file bound as a CTE, or why it cannot be read
+type ExternalSourceBinding =
+    | {
+          cte: string;
+          cacheKeySalt: string;
+          objectScope: string;
+          tableUuid: string;
+      }
+    | { error: string };
+
 type AsyncQueryExecutionPlan =
     | {
           target: 'warehouse';
@@ -926,15 +936,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid: string;
         },
         identityEnabled: boolean,
-    ): Promise<
-        | {
-              cte: string;
-              cacheKeySalt: string;
-              objectScope: string;
-              tableUuid: string;
-          }
-        | { error: string }
-    > {
+    ): Promise<ExternalSourceBinding> {
         const { enabled } = await this.featureFlagModel.get({
             user: featureFlagContext,
             featureFlagId: FeatureFlags.ExternalSources,
@@ -948,6 +950,24 @@ export class AsyncQueryService extends ProjectService {
                 error: 'External source explore is missing its source reference',
             };
         }
+        return this.bindExternalSourceTable(
+            projectUuid,
+            ref.tableUuid,
+            explore.baseTable,
+            identityEnabled ? featureFlagContext.userUuid : null,
+        );
+    }
+
+    /**
+     * The file binding for one source table. A worker rebuilds it from the
+     * history row, so the private file URI never has to be stored.
+     */
+    private async bindExternalSourceTable(
+        projectUuid: string,
+        tableUuid: string,
+        baseTable: string,
+        attachmentOwnerUuid: string | null,
+    ): Promise<ExternalSourceBinding> {
         if (!this.externalSourceTableResolver) {
             return {
                 error: 'External source queries need the enterprise DuckDB engine',
@@ -955,13 +975,12 @@ export class AsyncQueryService extends ProjectService {
         }
         const table = await this.externalSourceTableResolver(
             projectUuid,
-            ref.tableUuid,
+            tableUuid,
         );
         if (
-            identityEnabled &&
+            attachmentOwnerUuid !== null &&
             table?.external_source_scope === ExternalSourceScope.ATTACHMENT &&
-            table.external_source_created_by_user_uuid !==
-                featureFlagContext.userUuid
+            table.external_source_created_by_user_uuid !== attachmentOwnerUuid
         ) {
             throw new ForbiddenError('This attachment belongs to another user');
         }
@@ -976,14 +995,14 @@ export class AsyncQueryService extends ProjectService {
             };
         }
         const cte = `${quoteDuckdbIdentifier(
-            explore.baseTable,
+            baseTable,
         )} AS (SELECT * FROM ${getDuckdbPreAggregateSqlTable(
             table.locator,
             table.columns,
         )})`;
         return {
             cte,
-            cacheKeySalt: `esv:${ref.tableUuid}:${table.version}`,
+            cacheKeySalt: `esv:${tableUuid}:${table.version}`,
             objectScope: table.locator.uri,
             tableUuid: table.external_source_table_uuid,
         };
@@ -997,15 +1016,11 @@ export class AsyncQueryService extends ProjectService {
      */
     private static resolveExternalSourceExecutionPlan(
         query: string,
-        reference:
-            | {
-                  cte: string;
-                  cacheKeySalt: string;
-                  objectScope: string;
-                  tableUuid: string;
-              }
-            | { error: string },
-    ): AsyncQueryExecutionPlan {
+        reference: ExternalSourceBinding,
+    ): Extract<
+        AsyncQueryExecutionPlan,
+        { target: 'external_source' | 'error' }
+    > {
         if ('error' in reference) {
             return { target: 'error', error: reference.error };
         }
@@ -1030,7 +1045,6 @@ export class AsyncQueryService extends ProjectService {
      */
     private async runExternalSourceQuery(
         warehouseArgs: RunAsyncWarehouseQueryArgs,
-        account: Account,
         objectScope: string,
     ): Promise<void> {
         try {
@@ -1050,7 +1064,7 @@ export class AsyncQueryService extends ProjectService {
                     warehouseConnectionUuid:
                         warehouseArgs.warehouseConnectionUuid ?? null,
                     credentialOwner: { kind: 'no_warehouse_data' },
-                    authMethod: account.authentication.type,
+                    authMethod: warehouseArgs.authMethod ?? null,
                     agentIdentity: warehouseArgs.agentIdentity ?? null,
                     entitlementFingerprint:
                         warehouseArgs.resultEntitlementFingerprint ?? null,
@@ -1069,9 +1083,76 @@ export class AsyncQueryService extends ProjectService {
                     ),
                     errored_at: new Date(),
                 },
-                account,
+                {
+                    user: { id: warehouseArgs.userUuid },
+                    isRegisteredUser: () => warehouseArgs.isRegisteredUser,
+                },
             );
         }
+    }
+
+    /** Runs a queued external source explore query from its history row: the worker's entry. */
+    public async runAsyncExternalSourceQueryFromHistory(
+        queryUuid: string,
+        workerLabel: string,
+        queryTagsOverride?: RunQueryTags,
+        onConnectionClaimed?: () => void,
+    ): Promise<boolean> {
+        const canRun = await this.prepareQueuedQueryForExecution(
+            queryUuid,
+            workerLabel,
+            undefined,
+            onConnectionClaimed,
+        );
+        if (!canRun) {
+            return false;
+        }
+        let args: RunAsyncWarehouseQueryArgs;
+        let binding: ExternalSourceBinding;
+        try {
+            args = await this.buildWarehouseQueryArgs(
+                queryUuid,
+                queryTagsOverride,
+            );
+            const query = await this.getQueryHistoryFromHistory(queryUuid);
+            const [tableUuid] =
+                query.requestParameters.externalSourceReferences ?? [];
+            if (!tableUuid) {
+                throw new NotFoundError(
+                    `External source reference not found in query_history for ${queryUuid}`,
+                );
+            }
+            // Access was checked at submit; this only rebinds the file
+            binding = await this.bindExternalSourceTable(
+                args.projectUuid,
+                tableUuid,
+                query.metricQuery.exploreName,
+                null,
+            );
+        } catch (error) {
+            await this.queryHistoryModel.updateClaimedQueryToError(
+                queryUuid,
+                getErrorMessage(error),
+            );
+            throw error;
+        }
+        const executionPlan =
+            AsyncQueryService.resolveExternalSourceExecutionPlan(
+                args.query,
+                binding,
+            );
+        if (executionPlan.target === 'error') {
+            await this.queryHistoryModel.updateClaimedQueryToError(
+                queryUuid,
+                executionPlan.error,
+            );
+            return true;
+        }
+        await this.runExternalSourceQuery(
+            { ...args, query: executionPlan.warehouseQuery },
+            executionPlan.objectScope,
+        );
+        return true;
     }
 
     private recordPreAggregateStats(params: {
@@ -7249,6 +7330,29 @@ export class AsyncQueryService extends ProjectService {
 
                     if (
                         this.lightdashConfig.natsWorker.enabled &&
+                        executionPlan.target === 'external_source'
+                    ) {
+                        const { objectScope } = executionPlan;
+                        await this.enqueueOnDuckdbWorker({
+                            queryUuid: queryHistoryUuid,
+                            projectUuid,
+                            account,
+                            queryTags,
+                            queryCreatedAt,
+                            context,
+                            enqueue: (payload) =>
+                                this.natsClient.enqueueExternalSourceQuery(
+                                    payload,
+                                ),
+                            runInProcess: () => {
+                                void this.runExternalSourceQuery(
+                                    warehouseArgs,
+                                    objectScope,
+                                );
+                            },
+                        });
+                    } else if (
+                        this.lightdashConfig.natsWorker.enabled &&
                         executionPlan.target !== 'external_source'
                     ) {
                         this.logger.info(
@@ -7361,7 +7465,6 @@ export class AsyncQueryService extends ProjectService {
                                 case 'external_source':
                                     return this.runExternalSourceQuery(
                                         warehouseArgs,
-                                        account,
                                         executionPlan.objectScope,
                                     );
                                 case 'materialization':
@@ -13071,13 +13174,17 @@ export class AsyncQueryService extends ProjectService {
         });
 
         if (this.lightdashConfig.natsWorker.enabled) {
-            await this.enqueueDuckdbQuery({
+            await this.enqueueOnDuckdbWorker({
                 queryUuid,
                 projectUuid,
                 account,
                 queryTags,
                 queryCreatedAt,
                 context,
+                enqueue: (payload) =>
+                    this.natsClient.enqueueDuckdbQuery(payload),
+                runInProcess: () =>
+                    this.runDuckdbQueryInProcess(queryUuid, queryTags),
             });
         } else {
             this.runDuckdbQueryInProcess(queryUuid, queryTags);
@@ -13109,13 +13216,15 @@ export class AsyncQueryService extends ProjectService {
      * deployment whose workers do not take the subject yet runs it here
      * instead, so a merge never waits on a worker that will not come.
      */
-    private async enqueueDuckdbQuery({
+    private async enqueueOnDuckdbWorker({
         queryUuid,
         projectUuid,
         account,
         queryTags,
         queryCreatedAt,
         context,
+        enqueue,
+        runInProcess,
     }: {
         queryUuid: string;
         projectUuid: string;
@@ -13123,9 +13232,14 @@ export class AsyncQueryService extends ProjectService {
         queryTags: RunQueryTags;
         queryCreatedAt: Date;
         context: QueryExecutionContext;
+        enqueue: (payload: {
+            queryUuid: string;
+            queryTags: RunQueryTags;
+        }) => Promise<{ jobId: string }>;
+        runInProcess: () => void;
     }): Promise<void> {
         try {
-            const { jobId } = await this.natsClient.enqueueDuckdbQuery({
+            const { jobId } = await enqueue({
                 queryUuid,
                 queryTags,
             });
@@ -13143,7 +13257,7 @@ export class AsyncQueryService extends ProjectService {
                 this.logger.warn(
                     `No NATS worker takes DuckDB source query ${queryUuid} on ${e.subject}; running it in this process`,
                 );
-                this.runDuckdbQueryInProcess(queryUuid, queryTags);
+                runInProcess();
                 return;
             }
             const errorMessage = getErrorMessage(e);

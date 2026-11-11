@@ -32,6 +32,7 @@ describe('NatsWorker subject dispatch', () => {
     const asyncQueryService = {
         runAsyncWarehouseQueryFromHistory: vi.fn(async () => true),
         runAsyncDuckdbQueryFromHistory: vi.fn(async () => true),
+        runAsyncExternalSourceQueryFromHistory: vi.fn(async () => true),
         runAsyncPreAggregateQueryFromHistory: vi.fn(async () => true),
     };
     const queryHistoryModel = {
@@ -72,6 +73,31 @@ describe('NatsWorker subject dispatch', () => {
         );
         expect(message.ack).toHaveBeenCalled();
     });
+
+    it.each([
+        ['dedicated DuckDB', () => STREAM_CONFIGS.duckdb.subjects],
+        ['pre-aggregate', () => STREAM_CONFIGS['pre-aggregate'].subjects],
+    ])(
+        'runs an external source job from the %s stream on its own runner',
+        async (_, subjects) => {
+            const message = jobMessage(subjects().externalSource);
+
+            await buildWorker().handleMessage(message, 'worker-1');
+
+            expect(
+                asyncQueryService.runAsyncExternalSourceQueryFromHistory,
+            ).toHaveBeenCalledWith(
+                'query-1',
+                'worker-1',
+                undefined,
+                expect.any(Function),
+            );
+            expect(
+                asyncQueryService.runAsyncDuckdbQueryFromHistory,
+            ).not.toHaveBeenCalled();
+            expect(message.ack).toHaveBeenCalled();
+        },
+    );
 
     it('runs a DuckDB job that rode the pre-aggregate stream', async () => {
         const message = jobMessage(
