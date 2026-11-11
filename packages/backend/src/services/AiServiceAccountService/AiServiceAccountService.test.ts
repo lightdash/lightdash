@@ -10,11 +10,16 @@ import {
     ParameterError,
     ProjectType,
     RedshiftAuthenticationType,
+    WarehouseConnectionError,
     WarehouseTypes,
     type AiServiceAccountCredentialInput,
     type PossibleAbilities,
 } from '@lightdash/common';
-import { exchangeDatabricksOAuthCredentials } from '@lightdash/warehouses';
+import {
+    exchangeDatabricksOAuthCredentials,
+    SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_REQUIRED_MESSAGE,
+    SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE,
+} from '@lightdash/warehouses';
 import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { buildAccount } from '../../auth/account/account.mock';
 import * as auditLogger from '../../logging/winston';
@@ -31,6 +36,8 @@ import {
     redshiftConnection,
     redshiftSecrets,
     redshiftVerification,
+    snowflakeEncryptedKey,
+    snowflakePrivateKey,
     snowflakeSecrets,
     snowflakeVerification,
     trinoConnection,
@@ -1586,7 +1593,7 @@ describe('Snowflake slots', () => {
             else f.runQuery.mockRejectedValue(error);
             await expect(
                 f.service.upsert(f.account, 'project', null, snowflakeSecrets),
-            ).rejects.toThrow('Could not verify');
+            ).rejects.toThrow('Snowflake rejected the private key');
             expect(f.model.upsert).not.toHaveBeenCalled();
             expect(f.model.updateVerification).not.toHaveBeenCalled();
             expect(f.analytics.track).toHaveBeenCalledTimes(1);
@@ -1595,6 +1602,72 @@ describe('Snowflake slots', () => {
             );
         },
     );
+    it.each([
+        [
+            'an SDK key parse error',
+            Object.assign(new Error('Invalid private key'), { code: '404026' }),
+            SNOWFLAKE_PRIVATE_KEY_UNREADABLE_MESSAGE,
+            'private_key_unreadable',
+        ],
+        [
+            'a JWT the user does not accept',
+            Object.assign(new Error('JWT token is invalid.'), {
+                code: '390144',
+            }),
+            "Snowflake rejected the private key for this user. Check the user name, and that the key's public key is set on that user.",
+            'private_key',
+        ],
+    ])(
+        'returns a specific message for %s',
+        async (_name, cause, message, category) => {
+            const f = prepare();
+            const logger = { warn: vi.fn(), debug: vi.fn(), info: vi.fn() };
+            Object.assign(f.service, { logger });
+            const error = new WarehouseConnectionError(
+                `Snowflake error: ${cause.message}`,
+            );
+            error.cause = cause;
+            f.runQuery.mockRejectedValue(error);
+            const result = await f.service.test(
+                f.account,
+                'project',
+                null,
+                snowflakeSecrets,
+            );
+            expect(result).toMatchObject({ ok: false, message });
+            expect(logger.warn).toHaveBeenCalledWith(
+                'AI service account test failed',
+                expect.objectContaining({
+                    reason: 'connection_failed',
+                    errorCode: cause.code,
+                    snowflakeErrorCategory: category,
+                }),
+            );
+        },
+    );
+    it('accepts a mislabelled one-line key and tests the connection', async () => {
+        const f = prepare();
+        const oneLine = `-----BEGIN RSA PRIVATE KEY----- ${snowflakePrivateKey
+            .split('\n')
+            .filter((line) => line && !line.startsWith('-----'))
+            .join('')} -----END RSA PRIVATE KEY-----`;
+        const result = await f.service.test(f.account, 'project', null, {
+            ...snowflakeSecrets,
+            privateKey: oneLine,
+        });
+        expect(result.ok).toBe(true);
+        expect(f.withWarehouseClient).toHaveBeenCalledOnce();
+    });
+    it('asks for the passphrase of an encrypted key before connecting', async () => {
+        const f = prepare();
+        await expect(
+            f.service.test(f.account, 'project', null, {
+                ...snowflakeSecrets,
+                privateKey: snowflakeEncryptedKey,
+            }),
+        ).rejects.toThrow(SNOWFLAKE_PRIVATE_KEY_PASSPHRASE_REQUIRED_MESSAGE);
+        expect(f.withWarehouseClient).not.toHaveBeenCalled();
+    });
     it.each([false, true])(
         'updates only the effective saved generation, inherited=%s',
         async (inherited) => {

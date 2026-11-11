@@ -10,9 +10,10 @@ import {
     type AiServiceAccountSlot,
     type AiServiceAccountTestResult,
 } from '@lightdash/common';
+import { normalizeSnowflakePrivateKey } from '@lightdash/warehouses';
 import { isEqual } from 'es-toolkit/compat';
 import { type Knex } from 'knex';
-import { createPrivateKey, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import {
     AiServiceAccountCredentialsTableName,
@@ -255,19 +256,10 @@ export const parseAiServiceAccountSecrets = (
     const credentials = result.data;
     switch (credentials.type) {
         case WarehouseTypes.SNOWFLAKE:
-            try {
-                const key = createPrivateKey({
-                    key: credentials.privateKey,
-                    format: 'pem',
-                    passphrase: credentials.privateKeyPass,
-                });
-                if (key.asymmetricKeyType !== 'rsa') throw new Error();
-                key.export({ format: 'pem', type: 'pkcs8' });
-            } catch {
-                throw new ParameterError(
-                    'Provide a valid RSA private key and its passphrase, if encrypted.',
-                );
-            }
+            normalizeSnowflakePrivateKey(
+                credentials.privateKey,
+                credentials.privateKeyPass,
+            );
             return credentials;
         case WarehouseTypes.TRINO:
         case WarehouseTypes.CLICKHOUSE:

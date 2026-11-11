@@ -366,3 +366,31 @@ test.each([
 ])('classifies the raw bounded message %#', (message, expected) => {
     expect(redactCredentialError(message).errorCategory).toBe(expected);
 });
+
+test.each([
+    [{ code: '404026' }, '404026'],
+    [{ code: 'ERR_OSSL_UNSUPPORTED' }, 'ERR_OSSL_UNSUPPORTED'],
+    [{ sqlState: '08001' }, '08001'],
+    [{ code: 'not a safe code' }, null],
+    [null, null],
+])('falls back to the cause error code %#', (cause, expected) => {
+    const error = Object.assign(
+        new Error('Snowflake error: Invalid private key.'),
+        { cause },
+    );
+    expect(redactCredentialError(error)).toMatchObject({
+        errorClass: 'Error',
+        errorCode: expected,
+    });
+});
+
+test('prefers the top-level error code over the cause', () => {
+    expect(
+        redactCredentialError(
+            Object.assign(new Error('failed'), {
+                code: 'TOP',
+                cause: { code: 'CAUSE' },
+            }),
+        ).errorCode,
+    ).toBe('TOP');
+});

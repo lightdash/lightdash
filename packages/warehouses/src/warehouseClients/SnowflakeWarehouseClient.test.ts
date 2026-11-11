@@ -15,6 +15,7 @@ import {
 } from 'snowflake-sdk';
 import { Readable } from 'stream';
 import type { Mock } from 'vitest';
+import { SnowflakePrivateKeyError } from './snowflakePrivateKey';
 import {
     checkSnowflakeAgentSession,
     checkSnowflakeAgentSessionWithToken,
@@ -1625,12 +1626,17 @@ describe('AI service account sessions', () => {
         executeMock.mockReset().mockImplementation(defaultExecute);
     });
     it('disables cached results before application SQL on each key-pair session without activation queries', async () => {
+        const { privateKey } = generateKeyPairSync('rsa', {
+            modulusLength: 2048,
+        });
         const client = new SnowflakeWarehouseClient(
             {
                 ...credentials,
                 authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
                 user: 'SLOT_USER',
-                privateKey: 'slot-key',
+                privateKey: privateKey
+                    .export({ format: 'pem', type: 'pkcs1' })
+                    .toString(),
                 role: 'SLOT_ROLE',
             },
             { agentJobControls: true, agentSession: true },
@@ -1656,8 +1662,55 @@ describe('AI service account sessions', () => {
             authenticator: 'SNOWFLAKE_JWT',
             username: 'SLOT_USER',
             role: 'SLOT_ROLE',
-            privateKey: 'slot-key',
+            privateKey: privateKey
+                .export({ format: 'pem', type: 'pkcs8' })
+                .toString(),
         });
+    });
+    it.each([
+        ['a one-line key', (pem: string) => pem.trim().replace(/\n/g, ' ')],
+        ['text before the header', (pem: string) => `Bag Attributes\n${pem}`],
+        ['text after the footer', (pem: string) => `${pem}note\n`],
+        [
+            'literal backslash-n sequences',
+            (pem: string) => pem.trim().replace(/\n/g, '\\n'),
+        ],
+    ])(
+        'passes %s without a passphrase to Snowflake as PKCS#8 PEM',
+        async (_name, reshape) => {
+            const { privateKey } = generateKeyPairSync('rsa', {
+                modulusLength: 2048,
+            });
+            const pkcs8 = privateKey
+                .export({ format: 'pem', type: 'pkcs8' })
+                .toString();
+            const client = new SnowflakeWarehouseClient(
+                {
+                    ...credentials,
+                    authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
+                    privateKey: reshape(pkcs8),
+                },
+                { agentJobControls: true },
+            );
+            await client.runQuery('SELECT 1', {});
+            expect(vi.mocked(createConnection).mock.calls[0][0]).toMatchObject({
+                privateKey: pkcs8,
+            });
+        },
+    );
+    it('rejects an unreadable key before it creates a connection', async () => {
+        const client = new SnowflakeWarehouseClient(
+            {
+                ...credentials,
+                authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
+                privateKey: 'slot-key',
+            },
+            { agentJobControls: true },
+        );
+        await expect(client.runQuery('SELECT 1', {})).rejects.toBeInstanceOf(
+            SnowflakePrivateKeyError,
+        );
+        expect(createConnection).not.toHaveBeenCalled();
     });
     it.each([false, true])(
         'does not change ordinary sessions with agentSession=%s',
