@@ -13,10 +13,14 @@ import {
 } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
-import { dashboardParametersActions } from '../dashboard/store';
+import {
+    dashboardEditActions,
+    dashboardParametersActions,
+} from '../dashboard/store';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import type * as AddControlModule from './AddControl';
 import { ControlsBar } from './ControlsBar';
+import type * as DateZoomPillsModule from './DateZoomPills';
 
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
@@ -80,6 +84,20 @@ vi.mock('./AddControl', async (importOriginal) => ({
     ...(await importOriginal<typeof AddControlModule>()),
     AddControl: () => <button>Add</button>,
 }));
+// Stubbed where a test pins only the default zoom's divider
+const mockStubDefaultZoom = vi.hoisted(() => ({ current: false }));
+vi.mock('./DateZoomPills', async (importOriginal) => {
+    const original = await importOriginal<typeof DateZoomPillsModule>();
+    return {
+        ...original,
+        DefaultZoomButton: ({ withDivider }: { withDivider: boolean }) =>
+            mockStubDefaultZoom.current ? (
+                withDivider && <hr data-testid="default-zoom-divider" />
+            ) : (
+                <original.DefaultZoomButton withDivider={withDivider} />
+            ),
+    };
+});
 vi.mock('./MappingRow', () => ({
     MappingRow: () => <div data-testid="mapping-row" />,
 }));
@@ -180,6 +198,7 @@ describe('ControlsBar', () => {
     beforeEach(() => {
         mockCompact.current = false;
         mockEditErgonomics.current = false;
+        mockStubDefaultZoom.current = false;
         mockSidebar.current = { isSidebarOpen: false, isMapping: false };
         mockDashboardContext.current = {
             isAddFilterDisabled: false,
@@ -296,6 +315,34 @@ describe('ControlsBar', () => {
             expect(
                 screen.queryByRole('button', { name: /^Controls/ }) !== null,
             ).toBe(hasToggle);
+        },
+    );
+
+    it.each([
+        ['draws', false],
+        ['drops', true],
+    ])(
+        'with no controls, %s the divider after the default zoom when adding is disabled: %s',
+        (_, isAddFilterDisabled) => {
+            mockStubDefaultZoom.current = true;
+            mockSidebar.current = {
+                ...mockSidebar.current,
+                canAddFilters: true,
+            } as typeof mockSidebar.current;
+            const store = createDashboardTestStore();
+            store.dispatch(
+                dashboardEditActions.setIsAddFilterDisabled(
+                    isAddFilterDisabled,
+                ),
+            );
+            renderWithAppProviders(
+                <DashboardStoreTestProvider store={store}>
+                    <ControlsBar {...baseProps} />
+                </DashboardStoreTestProvider>,
+            );
+            expect(screen.queryByTestId('default-zoom-divider') !== null).toBe(
+                !isAddFilterDisabled,
+            );
         },
     );
 

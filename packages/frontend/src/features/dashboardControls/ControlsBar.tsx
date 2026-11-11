@@ -7,6 +7,7 @@ import {
     useDashboardSelector,
 } from '../dashboard/store';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
+import { useIsAddFilterButtonShown } from '../dashboardFilters/useIsAddFilterButtonShown';
 import { DateZoomCrossTabFieldsLoader } from '../dateZoom/components/DateZoomCrossTabFieldsLoader';
 import { AddControl } from './AddControl';
 import classes from './ControlsBar.module.css';
@@ -40,8 +41,10 @@ export const ControlsBar: FC<Props> = (props) => {
     const counts = useControlCounts();
     const canAddFilters = useControlsSidebarSelector((c) => c.canAddFilters);
     // "Add" shows for an editor, and for a viewer who can add where tiles take filters
+    const isAddShown = useIsAddFilterButtonShown(props.isEditMode);
     const hasAdd =
-        props.isEditMode || (canAddFilters && props.hasTilesThatSupportFilters);
+        props.isEditMode ||
+        (canAddFilters && props.hasTilesThatSupportFilters && isAddShown);
     // Sections or a stored order need the sectioned bar; else a viewer's is flat
     const hasSections = useDashboardSelector(
         (state) =>

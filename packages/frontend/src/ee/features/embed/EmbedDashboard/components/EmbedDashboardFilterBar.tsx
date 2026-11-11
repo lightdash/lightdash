@@ -36,6 +36,7 @@ import {
 } from '../../../../../features/dashboardControls/useControlCounts';
 import { useParameterBarControls } from '../../../../../features/dashboardControls/useParameterBarControls';
 import { DashboardFiltersBarSummary } from '../../../../../features/dashboardFilters/DashboardFiltersBarSummary';
+import { useIsAddFilterButtonShown } from '../../../../../features/dashboardFilters/useIsAddFilterButtonShown';
 import { DateZoom } from '../../../../../features/dateZoom';
 import { getDateZoomSummaryLabel } from '../../../../../features/dateZoom/utils';
 import { useActiveTabParameters } from '../../../../../hooks/dashboard/useActiveTabParameters';
@@ -146,6 +147,9 @@ const EmbedDashboardFilterBar: FC<Props> = ({
             canAddDashboardFiltersInEmbed(
                 dashboard.dashboardFiltersInteractivity,
             ));
+    // As "Add" itself, which a viewer loses when the dashboard disables adding
+    const isAddShown = useIsAddFilterButtonShown(isEditMode);
+    const hasAdd = canAddFilters && isAddShown;
 
     const totalFiltersCount = shouldShowFilters
         ? dashboardFilters.dimensions.length +
@@ -214,7 +218,7 @@ const EmbedDashboardFilterBar: FC<Props> = ({
             isOpen
             onToggle={() => setIsCollapsed(true)}
             withDefaultZoom={withDateZoomPills}
-            hasFollowing={isCollapsible || canAddFilters}
+            hasFollowing={isCollapsible || hasAdd}
         />
     );
     const bar = (

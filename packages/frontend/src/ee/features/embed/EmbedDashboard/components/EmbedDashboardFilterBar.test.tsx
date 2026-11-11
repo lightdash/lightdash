@@ -12,7 +12,10 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { dashboardParametersActions } from '../../../../../features/dashboard/store';
+import {
+    dashboardEditActions,
+    dashboardParametersActions,
+} from '../../../../../features/dashboard/store';
 import { RailContractClasses } from '../../../../../features/dashboardControls/railContractClasses';
 import {
     createDashboardTestStore,
@@ -556,6 +559,41 @@ describe('EmbedDashboardFilterBar', () => {
             await user.click(collapsed);
             expect(zoomPill('Revenue zoom')).toBeInTheDocument();
         });
+
+        it.each([
+            ['draws', false],
+            ['drops', true],
+        ])(
+            'with no controls, %s the divider after the default zoom when adding is disabled: %s',
+            (_, isAddFilterDisabled) => {
+                const store = zoomStore();
+                mockDashboardContext.current = {};
+                store.dispatch(
+                    dashboardEditActions.setIsAddFilterDisabled(
+                        isAddFilterDisabled,
+                    ),
+                );
+                renderWithProviders(
+                    <DashboardStoreTestProvider store={store}>
+                        <EmbedDashboardFilterBar
+                            dashboard={{
+                                ...dashboard(true),
+                                canDateZoom: true,
+                            }}
+                            shouldShowFilters
+                            activeTiles={[]}
+                            isControlsEnabled
+                        />
+                    </DashboardStoreTestProvider>,
+                );
+                const defaultZoom = screen
+                    .getByRole('button', { name: /^Default zoom/ })
+                    .closest('.mantine-Group-root');
+                expect(
+                    defaultZoom?.querySelector('.mantine-Divider-root') ?? null,
+                ).toEqual(isAddFilterDisabled ? null : expect.anything());
+            },
+        );
 
         it('renders date zoom pills when filters are hidden', () => {
             renderZoom({ isControlsEnabled: true, shouldShowFilters: false });
