@@ -70,6 +70,10 @@ pnpm scope-tours:check
 
 The bump writes the new SHA to `docs-pin.txt`, checks the docs out at it (detached), runs `scope-tours:generate` and `scope-tours:order`, and prints the diff. Commit the pin and the generated files together, in one pull request.
 
+- The bump refuses a commit that is not on the docs `origin/main`, warns when the pin moves backwards, runs `scope-tours:check` itself, and prints a table of the steps whose title or body changed.
+- The scheduled `Scope tours docs drift` workflow opens or updates one issue when the docs head differs from the pin, and closes it when the pin catches up.
+- The Learn owners (the Customer Success team, Linear project Lightdash University) review each bump pull request with one checklist item: each changed card still matches its step title.
+
 **What the diff means.** Each changed `body` is a docs sentence that changed upstream, and learners will see the new text. Read every one. A changed sentence is usually fine. A body that now says something different (a step that no longer tells the learner what to do) means the cited paragraph moved: the docs inserted or removed a paragraph, and a citation by position (`:p3:1`, `:li2`) now points at another one.
 
 **A citation move is a separate pull request.** Re-citing a docs paragraph (a `data-tour-docs` change, for example `:p3:1` to `:p4:1`) is the Learn owners' call. Do not hide it in a bump. The bump comes first: open it as its own pull request with the diff as it is, and say which steps need a re-cite. The Learn owners then open the re-cite as a separate pull request stacked on the bump, so it is generated against the bumped docs, and the two merge back to back, bump first. Never re-cite ahead of the pin: a re-cite that merges before the bump is generated against the old docs, where the new paragraph index points at another paragraph, so the step shows the wrong text or the generator fails with `paragraph N not found`. Do not merge the bump alone and leave a step with the wrong text: keep the gap as short as the back-to-back merge.
