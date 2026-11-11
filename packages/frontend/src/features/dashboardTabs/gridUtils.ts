@@ -187,6 +187,33 @@ export const hasGridItemMoved = (before: Layout, after: Layout): boolean =>
     before.w !== after.w ||
     before.h !== after.h;
 
+export const withGridItem = (layout: Layout[], item: Layout): Layout[] =>
+    layout.map((other) => (other.i === item.i ? item : other));
+
+/** Whether any tile ends somewhere else or at another size */
+export const hasLayoutChanged = (before: Layout[], after: Layout[]): boolean =>
+    after.some((item) => {
+        const previous = before.find((other) => other.i === item.i);
+        return !previous || hasGridItemMoved(previous, item);
+    });
+
+export const countResizedItems = (before: Layout[], after: Layout[]): number =>
+    after.filter((item) => {
+        const previous = before.find((other) => other.i === item.i);
+        return previous && (previous.w !== item.w || previous.h !== item.h);
+    }).length;
+
+export type PointerPosition = { clientX: number; clientY: number };
+
+/** Drags report mouse events, or touch events on touch screens */
+export const getPointerPosition = (
+    event: MouseEvent | TouchEvent,
+): PointerPosition | null => {
+    if (!('changedTouches' in event)) return event;
+    const touch = event.changedTouches[0] ?? event.touches[0];
+    return touch ?? null;
+};
+
 const PINNED_GRID_ITEM_PROPERTIES = ['top', 'left', 'width', 'height'] as const;
 
 const findGridItem = (node: HTMLElement): HTMLElement | null =>
@@ -194,7 +221,8 @@ const findGridItem = (node: HTMLElement): HTMLElement | null =>
 
 /**
  * Records where a tile sits as its drag or resize starts, so styles can hold
- * it there while only the drop shadow follows the pointer.
+ * it there while only the drop shadow follows the pointer. The record stays
+ * after the drop: the tile's travel to its new place starts from it.
  */
 export const pinGridItem = (node: HTMLElement): void => {
     const item = findGridItem(node);
@@ -204,14 +232,6 @@ export const pinGridItem = (node: HTMLElement): void => {
             `--pinned-${property}`,
             item.style.getPropertyValue(property),
         ),
-    );
-};
-
-export const unpinGridItem = (node: HTMLElement): void => {
-    const item = findGridItem(node);
-    if (!item) return;
-    PINNED_GRID_ITEM_PROPERTIES.forEach((property) =>
-        item.style.removeProperty(`--pinned-${property}`),
     );
 };
 
@@ -283,6 +303,15 @@ export const getRowInsertion = ({
     const targetItem = layout.find((item) => item.i === target.tileId);
     if (!dragged || !targetItem || dragged.i === targetItem.i) return null;
 
+    // A tile reaching down into the row from above would be covered by it
+    const isRowCrossed = layout.some(
+        (item) =>
+            item.i !== draggedId &&
+            item.y < targetItem.y &&
+            item.y + item.h > targetItem.y,
+    );
+    if (isRowCrossed) return null;
+
     const row = sortBy(
         layout.filter(
             (item) => item.i !== draggedId && item.y === targetItem.y,
@@ -333,7 +362,7 @@ export const getPointerCell = ({
     tile,
     tileRect,
 }: {
-    pointer: { clientX: number; clientY: number };
+    pointer: PointerPosition;
     tile: Layout;
     tileRect: { left: number; top: number; width: number; height: number };
 }): GridCell => ({
@@ -368,12 +397,18 @@ export const getGapFill = ({
     const dragged = layout.find((item) => item.i === draggedId);
     if (!dragged || cell.x < 0 || cell.x >= cols || cell.y < 0) return null;
 
+    const isOnCell = (item: Layout) =>
+        item.x <= cell.x &&
+        cell.x < item.x + item.w &&
+        item.y <= cell.y &&
+        cell.y < item.y + item.h;
+    // Over its own place the tile is being nudged, not sent to a gap
+    if (layout.some(isOnCell)) return null;
+
     const others = layout.filter((item) => item.i !== draggedId);
     const onLine = others.filter(
         (item) => item.y <= cell.y && cell.y < item.y + item.h,
     );
-    if (onLine.some((item) => item.x <= cell.x && cell.x < item.x + item.w))
-        return null;
 
     const left = Math.max(
         0,
@@ -394,25 +429,22 @@ export const getGapFill = ({
             .filter((item) => item.y + item.h <= cell.y)
             .map((item) => item.y + item.h),
     );
-    const bottom = Math.min(
+    const floors = [
         ...inColumn.filter((item) => item.y > cell.y).map((item) => item.y),
         ...(onLine.length > 0
             ? [Math.max(...onLine.map((item) => item.y + item.h))]
             : []),
-    );
+    ];
+    if (floors.length === 0) return null;
 
     const slot = {
         ...dragged,
         x: left,
         y: top,
         w: right - left,
-        h: bottom - top,
+        h: Math.min(...floors) - top,
     };
-    if (
-        !Number.isFinite(bottom) ||
-        slot.w < (dragged.minW ?? 1) ||
-        slot.h < (dragged.minH ?? 1)
-    )
+    if (slot.w < (dragged.minW ?? 1) || slot.h < (dragged.minH ?? 1))
         return null;
 
     return {
@@ -423,7 +455,7 @@ export const getGapFill = ({
 
 /** The tile under the pointer, when the pointer is in one of its side zones */
 export const getSnapTarget = (
-    pointer: { clientX: number; clientY: number },
+    pointer: PointerPosition,
     draggedId: string,
 ): SnapTarget | null => {
     const tile = document

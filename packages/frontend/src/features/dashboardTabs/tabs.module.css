@@ -208,7 +208,8 @@
 }
 
 /* Jumping into a row slot is a change of state, so it eases there */
-.dropShadowSnapped :global(.react-grid-item.react-grid-placeholder) {
+.dropShadow[data-shadow-snapped]
+    :global(.react-grid-item.react-grid-placeholder) {
     transition:
         opacity 100ms var(--grid-ease-out),
         left 150ms var(--grid-ease-out),
@@ -217,16 +218,22 @@
         height 150ms var(--grid-ease-out);
 }
 
-/* After a drop, tiles travel and change size together. Keep DROP_SETTLE_MS in
-   step with the duration */
+/* After a drop, tiles travel to their new place. Keep DROP_SETTLE_MS in step
+   with the duration */
 .gridSettling :global(.react-grid-item) {
-    transition-property: left, top, width, height, opacity;
+    transition-property: left, top, opacity;
     transition-duration: 200ms;
     transition-timing-function: var(--grid-ease-out);
 }
 
+/* Size joins in only when few tiles resize */
+.gridSettlingSize :global(.react-grid-item) {
+    transition-property: left, top, width, height, opacity;
+}
+
 @media (prefers-reduced-motion: reduce) {
-    .dropShadowSnapped :global(.react-grid-item.react-grid-placeholder) {
+    .dropShadow[data-shadow-snapped]
+        :global(.react-grid-item.react-grid-placeholder) {
         transition: opacity 100ms var(--grid-ease-out);
     }
 

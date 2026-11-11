@@ -81,13 +81,15 @@ import { TabEditModal } from './EditTabModal';
 import GridTile from './GridTile';
 import {
     convertLayoutToBaseCoordinates,
-    hasGridItemMoved,
     pinGridItem,
     resolveDropOverlaps,
-    unpinGridItem,
     getRowInsertion,
     getGapFill,
     getPointerCell,
+    getPointerPosition,
+    hasLayoutChanged,
+    countResizedItems,
+    withGridItem,
     getSnapTarget,
     GRID_DESKTOP_COLS,
     DEFAULT_ROW_HEIGHT,
@@ -123,6 +125,11 @@ const DASHBOARD_GRID_BOTTOM_PADDING = 60;
 
 /** A little longer than the drop transition in tabs.module.css */
 const DROP_SETTLE_MS = 260;
+
+type SettleMode = 'position' | 'positionAndSize';
+
+/** Each resizing chart redraws on every frame, so bigger drops only move */
+const MAX_ANIMATED_RESIZES = 4;
 
 type TabGridPanelProps = {
     tabUuid: string;
@@ -343,17 +350,23 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         : DashboardFiltersBar;
 
     const [isInteracting, setIsInteracting] = useState(false);
-    const [isShadowSnapped, setIsShadowSnapped] = useState(false);
     // Just after a drop, while tiles travel to where the drop put them
-    const [isSettling, setIsSettling] = useState(false);
+    const [settleMode, setSettleMode] = useState<SettleMode | null>(null);
     useEffect(() => {
-        if (!isSettling) return;
+        if (settleMode === null) return;
         const timer = window.setTimeout(
-            () => setIsSettling(false),
+            () => setSettleMode(null),
             DROP_SETTLE_MS,
         );
         return () => window.clearTimeout(timer);
-    }, [isSettling]);
+    }, [settleMode]);
+    // An attribute, not state: it flips many times in one drag
+    const setShadowSnapped = useCallback((isSnapped: boolean) => {
+        gridWrapperRef.current?.toggleAttribute(
+            'data-shadow-snapped',
+            isSnapped,
+        );
+    }, []);
 
     const showGridLines = isEditMode && isInteracting;
 
@@ -371,66 +384,87 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const { start: startAutoScroll, stop: stopAutoScroll } =
         useAutoScrollOnDrag();
 
+    const endInteraction = useCallback(() => {
+        stopAutoScroll();
+        setIsInteracting(false);
+        setShadowSnapped(false);
+    }, [stopAutoScroll, setShadowSnapped]);
     const handleInteractionStart = useCallback<ItemCallback>(
         (_layout, _before, _after, _placeholder, _event, node) => {
             if (isEditErgonomicsEnabled) pinGridItem(node);
             setIsInteracting(true);
             startAutoScroll();
+            // The grid reports no stop for a press that never moved
+            const release = new AbortController();
+            const handleRelease = () => {
+                release.abort();
+                endInteraction();
+            };
+            ['mouseup', 'touchend', 'touchcancel'].forEach((type) =>
+                window.addEventListener(type, handleRelease, {
+                    signal: release.signal,
+                }),
+            );
         },
-        [startAutoScroll, isEditErgonomicsEnabled],
+        [startAutoScroll, endInteraction, isEditErgonomicsEnabled],
     );
     // The grid reports its whole layout on every stop, with stored overlaps
-    // pushed apart, so a click that moved nothing must not apply it
-    const endInteraction = useCallback(
-        (node: HTMLElement) => {
-            unpinGridItem(node);
-            stopAutoScroll();
-            setIsInteracting(false);
-            setIsShadowSnapped(false);
-            setIsSettling(isEditErgonomicsEnabled);
-        },
-        [stopAutoScroll, isEditErgonomicsEnabled],
-    );
-    const handleResizeStop = useCallback<ItemCallback>(
-        (layout, before, after, _placeholder, _event, node) => {
-            endInteraction(node);
-            if (hasGridItemMoved(before, after)) {
-                void handleUpdateTilesWithScaling(
-                    isEditErgonomicsEnabled
-                        ? resolveDropOverlaps(layout, [after.i])
-                        : layout,
+    // pushed apart, so a gesture that changed nothing must not apply it
+    const applyDrop = useCallback(
+        (layoutBefore: Layout[], layout: Layout[]) => {
+            endInteraction();
+            if (!hasLayoutChanged(layoutBefore, layout)) return;
+            if (isEditErgonomicsEnabled) {
+                setSettleMode(
+                    countResizedItems(layoutBefore, layout) <=
+                        MAX_ANIMATED_RESIZES
+                        ? 'positionAndSize'
+                        : 'position',
                 );
             }
+            void handleUpdateTilesWithScaling(layout);
         },
-        [handleUpdateTilesWithScaling, endInteraction, isEditErgonomicsEnabled],
+        [endInteraction, handleUpdateTilesWithScaling, isEditErgonomicsEnabled],
+    );
+    const handleResizeStop = useCallback<ItemCallback>(
+        (layout, before, after) =>
+            applyDrop(
+                withGridItem(layout, before),
+                isEditErgonomicsEnabled
+                    ? resolveDropOverlaps(layout, [after.i])
+                    : layout,
+            ),
+        [applyDrop, isEditErgonomicsEnabled],
     );
     // A slot beside the tile under the pointer, else the empty space under it
     const getDragSnap = useCallback(
         (
             layout: Layout[],
             before: Layout,
-            event: MouseEvent,
+            event: MouseEvent | TouchEvent,
             node: HTMLElement,
         ) => {
-            if (!isEditErgonomicsEnabled) return null;
+            const pointer = getPointerPosition(event);
+            if (!isEditErgonomicsEnabled || !pointer) return null;
             const cols = GRID_DESKTOP_COLS * gridScale;
-            const target = getSnapTarget(event, before.i);
+            const layoutBefore = withGridItem(layout, before);
+            const target = getSnapTarget(pointer, before.i);
             if (target) {
                 return getRowInsertion({
-                    layout,
+                    layout: layoutBefore,
                     draggedId: before.i,
                     target,
                     cols,
                 });
             }
             return getGapFill({
-                layout,
+                layout: layoutBefore,
                 draggedId: before.i,
                 cols,
                 // The dragged tile is held where it started, so it measures
                 // the grid
                 cell: getPointerCell({
-                    pointer: event,
+                    pointer,
                     tile: before,
                     tileRect: node.getBoundingClientRect(),
                 }),
@@ -440,20 +474,20 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     );
     const handleDrag = useCallback<ItemCallback>(
         (layout, before, _after, placeholder, event, node) => {
-            const insertion = getDragSnap(layout, before, event, node);
-            setIsShadowSnapped(insertion !== null);
+            const snap = getDragSnap(layout, before, event, node);
+            setShadowSnapped(snap !== null);
             // The grid draws the shadow from this object after the callback
-            if (insertion) {
-                const { x, y, w, h } = insertion.slot;
+            if (snap) {
+                const { x, y, w, h } = snap.slot;
                 Object.assign(placeholder, { x, y, w, h });
             }
         },
-        [getDragSnap],
+        [getDragSnap, setShadowSnapped],
     );
     const handleDragStop = useCallback<ItemCallback>(
         (layout, before, after, placeholder, event, node) => {
-            const insertion = getDragSnap(layout, before, event, node);
-            if (!insertion) {
+            const snap = getDragSnap(layout, before, event, node);
+            if (!snap) {
                 handleResizeStop(
                     layout,
                     before,
@@ -464,15 +498,13 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 );
                 return;
             }
-            endInteraction(node);
-            void handleUpdateTilesWithScaling(insertion.layout);
+            // The grid keeps this object as the tile's place, so a snap that
+            // changes nothing still puts the tile back
+            const { x, y, w, h } = snap.slot;
+            Object.assign(after, { x, y, w, h });
+            applyDrop(withGridItem(layout, before), snap.layout);
         },
-        [
-            getDragSnap,
-            handleResizeStop,
-            handleUpdateTilesWithScaling,
-            endInteraction,
-        ],
+        [getDragSnap, handleResizeStop, applyDrop],
     );
     const handleWidthChange = useCallback(
         (cw: number) => setGridWidth(cw),
@@ -1347,10 +1379,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                 gridProps.allowOverlap
                                     ? styles.dropShadow
                                     : undefined,
-                                isShadowSnapped
-                                    ? styles.dropShadowSnapped
+                                settleMode !== null
+                                    ? styles.gridSettling
                                     : undefined,
-                                isSettling ? styles.gridSettling : undefined,
+                                settleMode === 'positionAndSize'
+                                    ? styles.gridSettlingSize
+                                    : undefined,
                             ]
                                 .filter(Boolean)
                                 .join(' ')}

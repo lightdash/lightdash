@@ -20,6 +20,9 @@ import {
     getRowInsertion,
     getGapFill,
     getPointerCell,
+    getPointerPosition,
+    hasLayoutChanged,
+    countResizedItems,
     getDashboardLayouts,
     getMobileGridLayout,
     getResponsiveGridLayoutProps,
@@ -480,6 +483,15 @@ describe('dropping a tile beside another one', () => {
         });
     });
 
+    it('offers no slot when a tile from the row above reaches into the row', () => {
+        const layout = [
+            item('tall', 24, 0, 12, 8),
+            item('a', 0, 4, 24),
+            item('dragged', 0, 20),
+        ];
+        expect(insert(layout, 'a', 'after')).toBeNull();
+    });
+
     it('offers no slot when the row is already as full as tiles allow', () => {
         const layout = [
             ...Array.from({ length: 9 }, (_, n) => item(`t${n}`, n * 4, 0, 4)),
@@ -541,13 +553,14 @@ describe('dropping a tile on empty space', () => {
         });
     });
 
-    it('counts the place the tile left as empty', () => {
-        const layout = [
-            item('a', 0, 0),
-            item('dragged', 12, 0),
-            item('b', 24, 0),
-        ];
-        expect(fill(layout, 13, 1)!.slot).toMatchObject({ x: 12, w: 12 });
+    it('offers nothing over the place the tile is leaving', () => {
+        const layout = [item('a', 0, 0), item('dragged', 12, 0)];
+        expect(fill(layout, 13, 1)).toBeNull();
+    });
+
+    it('counts the place the tile is leaving as part of a wider space', () => {
+        const layout = [item('a', 0, 0), item('dragged', 12, 0)];
+        expect(fill(layout, 30, 1)!.slot).toMatchObject({ x: 12, w: 24 });
     });
 
     it('moves no other tile', () => {
@@ -579,6 +592,53 @@ describe('dropping a tile on empty space', () => {
             item('dragged', 0, 20),
         ];
         expect(fill(layout, 17, 1)).toBeNull();
+    });
+});
+
+describe('reading where the pointer is', () => {
+    it('reads a mouse event', () => {
+        const event = new MouseEvent('mousemove', { clientX: 40, clientY: 70 });
+        expect(getPointerPosition(event)).toMatchObject({
+            clientX: 40,
+            clientY: 70,
+        });
+    });
+
+    it('reads the finger of a touch event, also once it has lifted', () => {
+        const finger = { clientX: 40, clientY: 70 };
+        const lifted = { changedTouches: [finger], touches: [] };
+        expect(
+            getPointerPosition(lifted as unknown as TouchEvent),
+        ).toMatchObject(finger);
+    });
+
+    it('has no position for a touch event without a finger', () => {
+        const empty = { changedTouches: [], touches: [] };
+        expect(getPointerPosition(empty as unknown as TouchEvent)).toBeNull();
+    });
+});
+
+describe('telling what a drop changed', () => {
+    const item = (i: string, x: number, w = 12) => ({ i, x, y: 0, w, h: 4 });
+    const before = [item('a', 0), item('b', 12), item('c', 24)];
+
+    it('sees no change when every tile is where it was', () => {
+        expect(
+            hasLayoutChanged(
+                before,
+                before.map((l) => ({ ...l })),
+            ),
+        ).toBe(false);
+    });
+
+    it('sees a change when one tile moved', () => {
+        const after = [item('a', 0), item('b', 24), item('c', 12)];
+        expect(hasLayoutChanged(before, after)).toBe(true);
+    });
+
+    it('counts only the tiles whose size changed', () => {
+        const after = [item('a', 0, 18), item('b', 18, 6), item('c', 24)];
+        expect(countResizedItems(before, after)).toBe(2);
     });
 });
 
