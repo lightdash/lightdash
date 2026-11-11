@@ -558,16 +558,20 @@ export class GoogleDriveClient {
             const shifted = toIsoWithProjectOffset(value, timezone);
             formattedValue = shifted ?? value;
         } else if (isField(item) && item.type === DimensionType.DATE) {
-            const timeInterval = isDimension(item)
-                ? item.timeInterval
-                : undefined;
-            // TIMESTAMP-base DATE intervals carry a real instant; shift them
-            // alongside TIMESTAMP fields so non-pivot and pivot exports agree.
-            // Calendar DATEs (no TIMESTAMP base) keep wall-clock formatting.
-            const shifted = shouldShiftItemTimezone(item)
-                ? toIsoWithProjectOffset(value, timezone)
-                : undefined;
-            formattedValue = shifted ?? formatDate(value, timeInterval);
+            if (value === null || value === undefined) {
+                formattedValue = '';
+            } else {
+                const timeInterval = isDimension(item)
+                    ? item.timeInterval
+                    : undefined;
+                // TIMESTAMP-base DATE intervals carry a real instant; shift them
+                // alongside TIMESTAMP fields so non-pivot and pivot exports agree.
+                // Calendar DATEs (no TIMESTAMP base) keep wall-clock formatting.
+                const shifted = shouldShiftItemTimezone(item)
+                    ? toIsoWithProjectOffset(value, timezone)
+                    : undefined;
+                formattedValue = shifted ?? formatDate(value, timeInterval);
+            }
         } else if (
             // Return the string representation of the Object Wrappers for Primitive Types
             typeof value === 'object' &&

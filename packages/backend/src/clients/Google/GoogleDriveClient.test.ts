@@ -64,6 +64,22 @@ describe('GoogleDriveClient', () => {
             );
         });
 
+        test('should format null DATE dimensions as empty cells', () => {
+            const dateDimension = {
+                name: 'order_date',
+                type: DimensionType.DATE,
+                table: 'orders',
+                fieldType: FieldType.DIMENSION,
+            } as Dimension;
+
+            expect(GoogleDriveClient.formatCell(null, dateDimension)).toEqual(
+                '',
+            );
+            expect(
+                GoogleDriveClient.formatCell(undefined, dateDimension),
+            ).toEqual('');
+        });
+
         test('should format BigInt values safely', () => {
             // Small BigInt values within safe integer range should become numbers
             expect(GoogleDriveClient.formatCell(BigInt(55))).toEqual(55);
@@ -373,7 +389,7 @@ describe('GoogleDriveClient', () => {
                     values: [
                         ['Order date', 'Order quarter', 'Total revenue'],
                         [45000, '2023-Q1', 120],
-                        ['NaT', '2023-Q2', 80],
+                        ['', '2023-Q2', 80],
                     ],
                 },
             });
