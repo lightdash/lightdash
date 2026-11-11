@@ -92,6 +92,9 @@ import {
     withGridItem,
     getSnapTarget,
     GRID_DESKTOP_COLS,
+    ALL_RESIZE_HANDLES,
+    DEFAULT_RESIZE_HANDLES,
+    type ResizeHandle,
     DEFAULT_ROW_HEIGHT,
     EDIT_ACTION_BAR_CLEARANCE,
     FINE_GRID_SCALE,
@@ -119,6 +122,7 @@ const EMPTY_LAYOUTS: DashboardLayouts = {
 type DashboardGridProps = ReturnType<typeof getResponsiveGridLayoutProps> & {
     transformScale: number | undefined;
     allowOverlap: boolean;
+    resizeHandles: ResizeHandle[];
 };
 
 const DASHBOARD_GRID_BOTTOM_PADDING = 60;
@@ -675,6 +679,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             transformScale: isCanvasZoomable ? canvasZoom : undefined,
             // Only mid-gesture, so the grid still pushes stored overlaps apart
             allowOverlap: isEditErgonomicsEnabled && isInteracting,
+            resizeHandles: isEditErgonomicsEnabled
+                ? ALL_RESIZE_HANDLES
+                : DEFAULT_RESIZE_HANDLES,
         }),
         [
             unzoomedGridProps,

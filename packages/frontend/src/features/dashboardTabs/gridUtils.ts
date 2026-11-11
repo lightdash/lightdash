@@ -475,6 +475,20 @@ export const getSnapTarget = (
     if (position > 1 - SNAP_ZONE_WIDTH_RATIO) return { tileId, side: 'after' };
     return null;
 };
+export type ResizeHandle = NonNullable<Layout['resizeHandles']>[number];
+
+export const DEFAULT_RESIZE_HANDLES: ResizeHandle[] = ['se'];
+
+export const ALL_RESIZE_HANDLES: ResizeHandle[] = [
+    'n',
+    'e',
+    's',
+    'w',
+    'ne',
+    'se',
+    'sw',
+    'nw',
+];
 
 export type ResponsiveGridLayoutProps = {
     compactType: null;
