@@ -1,3 +1,12 @@
+## [3.214.1](https://github.com/lightdash/lightdash/compare/3.214.0...3.214.1) (2026-11-11)
+
+
+### Bug Fixes
+
+* **ai-agent:** fold duckdb reshapes into one node in query description ([#32411](https://github.com/lightdash/lightdash/issues/32411)) ([4c82c50](https://github.com/lightdash/lightdash/commit/4c82c5006bc0515d233f3f945c83347e8dbbece0))
+* **ai-agent:** offer Documents only after a substantial analysis ([#32413](https://github.com/lightdash/lightdash/issues/32413)) ([98ee268](https://github.com/lightdash/lightdash/commit/98ee2683a4def75e780291089d96c26f5e78a913))
+* **visualization:** stop stack total labels sliding between stacks ([#32379](https://github.com/lightdash/lightdash/issues/32379)) ([a80e190](https://github.com/lightdash/lightdash/commit/a80e19095bb92fe9871445161e9b17b132852d02))
+
 # [3.214.0](https://github.com/lightdash/lightdash/compare/3.213.3...3.214.0) (2026-11-11)
 
 
