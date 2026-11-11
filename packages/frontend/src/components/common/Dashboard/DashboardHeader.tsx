@@ -136,6 +136,7 @@ import DashboardPreAggRefreshModal from './DashboardPreAggRefreshModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 import { PendingChangesButton } from './PendingChangesButton';
 import { PreAggregateAuditDrawer } from './PreAggregateAuditIndicator';
+import { TidyTilesButton } from './TidyTilesButton';
 import { TileLayoutHistoryButtons } from './TileLayoutHistoryButtons';
 import { useDashboardManageAccess } from './useDashboardManageAccess';
 
@@ -759,6 +760,7 @@ const DashboardHeader = memo(
                                 className={headerClasses.editBar}
                             >
                                 <TileLayoutHistoryButtons />
+                                <TidyTilesButton />
                                 <ActionBar.Divider />
                                 <CanvasZoomControls />
                                 <ActionBar.Divider />
