@@ -562,3 +562,20 @@ The web makes one uncached, bounded discovery request per mint attempt with a so
 project. Unknown or failed discovery uses the exact legacy mint shape. It retains
 no positive result. Disabling QR sign-in still refuses mint and normal QR actions;
 static protocol discovery grants no access and issues no code or token.
+
+## BigQuery OAuth Drive access
+
+`bigquery-oauth-drive-access` is organization-scoped and off by default. When on,
+"Sign in with Google" for BigQuery (`/login/bigquery`) also requests
+`https://www.googleapis.com/auth/drive.readonly`, so personal BigQuery
+credentials can query external tables backed by Google Sheets or other Drive
+files. BigQuery rejects `drive.file`, `spreadsheets` and `spreadsheets.readonly`
+for these tables.
+
+`drive.readonly` is a restricted Google scope. Only enable the flag for an
+organization once the instance's OAuth app is verified for it; until then users
+see Google's unverified-app screen, which counts towards the 100-user cap.
+Existing users must sign in to BigQuery again to grant the scope. The Google
+login with `AUTH_GOOGLE_INCLUDE_BIGQUERY_SCOPE` does not request it, because the
+organization is unknown at login. Disabling the flag stops new requests for the
+scope; it does not revoke tokens already granted.
