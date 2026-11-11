@@ -108,7 +108,13 @@ describe('MergeQuerySource', () => {
         });
 
         expect(compileComposerMerge).toHaveBeenCalledTimes(1);
-        const [{ mergeQuery, parameters }] = compileComposerMerge.mock.calls[0];
+        const [{ mergeQuery, parameters, sourceTitleById }] =
+            compileComposerMerge.mock.calls[0];
+        // A source of a shared explore is told apart by its node title, else its id
+        expect(sourceTitleById).toEqual({
+            [orders.nodeId]: 'Orders by month',
+            [payments.nodeId]: payments.nodeId,
+        });
         expect(mergeQuery.sources.map(({ id }: { id: string }) => id)).toEqual([
             orders.nodeId,
             payments.nodeId,

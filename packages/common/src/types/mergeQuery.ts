@@ -478,6 +478,58 @@ export const toMergedSorts = ({
     });
 };
 
+/**
+ * The inverse of toMergedSorts: a merged field id as the chart's own query
+ * names it, so a chart saved from a merge stores what the Explorer stores.
+ */
+export const toPrimaryFieldId = ({
+    fieldId,
+    primarySourceId,
+    primaryMetricQuery,
+    joinKey,
+}: {
+    fieldId: string;
+    primarySourceId: string;
+    primaryMetricQuery: Pick<
+        MetricQuery,
+        'dimensions' | 'metrics' | 'tableCalculations'
+    >;
+    joinKey: MergeJoinKeyPart[];
+}): string => {
+    const keyPart = joinKey.find(
+        (part) =>
+            getItemId({ table: MERGE_TABLE_NAME, name: part.name }) === fieldId,
+    );
+    const keyFieldId = keyPart?.fieldIdBySourceId[primarySourceId];
+    if (keyFieldId) return keyFieldId;
+    const primaryFieldId = [
+        ...primaryMetricQuery.dimensions,
+        ...primaryMetricQuery.metrics,
+        ...primaryMetricQuery.tableCalculations.map(({ name }) => name),
+    ].find((name) => getItemId({ table: primarySourceId, name }) === fieldId);
+    return primaryFieldId ?? fieldId;
+};
+
+/** The dimension ids a merged result carries: one per join key, plus each source's unkeyed dimensions. */
+export const getMergedDimensionIds = (
+    mergeQuery: MetricSourcedMergeQuery,
+): string[] => [
+    ...mergeQuery.joinKey.map(({ name }) =>
+        getItemId({ table: MERGE_TABLE_NAME, name }),
+    ),
+    ...mergeQuery.sources.flatMap((source) =>
+        source.metricQuery.dimensions
+            .filter(
+                (dimension) =>
+                    !mergeQuery.joinKey.some(
+                        (part) =>
+                            part.fieldIdBySourceId[source.id] === dimension,
+                    ),
+            )
+            .map((name) => getItemId({ table: source.id, name })),
+    ),
+];
+
 export const validateMergeQuery = (
     mergeQuery: MergeQuery,
     /**

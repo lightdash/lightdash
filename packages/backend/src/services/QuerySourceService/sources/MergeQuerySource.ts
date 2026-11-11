@@ -148,6 +148,13 @@ export class MergeQuerySource implements QuerySourceClient {
                 mergeQuery,
                 parameters,
                 userAttributeOverrides: args.userAttributeOverrides,
+                sourceTitleById: Object.fromEntries(
+                    mergeQuery.sources.map(({ id }) => [
+                        id,
+                        args.submission.find(({ nodeId }) => nodeId === id)
+                            ?.title ?? id,
+                    ]),
+                ),
             });
             return { mergeQuery, compiled, parameters };
         })();

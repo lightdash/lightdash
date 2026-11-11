@@ -1,9 +1,11 @@
 import {
+    getItemId,
     getMergeSourceTableLabel,
     getResultColumnMetadataFromItem,
     getUnaccountedDimensions,
     isField,
     isMergeMetricSource,
+    MERGE_TABLE_NAME,
     NotSupportedError,
     QuerySourceType,
     type FieldId,
@@ -100,6 +102,63 @@ export const buildComposeMergeOriginalColumns = ({
         }),
     );
 
+/**
+ * Headers say where a column came from, not which slot it rode in: the
+ * explore's label, unless sources share an explore. The Explorer then tells
+ * every source apart by slot; a composer tells only the sharing ones apart by node title.
+ */
+export const getMergeSourceTableLabels = ({
+    sources,
+    sourceTitleById,
+}: {
+    sources: Array<{ id: string; exploreLabel: string }>;
+    sourceTitleById: Record<string, string> | null;
+}): Record<string, string> => {
+    const exploreLabels = sources.map(({ exploreLabel }) => exploreLabel);
+    const labelsCollide = new Set(exploreLabels).size < exploreLabels.length;
+    return Object.fromEntries(
+        sources.map(({ id, exploreLabel }, index) => {
+            if (sourceTitleById) {
+                const shared =
+                    exploreLabels.filter((label) => label === exploreLabel)
+                        .length > 1;
+                return [
+                    id,
+                    shared
+                        ? `${exploreLabel} (${sourceTitleById[id] ?? id})`
+                        : exploreLabel,
+                ];
+            }
+            return [
+                id,
+                labelsCollide
+                    ? `${exploreLabel} (${getMergeSourceTableLabel(index)})`
+                    : exploreLabel,
+            ];
+        }),
+    );
+};
+
+/** A composer merge's calculation columns read as their own names, without the merged table's label. */
+export const withBareCalculationLabels = (
+    columns: ResultColumns,
+    mergeQuery: Pick<MergeQuery, 'tableCalculations'>,
+): ResultColumns =>
+    Object.fromEntries(
+        Object.entries(columns).map(([reference, column]) => {
+            const calculation = mergeQuery.tableCalculations.find(
+                ({ name }) =>
+                    getItemId({ table: MERGE_TABLE_NAME, name }) === reference,
+            );
+            return [
+                reference,
+                calculation
+                    ? { ...column, label: calculation.displayName }
+                    : column,
+            ];
+        }),
+    );
+
 export const getMergeOutputColumnCount = (mergeQuery: MergeQuery): number =>
     mergeQuery.joinKey.length +
     mergeQuery.tableCalculations.length +
@@ -171,7 +230,7 @@ export const getMergeSourceLabels = ({
     );
 
 /**
- * A leg at the row cap, or at its own lower limit, may have more rows behind it, so the
+ * A leg that filled the limit it ran with may have more rows behind it, so the
  * join is refused naming the source. An unknown row count never refuses.
  */
 export const getMergeRowCapError = ({
@@ -187,16 +246,18 @@ export const getMergeRowCapError = ({
     sourceRowCap: number;
 }): string | null => {
     const capped = legs.flatMap(({ label, rowCount, limit }) => {
-        const cap = Math.min(sourceRowCap, limit ?? sourceRowCap);
-        return rowCount !== null && rowCount >= cap ? [{ label, cap }] : [];
+        const ranWith = limit ?? sourceRowCap;
+        return rowCount !== null && rowCount >= ranWith
+            ? [{ label, limit: ranWith }]
+            : [];
     });
     if (capped.length === 0) return null;
-    const atOwnLimit = capped.filter(({ cap }) => cap < sourceRowCap);
+    const atOwnLimit = capped.filter(({ limit }) => limit !== sourceRowCap);
     if (atOwnLimit.length > 0) {
         return atOwnLimit
             .map(
-                ({ label, cap }) =>
-                    `${label} returned its limit of ${cap} rows, so the merged results would be missing data. Raise the limit of ${label} or narrow it, then merge again.`,
+                ({ label, limit }) =>
+                    `${label} returned its limit of ${limit} rows, so the merged results would be missing data. Raise the limit of ${label} or narrow it, then merge again.`,
             )
             .join(' ');
     }

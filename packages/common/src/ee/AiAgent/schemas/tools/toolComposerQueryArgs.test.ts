@@ -710,7 +710,7 @@ describe('composer merge nodes', () => {
                 displayName: 'Revenue per session',
                 formula:
                     'weekly_revenue_orders_total_revenue / weekly_sessions_sessions_count',
-                format: 'percent',
+                format: { type: 'percent', currency: null, decimals: null },
             },
         ],
         sorts: [{ fieldId: 'merge_week', descending: false }],
@@ -768,6 +768,86 @@ describe('composer merge nodes', () => {
             sorts: [{ fieldId: 'merge_week', descending: false }],
             limit: DEFAULT_COMPOSER_QUERY_LIMIT,
         });
+    });
+
+    const convertedCalculation = (format: unknown, persisted = false) => {
+        const schema = persisted
+            ? toolComposerQueriesArgsSchemaPersisted
+            : toolComposerQueriesArgsSchema;
+        const [node] = schema.parse({
+            ...args,
+            queries: [
+                {
+                    ...mergeNode,
+                    tableCalculations: [
+                        { ...mergeNode.tableCalculations[0], format },
+                    ],
+                },
+            ],
+        }).queries;
+        const query = toolComposerQueryNodeToSourceQuery(node);
+        if (query.sourceType !== QuerySourceType.MERGE) {
+            throw new Error('expected a merge node');
+        }
+        return query.tableCalculations?.[0].format;
+    };
+
+    it('formats a calculation in the currency and decimals it names', () => {
+        expect(
+            convertedCalculation({
+                type: 'currency',
+                currency: 'GBP',
+                decimals: 2,
+            }),
+        ).toEqual({
+            type: 'currency',
+            currency: 'GBP',
+            round: 2,
+            separator: 'default',
+        });
+    });
+
+    it('parses the format strings calls persisted before the format object', () => {
+        expect(convertedCalculation('percent', true)).toEqual({
+            type: 'percent',
+            separator: 'default',
+        });
+    });
+
+    it('sorts by every join key when the node sets no sort', () => {
+        const [node] = toolComposerQueriesArgsSchema.parse({
+            ...args,
+            queries: [
+                {
+                    ...mergeNode,
+                    joinKey: [
+                        mergeNode.joinKey[0],
+                        {
+                            name: 'region',
+                            fields: [
+                                {
+                                    nodeId: 'weekly_revenue',
+                                    fieldId: 'orders_region',
+                                },
+                                {
+                                    nodeId: 'weekly_sessions',
+                                    fieldId: 'sessions_region',
+                                },
+                            ],
+                        },
+                    ],
+                    sorts: null,
+                },
+            ],
+        }).queries;
+        const query = toolComposerQueryNodeToSourceQuery(node);
+        if (query.sourceType !== QuerySourceType.MERGE) {
+            throw new Error('expected a merge node');
+        }
+        expect(query.sorts).toEqual([
+            { fieldId: 'merge_week', descending: false },
+            { fieldId: 'merge_region', descending: false },
+        ]);
     });
 
     it('renders a partially streamed merge node with its sources', () => {

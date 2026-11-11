@@ -4,9 +4,11 @@ import {
     DimensionType,
     MetricType,
     NumberSeparator,
+    type CustomFormat,
 } from '../../../../types/field';
 import { type Filters } from '../../../../types/filter';
 import {
+    MERGE_TABLE_NAME,
     MergeJoinType,
     type MergeTableCalculation,
 } from '../../../../types/mergeQuery';
@@ -29,6 +31,8 @@ import {
     type SqlSourceQuery,
 } from '../../../../types/querySources';
 import assertUnreachable from '../../../../utils/assertUnreachable';
+import { currencies } from '../../../../utils/formatting';
+import { getItemId } from '../../../../utils/item';
 import { getLiveSourceAgentQueryGuide } from '../../../../utils/liveSourceIntegrations';
 import {
     filterExpressionInputSchema,
@@ -287,6 +291,32 @@ type CreateToolComposerQueriesArgsSchemaOptions = {
     enableApiNodes?: boolean;
 };
 
+const mergeCalculationFormatSchema = z.object({
+    type: z
+        .enum(['number', 'percent', 'currency'])
+        .describe('"percent" shows 0.12 as 12%.'),
+    currency: z
+        .string()
+        .nullish()
+        .default(null)
+        .describe(
+            'ISO code for "currency", the governed metric\'s currency (e.g. "USD"). null otherwise.',
+        ),
+    decimals: z
+        .number()
+        .int()
+        .min(0)
+        .max(6)
+        .nullish()
+        .default(null)
+        .describe('Decimal places. null keeps the default.'),
+});
+// Calls persisted before the format object carry "number" or "percent".
+const persistedMergeCalculationFormatSchema = z.union([
+    mergeCalculationFormatSchema,
+    z.enum(['number', 'percent']),
+]);
+
 export const createToolComposerQueriesArgsSchemaV1 = ({
     maxLimit = DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
     defaultLimit = DEFAULT_COMPOSER_QUERY_LIMIT,
@@ -456,28 +486,30 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
                     formula: z
                         .string()
                         .describe(
-                            "Row-wise formula over merged column ids: `<source nodeId>_<fieldId>` for a source's column, `merge_<name>` for a join key. Sources `weekly_orders` and `weekly_sessions` give `weekly_orders_orders_total_revenue / weekly_sessions_sessions_count`. Spreadsheet operators and functions; no SQL.",
+                            "Spreadsheet formula over merged columns by id: `<source nodeId>_<fieldId>` for a source's column, `merge_<name>` for a join key; another calculation is not a column. Sources `weekly_orders` and `weekly_sessions` give `weekly_orders_orders_total_revenue / weekly_sessions_sessions_count`. It supports: arithmetic across sources (dividing by zero gives blank); a blank-safe sum, `COALESCE(a, 0) + COALESCE(b, 0)`; SUM, AVG, MIN, MAX and COUNT over all rows, so `a / SUM(a)` is a share of total, and `SUM(a) OVER (PARTITION BY merge_<name>)` a group's total; LAG, LEAD, RUNNING_TOTAL, MOVING_AVG and RANK with an explicit order, as in `a / LAG(a, PARTITION BY merge_category, ORDER BY merge_year) - 1` for year on year (without ORDER BY a lag reads an arbitrary row); IF, AND, OR, ISNULL, ROUND, ABS. No SQL.",
                         ),
-                    format: z
-                        .enum(['number', 'percent'])
+                    format: (persisted
+                        ? persistedMergeCalculationFormatSchema
+                        : mergeCalculationFormatSchema
+                    )
                         .nullish()
                         .default(null)
                         .describe(
-                            '"percent" for ratios and shares (0.12 shows as 12%); null for a number.',
+                            'How the column displays: match the metrics it is built from, so a revenue ratio is currency and a share is percent. null shows a plain number.',
                         ),
                 }),
             )
             .nullish()
             .default(null)
             .describe(
-                "Calculations across the merged sources' columns, such as a ratio of one node's metric to another's. null for none.",
+                'Every calculation over the merged columns: ratios, year on year, shares of total, conditional labels. They keep the result governed, so compute them here rather than in a duckdb node. null for none.',
             ),
         sorts: z
             .array(sortFieldSchema)
             .nullish()
             .default(null)
             .describe(
-                'Sorts by merged column id (`merge_<name>`, `<source nodeId>_<fieldId>`). null keeps join-key order.',
+                'Sorts by merged column id (`merge_<name>`, `<source nodeId>_<fieldId>`). With several join keys, sort by each of them. null sorts by every join key, in order.',
             ),
         limit: limitSchema,
     });
@@ -666,6 +698,43 @@ type ToolComposerMergeNode = Extract<
     { sourceType: QuerySourceType.MERGE }
 >;
 
+const toMergeCalculationFormat = (
+    format: NonNullable<
+        ToolComposerMergeNode['tableCalculations']
+    >[number]['format'],
+): CustomFormat => {
+    if (format === null || format === 'number') {
+        return {
+            type: CustomFormatType.NUMBER,
+            separator: NumberSeparator.DEFAULT,
+        };
+    }
+    if (format === 'percent') {
+        return {
+            type: CustomFormatType.PERCENT,
+            separator: NumberSeparator.DEFAULT,
+        };
+    }
+    const currency = currencies.find((code) => code === format.currency);
+    const decimals = format.decimals !== null ? { round: format.decimals } : {};
+    if (format.type === 'currency' && currency) {
+        return {
+            type: CustomFormatType.CURRENCY,
+            separator: NumberSeparator.DEFAULT,
+            currency,
+            ...decimals,
+        };
+    }
+    return {
+        type:
+            format.type === 'percent'
+                ? CustomFormatType.PERCENT
+                : CustomFormatType.NUMBER,
+        separator: NumberSeparator.DEFAULT,
+        ...decimals,
+    };
+};
+
 const toMergeTableCalculation = (
     calculation: NonNullable<
         ToolComposerMergeNode['tableCalculations']
@@ -675,13 +744,7 @@ const toMergeTableCalculation = (
     displayName: calculation.displayName,
     sql: '',
     formula: withLeadingEquals(calculation.formula),
-    format: {
-        type:
-            calculation.format === 'percent'
-                ? CustomFormatType.PERCENT
-                : CustomFormatType.NUMBER,
-        separator: NumberSeparator.DEFAULT,
-    },
+    format: toMergeCalculationFormat(calculation.format),
 });
 
 const toolComposerMergeNodeToSourceQuery = (
@@ -708,7 +771,13 @@ const toolComposerMergeNodeToSourceQuery = (
               ),
           }
         : {}),
-    ...(node.sorts?.length ? { sorts: node.sorts } : {}),
+    // Unsorted, every key orders the rows, not only the first
+    sorts: node.sorts?.length
+        ? node.sorts
+        : node.joinKey.map(({ name }) => ({
+              fieldId: getItemId({ table: MERGE_TABLE_NAME, name }),
+              descending: false,
+          })),
     limit: node.limit,
 });
 

@@ -122,7 +122,6 @@ import {
     getIntrinsicUserAttributes,
     getItemId,
     getItemMap,
-    getMergeSourceTableLabel,
     getMetricOverridesWithPopInheritance,
     getMetrics,
     getModelInventoryFromManifest,
@@ -517,6 +516,7 @@ import {
     getContentWriteAgentIdentity,
 } from '../AiAccessService/agentExecutionContext';
 import { AiAccessService } from '../AiAccessService/AiAccessService';
+import { getMergeSourceTableLabels } from '../AsyncQueryService/mergeQueryExecution';
 import { BaseService } from '../BaseService';
 import {
     NO_CLI_DEPLOY_SELECTION,
@@ -10169,6 +10169,8 @@ export class ProjectService
         /** One map for every source: sides of one question share their values. */
         parameters?: ParametersValuesMap;
         userAttributeOverrides?: UserAttributeValueMap;
+        /** Composer only: names a source of a shared explore by its node title, not its slot. */
+        sourceTitleById?: Record<string, string>;
     }): Promise<ApiCompiledMergeQueryResults> {
         const {
             account,
@@ -10773,23 +10775,17 @@ export class ProjectService
             },
         );
 
-        // Headers say where a column came from, not which slot it rode in:
-        // the explore's label, unless both sides use the same explore and the
-        // slot is the only thing telling them apart.
-        const exploreLabels = mergeQuery.sources.map(
-            (source) =>
-                exploreBySourceId[source.id]?.label ??
-                resolvedMetricQueryBySourceId[source.id].exploreName,
-        );
-        const labelsCollide =
-            new Set(exploreLabels).size < exploreLabels.length;
-        const sourceTableLabel = (sourceId: string) => {
-            const sourceIndex = sourceIndexById[sourceId] ?? 0;
-            const exploreLabel = exploreLabels[sourceIndex];
-            return labelsCollide
-                ? `${exploreLabel} (${getMergeSourceTableLabel(sourceIndex)})`
-                : exploreLabel;
-        };
+        const tableLabelBySourceId = getMergeSourceTableLabels({
+            sources: mergeQuery.sources.map((source) => ({
+                id: source.id,
+                exploreLabel:
+                    exploreBySourceId[source.id]?.label ??
+                    resolvedMetricQueryBySourceId[source.id].exploreName,
+            })),
+            sourceTitleById: args.sourceTitleById ?? null,
+        });
+        const sourceTableLabel = (sourceId: string) =>
+            tableLabelBySourceId[sourceId];
 
         const valueEntries: MergeItemEntry[] = valueFields.flatMap((field) => {
             const { sourceId, sourceFieldId } = field;

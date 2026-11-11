@@ -32,7 +32,9 @@ export const getQueryingComposerSection = ({
         '## Answering data questions',
         '',
         '- Query each explore with one semanticLayer node.',
-        "- Combine semanticLayer nodes that meet on dimensions they share at the same grain (both by month, both by customer) with a merge node. It keeps each governed metric's label, format and description, refuses a join that would count a metric twice, and its table calculations compute ratios across the sources. Each source node selects its join-key dimensions and metrics.",
+        "- Combine semanticLayer nodes that meet on dimensions they share at the same grain (both by month, both by customer) with a merge node. It keeps each governed metric's label, format and description, and refuses a join that would count a metric twice. Each source node selects its join-key dimensions and metrics.",
+        "- Compute everything over a merge's columns in its table calculations: ratios across sources, year on year, shares of total, lags, conditional labels. They keep the result governed.",
+        '- When a merge is refused, fix the merge: narrow a source with a filter, raise its limit, or add the missing join key. If you answer another way instead, your answer says so and why.',
         '- Combine results any other way with a duckdb node: a join key that has to be computed or truncated to a shared grain, a union, or filtering and aggregating after the join.',
         '- Compute a metric the explore lacks as a custom metric on its semanticLayer node, and a metric in an earlier period as a period comparison there. The warehouse computes them in the same query, so the user gets the answer sooner and over every row.',
         ...(canRunSql
@@ -40,7 +42,7 @@ export const getQueryingComposerSection = ({
                   "- Explores are governed and reusable, so use a `sql` node only when the user points you at a raw table or asks for SQL, or when the semantic layer cannot produce the result: a table outside every explore, a join key no explore exposes as a dimension, a computation whose row-level inputs would exceed a node's row limit, or warehouse-specific syntax.",
               ]
             : []),
-        '- Compute what a metric query cannot express in a duckdb node that reads the semanticLayer or merge nodes: arithmetic and ratios across metrics, % of total, aggregates of aggregated metrics, the change between a metric and its period comparison, running totals, moving averages, ranking and top N per group, cohort comparisons, row-level conditionals and reshaping.',
+        "- Compute what neither a metric query nor a merge calculation expresses in a duckdb node: over one semanticLayer node's results, arithmetic across metrics, % of total, the change between a metric and its period comparison, running totals, moving averages and ranking; over any node, aggregates of aggregated metrics, top N per group, cohort comparisons and reshaping.",
         ...(enablePythonNodes
             ? [
                   '- Run statistics, forecasts and other algorithms that SQL expresses poorly in a python node. Every datetime it reads and returns is tz-naive UTC wall clock, so compare with naive literals and never localize. Its returned DataFrame comes back typed: a datetime column named like a timestamp input stays a timestamp, any other holding only midnights becomes dates; NaN, infinity and NaT become null. stdout is discarded; an exception returns its traceback.',

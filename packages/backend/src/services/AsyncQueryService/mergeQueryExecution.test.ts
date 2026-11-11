@@ -19,7 +19,9 @@ import {
     getMergeResultSourceCutShortError,
     getMergeRowCapError,
     getMergeSourceLabels,
+    getMergeSourceTableLabels,
     planMergeSourceTotalLegs,
+    withBareCalculationLabels,
 } from './mergeQueryExecution';
 
 const sourceQuery = (metrics: string[], calculations: string[] = []) =>
@@ -315,6 +317,29 @@ describe('getMergeRowCapError', () => {
         );
     });
 
+    test('allows complete legs that ran with a limit above the cap', () => {
+        expect(
+            getMergeRowCapError({
+                legs: [
+                    { label: 'Orders', rowCount: 5587, limit: 10000 },
+                    { label: 'Payments', rowCount: 5587, limit: 10000 },
+                ],
+                sourceRowCap: 5000,
+            }),
+        ).toBeNull();
+    });
+
+    test('refuses a leg that filled a limit above the cap', () => {
+        expect(
+            getMergeRowCapError({
+                legs: [{ label: 'Orders', rowCount: 10000, limit: 10000 }],
+                sourceRowCap: 5000,
+            }),
+        ).toBe(
+            'Orders returned its limit of 10000 rows, so the merged results would be missing data. Raise the limit of Orders or narrow it, then merge again.',
+        );
+    });
+
     test('allows a source whose row count is unknown', () => {
         expect(
             getMergeRowCapError({
@@ -477,5 +502,90 @@ describe('planMergeSourceTotalLegs', () => {
                 },
             }),
         ).toEqual([]);
+    });
+});
+
+describe('withBareCalculationLabels', () => {
+    test('labels a calculation by its own name and leaves other columns', () => {
+        expect(
+            withBareCalculationLabels(
+                {
+                    merge_month: {
+                        reference: 'merge_month',
+                        type: DimensionType.DATE,
+                        label: 'Merged Month',
+                    },
+                    merge_rate: {
+                        reference: 'merge_rate',
+                        type: DimensionType.NUMBER,
+                        label: 'Merged Revenue per item',
+                    },
+                },
+                {
+                    tableCalculations: [
+                        {
+                            name: 'rate',
+                            displayName: 'Revenue per item',
+                            sql: '',
+                        },
+                    ],
+                },
+            ),
+        ).toEqual({
+            merge_month: {
+                reference: 'merge_month',
+                type: DimensionType.DATE,
+                label: 'Merged Month',
+            },
+            merge_rate: {
+                reference: 'merge_rate',
+                type: DimensionType.NUMBER,
+                label: 'Revenue per item',
+            },
+        });
+    });
+});
+
+describe('getMergeSourceTableLabels', () => {
+    const sources = [
+        { id: 'orders_2024', exploreLabel: 'Orders' },
+        { id: 'orders_2025', exploreLabel: 'Orders' },
+        { id: 'baskets', exploreLabel: 'Baskets' },
+    ];
+
+    test('the Explorer tells every source apart by slot when two share an explore', () => {
+        expect(
+            getMergeSourceTableLabels({ sources, sourceTitleById: null }),
+        ).toEqual({
+            orders_2024: 'Orders (Query A)',
+            orders_2025: 'Orders (Query B)',
+            baskets: 'Baskets (Query C)',
+        });
+    });
+
+    test('a composer tells only the sharing sources apart, by node title', () => {
+        expect(
+            getMergeSourceTableLabels({
+                sources,
+                sourceTitleById: {
+                    orders_2024: 'Orders 2024',
+                    orders_2025: 'Orders 2025',
+                    baskets: 'Baskets',
+                },
+            }),
+        ).toEqual({
+            orders_2024: 'Orders (Orders 2024)',
+            orders_2025: 'Orders (Orders 2025)',
+            baskets: 'Baskets',
+        });
+    });
+
+    test('a source of its own explore reads as the explore', () => {
+        expect(
+            getMergeSourceTableLabels({
+                sources: [sources[0], sources[2]],
+                sourceTitleById: { orders_2024: 'Orders 2024' },
+            }),
+        ).toEqual({ orders_2024: 'Orders', baskets: 'Baskets' });
     });
 });

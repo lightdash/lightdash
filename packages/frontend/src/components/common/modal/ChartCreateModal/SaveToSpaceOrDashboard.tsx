@@ -212,6 +212,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         const queryDimensions = getChartQueryDimensions(
             savedData.metricQuery,
             mergeResults,
+            savedData.merge ?? null,
         );
         return hasUnusedDimensions({
             chartType: savedData.chartConfig?.type,

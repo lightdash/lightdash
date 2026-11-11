@@ -1,6 +1,7 @@
 import {
     buildSavedMergeDefinition,
     parseSavedMergeDefinition,
+    toPrimaryFieldId,
     type SavedMergeDefinition,
 } from '../../types/mergeQuery';
 import {
@@ -104,18 +105,36 @@ export const getComposerMergeSavedChart = ({
     });
     if (new Set(sourceParameters).size !== 1) return null;
     const parameters = primaryNode.parameters ?? {};
+    const primaryMetricQuery = metricQueryOfSemanticNode(primaryNode);
+    // The chart's own query names fields as the Explorer saves them: the primary's ids
+    const toPrimary = (fieldId: string) =>
+        toPrimaryFieldId({
+            fieldId,
+            primarySourceId: primary.id,
+            primaryMetricQuery,
+            joinKey: mergeQuery.joinKey,
+        });
+    const primaryFieldIds = new Set([
+        ...primaryMetricQuery.dimensions,
+        ...primaryMetricQuery.metrics,
+    ]);
 
     return {
         tableName: primaryNode.exploreName,
         // The Explorer reads a merge's sorts and limit from the chart's query
         metricQuery: {
-            ...metricQueryOfSemanticNode(primaryNode),
-            sorts: mergeQuery.sorts ?? [],
+            ...primaryMetricQuery,
+            sorts: (mergeQuery.sorts ?? []).map((sort) => ({
+                ...sort,
+                fieldId: toPrimary(sort.fieldId),
+            })),
             limit: mergeQuery.limit,
         },
         chartConfig: remapFieldIdsDeep(chart.chartConfig, fieldIdMap),
         tableConfig: {
-            columnOrder: columns.map(({ reference }) => reference),
+            columnOrder: columns
+                .map(({ reference }) => toPrimary(reference))
+                .filter((fieldId) => primaryFieldIds.has(fieldId)),
         },
         pivotConfig:
             pivotColumns.length > 0 ? { columns: pivotColumns } : undefined,

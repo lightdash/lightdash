@@ -679,10 +679,12 @@ When string dimension metadata has \`caseSensitiveFilters\`, \`true\` means stri
 ## Answering data questions
 
 - Query each explore with one semanticLayer node.
-- Combine semanticLayer nodes that meet on dimensions they share at the same grain (both by month, both by customer) with a merge node. It keeps each governed metric's label, format and description, refuses a join that would count a metric twice, and its table calculations compute ratios across the sources. Each source node selects its join-key dimensions and metrics.
+- Combine semanticLayer nodes that meet on dimensions they share at the same grain (both by month, both by customer) with a merge node. It keeps each governed metric's label, format and description, and refuses a join that would count a metric twice. Each source node selects its join-key dimensions and metrics.
+- Compute everything over a merge's columns in its table calculations: ratios across sources, year on year, shares of total, lags, conditional labels. They keep the result governed.
+- When a merge is refused, fix the merge: narrow a source with a filter, raise its limit, or add the missing join key. If you answer another way instead, your answer says so and why.
 - Combine results any other way with a duckdb node: a join key that has to be computed or truncated to a shared grain, a union, or filtering and aggregating after the join.
 - Compute a metric the explore lacks as a custom metric on its semanticLayer node, and a metric in an earlier period as a period comparison there. The warehouse computes them in the same query, so the user gets the answer sooner and over every row.
-- Compute what a metric query cannot express in a duckdb node that reads the semanticLayer or merge nodes: arithmetic and ratios across metrics, % of total, aggregates of aggregated metrics, the change between a metric and its period comparison, running totals, moving averages, ranking and top N per group, cohort comparisons, row-level conditionals and reshaping.
+- Compute what neither a metric query nor a merge calculation expresses in a duckdb node: over one semanticLayer node's results, arithmetic across metrics, % of total, the change between a metric and its period comparison, running totals, moving averages and ranking; over any node, aggregates of aggregated metrics, top N per group, cohort comparisons and reshaping.
 - Build an answer that takes several queries, or a computation over their results, as one pipeline in one query call, whose terminal node is the result that answers the question.
 - For a follow-up that changes an earlier result, change only what the user asked for, and claim a change only after the call succeeds. When the requested field is not among the carried-forward candidates, discover it rather than binding its value to an unrelated existing dimension.
 - After query, call visualize on the node your answer rests on: with the chart type the user asked for; otherwise with a chart that fits the result (a line for a trend over time, a bar to compare categories), or a table when the user wants an interactive or downloadable table or the rows are too many for a Markdown table. Skip visualize when a sentence or a small Markdown table answers the question and the user asked for no chart.
@@ -19041,7 +19043,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                       },
                     ],
                     "default": null,
-                    "description": "Sorts by merged column id (\`merge_<name>\`, \`<source nodeId>_<fieldId>\`). null keeps join-key order.",
+                    "description": "Sorts by merged column id (\`merge_<name>\`, \`<source nodeId>_<fieldId>\`). With several join keys, sort by each of them. null sorts by every join key, in order.",
                   },
                   "sourceType": {
                     "const": "merge",
@@ -19087,21 +19089,54 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                             "format": {
                               "anyOf": [
                                 {
-                                  "enum": [
-                                    "number",
-                                    "percent",
+                                  "additionalProperties": false,
+                                  "properties": {
+                                    "currency": {
+                                      "default": null,
+                                      "description": "ISO code for "currency", the governed metric's currency (e.g. "USD"). null otherwise.",
+                                      "type": [
+                                        "string",
+                                        "null",
+                                      ],
+                                    },
+                                    "decimals": {
+                                      "anyOf": [
+                                        {
+                                          "maximum": 6,
+                                          "minimum": 0,
+                                          "type": "integer",
+                                        },
+                                        {
+                                          "type": "null",
+                                        },
+                                      ],
+                                      "default": null,
+                                      "description": "Decimal places. null keeps the default.",
+                                    },
+                                    "type": {
+                                      "description": ""percent" shows 0.12 as 12%.",
+                                      "enum": [
+                                        "number",
+                                        "percent",
+                                        "currency",
+                                      ],
+                                      "type": "string",
+                                    },
+                                  },
+                                  "required": [
+                                    "type",
                                   ],
-                                  "type": "string",
+                                  "type": "object",
                                 },
                                 {
                                   "type": "null",
                                 },
                               ],
                               "default": null,
-                              "description": ""percent" for ratios and shares (0.12 shows as 12%); null for a number.",
+                              "description": "How the column displays: match the metrics it is built from, so a revenue ratio is currency and a share is percent. null shows a plain number.",
                             },
                             "formula": {
-                              "description": "Row-wise formula over merged column ids: \`<source nodeId>_<fieldId>\` for a source's column, \`merge_<name>\` for a join key. Sources \`weekly_orders\` and \`weekly_sessions\` give \`weekly_orders_orders_total_revenue / weekly_sessions_sessions_count\`. Spreadsheet operators and functions; no SQL.",
+                              "description": "Spreadsheet formula over merged columns by id: \`<source nodeId>_<fieldId>\` for a source's column, \`merge_<name>\` for a join key; another calculation is not a column. Sources \`weekly_orders\` and \`weekly_sessions\` give \`weekly_orders_orders_total_revenue / weekly_sessions_sessions_count\`. It supports: arithmetic across sources (dividing by zero gives blank); a blank-safe sum, \`COALESCE(a, 0) + COALESCE(b, 0)\`; SUM, AVG, MIN, MAX and COUNT over all rows, so \`a / SUM(a)\` is a share of total, and \`SUM(a) OVER (PARTITION BY merge_<name>)\` a group's total; LAG, LEAD, RUNNING_TOTAL, MOVING_AVG and RANK with an explicit order, as in \`a / LAG(a, PARTITION BY merge_category, ORDER BY merge_year) - 1\` for year on year (without ORDER BY a lag reads an arbitrary row); IF, AND, OR, ISNULL, ROUND, ABS. No SQL.",
                               "type": "string",
                             },
                             "name": {
@@ -19124,7 +19159,7 @@ Reuse across calls: a node id names one node for the whole thread. To build on a
                       },
                     ],
                     "default": null,
-                    "description": "Calculations across the merged sources' columns, such as a ratio of one node's metric to another's. null for none.",
+                    "description": "Every calculation over the merged columns: ratios, year on year, shares of total, conditional labels. They keep the result governed, so compute them here rather than in a duckdb node. null for none.",
                   },
                   "title": {
                     "description": "Short label a reader understands without seeing the query, two to five words, e.g. "Revenue by month". Shown to users instead of the node id.",

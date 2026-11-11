@@ -462,6 +462,7 @@ import {
     getMergeResultSourceCutShortError,
     getMergeSourceLabels,
     planMergeSourceTotalLegs,
+    withBareCalculationLabels,
 } from './mergeQueryExecution';
 import {
     buildMergeExecutedEvent,
@@ -15141,6 +15142,7 @@ export class AsyncQueryService extends ProjectService {
         mergeQuery,
         parameters,
         userAttributeOverrides,
+        sourceTitleById,
     }: {
         account: Account;
         projectUuid: string;
@@ -15148,6 +15150,7 @@ export class AsyncQueryService extends ProjectService {
         mergeQuery: MergeQuery;
         parameters: ParametersValuesMap;
         userAttributeOverrides: UserAttributeValueMap;
+        sourceTitleById: Record<string, string>;
     }): Promise<RunnableCompiledMergeQuery> {
         const compiled = await this.compileMergeQuery({
             account,
@@ -15155,6 +15158,7 @@ export class AsyncQueryService extends ProjectService {
             mergeQuery,
             parameters,
             userAttributeOverrides,
+            sourceTitleById,
         });
         if (!isRunnableCompiledMergeQuery(compiled)) {
             throw new ParameterError(
@@ -15213,7 +15217,19 @@ export class AsyncQueryService extends ProjectService {
             querySurface,
             parameters,
             invalidateCache,
-            plan,
+            plan:
+                plan.columns.mode === 'supplied'
+                    ? {
+                          ...plan,
+                          columns: {
+                              ...plan.columns,
+                              originalColumns: withBareCalculationLabels(
+                                  plan.columns.originalColumns,
+                                  mergeQuery,
+                              ),
+                          },
+                      }
+                    : plan,
         });
     }
 

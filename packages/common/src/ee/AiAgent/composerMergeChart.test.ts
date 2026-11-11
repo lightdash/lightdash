@@ -3,6 +3,7 @@ import { DimensionType } from '../../types/field';
 import {
     buildMergeQueryFromMergeDefinition,
     MergeJoinType,
+    toMergedSorts,
     type MergeTableCalculation,
 } from '../../types/mergeQuery';
 import {
@@ -197,9 +198,11 @@ describe('getComposerMergeSavedChart', () => {
             sorts: [{ fieldId: 'merge_margin', descending: true }],
             limit: 50,
         });
-        expect(saved.tableConfig.columnOrder).toEqual(
-            twoSourceColumns.map(({ reference }) => reference),
-        );
+        // As the Explorer saves it: only the chart query's own fields
+        expect(saved.tableConfig.columnOrder).toEqual([
+            'orders_order_date_month',
+            'orders_total_order_amount',
+        ]);
         const chartJson = JSON.stringify(saved.chartConfig);
         expect(chartJson).not.toContain('composer_result');
         expect(chartJson).toContain('"merge_month"');
@@ -299,6 +302,18 @@ describe('getComposerMergeSavedChart', () => {
         );
 
         expect(saved.pivotConfig).toEqual({ columns: ['merge_region'] });
+        // The chart's own query sorts by its own key field, as the Explorer saves it
+        expect(saved.metricQuery.sorts).toEqual([
+            { fieldId: 'orders_order_date_month', descending: false },
+        ]);
+        expect(
+            toMergedSorts({
+                sorts: saved.metricQuery.sorts,
+                primarySourceId: 'orders_monthly',
+                primaryMetricQuery: saved.metricQuery,
+                joinKey: expected.joinKey,
+            }),
+        ).toEqual(expected.sorts);
         expect(Object.keys(saved.merge.queries)).toEqual([
             'payments_monthly',
             'new_customers',
