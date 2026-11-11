@@ -44,6 +44,7 @@ import {
     formatPromptWithClarifications,
     getContentAsCodePathFromLtreePath,
     getCustomSqlFieldKey,
+    getDataAppConsumerAccess,
     getDataAppVizPreviewSchema,
     getDocumentRuntimeChartConfig,
     getEffectiveFieldAiHints,
@@ -117,6 +118,7 @@ import {
     type DataAppCodingAgent,
     type DataAppCodingAgentModel,
     type DataAppCompactionResult,
+    type DataAppConsumerAccess,
     type DataAppContext,
     type DataAppCreationExperience,
     type DataAppDependencies,
@@ -10239,6 +10241,7 @@ export class AppGenerateService extends BaseService {
         latestReadyVersion: number | null;
         latestReadyVersionUsesAiAnalysis: boolean | null;
         latestReadyVersionHasAnalyzableData: boolean | null;
+        latestReadyVersionConsumerAccess: DataAppConsumerAccess | null;
         addAnalysisDismissed: boolean;
         registrySlug: string | null;
         icon: ChartTypeIcon | null;
@@ -10304,6 +10307,21 @@ export class AppGenerateService extends BaseService {
                   return null;
               })
             : null;
+        // Only for people who can act on it, and only while the organization
+        // has consumer access on. Reads the frozen snapshot, which is what
+        // consumer queries are checked against.
+        const showConsumerAccess =
+            latestReady !== null &&
+            this.createAuditedAbility(user).can(
+                'manage',
+                subject('DataApp', appAuthorization),
+            ) &&
+            (
+                await this.featureFlagModel.get({
+                    featureFlagId: FeatureFlags.DataAppConsumerAccess,
+                    user: { organizationUuid, userUuid: user.userUuid },
+                })
+            ).enabled;
         const verification = await this.contentVerificationModel.getByContent(
             ContentType.DATA_APP,
             appUuid,
@@ -10404,6 +10422,12 @@ export class AppGenerateService extends BaseService {
                           ref.kind === 'query' || ref.kind === 'savedChart',
                   )
                 : null,
+            latestReadyVersionConsumerAccess:
+                showConsumerAccess && latestReady
+                    ? getDataAppConsumerAccess(
+                          latestReady.consumer_data_references,
+                      )
+                    : null,
             addAnalysisDismissed: addAnalysisDismissedAt !== null,
             registrySlug,
             // An icon retired from the curated set reads back as no icon.

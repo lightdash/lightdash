@@ -121,6 +121,7 @@ const app = (
         versions.find((v) => v.status === 'ready')?.version ?? null,
     latestReadyVersionUsesAiAnalysis: null,
     latestReadyVersionHasAnalyzableData: null,
+    latestReadyVersionConsumerAccess: null,
     addAnalysisDismissed: false,
     icon: null,
     verification: null,

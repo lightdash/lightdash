@@ -27,6 +27,7 @@ import assertUnreachable from '../../utils/assertUnreachable';
 import { isHexCodeColor } from '../../utils/colors';
 import { toLlmJsonSchema } from '../../utils/zodJsonSchema';
 import { type ChartTypeIcon } from './chartTypeIcons';
+import { type DataAppConsumerAccess } from './consumerAccess';
 import {
     type DataAppVizConfigOption,
     type DataAppVizOptionValue,
@@ -600,6 +601,10 @@ export type ApiGetAppResponse = ApiSuccess<{
     // analysis surface would stay blank. Null when there is no ready version
     // or the source scan is unavailable.
     latestReadyVersionHasAnalyzableData: boolean | null;
+    // What users without Explore access get from the latest ready version.
+    // Null when consumer access is off for the organization, the caller
+    // cannot manage the app, or there is no ready version.
+    latestReadyVersionConsumerAccess: DataAppConsumerAccess | null;
     // Whether the builder-side "add AI analysis" offer was dismissed for
     // this app (closed, or acted on once). App-level, so the offer stops
     // nagging every builder once the build agent has declined.
