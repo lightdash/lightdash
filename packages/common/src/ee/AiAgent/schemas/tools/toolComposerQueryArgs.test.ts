@@ -785,6 +785,9 @@ describe('composer merge nodes', () => {
                 },
             ],
         }).queries;
+        if (node.sourceType !== QuerySourceType.MERGE) {
+            throw new Error('expected a merge node');
+        }
         const query = toolComposerQueryNodeToSourceQuery(node);
         if (query.sourceType !== QuerySourceType.MERGE) {
             throw new Error('expected a merge node');
@@ -840,6 +843,9 @@ describe('composer merge nodes', () => {
                 },
             ],
         }).queries;
+        if (node.sourceType !== QuerySourceType.MERGE) {
+            throw new Error('expected a merge node');
+        }
         const query = toolComposerQueryNodeToSourceQuery(node);
         if (query.sourceType !== QuerySourceType.MERGE) {
             throw new Error('expected a merge node');

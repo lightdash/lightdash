@@ -486,7 +486,7 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
                     formula: z
                         .string()
                         .describe(
-                            "Spreadsheet formula over merged columns by id: `<source nodeId>_<fieldId>` for a source's column, `merge_<name>` for a join key; another calculation is not a column. Sources `weekly_orders` and `weekly_sessions` give `weekly_orders_orders_total_revenue / weekly_sessions_sessions_count`. It supports: arithmetic across sources (dividing by zero gives blank); a blank-safe sum, `COALESCE(a, 0) + COALESCE(b, 0)`; SUM, AVG, MIN, MAX and COUNT over all rows, so `a / SUM(a)` is a share of total, and `SUM(a) OVER (PARTITION BY merge_<name>)` a group's total; LAG, LEAD, RUNNING_TOTAL, MOVING_AVG and RANK with an explicit order, as in `a / LAG(a, PARTITION BY merge_category, ORDER BY merge_year) - 1` for year on year (without ORDER BY a lag reads an arbitrary row); IF, AND, OR, ISNULL, ROUND, ABS. No SQL.",
+                            "Spreadsheet formula over merged columns by id: `<source nodeId>_<fieldId>` for a source's column, `merge_<name>` for a join key. Sources `weekly_orders` and `weekly_sessions` give `weekly_orders_orders_total_revenue / weekly_sessions_sessions_count`. It supports: arithmetic across sources (dividing by zero gives blank); a blank-safe sum, `COALESCE(a, 0) + COALESCE(b, 0)`; SUM, AVG, MIN, MAX and COUNT over all rows, so `a / SUM(a)` is a share of total, and `SUM(a) OVER (PARTITION BY merge_<name>)` a group's total; LAG, LEAD, RUNNING_TOTAL, MOVING_AVG and RANK, each naming its order, as in `a / LAG(a, PARTITION BY merge_category, ORDER BY merge_year) - 1` for year on year; conditions with IF, ISNULL, comparisons and AND/OR between them; ROUND and ABS.",
                         ),
                     format: (persisted
                         ? persistedMergeCalculationFormatSchema
@@ -502,14 +502,14 @@ export const createToolComposerQueriesArgsSchemaV1 = ({
             .nullish()
             .default(null)
             .describe(
-                'Every calculation over the merged columns: ratios, year on year, shares of total, conditional labels. They keep the result governed, so compute them here rather than in a duckdb node. null for none.',
+                'Every calculation over the merged columns: ratios, year on year, shares of total, conditional labels. null for none.',
             ),
         sorts: z
             .array(sortFieldSchema)
             .nullish()
             .default(null)
             .describe(
-                'Sorts by merged column id (`merge_<name>`, `<source nodeId>_<fieldId>`). With several join keys, sort by each of them. null sorts by every join key, in order.',
+                'Sorts by merged column id (`merge_<name>`, `<source nodeId>_<fieldId>`). null sorts by every join key, in order.',
             ),
         limit: limitSchema,
     });

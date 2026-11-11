@@ -65,7 +65,7 @@ describe('getChartQueryDimensions', () => {
             },
             keyNames: { orders_order_date_month: 'month' },
             limit: 500,
-        } as SavedMergeDefinition;
+        };
         expect(getChartQueryDimensions(primary, null, merge)).toEqual([
             'merge_month',
             'monthly_orders_orders_status',

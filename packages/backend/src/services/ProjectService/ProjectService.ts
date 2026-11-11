@@ -122,6 +122,7 @@ import {
     getIntrinsicUserAttributes,
     getItemId,
     getItemMap,
+    getMergeSourceTableLabels,
     getMetricOverridesWithPopInheritance,
     getMetrics,
     getModelInventoryFromManifest,
@@ -516,7 +517,6 @@ import {
     getContentWriteAgentIdentity,
 } from '../AiAccessService/agentExecutionContext';
 import { AiAccessService } from '../AiAccessService/AiAccessService';
-import { getMergeSourceTableLabels } from '../AsyncQueryService/mergeQueryExecution';
 import { BaseService } from '../BaseService';
 import {
     NO_CLI_DEPLOY_SELECTION,
@@ -10690,10 +10690,6 @@ export class ProjectService
         // Present every merged column as an ordinary field. Downstream code
         // looks fields up by `getItemId`, so the items map is keyed by it and
         // the warehouse alias is kept only as the way back to the column.
-        const sourceIndexById = Object.fromEntries(
-            mergeQuery.sources.map((source, index) => [source.id, index]),
-        );
-
         const mergedItem = (itemArgs: {
             table: string;
             tableLabel: string;
@@ -10784,9 +10780,6 @@ export class ProjectService
             })),
             sourceTitleById: args.sourceTitleById ?? null,
         });
-        const sourceTableLabel = (sourceId: string) =>
-            tableLabelBySourceId[sourceId];
-
         const valueEntries: MergeItemEntry[] = valueFields.flatMap((field) => {
             const { sourceId, sourceFieldId } = field;
             if (!sourceId || !sourceFieldId) return [];
@@ -10798,7 +10791,7 @@ export class ProjectService
                         // Attributed to the query it came from, so two sources
                         // of the same explore cannot collide.
                         table: sourceId,
-                        tableLabel: sourceTableLabel(sourceId),
+                        tableLabel: tableLabelBySourceId[sourceId],
                         // The origin field id, not its bare name: within one
                         // query two joined tables can both expose a `status`.
                         name: sourceFieldId,

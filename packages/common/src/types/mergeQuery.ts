@@ -866,6 +866,39 @@ export const getMergeSourceTableLabel = (sourceIndex: number): string =>
  * as compiled when the warehouse is unknown, since the generic dialect can
  * break warehouse syntax such as `->>`. Null when the merge did not compile.
  */
+/** A source's header label: its explore's, told apart by slot when explores collide, or for a composer by node title. */
+export const getMergeSourceTableLabels = ({
+    sources,
+    sourceTitleById,
+}: {
+    sources: Array<{ id: string; exploreLabel: string }>;
+    sourceTitleById: Record<string, string> | null;
+}): Record<string, string> => {
+    const exploreLabels = sources.map(({ exploreLabel }) => exploreLabel);
+    const labelsCollide = new Set(exploreLabels).size < exploreLabels.length;
+    return Object.fromEntries(
+        sources.map(({ id, exploreLabel }, index) => {
+            if (sourceTitleById) {
+                const shared =
+                    exploreLabels.filter((label) => label === exploreLabel)
+                        .length > 1;
+                return [
+                    id,
+                    shared
+                        ? `${exploreLabel} (${sourceTitleById[id]})`
+                        : exploreLabel,
+                ];
+            }
+            return [
+                id,
+                labelsCollide
+                    ? `${exploreLabel} (${getMergeSourceTableLabel(index)})`
+                    : exploreLabel,
+            ];
+        }),
+    );
+};
+
 export const getMergeCompiledSqlText = (
     compiled: Pick<ApiCompiledMergeQueryResults, 'legs' | 'sql'>,
     warehouseType: WarehouseTypes | undefined,

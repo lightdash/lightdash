@@ -102,43 +102,6 @@ export const buildComposeMergeOriginalColumns = ({
         }),
     );
 
-/**
- * Headers say where a column came from, not which slot it rode in: the
- * explore's label, unless sources share an explore. The Explorer then tells
- * every source apart by slot; a composer tells only the sharing ones apart by node title.
- */
-export const getMergeSourceTableLabels = ({
-    sources,
-    sourceTitleById,
-}: {
-    sources: Array<{ id: string; exploreLabel: string }>;
-    sourceTitleById: Record<string, string> | null;
-}): Record<string, string> => {
-    const exploreLabels = sources.map(({ exploreLabel }) => exploreLabel);
-    const labelsCollide = new Set(exploreLabels).size < exploreLabels.length;
-    return Object.fromEntries(
-        sources.map(({ id, exploreLabel }, index) => {
-            if (sourceTitleById) {
-                const shared =
-                    exploreLabels.filter((label) => label === exploreLabel)
-                        .length > 1;
-                return [
-                    id,
-                    shared
-                        ? `${exploreLabel} (${sourceTitleById[id] ?? id})`
-                        : exploreLabel,
-                ];
-            }
-            return [
-                id,
-                labelsCollide
-                    ? `${exploreLabel} (${getMergeSourceTableLabel(index)})`
-                    : exploreLabel,
-            ];
-        }),
-    );
-};
-
 /** A composer merge's calculation columns read as their own names, without the merged table's label. */
 export const withBareCalculationLabels = (
     columns: ResultColumns,

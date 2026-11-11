@@ -5,6 +5,7 @@ import {
     DashboardTileTypes,
     getDefaultChartTileSize,
     hasUnusedDimensions,
+    normalizeSavedMergeDefinition,
     type CreateChartInDashboard,
     type CreateDashboardChartTile,
     type ChartMetadataStyle,
@@ -212,7 +213,12 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         const queryDimensions = getChartQueryDimensions(
             savedData.metricQuery,
             mergeResults,
-            savedData.merge ?? null,
+            savedData.merge
+                ? normalizeSavedMergeDefinition(
+                      savedData.merge,
+                      savedData.metricQuery,
+                  )
+                : null,
         );
         return hasUnusedDimensions({
             chartType: savedData.chartConfig?.type,

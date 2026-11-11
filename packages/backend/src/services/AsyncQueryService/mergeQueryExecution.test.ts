@@ -19,7 +19,6 @@ import {
     getMergeResultSourceCutShortError,
     getMergeRowCapError,
     getMergeSourceLabels,
-    getMergeSourceTableLabels,
     planMergeSourceTotalLegs,
     withBareCalculationLabels,
 } from './mergeQueryExecution';
@@ -543,49 +542,5 @@ describe('withBareCalculationLabels', () => {
                 label: 'Revenue per item',
             },
         });
-    });
-});
-
-describe('getMergeSourceTableLabels', () => {
-    const sources = [
-        { id: 'orders_2024', exploreLabel: 'Orders' },
-        { id: 'orders_2025', exploreLabel: 'Orders' },
-        { id: 'baskets', exploreLabel: 'Baskets' },
-    ];
-
-    test('the Explorer tells every source apart by slot when two share an explore', () => {
-        expect(
-            getMergeSourceTableLabels({ sources, sourceTitleById: null }),
-        ).toEqual({
-            orders_2024: 'Orders (Query A)',
-            orders_2025: 'Orders (Query B)',
-            baskets: 'Baskets (Query C)',
-        });
-    });
-
-    test('a composer tells only the sharing sources apart, by node title', () => {
-        expect(
-            getMergeSourceTableLabels({
-                sources,
-                sourceTitleById: {
-                    orders_2024: 'Orders 2024',
-                    orders_2025: 'Orders 2025',
-                    baskets: 'Baskets',
-                },
-            }),
-        ).toEqual({
-            orders_2024: 'Orders (Orders 2024)',
-            orders_2025: 'Orders (Orders 2025)',
-            baskets: 'Baskets',
-        });
-    });
-
-    test('a source of its own explore reads as the explore', () => {
-        expect(
-            getMergeSourceTableLabels({
-                sources: [sources[0], sources[2]],
-                sourceTitleById: { orders_2024: 'Orders 2024' },
-            }),
-        ).toEqual({ orders_2024: 'Orders', baskets: 'Baskets' });
     });
 });

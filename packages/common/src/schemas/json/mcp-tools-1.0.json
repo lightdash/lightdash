@@ -3735,7 +3735,7 @@
                                                 }
                                             ],
                                             "default": null,
-                                            "description": "Sorts by merged column id (`merge_<name>`, `<source nodeId>_<fieldId>`). With several join keys, sort by each of them. null sorts by every join key, in order."
+                                            "description": "Sorts by merged column id (`merge_<name>`, `<source nodeId>_<fieldId>`). null sorts by every join key, in order."
                                         },
                                         "sources": {
                                             "description": "The semanticLayer nodes to merge, in order; a left join keeps the first one's rows. Each node selects its join-key dimensions plus metrics; one source may keep another dimension when every other source sets repeatValues. Each returns fewer rows than its limit: a node cut off at its limit is refused.",
@@ -3823,7 +3823,7 @@
                                                                 "description": "How the column displays: match the metrics it is built from, so a revenue ratio is currency and a share is percent. null shows a plain number."
                                                             },
                                                             "formula": {
-                                                                "description": "Spreadsheet formula over merged columns by id: `<source nodeId>_<fieldId>` for a source's column, `merge_<name>` for a join key; another calculation is not a column. Sources `weekly_orders` and `weekly_sessions` give `weekly_orders_orders_total_revenue / weekly_sessions_sessions_count`. It supports: arithmetic across sources (dividing by zero gives blank); a blank-safe sum, `COALESCE(a, 0) + COALESCE(b, 0)`; SUM, AVG, MIN, MAX and COUNT over all rows, so `a / SUM(a)` is a share of total, and `SUM(a) OVER (PARTITION BY merge_<name>)` a group's total; LAG, LEAD, RUNNING_TOTAL, MOVING_AVG and RANK with an explicit order, as in `a / LAG(a, PARTITION BY merge_category, ORDER BY merge_year) - 1` for year on year (without ORDER BY a lag reads an arbitrary row); IF, AND, OR, ISNULL, ROUND, ABS. No SQL.",
+                                                                "description": "Spreadsheet formula over merged columns by id: `<source nodeId>_<fieldId>` for a source's column, `merge_<name>` for a join key. Sources `weekly_orders` and `weekly_sessions` give `weekly_orders_orders_total_revenue / weekly_sessions_sessions_count`. It supports: arithmetic across sources (dividing by zero gives blank); a blank-safe sum, `COALESCE(a, 0) + COALESCE(b, 0)`; SUM, AVG, MIN, MAX and COUNT over all rows, so `a / SUM(a)` is a share of total, and `SUM(a) OVER (PARTITION BY merge_<name>)` a group's total; LAG, LEAD, RUNNING_TOTAL, MOVING_AVG and RANK, each naming its order, as in `a / LAG(a, PARTITION BY merge_category, ORDER BY merge_year) - 1` for year on year; conditions with IF, ISNULL, comparisons and AND/OR between them; ROUND and ABS.",
                                                                 "type": "string"
                                                             },
                                                             "name": {
@@ -3846,7 +3846,7 @@
                                                 }
                                             ],
                                             "default": null,
-                                            "description": "Every calculation over the merged columns: ratios, year on year, shares of total, conditional labels. They keep the result governed, so compute them here rather than in a duckdb node. null for none."
+                                            "description": "Every calculation over the merged columns: ratios, year on year, shares of total, conditional labels. null for none."
                                         },
                                         "title": {
                                             "description": "Short label a reader understands without seeing the query, two to five words, e.g. \"Revenue by month\". Shown to users instead of the node id.",

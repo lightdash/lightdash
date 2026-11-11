@@ -5,6 +5,7 @@ import {
     buildMergeQueryFromSaved,
     buildSavedMergeDefinition,
     getMergeCompiledSqlText,
+    getMergeSourceTableLabels,
     getUnaccountedDimensions,
     getWarehouseDefaultNullsFirst,
     MAX_MERGE_TABLE_CALCULATION_FORMULA_LENGTH,
@@ -1119,5 +1120,49 @@ describe('null placement of a merged sort', () => {
             { fieldId: 'a_total', descending: true, nullsFirst: true },
             { fieldId: 'b_count', descending: true, nullsFirst: false },
         ]);
+    });
+});
+
+describe('getMergeSourceTableLabels', () => {
+    const sources = [
+        { id: 'orders_2024', exploreLabel: 'Orders' },
+        { id: 'orders_2025', exploreLabel: 'Orders' },
+        { id: 'baskets', exploreLabel: 'Baskets' },
+    ];
+
+    it('the Explorer tells every source apart by slot when two share an explore', () => {
+        expect(
+            getMergeSourceTableLabels({ sources, sourceTitleById: null }),
+        ).toEqual({
+            orders_2024: 'Orders (Query A)',
+            orders_2025: 'Orders (Query B)',
+            baskets: 'Baskets (Query C)',
+        });
+    });
+
+    it('a composer tells only the sharing sources apart, by node title', () => {
+        expect(
+            getMergeSourceTableLabels({
+                sources,
+                sourceTitleById: {
+                    orders_2024: 'Orders 2024',
+                    orders_2025: 'Orders 2025',
+                    baskets: 'Baskets',
+                },
+            }),
+        ).toEqual({
+            orders_2024: 'Orders (Orders 2024)',
+            orders_2025: 'Orders (Orders 2025)',
+            baskets: 'Baskets',
+        });
+    });
+
+    it('a source of its own explore reads as the explore', () => {
+        expect(
+            getMergeSourceTableLabels({
+                sources: [sources[0], sources[2]],
+                sourceTitleById: { orders_2024: 'Orders 2024' },
+            }),
+        ).toEqual({ orders_2024: 'Orders', baskets: 'Baskets' });
     });
 });
