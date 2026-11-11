@@ -1239,11 +1239,10 @@ export type QueryResultsPerformance = {
     queueTimeMs: number | null;
 };
 
-// Post-execution truth for pre-aggregate queries: which engine was planned
-// (null when the match was skipped before execution) and why the results were
-// served from the source warehouse instead.
+// Post-execution truth for pre-aggregate queries: which engine was planned and
+// whether execution failed and the results were served from the source warehouse.
 export type QueryResultsPreAggregate = {
-    execution: PreAggregateExecutionEngine | null;
+    execution: PreAggregateExecutionEngine;
     fallbackReason: PreAggregateFallbackReason | null;
 };
 

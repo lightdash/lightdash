@@ -585,16 +585,22 @@ export const getQueryResultsPreAggregate = (
         'preAggregateExecution' | 'preAggregateFallbackReason'
     >,
 ): QueryResultsPreAggregate | null => {
-    if (
-        queryHistory.preAggregateExecution === null &&
-        queryHistory.preAggregateFallbackReason === null
-    ) {
-        return null;
+    if (queryHistory.preAggregateExecution) {
+        return {
+            execution: queryHistory.preAggregateExecution,
+            fallbackReason: queryHistory.preAggregateFallbackReason,
+        };
     }
-    return {
-        execution: queryHistory.preAggregateExecution,
-        fallbackReason: queryHistory.preAggregateFallbackReason,
-    };
+    if (
+        queryHistory.preAggregateFallbackReason ===
+        'materialization_near_expiry'
+    ) {
+        return {
+            execution: 'duckdb',
+            fallbackReason: queryHistory.preAggregateFallbackReason,
+        };
+    }
+    return null;
 };
 
 export const QUEUED_QUERY_EXPIRED_MESSAGE =

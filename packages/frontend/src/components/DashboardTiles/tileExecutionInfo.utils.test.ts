@@ -21,7 +21,7 @@ describe('getResultSource', () => {
             'Warehouse (external pre-aggregate failed)',
         ],
         [
-            null,
+            'duckdb',
             'materialization_near_expiry',
             'Warehouse (pre-aggregate expired, refresh it)',
         ],

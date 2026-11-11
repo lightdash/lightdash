@@ -31420,14 +31420,14 @@ describe('getQueryResultsPreAggregate', () => {
         });
     });
 
-    it('returns the reason for a near-expiry skip that has no engine', () => {
+    it('returns the DuckDB engine and reason for a near-expiry skip', () => {
         expect(
             getQueryResultsPreAggregate({
                 preAggregateExecution: null,
                 preAggregateFallbackReason: 'materialization_near_expiry',
             }),
         ).toEqual({
-            execution: null,
+            execution: 'duckdb',
             fallbackReason: 'materialization_near_expiry',
         });
     });
