@@ -82,7 +82,11 @@ import {
     getSystemPromptV2,
     type CapabilitySectionArgs,
 } from '../prompts/systemV2';
-import { DOCUMENT_OFFER_LINE } from '../prompts/systemV2ContentTools';
+import {
+    DOCUMENT_OFFER_LINE,
+    includesDocumentOffer,
+    MIN_CHARTS_FOR_DOCUMENT_OFFER,
+} from '../prompts/systemV2ContentTools';
 import {
     accumulatePromptTokenUsage,
     completedPromptTokenUsage,
@@ -555,14 +559,14 @@ const isDocumentInput = (input: unknown): boolean =>
     'type' in input &&
     input.type === 'document';
 
-/** An earlier reply made a chart, and no Document was offered or saved yet. */
+/** Earlier replies made enough charts for an analysis, and no Document was offered or saved yet. The latest reply can add the last chart. */
 export const shouldOfferDocument = (
     messageHistory: ModelMessage[],
 ): boolean => {
     const latestUserIndex = messageHistory.findLastIndex(
         (message) => message.role === 'user',
     );
-    let hasChart = false;
+    let chartCount = 0;
     for (const message of messageHistory.slice(0, latestUserIndex)) {
         if (message.role === 'assistant') {
             const parts =
@@ -570,10 +574,7 @@ export const shouldOfferDocument = (
                     ? [{ type: 'text' as const, text: message.content }]
                     : message.content;
             for (const part of parts) {
-                if (
-                    part.type === 'text' &&
-                    part.text.includes(DOCUMENT_OFFER_LINE)
-                ) {
+                if (part.type === 'text' && includesDocumentOffer(part.text)) {
                     return false;
                 }
                 if (part.type === 'tool-call') {
@@ -584,13 +585,13 @@ export const shouldOfferDocument = (
                         return false;
                     }
                     if (part.toolName === 'generateVisualization') {
-                        hasChart = true;
+                        chartCount += 1;
                     }
                 }
             }
         }
     }
-    return hasChart;
+    return chartCount >= MIN_CHARTS_FOR_DOCUMENT_OFFER - 1;
 };
 
 const previousReplyOfferedDocument = (
@@ -611,7 +612,7 @@ const previousReplyOfferedDocument = (
                               part.type === 'text' ? part.text : '',
                           )
                           .join('');
-            if (text.includes(DOCUMENT_OFFER_LINE)) return true;
+            if (includesDocumentOffer(text)) return true;
         }
     }
     return false;
@@ -645,7 +646,7 @@ export const getDocumentNudgeOutcome = (
     return {
         documentNudgesEnabled,
         documentOfferShown:
-            documentNudgesEnabled && response.includes(DOCUMENT_OFFER_LINE),
+            documentNudgesEnabled && includesDocumentOffer(response),
         documentOfferAccepted:
             documentNudgesEnabled &&
             previousReplyOfferedDocument(args.messageHistory) &&
@@ -662,7 +663,7 @@ const withDocumentOfferHint = (
     );
     const lastUser = messageHistory[lastUserIndex];
     if (lastUser?.role !== 'user') return messageHistory;
-    const hint = `\n\n(If your reply creates a chart or concludes a finding that took several steps, end it with this line on its own: "${DOCUMENT_OFFER_LINE}" Skip it if this reply saves a Document.)`;
+    const hint = `\n\n(If your reply concludes a finding from the analysis so far, end it with this line on its own: "${DOCUMENT_OFFER_LINE}" Skip it if this reply only answers a quick follow-up or saves a Document.)`;
     const updatedContent =
         typeof lastUser.content === 'string'
             ? `${lastUser.content}${hint}`
