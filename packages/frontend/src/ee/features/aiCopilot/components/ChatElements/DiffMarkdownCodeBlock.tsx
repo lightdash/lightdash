@@ -6,7 +6,7 @@ import {
     Tooltip,
     useComputedColorScheme,
 } from '@mantine/core';
-import { PatchDiff } from '@pierre/diffs/react';
+import { PatchDiff, Virtualizer } from '@pierre/diffs/react';
 import { IconArrowsDiagonal, IconFileDiff } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { type CustomRendererProps } from 'streamdown';
@@ -21,20 +21,18 @@ const PlainDiff: FC<{ code: string }> = ({ code }) => (
     </Box>
 );
 
-const Diff: FC<{
-    code: string;
-    patch: string;
-    overflow: 'scroll' | 'wrap';
-}> = ({ code, patch, overflow }) => {
+type DiffProps = { patch: string; overflow: 'scroll' | 'wrap' };
+
+const DrawnDiff: FC<DiffProps> = ({ patch, overflow }) => {
     const colorScheme = useComputedColorScheme('light');
+    // Outside its own viewport the diff never draws once its header is turned off.
     return (
-        <AiMarkdownErrorBoundary fallback={<PlainDiff code={code} />}>
+        <Virtualizer>
             <PatchDiff
                 // The diff does not redraw when its patch changes.
                 key={patch}
                 patch={patch}
                 className={classes.host}
-                disableWorkerPool
                 options={{
                     diffStyle: 'unified',
                     // The header is ours: Pierre's carries a loud change icon.
@@ -47,9 +45,15 @@ const Diff: FC<{
                         colorScheme === 'dark' ? 'pierre-dark' : 'pierre-light',
                 }}
             />
-        </AiMarkdownErrorBoundary>
+        </Virtualizer>
     );
 };
+
+const Diff: FC<DiffProps & { code: string }> = ({ code, ...diff }) => (
+    <AiMarkdownErrorBoundary fallback={<PlainDiff code={code} />}>
+        <DrawnDiff {...diff} />
+    </AiMarkdownErrorBoundary>
+);
 
 /** A ```diff block in a reply, drawn as a real diff; a patch that is still streaming or does not parse reads as plain text. */
 export const DiffMarkdownCodeBlock: FC<CustomRendererProps> = ({
