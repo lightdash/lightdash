@@ -221,11 +221,6 @@ export const LiveSourcesTable: FC<{
                         title={target}
                     >
                         {connection.name}
-                        {connection.liveSourceName && (
-                            <Text span fz={12} c="dimmed" ml={6}>
-                                {connection.liveSourceName}
-                            </Text>
-                        )}
                     </Text>
                     <span role="cell" className={classes.number}>
                         {used.dataRead}
