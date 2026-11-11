@@ -10,6 +10,7 @@ import {
     type RefObject,
 } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import useIsEmbedded from '../../ee/providers/Embed/useIsEmbedded';
 import { useStableCallback } from '../../hooks/useStableCallback';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useTracking from '../../providers/Tracking/useTracking';
@@ -141,10 +142,12 @@ export const DateZoomEditorProvider: FC<{
         (c) => c.setDefaultDateZoomGranularity,
     );
     const { track } = useTracking();
-    // As the shipped bar: edit mode starts from the default, with no viewer's pick
+    // As the shipped bar: edit mode starts from the default, with no viewer's pick.
+    // Embeds keep the shipped date zoom, which never clears it.
+    const isEmbedded = useIsEmbedded();
     useEffect(() => {
-        if (!isViewer) setDateZoomGranularity(undefined);
-    }, [isViewer, setDateZoomGranularity]);
+        if (!isViewer && !isEmbedded) setDateZoomGranularity(undefined);
+    }, [isViewer, isEmbedded, setDateZoomGranularity]);
     const [state, setState] = useState<EditState | null>(null);
     // Derived: a mode change, or the zoom leaving the dashboard, ends the edit
     const edit =

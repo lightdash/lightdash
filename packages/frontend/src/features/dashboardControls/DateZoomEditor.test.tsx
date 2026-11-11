@@ -14,15 +14,22 @@ import {
 } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders } from '../../testing/testUtils';
-import { selectCurrentDateZoomConfig } from '../dashboard/store';
+import {
+    selectCurrentDateZoomConfig,
+    selectDateZoomGranularity,
+} from '../dashboard/store';
 import { DateZoomEditorProvider } from './DateZoomEditorProvider';
 import { DateZoomPills, DefaultZoomPill } from './DateZoomPills';
 import { ParameterEditorProvider } from './ParameterEditorProvider';
 import { useDateZoomEditorSelector } from './useDateZoomEditor';
 
-const { requestSwitch, track } = vi.hoisted(() => ({
+const { requestSwitch, track, embed } = vi.hoisted(() => ({
     requestSwitch: vi.fn((proceed: () => void) => proceed()),
     track: vi.fn(),
+    embed: { isEmbedded: false },
+}));
+vi.mock('../../ee/providers/Embed/useIsEmbedded', () => ({
+    default: () => embed.isEmbedded,
 }));
 vi.mock('../../providers/Tracking/useTracking', () => ({
     default: () => ({ track }),
@@ -83,13 +90,16 @@ const AddButton: FC = () => {
 const setup = ({
     isViewer = false,
     controlGranularities = {},
+    dateZoomGranularity,
 }: {
     isViewer?: boolean;
     controlGranularities?: Record<string, string>;
+    dateZoomGranularity?: DateGranularity;
 } = {}) => {
     const store = createDashboardTestStore({
         isEditMode: !isViewer,
         controlGranularities,
+        dateZoomGranularity,
         // tile-3 is in no zoom: the default zooms it
         chartZoomableFieldsByTileUuid: {
             'tile-3': [
@@ -135,6 +145,18 @@ const dialog = () => screen.getByRole('dialog');
 describe('Date zoom editor', () => {
     beforeEach(() => {
         requestSwitch.mockClear();
+        embed.isEmbedded = false;
+    });
+
+    it("clears the viewer's pick in edit mode, except in embeds", () => {
+        const app = setup({ dateZoomGranularity: DateGranularity.MONTH });
+        expect(selectDateZoomGranularity(app.store.getState())).toBeUndefined();
+
+        embed.isEmbedded = true;
+        const embedded = setup({ dateZoomGranularity: DateGranularity.MONTH });
+        expect(selectDateZoomGranularity(embedded.store.getState())).toBe(
+            DateGranularity.MONTH,
+        );
     });
 
     it('shows each zoom as "name is grain", hidden ones with their cue', () => {
