@@ -131,6 +131,7 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `SectionedFilters.tsx`, `SectionMenu.tsx`, `SectionNameInput.tsx`, `sections.ts`, `nameFocus.ts` | Sections bar, drag and drop, naming (focus after naming, shared with the editor's name); pure section helpers |
 | `controlOrder.ts` | Pure bar order and section line helpers, free of dnd-kit: the store and `utils/dashboardConfig.ts` import them |
 | `SelectionBar.tsx`, `SelectionActions.tsx`, `barSelection.ts` | Multi-select on the sectioned bar |
+| `useEditorSession.ts`, `EditorFocusReturn.tsx`, `controlKinds.ts` | The parameter and date zoom editors' shared session: the pending question, open, Apply, Cancel, Escape, a press outside, another kind's pill, mode change, mapping steps, focus return; each kind's pill selectors |
 | `DateZoomEditorProvider.tsx`, `useDateZoomEditor.ts`, `dateZoomControls.ts` | The date zoom editor: named zooms and the default zoom, their draft, Apply, switching, mapping; every write to the date zoom config from the bar; pure config helpers |
 | `DateZoomPills.tsx`, `useDateZoomBar.ts` | Named zoom pills (in the order, sections, drag and selection) and the default zoom pill, always last; each anchors its popover |
 | `DateZoomControlPopover.tsx`, `DefaultZoomPopover.tsx`, `GrainSelect.tsx`, `ControlPopoverParts.tsx`, `dateZoomGrains.ts`, `DateZoomGrainsMenu.tsx` | The date zoom popovers by props (draft held by the editor), the grain select, the "..." menu's grains |
@@ -206,8 +207,9 @@ Each one has broken before or would break silently.
   zoom editors each capture a click on another kind's pill or "Add"
   (`[data-controls-pill]`, `[data-parameter-pill]`, `[data-date-zoom-pill]`)
   and each lists the others' pills in its `useEditorDismiss` selector, so a
-  switch asks on unapplied changes instead of discarding them. A new kind
-  joins all three lists.
+  switch asks on unapplied changes instead of discarding them. The lists
+  come from `getOtherPillsSelector` (`controlKinds.ts`): a new kind joins
+  `PILL_SELECTORS` there.
 - **The date zoom config has one writer on the bar**, the date zoom editor:
   Apply, a section move and the X write the dashboard draft
   (`setDateZoomConfig`); Save is the only save. Writes read the config from

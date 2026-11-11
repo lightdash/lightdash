@@ -57,16 +57,9 @@ import {
     getFilterRuleWithDisabledState,
     isLockedRequiredMissingValue,
 } from '../dashboardFilters/FilterConfiguration/utils';
-import {
-    DATE_ZOOM_PILL_ACTION_SELECTOR,
-    DATE_ZOOM_PILL_SELECTOR,
-} from './dateZoomControls';
+import { getOtherPillsSelector } from './controlKinds';
 import { DateZoomEditorProvider } from './DateZoomEditorProvider';
 import { getLinkKey } from './linkCandidates';
-import {
-    PARAMETER_PILL_ACTION_SELECTOR,
-    PARAMETER_PILL_SELECTOR,
-} from './parameterControlsBar';
 import { ParameterEditorProvider } from './ParameterEditorProvider';
 import {
     getFieldCount,
@@ -1779,7 +1772,7 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
         dismiss,
         dismissOutside: requestClose,
         // A parameter's or a date zoom's pill switches as a filter's does
-        pillSelector: `[data-controls-pill], ${PARAMETER_PILL_SELECTOR}, ${PARAMETER_PILL_ACTION_SELECTOR}, ${DATE_ZOOM_PILL_SELECTOR}, ${DATE_ZOOM_PILL_ACTION_SELECTOR}`,
+        pillSelector: `[data-controls-pill], ${getOtherPillsSelector('filter', true)}`,
     });
 
     // Its own memo so a hover does not hand selectors a new object

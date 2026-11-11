@@ -3,7 +3,6 @@ import { isEqual } from 'es-toolkit/compat';
 import {
     useEffect,
     useMemo,
-    useRef,
     useState,
     type FC,
     type ReactNode,
@@ -27,8 +26,6 @@ import {
 } from '../dashboard/store';
 import {
     applyZoomDraft,
-    DATE_ZOOM_PILL_ACTION_SELECTOR,
-    DATE_ZOOM_PILL_SELECTOR,
     DEFAULT_DATE_ZOOM_NAME,
     DEFAULT_ZOOM_ID,
     dateZoomPillSelector,
@@ -39,7 +36,7 @@ import {
     type DateZoomTileTargets,
     type ZoomTileChange,
 } from './dateZoomControls';
-import { PARAMETER_PILL_SELECTOR } from './parameterControlsBar';
+import { EditorFocusReturn, type FocusTarget } from './EditorFocusReturn';
 import { useOrderSectionChanges } from './useControlOrder';
 import { type FieldApply } from './useControlsSidebar';
 import {
@@ -48,22 +45,9 @@ import {
     type DateZoomEditorValue,
 } from './useDateZoomEditor';
 import { useDateZoomMappingModel } from './useDateZoomMapping';
-import { useEditorDismiss } from './useEditorDismiss';
+import { useEditorSession, type EditSession } from './useEditorSession';
 
-const ADD_SELECTOR =
-    '[data-filter-actions] > button[data-dashboard-filter-control]';
-// What switches away from an open zoom: a filter's or a parameter's pill, or "Add"
-const OTHER_TARGET_SELECTOR = `[data-controls-pill], ${PARAMETER_PILL_SELECTOR}, ${ADD_SELECTOR}`;
-const APPLY_SELECTOR = '[data-controls-editor] [data-controls-apply]';
-const focusApply = () =>
-    document.querySelector<HTMLElement>(APPLY_SELECTOR)?.focus();
-
-type EditState = {
-    id: string;
-    // Started from "Add": not on the bar until Apply
-    isNew: boolean;
-    // The mode it started in: a mode change ends it, as Cancel
-    isViewer: boolean;
+type EditState = EditSession<DateZoomTileTargets> & {
     snapshot: DateZoomControl;
     draft: DateZoomControl;
     /** Every tile target as it opened, and as the draft leaves them. */
@@ -72,10 +56,6 @@ type EditState = {
     /** A viewer's pick (the default zoom's draft for an editor), as it opened and now; null: cleared. */
     snapshotPick: string | null;
     pick: string | null;
-    mapping: {
-        start: DateZoomTileTargets;
-        undo: { targets: DateZoomTileTargets; change: FieldApply } | null;
-    } | null;
 };
 
 // The section is no edit: it moves on the dashboard at once, as a filter's
@@ -88,31 +68,23 @@ const isDirty = (edit: EditState) =>
         : !isEqual(withoutSection(edit.snapshot), withoutSection(edit.draft)) ||
           !isEqual(edit.snapshotTargets, edit.draftTargets);
 
-type FocusTarget = { pillId: string; sectionId?: string };
+const noop = () => {};
 
-// The pill and this reader update together after the editor closes
+const findPill = (id: string) =>
+    document.querySelector<HTMLElement>(dateZoomPillSelector(id));
+
+// A reader of the context, so it runs once the pills have updated
 const DateZoomFocusReturn: FC<{ target: RefObject<FocusTarget | null> }> = ({
     target,
 }) => {
     const isOpen = useDateZoomEditorSelector((c) => c.editingId !== null);
-    useEffect(() => {
-        const current = target.current;
-        if (isOpen || current === null) return;
-        target.current = null;
-        const sectionAdd = current.sectionId
-            ? document.querySelector<HTMLElement>(
-                  `[data-section-add="${current.sectionId}"]`,
-              )
-            : null;
-        (
-            document.querySelector<HTMLElement>(
-                dateZoomPillSelector(current.pillId),
-            ) ??
-            sectionAdd ??
-            document.querySelector<HTMLElement>(ADD_SELECTOR)
-        )?.focus();
-    }, [isOpen, target]);
-    return null;
+    return (
+        <EditorFocusReturn
+            isOpen={isOpen}
+            target={target}
+            findPill={findPill}
+        />
+    );
 };
 
 // One date zoom edited at a time, beside the filter and parameter editors:
@@ -158,36 +130,7 @@ export const DateZoomEditorProvider: FC<{
             config.controls.some(({ uuid }) => uuid === state.id))
             ? state
             : null;
-    // What follows once "Apply changes first?" is answered
-    const [pending, setPending] = useState<{ proceed: () => void } | null>(
-        null,
-    );
-    const isAsking = edit !== null && pending !== null;
-    const latest = useRef(edit);
-    latest.current = edit;
-    const latestPending = useRef(pending);
-    latestPending.current = isAsking ? pending : null;
-    // The pill that takes focus once the popover has gone, else "Add"
-    const focusReturn = useRef<FocusTarget | null>(null);
-
-    const end = (focusId: string | null) => {
-        const current = latest.current;
-        focusReturn.current =
-            focusId === null
-                ? null
-                : {
-                      pillId: focusId,
-                      sectionId: current?.isNew
-                          ? current.snapshot.sectionId
-                          : undefined,
-                  };
-        latest.current = null;
-        latestPending.current = null;
-        setState(null);
-        setPending(null);
-    };
     const start = (control: DateZoomControl, isNew: boolean) => {
-        setPending(null);
         const isDefault = control.uuid === DEFAULT_ZOOM_ID;
         // The default's runtime grain was cleared as edit mode began
         const override = isDefault
@@ -201,7 +144,7 @@ export const DateZoomEditorProvider: FC<{
                 ? override
                 : (defaultGranularity ?? null)
             : (override ?? control.granularity);
-        setState({
+        session.begin({
             id: control.uuid,
             isNew,
             isViewer,
@@ -215,14 +158,7 @@ export const DateZoomEditorProvider: FC<{
         });
     };
 
-    const cancel = useStableCallback(() => {
-        const current = latest.current;
-        if (current !== null) end(current.id);
-    });
-
-    const apply = useStableCallback(() => {
-        const current = latest.current;
-        if (current === null) return;
+    const applyEdit = (current: EditState) => {
         if (current.id === DEFAULT_ZOOM_ID) {
             if (isDirty(current) && current.isViewer) {
                 // As the shipped menu's pick; cleared is its "Reset to default"
@@ -246,24 +182,32 @@ export const DateZoomEditorProvider: FC<{
                 }),
             );
         }
-        end(current.id);
-    });
+        return current.id;
+    };
 
-    const open = useStableCallback((control: DateZoomControl) => {
-        const current = latest.current;
-        if (current?.id === control.uuid) {
-            if (isDirty(current)) focusApply();
-            else cancel();
-            return;
-        }
-        // Another zoom: a clean edit switches, else the popover asks
-        if (current !== null && isDirty(current)) {
-            setPending({ proceed: () => start(control, false) });
-            focusApply();
-            return;
-        }
-        start(control, false);
+    const session = useEditorSession<EditState, DateZoomTileTargets>({
+        kind: 'dateZoom',
+        isViewer,
+        state,
+        edit,
+        setState,
+        isDirty,
+        applyEdit,
+        getMappingDraft: (current) => current.draftTargets,
+        withMappingDraft: (current, draftTargets) => ({
+            ...current,
+            draftTargets,
+        }),
+        // No key to clear: Escape dismisses
+        isFieldClicked: false,
+        clearField: noop,
     });
+    const { latest, isAsking, apply, cancel, resolvePending } = session;
+    const { endMapping, cancelMapping, undoMapping } = session;
+
+    const open = useStableCallback((control: DateZoomControl) =>
+        session.open(control.uuid, () => start(control, false)),
+    );
 
     const add = useStableCallback((sectionId: string | null) =>
         start(
@@ -277,36 +221,12 @@ export const DateZoomEditorProvider: FC<{
         ),
     );
 
-    // The prompt's answer: Apply or Discard, then what was clicked. The
-    // next editor takes focus, not this zoom's pill
-    const resolvePending = useStableCallback((isApply: boolean) => {
-        const next = latestPending.current;
-        if (next === null) return;
-        if (isApply) apply();
-        else cancel();
-        focusReturn.current = null;
-        next.proceed();
-    });
-
     const startMapping = useStableCallback(() => {
         const current = latest.current;
         if (current !== null && !current.isViewer)
             setState({
                 ...current,
                 mapping: { start: current.draftTargets, undo: null },
-            });
-    });
-    const endMapping = useStableCallback(() => {
-        const current = latest.current;
-        if (current?.mapping) setState({ ...current, mapping: null });
-    });
-    const cancelMapping = useStableCallback(() => {
-        const current = latest.current;
-        if (current?.mapping)
-            setState({
-                ...current,
-                draftTargets: current.mapping.start,
-                mapping: null,
             });
     });
     const setTiles = useStableCallback(
@@ -319,82 +239,15 @@ export const DateZoomEditorProvider: FC<{
                 changes,
             );
             if (isEqual(next, current.draftTargets)) return;
-            setState({
-                ...current,
-                draftTargets: next,
-                mapping: {
-                    ...current.mapping,
-                    undo: {
-                        targets: current.draftTargets,
-                        change: {
-                            kind,
-                            fieldId: current.id,
-                            tileCount: changes.length,
-                            replaced: 0,
-                            acrossTabs: true,
-                        },
-                    },
-                },
+            session.changeMapping(next, {
+                kind,
+                fieldId: current.id,
+                tileCount: changes.length,
+                replaced: 0,
+                acrossTabs: true,
             });
         },
     );
-    const undoMapping = useStableCallback(() => {
-        const current = latest.current;
-        if (current?.mapping?.undo)
-            setState({
-                ...current,
-                draftTargets: current.mapping.undo.targets,
-                mapping: { ...current.mapping, undo: null },
-            });
-    });
-
-    // Escape: in mapping, back to the popover while nothing changed there;
-    // else a question is withdrawn, else the edit is cancelled
-    const dismiss = useStableCallback(() => {
-        const mapping = latest.current?.mapping;
-        if (mapping) {
-            if (isEqual(mapping.start, latest.current?.draftTargets))
-                endMapping();
-            return;
-        }
-        if (latestPending.current === null) {
-            cancel();
-            return;
-        }
-        setPending(null);
-        setTimeout(() =>
-            document
-                .querySelector<HTMLElement>('[data-controls-editor] input')
-                ?.focus(),
-        );
-    });
-
-    // Another kind's pill or "Add" while a zoom is edited: a clean edit
-    // closes and the click goes on; with unapplied changes the popover asks,
-    // and the click is replayed once it is answered
-    const isOpenForCapture = edit !== null;
-    useEffect(() => {
-        if (!isOpenForCapture) return undefined;
-        const handleClick = (event: MouseEvent) => {
-            const current = latest.current;
-            const target =
-                event.target instanceof Element
-                    ? event.target.closest<HTMLElement>(OTHER_TARGET_SELECTOR)
-                    : null;
-            if (current === null || target === null) return;
-            if (!isDirty(current)) {
-                cancel();
-                focusReturn.current = null;
-                return;
-            }
-            event.preventDefault();
-            event.stopPropagation();
-            setPending({ proceed: () => target.click() });
-            focusApply();
-        };
-        document.addEventListener('click', handleClick, true);
-        return () => document.removeEventListener('click', handleClick, true);
-    }, [isOpenForCapture, cancel]);
 
     const setSection = useStableCallback(
         (id: string, sectionId: string | null) =>
@@ -435,55 +288,18 @@ export const DateZoomEditorProvider: FC<{
         if (current !== null) setState({ ...current, pick: granularity });
     });
 
-    const remove = useStableCallback((id: string) => {
-        if (latest.current?.id === id) setState(null);
-        focusReturn.current = null;
-        setDateZoomConfig(
-            removeZoom(selectCurrentDateZoomConfig(store.getState()), id),
-        );
-        setTimeout(() =>
-            document.querySelector<HTMLElement>(ADD_SELECTOR)?.focus(),
-        );
-    });
+    const remove = useStableCallback((id: string) =>
+        session.remove(id, () =>
+            setDateZoomConfig(
+                removeZoom(selectCurrentDateZoomConfig(store.getState()), id),
+            ),
+        ),
+    );
 
-    // A mode change ends the edit it started in, as the filter editor's:
-    // an editor's is applied, a viewer's (only picks) dropped.
-    // The one effect that writes the store
-    const unsettled = useRef(state);
-    unsettled.current = state;
-    const lastIsViewer = useRef(isViewer);
-    useEffect(() => {
-        if (lastIsViewer.current === isViewer) return;
-        lastIsViewer.current = isViewer;
-        const previous = unsettled.current;
-        if (previous === null) return;
-        if (!previous.isViewer) {
-            latest.current = previous;
-            latestPending.current = null;
-            apply();
-        }
-        end(null);
-    }, [isViewer, apply]);
-
-    const dismissOutside = useStableCallback(() => {
-        if (!latest.current?.mapping) cancel();
-    });
     const mapping = useDateZoomMappingModel(
         edit?.mapping ? edit.draft : null,
         edit?.draftTargets ?? null,
     );
-
-    useEditorDismiss({
-        isOpen: edit !== null,
-        isFieldClicked: false,
-        isAsking,
-        isPristineNew: false,
-        clearField: cancel,
-        dismiss,
-        // Mapping is left only by its own Cancel or Apply
-        dismissOutside,
-        pillSelector: `${DATE_ZOOM_PILL_SELECTOR}, ${DATE_ZOOM_PILL_ACTION_SELECTOR}, ${OTHER_TARGET_SELECTOR}`,
-    });
 
     const value = useMemo<DateZoomEditorValue>(
         () => ({
@@ -537,7 +353,7 @@ export const DateZoomEditorProvider: FC<{
     return (
         <DateZoomEditorContext.Provider value={value}>
             {children}
-            <DateZoomFocusReturn target={focusReturn} />
+            <DateZoomFocusReturn target={session.focusReturn} />
         </DateZoomEditorContext.Provider>
     );
 };

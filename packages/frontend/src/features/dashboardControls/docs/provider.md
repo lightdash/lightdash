@@ -137,7 +137,9 @@ keeps it.
 
 ## Date zoom editor (`DateZoomEditorProvider`)
 
-Mounted inside the parameter editor, with the same lifecycle: one zoom in
+Mounted inside the parameter editor, with the same lifecycle (both run
+`useEditorSession`; each kind keeps only its draft, Apply and mapping
+writes): one zoom in
 its popover, its draft (the control and every tile target) in the
 provider, Apply writes the dashboard draft once, Cancel drops it, a
 section change in Settings moves the zoom at once, a mode change applies an
