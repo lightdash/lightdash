@@ -182,12 +182,6 @@ export enum FeatureFlags {
     AiThreadRetention = 'ai-thread-retention',
 
     /**
-     * Per-organization gate for experimental surfaces in Lightdash Desktop.
-     * Desktop reads it once per sign-in. Off by default; enable per org.
-     */
-    DesktopExperiments = 'desktop-experiments',
-
-    /**
      * Prevent users from deleting their own AI agent threads. Admins can
      * still delete threads from the agent admin threads view. Off by default.
      */
