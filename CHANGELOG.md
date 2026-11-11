@@ -1,3 +1,10 @@
+# [3.210.0](https://github.com/lightdash/lightdash/compare/3.209.1...3.210.0) (2026-11-11)
+
+
+### Features
+
+* **data-apps:** one useAppState hook over url, user and shared scopes ([#32376](https://github.com/lightdash/lightdash/issues/32376)) ([23e79bb](https://github.com/lightdash/lightdash/commit/23e79bb021a50f2aa1c58ed508dd78b09065c0f5))
+
 ## [3.209.1](https://github.com/lightdash/lightdash/compare/3.209.0...3.209.1) (2026-11-11)
 
 
