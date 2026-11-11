@@ -1,3 +1,10 @@
+# [3.209.0](https://github.com/lightdash/lightdash/compare/3.208.0...3.209.0) (2026-11-11)
+
+
+### Features
+
+* **sync:** customize chart filters per Google Sheets sync ([#32325](https://github.com/lightdash/lightdash/issues/32325)) ([4b8596f](https://github.com/lightdash/lightdash/commit/4b8596f8d04bea07221549cf4d084f90286938d9))
+
 # [3.208.0](https://github.com/lightdash/lightdash/compare/3.207.0...3.208.0) (2026-11-10)
 
 
