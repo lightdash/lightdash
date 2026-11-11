@@ -1,14 +1,16 @@
 import { subject } from '@casl/ability';
 import {
-    AuthorizationError,
     ForbiddenError,
     getErrorMessage,
     isUserWithOrg,
+    LINEAR_CONNECT_ERROR_PARAM,
+    LinearConnectError,
     ParameterError,
     SessionUser,
     type LightdashUserWithOrg,
     type LinearCreatedIssue,
     type LinearInstallation,
+    type LinearOAuthCredentials,
     type LinearProject,
     type LinearTeam,
 } from '@lightdash/common'; // pragma: allowlist secret
@@ -24,15 +26,20 @@ import {
     getLinearOrganization,
     getLinearProjects,
     getLinearTeams,
+    LinearTokenRequestError,
     linkLinearIssueUrl,
     refreshLinearToken,
 } from '../../clients/linear/Linear';
 import { LightdashConfig } from '../../config/parseConfig'; // pragma: allowlist secret
 import { LinearAppInstallationsModel } from '../../models/LinearAppInstallations/LinearAppInstallationsModel';
+import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { BaseService } from '../BaseService';
+
+const MAX_CREDENTIAL_LENGTH = 255;
 
 type LinearAppServiceArguments = {
     linearAppInstallationsModel: LinearAppInstallationsModel;
+    encryptionUtil: EncryptionUtil;
     lightdashConfig: LightdashConfig; // pragma: allowlist secret
     analytics: LightdashAnalytics; // pragma: allowlist secret
     onWorkspaceChanged?: (
@@ -47,6 +54,8 @@ type LinearAppServiceArguments = {
 
 export class LinearAppService extends BaseService {
     private readonly linearAppInstallationsModel: LinearAppInstallationsModel;
+
+    private readonly encryptionUtil: EncryptionUtil;
 
     private readonly analytics: LightdashAnalytics; // pragma: allowlist secret
 
@@ -63,6 +72,7 @@ export class LinearAppService extends BaseService {
     constructor(args: LinearAppServiceArguments) {
         super();
         this.linearAppInstallationsModel = args.linearAppInstallationsModel;
+        this.encryptionUtil = args.encryptionUtil;
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
         this.onWorkspaceChanged =
@@ -99,35 +109,41 @@ export class LinearAppService extends BaseService {
         ).href;
     }
 
-    private async getClientId(
-        organizationUuid: string,
-        clientId?: string,
-    ): Promise<string> {
-        const requestedClientId = clientId?.trim();
-        if (clientId !== undefined && !requestedClientId) {
-            throw new ParameterError('Linear OAuth client ID is required');
+    private static validateCredentials(
+        credentials: LinearOAuthCredentials,
+    ): LinearOAuthCredentials {
+        const clientId = credentials.clientId.trim();
+        const clientSecret = credentials.clientSecret.trim();
+        if (!clientId || clientId.length > MAX_CREDENTIAL_LENGTH) {
+            throw new ParameterError('Linear OAuth client ID is invalid');
         }
-        if (requestedClientId) {
-            if (requestedClientId.length > 255) {
-                throw new ParameterError('Linear OAuth client ID is invalid');
-            }
-            return requestedClientId;
+        if (!clientSecret || clientSecret.length > MAX_CREDENTIAL_LENGTH) {
+            throw new ParameterError('Linear OAuth client secret is invalid');
         }
-
-        const auth =
-            await this.linearAppInstallationsModel.getAuth(organizationUuid);
-        if (!auth.clientId) {
-            throw new ParameterError('Linear OAuth client ID is required');
-        }
-        return auth.clientId;
+        return { clientId, clientSecret };
     }
 
-    async installRedirect(user: SessionUser, clientId?: string) {
+    private async getStoredCredentials(
+        organizationUuid: string,
+    ): Promise<LinearOAuthCredentials> {
+        const { clientId, clientSecret } =
+            await this.linearAppInstallationsModel.getAuth(organizationUuid);
+        if (!clientId || !clientSecret) {
+            throw new ParameterError(
+                'Enter the Linear OAuth client ID and client secret to reconnect',
+            );
+        }
+        return { clientId, clientSecret };
+    }
+
+    async installRedirect(
+        user: SessionUser,
+        credentials: LinearOAuthCredentials | null,
+    ) {
         this.canManageOrg(user);
-        const resolvedClientId = await this.getClientId(
-            user.organizationUuid,
-            clientId,
-        );
+        const { clientId, clientSecret } = credentials
+            ? LinearAppService.validateCredentials(credentials)
+            : await this.getStoredCredentials(user.organizationUuid);
         const state = nanoid();
         const codeVerifier = randomBytes(32).toString('base64url');
         const codeChallenge = createHash('sha256')
@@ -145,47 +161,66 @@ export class LinearAppService extends BaseService {
 
         return {
             installUrl: getLinearAuthorizationUrl(
-                resolvedClientId,
+                clientId,
                 redirectUri,
                 state,
                 codeChallenge,
             ),
-            returnToUrl: new URL(
-                '/generalSettings/ai/general',
-                this.lightdashConfig.siteUrl, // pragma: allowlist secret
-            ).href,
+            returnToUrl: this.getSettingsUrl(),
             state,
             linear: {
-                clientId: resolvedClientId,
+                clientId,
+                encryptedClientSecret: this.encryptionUtil
+                    .encrypt(clientSecret)
+                    .toString('base64'),
                 codeVerifier,
                 redirectUri,
             },
         };
     }
 
+    private getSettingsUrl(error: LinearConnectError | null = null) {
+        const url = new URL(
+            '/generalSettings/ai/general',
+            this.lightdashConfig.siteUrl, // pragma: allowlist secret
+        );
+        if (error) {
+            url.searchParams.set(LINEAR_CONNECT_ERROR_PARAM, error);
+        }
+        return url.href;
+    }
+
     async installCallback(
         user: SessionUser,
-        oauth: SessionData['oauth'],
-        code?: string,
-        state?: string,
+        oauth: SessionData['oauth'] | undefined,
+        params: { code?: string; state?: string; error?: string },
     ): Promise<string> {
         this.canManageOrg(user);
 
         try {
-            if (!state || state !== oauth?.state) {
-                throw new AuthorizationError('State does not match');
+            if (
+                !params.state ||
+                params.state !== oauth?.state ||
+                !oauth.linear
+            ) {
+                return this.getSettingsUrl(LinearConnectError.SESSION_EXPIRED);
             }
-            if (!code) {
-                throw new ParameterError('Code not provided');
-            }
-            if (!oauth.linear) {
-                throw new ParameterError('Linear OAuth session not found');
+            if (params.error || !params.code) {
+                return this.getSettingsUrl(LinearConnectError.CANCELLED);
             }
 
-            const { clientId, codeVerifier, redirectUri } = oauth.linear;
-            const { token, refreshToken } = await exchangeLinearCodeForToken(
-                code,
+            const {
                 clientId,
+                encryptedClientSecret,
+                codeVerifier,
+                redirectUri,
+            } = oauth.linear;
+            const clientSecret = this.encryptionUtil.decrypt(
+                Buffer.from(encryptedClientSecret, 'base64'),
+            );
+            const { token, refreshToken } = await exchangeLinearCodeForToken(
+                params.code,
+                { clientId, clientSecret },
                 redirectUri,
                 codeVerifier,
             );
@@ -205,6 +240,7 @@ export class LinearAppService extends BaseService {
                         token,
                         refreshToken,
                         clientId,
+                        clientSecret,
                         organizationName: linearOrganization.name,
                         organizationUrlKey: linearOrganization.urlKey,
                     },
@@ -219,24 +255,28 @@ export class LinearAppService extends BaseService {
                 event: 'linear_install.completed',
                 userId: user.userUuid,
                 properties: {
-                    organizationId: user.organizationUuid!,
+                    organizationId: user.organizationUuid,
                 },
             });
 
-            const returnToUrl = new URL(
-                oauth.returnTo ?? this.lightdashConfig.siteUrl, // pragma: allowlist secret
-            );
-            return returnToUrl.href;
+            return new URL(oauth.returnTo ?? this.getSettingsUrl()).href;
         } catch (error) {
+            const reason =
+                error instanceof LinearTokenRequestError
+                    ? error.reason
+                    : LinearConnectError.UNKNOWN;
+            this.logger.warn(
+                `Linear install failed (${reason}): ${getErrorMessage(error)}`,
+            );
             this.analytics.track({
                 event: 'linear_install.error',
                 userId: user.userUuid,
                 properties: {
-                    organizationId: user.organizationUuid!,
-                    error: getErrorMessage(error),
+                    organizationId: user.organizationUuid,
+                    error: reason,
                 },
             });
-            throw error;
+            return this.getSettingsUrl(reason);
         }
     }
 
@@ -338,6 +378,7 @@ export class LinearAppService extends BaseService {
             const refreshed = await refreshLinearToken(
                 auth.refreshToken,
                 auth.clientId,
+                auth.clientSecret,
             );
             await this.linearAppInstallationsModel.updateAuth(
                 organizationUuid,

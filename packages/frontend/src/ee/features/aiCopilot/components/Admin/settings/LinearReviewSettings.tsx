@@ -1,4 +1,9 @@
 import {
+    isLinearConnectError,
+    LINEAR_CONNECT_ERROR_PARAM,
+} from '@lightdash/common';
+import {
+    Alert,
     Badge,
     Button,
     Checkbox,
@@ -7,16 +12,23 @@ import {
     Loader,
     MultiSelect,
     Paper,
+    PasswordInput,
     Select,
     Stack,
     Switch,
     Text,
     TextInput,
 } from '@mantine/core';
-import { IconExternalLink, IconTrash } from '@tabler/icons-react';
+import {
+    IconAlertCircle,
+    IconExternalLink,
+    IconTrash,
+} from '@tabler/icons-react';
 import { useMemo, useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router';
 import {
     useDeleteLinearInstallationMutation,
+    useInstallLinear,
     useLinearInstallation,
     useLinearProjects,
     useLinearTeams,
@@ -32,7 +44,10 @@ import {
     useUpdateReviewLinearRouting,
 } from '../../../hooks/useReviewNotificationSettings';
 import styles from './LinearReviewSettings.module.css';
-import { buildLinearAppSetupUrl } from './linearReviewSettingsUtils';
+import {
+    buildLinearAppSetupUrl,
+    getLinearConnectErrorMessage,
+} from './linearReviewSettingsUtils';
 
 const selectOptionsWithCurrent = (
     options: Array<{ value: string; label: string }>,
@@ -48,6 +63,9 @@ const selectOptionsWithCurrent = (
     return [...options, { value: currentValue, label: currentValue }];
 };
 
+// Matches MAX_CREDENTIAL_LENGTH in LinearAppService
+const MAX_CREDENTIAL_LENGTH = 255;
+
 const LinearLogo = ({ compact = false }: { compact?: boolean }) => (
     <img
         src={linearSvg}
@@ -59,6 +77,22 @@ const LinearLogo = ({ compact = false }: { compact?: boolean }) => (
 export const LinearReviewSettings = () => {
     const { health, user } = useApp();
     const [linearClientId, setLinearClientId] = useState('');
+    const [linearClientSecret, setLinearClientSecret] = useState('');
+    const installLinear = useInstallLinear();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const connectErrorParam = searchParams.get(LINEAR_CONNECT_ERROR_PARAM);
+    const connectError = isLinearConnectError(connectErrorParam)
+        ? connectErrorParam
+        : null;
+    const dismissConnectError = () => {
+        setSearchParams(
+            (params) => {
+                params.delete(LINEAR_CONNECT_ERROR_PARAM);
+                return params;
+            },
+            { replace: true },
+        );
+    };
     const canEdit = user.data?.ability?.can('manage', 'Organization') ?? false;
     const siteUrl = health.data?.siteUrl ?? window.location.origin;
 
@@ -69,6 +103,7 @@ export const LinearReviewSettings = () => {
     const installationLoading = linearInstallationQuery.isInitialLoading;
     const hasLinear = !!installation;
     const requiresReconnect = installation?.requiresReconnect === true;
+    const requiresClientSecret = installation?.requiresClientSecret === true;
     const canLoadLinear = hasLinear && !requiresReconnect;
     const { data: linearTeams, isInitialLoading: linearTeamsLoading } =
         useLinearTeams({ enabled: canLoadLinear });
@@ -89,13 +124,16 @@ export const LinearReviewSettings = () => {
         useDeleteLinearInstallationMutation();
     const isUpdating = routingUpdating || linearDeleting || linearBackfilling;
 
+    const canConnect =
+        linearClientId.trim().length > 0 &&
+        linearClientSecret.trim().length > 0;
     const submitLinearOAuth = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        const clientId = linearClientId.trim();
-        if (!clientId) return;
-        window.location.assign(
-            `/api/v1/linear/install?clientId=${encodeURIComponent(clientId)}`,
-        );
+        if (!canConnect) return;
+        installLinear.mutate({
+            clientId: linearClientId.trim(),
+            clientSecret: linearClientSecret.trim(),
+        });
     };
 
     const setupUrl = useMemo(() => buildLinearAppSetupUrl(siteUrl), [siteUrl]);
@@ -157,24 +195,34 @@ export const LinearReviewSettings = () => {
                 <TextInput
                     className={styles.clientIdInput}
                     size="xs"
-                    label="Linear OAuth client ID"
+                    label="Client ID"
                     value={linearClientId}
-                    placeholder="Paste the client ID from Linear"
+                    maxLength={MAX_CREDENTIAL_LENGTH}
                     disabled={!canEdit || isUpdating}
                     onChange={(event) =>
                         setLinearClientId(event.currentTarget.value)
                     }
                 />
+                <PasswordInput
+                    className={styles.clientIdInput}
+                    size="xs"
+                    label="Client secret"
+                    value={linearClientSecret}
+                    maxLength={MAX_CREDENTIAL_LENGTH}
+                    disabled={!canEdit || isUpdating}
+                    onChange={(event) =>
+                        setLinearClientSecret(event.currentTarget.value)
+                    }
+                />
                 <Button
                     type="submit"
                     size="xs"
-                    disabled={
-                        !canEdit ||
-                        isUpdating ||
-                        linearClientId.trim().length === 0
-                    }
+                    disabled={!canEdit || isUpdating || !canConnect}
+                    loading={installLinear.isLoading}
                 >
-                    {requiresReconnect ? 'Reconnect Linear' : 'Connect Linear'}
+                    {requiresReconnect || requiresClientSecret
+                        ? 'Reconnect Linear'
+                        : 'Connect Linear'}
                 </Button>
             </Group>
         </form>
@@ -240,6 +288,21 @@ export const LinearReviewSettings = () => {
                 )}
             </SettingRow>
 
+            {connectError && (
+                <Alert
+                    icon={<MantineIcon icon={IconAlertCircle} />}
+                    color="red"
+                    title="Couldn't connect Linear"
+                    withCloseButton
+                    closeButtonLabel="Dismiss"
+                    onClose={dismissConnectError}
+                >
+                    <Text size="xs">
+                        {getLinearConnectErrorMessage(connectError)}
+                    </Text>
+                </Alert>
+            )}
+
             {!hasLinear && !installationLoading && (
                 <Paper variant="dotted" p="md" radius="md">
                     <Stack gap="md">
@@ -251,7 +314,7 @@ export const LinearReviewSettings = () => {
                                 </Text>
                                 <Text c="dimmed" fz="xs">
                                     Opens Linear with the callback already
-                                    filled in. Private app, no client secret.
+                                    filled in. Keep the app private.
                                 </Text>
                                 <Button
                                     size="xs"
@@ -277,11 +340,11 @@ export const LinearReviewSettings = () => {
                             <Text className={styles.stepIndex}>2</Text>
                             <Stack gap={6} flex={1}>
                                 <Text fw={600} fz="sm">
-                                    Paste the client ID and connect
+                                    Paste the client credentials and connect
                                 </Text>
                                 <Text c="dimmed" fz="xs">
-                                    Use the public client ID from the app you
-                                    just created.
+                                    Copy the client ID and client secret from
+                                    the app you just created.
                                 </Text>
                                 {connectForm}
                             </Stack>
@@ -298,8 +361,8 @@ export const LinearReviewSettings = () => {
                         </Text>
                         <Text c="dimmed" fz="xs">
                             The saved app can no longer create issues. Create a
-                            new private app or reconnect with the same client
-                            ID.
+                            new private app or reconnect with the client ID and
+                            client secret of the existing one.
                         </Text>
                         <Button
                             size="xs"
@@ -318,6 +381,23 @@ export const LinearReviewSettings = () => {
                         >
                             Create Linear app
                         </Button>
+                        {connectForm}
+                    </Stack>
+                </Paper>
+            )}
+
+            {hasLinear && !requiresReconnect && requiresClientSecret && (
+                <Paper variant="dotted" p="md" radius="md">
+                    <Stack gap="xs">
+                        <Text fw={600} fz="sm">
+                            Add the client secret to keep exporting issues
+                        </Text>
+                        <Text c="dimmed" fz="xs">
+                            Linear now requires the app's client secret. The
+                            connection still works, but it can stop when Linear
+                            renews its token. Paste the client ID and client
+                            secret of your Linear app and reconnect.
+                        </Text>
                         {connectForm}
                     </Stack>
                 </Paper>
@@ -433,15 +513,17 @@ export const LinearReviewSettings = () => {
                                 Create issues for existing findings
                             </Button>
                         )}
-                        <Button
-                            size="xs"
-                            variant="default"
-                            component="a"
-                            href="/api/v1/linear/install"
-                            disabled={!canEdit || isUpdating}
-                        >
-                            Reconnect
-                        </Button>
+                        {!requiresClientSecret && (
+                            <Button
+                                size="xs"
+                                variant="default"
+                                component="a"
+                                href="/api/v1/linear/install"
+                                disabled={!canEdit || isUpdating}
+                            >
+                                Reconnect
+                            </Button>
+                        )}
                         <Button
                             type="button"
                             size="xs"

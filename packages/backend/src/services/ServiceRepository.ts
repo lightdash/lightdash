@@ -669,6 +669,7 @@ export class ServiceRepository
                 new LinearAppService({
                     linearAppInstallationsModel:
                         this.models.getLinearAppInstallationsModel(),
+                    encryptionUtil: this.utils.getEncryptionUtil(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics, // pragma: allowlist secret
                 }),

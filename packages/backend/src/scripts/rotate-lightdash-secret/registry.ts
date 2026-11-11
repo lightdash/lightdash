@@ -97,6 +97,11 @@ export const CIPHERTEXT_REGISTRY: CiphertextRegistryEntry[] = [
         column: 'encrypted_refresh_token',
     },
     {
+        table: 'linear_app_installations',
+        primaryKeyColumn: 'linear_app_installation_uuid',
+        column: 'encrypted_linear_client_secret',
+    },
+    {
         table: 'git_user_credentials',
         primaryKeyColumn: 'git_user_credential_uuid',
         column: 'encrypted_auth_token',
