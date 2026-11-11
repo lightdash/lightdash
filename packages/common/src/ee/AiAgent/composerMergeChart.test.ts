@@ -324,7 +324,10 @@ describe('getComposerMergeSavedChart', () => {
             columns: twoSourceColumns,
             metadata,
         });
-        expect(saved?.chartConfig).toEqual({ type: ChartType.TABLE });
+        expect(saved?.chartConfig).toEqual({
+            type: ChartType.TABLE,
+            config: {},
+        });
         expect(saved?.pivotConfig).toBeUndefined();
     });
 

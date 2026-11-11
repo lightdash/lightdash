@@ -33,7 +33,11 @@ const getChart = (
 ): { chartConfig: ChartConfig; pivotColumns: string[] } | null => {
     const { vizConfig } = config;
     if (vizConfig === null || vizConfig.type === 'table') {
-        return { chartConfig: { type: ChartType.TABLE }, pivotColumns: [] };
+        // An absent config is stored as null, which the saved-chart viewer rejects
+        return {
+            chartConfig: { type: ChartType.TABLE, config: {} },
+            pivotColumns: [],
+        };
     }
     // Custom chart types pivot from their bundle's schema; not carried yet.
     if (vizConfig.type === 'custom') return null;
