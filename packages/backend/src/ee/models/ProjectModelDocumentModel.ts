@@ -20,6 +20,7 @@ import {
     type DraftImpactBreaks,
     type DraftImpactCheckStatus,
 } from '../../database/entities/projectModelDraftImpacts';
+import { UserTableName } from '../../database/entities/users';
 import { AiPromptTableName } from '../database/entities/ai';
 
 const MODEL_HISTORY_LIMIT = 50;
@@ -227,6 +228,124 @@ export class ProjectModelDocumentModel {
                 models: `${ProjectModelDraftChangesTableName}.models`,
             })
             .orderBy(`${ProjectModelDraftChangesTableName}.created_at`, 'asc');
+    }
+
+    /** The models other people have unpublished changes to, with who; never what the changes are. */
+    async findOtherDrafters(
+        projectUuid: string,
+        userUuid: string,
+    ): Promise<{ name: string; models: string[] }[]> {
+        const rows = await this.database(ProjectModelDraftChangesTableName)
+            .innerJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${ProjectModelDraftChangesTableName}.created_by_user_uuid`,
+            )
+            .select<
+                {
+                    userUuid: string;
+                    firstName: string;
+                    lastName: string;
+                    models: { name: string }[];
+                }[]
+            >({
+                userUuid: `${UserTableName}.user_uuid`,
+                firstName: `${UserTableName}.first_name`,
+                lastName: `${UserTableName}.last_name`,
+                models: `${ProjectModelDraftChangesTableName}.models`,
+            })
+            .where(
+                `${ProjectModelDraftChangesTableName}.project_uuid`,
+                projectUuid,
+            )
+            .where(`${ProjectModelDraftChangesTableName}.status`, 'draft')
+            .whereNot(
+                `${ProjectModelDraftChangesTableName}.created_by_user_uuid`,
+                userUuid,
+            );
+        return Object.values(groupBy(rows, (row) => row.userUuid)).map(
+            (changes) => ({
+                name: `${changes[0].firstName} ${changes[0].lastName}`.trim(),
+                models: [
+                    ...new Set(
+                        changes.flatMap(({ models }) =>
+                            models.map(({ name }) => name),
+                        ),
+                    ),
+                ],
+            }),
+        );
+    }
+
+    /** The latest change anyone else published to each of these models after the given time. */
+    async findPublishedSince(
+        projectUuid: string,
+        userUuid: string,
+        since: Map<string, Date>,
+    ): Promise<Map<string, { by: string | null; at: Date }>> {
+        if (since.size === 0) return new Map();
+        const rows = await this.database(ProjectModelRevisionsTableName)
+            .innerJoin(
+                ProjectModelChangeSetsTableName,
+                `${ProjectModelChangeSetsTableName}.project_model_change_set_uuid`,
+                `${ProjectModelRevisionsTableName}.project_model_change_set_uuid`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${ProjectModelChangeSetsTableName}.created_by_user_uuid`,
+            )
+            .select<
+                {
+                    model: string;
+                    firstName: string | null;
+                    lastName: string | null;
+                    at: Date;
+                }[]
+            >({
+                model: `${ProjectModelRevisionsTableName}.name`,
+                firstName: `${UserTableName}.first_name`,
+                lastName: `${UserTableName}.last_name`,
+                at: `${ProjectModelChangeSetsTableName}.created_at`,
+            })
+            .where(
+                `${ProjectModelChangeSetsTableName}.project_uuid`,
+                projectUuid,
+            )
+            .whereIn(`${ProjectModelRevisionsTableName}.name`, [
+                ...since.keys(),
+            ])
+            .where((builder) =>
+                builder
+                    .whereNull(
+                        `${ProjectModelChangeSetsTableName}.created_by_user_uuid`,
+                    )
+                    .orWhereNot(
+                        `${ProjectModelChangeSetsTableName}.created_by_user_uuid`,
+                        userUuid,
+                    ),
+            )
+            .orderBy(`${ProjectModelChangeSetsTableName}.created_at`, 'asc');
+        // Oldest first, so the last one kept for a model is its latest.
+        return new Map(
+            rows.flatMap(({ model, firstName, lastName, at }) => {
+                const started = since.get(model);
+                return started && at > started
+                    ? [
+                          [
+                              model,
+                              {
+                                  by:
+                                      firstName === null
+                                          ? null
+                                          : `${firstName} ${lastName ?? ''}`.trim(),
+                                  at,
+                              },
+                          ],
+                      ]
+                    : [];
+            }),
+        );
     }
 
     /** What became of a person's recent draft changes, newest first. */

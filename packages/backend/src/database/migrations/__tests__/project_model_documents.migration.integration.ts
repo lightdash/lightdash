@@ -302,6 +302,70 @@ describe('Project model documents on PostgreSQL', () => {
         ).toEqual([expect.objectContaining({ status: 'discarded' })]);
     });
 
+    test('names who else is drafting a model and what was published under a draft', async () => {
+        const [other] = await migrated
+            .database('users')
+            .insert({ first_name: 'Ada', last_name: 'Lovelace' } as never)
+            .returning('user_uuid');
+        await migrated.database('project_model_draft_changes').insert({
+            project_uuid: projectUuid,
+            created_by_user_uuid: other.user_uuid,
+            prompt_uuid: null,
+            models: JSON.stringify([
+                {
+                    name: 'orders',
+                    yaml: 'label: x',
+                    remove: [],
+                    removeModel: false,
+                },
+            ]),
+        });
+        expect(await model.findOtherDrafters(projectUuid, userUuid)).toEqual([
+            { name: 'Ada Lovelace', models: ['orders'] },
+        ]);
+        expect(
+            await model.findOtherDrafters(projectUuid, other.user_uuid),
+        ).toEqual([]);
+
+        const before = new Date(Date.now() - 60_000);
+        await model.createChangeSet(
+            {
+                projectUuid,
+                userUuid: other.user_uuid,
+                source: {
+                    kind: 'draft',
+                    promptUuid: null,
+                    drafts: { changeUuids: [], model: null },
+                },
+                readVersions: new Map(),
+                documents: [{ name: 'orders', content: 'v1' }],
+            },
+            async () => 'deployed',
+        );
+        const published = await model.findPublishedSince(
+            projectUuid,
+            userUuid,
+            new Map([
+                ['orders', before],
+                ['customers', before],
+            ]),
+        );
+        expect(published.get('orders')).toEqual(
+            expect.objectContaining({ by: 'Ada Lovelace' }),
+        );
+        expect(published.has('customers')).toBe(false);
+        // What a person published themself is not news to them.
+        expect(
+            (
+                await model.findPublishedSince(
+                    projectUuid,
+                    other.user_uuid,
+                    new Map([['orders', before]]),
+                )
+            ).size,
+        ).toBe(0);
+    });
+
     test('a draft applied as a pull request keeps the link', async () => {
         const drafts = { changeUuids: [await draft(['orders'])], model: null };
         await model.updateDraftChangeStatus({

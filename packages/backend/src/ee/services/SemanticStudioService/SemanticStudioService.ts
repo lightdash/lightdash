@@ -4,6 +4,7 @@ import {
     ExploreType,
     FeatureFlags,
     ForbiddenError,
+    getItemId,
     isChartValidationError,
     isDashboardValidationError,
     isExploreError,
@@ -20,6 +21,7 @@ import {
     type SemanticLayerDraftImpact,
     type SemanticLayerDraftItemResult,
     type SemanticLayerDraftModelInput,
+    type SemanticLayerDraftUsage,
     type SemanticLayerModelCode,
     type SemanticLayerStatus,
     type SessionUser,
@@ -27,6 +29,7 @@ import {
 import { createHash } from 'node:crypto';
 import { type DraftImpactBreaks } from '../../../database/entities/projectModelDraftImpacts';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import { type SavedChartModel } from '../../../models/SavedChartModel';
 import { BaseService } from '../../../services/BaseService';
 import { type ProjectService } from '../../../services/ProjectService/ProjectService';
 import { type ValidationService } from '../../../services/ValidationService/ValidationService';
@@ -80,6 +83,8 @@ export type SemanticStudioServiceArguments = {
         | 'findChangeSets'
         | 'findModelHistory'
         | 'findDraftChanges'
+        | 'findOtherDrafters'
+        | 'findPublishedSince'
         | 'findSettledDraftChanges'
         | 'createDraftChange'
         | 'updateDraftChangeStatus'
@@ -101,6 +106,7 @@ export type SemanticStudioServiceArguments = {
         RepoModelSource,
         'isInstalled' | 'load' | 'openPullRequest'
     >;
+    savedChartModel: Pick<SavedChartModel, 'analyzeFieldImpact'>;
 };
 
 /** A proposal once it was checked on top of the person's draft. */
@@ -169,6 +175,9 @@ const failed = (
 });
 
 /** Keeps a project's native models on the server and takes reviewed drafts of them live. */
+// ponytail: a draft that redefines more fields than this is only partly looked up; page the lookup if drafts grow that large.
+const MAX_USAGE_FIELDS = 40;
+
 export class SemanticStudioService extends BaseService {
     private readonly featureFlagModel: SemanticStudioServiceArguments['featureFlagModel'];
 
@@ -184,6 +193,8 @@ export class SemanticStudioService extends BaseService {
 
     private readonly repoModels: SemanticStudioServiceArguments['repoModels'];
 
+    private readonly savedChartModel: SemanticStudioServiceArguments['savedChartModel'];
+
     private readonly checker: DraftChecker;
 
     constructor(args: SemanticStudioServiceArguments) {
@@ -195,6 +206,7 @@ export class SemanticStudioService extends BaseService {
         this.validationService = args.validationService;
         this.schedulerClient = args.schedulerClient;
         this.repoModels = args.repoModels;
+        this.savedChartModel = args.savedChartModel;
         this.checker = new DraftChecker(args.projectService);
     }
 
@@ -559,10 +571,28 @@ export class SemanticStudioService extends BaseService {
             ),
         ]);
         if (draft.changes.length === 0) return { ...EMPTY_DRAFT, settled };
-        const { explores } = await this.checker.compile(
-            projectUuid,
-            withWrites(draft.live, draft.writes),
+        // When each model first joined the draft: what was published after that happened under it.
+        const startedAt = new Map<string, Date>();
+        draft.changes.forEach(({ createdAt }, index) =>
+            draft.results[index].forEach(({ model }) => {
+                if (!startedAt.has(model)) startedAt.set(model, createdAt);
+            }),
         );
+        const [{ explores }, drafters, publishedSince] = await Promise.all([
+            this.checker.compile(
+                projectUuid,
+                withWrites(draft.live, draft.writes),
+            ),
+            this.projectModelDocumentModel.findOtherDrafters(
+                projectUuid,
+                user.userUuid,
+            ),
+            this.projectModelDocumentModel.findPublishedSince(
+                projectUuid,
+                user.userUuid,
+                startedAt,
+            ),
+        ]);
         return {
             changes: draft.changes.map((change, index) => ({
                 draftChangeUuid: change.draftChangeUuid,
@@ -585,6 +615,10 @@ export class SemanticStudioService extends BaseService {
                     contentAfter,
                     explore:
                         explore && !isExploreError(explore) ? explore : null,
+                    alsoChanging: drafters
+                        .filter(({ models }) => models.includes(model))
+                        .map(({ name }) => name),
+                    publishedSince: publishedSince.get(model) ?? null,
                 };
             }),
             errors: explores.filter(isExploreError).map(({ name, errors }) => ({
@@ -592,6 +626,89 @@ export class SemanticStudioService extends BaseService {
                 message: errors.map(({ message }) => message).join('; '),
             })),
             settled,
+        };
+    }
+
+    /**
+     * The saved content that reads a field the draft defines differently or removes.
+     * A changed definition breaks nothing, so the impact check never mentions it,
+     * yet every chart on it shows a different number after publishing.
+     */
+    async getDraftUsage(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SemanticLayerDraftUsage> {
+        const nothing = { fields: [], checkedFields: 0 };
+        if (!(await this.canEditModels(user, projectUuid))) return nothing;
+        const draft = await this.loadDraft(projectUuid, user.userUuid, null);
+        if (draft.writes.size === 0) return nothing;
+        const [before, after] = await Promise.all([
+            this.checker.compile(projectUuid, draft.live),
+            this.checker.compile(
+                projectUuid,
+                withWrites(draft.live, draft.writes),
+            ),
+        ]);
+        const fieldsOf = (
+            explores: (Explore | ExploreError)[],
+            model: string,
+        ) => {
+            const explore = explores.find(({ name }) => name === model);
+            const table =
+                explore && !isExploreError(explore)
+                    ? explore.tables[explore.baseTable]
+                    : undefined;
+            return new Map(
+                table
+                    ? [
+                          ...Object.values(table.dimensions),
+                          ...Object.values(table.metrics),
+                      ].map((field) => [getItemId(field), field])
+                    : [],
+            );
+        };
+        const touched = [...draft.writes.keys()].flatMap((model) => {
+            const live = fieldsOf(before.explores, model);
+            const drafted = fieldsOf(after.explores, model);
+            return [...live].flatMap(([fieldId, field]) => {
+                const next = drafted.get(fieldId);
+                if (next && next.compiledSql === field.compiledSql) return [];
+                return [
+                    {
+                        model,
+                        fieldId,
+                        label: field.label,
+                        kind: next
+                            ? ('changed' as const)
+                            : ('removed' as const),
+                    },
+                ];
+            });
+        });
+        const checked = touched.slice(0, MAX_USAGE_FIELDS);
+        const reports = await Promise.all(
+            checked.map(({ fieldId }) =>
+                this.savedChartModel.analyzeFieldImpact(projectUuid, fieldId),
+            ),
+        );
+        return {
+            checkedFields: checked.length,
+            fields: checked.flatMap((field, index) => {
+                const { charts, summary } = reports[index];
+                return charts.length + summary.dashboards === 0
+                    ? []
+                    : [
+                          {
+                              ...field,
+                              charts: charts.map(({ uuid, name }) => ({
+                                  uuid,
+                                  name,
+                              })),
+                              dashboards: summary.dashboards,
+                              scheduledDeliveries: summary.scheduledDeliveries,
+                          },
+                      ];
+            }),
         };
     }
 

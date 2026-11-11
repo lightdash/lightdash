@@ -4,6 +4,7 @@ import {
     type ApiSemanticLayerDraftApplyResponse,
     type ApiSemanticLayerDraftImpactResponse,
     type ApiSemanticLayerDraftResponse,
+    type ApiSemanticLayerDraftUsageResponse,
     type ApiSemanticLayerModelResponse,
     type ApiSemanticLayerStatusResponse,
     type ApiSemanticLayerUndoResponse,
@@ -131,6 +132,28 @@ export class SemanticStudioController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 model ?? null,
+            ),
+        };
+    }
+
+    /**
+     * Saved charts and dashboards that read a field this person's draft defines differently or removes.
+     * @summary Get the saved content my semantic layer draft changes
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/draft/usage')
+    @OperationId('getSemanticLayerDraftUsage')
+    async getDraftUsage(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticLayerDraftUsageResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getDraftUsage(
+                toSessionUser(req.account),
+                projectUuid,
             ),
         };
     }

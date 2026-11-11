@@ -476,6 +476,7 @@ import {
     type ApiSemanticLayerDraftApplyResponse,
     type ApiSemanticLayerDraftImpactResponse,
     type ApiSemanticLayerDraftResponse,
+    type ApiSemanticLayerDraftUsageResponse,
 } from './semanticStudio';
 import { type ShareUrl } from './share';
 import { type SharedSignInStatus } from './sharedSignIn';
@@ -1887,7 +1888,8 @@ type ApiResults =
     | ApiProjectAiCredentialResponse['results']
     | ApiSemanticLayerDraftResponse['results']
     | ApiSemanticLayerDraftApplyResponse['results']
-    | ApiSemanticLayerDraftImpactResponse['results'];
+    | ApiSemanticLayerDraftImpactResponse['results']
+    | ApiSemanticLayerDraftUsageResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

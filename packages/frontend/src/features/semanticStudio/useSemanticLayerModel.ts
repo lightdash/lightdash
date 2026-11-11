@@ -5,6 +5,7 @@ import {
     type SemanticLayerDraft,
     type SemanticLayerDraftApplyResult,
     type SemanticLayerDraftImpact,
+    type SemanticLayerDraftUsage,
     type SemanticLayerModelCode,
     type SemanticLayerStatus,
 } from '@lightdash/common';
@@ -98,6 +99,15 @@ export const useSemanticLayerDraftImpact = (
         `/draft/impact${model === null ? '' : `?model=${encodeURIComponent(model)}`}`,
         true,
         ({ status }) => status === 'checking',
+    );
+
+/** Saved content that reads a field the draft defines differently or removes. */
+export const useSemanticLayerDraftUsage = (projectUuid: string) =>
+    useGet<SemanticLayerDraftUsage>(
+        [DRAFT_KEY, projectUuid, 'usage'],
+        projectUuid,
+        '/draft/usage',
+        true,
     );
 
 export const useRefreshSemanticLayerDraft = (projectUuid: string) => {

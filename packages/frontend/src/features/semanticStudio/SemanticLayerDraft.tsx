@@ -35,6 +35,13 @@ import { ChangeDiff } from './ChangeDiff';
 import { DevelopmentBar } from './DevelopmentBar';
 import { useDevelopmentView } from './developmentView';
 import {
+    ChangeQueue,
+    DraftUsage,
+    MetricComparison,
+    ModelNotices,
+    PublishChecklist,
+} from './DraftInsights';
+import {
     CHANGE_KIND_LABELS,
     count,
     describeModelChange,
@@ -52,6 +59,7 @@ import {
     useDiscardSemanticLayerDraft,
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
+    useSemanticLayerDraftUsage,
 } from './useSemanticLayerModel';
 
 const KIND_NOUNS: [ChangeKind, string][] = [
@@ -182,6 +190,7 @@ const ApplyModal: FC<{
     onClose: () => void;
 }> = ({ projectUuid, draft, model, onClose }) => {
     const impact = useSemanticLayerDraftImpact(projectUuid, model);
+    const usage = useSemanticLayerDraftUsage(projectUuid);
     const apply = useApplySemanticLayerDraft(projectUuid);
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const { showToastSuccess } = useToaster();
@@ -227,6 +236,30 @@ const ApplyModal: FC<{
                         ? `Your changes to ${models} go to the project's repository as a pull request. They go live once it merges and the project refreshes.`
                         : `Your changes to ${models} go live for everyone on this project. Undo is on each model's History tab.`}
                 </Text>
+                <PublishChecklist
+                    draft={draft}
+                    model={model}
+                    breaks={
+                        impact.data?.status === 'done'
+                            ? impact.data.breaks.length
+                            : null
+                    }
+                    chartsThatChange={
+                        usage.data
+                            ? new Set(
+                                  usage.data.fields
+                                      .filter(
+                                          (field) =>
+                                              model === null ||
+                                              field.model === model,
+                                      )
+                                      .flatMap(({ charts }) =>
+                                          charts.map(({ uuid }) => uuid),
+                                      ),
+                              ).size
+                            : null
+                    }
+                />
                 <DraftImpact projectUuid={projectUuid} model={model} />
                 <MessageList
                     variant="danger"
@@ -342,6 +375,7 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const [searchParams, setSearchParams] = useSearchParams();
     const [publishing, setPublishing] = useState(false);
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
+    const discard = useDiscardSemanticLayerDraft(projectUuid);
     const isEmpty = !draft || draft.changes.length === 0;
     // Once nothing is in development there is nothing to preview.
     useEffect(() => {
@@ -360,6 +394,13 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                 </Text>
             }
         >
+            {reviewing ? (
+                <DiscardButton
+                    label={draft.models.length > 1 ? 'Discard all' : 'Discard'}
+                    disabled={discard.isLoading}
+                    onConfirm={() => discard.mutate(null)}
+                />
+            ) : null}
             <PreviewToggle
                 isPreviewing={isPreviewing}
                 onChange={setIsPreviewing}
@@ -431,6 +472,11 @@ const DraftNotes: FC<{ draft: SemanticLayerDraft }> = ({ draft }) => {
 
 type DraftProps = { projectUuid: string; draft: SemanticLayerDraft };
 
+type DraftReviewProps = DraftProps & {
+    /** Hands a request to the agent beside the review. */
+    onAskAgent: (prompt: string) => void;
+};
+
 export const DraftReviewHeading: FC<DraftProps> = ({ projectUuid, draft }) => {
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
     return (
@@ -458,7 +504,11 @@ export const DraftReviewHeading: FC<DraftProps> = ({ projectUuid, draft }) => {
     );
 };
 
-export const DraftReview: FC<DraftProps> = ({ projectUuid, draft }) => {
+export const DraftReview: FC<DraftReviewProps> = ({
+    projectUuid,
+    draft,
+    onAskAgent,
+}) => {
     // Applying or discarding the last change leaves nothing to review.
     if (draft.changes.length === 0) {
         return <Navigate to={{ search: '' }} replace />;
@@ -474,6 +524,12 @@ export const DraftReview: FC<DraftProps> = ({ projectUuid, draft }) => {
             />
             <DraftImpact projectUuid={projectUuid} model={null} />
             <DraftNotes draft={draft} />
+            <DraftUsage projectUuid={projectUuid} />
+            <ChangeQueue
+                projectUuid={projectUuid}
+                draft={draft}
+                onAskAgent={onAskAgent}
+            />
             <WorkerPoolContextProvider
                 poolOptions={PIERRE_POOL_OPTIONS}
                 highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
@@ -520,10 +576,16 @@ export const DraftReview: FC<DraftProps> = ({ projectUuid, draft }) => {
                                     />
                                 ) : null}
                             </Group>
+                            <ModelNotices model={modelChange} />
                             <ChangeDiff
                                 modelName={modelChange.model}
                                 change={modelChange}
                                 variant="full"
+                            />
+                            <MetricComparison
+                                projectUuid={projectUuid}
+                                draft={draft}
+                                model={modelChange}
                             />
                         </Paper>
                     );

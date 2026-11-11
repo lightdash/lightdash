@@ -943,14 +943,21 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
             case 'review':
                 return draft ? (
                     <>
-                        <DraftReviewHeading
-                            projectUuid={view.project.id}
-                            draft={draft}
-                        />
+                        {/* The toolbar's bar carries this except while a first model is being built, when it is hidden. */}
+                        {isBuildingFirstModel ? (
+                            <DraftReviewHeading
+                                projectUuid={view.project.id}
+                                draft={draft}
+                            />
+                        ) : null}
                         <Box className={classes.mainBody}>
                             <DraftReview
                                 projectUuid={view.project.id}
                                 draft={draft}
+                                onAskAgent={(prompt) => {
+                                    setIsChatOpen(true);
+                                    setAskedPrompt(prompt);
+                                }}
                             />
                         </Box>
                     </>
