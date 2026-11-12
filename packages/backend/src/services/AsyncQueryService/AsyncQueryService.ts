@@ -83,6 +83,7 @@ import {
     isCustomDimension,
     isDashboardChartTileType,
     isDateItem,
+    isDateZoomRefusedOnExplore,
     isExploreError,
     isField,
     isJwtUser,
@@ -10077,7 +10078,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardUuid,
         dashboardFilters,
         dashboardSorts,
-        dateZoom,
+        dateZoom: requestedDateZoom,
         context,
         querySurface,
         invalidateCache,
@@ -10117,6 +10118,13 @@ export class AsyncQueryService extends ProjectService {
                 organizationUuid,
             ),
         ]);
+
+        // A live data source whose integration refuses date zoom keeps its
+        // saved grain, so one zoom never fails its tiles. Direct metric
+        // queries still refuse the zoom.
+        const dateZoom = isDateZoomRefusedOnExplore(explore)
+            ? undefined
+            : requestedDateZoom;
 
         let effectiveDashboardUuid: string | undefined = dashboardUuid;
 

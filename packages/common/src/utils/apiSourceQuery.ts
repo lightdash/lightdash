@@ -104,6 +104,19 @@ export const isApiSourcePushdownSupported = (
     pushdown: ApiSourcePushdown,
 ): boolean => pushdown === 'native';
 
+/**
+ * Whether a dashboard date zoom can't re-grain the explore: a live data
+ * source whose integration refuses date zoom. Dashboards keep such a tile's
+ * saved grain instead of failing it.
+ */
+export const isDateZoomRefusedOnExplore = (explore: {
+    apiSource?: ApiSourceExplore;
+}): boolean =>
+    !!explore.apiSource &&
+    !isApiSourcePushdownSupported(
+        getApiSourceCapabilities(explore.apiSource).pushdown.dateZoom,
+    );
+
 const getFilterFieldIds = (metricQuery: MetricQuery): FieldId[] =>
     [metricQuery.filters.dimensions, metricQuery.filters.metrics].flatMap(
         (group) =>

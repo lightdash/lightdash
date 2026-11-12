@@ -133,7 +133,10 @@ import {
 } from '../../features/dashboard/store';
 import { useTileQueryQueueVisibility } from '../../features/dashboard/tileQueryQueue/useTileQueryQueue';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
-import { DateZoomInfoOnTile } from '../../features/dateZoom';
+import {
+    DateZoomInfoOnTile,
+    DateZoomNotAppliedOnTile,
+} from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
 import { getExploreFromHereUrl } from '../../features/mergeQuery/utils/getExploreFromHereUrl';
 import { computeChartSeries } from '../../hooks/cartesianChartConfig/computeChartSeries';
@@ -1648,6 +1651,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                     }
                                 />
                             ) : null}
+                            {metricQuery?.metadata?.hasADateDimension &&
+                            dashboardChartReadyQuery.refusedDateZoom
+                                ?.granularity ? (
+                                <DateZoomNotAppliedOnTile />
+                            ) : null}
                         </>
                     }
                     title={title || chart.name || ''}
@@ -2663,13 +2671,16 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
     // with chart edits without requiring a full page refresh.
     const readyQueryDataWithFreshChart = useMemo(() => {
         if (!readyQuery.data) return undefined;
-        const freshChart = readyQuery.chartQuery?.data;
-        if (!freshChart) return readyQuery.data;
         return {
             ...readyQuery.data,
-            chart: freshChart,
+            chart: readyQuery.chartQuery?.data ?? readyQuery.data.chart,
+            refusedDateZoom: readyQuery.refusedDateZoom,
         };
-    }, [readyQuery.data, readyQuery.chartQuery?.data]);
+    }, [
+        readyQuery.data,
+        readyQuery.chartQuery?.data,
+        readyQuery.refusedDateZoom,
+    ]);
 
     const resultsData = useInfiniteQueryResults(
         readyQuery.data?.chart.projectUuid,
