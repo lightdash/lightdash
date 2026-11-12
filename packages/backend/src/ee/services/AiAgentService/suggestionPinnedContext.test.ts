@@ -92,7 +92,7 @@ describe('suggestion pinned context', () => {
         expect(
             buildDashboardSuggestionContext(dashboard, [], [], dashboardWide)
                 .metadata,
-        ).toMatchObject({ runtimeOverrides: dashboardWide });
+        ).toHaveProperty('runtimeOverrides', dashboardWide);
         expect(
             buildDashboardSuggestionContext(dashboard, [], [], {
                 ...dashboardWide,
@@ -112,7 +112,7 @@ describe('suggestion pinned context', () => {
                     },
                 ],
             }).metadata,
-        ).toMatchObject({ runtimeOverrides: dashboardWide });
+        ).toHaveProperty('runtimeOverrides', dashboardWide);
         expect(
             buildDashboardSuggestionContext(dashboard, [], []).metadata,
         ).toMatchObject({ runtimeOverrides: null });
