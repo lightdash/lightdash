@@ -22,6 +22,7 @@ import Logger from '../logging/logger';
 import {
     getDuckdbQuerySubject,
     getExternalSourceQuerySubject,
+    QUERY_MAX_DELIVERIES,
     STREAM_CONFIGS,
     type AsyncQueryJobPayload,
     type AsyncQueryNatsEnvelope,
@@ -182,10 +183,6 @@ export class NatsClient implements INatsClient {
         }
     }
 
-    /** Create or update a durable JetStream consumer.
-     *  Note: `ack_policy` and `max_deliver` are immutable after creation —
-     *  changing them here requires deleting and recreating the consumer.
-     */
     private static async ensureConsumer(
         jsm: JetStreamManager,
         streamConfig: StreamConfig,
@@ -203,7 +200,10 @@ export class NatsClient implements INatsClient {
             filter_subjects: subjects, // mutable since NATS 2.10
             ack_policy: AckPolicy.Explicit, // immutable after creation
             ack_wait: nanos(ACK_WAIT_MS),
-            max_deliver: 1, // immutable after creation
+            max_deliver: Math.max(
+                QUERY_MAX_DELIVERIES,
+                existing?.config.max_deliver ?? 0,
+            ),
         };
 
         if (existing) {

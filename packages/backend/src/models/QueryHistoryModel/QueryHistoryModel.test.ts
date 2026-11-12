@@ -1134,3 +1134,35 @@ describe('QueryHistoryModel request columns', () => {
         }
     });
 });
+
+describe('exhausted query deliveries', () => {
+    test('fails only unfinished rows with one conditional write', async () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+        const tracker = getTracker();
+        tracker.reset();
+        tracker.on.update('query_history').response(1);
+        try {
+            const model = new QueryHistoryModel({ database });
+            await model.failUnfinishedQueryDelivery(
+                'query',
+                'delivery exhausted',
+            );
+            const query = tracker.history.update[0];
+            expect(query.sql).toContain('"status" in');
+            expect(query.bindings).toEqual(
+                expect.arrayContaining([
+                    'query',
+                    QueryHistoryStatus.ERROR,
+                    QueryHistoryStatus.PENDING,
+                    QueryHistoryStatus.QUEUED,
+                    QueryHistoryStatus.EXECUTING,
+                ]),
+            );
+            expect(query.bindings).not.toContain(QueryHistoryStatus.READY);
+            expect(tracker.history.select).toHaveLength(0);
+        } finally {
+            tracker.reset();
+            await database.destroy();
+        }
+    });
+});

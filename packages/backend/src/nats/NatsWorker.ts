@@ -19,6 +19,8 @@ import { continueTrace, traceSpan } from '../tracing/tracing';
 import { isConnectionProducedQuery } from '../utils/queryResultProducer';
 import { startEventLoopStallDetector } from './eventLoopStallDetector';
 import {
+    QUERY_MAX_DELIVERIES,
+    QUERY_REDELIVERY_DELAY_MS,
     STREAM_CONFIGS,
     type AsyncQueryJobPayload,
     type NatsTraceProperties,
@@ -156,11 +158,11 @@ export class NatsWorker {
         const workerLabel = workerId ?? 'unknown';
         const parsed = this.parseMessage(message);
         const queryUuid = parsed?.payload.queryUuid ?? null;
-        if (message.info.deliveryCount > 1) {
+        if (NatsWorker.deliveryCount(message) > 1) {
             Logger.warn('NATS query message redelivered', {
                 queryUuid,
-                deliveryCount: message.info.deliveryCount,
-                reason: 'unknown',
+                deliveryCount: NatsWorker.deliveryCount(message),
+                reason: 'acknowledgement not received',
             });
         }
 
@@ -169,7 +171,6 @@ export class NatsWorker {
             Logger.error(
                 `Worker ${workerLabel} received async query job on unexpected subject "${message.subject}"`,
             );
-            // The job is delivered once, so fail the row rather than leave it queued
             if (queryUuid) {
                 await this.asyncQueryService
                     .markClaimedQueryAsErrored(
@@ -202,6 +203,57 @@ export class NatsWorker {
         }
     }
 
+    private static deliveryCount(message: JsMsg): number {
+        try {
+            const count = message.info?.deliveryCount;
+            return Number.isSafeInteger(count) && count > 0
+                ? count
+                : QUERY_MAX_DELIVERIES;
+        } catch {
+            return QUERY_MAX_DELIVERIES;
+        }
+    }
+
+    private async retryUnfinished(
+        message: JsMsg,
+        queryUuid: string,
+        reason: string,
+    ): Promise<void> {
+        if (NatsWorker.deliveryCount(message) >= QUERY_MAX_DELIVERIES) {
+            await NatsWorker.runWithAckProgress(message, () =>
+                this.persistExhaustedDelivery(queryUuid),
+            );
+            NatsWorker.logMessageAction(
+                message,
+                queryUuid,
+                'term',
+                'delivery attempts exhausted',
+            );
+            message.term();
+            return;
+        }
+        NatsWorker.logMessageAction(message, queryUuid, 'nak', reason);
+        message.nak(QUERY_REDELIVERY_DELAY_MS);
+    }
+
+    private async persistExhaustedDelivery(queryUuid: string): Promise<void> {
+        try {
+            await this.queryHistoryModel.failUnfinishedQueryDelivery(
+                queryUuid,
+                'Query delivery attempts exhausted. Completion could not be confirmed. Please retry the query.',
+            );
+        } catch (error) {
+            Logger.error('Failed to persist exhausted query delivery', {
+                queryUuid,
+                error,
+            });
+            await new Promise<void>((resolve) => {
+                setTimeout(resolve, QUERY_REDELIVERY_DELAY_MS);
+            });
+            await this.persistExhaustedDelivery(queryUuid);
+        }
+    }
+
     private static logMessageAction(
         message: JsMsg,
         queryUuid: string | null,
@@ -211,7 +263,7 @@ export class NatsWorker {
         Logger.warn('NATS query message disposition', {
             queryUuid,
             action,
-            deliveryCount: message.info.deliveryCount,
+            deliveryCount: NatsWorker.deliveryCount(message),
             reason,
         });
     }
@@ -365,13 +417,31 @@ export class NatsWorker {
             );
 
             if (!didRun) {
-                NatsWorker.logMessageAction(
-                    message,
+                const query = await this.queryHistoryModel.getByQueryUuid(
                     parsed.payload.queryUuid,
-                    'term',
-                    'not claimed',
                 );
-                message.term();
+                if (
+                    query &&
+                    [
+                        QueryHistoryStatus.PENDING,
+                        QueryHistoryStatus.QUEUED,
+                        QueryHistoryStatus.EXECUTING,
+                    ].includes(query.status)
+                ) {
+                    await this.retryUnfinished(
+                        message,
+                        parsed.payload.queryUuid,
+                        'query remains unfinished; execution ownership is unknown',
+                    );
+                } else {
+                    NatsWorker.logMessageAction(
+                        message,
+                        parsed.payload.queryUuid,
+                        'term',
+                        'not claimed',
+                    );
+                    message.term();
+                }
                 return;
             }
 
@@ -402,13 +472,11 @@ export class NatsWorker {
                 );
                 message.term();
             } else {
-                NatsWorker.logMessageAction(
+                await this.retryUnfinished(
                     message,
                     parsed.payload.queryUuid,
-                    'nak',
                     error instanceof Error ? error.name : 'unknown error',
                 );
-                message.nak();
             }
         }
     }

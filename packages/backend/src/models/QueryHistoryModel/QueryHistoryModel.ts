@@ -559,6 +559,24 @@ export class QueryHistoryModel {
             });
     }
 
+    async failUnfinishedQueryDelivery(
+        queryUuid: string,
+        error: string,
+    ): Promise<number> {
+        return this.database(QueryHistoryTableName)
+            .where('query_uuid', queryUuid)
+            .whereIn('status', [
+                QueryHistoryStatus.PENDING,
+                QueryHistoryStatus.QUEUED,
+                QueryHistoryStatus.EXECUTING,
+            ])
+            .update({
+                status: QueryHistoryStatus.ERROR,
+                error,
+                errored_at: new Date(),
+            });
+    }
+
     async updateClaimedQueryToError(
         queryUuid: string,
         error: string,

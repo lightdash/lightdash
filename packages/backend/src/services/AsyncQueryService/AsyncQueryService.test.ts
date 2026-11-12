@@ -10877,6 +10877,29 @@ describe('AsyncQueryService', () => {
             },
         );
 
+        test('only one concurrent delivery claims a queued query', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            vi.mocked(
+                service.queryHistoryModel.getByQueryUuid,
+            ).mockResolvedValue(
+                createMockQueryHistory(QueryHistoryStatus.QUEUED),
+            );
+            vi.mocked(service.queryHistoryModel.updateStatusToExecuting)
+                .mockResolvedValueOnce(1)
+                .mockResolvedValueOnce(0);
+            const claims = await Promise.all([
+                service.prepareQueuedQueryForExecution(
+                    'test-query-uuid',
+                    'worker-1',
+                ),
+                service.prepareQueuedQueryForExecution(
+                    'test-query-uuid',
+                    'worker-2',
+                ),
+            ]);
+            expect(claims).toEqual([true, false]);
+        });
+
         test('transitions queued queries to executing', async () => {
             const service = getMockedAsyncQueryService(lightdashConfigMock);
             (
