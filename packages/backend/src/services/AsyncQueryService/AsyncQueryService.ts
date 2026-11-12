@@ -82,6 +82,7 @@ import {
     isCustomBinDimension,
     isCustomDimension,
     isDashboardChartTileType,
+    isDashboardSqlChartTile,
     isDateItem,
     isDateZoomRefusedOnExplore,
     isExploreError,
@@ -160,6 +161,7 @@ import {
     type CompiledCustomSqlDimension,
     type CompiledMetric,
     type CustomDimension,
+    type DashboardDAO,
     type DocumentQueryReference,
     type DocumentSqlChart,
     type DuckdbSourceQuery,
@@ -290,6 +292,7 @@ import { getDuckdbRuntimeConfig } from '../../utils/duckdb/getDuckdbRuntimeConfi
 import { sanitizeDuckdbError } from '../../utils/duckdb/sanitizeDuckdbError';
 import { isAiAgentEmbedAccount } from '../../utils/embedAiAgentAccount';
 import { redactItemsMapSql } from '../../utils/embedCompiledSql';
+import { getEffectiveEmbedDashboardFilters } from '../../utils/embedDashboardFilters';
 import {
     processFieldsForExport,
     streamJsonlData,
@@ -16100,6 +16103,7 @@ export class AsyncQueryService extends ProjectService {
 
     async executeAsyncDashboardSqlChartQuery(
         args: ExecuteAsyncDashboardSqlChartArgs,
+        embedDashboard?: DashboardDAO,
     ): Promise<ApiExecuteAsyncDashboardSqlChartQueryResults> {
         const savedChart = isExecuteAsyncDashboardSqlChartByUuid(args)
             ? await this.savedSqlModel.getByUuid(args.savedSqlUuid, {
@@ -16114,17 +16118,19 @@ export class AsyncQueryService extends ProjectService {
         const {
             account,
             projectUuid,
-            tileUuid,
+            tileUuid: requestedTileUuid,
             dashboardUuid: requestDashboardUuid,
             context,
             querySurface,
             invalidateCache,
-            dashboardFilters,
+            dashboardFilters: requestedDashboardFilters,
             dashboardSorts,
             limit,
         } = args;
 
         let dashboardUuid: string | undefined = requestDashboardUuid;
+        let tileUuid = requestedTileUuid;
+        let dashboardFilters = requestedDashboardFilters;
 
         // For JWT users without write actions, the dashboard scope is bound to
         // the token. Write-action embeds may use a dashboard from their write
@@ -16165,6 +16171,40 @@ export class AsyncQueryService extends ProjectService {
                     account,
                     savedChart.savedSqlUuid,
                 );
+            }
+
+            // Write-action embeds can preview new tiles that have not been
+            // saved. A published tile query uses its stored dashboard context.
+            const dashboard =
+                embedDashboard ??
+                (canUseWriteDashboard
+                    ? undefined
+                    : await this.dashboardModel.getByIdOrSlug(
+                          resolvedDashboardUuid,
+                          { projectUuid },
+                      ));
+            if (dashboard?.filters?.dimensions.length) {
+                const matchingTiles = dashboard.tiles.filter(
+                    (tile) =>
+                        isDashboardSqlChartTile(tile) &&
+                        tile.properties.savedSqlUuid ===
+                            savedChart.savedSqlUuid &&
+                        (!requestedTileUuid || tile.uuid === requestedTileUuid),
+                );
+                if (matchingTiles.length !== 1) {
+                    throw new ParameterError(
+                        'Select a matching dashboard tile for this SQL chart',
+                    );
+                }
+                tileUuid = matchingTiles[0].uuid;
+            }
+            if (dashboard) {
+                dashboardFilters = getEffectiveEmbedDashboardFilters(
+                    dashboard,
+                    tileUuid,
+                    account.access.filtering,
+                    requestedDashboardFilters,
+                ).filters;
             }
         } else {
             await this.assertSavedChartAccess(account, 'view', savedChart);
