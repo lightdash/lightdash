@@ -34337,6 +34337,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['findContent'] },
                 { dataType: 'enum', enums: ['createContent'] },
                 { dataType: 'enum', enums: ['analyzeFieldImpact'] },
+                { dataType: 'enum', enums: ['askUser'] },
                 { dataType: 'enum', enums: ['closePullRequest'] },
                 { dataType: 'enum', enums: ['createScheduledDelivery'] },
                 { dataType: 'enum', enums: ['delegateResearchTask'] },

@@ -1,3 +1,10 @@
+# [3.225.0](https://github.com/lightdash/lightdash/compare/3.224.0...3.225.0) (2026-11-12)
+
+
+### Features
+
+* **ai:** agent asks clarifying questions with clickable options ([#32451](https://github.com/lightdash/lightdash/issues/32451)) ([89828af](https://github.com/lightdash/lightdash/commit/89828afc4a82cca9426265c2bca682eb1a147c91))
+
 # [3.224.0](https://github.com/lightdash/lightdash/compare/3.223.0...3.224.0) (2026-11-12)
 
 
