@@ -6976,3 +6976,112 @@ SELECT * FROM group_by_query LIMIT 50`);
         });
     });
 });
+
+describe('PivotQueryBuilder foldOverflowGroups', () => {
+    const pivotConfiguration = {
+        indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+        valuesColumns: [
+            {
+                reference: 'event_id',
+                aggregation: VizAggregationOptions.SUM,
+            },
+        ],
+        groupByColumns: [{ reference: 'event_type' }],
+        sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+    };
+
+    const buildSql = (
+        overrides: Partial<
+            ConstructorParameters<typeof PivotQueryBuilder>[1]
+        > = {},
+        columnLimit: number | null = 100,
+    ) =>
+        replaceWhitespace(
+            new PivotQueryBuilder(
+                'SELECT * FROM events',
+                {
+                    ...pivotConfiguration,
+                    foldOverflowGroups: true,
+                    ...overrides,
+                },
+                mockWarehouseSqlBuilder,
+                500,
+            ).toSql(columnLimit ? { columnLimit } : undefined),
+        );
+
+    test('keeps one row per row_index for the groups past the column limit', () => {
+        const result = buildSql();
+
+        // The first row past the limit survives the column filter...
+        expect(result).toContain(
+            'MIN(CASE WHEN p."column_index" > 100 THEN p."column_index" END) OVER (PARTITION BY p."row_index") AS "__other_column_index"',
+        );
+        expect(result).toContain(
+            'WHERE "column_index" <= 100 OR "column_index" = "__other_column_index"',
+        );
+        // ...carrying the sum of every value past the limit...
+        expect(result).toContain(
+            'SUM(CASE WHEN p."column_index" > 100 THEN p."event_id_sum" END) OVER (PARTITION BY p."row_index") AS "__other_value_0"',
+        );
+        expect(result).toContain(
+            'CASE WHEN "column_index" > 100 THEN "__other_value_0" ELSE "event_id_sum" END AS "event_id_sum"',
+        );
+        // ...and flagged so the result transform can tell it apart.
+        expect(result).toContain(
+            'CASE WHEN "column_index" > 100 THEN 1 ELSE 0 END AS "is_other_group"',
+        );
+        // total_columns still counts every group, and the base pivot data is
+        // still read once.
+        expect(result).toContain(
+            'SUM(CASE WHEN p."__grp_rn" = 1 THEN 1 ELSE 0 END) OVER () AS total_columns',
+        );
+        expect(result.match(/FROM pivot_query\b/g)).toHaveLength(1);
+    });
+
+    test('sums each value column separately', () => {
+        const result = buildSql({
+            valuesColumns: [
+                {
+                    reference: 'event_id',
+                    aggregation: VizAggregationOptions.SUM,
+                },
+                {
+                    reference: 'revenue',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ],
+        });
+
+        expect(result).toContain(
+            'SUM(CASE WHEN p."column_index" > 50 THEN p."event_id_sum" END) OVER (PARTITION BY p."row_index") AS "__other_value_0"',
+        );
+        expect(result).toContain(
+            'SUM(CASE WHEN p."column_index" > 50 THEN p."revenue_any" END) OVER (PARTITION BY p."row_index") AS "__other_value_1"',
+        );
+    });
+
+    test('does not sum columns that are only there to sort by', () => {
+        const result = buildSql({
+            sortOnlyColumns: [
+                {
+                    reference: 'last_seen',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ],
+        });
+
+        expect(result).not.toContain('p."last_seen_any" END) OVER');
+        expect(result).not.toContain('END AS "last_seen_any"');
+    });
+
+    test.each([
+        ['the flag is off', { foldOverflowGroups: false }, 100],
+        ['there is no column limit', {}, null],
+        ['metrics are shown as rows', { metricsAsRows: true }, 100],
+    ])('drops the groups past the limit when %s', (_, overrides, limit) => {
+        const result = buildSql(overrides, limit);
+
+        expect(result).not.toContain('is_other_group');
+        expect(result).not.toContain('__other_');
+    });
+});

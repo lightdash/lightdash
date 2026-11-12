@@ -3,6 +3,7 @@ import {
     getItemMap,
     hasCustomBinDimension,
     isField,
+    isOtherPivotReference,
     type ApiExploreResults,
     type EChartsSeries,
 } from '@lightdash/common';
@@ -213,7 +214,10 @@ export const SeriesContextMenu: FC<{
                     })}
                 >
                     {hasSourceActions &&
-                        !hasCustomBinDimension(metricQuery) && (
+                        !hasCustomBinDimension(metricQuery) &&
+                        !isOtherPivotReference(
+                            underlyingData?.pivotReference,
+                        ) && (
                             <Menu.Item
                                 leftSection={<MantineIcon icon={IconStack} />}
                                 onClick={handleViewUnderlyingData}
