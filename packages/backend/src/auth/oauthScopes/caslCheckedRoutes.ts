@@ -53,6 +53,7 @@ export const OAUTH_CASL_CHECKED_ROUTES: readonly string[] = [
     'AiAgentController.refreshMcpServerTools',
     'AiAgentController.renameMcpServer',
     'AiAgentController.restoreAgentThreadDataAppVersion',
+    'AiAgentController.sendVisualizeSlackChart',
     'AiAgentController.setArtifactVersionVerified',
     'AiAgentController.startMcpOAuthConnection',
     'AiAgentController.unpinAgentThread',

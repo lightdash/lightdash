@@ -206,6 +206,11 @@ export enum FeatureFlags {
      */
     AiAgentBattleMode = 'ai-agent-battle-mode',
     /**
+     * Slack agent answers send eligible bar/line charts as native charts. Off by default; standard
+     * resolver for the prompt author: ENV enable/disable lists, then user → org override → default.
+     */
+    AiAgentSlackNativeCharts = 'ai-agent-slack-native-charts',
+    /**
      * Organization-scoped: keep dbt's partial_parse.msgpack from a compile on
      * the worker and seed the next compile of the same project and dbt source
      * with it, so `dbt ls` re-parses only changed files. dbt checks file

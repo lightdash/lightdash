@@ -50,6 +50,8 @@ import {
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
     ApiAiAgentVisualizeSlackPreviewRequest,
+    ApiAiAgentVisualizeSlackSendRequest,
+    ApiAiAgentVisualizeSlackSendResponse,
     ApiAiMcpGithubAvailabilityResponse,
     ApiAiMcpOAuthCredentialRequest,
     ApiAiMcpServerListResponse,
@@ -94,6 +96,7 @@ import {
     Body,
     Delete,
     Get,
+    Hidden,
     Middlewares,
     OperationId,
     Patch,
@@ -111,6 +114,7 @@ import { toSessionUser } from '../../auth/account';
 import { requireOAuthScopeOperation } from '../../auth/oauthScopes/unchecked';
 import {
     allowApiKeyAuthentication,
+    devModeOnly,
     isAuthenticated,
     unauthorisedInDemo,
 } from '../../controllers/authentication';
@@ -192,6 +196,32 @@ export class AiAgentController extends BaseController {
         this.setStatus(200);
         this.setHeader('Content-Type', 'image/png');
         return Readable.from(image);
+    }
+
+    /**
+     * Dev-only: posts a visualize chart to Slack as a native chart or an image, to check the native chart rules.
+     * @summary Send visualize Slack chart
+     */
+    @Hidden()
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated, devModeOnly])
+    @SuccessResponse('200', 'Success')
+    @Post('/visualize/slack-send')
+    @OperationId('sendVisualizeSlackChart')
+    async sendVisualizeSlackChart(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: ApiAiAgentVisualizeSlackSendRequest,
+    ): Promise<ApiAiAgentVisualizeSlackSendResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().sendVisualizeSlackChart(
+                req.account,
+                projectUuid,
+                body,
+            ),
+        };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
