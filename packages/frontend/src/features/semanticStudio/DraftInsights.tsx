@@ -30,6 +30,8 @@ import {
     IconArrowDown,
     IconArrowUp,
     IconGitMerge,
+    IconScale,
+    IconSparkles,
     IconInfoCircle,
     IconTable,
     IconTrash,
@@ -101,6 +103,7 @@ const PartName: FC<{ path: string }> = ({ path }) =>
         </Text>
     );
 
+/** Drops the draft's change to one part, so what is live stands. */
 const TakeTheirsButton: FC<{
     projectUuid: string;
     model: string;
@@ -117,48 +120,88 @@ const TakeTheirsButton: FC<{
         >
             <Button
                 size="compact-xs"
-                variant="default"
+                variant="subtle"
                 flex="none"
                 loading={takeLive.isLoading}
                 onClick={() => takeLive.mutate({ model, path })}
             >
-                {path === '' ? 'Discard mine' : 'Take theirs'}
+                Use this
             </Button>
         </Tooltip>
     );
 };
 
-/** One part that changed live and in the draft, with each version of it side by side. */
+/** Keeps the draft over what was published, for every part of the model still contested. */
+const KeepMineButton: FC<{
+    projectUuid: string;
+    model: SemanticLayerDraftModel;
+    label: string;
+}> = ({ projectUuid, model, label }) => {
+    const keep = useKeepDraftModel(projectUuid);
+    return (
+        <Tooltip label="Keeps your version. It replaces theirs when you publish.">
+            <Button
+                size="compact-xs"
+                variant="subtle"
+                flex="none"
+                loading={keep.isLoading}
+                onClick={() =>
+                    keep.mutate({
+                        model: model.model,
+                        liveVersion: model.reconciliation?.liveVersion ?? null,
+                    })
+                }
+            >
+                {label}
+            </Button>
+        </Tooltip>
+    );
+};
+
+/** One part that changed live and in the draft: each version side by side, chosen where it is shown. */
 const ConflictSides: FC<{
     projectUuid: string;
-    model: string;
+    model: SemanticLayerDraftModel;
     conflict: SemanticLayerDraftConflict;
-    publisher: string | null;
-    /** Off when the choice for this part sits with the others above it. */
-    withTakeTheirs: boolean;
-}> = ({ projectUuid, model, conflict, publisher, withTakeTheirs }) => (
+    /** Off with several contested parts, where keeping the draft settles all of them at once. */
+    canKeepMineHere: boolean;
+}> = ({ projectUuid, model, conflict, canKeepMineHere }) => (
     <Stack gap={4} className={classes.conflict}>
-        <Group gap="xs" justify="space-between" wrap="nowrap">
-            <PartName path={conflict.path} />
-            {withTakeTheirs ? (
-                <TakeTheirsButton
-                    projectUuid={projectUuid}
-                    model={model}
-                    path={conflict.path}
-                />
-            ) : null}
-        </Group>
+        <PartName path={conflict.path} />
         <Box className={classes.sides}>
-            {toSides(publisher).map(({ key, label, absent }) => (
-                <Stack key={key} gap={2} miw={0}>
-                    <Text fz="xs" c="dimmed">
-                        {label}
-                    </Text>
-                    <Box component="pre" className={classes.side}>
-                        {conflict[key] ?? absent}
-                    </Box>
-                </Stack>
-            ))}
+            {toSides(model.publishedSince?.by ?? null).map(
+                ({ key, label, absent }) => (
+                    <Stack key={key} gap={2} miw={0}>
+                        <Group
+                            gap="xs"
+                            justify="space-between"
+                            wrap="nowrap"
+                            mih={22}
+                        >
+                            <Text fz="xs" c="dimmed" truncate>
+                                {label}
+                            </Text>
+                            {key === 'live' ? (
+                                <TakeTheirsButton
+                                    projectUuid={projectUuid}
+                                    model={model.model}
+                                    path={conflict.path}
+                                />
+                            ) : null}
+                            {key === 'mine' && canKeepMineHere ? (
+                                <KeepMineButton
+                                    projectUuid={projectUuid}
+                                    model={model}
+                                    label="Use this"
+                                />
+                            ) : null}
+                        </Group>
+                        <Box component="pre" className={classes.side}>
+                            {conflict[key] ?? absent}
+                        </Box>
+                    </Stack>
+                ),
+            )}
         </Box>
     </Stack>
 );
@@ -170,7 +213,6 @@ export const ModelNotices: FC<{
     onAskAgent: (prompt: string) => void;
 }> = ({ projectUuid, model, onAskAgent }) => {
     const publishedAgo = useTimeAgo(model.publishedSince?.at ?? new Date());
-    const keep = useKeepDraftModel(projectUuid);
     const conflicts = model.reconciliation?.conflicts ?? [];
     const merged = model.reconciliation?.merged ?? [];
     const publisher = model.publishedSince?.by ?? 'Someone';
@@ -199,41 +241,37 @@ export const ModelNotices: FC<{
                             {conflicts.length === 1
                                 ? 'a part'
                                 : `${conflicts.length} parts`}{' '}
-                            of this model that you changed too. Choose which to
-                            keep before you publish.
+                            of this model that you changed too. Pick the version
+                            to keep before you publish.
                         </Text>
                     </Group>
-                    <Group gap="xs">
-                        <Tooltip label="Keeps your version of every part listed here. It replaces theirs when you publish.">
-                            <Button
-                                size="compact-xs"
-                                variant="default"
-                                loading={keep.isLoading}
-                                onClick={() =>
-                                    keep.mutate({
-                                        model: model.model,
-                                        liveVersion:
-                                            model.reconciliation?.liveVersion ??
-                                            null,
-                                    })
-                                }
-                            >
-                                {conflicts.length === 1
-                                    ? 'Keep mine'
-                                    : 'Keep all mine'}
-                            </Button>
-                        </Tooltip>
-                        {conflicts.length === 1 ? (
-                            <TakeTheirsButton
+                    {conflicts.map((conflict) => (
+                        <ConflictSides
+                            key={conflict.path}
+                            projectUuid={projectUuid}
+                            model={model}
+                            conflict={conflict}
+                            canKeepMineHere={conflicts.length === 1}
+                        />
+                    ))}
+                    <Group gap={4}>
+                        {conflicts.length > 1 ? (
+                            <KeepMineButton
                                 projectUuid={projectUuid}
-                                model={model.model}
-                                path={conflicts[0].path}
+                                model={model}
+                                label={`Keep mine for all ${conflicts.length} parts`}
                             />
                         ) : null}
                         <Tooltip label="Has the agent propose a version that keeps both changes where it can.">
                             <Button
                                 size="compact-xs"
-                                variant="default"
+                                variant="subtle"
+                                leftSection={
+                                    <MantineIcon
+                                        icon={IconSparkles}
+                                        size={12}
+                                    />
+                                }
                                 onClick={() =>
                                     onAskAgent(
                                         [
@@ -247,20 +285,10 @@ export const ModelNotices: FC<{
                                     )
                                 }
                             >
-                                Combine
+                                Combine both
                             </Button>
                         </Tooltip>
                     </Group>
-                    {conflicts.map((conflict) => (
-                        <ConflictSides
-                            key={conflict.path}
-                            projectUuid={projectUuid}
-                            model={model.model}
-                            conflict={conflict}
-                            publisher={model.publishedSince?.by ?? null}
-                            withTakeTheirs={conflicts.length > 1}
-                        />
-                    ))}
                 </Stack>
             ) : null}
             {publishedUnder && conflicts.length === 0 ? (
@@ -633,7 +661,8 @@ export const MetricComparison: FC<{
                 >
                     <Button
                         size="compact-xs"
-                        variant="default"
+                        variant="subtle"
+                        leftSection={<MantineIcon icon={IconScale} size={12} />}
                         onClick={() => setIsAsked(true)}
                     >
                         {isNewModel
