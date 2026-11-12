@@ -231,9 +231,10 @@ const setup = ({
     return { store, user, config };
 };
 
-// "Revenue zoom is Week"; the default zoom's button reads "Default zoom Month"
+// "Revenue zoom is Week"; the default zoom's button reads "Default zoom Month",
+// or "Default zoom" alone with no grain
 const pill = (name: string) =>
-    screen.getByRole('button', { name: new RegExp(`^${name} `) });
+    screen.getByRole('button', { name: new RegExp(`^${name}( |$)`) });
 const dialog = () => screen.getByRole('dialog');
 const pickDefault = async (
     user: ReturnType<typeof userEvent.setup>,
@@ -674,10 +675,10 @@ describe('Date zoom editor', () => {
 
     it('sets and clears the default zoom in the dashboard draft', async () => {
         const { user } = setup();
-        expect(pill('Default zoom')).toHaveTextContent('Default zoom None');
+        expect(pill('Default zoom')).toHaveTextContent(/^Default zoom\s*$/);
         await pickDefault(user, 'Month');
         expect(
-            within(dialog()).getByText('Applies to the other 1 tile'),
+            within(dialog()).getByText('Applies to 1 tile'),
         ).toBeInTheDocument();
         // Grains are the "..." menu's: no checkboxes or pin here
         expect(within(dialog()).queryByRole('checkbox')).toBeNull();
@@ -693,7 +694,7 @@ describe('Date zoom editor', () => {
         await user.click(
             within(dialog()).getByRole('button', { name: 'Apply' }),
         );
-        expect(pill('Default zoom')).toHaveTextContent('Default zoom None');
+        expect(pill('Default zoom')).toHaveTextContent(/^Default zoom\s*$/);
     });
 
     it('drops the default zoom draft on Cancel', async () => {
@@ -703,7 +704,7 @@ describe('Date zoom editor', () => {
             within(dialog()).getByRole('button', { name: 'Cancel' }),
         );
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-        expect(pill('Default zoom')).toHaveTextContent('Default zoom None');
+        expect(pill('Default zoom')).toHaveTextContent(/^Default zoom\s*$/);
         expect(pill('Default zoom')).toHaveFocus();
     });
 

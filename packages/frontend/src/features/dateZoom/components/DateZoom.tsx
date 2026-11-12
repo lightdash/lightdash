@@ -14,6 +14,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import {
+    IconCalendarSearch,
     IconCheck,
     IconChevronDown,
     IconChevronUp,
@@ -135,12 +136,15 @@ type Props = {
     dropdownClassName?: string;
     /** The named zooms' pills and "Add date zoom" after Default zoom (default true). */
     withControls?: boolean;
+    /** The controls bar's quiet text button, as its editor's (default false: the bordered pill). */
+    isQuiet?: boolean;
 };
 
 export const DateZoom: FC<Props> = ({
     isEditMode,
     dropdownClassName,
     withControls = true,
+    isQuiet = false,
 }) => {
     const getUiString = useUiStrings();
     const [showOpenIcon, setShowOpenIcon] = useState(false);
@@ -329,20 +333,34 @@ export const DateZoom: FC<Props> = ({
                             >
                                 <Button
                                     size="xs"
-                                    variant="default"
+                                    variant={isQuiet ? 'subtle' : 'default'}
+                                    color={isQuiet ? 'gray' : undefined}
                                     classNames={{
-                                        root: clsx(
-                                            styles.pill,
-                                            dateZoomGranularity &&
-                                                styles.activeDateZoomButton,
-                                        ),
+                                        root: isQuiet
+                                            ? undefined
+                                            : clsx(
+                                                  styles.pill,
+                                                  dateZoomGranularity &&
+                                                      styles.activeDateZoomButton,
+                                              ),
                                     }}
+                                    leftSection={
+                                        isQuiet ? (
+                                            <MantineIcon
+                                                icon={IconCalendarSearch}
+                                                color="dimmed"
+                                            />
+                                        ) : undefined
+                                    }
                                     rightSection={
                                         <MantineIcon
                                             icon={
                                                 showOpenIcon
                                                     ? IconChevronUp
                                                     : IconChevronDown
+                                            }
+                                            color={
+                                                isQuiet ? 'dimmed' : undefined
                                             }
                                         />
                                     }
@@ -360,38 +378,59 @@ export const DateZoom: FC<Props> = ({
                                     data-tour-then='[data-tour-anchor="zoom-option"][data-tour-value="Month"]'
                                     data-tour-docs="explore/dashboards/date-zoom.mdx#intro:1"
                                 >
-                                    <Text span>
-                                        <Text
-                                            span
-                                            fw={600}
-                                            c={
-                                                isDefaultInert
-                                                    ? 'dimmed'
-                                                    : undefined
-                                            }
-                                        >
-                                            {getUiString(
-                                                'dateZoom.defaultZoom',
+                                    {isQuiet ? (
+                                        // One text run, as the editor's button
+                                        <Text span fz="xs">
+                                            <Text span c="dimmed">
+                                                {getUiString(
+                                                    'dateZoom.defaultZoom',
+                                                )}{' '}
+                                            </Text>
+                                            {dateZoomGranularity && (
+                                                <Text span fw={600}>
+                                                    {getGranularityLabel(
+                                                        dateZoomGranularity,
+                                                        availableCustomGranularities,
+                                                        getUiString,
+                                                    )}
+                                                </Text>
                                             )}
                                         </Text>
-                                        {!isEditMode && dateZoomGranularity ? (
+                                    ) : (
+                                        <Text span>
                                             <Text
                                                 span
-                                                fw={500}
+                                                fw={600}
                                                 c={
                                                     isDefaultInert
                                                         ? 'dimmed'
                                                         : undefined
                                                 }
                                             >
-                                                {` · ${getGranularityLabel(
-                                                    dateZoomGranularity,
-                                                    availableCustomGranularities,
-                                                    getUiString,
-                                                )}`}
+                                                {getUiString(
+                                                    'dateZoom.defaultZoom',
+                                                )}
                                             </Text>
-                                        ) : null}
-                                    </Text>
+                                            {!isEditMode &&
+                                            dateZoomGranularity ? (
+                                                <Text
+                                                    span
+                                                    fw={500}
+                                                    c={
+                                                        isDefaultInert
+                                                            ? 'dimmed'
+                                                            : undefined
+                                                    }
+                                                >
+                                                    {` · ${getGranularityLabel(
+                                                        dateZoomGranularity,
+                                                        availableCustomGranularities,
+                                                        getUiString,
+                                                    )}`}
+                                                </Text>
+                                            ) : null}
+                                        </Text>
+                                    )}
                                 </Button>
                             </Tooltip>
                         </Menu.Target>

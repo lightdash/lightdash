@@ -1,5 +1,4 @@
 import {
-    interpolateUiString,
     type DashboardControlSection,
     type DateZoomControl,
 } from '@lightdash/common';
@@ -16,7 +15,7 @@ import {
     TilesChip,
 } from './ControlPopoverParts';
 import { focusParameterValueOnMount } from './editorFocus';
-import { formatTileCount, formatTilesOf } from './fieldLabels';
+import { formatAppliesToTiles } from './fieldLabels';
 import classes from './FilterEditor.module.css';
 import {
     EditorActions,
@@ -177,16 +176,7 @@ export const DateZoomControlPopover: FC<Props> = ({
 
     const sectionName =
         sections.find(({ id }) => id === draft.sectionId)?.name ?? null;
-    const tilesOf = formatTilesOf(getUiString, tileCount, totalTileCount);
-    const zooms =
-        tileCount === 0
-            ? getUiString('controls.dateZoom.appliesToNoTiles')
-            : interpolateUiString(getUiString('controls.appliesTo'), {
-                  tiles:
-                      tileCount === totalTileCount
-                          ? formatTileCount(getUiString, totalTileCount)
-                          : `${tilesOf.count} ${tilesOf.noun}`,
-              });
+    const zooms = formatAppliesToTiles(getUiString, tileCount, totalTileCount);
     // A zoom on no tiles does nothing; Choose tiles is right beside it
     const applyBlockedReason =
         tileCount === 0 ? 'Choose at least one tile' : null;

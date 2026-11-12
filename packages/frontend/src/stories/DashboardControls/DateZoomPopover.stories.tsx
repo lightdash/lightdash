@@ -218,7 +218,8 @@ export const Default: Story = {
         await waitFor(() =>
             expect(
                 dialog.getByText(
-                    `Applies to the other ${TOTAL_TILE_COUNT - 3} tiles`,
+                    // Five of the six tiles can zoom; Revenue zoom has two
+                    `Applies to ${TOTAL_TILE_COUNT - 3} of ${TOTAL_TILE_COUNT - 1} tiles`,
                 ),
             ).toBeVisible(),
         );
@@ -229,7 +230,7 @@ export const Default: Story = {
         );
         await userEvent.click(dialog.getByRole('button', { name: 'Apply' }));
         await expect(await defaultZoom(page)).toHaveTextContent(
-            'Default zoom None',
+            /^Default zoom\s*$/,
         );
     },
 };
@@ -247,7 +248,7 @@ export const DefaultViewer: Story = {
         );
         await expect(
             page.getByRole('button', { name: /^Default zoom/ }),
-        ).toHaveTextContent('Default zoom · Week');
+        ).toHaveTextContent('Default zoom Week');
     },
 };
 

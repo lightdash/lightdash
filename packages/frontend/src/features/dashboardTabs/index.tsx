@@ -1303,10 +1303,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                             dateZoomLabel={
                                                 isDateZoomDisabled
                                                     ? null
-                                                    : getDateZoomSummaryLabel(
-                                                          dateZoomGranularity,
-                                                          getUiString,
-                                                      )
+                                                    : isDashboardControlsEnabled &&
+                                                        !dateZoomGranularity
+                                                      ? // As the bar's button: the name alone with no grain
+                                                        ''
+                                                      : getDateZoomSummaryLabel(
+                                                            dateZoomGranularity,
+                                                            getUiString,
+                                                        )
                                             }
                                             onExpand={() =>
                                                 isEditMode

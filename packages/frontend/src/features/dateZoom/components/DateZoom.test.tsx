@@ -146,4 +146,39 @@ describe('DateZoom with the flag off', () => {
             expect.objectContaining({ properties: { granularity: 'default' } }),
         );
     });
+
+    it("draws a viewer's quiet Default zoom with its grain, or the name alone", async () => {
+        const user = userEvent.setup();
+        const store = createDashboardTestStore({
+            isEditMode: false,
+            // A tile in no named zoom: the Default zoom governs it
+            chartZoomableFieldsByTileUuid: {
+                t3: [
+                    {
+                        fieldId: 'orders_date',
+                        label: 'Order date',
+                        tableName: 'o',
+                    },
+                ],
+            },
+            source: { embedDashboard: { config } as unknown as Dashboard },
+        });
+        seedDashboardEditState(store, { dashboard: { config } });
+        renderWithProviders(
+            <DashboardStoreTestProvider store={store}>
+                <DateZoom isEditMode={false} withControls={false} isQuiet />
+            </DashboardStoreTestProvider>,
+        );
+        const button = screen.getByRole('button', { name: 'Default zoom' });
+        expect(button).toHaveAttribute('data-variant', 'subtle');
+        await user.click(button);
+        // "None" stays in the menu, never on the button
+        expect(
+            screen.getByRole('menuitem', { name: 'None' }),
+        ).toBeInTheDocument();
+        await user.click(screen.getByRole('menuitem', { name: 'Week' }));
+        expect(
+            screen.getByRole('button', { name: 'Default zoom Week' }),
+        ).toBeInTheDocument();
+    });
 });

@@ -41,6 +41,7 @@ import { useControlsSidebarSelector } from './useControlsSidebar';
 import {
     useDateZoomBar,
     useDefaultZoomTileCount,
+    useZoomableTileCount,
     type DateZoomBarEntry,
 } from './useDateZoomBar';
 import { useDateZoomEditorSelector } from './useDateZoomEditor';
@@ -62,12 +63,14 @@ const DefaultZoomEditorContent: FC = () => {
         selectAvailableCustomGranularities,
     );
     const tileCount = useDefaultZoomTileCount();
+    const totalTileCount = useZoomableTileCount();
     return (
         <DefaultZoomPopover
             enabledGranularities={granularities}
             value={pick}
             customLabels={customLabels}
             tileCount={tileCount}
+            totalTileCount={totalTileCount}
             isAsking={isAsking}
             onResolvePending={resolvePending}
             onChange={setPick}
@@ -491,19 +494,20 @@ export const DefaultZoomButton: FC = () => {
                         <Text span c="dimmed">
                             {getUiString('dateZoom.defaultZoom')}{' '}
                         </Text>
-                        <Text
-                            span
-                            fw={isInEffect ? 600 : undefined}
-                            c={isInEffect ? undefined : 'dimmed'}
-                        >
-                            {granularity === null
-                                ? getUiString('dateZoom.none')
-                                : getGranularityLabel(
-                                      granularity,
-                                      customLabels,
-                                      getUiString,
-                                  )}
-                        </Text>
+                        {/* No grain: the name alone */}
+                        {granularity !== null && (
+                            <Text
+                                span
+                                fw={isInEffect ? 600 : undefined}
+                                c={isInEffect ? undefined : 'dimmed'}
+                            >
+                                {getGranularityLabel(
+                                    granularity,
+                                    customLabels,
+                                    getUiString,
+                                )}
+                            </Text>
+                        )}
                     </Text>
                 </Button>
             </Tooltip>

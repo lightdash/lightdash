@@ -260,7 +260,10 @@ export const DashboardFiltersBar: FC<Props> = ({
                     {hasDashboardTiles &&
                         (!isDateZoomDisabled || isEditMode) && (
                             <>
-                                <Divider orientation="vertical" />
+                                {/* A replaced Default zoom is one of the bar's controls: no rule before it */}
+                                {defaultZoom === undefined && (
+                                    <Divider orientation="vertical" />
+                                )}
 
                                 {withGroupMarkers && (
                                     <FilterGroupSeparator

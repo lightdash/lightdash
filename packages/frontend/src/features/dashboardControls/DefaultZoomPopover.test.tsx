@@ -24,6 +24,7 @@ const Harness: FC<{
             value={value}
             customLabels={customLabels}
             tileCount={3}
+            totalTileCount={5}
             isAsking={false}
             onResolvePending={vi.fn()}
             onChange={setValue}
@@ -50,9 +51,7 @@ describe('DefaultZoomPopover', () => {
         const grain = screen.getByRole('combobox', { name: 'Default zoom' });
         expect(grain).toHaveValue('Month');
         expect(grain).toHaveFocus();
-        expect(
-            screen.getByText('Applies to the other 3 tiles'),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Applies to 3 of 5 tiles')).toBeInTheDocument();
         expect(
             screen.getByText('If cleared, tiles keep their own grain.'),
         ).toBeInTheDocument();

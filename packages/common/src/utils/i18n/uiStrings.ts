@@ -481,6 +481,7 @@ export const DEFAULT_UI_STRINGS = {
         'If cleared, tiles keep their own grain.',
     'controls.dateZoom.custom': 'Custom',
     'controls.dateZoom.clearGrain': 'Clear grain',
+    'controls.summary.showControls': 'Show controls',
     'controls.dateZoom.appliesToWord': 'applies to',
     'controls.dateZoom.backToDateZoom': 'Back to date zoom',
     'controls.dateZoom.dateField': 'Date field',
