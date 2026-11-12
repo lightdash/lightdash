@@ -13846,16 +13846,21 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             toolResultReady = true;
 
             let result: AiWritebackRunResult;
+            let changedModels: string[] | null = null;
             try {
                 const runArgs = {
                     ...(prompt.threadCreatedFrom === 'semantic_studio'
                         ? {
-                              onDbtProject: (project: ParsedDbtProject) =>
-                                  this.semanticStudioService.saveDbtTryOut(
-                                      user,
-                                      projectUuid,
-                                      project,
-                                  ),
+                              onDbtProject: async (
+                                  project: ParsedDbtProject,
+                              ) => {
+                                  changedModels =
+                                      await this.semanticStudioService.saveDbtTryOut(
+                                          user,
+                                          projectUuid,
+                                          project,
+                                      );
+                              },
                           }
                         : {}),
                     agentPermissionsApply: true,
@@ -14039,6 +14044,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     deletions: result.deletions ?? null,
                     previewUrl: previewUrl ?? null,
                     steps: result.steps,
+                    changedModels,
                     needsDbtSourceSelection:
                         result.needsDbtSourceSelection ?? null,
                     dbtSourceOptions: result.dbtSourceOptions ?? null,

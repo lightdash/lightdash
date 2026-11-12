@@ -2,6 +2,7 @@ import { isExploreError, type DbtManifest } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import { mockOrdersExplore } from '../ai/utils/validationExplore.mock';
 import {
+    findChangedModels,
     findLiveTableLocations,
     markNewModels,
     pointManifestAtLiveTables,
@@ -16,6 +17,8 @@ const manifest = (): DbtManifest => {
             database: 'placeholder',
             schema: 'placeholder',
             relation_name: '"placeholder"."placeholder"."orders"',
+            original_file_path: 'models/orders.sql',
+            patch_path: 'shop://models/schema.yml',
         },
         'model.shop.refunds': {
             unique_id: 'model.shop.refunds',
@@ -23,6 +26,7 @@ const manifest = (): DbtManifest => {
             name: 'refunds',
             database: 'placeholder',
             schema: 'placeholder',
+            original_file_path: 'models/refunds.sql',
         },
         'test.shop.not_null': {
             unique_id: 'test.shop.not_null',
@@ -69,5 +73,14 @@ describe('trying a dbt change before its preview', () => {
         );
         expect(kept).toBe(mockOrdersExplore);
         expect(isExploreError(marked)).toBe(true);
+    });
+
+    it('names the models whose SQL or YAML a commit changed', () => {
+        expect(findChangedModels(manifest(), ['models/schema.yml'])).toEqual([
+            'orders',
+        ]);
+        expect(
+            findChangedModels(manifest(), ['models/refunds.sql', 'README.md']),
+        ).toEqual(['refunds']);
     });
 });

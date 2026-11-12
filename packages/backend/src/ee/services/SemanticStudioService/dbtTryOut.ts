@@ -15,6 +15,8 @@ type ModelNode = DbtNode & {
     database?: string | null;
     schema?: string;
     relation_name?: string | null;
+    original_file_path?: string;
+    patch_path?: string | null;
 };
 
 const isModelNode = (node: DbtNode): node is ModelNode =>
@@ -97,6 +99,26 @@ export const markNewModels = (
               }
             : explore,
     );
+
+/** The models whose SQL or YAML is among the changed files, which are relative to the dbt project. */
+// ponytail: a YAML file shared by several models marks them all, per-model YAML diffing if that over-reports
+export const findChangedModels = (
+    manifest: DbtManifest,
+    changedFiles: string[],
+): string[] => {
+    const changed = new Set(changedFiles);
+    return Object.values(manifest.nodes)
+        .filter(isModelNode)
+        .filter(
+            (node) =>
+                (node.original_file_path !== undefined &&
+                    changed.has(node.original_file_path)) ||
+                (node.patch_path != null &&
+                    changed.has(node.patch_path.replace(/^[^:]*:\/\//, ''))),
+        )
+        .map((node) => node.name)
+        .sort();
+};
 
 export const dbtTryOutFileId = (projectUuid: string, userUuid: string) =>
     `semantic-studio-dbt-try-out/${projectUuid}/${userUuid}`;

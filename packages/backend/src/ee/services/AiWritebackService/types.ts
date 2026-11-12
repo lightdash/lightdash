@@ -322,6 +322,8 @@ export type ParsedDbtProject = {
     manifestJson: string;
     /** The project's `lightdash.config.yml`; null when it has none. */
     lightdashConfigYaml: string | null;
+    /** Files this turn's commit changed, relative to the dbt project. */
+    changedFiles: string[];
 };
 
 export type AiWritebackRunArgs = {

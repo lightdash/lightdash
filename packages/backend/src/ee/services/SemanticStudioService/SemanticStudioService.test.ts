@@ -1024,6 +1024,7 @@ describe('SemanticStudioService', () => {
                 docs: {},
             }),
             lightdashConfigYaml: 'spotlight:\n  default_visibility: show\n',
+            changedFiles: [],
         };
         const dbt = (overrides: Parameters<typeof setup>[0] = {}) =>
             setup({ dbtConnection: DBT_IN_GITHUB, ...overrides });

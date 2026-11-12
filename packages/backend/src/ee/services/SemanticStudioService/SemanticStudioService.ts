@@ -57,6 +57,7 @@ import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnec
 import { type ParsedDbtProject } from '../AiWritebackService/types';
 import {
     dbtTryOutFileId,
+    findChangedModels,
     findLiveTableLocations,
     markNewModels,
     pointManifestAtLiveTables,
@@ -691,14 +692,12 @@ export class SemanticStudioService extends BaseService {
      * Compiles what a dbt project's latest change leaves, from the manifest its edit
      * parsed, so the person who asked for it can try it before a preview is built.
      */
+    /** Stores what this person's latest dbt change leaves to try, and returns the models it changed. */
     async saveDbtTryOut(
         user: SessionUser,
         projectUuid: string,
-        { manifestJson, lightdashConfigYaml }: ParsedDbtProject,
-    ): Promise<void> {
-        if (!this.fileStorageClient.isEnabled()) return;
-        const status = await this.getStatus(user, projectUuid);
-        if (!status.enabled || status.appliesAs !== 'dbt_pull_request') return;
+        { manifestJson, lightdashConfigYaml, changedFiles }: ParsedDbtProject,
+    ): Promise<string[]> {
         let manifest: DbtManifest;
         try {
             manifest = JSON.parse(manifestJson);
@@ -706,8 +705,13 @@ export class SemanticStudioService extends BaseService {
             this.logger.warn(
                 `Skipped trying a dbt change on project ${projectUuid}: its manifest is not valid JSON`,
             );
-            return;
+            return [];
         }
+        const changedModels = findChangedModels(manifest, changedFiles);
+        if (!this.fileStorageClient.isEnabled()) return changedModels;
+        const status = await this.getStatus(user, projectUuid);
+        if (!status.enabled || status.appliesAs !== 'dbt_pull_request')
+            return changedModels;
         const live = await this.projectModel.findExploresFromCache(
             projectUuid,
             'name',
@@ -729,6 +733,7 @@ export class SemanticStudioService extends BaseService {
             Buffer.from(JSON.stringify(explores)),
             dbtTryOutFileId(projectUuid, user.userUuid),
         );
+        return changedModels;
     }
 
     /** The explores this person's latest dbt change leaves, by name; null when they have none to try. */

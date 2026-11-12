@@ -3493,6 +3493,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         expect(onDbtProject).toHaveBeenCalledWith({
             manifestJson: 'model contents',
             lightdashConfigYaml: 'model contents',
+            changedFiles: expect.any(Array),
         });
         const parse = (sandbox.commands.run as import('vitest').Mock).mock.calls
             .map((call) => String(call[0]))

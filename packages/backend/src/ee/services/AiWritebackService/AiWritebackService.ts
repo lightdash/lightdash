@@ -4195,7 +4195,15 @@ export class AiWritebackService extends BaseService {
             const lightdashConfigYaml = await sandbox.files
                 .read(`${projectDir}/lightdash.config.yml`)
                 .catch(() => null);
-            await onDbtProject({ manifestJson, lightdashConfigYaml });
+            const diff = await sandbox.commands.run(
+                'git diff --name-only --relative HEAD~1 HEAD',
+                { cwd: projectDir },
+            );
+            await onDbtProject({
+                manifestJson,
+                lightdashConfigYaml,
+                changedFiles: diff.stdout.split('\n').filter(Boolean),
+            });
         } catch (error) {
             this.logger.warn(
                 `AiWriteback: could not prepare the change to be tried before its preview: ${getErrorMessage(
