@@ -183,24 +183,22 @@ it.each(['Europe/Berlin', 'Asia/Tokyo', 'America/Los_Angeles'])(
             expect(await zonedModel.updateStatusToExecuting(executing)).toBe(1);
             const clock = await transaction.raw(
                 `SELECT
-                created_at = (now() AT TIME ZONE 'UTC') AS created_is_utc,
+                created_at = now()::timestamp AS created_uses_session_clock,
                 query_created_at_utc = now() AS anchor_is_current
                 FROM query_history WHERE query_uuid = ?`,
                 [fresh],
             );
             expect(clock.rows[0]).toEqual({
-                created_is_utc: true,
+                created_uses_session_clock: true,
                 anchor_is_current: true,
             });
             const executionClock = await transaction.raw(
                 `SELECT
-                processing_started_at = (now() AT TIME ZONE 'UTC') AS processing_is_utc,
                 executing_heartbeat_at = now() AS heartbeat_is_current
                 FROM query_history WHERE query_uuid = ?`,
                 [executing],
             );
             expect(executionClock.rows[0]).toEqual({
-                processing_is_utc: true,
                 heartbeat_is_current: true,
             });
             expect(await zonedModel.updateExecutingHeartbeat(executing)).toBe(
@@ -238,7 +236,7 @@ it.each(['Europe/Berlin', 'Asia/Tokyo', 'America/Los_Angeles'])(
     },
 );
 
-it('adds the rollout grace period through metadata and reverses both defaults', async () => {
+it('adds the rollout grace period through metadata and preserves the creation default on rollback', async () => {
     await migrated.database.transaction(async (transaction) => {
         await transaction.raw("SET LOCAL TIME ZONE 'America/Los_Angeles'");
         await down(transaction);
@@ -294,3 +292,80 @@ it('adds the rollout grace period through metadata and reverses both defaults', 
         await up(transaction);
     });
 });
+
+it.each(['Europe/Berlin', 'Asia/Tokyo', 'America/Los_Angeles'])(
+    'preserves the session-zone default and last-24-hours window in %s',
+    async (timeZone) => {
+        await migrated.database.transaction(async (transaction) => {
+            await transaction.raw("SELECT set_config('TimeZone', ?, true)", [
+                timeZone,
+            ]);
+            const zonedModel = new QueryHistoryModel({ database: transaction });
+            const checkDefault = async (migrate: typeof up) => {
+                await migrate(transaction);
+                const id = await createFromApi(zonedModel);
+                const clock = await transaction.raw(
+                    `SELECT created_at = now()::timestamp AS uses_session_clock
+                    FROM query_history WHERE query_uuid = ?`,
+                    [id],
+                );
+                expect(clock.rows[0].uses_session_clock).toBe(true);
+                await transaction.raw(
+                    "UPDATE query_history SET created_at = created_at - interval '23 hours 59 minutes' WHERE query_uuid = ?",
+                    [id],
+                );
+                const recent = () =>
+                    transaction('query_history')
+                        .where('query_uuid', id)
+                        .whereRaw("created_at > now() - interval '24 hours'");
+                expect(await recent()).toHaveLength(1);
+                await transaction.raw(
+                    "UPDATE query_history SET created_at = created_at - interval '2 minutes' WHERE query_uuid = ?",
+                    [id],
+                );
+                expect(await recent()).toHaveLength(0);
+            };
+            await checkDefault(down);
+            await checkDefault(up);
+        });
+    },
+);
+
+it.each(['executing', 'expired'])(
+    'keeps the application-clock queue time when a row becomes %s',
+    async (status) => {
+        await migrated.database.transaction(async (transaction) => {
+            await transaction.raw("SET LOCAL TIME ZONE 'Europe/Berlin'");
+            const zonedModel = new QueryHistoryModel({ database: transaction });
+            const id = await createFromApi(zonedModel);
+            const createdAt = new Date();
+            await transaction.raw(
+                'UPDATE query_history SET created_at = ? WHERE query_uuid = ?',
+                [createdAt, id],
+            );
+            vi.useFakeTimers({ toFake: ['Date'] });
+            vi.setSystemTime(createdAt.getTime() + 300_000);
+            try {
+                expect(
+                    status === 'executing'
+                        ? await zonedModel.updateStatusToExecuting(id)
+                        : await zonedModel.updateStatusToExpired(id, 'Expired'),
+                ).toBe(1);
+                const row = await transaction('query_history')
+                    .where('query_uuid', id)
+                    .first();
+                if (!row?.processing_started_at) {
+                    throw new Error('Expected a processing start time');
+                }
+                expect(
+                    Math.round(
+                        row.processing_started_at.getTime() -
+                            row.created_at.getTime(),
+                    ),
+                ).toBe(300_000);
+            } finally {
+                vi.useRealTimers();
+            }
+        });
+    },
+);
