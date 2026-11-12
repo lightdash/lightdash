@@ -582,7 +582,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         <TrackSection name={SectionName.RESULTS_TABLE}>
             <Box
                 className={classes.results}
-                mod={{ running: !!previous }}
+                mod={{ running: !!previous, grouped: showGroupedView }}
                 data-testid="results-table-container"
                 // Walkthrough result marker for manage:Explore: the rows a
                 // query of one's own returned.

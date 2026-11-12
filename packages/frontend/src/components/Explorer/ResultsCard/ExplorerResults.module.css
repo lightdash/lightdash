@@ -2,44 +2,46 @@
     overflow: auto;
 }
 
+/* These rules are for the flat results grid only; the grouped view keeps the
+   pivot table's own look. */
 /* Results grid: row hairlines only, no column rules or zebra, and quiet
    single-line headers. The shared table has no hooks for its inner parts, so
    they are matched by their module class name. */
-.results [class*='tableScrollableWrapper'] {
+.results:not([data-grouped]) [class*='tableScrollableWrapper'] {
     border: 0;
     border-block: 1px solid var(--mantine-color-ldGray-2);
     border-radius: 0;
 }
 
-.results table tbody tr td,
-.results table tbody tr td:not(:first-child) {
+.results:not([data-grouped]) table tbody tr td,
+.results:not([data-grouped]) table tbody tr td:not(:first-child) {
     box-shadow: inset 0 1px 0 0 var(--mantine-color-ldGray-2);
 }
 
-.results table tbody tr[data-odd] {
+.results:not([data-grouped]) table tbody tr[data-odd] {
     background-color: transparent;
 }
 
-.results table thead th,
-.results table thead th:not(:first-child) {
+.results:not([data-grouped]) table thead th,
+.results:not([data-grouped]) table thead th:not(:first-child) {
     padding: 7px 8.5px;
     vertical-align: middle;
     box-shadow: none;
 }
 
-.results table thead th:first-child,
-.results table tbody td:first-child {
+.results:not([data-grouped]) table thead th:first-child,
+.results:not([data-grouped]) table tbody td:first-child {
     color: var(--mantine-color-ldGray-5);
     font-weight: 400;
 }
 
-.results [class*='thContainer'] {
+.results:not([data-grouped]) [class*='thContainer'] {
     align-items: center;
 }
 
 /* Header label: type icon in the field kind's colour, field name in ink,
    then its table in grey. */
-.results [class*='tableHeaderLabelContainer'] {
+.results:not([data-grouped]) [class*='tableHeaderLabelContainer'] {
     display: flex;
     gap: 6px;
     align-items: baseline;
@@ -47,17 +49,17 @@
     white-space: nowrap;
 }
 
-.results [class*='tableHeaderBoldLabel'] {
+.results:not([data-grouped]) [class*='tableHeaderBoldLabel'] {
     color: var(--mantine-color-text);
     font-weight: 500;
 }
 
-.results [class*='tableHeaderLabelContainer'] > svg {
+.results:not([data-grouped]) [class*='tableHeaderLabelContainer'] > svg {
     flex-shrink: 0;
     align-self: center;
 }
 
-.results [class*='tableHeaderRegularLabel'] {
+.results:not([data-grouped]) [class*='tableHeaderRegularLabel'] {
     order: 2;
     color: var(--mantine-color-ldGray-5);
     font-size: 11px;
@@ -65,24 +67,36 @@
 }
 
 /* The column menu stays out of the way until the header is in use */
-.results table thead th [class*='thActionsContainer'] {
+.results:not([data-grouped]) table thead th [class*='thActionsContainer'] {
     opacity: 0;
     transition: opacity 120ms ease;
 }
 
-.results table thead th:hover [class*='thActionsContainer'],
-.results table thead th:focus-within [class*='thActionsContainer'] {
+.results:not([data-grouped]) table thead th:hover [class*='thActionsContainer'],
+.results:not([data-grouped])
+    table
+    thead
+    th:focus-within
+    [class*='thActionsContainer'] {
     opacity: 1;
 }
 
 /* Numeric labels sit over their right-aligned values; the menu overlays the
    column's right edge so it never pushes the label off them */
-.results table thead th[data-numeric] [class*='thContainer'] {
+.results:not([data-grouped])
+    table
+    thead
+    th[data-numeric]
+    [class*='thContainer'] {
     position: relative;
     justify-content: flex-end;
 }
 
-.results table thead th[data-numeric] [class*='thActionsContainer'] {
+.results:not([data-grouped])
+    table
+    thead
+    th[data-numeric]
+    [class*='thActionsContainer'] {
     position: absolute;
     right: 0;
     margin: 0;
@@ -91,32 +105,38 @@
 }
 
 /* Pagination is the table's last line: no band, small quiet controls */
-.results [class*='tableFooter'] {
+.results:not([data-grouped]) [class*='tableFooter'] {
     padding: 4px 8.5px;
     margin-top: 0;
 }
 
 /* Pages or Scroll is a plain text choice: the current one in ink */
-.results [class*='tableFooter'] :global(.mantine-SegmentedControl-root) {
+.results:not([data-grouped])
+    [class*='tableFooter']
+    :global(.mantine-SegmentedControl-root) {
     padding: 0;
     background-color: transparent;
 }
 
-.results [class*='tableFooter'] :global(.mantine-SegmentedControl-indicator) {
+.results:not([data-grouped])
+    [class*='tableFooter']
+    :global(.mantine-SegmentedControl-indicator) {
     display: none;
 }
 
-.results [class*='tableFooter'] :global(.mantine-SegmentedControl-control) {
+.results:not([data-grouped])
+    [class*='tableFooter']
+    :global(.mantine-SegmentedControl-control) {
     border: 0;
 }
 
-.results
+.results:not([data-grouped])
     [class*='tableFooter']
     :global(.mantine-SegmentedControl-control)::before {
     display: none;
 }
 
-.results
+.results:not([data-grouped])
     [class*='tableFooter']
     :global(.mantine-SegmentedControl-label):not([data-active]) {
     color: var(--mantine-color-ldGray-5);
@@ -124,31 +144,35 @@
 
 /* Totals close the table: a firmer rule above, and an opaque surface because
    the row sticks over scrolling rows */
-.results table tfoot [class*='footerCell'] {
+.results:not([data-grouped]) table tfoot [class*='footerCell'] {
     background-color: var(--mantine-color-body);
     box-shadow: inset 0 1px 0 0 var(--mantine-color-ldGray-4);
 }
 
-.results [class*='tableFooter'] :global(.mantine-SegmentedControl-label) {
+.results:not([data-grouped])
+    [class*='tableFooter']
+    :global(.mantine-SegmentedControl-label) {
     padding: 2px 10px 2px 0;
     font-size: 12px;
     font-weight: 500;
 }
 
-.results [class*='tableFooter'] :global(.mantine-Pagination-control) {
+.results:not([data-grouped])
+    [class*='tableFooter']
+    :global(.mantine-Pagination-control) {
     --pagination-control-size: 24px;
 
     background-color: transparent;
     border: 0;
 }
 
-.results
+.results:not([data-grouped])
     [class*='tableFooter']
     :global(.mantine-Pagination-control):hover:not(:disabled) {
     background-color: var(--mantine-color-default-hover);
 }
 
-.results [class*='tableScrollableWrapper'] {
+.results:not([data-grouped]) [class*='tableScrollableWrapper'] {
     border-bottom: 1px solid var(--mantine-color-ldGray-2);
 }
 
