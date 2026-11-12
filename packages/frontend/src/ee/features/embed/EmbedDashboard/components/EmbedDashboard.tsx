@@ -53,6 +53,7 @@ import {
     selectHaveTilesChanged,
     selectIsAddFilterDisabled,
     selectIsDateZoomDisabled,
+    dashboardDateZoomActions,
     dashboardParametersActions,
     useDashboardDispatch,
     useDashboardSelector,
@@ -768,7 +769,10 @@ const EmbedDashboard: FC<{
         dashboardDispatch(
             dashboardParametersActions.setIsEditMode(isControlsEditor),
         );
-        if (isControlsEditor) setDateZoomGranularity(undefined);
+        if (!isControlsEditor) return;
+        setDateZoomGranularity(undefined);
+        // A viewer's named zoom picks go for good, as the app's Edit drops them
+        dashboardDispatch(dashboardDateZoomActions.clearControlGranularities());
     }, [dashboardDispatch, isControlsEditor, setDateZoomGranularity]);
     // "Hide date zoom for viewers" starts from the saved value, only while an
     // editor edits where the token allows date zoom: an embed viewer's date

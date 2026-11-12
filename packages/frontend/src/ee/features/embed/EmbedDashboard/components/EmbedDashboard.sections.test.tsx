@@ -1,4 +1,4 @@
-import { type Dashboard } from '@lightdash/common';
+import { resolveTileDateZoom, type Dashboard } from '@lightdash/common';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useEffect, useRef, type FC } from 'react';
@@ -9,11 +9,13 @@ import {
     dashboardEditActions,
     dashboardParametersActions,
     selectControlSections,
+    selectControlGranularities,
     selectDashboardFilters,
     selectDateZoomGranularity,
     selectIsDateZoomDisabled,
     selectParameterPicks,
     selectRawTemporaryFilters,
+    useDashboardDateZoomConfig,
     useDashboardDateZoomGranularities,
     useDashboardDispatch,
     useDashboardSelector,
@@ -195,8 +197,21 @@ const ParametersState: FC = () => {
     const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
     const zoom = useDashboardSelector(selectDateZoomGranularity);
     const grains = useDashboardDateZoomGranularities();
+    const zoomPicks = useDashboardSelector(selectControlGranularities);
+    const zoomConfig = useDashboardDateZoomConfig();
+    // The date zoom tile-1 queries with, as the chart tile resolves it
+    const tileZoom = resolveTileDateZoom({
+        config: zoomConfig,
+        tileUuid: 'tile-1',
+        runtimeGranularities: zoomPicks,
+        globalGranularity: zoom,
+        defaultXAxisFieldId: undefined,
+    });
     return (
         <>
+            <output data-testid="tile-zoom">
+                {tileZoom?.granularity ?? 'none'}
+            </output>
             <output data-testid="grains">{grains.join(',')}</output>
             <output data-testid="zoom">{zoom ?? 'none'}</output>
             <output data-testid="parameters-state">
@@ -540,6 +555,76 @@ describe('EmbedDashboard editor controls', () => {
 
             rerender(embedElement(false, withDefaultZoom));
             await waitFor(() => expect(zoom()).toBe('Week'));
+        });
+    });
+
+    describe("a viewer's pick on a named date zoom", () => {
+        const namedZoom = {
+            ...dashboard,
+            canDateZoom: true,
+            config: {
+                ...dashboard.config,
+                dateZoomConfig: {
+                    controls: [
+                        {
+                            uuid: 'z1',
+                            name: 'Order grain',
+                            granularity: 'Month',
+                        },
+                    ],
+                    tileTargets: {
+                        'tile-1': {
+                            controlUuid: 'z1',
+                            fieldId: 'orders_date',
+                            tableName: 'orders',
+                        },
+                    },
+                },
+            },
+        } as unknown as Dashboard;
+        const tileZoom = () => screen.getByTestId('tile-zoom').textContent;
+        const pickYear = () =>
+            act(() => {
+                mocks.dispatch?.(
+                    dashboardDateZoomActions.setControlGranularity({
+                        controlUuid: 'z1',
+                        granularity: 'Year',
+                    }),
+                );
+            });
+
+        it('goes on entering edit mode, for good, as on the app', async () => {
+            const { rerender } = renderEmbed(false, namedZoom);
+            await waitFor(() => expect(tileZoom()).toBe('Month'));
+            pickYear();
+            expect(tileZoom()).toBe('Year');
+
+            rerender(embedElement(true, namedZoom));
+            await waitFor(() => expect(tileZoom()).toBe('Month'));
+            expect(
+                await screen.findByRole('button', {
+                    name: /^Order grain is Month/,
+                }),
+            ).toBeInTheDocument();
+            // Dropping the pick is no edit
+            expect(save()).toBeDisabled();
+
+            rerender(embedElement(false, namedZoom));
+            await screen.findByRole('button', { name: /^Order grain is/ });
+            await act(async () => {});
+            expect(tileZoom()).toBe('Month');
+        });
+
+        it('stays through edit mode with the flag off', async () => {
+            mocks.isFlagEnabled = false;
+            const { rerender } = renderEmbed(false, namedZoom);
+            await waitFor(() => expect(tileZoom()).toBe('Month'));
+            pickYear();
+
+            rerender(embedElement(true, namedZoom));
+            await screen.findByDisplayValue('Sales');
+            await act(async () => {});
+            expect(tileZoom()).toBe('Year');
         });
     });
 

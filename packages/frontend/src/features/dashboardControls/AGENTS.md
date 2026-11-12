@@ -63,7 +63,8 @@ Gated on the flag:
   it also: wraps the toolbar in `EmbedToolbarGuard` (inert while a control
   is edited; it carries `data-dashboard-header-guard` and Save the header's
   `save` class, so the header's rule draws Save as an outline), sets the
-  store's edit mode and clears the runtime zoom pick, builds Save with
+  store's edit mode and clears the runtime zoom pick and a viewer's named
+  zoom picks (for good, as the app's Edit drops them), builds Save with
   `buildEmbedDashboardUpdate`, counts control drafts in "changed", and
   resets them on Cancel and on leaving edit mode (a host's switch), and
   settles them after a save (`useControlDraftResets`).
