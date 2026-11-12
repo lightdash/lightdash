@@ -483,23 +483,26 @@ describe('scheduler query polling timeout', () => {
         expect(parseConfig().scheduler.queryPollingTimeout).toBe(300_000);
     });
 
-    it('keeps the default when the job timeout is below it', () => {
-        process.env.SCHEDULER_JOB_TIMEOUT = '120000';
-
-        expect(parseConfig().scheduler.queryPollingTimeout).toBe(300_000);
-    });
-
     it('reads the configured timeout', () => {
         process.env.SCHEDULER_QUERY_POLLING_TIMEOUT = '540000';
 
         expect(parseConfig().scheduler.queryPollingTimeout).toBe(540_000);
     });
 
-    it('accepts a timeout equal to the job timeout', () => {
+    it('accepts a timeout that leaves a tenth of the job timeout', () => {
         process.env.SCHEDULER_JOB_TIMEOUT = '1800000';
-        process.env.SCHEDULER_QUERY_POLLING_TIMEOUT = '1800000';
+        process.env.SCHEDULER_QUERY_POLLING_TIMEOUT = '1620000';
 
-        expect(parseConfig().scheduler.queryPollingTimeout).toBe(1_800_000);
+        expect(parseConfig().scheduler.queryPollingTimeout).toBe(1_620_000);
+    });
+
+    it('keeps the default wait below a short job timeout', () => {
+        process.env.SCHEDULER_JOB_TIMEOUT = '120000';
+
+        expect(parseConfig().scheduler).toMatchObject({
+            jobTimeout: 120_000,
+            queryPollingTimeout: 108_000,
+        });
     });
 
     it.each(['0', '-1', 'invalid', '2147483648'])(
@@ -511,13 +514,29 @@ describe('scheduler query polling timeout', () => {
         },
     );
 
-    it('rejects a timeout greater than the job timeout', () => {
-        process.env.SCHEDULER_QUERY_POLLING_TIMEOUT = '600001';
+    it.each([
+        ['equal to the job timeout', undefined, '600000'],
+        ['without headroom below the job timeout', undefined, '540001'],
+        ['above a short job timeout', '120000', '300000'],
+    ])('rejects a timeout %s', (_case, jobTimeout, queryPollingTimeout) => {
+        if (jobTimeout) process.env.SCHEDULER_JOB_TIMEOUT = jobTimeout;
+        process.env.SCHEDULER_QUERY_POLLING_TIMEOUT = queryPollingTimeout;
 
+        expect(() => parseConfig()).toThrow(ParseError);
         expect(() => parseConfig()).toThrow(
             /SCHEDULER_QUERY_POLLING_TIMEOUT.*SCHEDULER_JOB_TIMEOUT/,
         );
     });
+
+    it.each(['0', '-1', 'invalid'])(
+        'rejects an invalid job timeout: %s',
+        (value) => {
+            process.env.SCHEDULER_JOB_TIMEOUT = value;
+
+            expect(() => parseConfig()).toThrow(ParseError);
+            expect(() => parseConfig()).toThrow(/SCHEDULER_JOB_TIMEOUT/);
+        },
+    );
 });
 
 describe('usage events storage endpoint', () => {
