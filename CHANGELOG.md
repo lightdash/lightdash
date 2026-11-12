@@ -1,3 +1,10 @@
+## [3.240.2](https://github.com/lightdash/lightdash/compare/3.240.1...3.240.2) (2026-11-12)
+
+
+### Bug Fixes
+
+* **dashboards:** draw the editing canvas background on every tab and down to the window bottom ([#32517](https://github.com/lightdash/lightdash/issues/32517)) ([2d11f90](https://github.com/lightdash/lightdash/commit/2d11f90fcf787a0be203b52dc9d70dbcbc8fb586))
+
 ## [3.240.1](https://github.com/lightdash/lightdash/compare/3.240.0...3.240.1) (2026-11-12)
 
 
