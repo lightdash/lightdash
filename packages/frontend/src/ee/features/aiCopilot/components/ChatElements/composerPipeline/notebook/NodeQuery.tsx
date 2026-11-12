@@ -9,7 +9,6 @@ import {
     metricQueryOfSemanticNode,
     QuerySourceType,
     WarehouseTypes,
-    type ApiError,
     type MergeSourceQuery,
     type SemanticLayerSourceQuery,
     type SourceQuery,
@@ -33,22 +32,17 @@ import {
     IconTable,
     type Icon,
 } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
 import { clsx } from 'clsx';
 import { useId, useMemo, useState, type FC } from 'react';
 import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
 import InlineErrorState from '../../../../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
 import { ItemDetailMarkdown } from '../../../../../../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
-import {
-    compileMergeQuery,
-    type CompiledMergeQuery,
-} from '../../../../../../../features/mergeQuery/hooks/useMergeQuery';
 import { useCompiledSqlFromMetricQuery } from '../../../../../../../hooks/useCompiledSql';
 import { useExploreByProjectUuid } from '../../../../../../../hooks/useExplore';
 import { useExploreWarehouseConnection } from '../../../../../../../hooks/useExploreWarehouseConnection';
-import { useLightdashApi } from '../../../../../../../providers/LightdashApi/useLightdashApi';
 import { useUiStrings } from '../../../../../../providers/Embed/useUiStrings';
+import { useCompiledMergeQuery } from '../../../../hooks/useAiMergeCompiledSql';
 import { SemanticNodeDetails } from '../SemanticNodeDetails';
 import { isLongCode } from './codeCollapse';
 import styles from './PipelineNotebook.module.css';
@@ -132,6 +126,7 @@ const CompiledSql: FC<{
     query: SemanticLayerSourceQuery;
     projectUuid: string;
 }> = ({ query, projectUuid }) => {
+    const getUiString = useUiStrings();
     const metricQuery = useMemo(
         () => metricQueryOfSemanticNode(query),
         [query],
@@ -146,23 +141,19 @@ const CompiledSql: FC<{
         return <NotebookCode code={formatSql(data.query)} language="sql" />;
     }
     return error ? (
-        <CompileError onRetry={() => void refetch()} />
+        <CompileError
+            message={getUiString('aiAgent.composer.semanticNode.compileError')}
+            onRetry={() => void refetch()}
+        />
     ) : (
         <Compiling />
     );
 };
 
-const CompileError: FC<{ onRetry: (() => void) | undefined }> = ({
+const CompileError: FC<{ message: string; onRetry?: () => void }> = ({
+    message,
     onRetry,
-}) => {
-    const getUiString = useUiStrings();
-    return (
-        <InlineErrorState
-            message={getUiString('aiAgent.composer.semanticNode.compileError')}
-            onRetry={onRetry}
-        />
-    );
-};
+}) => <InlineErrorState message={message} onRetry={onRetry} />;
 
 const Compiling: FC = () => {
     const getUiString = useUiStrings();
@@ -199,31 +190,39 @@ const MergeCompiledSql: FC<{
     reads: SourceQuery[];
     projectUuid: string;
 }> = ({ query, reads, projectUuid }) => {
-    const lightdashApi = useLightdashApi();
+    const getUiString = useUiStrings();
     const request = getMergeCompileRequest(query, reads);
     const { warehouseType } = useExploreWarehouseConnection(
         request?.mergeQuery.sources[0]?.metricQuery.exploreName ?? null,
         projectUuid,
     );
-    const { data, error, refetch } = useQuery<CompiledMergeQuery, ApiError>({
-        queryKey: ['composerMergeNodeSql', projectUuid, request],
-        queryFn: () =>
-            compileMergeQuery(
-                lightdashApi,
-                projectUuid,
-                request!.mergeQuery,
-                request!.parameters,
-            ),
-        enabled: request !== null,
-    });
-    if (!request) return <CompileError onRetry={undefined} />;
-    const sql =
-        data && getMergeCompiledSqlText(data, warehouseType ?? undefined);
-    if (sql) return <NotebookCode code={sql} language="sql" />;
-    return error || data ? (
-        <CompileError onRetry={() => void refetch()} />
+    const { data, error, refetch } = useCompiledMergeQuery(
+        projectUuid,
+        request?.mergeQuery ?? null,
+        request?.parameters,
+    );
+    const compileError = getUiString('aiAgent.composer.mergeNode.compileError');
+    if (!request) return <CompileError message={compileError} />;
+    if (error) {
+        return (
+            <CompileError
+                message={compileError}
+                onRetry={() => void refetch()}
+            />
+        );
+    }
+    if (!data) return <Compiling />;
+    const sql = getMergeCompiledSqlText(data, warehouseType ?? undefined);
+    // A merge that would give wrong numbers compiles to its reasons, as in the Explorer
+    return sql ? (
+        <NotebookCode code={sql} language="sql" />
     ) : (
-        <Compiling />
+        <CompileError
+            message={
+                data.errors.map(({ message }) => message).join(' ') ||
+                compileError
+            }
+        />
     );
 };
 

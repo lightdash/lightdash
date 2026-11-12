@@ -15,7 +15,7 @@ import useIsEmbedded from '../../../../../../providers/Embed/useIsEmbedded';
 
 type ExploreUrl = { pathname: string; search: string };
 
-/** Builds a step's Explore URL on click; null for a step the Explorer cannot open. */
+/** A builder for a step's Explore URL, run on click; null for a step the Explorer cannot open. */
 export const getNodeExploreUrl = (
     query: SourceQuery,
     /** The queries of the steps it reads. */
