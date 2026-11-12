@@ -57,7 +57,11 @@ import {
     type DraftCheckerProjectService,
 } from './DraftChecker';
 import { foldDraft, withWrites } from './draftFold';
-import { findDraftedPaths, reconcileModel } from './reconcileDraft';
+import {
+    findDraftedPaths,
+    findRefusedPaths,
+    reconcileModel,
+} from './reconcileDraft';
 import {
     describePullRequest,
     keepsModelsInGithub,
@@ -805,7 +809,16 @@ export class SemanticStudioService extends BaseService {
                     }),
                 ),
             })),
-            models: [...draft.writes].map(([model, contentAfter]) => {
+            models: [
+                ...draft.writes,
+                // A conflict on a model the draft writes nothing to still needs settling.
+                ...[...reconciliations].flatMap(
+                    ([model, { state }]): [string, string | null][] =>
+                        state === 'conflict' && !draft.writes.has(model)
+                            ? [[model, draft.live.get(model) ?? null]]
+                            : [],
+                ),
+            ].map(([model, contentAfter]) => {
                 const explore = explores.find(({ name }) => name === model);
                 return {
                     model,
@@ -900,7 +913,14 @@ export class SemanticStudioService extends BaseService {
         const liveVersions = new Map(
             draft.stored.map(({ name, version }) => [name, version]),
         );
-        const drafted = [...bases].filter(([model]) => draft.writes.has(model));
+        const results = draft.results.flat();
+        // A model whose edits all hit parts live no longer has writes nothing, yet still conflicts.
+        const drafted = [...bases].filter(
+            ([model, version]) =>
+                draft.writes.has(model) ||
+                (version !== (liveVersions.get(model) ?? null) &&
+                    findRefusedPaths(model, results).length > 0),
+        );
         const baseContents =
             await this.projectModelDocumentModel.findDocumentsAt(
                 projectUuid,
@@ -912,7 +932,6 @@ export class SemanticStudioService extends BaseService {
                     ),
                 ),
             );
-        const results = draft.results.flat();
         const reconciled = new Map<string, SemanticLayerDraftReconciliation>();
         drafted.forEach(([model, version]) => {
             const liveVersion = liveVersions.get(model) ?? null;
@@ -927,15 +946,26 @@ export class SemanticStudioService extends BaseService {
             }
             // A base whose revision is gone cannot be set against anything.
             if (version !== null && !baseContents.has(model)) return;
+            const base =
+                version === null ? null : (baseContents.get(model) ?? null);
+            const onBase = foldDraft(
+                new Map(base === null ? [] : [[model, base]]),
+                draft.changes.map(({ models }) =>
+                    models.filter(({ name }) => name === model),
+                ),
+            ).writes;
             reconciled.set(model, {
                 ...reconcileModel({
-                    base:
-                        version === null
-                            ? null
-                            : (baseContents.get(model) ?? null),
+                    base,
                     live: draft.live.get(model) ?? null,
-                    mine: draft.writes.get(model) ?? null,
+                    mine: draft.writes.has(model)
+                        ? (draft.writes.get(model) ?? null)
+                        : (draft.live.get(model) ?? null),
                     draftedPaths: findDraftedPaths(model, results),
+                    refusedPaths: findRefusedPaths(model, results),
+                    wanted: onBase.has(model)
+                        ? (onBase.get(model) ?? null)
+                        : base,
                 }),
                 liveVersion,
             });

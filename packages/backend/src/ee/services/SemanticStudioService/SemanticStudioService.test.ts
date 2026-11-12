@@ -1307,6 +1307,33 @@ describe('SemanticStudioService', () => {
             expect(context.commitCalls).toHaveLength(1);
         });
 
+        it('blocks publishing a change to a model that was removed live', async () => {
+            const stored = [{ name: 'orders', content: orders }];
+            const context = await drafted(
+                setup({ stored, baseContents: [['orders', orders]] }),
+            );
+            stored.splice(0);
+            const draft = await context.service.getDraft(
+                deployer,
+                PROJECT_UUID,
+            );
+            expect(draft.models.map(({ model }) => model)).toEqual(['orders']);
+            expect(
+                draft.models[0].reconciliation?.conflicts.map(
+                    ({ path, live }) => [path, live],
+                ),
+            ).toEqual([['', null]]);
+            const refused = await context.service.applyDraft(
+                deployer,
+                PROJECT_UUID,
+                null,
+            );
+            expect(refused.failures.map(({ model }) => model)).toEqual([
+                'orders',
+            ]);
+            expect(context.commitCalls).toEqual([]);
+        });
+
         it('says nothing when the base was never recorded', async () => {
             const context = await drafted(setup());
             context.drafts[0].baseVersions = null;
