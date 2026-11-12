@@ -63,6 +63,7 @@ const BASE_ROLE_SCOPES = {
         'view:UnderlyingData',
         'view:SemanticViewer',
         'manage:Explore',
+        'manage:MergeQuery',
         'manage:ChangeCsvResults',
         'create:ScheduledDeliveries',
         'manage:ScheduledDeliveries@self',

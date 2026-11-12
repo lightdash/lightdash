@@ -115,6 +115,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('manage', 'Explore', {
             organizationUuid,
         });
+        can('manage', 'MergeQuery', {
+            organizationUuid,
+        });
         can('create', 'ScheduledDeliveries', {
             organizationUuid,
         });

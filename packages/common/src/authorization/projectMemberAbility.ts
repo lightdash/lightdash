@@ -113,6 +113,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'Explore', {
             projectUuid: member.projectUuid,
         });
+        can('manage', 'MergeQuery', {
+            projectUuid: member.projectUuid,
+        });
         can('manage', 'ChangeCsvResults', {
             projectUuid: member.projectUuid,
         });

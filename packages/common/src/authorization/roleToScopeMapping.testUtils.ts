@@ -180,6 +180,11 @@ export const createStandardTestCases = () => [
         subject: 'Explore' as const,
         resource: { projectUuid: 'test-project-uuid' },
     },
+    {
+        action: 'manage' as const,
+        subject: 'MergeQuery' as const,
+        resource: { projectUuid: 'test-project-uuid' },
+    },
 
     // Higher-level permissions (developer+ only)
     {
