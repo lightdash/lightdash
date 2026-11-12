@@ -10,10 +10,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { MobileSignInMenu } from './MobileSignInMenu';
-import {
-    UPSELL_INSTALL_STRINGS,
-    UPSELL_STRINGS,
-} from './upsell/upsellStrings';
+import { UPSELL_INSTALL_STRINGS, UPSELL_STRINGS } from './upsell/upsellStrings';
 
 vi.mock('../../api');
 vi.mock('../../hooks/health/useHealth', () => ({

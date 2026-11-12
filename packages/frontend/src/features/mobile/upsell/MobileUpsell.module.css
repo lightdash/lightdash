@@ -251,7 +251,6 @@
     border-radius: 6px;
 }
 
-
 .askPhone {
     left: calc(50% - 136px);
 }
@@ -314,7 +313,6 @@
 .askScene .liftCard {
     animation: lift 1.2s 2.4s var(--upsell-ease) both;
 }
-
 
 .dashWindow {
     top: 18px;
@@ -383,7 +381,6 @@
 .dashScene .dashPhone .line {
     animation: draw 1s 0.9s var(--upsell-ease) both;
 }
-
 
 .sheet {
     position: absolute;
@@ -491,7 +488,6 @@
     animation-delay: 2.7s;
 }
 
-
 .homePhone {
     left: calc(50% - 84px);
     top: 18px;
@@ -577,7 +573,6 @@
     animation: draw 1s 1.8s var(--upsell-ease) both;
 }
 
-
 .morph {
     position: absolute;
     left: calc(50% - 56px);
@@ -625,7 +620,6 @@
 .fitScene .morph::before {
     animation: appear 0.4s 2.2s ease-out both;
 }
-
 
 .pairBack,
 .pairFront {
