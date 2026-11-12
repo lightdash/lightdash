@@ -7,11 +7,18 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sharedLightdashApi } from '../../api';
+import { useProjectAiAgentButtonVisibility } from '../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import LightdashAnalyticsPanel from './LightdashAnalyticsPanel';
 
 vi.mock('../../api');
+vi.mock(
+    '../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility',
+    () => ({
+        useProjectAiAgentButtonVisibility: vi.fn(),
+    }),
+);
 vi.mock('../../hooks/organization/useOrganization', () => ({
     useOrganization: () => ({ data: { organizationUuid: 'org' } }),
 }));
@@ -24,6 +31,8 @@ const project: NonNullable<AnalyticsProjectStatus['project']> = {
     createdAt: '2026-09-10T00:00:00Z',
     hasContentUpdates: false,
 };
+const homepageUrl = '/projects/lightdash-analytics-1/home';
+const askAiUrl = `/projects/${project.projectUuid}/ai-agents`;
 
 const coveredHistory: AnalyticsHistoryBackfillStatus = {
     running: false,
@@ -47,8 +56,8 @@ const renderPanel = () =>
             <Routes>
                 <Route path="/settings" element={<LightdashAnalyticsPanel />} />
                 <Route
-                    path={project.url}
-                    element={<div>Analytics explores</div>}
+                    path={homepageUrl}
+                    element={<div>Analytics homepage</div>}
                 />
             </Routes>
         </MemoryRouter>,
@@ -57,12 +66,13 @@ const renderPanel = () =>
 describe('LightdashAnalyticsPanel', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(useProjectAiAgentButtonVisibility).mockReturnValue(true);
         mockPanelApi(async ({ url }) =>
             url.includes('/dashboards?') ? [] : { project },
         );
     });
 
-    it('creates only on click and stays in settings with dashboards and an Explore link', async () => {
+    it('creates only on click and stays in settings with dashboard, homepage and AI links', async () => {
         mockedLightdashApi.mockResolvedValue({ project: null });
         renderPanel();
         const create = await screen.findByRole('button', {
@@ -91,8 +101,15 @@ describe('LightdashAnalyticsPanel', () => {
         );
         await userEvent.click(create);
         expect(
-            await screen.findByRole('link', { name: 'Explore' }),
-        ).toHaveAttribute('href', project.url);
+            await screen.findByRole('link', { name: 'Homepage' }),
+        ).toHaveAttribute('href', homepageUrl);
+        expect(screen.getByRole('link', { name: 'Ask AI' })).toHaveAttribute(
+            'href',
+            askAiUrl,
+        );
+        expect(useProjectAiAgentButtonVisibility).toHaveBeenLastCalledWith(
+            project.projectUuid,
+        );
         expect(
             await screen.findByRole('link', {
                 name: 'Lightdash usage overview',
@@ -102,7 +119,7 @@ describe('LightdashAnalyticsPanel', () => {
             '/projects/lightdash-analytics-1/dashboards/lightdash-analytics-overview/view',
         );
         expect(
-            screen.queryByText('Analytics explores'),
+            screen.queryByText('Analytics homepage'),
         ).not.toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Create' }),
@@ -114,17 +131,36 @@ describe('LightdashAnalyticsPanel', () => {
         });
     });
 
-    it('opens an existing project without recreating or syncing it', async () => {
+    it('shows the homepage without a manual sync action when content updates are pending', async () => {
+        mockPanelApi(async ({ url }) =>
+            url.includes('/dashboards?')
+                ? []
+                : { project: { ...project, hasContentUpdates: true } },
+        );
         renderPanel();
         expect(
-            await screen.findByRole('link', { name: 'Explore' }),
-        ).toHaveAttribute('href', project.url);
+            await screen.findByRole('link', { name: 'Homepage' }),
+        ).toHaveAttribute('href', homepageUrl);
         expect(
             screen.queryByRole('button', { name: 'Create' }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Sync content' }),
         ).not.toBeInTheDocument();
         expect(sharedLightdashApi).not.toHaveBeenCalledWith(
             expect.objectContaining({ method: 'POST' }),
         );
+    });
+
+    it('keeps the homepage link when Ask AI is unavailable', async () => {
+        vi.mocked(useProjectAiAgentButtonVisibility).mockReturnValue(false);
+        renderPanel();
+        expect(
+            await screen.findByRole('link', { name: 'Homepage' }),
+        ).toHaveAttribute('href', homepageUrl);
+        expect(
+            screen.queryByRole('link', { name: 'Ask AI' }),
+        ).not.toBeInTheDocument();
     });
 
     it('does not show Create when status fails and allows retry', async () => {
@@ -185,101 +221,6 @@ describe('LightdashAnalyticsPanel', () => {
         );
         expect(screen.getByText('Daily AI usage')).toBeVisible();
         expect(screen.getByText(/^Updated /)).toBeVisible();
-    });
-
-    it('syncs managed content without deleting or recreating the project', async () => {
-        mockPanelApi(async ({ url }) =>
-            url.includes('/dashboards?')
-                ? []
-                : { project: { ...project, hasContentUpdates: true } },
-        );
-        renderPanel();
-        await userEvent.click(
-            await screen.findByRole('button', {
-                name: /Sync content/,
-            }),
-        );
-        await waitFor(() =>
-            expect(sharedLightdashApi).toHaveBeenCalledWith({
-                url: '/org/analytics-project/sample-content',
-                method: 'POST',
-                body: undefined,
-            }),
-        );
-        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
-            expect.objectContaining({ method: 'DELETE' }),
-        );
-        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
-            expect.objectContaining({
-                url: '/org/analytics-project',
-                method: 'POST',
-            }),
-        );
-        expect(screen.getByRole('link', { name: 'Explore' })).toHaveAttribute(
-            'href',
-            project.url,
-        );
-    });
-
-    it('hides sync after successfully updating managed content', async () => {
-        let hasContentUpdates = true;
-        mockPanelApi(async ({ url, method }) => {
-            if (url.includes('/dashboards?')) return [];
-            if (method === 'POST') {
-                hasContentUpdates = false;
-                return undefined;
-            }
-            return { project: { ...project, hasContentUpdates } };
-        });
-        renderPanel();
-        expect(
-            await screen.findByRole('img', {
-                name: 'New analytics content available',
-            }),
-        ).toBeVisible();
-        const sync = screen.getByRole('button', { name: /Sync content/ });
-        await userEvent.hover(sync);
-        expect(await screen.findByRole('tooltip')).toHaveTextContent(
-            'New analytics content is available.',
-        );
-        expect(screen.getByRole('tooltip')).toHaveTextContent(
-            'replacing edits to them',
-        );
-        await userEvent.unhover(sync);
-        await userEvent.click(sync);
-        await waitFor(() =>
-            expect(
-                screen.queryByRole('img', {
-                    name: 'New analytics content available',
-                }),
-            ).not.toBeInTheDocument(),
-        );
-        expect(
-            screen.queryByRole('button', { name: /Sync content/ }),
-        ).not.toBeInTheDocument();
-    });
-
-    it('hides sync when managed content is up to date', async () => {
-        renderPanel();
-        await screen.findByRole('link', { name: 'Explore' });
-        expect(
-            screen.queryByRole('button', { name: /Sync content/ }),
-        ).not.toBeInTheDocument();
-        expect(sharedLightdashApi).not.toHaveBeenCalledWith(
-            expect.objectContaining({ method: 'POST' }),
-        );
-    });
-
-    it('keeps sync available when update status is unknown', async () => {
-        const legacyProject = { ...project };
-        Reflect.deleteProperty(legacyProject, 'hasContentUpdates');
-        mockPanelApi(async ({ url }) =>
-            url.includes('/dashboards?') ? [] : { project: legacyProject },
-        );
-        renderPanel();
-        expect(
-            await screen.findByRole('button', { name: /Sync content/ }),
-        ).toBeVisible();
     });
 
     it('requires confirmation before deleting and returns to Create', async () => {

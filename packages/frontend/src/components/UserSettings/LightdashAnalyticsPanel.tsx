@@ -7,17 +7,17 @@ import {
     SimpleGrid,
     Stack,
     Text,
-    Tooltip,
 } from '@mantine/core';
-import { IconSparkles } from '@tabler/icons-react';
+import { IconHome } from '@tabler/icons-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
+import { AiAgentIcon } from '../../ee/features/aiCopilot/components/AiAgentIcon';
+import { useProjectAiAgentButtonVisibility } from '../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import {
     useAnalyticsProject,
     useCreateAnalyticsProject,
     useDeleteAnalyticsProject,
-    useInstallAnalyticsSampleContent,
 } from '../../hooks/organization/useAnalyticsProject';
 import { useDeleteActiveProjectMutation } from '../../hooks/useActiveProject';
 import Callout from '../common/Callout';
@@ -39,10 +39,15 @@ const LightdashAnalyticsPanel = ({
     const status = useAnalyticsProject();
     const createProject = useCreateAnalyticsProject();
     const deleteProject = useDeleteAnalyticsProject();
-    const installSampleContent = useInstallAnalyticsSampleContent();
     const { mutate: clearActiveProject } = useDeleteActiveProjectMutation();
     const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
     const analyticsProject = status.data?.project;
+    const projectUrlIdentifier = analyticsProject
+        ? (analyticsProject.slug ?? analyticsProject.projectUuid)
+        : null;
+    const canAskAi = useProjectAiAgentButtonVisibility(
+        analyticsProject?.projectUuid,
+    );
     const dashboards = useDashboards(
         analyticsProject?.projectUuid,
         { enabled: status.isSuccess, refetchOnMount: 'always' },
@@ -52,7 +57,7 @@ const LightdashAnalyticsPanel = ({
     return (
         <SettingsPage
             title="Lightdash analytics"
-            description="Explore your organization's AI usage and query activity."
+            description="Track adoption and usage across your organization."
         >
             {status.isLoading ? (
                 <SettingsCard>
@@ -78,80 +83,43 @@ const LightdashAnalyticsPanel = ({
                     </Stack>
                 </SettingsCard>
             ) : (
-                <SettingsSection
-                    label="Analytics project"
-                    description="A dedicated project with built-in AI usage and query event models."
-                >
+                <SettingsSection label="Analytics project" description={null}>
                     <SettingsCard>
-                        {analyticsProject ? (
+                        {analyticsProject && projectUrlIdentifier ? (
                             <SettingRow
                                 title="Your analytics project"
-                                description="Open your dedicated project to explore AI usage and query events."
+                                description="Open the overview or choose a dashboard below."
                                 control={
                                     <Group gap="xs">
-                                        {analyticsProject.hasContentUpdates !==
-                                            false && (
-                                            <Tooltip
-                                                events={{
-                                                    hover: true,
-                                                    focus: true,
-                                                    touch: true,
-                                                }}
-                                                label={`${analyticsProject.hasContentUpdates ? 'New analytics content is available. Sync to update your models and dashboards. ' : ''}Updates built-in dashboards and charts, replacing edits to them. Custom dashboards and copies are kept. Duplicate built-in dashboards to keep your edits.`}
-                                            >
-                                                <Button
-                                                    variant="default"
-                                                    rightSection={
-                                                        analyticsProject.hasContentUpdates ? (
-                                                            <MantineIcon
-                                                                icon={
-                                                                    IconSparkles
-                                                                }
-                                                                color="blue"
-                                                                aria-hidden={
-                                                                    false
-                                                                }
-                                                                role="img"
-                                                                aria-label="New analytics content available"
-                                                            />
-                                                        ) : undefined
-                                                    }
-                                                    loading={
-                                                        installSampleContent.isLoading
-                                                    }
-                                                    onClick={() =>
-                                                        installSampleContent.mutate()
-                                                    }
-                                                >
-                                                    Sync content
-                                                </Button>
-                                            </Tooltip>
-                                        )}
                                         <Button
                                             component={Link}
-                                            to={analyticsProject.url}
+                                            to={`/projects/${projectUrlIdentifier}/home`}
+                                            leftSection={
+                                                <MantineIcon icon={IconHome} />
+                                            }
                                         >
-                                            Explore
+                                            Homepage
                                         </Button>
+                                        {canAskAi && (
+                                            <Button
+                                                component={Link}
+                                                variant="default"
+                                                to={`/projects/${analyticsProject.projectUuid}/ai-agents`}
+                                                leftSection={
+                                                    <AiAgentIcon size={16} />
+                                                }
+                                            >
+                                                Ask AI
+                                            </Button>
+                                        )}
                                     </Group>
                                 }
                             >
-                                <Stack gap="sm" mt="sm">
+                                <Box mt="sm">
                                     <AnalyticsProcessingSummary
                                         processing={analyticsProject.processing}
                                     />
-                                    {installSampleContent.isError && (
-                                        <Callout
-                                            variant="danger"
-                                            title="Unable to sync analytics content"
-                                        >
-                                            {
-                                                installSampleContent.error.error
-                                                    .message
-                                            }
-                                        </Callout>
-                                    )}
-                                </Stack>
+                                </Box>
                             </SettingRow>
                         ) : (
                             <SettingRow
@@ -181,7 +149,7 @@ const LightdashAnalyticsPanel = ({
                     </SettingsCard>
                 </SettingsSection>
             )}
-            {status.isSuccess && analyticsProject && (
+            {status.isSuccess && projectUrlIdentifier && (
                 <SettingsSection
                     label="Dashboards"
                     description={null}
@@ -206,10 +174,7 @@ const LightdashAnalyticsPanel = ({
                                 <AnalyticsDashboardCard
                                     key={dashboard.uuid}
                                     dashboard={dashboard}
-                                    projectUrlIdentifier={
-                                        analyticsProject.slug ??
-                                        analyticsProject.projectUuid
-                                    }
+                                    projectUrlIdentifier={projectUrlIdentifier}
                                 />
                             ))}
                         </SimpleGrid>

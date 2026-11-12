@@ -390,8 +390,8 @@ no Terraform/IAM change or read-only cutover is included in this stack.
   available, even if dimension snapshots exist; partially missing
   streams and schema evolution still need rollout design.
 - Missing names: check dimension refresh logs and the current per-org objects.
-  Click **Sync content** to refresh an existing project's models and managed
-  sample dashboards, or re-run the provisioning endpoint. See
+  Background sync refreshes existing projects' models and managed dashboards.
+  To refresh immediately, re-run the provisioning endpoint. See
   [dimension rollout](dimensions.md#read-path-and-rollout).
 - Access errors: check endpoint, bucket and configured key permissions without
   printing keys, SDK request details or signed URLs. A new query can recover from
