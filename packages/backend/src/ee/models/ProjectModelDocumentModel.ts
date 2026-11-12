@@ -295,8 +295,14 @@ export class ProjectModelDocumentModel {
     /** What decides how a person's draft reads, without any of its content: every model's live version and every open change on the project. */
     async findDraftState(projectUuid: string): Promise<{
         versions: { name: string; version: number }[];
-        changes: { uuid: string; userUuid: string; at: Date }[];
+        changes: {
+            uuid: string;
+            userUuid: string;
+            at: Date;
+            baseVersions: Record<string, number | null> | null;
+        }[];
     }> {
+        // ponytail: a repository-backed project has no versions, so a change there moves nothing here.
         const [versions, changes] = await Promise.all([
             this.database(ProjectModelDocumentsTableName)
                 .select({ name: 'name', version: 'document_version' })
@@ -307,6 +313,7 @@ export class ProjectModelDocumentModel {
                     uuid: 'project_model_draft_change_uuid',
                     userUuid: 'created_by_user_uuid',
                     at: 'created_at',
+                    baseVersions: 'base_versions',
                 })
                 .where('project_uuid', projectUuid)
                 .where('status', 'draft')
@@ -344,7 +351,6 @@ export class ProjectModelDocumentModel {
         });
     }
 
-    // ponytail: a model removed and made again restarts at version 1, so the newest revision with that version wins; key revisions by a document id if that ever matters.
     /** What each of these models held at a given version, by model name; a version that was never written is left out. */
     async findDocumentsAt(
         projectUuid: string,
@@ -825,10 +831,44 @@ export class ProjectModelDocumentModel {
                     .returning('project_model_change_set_uuid');
 
             const before = new Map(stored.map((row) => [row.name, row]));
+            const added = documents
+                .map(({ name }) => name)
+                .filter((name) => !before.has(name));
+            // A model made again keeps counting from its last version, so an old base never reads as live.
+            const lastVersions = new Map(
+                added.length === 0
+                    ? []
+                    : (
+                          await trx(ProjectModelRevisionsTableName)
+                              .innerJoin(
+                                  ProjectModelChangeSetsTableName,
+                                  `${ProjectModelChangeSetsTableName}.project_model_change_set_uuid`,
+                                  `${ProjectModelRevisionsTableName}.project_model_change_set_uuid`,
+                              )
+                              .where(
+                                  `${ProjectModelChangeSetsTableName}.project_uuid`,
+                                  projectUuid,
+                              )
+                              .whereIn(
+                                  `${ProjectModelRevisionsTableName}.name`,
+                                  added,
+                              )
+                              .groupBy(`${ProjectModelRevisionsTableName}.name`)
+                              .select<{ name: string; version: number }[]>({
+                                  name: `${ProjectModelRevisionsTableName}.name`,
+                                  version: trx.raw(
+                                      `max(${ProjectModelRevisionsTableName}.document_version)`,
+                                  ),
+                              })
+                      ).map(({ name, version }) => [name, version]),
+            );
             await Promise.all(
                 documents.map(async ({ name, content }) => {
                     const current = before.get(name);
-                    const version = (current?.document_version ?? 0) + 1;
+                    const version =
+                        (current?.document_version ??
+                            lastVersions.get(name) ??
+                            0) + 1;
                     const document = () =>
                         trx(ProjectModelDocumentsTableName).where({
                             project_uuid: projectUuid,
