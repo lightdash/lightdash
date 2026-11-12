@@ -25,7 +25,6 @@ import {
     SessionUser,
     SpaceMemberRole,
     SqlChartAsCode,
-    type DashboardUploadAsCode,
 } from '@lightdash/common';
 import { type Request } from 'express';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -3874,7 +3873,7 @@ describe('CoderService dashboard control order as code', () => {
         return file as DashboardAsCode;
     };
     const upload = async (
-        file: DashboardUploadAsCode,
+        file: DashboardAsCode,
         {
             enabled = true,
             saved = savedDashboard(),
@@ -5266,7 +5265,7 @@ describe('CoderService dashboard control order as code', () => {
             ),
         });
         const savedZooms = zoomsOf(zoomDashboard());
-        const handWritten = (controlOrder?: AnyType): DashboardUploadAsCode => {
+        const handWritten = (controlOrder?: AnyType): DashboardAsCode => {
             const file = download(zoomDashboard(), true);
             return {
                 ...file,
@@ -5275,19 +5274,29 @@ describe('CoderService dashboard control order as code', () => {
                     dateZoomConfig: {
                         controls: [
                             {
+                                uuid: 'week-uuid',
                                 slug: 'weekly',
                                 name: 'Week',
                                 granularity: 'WEEK',
                             },
                             {
+                                uuid: 'month-uuid',
                                 name: 'Month',
                                 granularity: 'MONTH',
                                 sectionSlug: 'calendar',
                             },
                         ],
                         tileTargets: {
-                            orders: { controlSlug: 'weekly', ...zoomTarget },
-                            customers: { controlSlug: 'month', ...zoomTarget },
+                            // A stale controlSlug is ignored: the uuid wins
+                            orders: {
+                                controlUuid: 'week-uuid',
+                                controlSlug: 'month',
+                                ...zoomTarget,
+                            },
+                            customers: {
+                                controlUuid: 'month-uuid',
+                                ...zoomTarget,
+                            },
                         },
                     },
                     controlOrder,
@@ -5296,7 +5305,7 @@ describe('CoderService dashboard control order as code', () => {
         };
 
         it.each([true, false])(
-            'uploads zooms without a uuid by slug, keeping saved uuids (flag %s)',
+            'uploads hand-written zooms by their uuids (flag %s)',
             async (enabled) => {
                 const saved = await upload(handWritten(), {
                     enabled,
@@ -5313,35 +5322,6 @@ describe('CoderService dashboard control order as code', () => {
                 saved: dashboard,
             });
             expect(zoomsOf(saved)).toEqual(savedZooms);
-        });
-
-        it('mints a uuid for a uuid-less zoom that matches no saved control', async () => {
-            const file = handWritten();
-            const saved = await upload(
-                {
-                    ...file,
-                    config: {
-                        ...file.config!,
-                        dateZoomConfig: {
-                            ...file.config!.dateZoomConfig!,
-                            controls: [
-                                {
-                                    slug: 'weekly',
-                                    name: 'Weekly',
-                                    granularity: 'WEEK',
-                                },
-                                ...file.config!.dateZoomConfig!.controls.slice(
-                                    1,
-                                ),
-                            ],
-                        },
-                    },
-                },
-                { saved: zoomDashboard() },
-            );
-            const [weekly] = saved.config!.dateZoomConfig!.controls;
-            expect(weekly.uuid).toMatch(/^[0-9a-f-]{36}$/);
-            expect(zoomsOf(saved).targets[0].controlUuid).toBe(weekly.uuid);
         });
 
         const shippedZooms = {
@@ -5445,7 +5425,7 @@ describe('CoderService dashboard control order as code', () => {
             );
         });
 
-        it('orders hand-written zooms without uuids and keeps them on re-upload', async () => {
+        it('orders hand-written zooms by slug and keeps them on re-upload', async () => {
             const dashboard = zoomDashboard();
             const saved = await upload(
                 handWritten([
@@ -5487,26 +5467,6 @@ describe('CoderService dashboard control order as code', () => {
             );
         });
 
-        it('rejects a target whose controlSlug matches no zoom', async () => {
-            const file = handWritten();
-            expect(
-                await rejection({
-                    ...file,
-                    config: {
-                        ...file.config!,
-                        dateZoomConfig: {
-                            ...file.config!.dateZoomConfig!,
-                            tileTargets: {
-                                orders: { controlSlug: 'daily', ...zoomTarget },
-                            },
-                        },
-                    },
-                } as AnyType),
-            ).toBe(
-                'Unknown date zoom control slug "daily" on tile "orders". Valid date zoom control slugs are weekly, month',
-            );
-        });
-
         it('uploads a file whose zoom config has no controls', async () => {
             const file = download(zoomDashboard(), true);
             const saved = await upload({
@@ -5528,53 +5488,6 @@ describe('CoderService dashboard control order as code', () => {
                 download(zoomDashboard({ dateZoomConfig: {} }), true).config
                     ?.dateZoomConfig,
             ).toEqual({ controls: [], tileTargets: {} });
-        });
-
-        it('keeps the uuids of same-named zooms uploaded by their downloaded slugs', async () => {
-            const dashboard = zoomDashboard({
-                dateZoomConfig: {
-                    controls: [
-                        {
-                            uuid: 'first-uuid',
-                            name: 'Zoom',
-                            granularity: 'WEEK',
-                        },
-                        {
-                            uuid: 'second-uuid',
-                            name: 'Zoom',
-                            granularity: 'MONTH',
-                        },
-                    ],
-                    tileTargets: {
-                        'tile-a': { controlUuid: 'second-uuid', ...zoomTarget },
-                    },
-                },
-            });
-            const file = download(dashboard, true);
-            const { controls, tileTargets } = file.config!.dateZoomConfig!;
-            const saved = await upload(
-                {
-                    ...file,
-                    config: {
-                        ...file.config!,
-                        dateZoomConfig: {
-                            controls: controls.map(
-                                ({ uuid: _uuid, ...control }) => control,
-                            ),
-                            tileTargets: Object.fromEntries(
-                                Object.entries(tileTargets).map(
-                                    ([
-                                        tile,
-                                        { controlUuid: _uuid, ...rest },
-                                    ]) => [tile, rest],
-                                ),
-                            ),
-                        },
-                    },
-                },
-                { saved: dashboard },
-            );
-            expect(zoomsOf(saved)).toEqual(zoomsOf(dashboard));
         });
 
         it('downloads zooms and a zoom order as main does with the flag off', () => {

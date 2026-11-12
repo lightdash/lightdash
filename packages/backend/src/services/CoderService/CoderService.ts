@@ -47,7 +47,6 @@ import {
     DashboardTileChartQuery,
     DashboardTileTarget,
     DashboardTileTypes,
-    DashboardUploadAsCode,
     DimensionType,
     DirectAccessPrincipalType,
     DirectAccessResourceType,
@@ -214,7 +213,7 @@ import {
 import { preserveDashboardTileUuids } from './dashboardTileIdentity';
 import { resolveDataAppVizBinding } from './dataAppVizBinding';
 import {
-    getDateZoomConfigWithIds,
+    getDateZoomConfigWithoutSlugs,
     getDateZoomConfigWithSlugs,
 } from './dateZoomControlSlugs';
 import { normalizeFilterIds, stripFilterIds } from './filterIds';
@@ -5772,7 +5771,7 @@ export class CoderService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         slug: string,
-        dashboardAsCode: DashboardUploadAsCode,
+        dashboardAsCode: DashboardAsCode,
         options: UpsertContentAsCodeOptions = {},
     ): Promise<DashboardAsCodeUpsertResult> {
         await this.assertAgentUploadAllowed(
@@ -5932,11 +5931,8 @@ export class CoderService extends BaseService {
                 {
                     ...portableConfig,
                     ...(portableDateZoom && {
-                        dateZoomConfig: getDateZoomConfigWithIds(
-                            portableDateZoom,
-                            existingDashboard?.config?.dateZoomConfig
-                                ?.controls ?? [],
-                        ),
+                        dateZoomConfig:
+                            getDateZoomConfigWithoutSlugs(portableDateZoom),
                     }),
                 },
                 tilesWithUuids,

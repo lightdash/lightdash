@@ -11,7 +11,7 @@ import {
     type DashboardFilterRule,
     type DashboardFilterRuleAsCode,
     type DashboardParameterControlAsCode,
-    type DateZoomControlUploadAsCode,
+    type DateZoomControlAsCode,
 } from '@lightdash/common';
 import { dateZoomSlugs } from './dateZoomControlSlugs';
 import { controlSlugs } from './parameterControlSlugs';
@@ -102,7 +102,7 @@ export const getUploadedControlSlugs = (
         filters: Pick<DashboardFilterRuleAsCode, 'target' | 'slug'>[];
         parameterControls: DashboardParameterControlAsCode[];
         sections: Pick<DashboardControlSectionAsCode, 'name' | 'slug'>[];
-        dateZoomControls: Pick<DateZoomControlUploadAsCode, 'name' | 'slug'>[];
+        dateZoomControls: Pick<DateZoomControlAsCode, 'name' | 'slug'>[];
     },
     uploaded: OrderedControls,
 ): ControlSlugs => ({

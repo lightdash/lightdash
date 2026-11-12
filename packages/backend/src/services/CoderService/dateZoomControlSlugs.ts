@@ -2,11 +2,10 @@ import {
     getPortableSlugs,
     ParameterError,
     type DateZoomControl,
-    type DateZoomControlUploadAsCode,
+    type DateZoomControlAsCode,
     type DateZoomTileTarget,
-    type DateZoomTileTargetUploadAsCode,
+    type DateZoomTileTargetAsCode,
 } from '@lightdash/common';
-import { getStableIds } from './dashboardReferences';
 
 const baseSlug = ({ name }: Pick<DateZoomControl, 'name'>): string =>
     name
@@ -16,26 +15,21 @@ const baseSlug = ({ name }: Pick<DateZoomControl, 'name'>): string =>
 
 /** A file's slug, else derived from the name */
 export const dateZoomSlugs = (
-    controls: Pick<DateZoomControlUploadAsCode, 'name' | 'slug'>[],
+    controls: Pick<DateZoomControlAsCode, 'name' | 'slug'>[],
 ): string[] => getPortableSlugs(controls, baseSlug);
 
-type UploadedControl = Pick<DateZoomControlUploadAsCode, 'uuid' | 'slug'> &
-    Pick<DateZoomControl, 'name'>;
-
-/** Controls keep a file uuid, else the saved uuid their name matches (the slug picks among same-named), else a new one; targets resolve `controlSlug` */
-export const getDateZoomConfigWithIds = <C extends UploadedControl>(
-    config: {
-        controls?: C[];
-        tileTargets?: Record<string, DateZoomTileTargetUploadAsCode>;
-    },
-    existing: Pick<DateZoomControl, 'uuid' | 'name'>[],
-): {
-    controls: (Omit<C, 'uuid' | 'slug'> & { uuid: string })[];
+/** Checks the file's zoom slugs and drops them with `controlSlug`: uuids are authoritative and slugs are never stored */
+export const getDateZoomConfigWithoutSlugs = <
+    C extends DateZoomControlAsCode,
+>(config: {
+    controls?: C[];
+    tileTargets?: Record<string, DateZoomTileTargetAsCode>;
+}): {
+    controls: Omit<C, 'slug'>[];
     tileTargets: Record<string, DateZoomTileTarget>;
 } => {
     // Older readers tolerated a config without either list
     const fileControls = config.controls ?? [];
-    const fileTargets = config.tileTargets ?? {};
     const seen = new Set<string>();
     fileControls.forEach(({ slug }) => {
         if (slug === undefined) return;
@@ -49,64 +43,17 @@ export const getDateZoomConfigWithIds = <C extends UploadedControl>(
             );
         seen.add(slug);
     });
-    const usedUuids = new Set(
-        fileControls.flatMap(({ uuid }) => (uuid === undefined ? [] : [uuid])),
-    );
-    // Identity follows the name, as parameters; a file slug only picks among
-    // saved controls of that same name (twins download as `zoom`, `zoom-1`)
-    const savedSlugs = dateZoomSlugs(existing.map(({ name }) => ({ name })));
-    const slugMatches = fileControls.map(({ uuid, slug, name }) => {
-        if (uuid !== undefined || slug === undefined) return undefined;
-        const index = savedSlugs.indexOf(slug);
-        const match =
-            index !== -1 && baseSlug(existing[index]) === baseSlug({ name })
-                ? existing[index].uuid
-                : undefined;
-        if (match === undefined || usedUuids.has(match)) return undefined;
-        usedUuids.add(match);
-        return match;
-    });
-    const newIds = getStableIds(
-        fileControls.filter(
-            ({ uuid }, index) =>
-                uuid === undefined && slugMatches[index] === undefined,
+    return {
+        controls: fileControls.map(({ slug: _slug, ...control }) => control),
+        tileTargets: Object.fromEntries(
+            Object.entries(config.tileTargets ?? {}).map(
+                ([tile, { controlSlug: _controlSlug, ...target }]) => [
+                    tile,
+                    target,
+                ],
+            ),
         ),
-        existing.map(({ uuid, name }) => ({ id: uuid, name })),
-        baseSlug,
-        usedUuids,
-    );
-    // A file's slugs only resolve refs inside it
-    const controls = fileControls.map(
-        ({ slug: _slug, uuid, ...control }, index) => ({
-            ...control,
-            uuid: uuid ?? slugMatches[index] ?? (newIds.shift() as string),
-        }),
-    );
-    const slugs = dateZoomSlugs(fileControls);
-    const uuidBySlug = new Map(
-        slugs.map((slug, index) => [slug, controls[index].uuid]),
-    );
-    const validSlugs = slugs.join(', ') || 'none';
-    const tileTargets = Object.fromEntries(
-        Object.entries(fileTargets).map(([tile, target]) => {
-            const { controlSlug, ...rest } = target;
-            if (controlSlug === undefined) {
-                if (rest.controlUuid === undefined)
-                    throw new ParameterError(
-                        `The date zoom target of tile "${tile}" needs a controlSlug. Valid date zoom control slugs are ${validSlugs}`,
-                    );
-                // Unchanged, as uploads stored it before control slugs
-                return [tile, target as DateZoomTileTarget];
-            }
-            const controlUuid = uuidBySlug.get(controlSlug);
-            if (controlUuid === undefined)
-                throw new ParameterError(
-                    `Unknown date zoom control slug "${controlSlug}" on tile "${tile}". Valid date zoom control slugs are ${validSlugs}`,
-                );
-            return [tile, { ...rest, controlUuid }];
-        }),
-    );
-    return { controls, tileTargets };
+    };
 };
 
 /** Each control gets the slug derived from its name, and each target its control's slug */

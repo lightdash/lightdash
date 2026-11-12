@@ -3,11 +3,12 @@ import {
     ParameterError,
     type DashboardAsCode,
     type DashboardConfig,
+    type DashboardConfigAsCode,
     type DashboardControlSection,
     type DashboardControlSectionAsCode,
     type DashboardFilterRuleAsCode,
     type DashboardParameterControlAsCode,
-    type DashboardUploadAsCode,
+    type DateZoomControlAsCode,
 } from '@lightdash/common';
 import { pick } from 'es-toolkit/compat';
 import { v4 as uuidv4 } from 'uuid';
@@ -15,10 +16,10 @@ import { getStableIds } from './dashboardReferences';
 
 type SectionReference = { sectionId?: string; sectionSlug?: string };
 type WithSectionReference<T> = T & SectionReference;
-type DashboardWithSections<
-    Section,
-    File extends DashboardUploadAsCode = DashboardAsCode,
-> = Omit<File, 'config' | 'filters'> & {
+type DashboardWithSections<Section> = Omit<
+    DashboardAsCode,
+    'config' | 'filters'
+> & {
     filters?: {
         dimensions?: WithSectionReference<
             Omit<DashboardFilterRuleAsCode, 'id'>
@@ -27,27 +28,20 @@ type DashboardWithSections<
         tableCalculations?: WithSectionReference<DashboardFilterRuleAsCode>[];
     };
     config?: Omit<
-        NonNullable<File['config']>,
+        DashboardConfigAsCode,
         'controlSections' | 'parameterControls' | 'dateZoomConfig'
     > & {
         controlSections?: Section[];
         parameterControls?: WithSectionReference<DashboardParameterControlAsCode>[];
         dateZoomConfig?: Omit<
-            NonNullable<NonNullable<File['config']>['dateZoomConfig']>,
+            NonNullable<DashboardConfigAsCode['dateZoomConfig']>,
             'controls'
-        > & {
-            controls: WithSectionReference<
-                NonNullable<
-                    NonNullable<File['config']>['dateZoomConfig']
-                >['controls'][number]
-            >[];
-        };
+        > & { controls: WithSectionReference<DateZoomControlAsCode>[] };
     };
 };
 /** A dashboard file whose references hold stored section ids */
-export type DashboardWithSectionIds<
-    File extends DashboardUploadAsCode = DashboardAsCode,
-> = DashboardWithSections<DashboardControlSection, File>;
+export type DashboardWithSectionIds =
+    DashboardWithSections<DashboardControlSection>;
 
 /** A saved config without the order's ids, nor `parameterSections` that earlier versions saved */
 export const withoutStoredOnlyKeys = ({
@@ -67,10 +61,10 @@ export const sectionSlugs = (
     sections: Pick<DashboardControlSectionAsCode, 'name' | 'slug'>[],
 ) => getPortableSlugs(sections, sectionBase);
 
-const mapReferences = <Section, File extends DashboardUploadAsCode>(
-    dashboard: DashboardWithSections<Section, File>,
+const mapReferences = <Section>(
+    dashboard: DashboardWithSections<Section>,
     sectionOf: (reference: SectionReference) => SectionReference,
-): DashboardWithSections<Section, File> => {
+): DashboardWithSections<Section> => {
     const mapReference = <T extends SectionReference>({
         sectionId,
         sectionSlug,
@@ -146,16 +140,11 @@ export const getDashboardWithSectionSlugs = (
         sections.map((section, index) => [section.id, slugs[index]]),
     );
     return withSections(
-        mapReferences<DashboardControlSection, DashboardAsCode>(
-            dashboard,
-            ({ sectionId }) => {
-                const slug =
-                    sectionId === undefined
-                        ? undefined
-                        : slugById.get(sectionId);
-                return slug === undefined ? {} : { sectionSlug: slug };
-            },
-        ),
+        mapReferences(dashboard, ({ sectionId }) => {
+            const slug =
+                sectionId === undefined ? undefined : slugById.get(sectionId);
+            return slug === undefined ? {} : { sectionSlug: slug };
+        }),
         (section, index) => ({
             ...pick(section, ['name', 'collapsed']),
             slug: slugs[index],
@@ -163,11 +152,11 @@ export const getDashboardWithSectionSlugs = (
     );
 };
 
-export const getDashboardWithSectionIds = <File extends DashboardUploadAsCode>(
-    dashboard: File,
+export const getDashboardWithSectionIds = (
+    dashboard: DashboardAsCode,
     existing: DashboardConfig | undefined,
     controlsEnabled: boolean,
-): DashboardWithSectionIds<File> => {
+): DashboardWithSectionIds => {
     const sections = dashboard.config?.controlSections ?? [];
     const existingSections = existing?.controlSections ?? [];
     const stableIds = controlsEnabled
@@ -242,7 +231,7 @@ export const getDashboardWithSectionIds = <File extends DashboardUploadAsCode>(
     });
     if (!converted.config) {
         const { config: _config, ...withoutConfig } = converted;
-        return withoutConfig as DashboardWithSectionIds<File>;
+        return withoutConfig;
     }
     // Keys earlier versions accepted; nothing reads them, so an upload drops them
     const {
@@ -262,5 +251,5 @@ export const getDashboardWithSectionIds = <File extends DashboardUploadAsCode>(
                 controlSections: resolved,
             }),
         },
-    } as DashboardWithSectionIds<File>;
+    };
 };
