@@ -1,7 +1,8 @@
 import { type ApiError, type Explore } from '@lightdash/common';
-import { Badge, Group, Paper, Stack, Text } from '@mantine/core';
+import { Anchor, Badge, Group, Paper, Stack, Text } from '@mantine/core';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, type FC } from 'react';
+import { useSearchParams } from 'react-router';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 import {
     DEVELOPMENT_PREVIEW_HEADER,
@@ -47,7 +48,10 @@ export const ModelChangeSummary: FC<{
     model: string;
     /** The preview project that holds the changes, for a pull request that has one. */
     previewProjectUuid: string | null;
-}> = ({ projectUuid, model, previewProjectUuid }) => {
+    /** The search params of the view that shows the changes as code. */
+    codeSearch: Record<string, string>;
+}> = ({ projectUuid, model, previewProjectUuid, codeSearch }) => {
+    const [, setSearchParams] = useSearchParams();
     const live = useModelVersion(projectUuid, model, {
         [DEVELOPMENT_VIEW_HEADER]: 'false',
     });
@@ -69,11 +73,21 @@ export const ModelChangeSummary: FC<{
     return (
         <Paper withBorder p="sm" radius="md" mb="sm">
             <Stack gap={6}>
-                <Text fz="xs" fw={500}>
-                    {live.data
-                        ? 'What your changes do to this model'
-                        : 'This model is new in your changes'}
-                </Text>
+                <Group gap="xs" justify="space-between" wrap="nowrap">
+                    <Text fz="xs" fw={500}>
+                        {live.data
+                            ? 'What your changes do to this model'
+                            : 'This model is new in your changes'}
+                    </Text>
+                    <Anchor
+                        component="button"
+                        type="button"
+                        fz="xs"
+                        onClick={() => setSearchParams(codeSearch)}
+                    >
+                        See the code
+                    </Anchor>
+                </Group>
                 {changes.length === 0 ? (
                     <Text fz="xs" c="dimmed">
                         No field is added, changed or removed. The change may be

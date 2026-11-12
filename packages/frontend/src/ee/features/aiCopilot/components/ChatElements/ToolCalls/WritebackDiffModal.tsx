@@ -129,7 +129,10 @@ const SingleFileDiff: FC<{ patch: string }> = ({ patch }) => {
 // File-list sidebar + the selected file's diff. The split-and-select layout
 // keeps each diff a single file (what PatchDiff wants) and makes a large
 // many-file PR easy to navigate.
-const DiffBrowser: FC<{ patch: string }> = ({ patch }) => {
+const DiffBrowser: FC<{ patch: string; height: string }> = ({
+    patch,
+    height,
+}) => {
     const files = useMemo(() => splitPatchIntoFiles(patch), [patch]);
     const [selectedKey, setSelectedKey] = useState(files[0]?.key);
     const selected =
@@ -144,7 +147,7 @@ const DiffBrowser: FC<{ patch: string }> = ({ patch }) => {
     }
 
     return (
-        <Flex gap="md" align="stretch" w="100%" h={VIEWER_HEIGHT}>
+        <Flex gap="md" align="stretch" w="100%" h={height}>
             <Box w={260} miw={260} h="100%" className={classes.fileList}>
                 <Text size="xs" c="dimmed" fw={600} px="xs" pb={4}>
                     {files.length} file{files.length > 1 ? 's' : ''} changed
@@ -224,8 +227,37 @@ export const WritebackDiffModal: FC<{
                     Couldn't load the diff for this pull request.
                 </Text>
             ) : (
-                <DiffBrowser patch={data.diff} />
+                <DiffBrowser patch={data.diff} height={VIEWER_HEIGHT} />
             )}
         </MantineModal>
     );
+};
+
+/** A pull request's diff filling the pane it is put in, file by file. */
+export const PullRequestDiffPane: FC<{
+    projectUuid: string;
+    prUrl: string;
+    commitSha: string | null;
+}> = ({ projectUuid, prUrl, commitSha }) => {
+    const { data, isInitialLoading, isError } = usePullRequestDiff(
+        projectUuid,
+        prUrl,
+        commitSha,
+        true,
+    );
+    if (isInitialLoading) {
+        return (
+            <Center p="xl">
+                <Loader size="sm" />
+            </Center>
+        );
+    }
+    if (isError || !data?.diff) {
+        return (
+            <Text size="sm" c="dimmed" ta="center" py="xl">
+                Couldn't load the diff for this pull request.
+            </Text>
+        );
+    }
+    return <DiffBrowser patch={data.diff} height="100%" />;
 };

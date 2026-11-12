@@ -27,6 +27,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { uniqBy } from 'es-toolkit/compat';
 import {
     useCallback,
     useEffect,
@@ -38,6 +39,7 @@ import {
 } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
+import { PullRequestDiffPane } from '../../ee/features/aiCopilot/components/ChatElements/ToolCalls/WritebackDiffModal';
 import { SemanticStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/SemanticStudioAgent';
 import {
     StudioDevelopmentBar,
@@ -133,7 +135,14 @@ import classes from './WorkbenchView.module.css';
 const ROW_HEIGHT = 28;
 
 /** What the workspace shows beside the rail. */
-type Pane = 'code' | 'review' | 'browse' | 'intro' | 'buildFirst' | 'empty';
+type Pane =
+    | 'code'
+    | 'diff'
+    | 'review'
+    | 'browse'
+    | 'intro'
+    | 'buildFirst'
+    | 'empty';
 
 /** Says whose unpublished work a model has: this person's, someone else's, or both. */
 const DraftMarker: FC<{
@@ -565,6 +574,8 @@ const MainPane: FC<{
     /** Models with changes that are not live. */
     changed: string[];
     previewProjectUuid: string | null;
+    /** The search params of the view that shows the changes as code. */
+    codeSearch: Record<string, string>;
 }> = ({
     view,
     onOpen,
@@ -572,6 +583,7 @@ const MainPane: FC<{
     onBuildModel,
     changed,
     previewProjectUuid,
+    codeSearch,
 }) => {
     const selected = view.selected;
     const ref = selected ? containerOf(selected) : null;
@@ -690,6 +702,7 @@ const MainPane: FC<{
                         projectUuid={view.project.id}
                         model={explore.id}
                         previewProjectUuid={previewProjectUuid}
+                        codeSearch={codeSearch}
                     />
                 ) : null}
                 {onBuildModel && !ref ? (
@@ -759,8 +772,9 @@ const Rail: FC<{
     onToggle: (key: string) => void;
     onOpen: (ref: NodeRef) => void;
 }> = ({ view, expanded, drafted, changed, onToggle, onOpen }) => {
-    const changedExplores = view.project.explores.filter(({ id }) =>
-        changed.includes(id),
+    const changedExplores = uniqBy(
+        view.project.explores.filter(({ id }) => changed.includes(id)),
+        'id',
     );
     // With changes to check, the rest of the tree folds away until asked for.
     const [showsAll, setShowsAll] = useState(false);
@@ -1089,6 +1103,17 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         chat.isAvailable &&
         keepsDraft &&
         searchParams.get(VIEW_PARAM) === 'code';
+    // When a save lands, the workspace opens its diff, so the change is reviewed where it was asked for.
+    const wasSaving = useRef(false);
+    useEffect(() => {
+        if (wasSaving.current && !saving && development) {
+            setSearchParams({ [VIEW_PARAM]: 'code' });
+        }
+        wasSaving.current = !!saving;
+    }, [saving, development, setSearchParams]);
+    // A dbt project's code is its pull request's diff: its files live in the repository.
+    const isDiff =
+        !keepsDraft && !!development && searchParams.get(VIEW_PARAM) === 'code';
     // Only models with YAML here have a file: a deployed model's YAML lives where it was deployed from.
     const { data: stored } = useSemanticLayerStoredModels(
         view.project.id,
@@ -1121,6 +1146,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         chat.isAvailable && keepsDraft && hasWarehouse && modelled.length === 0;
     const pane = ((): Pane => {
         if (isCode) return 'code';
+        if (isDiff) return 'diff';
         if (isReviewingDraft) return 'review';
         if (!isEmpty) return 'browse';
         if (!canBuildFirstModel) return 'empty';
@@ -1143,6 +1169,14 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
 
     const renderPane = () => {
         switch (pane) {
+            case 'diff':
+                return development ? (
+                    <PullRequestDiffPane
+                        projectUuid={view.project.id}
+                        prUrl={development.prUrl}
+                        commitSha={development.commitSha}
+                    />
+                ) : null;
             case 'code':
                 return file ? (
                     <ModelCodeView
@@ -1189,6 +1223,11 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         changed={changed}
                         previewProjectUuid={
                             development?.previewProjectUuid ?? null
+                        }
+                        codeSearch={
+                            keepsDraft
+                                ? { [DRAFT_PARAM]: DRAFT_REVIEW }
+                                : { [VIEW_PARAM]: 'code' }
                         }
                         onBuildModel={
                             canNudge
@@ -1264,11 +1303,15 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                 wrap="nowrap"
                                 gap="sm"
                             >
-                                {keepsDraft ? (
+                                {keepsDraft || development ? (
                                     <SegmentedControl
                                         size="xs"
                                         flex="none"
-                                        value={isCode ? 'code' : 'preview'}
+                                        value={
+                                            isCode || isDiff
+                                                ? 'code'
+                                                : 'preview'
+                                        }
                                         onChange={switchView}
                                         data={VIEW_OPTIONS}
                                     />
@@ -1307,7 +1350,9 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         )}
                         <Box
                             className={classes.workspaceBody}
-                            data-no-rail={pane !== 'code' && isEmpty}
+                            data-no-rail={
+                                pane === 'diff' || (pane !== 'code' && isEmpty)
+                            }
                         >
                             {pane === 'code' ? (
                                 <CodeRail
@@ -1322,7 +1367,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         })
                                     }
                                 />
-                            ) : isEmpty ? null : (
+                            ) : isEmpty || pane === 'diff' ? null : (
                                 <Rail
                                     view={view}
                                     expanded={expanded}
@@ -1337,7 +1382,9 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                             ) : (
                                 <Box
                                     className={classes.main}
-                                    data-full={pane === 'code'}
+                                    data-full={
+                                        pane === 'code' || pane === 'diff'
+                                    }
                                 >
                                     {renderPane()}
                                 </Box>

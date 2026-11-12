@@ -110,16 +110,15 @@ export const StudioDevelopmentBar: FC<{
                     {number ? `Pull request #${number}` : 'Pull request'}
                 </Badge>
             }
-            summary={
-                <Text fz="xs" c="dimmed" truncate>
-                    Not live until it merges
-                </Text>
-            }
+            summary={null}
         >
-            <ChangesSwitch
-                isOnMyChanges={isTrying}
-                onChange={(next) => setIsTrying(next, previewProjectUuid)}
-            />
+            {/* Once on, the dock says so on every page and holds the way back. */}
+            {isTrying ? null : (
+                <ChangesSwitch
+                    isOnMyChanges={false}
+                    onChange={(next) => setIsTrying(next, previewProjectUuid)}
+                />
+            )}
             <Tooltip
                 multiline
                 w={240}

@@ -499,17 +499,19 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                 </Badge>
             }
             summary={
-                <Text fz="xs" c="dimmed" truncate>
-                    {draft.models.length > 0
-                        ? summarizeDraftModels(draft)
-                        : 'Nothing new to publish'}
-                </Text>
+                draft.models.length > 0 ? null : (
+                    <Text fz="xs" c="dimmed" truncate>
+                        Nothing new to publish
+                    </Text>
+                )
             }
         >
-            <ChangesSwitch
-                isOnMyChanges={isPreviewing}
-                onChange={setIsPreviewing}
-            />
+            {isPreviewing ? null : (
+                <ChangesSwitch
+                    isOnMyChanges={false}
+                    onChange={setIsPreviewing}
+                />
+            )}
             {reviewing ? null : (
                 <Button
                     size="xs"
