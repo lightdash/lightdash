@@ -7,6 +7,7 @@ import useApp from '../../../providers/App/useApp';
 import { ReviewVerificationPanel } from '../../features/aiCopilot/components/Admin/ReviewVerificationPanel';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
+import { getPendingAskUser } from '../../features/aiCopilot/components/ChatElements/askUserQuestions';
 import {
     contextItemsToContentMentionSuggestions,
     mergeAiPromptContextInput,
@@ -447,6 +448,10 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                             threadModel?.deprecationWarning ?? null
                         }
                         contentMentionPriorityItems={contentMentionItems}
+                        // The question card's options would repeat as chips.
+                        showSuggestions={
+                            getPendingAskUser(thread.messages?.at(-1)) === null
+                        }
                         latestAssistantMessageUuid={
                             [...(thread.messages ?? [])]
                                 .reverse()
