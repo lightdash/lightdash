@@ -3,4 +3,39 @@ export const UPSELL_STRINGS = {
         headline: 'Ask AI. Take the answer with you.',
         support: 'Ask about your data and get charts on your phone.',
     },
+    2: {
+        headline: 'Dashboards, made for your phone.',
+        support: 'Give each chart room to tell its story.',
+    },
+    3: {
+        headline: 'Find your next chart.',
+        support: 'Browse your spaces and open a saved chart.',
+    },
+    4: {
+        headline: 'Your go-to charts, close at hand.',
+        support: 'Open pinned and recently viewed content in the app.',
+    },
+    5: {
+        headline: 'Same chart. A better fit.',
+        support: 'Read saved charts at phone size.',
+    },
+    6: {
+        headline: 'A question. A chart. Your next move.',
+        support: 'Ask AI and explore the answer on your phone.',
+    },
+} as const;
+
+export const UPSELL_GRAPHIC_STRINGS = {
+    question: 'Which way are orders moving?',
+    orders: 'Orders',
+    overview: 'Overview',
+    saved: 'Saved charts',
+    spaces: 'Spaces',
+    pinned: 'Pinned',
+    recent: 'Recently viewed',
+    desktop: 'On your desk',
+    phone: 'In your hand',
+    ask: 'Ask',
+    answer: 'See',
+    take: 'Take it with you',
 } as const;

@@ -9,7 +9,7 @@
     text-wrap: balance;
 }
 .graphic {
-    height: 146px;
+    height: 160px;
     margin-block: var(--mantine-spacing-sm);
     overflow: hidden;
     border-radius: var(--mantine-radius-md);
@@ -72,6 +72,292 @@
         transform: none;
     }
 }
+
+.graphic svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+.graphic span {
+    font-size: 11px;
+    color: var(--mantine-color-text);
+}
+.dashboard {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    height: 100%;
+}
+.dashboardWords {
+    display: grid;
+    gap: 12px;
+}
+.dashboardWords > span:first-child {
+    font-size: 18px;
+    font-weight: 600;
+}
+.tileDots {
+    display: flex;
+    gap: 4px;
+}
+.tileDots i {
+    width: 16px;
+    height: 3px;
+    border-radius: 2px;
+    background: currentColor;
+}
+.tileDots i:last-child {
+    opacity: 0.3;
+}
+.phone {
+    width: 102px;
+    height: 140px;
+    padding: 7px;
+    border: 2px solid var(--mantine-color-dimmed);
+    border-radius: 16px;
+    background: var(--mantine-color-body);
+    overflow: hidden;
+}
+.speaker {
+    width: 24px;
+    height: 3px;
+    margin: 0 auto 12px;
+    border-radius: 4px;
+    background: var(--mantine-color-dimmed);
+}
+.viewport {
+    overflow: hidden;
+}
+.swipe {
+    display: flex;
+    width: 200%;
+    animation: swipe 7s ease-in-out 2;
+}
+.swipe > div {
+    width: 50%;
+    flex: none;
+}
+.swipe svg {
+    height: 75px;
+}
+@keyframes swipe {
+    0%,
+    22%,
+    90%,
+    100% {
+        transform: translateX(0);
+    }
+    45%,
+    67% {
+        transform: translateX(-50%);
+    }
+}
+.browse {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    padding: 20px;
+    height: 100%;
+}
+.spaceList {
+    display: grid;
+    gap: 8px;
+    flex: 1;
+}
+.spaceList > span {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.spaceList svg {
+    width: 18px;
+    height: 18px;
+    flex: none;
+}
+.spaceList > span:nth-child(2) {
+    padding-left: 26px;
+}
+.folder {
+    font-weight: 600;
+}
+.selected {
+    color: var(--mantine-primary-color-light-color) !important;
+    padding: 5px 8px;
+    background: var(--mantine-primary-color-light);
+    border-radius: 5px;
+}
+.selected svg {
+    margin-left: auto;
+}
+.browseChart {
+    width: 40%;
+    animation: reveal 4s ease-out both;
+}
+@keyframes reveal {
+    from {
+        opacity: 0.2;
+        transform: translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+.pinned {
+    display: grid;
+    grid-template-columns: 92px 1fr;
+    column-gap: 16px;
+    height: 100%;
+    padding: 18px;
+}
+.pinLabel {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    color: var(--mantine-color-text);
+    font-size: 12px;
+}
+.pinLabel svg {
+    width: 20px;
+    height: 20px;
+}
+.pinChart {
+    min-width: 0;
+    animation: reveal 3s ease-out both;
+}
+.pinChart svg {
+    height: 68px;
+}
+.recent {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-top: 1px solid var(--mantine-color-default-border);
+    padding-top: 10px;
+}
+.recent span {
+    margin-right: auto;
+}
+.recent i {
+    width: 20px;
+    height: 6px;
+    border-radius: 2px;
+    background: var(--mantine-color-default-border);
+}
+.compare {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 10px 16px;
+    height: 100%;
+}
+.desk,
+.hand {
+    display: grid;
+    justify-items: center;
+    gap: 5px;
+}
+.desk {
+    flex: 1;
+}
+.desktopChart {
+    width: 100%;
+    padding: 7px;
+    border: 1px solid var(--mantine-color-dimmed);
+    border-radius: 5px;
+}
+.desktopChart svg {
+    height: 60px;
+}
+.fitArrow {
+    width: 24px !important;
+    flex: none;
+}
+.hand .phone {
+    width: 72px;
+    height: 112px;
+    border-radius: 12px;
+    animation: fit 3s ease-out both;
+}
+.hand .phone svg {
+    height: 50px;
+}
+.hand .speaker {
+    width: 18px;
+    margin-bottom: 8px;
+}
+@keyframes fit {
+    from {
+        transform: translateX(-8px) scale(0.9);
+        opacity: 0.3;
+    }
+    to {
+        transform: none;
+        opacity: 1;
+    }
+}
+.story {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    height: 100%;
+    padding: 18px 8px;
+}
+.story > div {
+    display: grid;
+    grid-template-rows: 80px auto;
+    justify-items: center;
+    align-items: center;
+    gap: 8px;
+    padding-inline: 8px;
+}
+.story > div + div {
+    border-left: 1px solid var(--mantine-color-default-border);
+}
+.story span {
+    font-size: 10px;
+    text-align: center;
+}
+.story svg {
+    max-width: 64px;
+    height: 76px;
+}
+.storyAsk {
+    animation: story 4s ease-out both;
+}
+.storySee {
+    animation: story 4s 1s ease-out both;
+}
+.storyTake {
+    animation: story 4s 2s ease-out both;
+}
+@keyframes story {
+    from {
+        opacity: 0.25;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+@media (width < 380px) {
+    .browse {
+        gap: 12px;
+        padding: 14px;
+    }
+    .compare {
+        gap: 8px;
+    }
+    .pinned {
+        grid-template-columns: 70px 1fr;
+        padding: 14px;
+        gap: 8px;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .frame *,
     .frame *::before,

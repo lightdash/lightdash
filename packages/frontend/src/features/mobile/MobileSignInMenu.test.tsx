@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
 import { renderWithProviders } from '../../testing/testUtils';
 import { MobileSignInMenu } from './MobileSignInMenu';
+import { UPSELL_STRINGS } from './upsell/upsellStrings';
 
 vi.mock('../../api');
 vi.mock('../../hooks/health/useHealth', () => ({
@@ -113,31 +114,73 @@ beforeEach(() => {
 });
 
 describe('MobileSignInMenu', () => {
-    it.each(['', '?mobileUpsell=invalid'])(
-        'keeps the default DOM for %s',
-        async (search) => {
-            window.history.replaceState({}, '', `/${search}`);
+    it.each([
+        '',
+        '?mobileUpsell=invalid',
+        '?mobileUpsell=0',
+        '?mobileUpsell=7',
+        '?mobileUpsell=01',
+        '?mobileUpsell=1.0',
+    ])('keeps the default DOM for %s', async (search) => {
+        window.history.replaceState({}, '', `/${search}`);
+        mockServer();
+        renderWithProviders(<MobileSignInMenu />);
+        await userEvent.click(openButton());
+        await screen.findByRole('img', { name: 'Sign-in QR code' });
+        expect(document.querySelector('[data-mobile-upsell]')).toBeNull();
+        expect(screen.getByText('Waiting for scan')).toBeVisible();
+    });
+
+    it.each([1, 2, 3, 4, 5, 6] as const)(
+        'shows pitch %s with the existing QR and status',
+        async (variation) => {
+            window.history.replaceState({}, '', `/?mobileUpsell=${variation}`);
             mockServer();
             renderWithProviders(<MobileSignInMenu />);
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
             await userEvent.click(openButton());
+            expect(
+                screen.getByRole('heading', {
+                    name: UPSELL_STRINGS[variation].headline,
+                }),
+            ).toBeVisible();
             await screen.findByRole('img', { name: 'Sign-in QR code' });
-            expect(document.querySelector('[data-mobile-upsell]')).toBeNull();
             expect(screen.getByText('Waiting for scan')).toBeVisible();
+            const frame = document.querySelector('[data-mobile-upsell]');
+            expect(frame).toHaveAttribute(
+                'data-mobile-upsell',
+                String(variation),
+            );
+            expect(
+                frame?.querySelector('[aria-hidden="true"] svg'),
+            ).toBeInTheDocument();
         },
     );
 
-    it('shows the pitch with the existing QR and status', async () => {
+    it('pauses the pitch when the tab is hidden', async () => {
         window.history.replaceState({}, '', '/?mobileUpsell=1');
         mockServer();
         renderWithProviders(<MobileSignInMenu />);
         await userEvent.click(openButton());
-        expect(
-            screen.getByRole('heading', {
-                name: 'Ask AI. Take the answer with you.',
-            }),
-        ).toBeVisible();
         await screen.findByRole('img', { name: 'Sign-in QR code' });
-        expect(screen.getByText('Waiting for scan')).toBeVisible();
+        Object.defineProperty(document, 'visibilityState', {
+            configurable: true,
+            value: 'hidden',
+        });
+        fireEvent(document, new Event('visibilitychange'));
+        expect(document.querySelector('[data-mobile-upsell]')).toHaveAttribute(
+            'data-paused',
+            'true',
+        );
+        Object.defineProperty(document, 'visibilityState', {
+            configurable: true,
+            value: 'visible',
+        });
+        fireEvent(document, new Event('visibilitychange'));
+        expect(document.querySelector('[data-mobile-upsell]')).toHaveAttribute(
+            'data-paused',
+            'false',
+        );
     });
 
     it('renders nothing and mints nothing with mobile-qr-sign-in off', () => {
@@ -188,31 +231,36 @@ describe('MobileSignInMenu', () => {
         expect(server.mints()).toHaveLength(1);
     });
 
-    it.each(['', '?mobileUpsell=1'])(
-        'closes on Escape and cancels the unused code %s',
-        async (search) => {
-            window.history.replaceState({}, '', `/${search}`);
-            const user = userEvent.setup();
-            const server = mockServer();
-            renderWithProviders(<MobileSignInMenu />);
+    it.each([
+        '',
+        '?mobileUpsell=1',
+        '?mobileUpsell=2',
+        '?mobileUpsell=3',
+        '?mobileUpsell=4',
+        '?mobileUpsell=5',
+        '?mobileUpsell=6',
+    ])('closes on Escape and cancels the unused code %s', async (search) => {
+        window.history.replaceState({}, '', `/${search}`);
+        const user = userEvent.setup();
+        const server = mockServer();
+        renderWithProviders(<MobileSignInMenu />);
 
-            await user.click(openButton());
-            await screen.findByRole('img', { name: 'Sign-in QR code' });
-            expect(server.deletes()).toEqual([]);
+        await user.click(openButton());
+        await screen.findByRole('img', { name: 'Sign-in QR code' });
+        expect(server.deletes()).toEqual([]);
 
-            await user.keyboard('{Escape}');
+        await user.keyboard('{Escape}');
 
-            await waitFor(() =>
-                expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
-            );
-            await waitFor(() =>
-                expect(server.deletes()).toEqual([
-                    '/user/mobile/sign-in-codes/code-1',
-                ]),
-            );
-            expect(openButton()).toHaveFocus();
-        },
-    );
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        await waitFor(() =>
+            expect(server.deletes()).toEqual([
+                '/user/mobile/sign-in-codes/code-1',
+            ]),
+        );
+        expect(openButton()).toHaveFocus();
+    });
 
     it('cancels the code when the icon is clicked again', async () => {
         const user = userEvent.setup();
@@ -270,7 +318,15 @@ describe('MobileSignInMenu', () => {
         expect(server.deletes()).toEqual([]);
     });
 
-    it.each(['', '?mobileUpsell=1'])(
+    it.each([
+        '',
+        '?mobileUpsell=1',
+        '?mobileUpsell=2',
+        '?mobileUpsell=3',
+        '?mobileUpsell=4',
+        '?mobileUpsell=5',
+        '?mobileUpsell=6',
+    ])(
         'stays open while the user confirms a phone in the dialog %s',
         async (search) => {
             window.history.replaceState({}, '', `/${search}`);
