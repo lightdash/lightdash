@@ -1,6 +1,5 @@
 import {
     AI_DEEP_RESEARCH_QUERY_HISTORY_RETENTION_DAYS,
-    AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS,
     AI_DEFAULT_MAX_QUERY_LIMIT,
     ALL_TASK_NAMES,
     AllowedEmailDomainsRole,
@@ -3418,14 +3417,6 @@ export const parseConfig = (): LightdashConfig => {
     const queryHistoryRetentionDays =
         getIntegerFromEnvironmentVariable('QUERY_HISTORY_RETENTION_DAYS') ||
         AI_DEEP_RESEARCH_QUERY_HISTORY_RETENTION_DAYS;
-    if (
-        queryHistoryCleanupEnabled &&
-        queryHistoryRetentionDays < AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS
-    ) {
-        console.warn(
-            `WARNING: QUERY_HISTORY_RETENTION_DAYS is below the ${AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS}-day Deep Research report retention. Report charts may become unavailable before their reports expire.`,
-        );
-    }
 
     const snowflakeAiTestAccountUrlOrigin =
         parseSnowflakeAiTestAccountUrlOrigin();

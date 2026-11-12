@@ -384,62 +384,17 @@ describe('managed agent runtime variable', () => {
 });
 
 describe('query history retention', () => {
-    it('warns when cleanup can expire charts before their Deep Research reports', () => {
-        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        process.env.QUERY_HISTORY_RETENTION_DAYS = '29';
-
-        try {
-            expect(
-                parseConfig().scheduler.queryHistory.cleanup.retentionDays,
-            ).toBe(29);
-            expect(warn).toHaveBeenCalledWith(
-                'WARNING: QUERY_HISTORY_RETENTION_DAYS is below the 30-day Deep Research report retention. Report charts may become unavailable before their reports expire.',
-            );
-        } finally {
-            warn.mockRestore();
-        }
-    });
-
-    it.each([undefined, '30', '32', '60'])(
-        'does not warn for a sufficient retention window: %s',
+    it.each([undefined, '1', '60'])(
+        'reads the retention window: %s',
         (retentionDays) => {
-            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
             if (retentionDays !== undefined) {
                 process.env.QUERY_HISTORY_RETENTION_DAYS = retentionDays;
             }
-
-            try {
-                expect(
-                    parseConfig().scheduler.queryHistory.cleanup.retentionDays,
-                ).toBe(
-                    retentionDays === undefined ? 32 : Number(retentionDays),
-                );
-                expect(warn).not.toHaveBeenCalledWith(
-                    expect.stringContaining('QUERY_HISTORY_RETENTION_DAYS'),
-                );
-            } finally {
-                warn.mockRestore();
-            }
+            expect(
+                parseConfig().scheduler.queryHistory.cleanup.retentionDays,
+            ).toBe(retentionDays === undefined ? 32 : Number(retentionDays));
         },
     );
-
-    it('does not warn when query history cleanup is disabled', () => {
-        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        process.env.QUERY_HISTORY_RETENTION_DAYS = '1';
-        process.env.QUERY_HISTORY_CLEANUP_ENABLED = 'false';
-
-        try {
-            expect(parseConfig().scheduler.queryHistory.cleanup).toMatchObject({
-                enabled: false,
-                retentionDays: 1,
-            });
-            expect(warn).not.toHaveBeenCalledWith(
-                expect.stringContaining('QUERY_HISTORY_RETENTION_DAYS'),
-            );
-        } finally {
-            warn.mockRestore();
-        }
-    });
 });
 
 describe('dashboard tile query concurrency', () => {

@@ -145,7 +145,6 @@ export const OAUTH_UNCHECKED_OPERATIONS = {
     'AiCreditController.getUsage': 'read',
     'AiCreditController.getDailyUsage': 'read',
     'AiDeepResearchController.createRun': 'write',
-    'AiDeepResearchController.refreshChart': 'write',
     'AiDeepResearchController.cancelRun': 'write',
     'AiProviderCredentialController.listCredentials': 'read',
     'AiProviderCredentialController.createCredential': 'write',

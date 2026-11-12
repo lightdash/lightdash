@@ -481,14 +481,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'AiCreditController.getUsage': [AgentCapability.ReadDiscover],
     'AiDeepResearchController.cancelRun': [AgentCapability.Administration],
     'AiDeepResearchController.createRun': [AgentCapability.Query],
-    'AiDeepResearchController.getChart': [AgentCapability.ReadDiscover],
-    'AiDeepResearchController.getChartQueryResults': [
-        AgentCapability.ReadDiscover,
-    ],
     'AiDeepResearchController.getRun': [AgentCapability.ReadDiscover],
     'AiDeepResearchController.listEvents': [AgentCapability.ReadDiscover],
     'AiDeepResearchController.listRuns': [AgentCapability.ReadDiscover],
-    'AiDeepResearchController.refreshChart': [AgentCapability.Query],
     'AiOrganizationSettingsController.getRuntimeSettings': [
         AgentCapability.ReadDiscover,
     ],
