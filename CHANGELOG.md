@@ -1,3 +1,11 @@
+## [3.236.1](https://github.com/lightdash/lightdash/compare/3.236.0...3.236.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** draw floating bars with the edit toolbar bar ([#32487](https://github.com/lightdash/lightdash/issues/32487)) ([484d5c9](https://github.com/lightdash/lightdash/commit/484d5c93e047911accb14be2f3a781b2d3c236cd))
+* **data-apps:** move an open app to the latest version when a newer one is ready ([#32486](https://github.com/lightdash/lightdash/issues/32486)) ([129dca8](https://github.com/lightdash/lightdash/commit/129dca89bbdba88375917ac4b51498fff0c227ff))
+
 # [3.236.0](https://github.com/lightdash/lightdash/compare/3.235.0...3.236.0) (2026-11-12)
 
 

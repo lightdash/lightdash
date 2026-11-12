@@ -1,58 +1,25 @@
 {
   "schemaVersion": "2",
-  "version": "3.236.0",
-  "previousVersion": "3.235.0",
-  "releaseDate": "2026-11-12T16:36:58.405Z",
+  "version": "3.236.1",
+  "previousVersion": "3.236.0",
+  "releaseDate": "2026-11-12T17:06:50.557Z",
   "migrations": {
-    "present": true,
-    "count": 1,
+    "present": false,
+    "count": 0,
     "coreCount": 0,
-    "eeCount": 1,
-    "files": [
-      {
-        "name": "20261112120000_drop_ai_deep_research_legacy_report_columns.ts",
-        "edition": "ee",
-        "tables": [
-          "ai_deep_research_runs"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "eeCount": 0,
+    "files": []
   },
   "compatibility": {
-    "rollingUpdateSafe": false,
-    "recommendedStrategy": "Recreate"
+    "rollingUpdateSafe": true,
+    "recommendedStrategy": "RollingUpdate"
   },
   "api": {
     "rest": {
       "checked": true,
-      "breaking": true,
-      "changes": [
-        "GET /api/v1/ee/projects/{projectUuid}/ai-deep-research — removed the required property `results/items/isReportExpired` from the response with the `200` status",
-        "GET /api/v1/ee/projects/{projectUuid}/ai-deep-research — removed the required property `results/items/reportExpiredAt` from the response with the `200` status",
-        "GET /api/v1/ee/projects/{projectUuid}/ai-deep-research — removed the required property `results/items/reportExpiresAt` from the response with the `200` status",
-        "GET /api/v1/ee/projects/{projectUuid}/ai-deep-research — removed the required property `results/items/resultMarkdown` from the response with the `200` status",
-        "POST /api/v1/ee/projects/{projectUuid}/ai-deep-research — removed the required property `results/isReportExpired` from the response with the `202` status",
-        "POST /api/v1/ee/projects/{projectUuid}/ai-deep-research — removed the required property `results/reportExpiredAt` from the response with the `202` status",
-        "POST /api/v1/ee/projects/{projectUuid}/ai-deep-research — removed the required property `results/reportExpiresAt` from the response with the `202` status",
-        "POST /api/v1/ee/projects/{projectUuid}/ai-deep-research — removed the required property `results/resultMarkdown` from the response with the `202` status",
-        "GET /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid} — removed the required property `results/isReportExpired` from the response with the `200` status",
-        "GET /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid} — removed the required property `results/reportExpiredAt` from the response with the `200` status",
-        "GET /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid} — removed the required property `results/reportExpiresAt` from the response with the `200` status",
-        "GET /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid} — removed the required property `results/resultMarkdown` from the response with the `200` status",
-        "POST /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/cancel — removed the required property `results/isReportExpired` from the response with the `200` status",
-        "POST /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/cancel — removed the required property `results/reportExpiredAt` from the response with the `200` status",
-        "POST /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/cancel — removed the required property `results/reportExpiresAt` from the response with the `200` status",
-        "POST /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/cancel — removed the required property `results/resultMarkdown` from the response with the `200` status",
-        "POST /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{chartKey}/refresh — api path removed without deprecation",
-        "GET /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{queryUuid} — api path removed without deprecation",
-        "GET /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/queries/{queryUuid}/results — api path removed without deprecation"
-      ],
-      "breakingCount": 19,
+      "breaking": false,
+      "changes": [],
+      "breakingCount": 0,
       "advisories": [],
       "advisoryCount": 0
     },
@@ -74,35 +41,6 @@
     "minPreviousVersion": "2.497.1",
     "requiredStops": []
   },
-  "declaredBreaks": [
-    {
-      "id": "deep-research-legacy-report-columns-dropped",
-      "reason": "Drops the legacy Deep Research report columns result_markdown, report_expires_at and report_expired_at on ai_deep_research_runs, with their expiry index. Ships in the same release as the legacy Deep Research report removal (lightdash/lightdash#32457), which stops reading and writing them. During a rolling upgrade from an earlier release, old pods still read these columns when loading Deep Research runs and write them when completing, cancelling or sweeping runs, so those requests fail until the rollout finishes; a run that completes in that window may end up failed. Use the Recreate strategy to avoid the window.",
-      "requiredStop": false,
-      "migration": "packages/backend/src/ee/database/migrations/20261112120000_drop_ai_deep_research_legacy_report_columns.ts"
-    }
-  ],
-  "declaredAdvisories": [
-    {
-      "id": "deep-research-legacy-report-api-removed",
-      "reason": "The legacy Deep Research report is removed now that every run publishes its report as a Document and the last legacy reports passed their 30-day retention. GET /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{queryUuid}, POST .../charts/{chartKey}/refresh and GET .../queries/{queryUuid}/results now return 404. Run responses (create, get, list and cancel) no longer include resultMarkdown, reportExpiresAt, reportExpiredAt or isReportExpired, and @lightdash/common no longer exports AI_DEEP_RESEARCH_REPORT_RETENTION_DAYS or ApiAiDeepResearchChartResponse. During a rolling update an old report page tab shows its not-ready state or redirects to the run's Document, and an old run card shows the Document card or the unavailable notice; both are safe because no legacy report content remains to show.",
-      "requiredStop": false,
-      "impact": {
-        "kind": "no-external-callers",
-        "firstPartyOnly": "The Lightdash web app's legacy Deep Research report viewer was the only client of the report chart routes and of the report fields, and it is removed in the same change; the run card and the old report URL now use the run's Document instead.",
-        "covers": {
-          "rest": [
-            "GET /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{queryUuid}",
-            "POST /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/charts/{chartKey}/refresh",
-            "GET /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/queries/{queryUuid}/results",
-            "POST /api/v1/ee/projects/{projectUuid}/ai-deep-research",
-            "GET /api/v1/ee/projects/{projectUuid}/ai-deep-research",
-            "GET /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}",
-            "POST /api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/cancel"
-          ],
-          "mcp": []
-        }
-      }
-    }
-  ]
+  "declaredBreaks": [],
+  "declaredAdvisories": []
 }
