@@ -9,6 +9,10 @@ import {
 } from '../../../testing/migratedDatabase';
 import { down, up } from '../20261110100000_create_project_model_documents';
 import { up as addPullRequestUrl } from '../20261111130000_add_pull_request_url_to_project_model_draft_changes';
+import {
+    up as addBaseVersions,
+    down as dropBaseVersions,
+} from '../20261111200000_add_base_versions_to_project_model_draft_changes';
 
 describe('Project model documents on PostgreSQL', () => {
     let migrated: MigratedDatabase;
@@ -84,11 +88,15 @@ describe('Project model documents on PostgreSQL', () => {
             deploy,
         );
 
-    const draft = (models: string[]) =>
+    const draft = (
+        models: string[],
+        baseVersions: Record<string, number | null> | null = null,
+    ) =>
         model.createDraftChange({
             projectUuid,
             userUuid,
             promptUuid: null,
+            baseVersions,
             models: models.map((name) => ({
                 name,
                 yaml: 'label: Drafted\n',
@@ -104,6 +112,7 @@ describe('Project model documents on PostgreSQL', () => {
 
     test('down and up remove and restore the tables', async () => {
         const { database } = migrated;
+        await database.transaction(dropBaseVersions);
         await database.transaction(down);
         expect(await database.schema.hasTable('project_model_documents')).toBe(
             false,
@@ -113,6 +122,7 @@ describe('Project model documents on PostgreSQL', () => {
         ).toBe(false);
         await database.transaction(up);
         await database.transaction(addPullRequestUrl);
+        await database.transaction(addBaseVersions);
         expect(await database.schema.hasTable('project_model_revisions')).toBe(
             true,
         );
@@ -381,6 +391,54 @@ describe('Project model documents on PostgreSQL', () => {
                 '00000000-0000-0000-0000-000000000000',
             ]),
         ).rejects.toThrow('Nothing in the draft matches');
+    });
+
+    test('a draft change keeps the version it was made on, and can be based on a later one', async () => {
+        await apply(new Map(), [{ name: 'orders', content: 'v1' }]);
+        await apply(new Map([['orders', 1]]), [
+            { name: 'orders', content: 'v2' },
+        ]);
+        await draft(['orders', 'customers'], { orders: 1, customers: null });
+        await draft(['customers']);
+        const bases = async () =>
+            (await model.findDraftChanges(projectUuid, userUuid)).map(
+                ({ baseVersions }) => baseVersions,
+            );
+        expect(await bases()).toEqual([{ orders: 1, customers: null }, null]);
+        expect(
+            await model.findDocumentsAt(
+                projectUuid,
+                new Map([
+                    ['orders', 1],
+                    ['customers', 7],
+                ]),
+            ),
+        ).toEqual(new Map([['orders', 'v1']]));
+        // Live is at version 2: an older version is refused and nothing is written.
+        expect(
+            await model.rebaseDraftChanges(
+                { projectUuid, userUuid },
+                'orders',
+                1,
+            ),
+        ).toBe(false);
+        expect((await bases())[0]).toEqual({ orders: 1, customers: null });
+        expect(
+            await model.rebaseDraftChanges(
+                { projectUuid, userUuid },
+                'orders',
+                2,
+            ),
+        ).toBe(true);
+        await model.rebaseDraftChanges(
+            { projectUuid, userUuid },
+            'customers',
+            null,
+        );
+        expect(await bases()).toEqual([
+            { orders: 2, customers: null },
+            { customers: null },
+        ]);
     });
 
     test('a draft applied as a pull request keeps the link', async () => {

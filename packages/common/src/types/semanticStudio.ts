@@ -87,6 +87,33 @@ export type SemanticLayerDraftChange = {
     }[];
 };
 
+/** A part of a model that changed live and that the draft changes too, with each side's version of it as YAML. */
+export type SemanticLayerDraftConflict = {
+    /** Such as `metrics.revenue.sql`; empty for the model as a whole. */
+    path: string;
+    /** What the draft was based on; null when the part was not there. */
+    base: string | null;
+    /** What is live now; null when the part was removed. */
+    live: string | null;
+    /** What the draft leaves; null when the draft removes it. Publishing puts this in place of what is live. */
+    mine: string | null;
+};
+
+/**
+ * How a drafted model stands against live. `current`: nothing was published to it
+ * since. `merged`: something was, in parts the draft does not touch, and the
+ * draft sits on top of it. `conflict`: something was, in parts the draft changes
+ * too, so publishing replaces someone else's change.
+ */
+export type SemanticLayerDraftReconciliation = {
+    state: 'current' | 'merged' | 'conflict';
+    /** The live version this was worked out against; null when the model is not live. Sent back when keeping the draft over it. */
+    liveVersion: number | null;
+    /** Paths published since the draft was based that it does not touch. */
+    merged: string[];
+    conflicts: SemanticLayerDraftConflict[];
+};
+
 /** Someone else with a draft of a model, and the parts of it they are changing. */
 export type SemanticLayerDrafter = { name: string; paths: string[] };
 
@@ -99,6 +126,8 @@ export type SemanticLayerDraftModel = {
     contentAfter: string | null;
     /** The model as the draft compiles it; null when it is removed or does not compile. */
     explore: Explore | null;
+    /** How this model's draft stands against what was published since it was based; null when the base was not recorded. */
+    reconciliation: SemanticLayerDraftReconciliation | null;
     /** Other people with unpublished changes to this model, and the parts each is changing; never the content. */
     alsoChanging: SemanticLayerDrafter[];
     /** The latest change someone else published to this model since this draft first touched it; null when none. */
@@ -186,6 +215,11 @@ export type ApiSemanticLayerDraftUsageResponse =
 
 /** Which way a change moves in a draft's order. */
 export type SemanticLayerDraftMoveDirection = 'earlier' | 'later';
+
+export type ApiSemanticLayerDraftKeepRequest = {
+    /** The live version the person was shown, from the model's reconciliation. */
+    liveVersion: number | null;
+};
 
 export type ApiSemanticLayerDraftMoveRequest = {
     direction: SemanticLayerDraftMoveDirection;

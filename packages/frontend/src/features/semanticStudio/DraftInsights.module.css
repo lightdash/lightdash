@@ -4,6 +4,30 @@
     background-color: var(--mantine-color-ldGray-0);
 }
 
+.conflict {
+    padding-top: var(--mantine-spacing-xs);
+}
+
+.sides {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--mantine-spacing-xs);
+}
+
+.side {
+    margin: 0;
+    padding: var(--mantine-spacing-xs);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-sm);
+    background-color: var(--mantine-color-body);
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-xs);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    max-height: 9rem;
+    overflow: auto;
+}
+
 .section {
     overflow: hidden;
 }

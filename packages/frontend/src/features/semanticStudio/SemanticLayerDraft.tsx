@@ -206,6 +206,11 @@ const ApplyModal: FC<{
             title={model === null ? 'Publish your changes' : `Publish ${model}`}
             confirmLabel={isRisky ? `${confirmLabel} anyway` : confirmLabel}
             confirmLoading={apply.isLoading}
+            confirmDisabled={draft.models.some(
+                (entry) =>
+                    (model === null || entry.model === model) &&
+                    entry.reconciliation?.state === 'conflict',
+            )}
             onConfirm={() =>
                 apply.mutate(model, {
                     onSuccess: ({ failures, pullRequestUrl }) => {
@@ -610,7 +615,11 @@ export const DraftReview: FC<DraftReviewProps> = ({
                                     />
                                 ) : null}
                             </Group>
-                            <ModelNotices model={modelChange} />
+                            <ModelNotices
+                                projectUuid={projectUuid}
+                                model={modelChange}
+                                onAskAgent={onAskAgent}
+                            />
                             <ChangeDiff
                                 modelName={modelChange.model}
                                 change={modelChange}

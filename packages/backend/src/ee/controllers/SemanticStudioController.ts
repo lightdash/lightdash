@@ -3,6 +3,7 @@ import {
     type ApiErrorPayload,
     type ApiSemanticLayerDraftApplyResponse,
     type ApiSemanticLayerDraftImpactResponse,
+    type ApiSemanticLayerDraftKeepRequest,
     type ApiSemanticLayerDraftMoveRequest,
     type ApiSemanticLayerDraftResponse,
     type ApiSemanticLayerDraftUsageResponse,
@@ -289,6 +290,30 @@ export class SemanticStudioController extends BaseController {
             projectUuid,
             draftChangeUuid,
             body.direction,
+        );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Keeps this person's draft of a model over what was published to it since they started.
+     * @summary Keep my draft of a model over what was published since
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/draft/models/{model}/keep')
+    @OperationId('keepSemanticLayerDraftModel')
+    async keepDraftModel(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() model: string,
+        @Body() body: ApiSemanticLayerDraftKeepRequest,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().keepDraftModel(
+            toSessionUser(req.account),
+            projectUuid,
+            model,
+            body.liveVersion,
         );
         return { status: 'ok', results: undefined };
     }

@@ -127,6 +127,7 @@ const validator = withAbility([
 const setup = ({
     stored = [{ name: 'orders', content: orders }],
     otherDrafters = [],
+    baseContents = [],
     usedFields = [],
     previewOf = PROJECT_UUID,
     previewExplores = {},
@@ -144,6 +145,7 @@ const setup = ({
 }: {
     stored?: { name: string; content: string; version?: number }[];
     otherDrafters?: { name: string; models: string[] }[];
+    baseContents?: [string, string | null][];
     /** Field ids a saved chart reads. */
     usedFields?: string[];
     /** The project the preview project was built from. */
@@ -328,6 +330,21 @@ const setup = ({
         projectModelDocumentModel: {
             findDocuments: async () =>
                 stored.map((doc) => ({ version: 1, ...doc })),
+            findDocumentsAt: async () => new Map(baseContents),
+            rebaseDraftChanges: async (_owner, model, version) => {
+                // Live is always at version 1 here.
+                if (version !== 1) return false;
+                drafts.forEach((change, index) => {
+                    drafts[index] = {
+                        ...change,
+                        baseVersions: {
+                            ...change.baseVersions,
+                            [model]: version,
+                        },
+                    };
+                });
+                return true;
+            },
             createChangeSet: commit,
             findChangeSets: async (_projectUuid, uuids) =>
                 changeSets.filter(({ changeSetUuid }) =>
@@ -347,7 +364,7 @@ const setup = ({
             },
             findPublishedSince: async () => publishedSince,
             findSettledDraftChanges: async () => [],
-            createDraftChange: async ({ promptUuid, models }) => {
+            createDraftChange: async ({ promptUuid, models, baseVersions }) => {
                 const draftChangeUuid = `draft-${drafts.length + 1}`;
                 drafts.push({
                     draftChangeUuid,
@@ -355,6 +372,7 @@ const setup = ({
                     question: null,
                     createdAt: new Date(),
                     models,
+                    baseVersions,
                 });
                 return draftChangeUuid;
             },
@@ -1080,6 +1098,112 @@ describe('SemanticStudioService', () => {
         });
     });
 
+    describe('reconciling the draft with live', () => {
+        const drafted = async (context: ReturnType<typeof setup>) => {
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+            );
+            return context;
+        };
+        const reconciliationOf = async (context: ReturnType<typeof setup>) =>
+            (await context.service.getDraft(deployer, PROJECT_UUID)).models[0]
+                .reconciliation;
+
+        it('records the version a change was made on and is current while live stays there', async () => {
+            const context = await drafted(setup());
+            expect(context.drafts[0].baseVersions).toEqual({ orders: 1 });
+            expect(await reconciliationOf(context)).toEqual({
+                state: 'current',
+                liveVersion: 1,
+                merged: [],
+                conflicts: [],
+            });
+        });
+
+        it('merges what was published to other parts of the model', async () => {
+            const context = await drafted(
+                setup({
+                    baseContents: [
+                        [
+                            'orders',
+                            orders.replace(
+                                'type: model',
+                                'type: model\nlabel: Old',
+                            ),
+                        ],
+                    ],
+                }),
+            );
+            context.drafts[0].baseVersions = { orders: 0 };
+            expect(await reconciliationOf(context)).toEqual({
+                state: 'merged',
+                liveVersion: 1,
+                merged: ['label'],
+                conflicts: [],
+            });
+        });
+
+        it('reports a part both sides changed, until the person keeps theirs', async () => {
+            const context = await drafted(
+                setup({
+                    baseContents: [
+                        [
+                            'orders',
+                            orders.replace(
+                                '    sql: ${TABLE}.amount\n',
+                                '    sql: ${TABLE}.amount\n    metrics:\n      revenue:\n        type: count\n',
+                            ),
+                        ],
+                    ],
+                }),
+            );
+            context.drafts[0].baseVersions = { orders: 0 };
+            const reconciliation = await reconciliationOf(context);
+            expect(reconciliation?.state).toBe('conflict');
+            expect(reconciliation?.conflicts).toEqual([
+                {
+                    path: 'dimensions.amount.metrics.revenue',
+                    base: 'type: count',
+                    live: null,
+                    mine: 'type: sum',
+                },
+            ]);
+            const refused = await context.service.applyDraft(
+                deployer,
+                PROJECT_UUID,
+                null,
+            );
+            expect(refused.failures.map(({ model }) => model)).toEqual([
+                'orders',
+            ]);
+            expect(context.commitCalls).toEqual([]);
+            await expect(
+                context.service.keepDraftModel(
+                    deployer,
+                    PROJECT_UUID,
+                    'orders',
+                    7,
+                ),
+            ).rejects.toThrow('published again');
+            await context.service.keepDraftModel(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+                1,
+            );
+            expect((await reconciliationOf(context))?.state).toBe('current');
+        });
+
+        it('says nothing when the base was never recorded', async () => {
+            const context = await drafted(setup());
+            context.drafts[0].baseVersions = null;
+            expect(await reconciliationOf(context)).toBeNull();
+        });
+    });
+
     describe('settling the draft', () => {
         it('applies every change as one change set that names the latest question', async () => {
             const context = setup();
@@ -1123,6 +1247,7 @@ describe('SemanticStudioService', () => {
             );
             context.drafts.push({
                 draftChangeUuid: 'draft-2',
+                baseVersions: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
@@ -1143,6 +1268,7 @@ describe('SemanticStudioService', () => {
             const context = setup();
             context.drafts.push({
                 draftChangeUuid: 'draft-1',
+                baseVersions: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
@@ -1172,6 +1298,7 @@ describe('SemanticStudioService', () => {
             const context = setup();
             context.drafts.push({
                 draftChangeUuid: 'draft-1',
+                baseVersions: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
@@ -1201,6 +1328,7 @@ describe('SemanticStudioService', () => {
             const context = setup();
             context.drafts.push({
                 draftChangeUuid: 'draft-1',
+                baseVersions: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
@@ -1702,6 +1830,7 @@ describe('SemanticStudioService', () => {
             const context = repo();
             context.drafts.push({
                 draftChangeUuid: 'draft-1',
+                baseVersions: null,
                 promptUuid: null,
                 question: null,
                 createdAt: new Date(),
