@@ -58,6 +58,7 @@ import {
 import { PullRequestCiChecks } from './PullRequestCiChecks';
 import { QuietCardsContext } from './quietCards';
 import { WritebackDiffModal } from './WritebackDiffModal';
+import { WritebackProgressCard } from './WritebackProgressCard';
 
 type Props = {
     metadata: ToolEditDbtProjectOutput['metadata'];
@@ -70,6 +71,8 @@ type Props = {
      */
     agentUuid?: string;
     threadUuid?: string;
+    /** When the change was asked for, so a running one can say how long it has been. */
+    startedAt?: string;
 };
 
 // ts-unused-exports:disable-next-line
@@ -391,6 +394,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     projectUuid,
     agentUuid,
     threadUuid,
+    startedAt,
 }) => {
     const quiet = useContext(QuietCardsContext);
     // Hooks must run before the early returns below; the query is disabled until
@@ -590,21 +594,11 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
 
     if (metadata.status === 'pending') {
         return (
-            <Paper p="sm" radius="md" className={styles.card}>
-                <Group gap="xs" align="center" wrap="nowrap">
-                    <ThemeIcon
-                        variant="light"
-                        color="ldGray"
-                        radius="md"
-                        size="sm"
-                    >
-                        <MantineIcon icon={IconGitPullRequest} size={14} />
-                    </ThemeIcon>
-                    <Text size="xs" c="dimmed">
-                        Working on the change. This can take a few minutes.
-                    </Text>
-                </Group>
-            </Paper>
+            <WritebackProgressCard
+                projectUuid={projectUuid}
+                aiWritebackRunUuid={metadata.aiWritebackRunUuid}
+                startedAt={startedAt ?? null}
+            />
         );
     }
 

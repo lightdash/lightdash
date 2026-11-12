@@ -67,3 +67,33 @@ export const useStudioPullRequest = (
         isOpen: !!ciChecks && !ciChecks.merged && ciChecks.state === 'open',
     };
 };
+
+/** A dbt change of this project's Studio conversation that is still running in the background. */
+export type StudioPendingChange = {
+    aiWritebackRunUuid: string;
+    startedAt: string;
+};
+
+/** The change the conversation's latest reply started and has not finished, or null. */
+export const useStudioPendingChange = (
+    projectUuid: string,
+): StudioPendingChange | null => {
+    const { thread } = useStudioAgent(projectUuid);
+    const { data } = useAiAgentThread(
+        projectUuid,
+        thread?.agent.uuid,
+        thread?.threadUuid,
+        { enabled: !!thread },
+    );
+    const last = data?.messages.findLast(({ role }) => role === 'assistant');
+    if (last?.role !== 'assistant') return null;
+    const pending = last.toolResults
+        .filter(isToolEditDbtProjectResult)
+        .findLast(({ metadata }) => metadata.status === 'pending');
+    return pending?.metadata.status === 'pending'
+        ? {
+              aiWritebackRunUuid: pending.metadata.aiWritebackRunUuid,
+              startedAt: last.createdAt,
+          }
+        : null;
+};

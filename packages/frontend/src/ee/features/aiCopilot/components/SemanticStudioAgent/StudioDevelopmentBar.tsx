@@ -3,7 +3,15 @@ import {
     CiMergeState,
     type CiChecks,
 } from '@lightdash/common';
-import { ActionIcon, Badge, Button, Menu, Text, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Badge,
+    Button,
+    Loader,
+    Menu,
+    Text,
+    Tooltip,
+} from '@mantine/core';
 import { IconDots, IconExternalLink } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { Link } from 'react-router';
@@ -18,9 +26,14 @@ import { ChangesSwitch } from '../../../../../features/semanticStudio/SemanticLa
 import { useProject } from '../../../../../hooks/useProject';
 import { useClosePullRequest } from '../../hooks/useClosePullRequest';
 import { useMergePullRequest } from '../../hooks/useMergePullRequest';
+import { useElapsed, useWritebackStep } from '../../hooks/useWritebackProgress';
 import { isMergeable } from '../ChatElements/ToolCalls/pullRequestActions';
+import { WRITEBACK_STEPS } from '../ChatElements/ToolCalls/writebackProgress';
 import classes from './SemanticStudioAgent.module.css';
-import { type StudioPullRequest } from './useStudioPullRequest';
+import {
+    type StudioPendingChange,
+    type StudioPullRequest,
+} from './useStudioPullRequest';
 
 /** Why an open pull request cannot be merged yet. */
 const getBlockedReason = (ciChecks: CiChecks | null): string => {
@@ -205,6 +218,40 @@ export const StudioDevelopmentBar: FC<{
                     }
                 />
             ) : null}
+        </DevelopmentBar>
+    );
+};
+
+/** A dbt change still running in the background, in the toolbar: the step it is on and how long it has been. */
+export const StudioSavingBar: FC<{
+    projectUuid: string;
+    change: StudioPendingChange;
+}> = ({ projectUuid, change }) => {
+    const step = useWritebackStep(projectUuid, change.aiWritebackRunUuid);
+    const elapsed = useElapsed(change.startedAt);
+    return (
+        <DevelopmentBar
+            status={
+                <Badge
+                    color="gray"
+                    flex="none"
+                    leftSection={<Loader size={10} color="gray" />}
+                >
+                    Saving
+                </Badge>
+            }
+            summary={
+                <Text fz="xs" c="dimmed" truncate>
+                    {WRITEBACK_STEPS[step]}, step {step + 1} of{' '}
+                    {WRITEBACK_STEPS.length}
+                </Text>
+            }
+        >
+            <Tooltip label="Usually takes a few minutes. The pull request shows up here when it is ready.">
+                <Text fz="xs" c="dimmed" ff="monospace">
+                    {elapsed}
+                </Text>
+            </Tooltip>
         </DevelopmentBar>
     );
 };

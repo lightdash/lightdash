@@ -39,12 +39,18 @@ import {
 import { useNavigate, useSearchParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SemanticStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/SemanticStudioAgent';
-import { StudioDevelopmentBar } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/StudioDevelopmentBar';
+import {
+    StudioDevelopmentBar,
+    StudioSavingBar,
+} from '../../ee/features/aiCopilot/components/SemanticStudioAgent/StudioDevelopmentBar';
 import {
     useChatOpen,
     useSemanticStudioChat,
 } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
-import { useStudioPullRequest } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
+import {
+    useStudioPendingChange,
+    useStudioPullRequest,
+} from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
 import { useProject } from '../../hooks/useProject';
 import { LiveSourceBetaBadge } from '../externalConnections/liveSources/LiveSourceBetaBadge';
 import { useDevelopmentView } from './developmentView';
@@ -729,9 +735,18 @@ const Rail: FC<{
     view: ViewModel;
     expanded: Set<string>;
     drafted: Set<string>;
+    /** Models with changes that are not live yet, pinned above the tree so they are easy to check. */
+    changed: string[];
     onToggle: (key: string) => void;
     onOpen: (ref: NodeRef) => void;
-}> = ({ view, expanded, drafted, onToggle, onOpen }) => {
+}> = ({ view, expanded, drafted, changed, onToggle, onOpen }) => {
+    const changedExplores = view.project.explores.filter(({ id }) =>
+        changed.includes(id),
+    );
+    const openExploreId =
+        view.selected?.type === 'explore' || view.selected?.type === 'field'
+            ? view.selected.exploreId
+            : null;
     const search = useProjectSearch(view.project, view.tree);
     const [activeResult, setActiveResult] = useState(0);
     const { results } = search.results;
@@ -801,13 +816,50 @@ const Rail: FC<{
                     onOpen={openResult}
                 />
             ) : (
-                <Tree
-                    view={view}
-                    expanded={expanded}
-                    drafted={drafted}
-                    onToggle={onToggle}
-                    onSelect={(node) => view.select(node.ref)}
-                />
+                <>
+                    {changedExplores.length > 0 ? (
+                        <Box className={classes.changed}>
+                            <Text fz="xs" c="dimmed" px={8} pb={2}>
+                                Changed
+                            </Text>
+                            {changedExplores.map(({ id, label }) => (
+                                <Box
+                                    key={id}
+                                    component="button"
+                                    className={classes.fileRow}
+                                    data-selected={id === openExploreId}
+                                    onClick={() =>
+                                        onOpen({
+                                            type: 'explore',
+                                            exploreId: id,
+                                        })
+                                    }
+                                >
+                                    <MantineIcon
+                                        icon={IconTable}
+                                        size={14}
+                                        color="dimmed"
+                                    />
+                                    <Text
+                                        truncate
+                                        className={classes.treeLabel}
+                                        title={label}
+                                    >
+                                        {label}
+                                    </Text>
+                                    <Box className={classes.draftDot} />
+                                </Box>
+                            ))}
+                        </Box>
+                    ) : null}
+                    <Tree
+                        view={view}
+                        expanded={expanded}
+                        drafted={drafted}
+                        onToggle={onToggle}
+                        onSelect={(node) => view.select(node.ref)}
+                    />
+                </>
             )}
         </Box>
     );
@@ -967,6 +1019,12 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const keepsDraft = useKeepsSemanticLayerDraft(view.project.id);
     const pullRequest = useStudioPullRequest(view.project.id);
     const development = !keepsDraft && pullRequest?.isOpen ? pullRequest : null;
+    const pendingChange = useStudioPendingChange(view.project.id);
+    const changed = useMemo(
+        () => (keepsDraft ? [...drafted] : (development?.changedModels ?? [])),
+        [keepsDraft, drafted, development],
+    );
+    const saving = keepsDraft ? null : pendingChange;
     const [isTryingChanges, setIsTryingChanges] = useDevelopmentView();
     // A dbt project's changes are tried through its pull request's preview, so there is nothing to try once that closes.
     const hasClosedPullRequest =
@@ -1138,7 +1196,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         {pane === 'intro' ||
                         !chat.isAvailable ||
                         // A dbt project has nothing to put here until its conversation has a pull request.
-                        (!keepsDraft && !development && isChatOpen) ? null : (
+                        (!keepsDraft &&
+                            !development &&
+                            !saving &&
+                            isChatOpen) ? null : (
                             <Group
                                 className={classes.toolbar}
                                 data-my-changes={isTryingChanges || undefined}
@@ -1155,7 +1216,12 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                         data={VIEW_OPTIONS}
                                     />
                                 ) : null}
-                                {development ? (
+                                {saving ? (
+                                    <StudioSavingBar
+                                        projectUuid={view.project.id}
+                                        change={saving}
+                                    />
+                                ) : development ? (
                                     <StudioDevelopmentBar
                                         projectUuid={view.project.id}
                                         pullRequest={development}
@@ -1203,6 +1269,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                     view={view}
                                     expanded={expanded}
                                     drafted={drafted}
+                                    changed={changed}
                                     onToggle={toggle}
                                     onOpen={open}
                                 />
