@@ -117,10 +117,15 @@ is the filter's only field"; a disabled button gets no hover). Filter is
 an icon after a divider, only while `fieldUndo` is live (no disabled
 state). One of them is filled at most: Undo right after "Add a field"
 (`kind: 'add'`), Filter right after a tile card's pick (`kind: 'pick'`) while
-it can act. Portalled into an element inserted after the
-active tab's `.react-grid-layout` (`usePortalTargets`), keyed on the grid so
-a remounted grid gets a new one; it is not in `ControlsBar`, which is
-sticky. When a pressed button leaves, focus goes to the region.
+it can act. Drawn by `FloatingBar`: Mantine's `ActionBar`, the dashboard
+edit toolbar's bar, fixed in the same spot (`EDIT_BAR_POSITION`); the edit
+toolbar hides while one shows (`data-dashboard-floating-bar`). An element
+inserted after the active tab's `.react-grid-layout` (`useBarHost`), keyed on
+the grid so a remounted grid gets a new one, keeps room under the last tile
+row. An SDK embed is a box in the host's page, where a fixed bar would pin to
+the host's window: there the bar is portalled into that element, sticky, with
+`ActionBar`'s own classes. When a pressed button leaves, focus goes to the
+region.
 
 ## Tile overlays (`TileOverlay`, `TileOverlays`)
 
