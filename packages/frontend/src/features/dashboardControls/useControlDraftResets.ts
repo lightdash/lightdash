@@ -1,5 +1,4 @@
 import {
-    DateGranularity,
     isDashboardControlOrder,
     normalizeDateZoomConfig,
     type DashboardConfig,
@@ -9,6 +8,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     dashboardEditActions,
     dashboardParametersActions,
+    getSavedDateZoomSettings,
     useDashboardDispatch,
 } from '../dashboard/store';
 
@@ -63,8 +63,9 @@ export const useControlDraftResets = () => {
                         : undefined,
                 ),
             );
+            // The list a load of this config gives: no sub-day grains unless saved
             setDateZoomGranularities(
-                config?.dateZoomGranularities ?? Object.values(DateGranularity),
+                getSavedDateZoomSettings(config).dateZoomGranularities,
             );
             setHaveDateZoomGranularitiesChanged(false);
             setDefaultDateZoomGranularity(config?.defaultDateZoomGranularity);
