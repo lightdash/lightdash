@@ -9,12 +9,17 @@ const apiError = (data: Record<string, unknown>): ApiError => ({
 });
 const NEWER_VERSION_ERROR = apiError({ code: 'data_app_newer_version' });
 
-type Props = { version: number | undefined; tokenError: ApiError | null };
+type Props = {
+    appUuid?: string;
+    version: number | undefined;
+    tokenError: ApiError | null;
+};
 
 const render = (initialProps: Props) => {
     const refetchApp = vi.fn();
     const hook = renderHook(
-        (props: Props) => useNewerAppVersion({ ...props, refetchApp }),
+        (props: Props) =>
+            useNewerAppVersion({ appUuid: 'app-a', ...props, refetchApp }),
         { initialProps },
     );
     return { ...hook, refetchApp };
@@ -49,6 +54,18 @@ describe('useNewerAppVersion', () => {
         });
         act(() => result.current.onNewerVersion());
         rerender({ version: 3, tokenError: null });
+        act(() => result.current.onNewerVersion());
+        expect(refetchApp).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not carry over to another app on the same version number', () => {
+        const { result, rerender, refetchApp } = render({
+            version: 1,
+            tokenError: null,
+        });
+        act(() => result.current.onNewerVersion());
+        rerender({ appUuid: 'app-b', version: 1, tokenError: null });
+        expect(result.current.isOutdated).toBe(false);
         act(() => result.current.onNewerVersion());
         expect(refetchApp).toHaveBeenCalledTimes(2);
     });

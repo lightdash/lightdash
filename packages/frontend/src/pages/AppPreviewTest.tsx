@@ -122,6 +122,7 @@ export default function AppPreviewTest() {
     } = useAppPreviewToken(projectUuid, appUuid, version, 'standalone');
 
     const { onNewerVersion, isOutdated } = useNewerAppVersion({
+        appUuid,
         version,
         tokenError,
         refetchApp: appQuery.refetch,
