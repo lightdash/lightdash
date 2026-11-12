@@ -118,3 +118,6 @@ export const registerStreamConfig = (
 export const registerPreAggregateStream = (): void => {
     registerStreamConfig('pre-aggregate', PRE_AGGREGATE_STREAM_CONFIG);
 };
+
+export const QUERY_MAX_DELIVERIES = 5;
+export const QUERY_REDELIVERY_DELAY_MS = 30_000;
