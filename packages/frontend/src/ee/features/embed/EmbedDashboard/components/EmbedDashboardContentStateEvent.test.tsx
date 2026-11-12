@@ -105,6 +105,9 @@ describe('EmbedDashboardContentStateEvent', () => {
                 tileParameters: null,
                 dateZoomGranularity: 'MONTH',
                 activeTabUuid: 'tab-2',
+                dashboard: expect.objectContaining({
+                    filters: filters([rule('saved', ['completed'])]),
+                }),
             },
         );
     });

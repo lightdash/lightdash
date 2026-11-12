@@ -1,6 +1,7 @@
 import {
     type CreateSavedChartVersion,
     type DashboardFilters,
+    type DashboardVersionedFields,
     type ExportContentRequest,
     type ParametersValuesMap,
 } from '@lightdash/common';
@@ -120,6 +121,8 @@ export type DashboardContentState = {
     tileParameters: NonNullable<ExportContentRequest['tileParameters']> | null;
     dateZoomGranularity: string | null;
     activeTabUuid: string | null;
+    // The dashboard definition, unsaved edit-mode changes included
+    dashboard: DashboardVersionedFields;
 };
 
 /** A saved chart open in the explorer, unsaved edits included */

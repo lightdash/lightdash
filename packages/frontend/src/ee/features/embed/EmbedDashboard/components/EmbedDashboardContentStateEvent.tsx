@@ -3,7 +3,12 @@ import {
     emptyDashboardFilters,
     selectActiveTabUuid,
     selectDashboardFilters,
+    selectDashboardTabs,
     selectDashboardTiles,
+    selectEmbedDashboard,
+    selectIsAddFilterDisabled,
+    selectIsDateZoomDisabled,
+    selectSavedParameters,
     selectDashboardWideParameterValues,
     selectDateZoomGranularity,
     selectParameterControlInputs,
@@ -31,6 +36,14 @@ const EmbedDashboardContentStateEvent: FC<{ dashboardUuid: string }> = ({
     const tiles = useDashboardSelector(selectDashboardTiles);
     const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);
+    const savedFilters = useDashboardSelector(selectDashboardFilters);
+    const tabs = useDashboardSelector(selectDashboardTabs);
+    const savedParameters = useDashboardSelector(selectSavedParameters);
+    const savedConfig = useDashboardSelector(
+        (state) => selectEmbedDashboard(state)?.config,
+    );
+    const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
+    const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
 
     const state = useMemo<DashboardContentState | null>(() => {
         if (!areFiltersApplied) return null;
@@ -47,6 +60,17 @@ const EmbedDashboardContentStateEvent: FC<{ dashboardUuid: string }> = ({
                 }) ?? null,
             dateZoomGranularity: dateZoomGranularity ?? null,
             activeTabUuid: activeTabUuid ?? null,
+            dashboard: {
+                tiles: tiles ?? [],
+                tabs,
+                filters: savedFilters,
+                parameters: savedParameters,
+                config: {
+                    ...savedConfig,
+                    isDateZoomDisabled,
+                    isAddFilterDisabled,
+                },
+            },
         };
     }, [
         activeTabUuid,
@@ -55,7 +79,13 @@ const EmbedDashboardContentStateEvent: FC<{ dashboardUuid: string }> = ({
         dashboardUuid,
         dateZoomGranularity,
         filters,
+        isAddFilterDisabled,
+        isDateZoomDisabled,
         parameters,
+        savedConfig,
+        savedFilters,
+        savedParameters,
+        tabs,
         tileParameterReferences,
         tiles,
     ]);

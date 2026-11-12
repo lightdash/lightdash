@@ -22,7 +22,7 @@ The event system must be enabled in the Lightdash embedding configuration. Direc
 
 `contentStateChanged` tells the host what the user is looking at, for example to export it. The payload's `type` says which shape it is:
 
-- `dashboard`: `{ dashboardUuid, filters, parameters, tileParameters, dateZoomGranularity, activeTabUuid }`. Filters include the ones the user added. `tileParameters` is `null` unless the dashboard uses parameter controls.
+- `dashboard`: `{ dashboardUuid, filters, parameters, tileParameters, dateZoomGranularity, activeTabUuid, dashboard }`. Filters include the ones the user added. `tileParameters` is `null` unless the dashboard uses parameter controls. `dashboard` is the definition (`tiles`, `tabs`, `filters`, `parameters`, `config`), unsaved edit-mode changes included.
 - `chart`: `{ chartUuid, chart }` for a saved chart in `Lightdash.Chart` with `isEditMode` set. `chart` is the unsaved chart version (`tableName`, `metricQuery`, `parameters`, `chartConfig`, `tableConfig`, `pivotConfig`), unsaved edits included.
 - `explore`: `{ chart }` for a query that isn't a saved chart, such as `Lightdash.Explore` or "Explore from here".
 
