@@ -1,3 +1,10 @@
+# [3.221.0](https://github.com/lightdash/lightdash/compare/3.220.0...3.221.0) (2026-11-12)
+
+
+### Features
+
+* **mcp:** return every terminal row from query ([#32448](https://github.com/lightdash/lightdash/issues/32448)) ([21b4772](https://github.com/lightdash/lightdash/commit/21b4772494884287749afe4fce1aa2c3e54f7349))
+
 # [3.220.0](https://github.com/lightdash/lightdash/compare/3.219.0...3.220.0) (2026-11-11)
 
 
