@@ -631,7 +631,9 @@ When dashboard controls are enabled, `config.controlSections` groups controls in
 {
     "config": {
         "isDateZoomDisabled": false,
-        "controlSections": [{ "slug": "calendar", "name": "Calendar", "collapsed": false }]
+        "controlSections": [
+            { "slug": "calendar", "name": "Calendar", "collapsed": false }
+        ]
     },
     "filters": {
         "dimensions": [
@@ -640,7 +642,10 @@ When dashboard controls are enabled, `config.controlSections` groups controls in
                 "sectionSlug": "calendar",
                 "operator": "inThePast",
                 "settings": { "completed": false, "unitOfTime": "months" },
-                "target": { "fieldId": "orders_created_at_month", "tableName": "orders" },
+                "target": {
+                    "fieldId": "orders_created_at_month",
+                    "tableName": "orders"
+                },
                 "values": [12]
             }
         ]
