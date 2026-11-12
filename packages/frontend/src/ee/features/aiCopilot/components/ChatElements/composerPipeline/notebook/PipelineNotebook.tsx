@@ -4,6 +4,7 @@ import {
     Badge,
     Box,
     Button,
+    Collapse,
     Group,
     Stack,
     Text,
@@ -35,14 +36,15 @@ import { NodeStatusIndicator } from '../../ComposerNodeStatusIndicator';
 import { type ComposerRunNodeStatus } from '../../useComposerRunNodeStatuses';
 import { ComposerNodeIcon } from '../ComposerNodeIcon';
 import { type NodeLineage, type PipelineNode } from '../groupPipeline';
+import { MergeStepBody, MergeStepTitle } from '../MergeStep';
+import { MergeStepProvider } from '../MergeStepParts';
+import { NodeReferencePill } from '../NodeReferencePill';
 import { useComposerNodeTypeLabel } from '../useComposerNodeLiveSource';
 import {
     CellQueryPanels,
     CellQueryToggles,
     ExploreSource,
     MergeCellToggles,
-    MergePanels,
-    MergeSummary,
 } from './NodeQuery';
 import styles from './PipelineNotebook.module.css';
 import {
@@ -123,6 +125,8 @@ type CellProps = Omit<
     flashing: boolean;
     onJump: (nodeId: string) => void;
     onLineageHover: (hovering: boolean) => void;
+    /** Highlights one step this cell reads in the graph; null clears it. */
+    onHighlightNode: (nodeId: string | null) => void;
 };
 
 const NotebookCell: FC<CellProps> = ({
@@ -137,6 +141,7 @@ const NotebookCell: FC<CellProps> = ({
     flashing,
     onJump,
     onLineageHover,
+    onHighlightNode,
     resultsInitiallyOpen,
 }) => {
     const getUiString = useUiStrings();
@@ -277,23 +282,29 @@ const NotebookCell: FC<CellProps> = ({
                         </Group>
                     )}
                     {mergeView && (
-                        <>
+                        <MergeStepProvider
+                            view={mergeView}
+                            references={references}
+                            onJump={onJump}
+                            onHighlightNode={onHighlightNode}
+                        >
                             <Group
                                 justify="space-between"
                                 wrap="nowrap"
                                 className={styles.toolbar}
                             >
-                                <MergeSummary view={mergeView} />
+                                <MergeStepTitle view={mergeView} />
                                 <MergeCellToggles
                                     openPanels={openPanels}
                                     onTogglePanel={togglePanel}
                                 />
                             </Group>
-                            <MergePanels
-                                view={mergeView}
-                                openPanels={openPanels}
-                            />
-                        </>
+                            <Collapse expanded={openPanels.has('details')}>
+                                <Box className={styles.panel}>
+                                    <MergeStepBody view={mergeView} />
+                                </Box>
+                            </Collapse>
+                        </MergeStepProvider>
                     )}
                     <CellQueryPanels
                         query={node.query}
@@ -349,7 +360,7 @@ const NotebookCell: FC<CellProps> = ({
                         </Box>
                     )}
                 </Box>
-                {references.length > 0 && (
+                {references.length > 0 && !mergeView && (
                     <Group gap="xs" pl="xxs">
                         <MantineIcon
                             icon={IconHash}
@@ -360,23 +371,21 @@ const NotebookCell: FC<CellProps> = ({
                             {getUiString('aiAgent.composer.node.references')}
                         </Text>
                         {references.map((reference) => (
-                            <UnstyledButton
+                            <NodeReferencePill
                                 key={reference.nodeId}
-                                className={styles.referencePill}
-                                onClick={(event) => {
-                                    // The cell's own click would reselect this cell.
-                                    event.stopPropagation();
-                                    onJump(reference.nodeId);
-                                }}
-                                onMouseEnter={() => onLineageHover(true)}
-                                onMouseLeave={() => onLineageHover(false)}
-                            >
-                                <ComposerNodeIcon
-                                    query={reference.query}
-                                    size={12}
-                                />
-                                {reference.title}
-                            </UnstyledButton>
+                                node={reference}
+                                leading={
+                                    <ComposerNodeIcon
+                                        query={reference.query}
+                                        size={12}
+                                    />
+                                }
+                                onJump={onJump}
+                                onHighlight={onLineageHover}
+                                details={null}
+                                active={false}
+                                trailing={null}
+                            />
                         ))}
                     </Group>
                 )}
@@ -493,6 +502,12 @@ export const PipelineNotebook: FC<PipelineNotebookProps> = ({
         setIsLineageVisible(true);
         onLineageChange(nodeLineage);
     };
+    const highlightNode = (nodeId: string | null, fromNodeId: string) => {
+        hideLineage();
+        if (nodeId) {
+            onLineageChange({ nodeId, relatedIds: new Set([fromNodeId]) });
+        }
+    };
     const showLineage = (nodeId: string) => {
         window.clearTimeout(intentTimer.current);
         intentTimer.current = window.setTimeout(
@@ -564,6 +579,9 @@ export const PipelineNotebook: FC<PipelineNotebookProps> = ({
                         onJump={focusNode}
                         onLineageHover={(hovering) =>
                             hovering ? showLineage(node.nodeId) : hideLineage()
+                        }
+                        onHighlightNode={(nodeId) =>
+                            highlightNode(nodeId, node.nodeId)
                         }
                         {...cellProps}
                     />

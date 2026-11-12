@@ -16,6 +16,7 @@ export type MergeColumn = {
     label: string;
     /** The step the column comes from; null for a join key or calculation. */
     sourceTitle: string | null;
+    sourceNodeId: string | null;
 };
 
 export type MergeFormulaToken =
@@ -33,9 +34,8 @@ export type MergeNodeSummary = {
     }[];
     keys: {
         name: string;
-        /** One label when every source names the key alike, else the first source's. */
+        /** The key's first listed field, as the merged result labels it. */
         label: string;
-        sharedAcrossSources: boolean;
     }[];
     /** All key parts in one phrase, e.g. "Order week + Status". */
     keyLabel: string;
@@ -101,15 +101,14 @@ export const summarizeMergeNode = (
         }),
     }));
 
+    // Same rule as the merged result's key column, so the sentence and table agree
     const keys = node.joinKey.map((part) => {
-        const labels = sources.flatMap(({ nodeId }) => {
-            const fieldId = part.fieldIdBySourceId[nodeId];
-            return fieldId ? [fieldLabel(nodeId, fieldId)] : [];
-        });
+        const [first] = Object.entries(part.fieldIdBySourceId);
         return {
             name: part.name,
-            label: labels[0] ?? friendlyName(part.name),
-            sharedAcrossSources: new Set(labels).size <= 1,
+            label: first
+                ? fieldLabel(first[0], first[1])
+                : friendlyName(part.name),
         };
     });
 
@@ -132,10 +131,10 @@ export const summarizeMergeNode = (
     const columnOf = (mergedColumnId: string): MergeColumn | null => {
         const keyLabel = keyLabels.get(mergedColumnId);
         if (keyLabel !== undefined)
-            return { label: keyLabel, sourceTitle: null };
+            return { label: keyLabel, sourceTitle: null, sourceNodeId: null };
         const calcLabel = calculationNames.get(mergedColumnId);
         if (calcLabel !== undefined)
-            return { label: calcLabel, sourceTitle: null };
+            return { label: calcLabel, sourceTitle: null, sourceNodeId: null };
         const owner = sourceIds.find((id) =>
             mergedColumnId.startsWith(`${id}_`),
         );
@@ -143,6 +142,7 @@ export const summarizeMergeNode = (
         return {
             label: fieldLabel(owner, mergedColumnId.slice(owner.length + 1)),
             sourceTitle: titleOf(owner),
+            sourceNodeId: owner,
         };
     };
 
@@ -161,6 +161,7 @@ export const summarizeMergeNode = (
             column: columnOf(sort.fieldId) ?? {
                 label: friendlyName(sort.fieldId),
                 sourceTitle: null,
+                sourceNodeId: null,
             },
             descending: sort.descending,
         })),
