@@ -253,7 +253,11 @@ describe('AppStateService', () => {
             appStateModel.getSnapshot.mockResolvedValue(stored);
             await expect(
                 service.getSnapshot(consumerAccount(), 'proj-1', 'app-1'),
-            ).resolves.toEqual({ user: stored.user, shared: {} });
+            ).resolves.toEqual({
+                user: stored.user,
+                shared: {},
+                sharedAccess: 'none',
+            });
         });
 
         it('still gives users with Explore the shared values', async () => {
