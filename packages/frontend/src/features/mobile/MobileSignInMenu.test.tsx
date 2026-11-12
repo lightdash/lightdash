@@ -31,15 +31,17 @@ const mockServer = ({
     appliesDecisions?: boolean;
 } = {}) => {
     const calls: Call[] = [];
+    let mints = 0;
     let decision: 'approve' | 'decline' | null = null;
     api.mockImplementation(
         async ({ url, method }: { url: string; method: string }) => {
             calls.push({ url, method });
             if (method === 'POST' && url === '/user/mobile/sign-in-codes') {
                 if (mintError) throw mintError;
+                mints += 1;
                 return {
-                    codeUuid: 'code-1',
-                    signInUrl: 'https://app.example.com/m/sign-in#c=code-1',
+                    codeUuid: `code-${mints}`,
+                    signInUrl: `https://app.example.com/m/sign-in#c=code-${mints}`,
                     approvalNonce: 'nonce-1',
                     expiresAt: new Date(Date.now() + 120_000).toISOString(),
                     expiresInSeconds: 120,
@@ -60,6 +62,17 @@ const mockServer = ({
                 };
             }
             if (method === 'DELETE') return undefined;
+            const codeUuid = url.split('/').pop();
+            if (codeUuid !== 'code-1') {
+                return {
+                    codeUuid,
+                    status: MobileSignInCodeStatus.PENDING,
+                    expiresAt: new Date(Date.now() + 120_000).toISOString(),
+                    matchNumber: null,
+                    declinedBy: null,
+                    device: null,
+                };
+            }
             const claimedStatus =
                 decision === 'approve'
                     ? MobileSignInCodeStatus.APPROVED
@@ -298,4 +311,86 @@ describe('MobileSignInMenu', () => {
             }
         },
     );
+
+    const openDeclinedCode = async (
+        user: ReturnType<typeof userEvent.setup>,
+    ) => {
+        await user.click(openButton());
+        const confirm = await screen.findByRole('dialog', {
+            name: 'A phone wants to sign in as you',
+        });
+        await user.click(
+            within(confirm).getByRole('button', { name: 'Decline' }),
+        );
+        const popover = screen.getByRole('dialog', {
+            name: 'Sign in on your phone',
+        });
+        await within(popover).findByText('Sign-in declined');
+        await waitFor(() =>
+            expect(popover.contains(document.activeElement)).toBe(true),
+        );
+        return popover;
+    };
+
+    it('moves focus back into the popover after the web Cancel, so Escape closes it', async () => {
+        const user = userEvent.setup();
+        mockServer({ isClaimed: true, appliesDecisions: true });
+        renderWithProviders(<MobileSignInMenu />);
+
+        await user.click(openButton());
+        const confirm = await screen.findByRole('dialog', {
+            name: 'A phone wants to sign in as you',
+        });
+        await user.click(
+            within(confirm).getByRole('button', { name: 'Confirm' }),
+        );
+        const popover = screen.getByRole('dialog', {
+            name: 'Sign in on your phone',
+        });
+        await within(popover).findByText('Type this number on your phone');
+        const cancel = within(popover).getByRole('button', { name: 'Cancel' });
+        cancel.focus();
+        await user.keyboard('{Enter}');
+
+        await within(popover).findByText('Sign-in declined');
+        await waitFor(() =>
+            expect(popover.contains(document.activeElement)).toBe(true),
+        );
+        await user.keyboard('{Escape}');
+
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        expect(openButton()).toHaveFocus();
+    });
+
+    it('moves focus back into the popover after Show a new code by keyboard, so Escape closes it', async () => {
+        const user = userEvent.setup();
+        const server = mockServer({ isClaimed: true, appliesDecisions: true });
+        renderWithProviders(<MobileSignInMenu />);
+
+        const popover = await openDeclinedCode(user);
+        await user.tab();
+        expect(
+            within(popover).getByRole('button', { name: 'Show a new code' }),
+        ).toHaveFocus();
+        await user.keyboard('{Enter}');
+
+        await within(popover).findByRole('img', { name: 'Sign-in QR code' });
+        await waitFor(() => expect(server.mints()).toHaveLength(2));
+        await waitFor(() =>
+            expect(popover.contains(document.activeElement)).toBe(true),
+        );
+        await user.keyboard('{Escape}');
+
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        expect(openButton()).toHaveFocus();
+        await waitFor(() =>
+            expect(server.deletes()).toContain(
+                '/user/mobile/sign-in-codes/code-2',
+            ),
+        );
+    });
 });

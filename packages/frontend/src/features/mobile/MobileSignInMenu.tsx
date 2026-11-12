@@ -25,25 +25,33 @@ import { getHost } from './mobileFormat';
 import classes from './MobileSettingsPage.module.css';
 import { MobileSignInStep } from './MobileSignInStep';
 import { MOBILE_STRINGS } from './mobileStrings';
-import { useMobileSignInCode } from './useMobileSignInCode';
+import {
+    useMobileSignInCode,
+    type MobileSignInPhase,
+} from './useMobileSignInCode';
 
 const POPOVER_WIDTH = 'calc(min(420px, 100vw - 32px))';
 
-const useFocusAfterConfirm = (
-    isConfirming: boolean,
+const hasLostFocus = () =>
+    document.activeElement === null || document.activeElement === document.body;
+
+const useKeepFocusInPopover = (
+    phase: MobileSignInPhase,
     dropdown: RefObject<HTMLDivElement | null>,
 ) => {
     const wasConfirming = useRef(false);
     useEffect(() => {
-        if (isConfirming) {
+        if (phase === 'claimed') {
             wasConfirming.current = true;
             return;
         }
-        if (!wasConfirming.current) return;
+        const shouldRefocus = wasConfirming.current || hasLostFocus();
         wasConfirming.current = false;
         const node = dropdown.current;
-        if (node && !node.contains(document.activeElement)) node.focus();
-    }, [isConfirming, dropdown]);
+        if (node && shouldRefocus && !node.contains(document.activeElement)) {
+            node.focus();
+        }
+    }, [phase, dropdown]);
 };
 
 const MobileSignInPopover: FC<{ withLabel: boolean }> = ({ withLabel }) => {
@@ -55,7 +63,7 @@ const MobileSignInPopover: FC<{ withLabel: boolean }> = ({ withLabel }) => {
     const signIn = useMobileSignInCode({ autoShow: opened });
     const isConfirming = signIn.phase === 'claimed';
     const dropdown = useRef<HTMLDivElement>(null);
-    useFocusAfterConfirm(isConfirming, dropdown);
+    useKeepFocusInPopover(signIn.phase, dropdown);
 
     const close = () => {
         setOpened(false);
