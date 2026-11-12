@@ -362,6 +362,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.ContentWrite,
     ],
     'AiAgentController.runEvaluation': [AgentCapability.Query],
+    'AiAgentController.sendVisualizeSlackChart': [
+        AgentCapability.Administration,
+    ],
     'AiAgentController.setArtifactVersionVerified': [AgentCapability.Publish],
     'AiAgentController.setUserDefaultAgent': [AgentCapability.ReadDiscover],
     'AiAgentController.startMcpOAuthConnection': [
