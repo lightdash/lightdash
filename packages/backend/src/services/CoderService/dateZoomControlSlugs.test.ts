@@ -13,20 +13,23 @@ const target = { fieldId: 'orders_date', tableName: 'orders' };
 describe('getDateZoomConfigWithoutSlugs', () => {
     it('keeps the file uuids and drops slugs, ignoring a controlSlug that disagrees', () => {
         expect(
-            getDateZoomConfigWithoutSlugs({
-                controls: [
-                    { ...saved[0], slug: 'weekly' },
-                    { ...saved[1], sectionSlug: 'calendar' },
-                ],
-                tileTargets: {
-                    a: { controlUuid: 'week-uuid', ...target },
-                    b: {
-                        controlUuid: 'month-uuid',
-                        controlSlug: 'weekly',
-                        ...target,
+            getDateZoomConfigWithoutSlugs(
+                {
+                    controls: [
+                        { ...saved[0], slug: 'weekly' },
+                        { ...saved[1], sectionSlug: 'calendar' },
+                    ],
+                    tileTargets: {
+                        a: { controlUuid: 'week-uuid', ...target },
+                        b: {
+                            controlUuid: 'month-uuid',
+                            controlSlug: 'weekly',
+                            ...target,
+                        },
                     },
                 },
-            }),
+                true,
+            ),
         ).toEqual({
             controls: [saved[0], { ...saved[1], sectionSlug: 'calendar' }],
             tileTargets: {
@@ -37,7 +40,7 @@ describe('getDateZoomConfigWithoutSlugs', () => {
     });
 
     it('accepts a config without controls or tile targets', () => {
-        expect(getDateZoomConfigWithoutSlugs({})).toEqual({
+        expect(getDateZoomConfigWithoutSlugs({}, true)).toEqual({
             controls: [],
             tileTargets: {},
         });
@@ -58,9 +61,13 @@ describe('getDateZoomConfigWithoutSlugs', () => {
             'Date zoom control slug "zoom" is duplicated',
         ],
     ])('rejects %s', (_case, controls, message) => {
-        expect(() => getDateZoomConfigWithoutSlugs({ controls })).toThrow(
+        expect(() => getDateZoomConfigWithoutSlugs({ controls }, true)).toThrow(
             message,
         );
+        // Unchecked when slugs resolve nothing: dropped, as a key the file never had
+        expect(
+            getDateZoomConfigWithoutSlugs({ controls }, false).controls,
+        ).toEqual(controls.map(({ slug: _slug, ...control }) => control));
     });
 });
 

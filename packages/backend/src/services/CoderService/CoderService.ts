@@ -5931,8 +5931,10 @@ export class CoderService extends BaseService {
                 {
                     ...portableConfig,
                     ...(portableDateZoom && {
-                        dateZoomConfig:
-                            getDateZoomConfigWithoutSlugs(portableDateZoom),
+                        dateZoomConfig: getDateZoomConfigWithoutSlugs(
+                            portableDateZoom,
+                            controlsEnabled,
+                        ),
                     }),
                 },
                 tilesWithUuids,

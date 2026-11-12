@@ -5315,6 +5315,38 @@ describe('CoderService dashboard control order as code', () => {
             },
         );
 
+        const withMalformedSlug = (): DashboardAsCode => {
+            const file = handWritten();
+            const zooms = file.config!.dateZoomConfig!;
+            return {
+                ...file,
+                config: {
+                    ...file.config!,
+                    dateZoomConfig: {
+                        ...zooms,
+                        controls: [
+                            { ...zooms.controls[0], slug: 'Week!' },
+                            ...zooms.controls.slice(1),
+                        ],
+                    },
+                },
+            };
+        };
+
+        it('ignores a malformed zoom slug with the flag off, as before slugs', async () => {
+            const saved = await upload(withMalformedSlug(), {
+                enabled: false,
+                saved: zoomDashboard(),
+            });
+            expect(zoomsOf(saved)).toEqual(savedZooms);
+        });
+
+        it('rejects a malformed zoom slug with the flag on', async () => {
+            expect(await rejection(withMalformedSlug())).toContain(
+                'Invalid date zoom control slug "Week!"',
+            );
+        });
+
         it('uploads an old-format file unchanged with the flag off', async () => {
             const dashboard = zoomDashboard();
             const saved = await upload(download(dashboard, false), {

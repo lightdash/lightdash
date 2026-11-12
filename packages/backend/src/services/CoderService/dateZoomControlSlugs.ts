@@ -18,13 +18,14 @@ export const dateZoomSlugs = (
     controls: Pick<DateZoomControlAsCode, 'name' | 'slug'>[],
 ): string[] => getPortableSlugs(controls, baseSlug);
 
-/** Checks the file's zoom slugs and drops them with `controlSlug`: uuids are authoritative and slugs are never stored */
-export const getDateZoomConfigWithoutSlugs = <
-    C extends DateZoomControlAsCode,
->(config: {
-    controls?: C[];
-    tileTargets?: Record<string, DateZoomTileTargetAsCode>;
-}): {
+/** Drops the file's zoom slugs with `controlSlug`: uuids are authoritative and slugs are never stored. Checks them only when they resolve `controlOrder` refs (`validateSlugs`) */
+export const getDateZoomConfigWithoutSlugs = <C extends DateZoomControlAsCode>(
+    config: {
+        controls?: C[];
+        tileTargets?: Record<string, DateZoomTileTargetAsCode>;
+    },
+    validateSlugs: boolean,
+): {
     controls: Omit<C, 'slug'>[];
     tileTargets: Record<string, DateZoomTileTarget>;
 } => {
@@ -32,7 +33,7 @@ export const getDateZoomConfigWithoutSlugs = <
     const fileControls = config.controls ?? [];
     const seen = new Set<string>();
     fileControls.forEach(({ slug }) => {
-        if (slug === undefined) return;
+        if (!validateSlugs || slug === undefined) return;
         if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug))
             throw new ParameterError(
                 `Invalid date zoom control slug "${slug}"; use lowercase letters and digits, with single hyphens between them`,
