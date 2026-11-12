@@ -2077,6 +2077,27 @@ describe('getStackTotalSeries', () => {
         isStack100: false,
     };
 
+    // Unstacking a chart leaves `stackLabel.show` on its series. With no
+    // stack they were all grouped under the key "undefined" and the chart
+    // drew one "total" of every series, across metrics.
+    test('emits no stack-total series for series that are not stacked', () => {
+        const unstacked = (field: string): EChartsSeries => ({
+            type: CartesianSeriesType.BAR,
+            stackLabel: { show: true },
+            yAxisIndex: 0,
+            encode: { x: 'orders_date', y: field } as EChartsSeries['encode'],
+        });
+        const result = getStackTotalSeries(
+            [{ orders_date: '2024', orders_total: 100, orders_count: 5 }],
+            [unstacked('orders_total'), unstacked('orders_count')],
+            baseArgs.itemsMap,
+            baseArgs.flipAxis,
+            baseArgs.selectedLegendNames,
+            baseArgs.isStack100,
+        );
+        expect(result).toEqual([]);
+    });
+
     test('emits a synthetic stack-total series when every series in the stack opts in', () => {
         const seriesWithStack: EChartsSeries[] = [
             {
