@@ -781,7 +781,7 @@ export type ComposerRunOutcome =
           terminal: {
               queryUuid: string;
               columns: ResultColumns;
-              /** First COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows; rowCount is the full count. */
+              /** First COMPOSER_QUERY_PREVIEW_ROW_LIMIT rows unless readAllTerminalRows; rowCount is the full count. */
               rows: Record<string, AnyType>[];
               rowCount: number;
           };
@@ -831,6 +831,8 @@ export type RunComposerQueriesUntilDeadlineFn = (args: {
     /** Ready nodes to read a node sample of, also when the terminal is still running. */
     sampleNodeIds: string[];
     deadlineMs: number;
+    /** Reads every terminal row instead of a preview. */
+    readAllTerminalRows?: boolean;
 }) => Promise<ComposerRunOutcome | ComposerRunningOutcome>;
 
 export type ListWarehouseTablesFn = (

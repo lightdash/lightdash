@@ -154,7 +154,7 @@ A python node's "code" defines \`def run(inputs, params)\`, and semanticLayer "f
 
 Reuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in "references", submitting only the new nodes. Reused nodes bring everything they read and are served from cache when possible. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.
 
-Returns the terminal node's first rows, other submitted nodes' columns and first rows, and every node's queryUuid. If the result is running, follow up with get_query_result on each queryUuid it names; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.`;
+Returns every row of the terminal node, other submitted nodes' columns and first rows, and every node's queryUuid. If the result is running, follow up with get_query_result on each queryUuid it names; it also fetches every row of any node's result by its queryUuid. query computes data only; it saves and charts nothing.`;
 
 export const TOOL_COMPOSER_QUERIES_DESCRIPTION =
     getToolComposerQueriesDescription({
@@ -1132,13 +1132,19 @@ export const mcpQueryStructuredOutputSchema = z.object({
         .describe(
             'running when a node outlived the wait; poll get_query_result with the queryUuids the result names.',
         ),
-    terminalNodeId: nodeIdSchema.describe('Node whose rows are previewed.'),
+    terminalNodeId: nodeIdSchema.describe('Node whose rows are returned.'),
     rowCount: z
         .number()
         .int()
         .nonnegative()
         .nullable()
         .describe('Total rows in the terminal result; null while running.'),
+    rows: z
+        .array(z.record(z.string(), z.unknown()))
+        .nullable()
+        .describe(
+            'Every row of the terminal result, keyed by column reference; null while running.',
+        ),
     nodes: z
         .array(
             composerQueryNodeSummarySchema.extend({
