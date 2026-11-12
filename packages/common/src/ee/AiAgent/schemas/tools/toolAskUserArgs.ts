@@ -24,7 +24,7 @@ const askUserQuestionSchema = z.object({
         .min(1)
         .max(40)
         .describe('Short topic label shown above the question, e.g. "Period".'),
-    question: z.string().trim().min(1).describe('The full question.'),
+    question: z.string().trim().min(1),
     options: z
         .array(askUserOptionSchema)
         .min(2)
@@ -45,6 +45,18 @@ export const toolAskUserArgsSchema = z.object({
 
 export type ToolAskUserArgs = z.infer<typeof toolAskUserArgsSchema>;
 export type AskUserQuestion = ToolAskUserArgs['questions'][number];
+
+export const ASK_USER_TOOL_NAME = 'askUser';
+
+/** The questions of an askUser call; null for other tools or invalid args. */
+export const parseAskUserCall = (
+    toolName: string,
+    input: unknown,
+): ToolAskUserArgs | null => {
+    if (toolName !== ASK_USER_TOOL_NAME) return null;
+    const parsed = toolAskUserArgsSchema.safeParse(input);
+    return parsed.success ? parsed.data : null;
+};
 
 export const toolAskUserStructuredContentSchema = z.object({
     questionCount: z.number().describe('How many questions the user sees.'),

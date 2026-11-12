@@ -1,3 +1,4 @@
+import { parseAskUserCall } from '@lightdash/common';
 import { getPendingApprovalIds } from '../components/ChatElements/ToolCalls/utils/sqlApprovalPending';
 import { getThreadUuidFromPathname } from '../hooks/aiAgentRouting';
 import {
@@ -47,7 +48,7 @@ export const getSqlApprovalNotificationClickAction = ({
     return 'navigate';
 };
 
-export type AwaitingSqlApproval = {
+export type AwaitingUserInput = {
     toolCallId: string;
     threadUuid: string;
     projectUuid: string;
@@ -58,7 +59,7 @@ export type AwaitingSqlApproval = {
 export const getAwaitingSqlApprovals = (
     streams: AiAgentThreadStreamingState[],
     isThreadAutoApproved: (threadUuid: string) => boolean,
-): AwaitingSqlApproval[] =>
+): AwaitingUserInput[] =>
     streams
         .filter(
             (stream) =>
@@ -78,14 +79,14 @@ export const getAwaitingSqlApprovals = (
 /** askUser calls in live streams: the turn ends waiting on the user's answer. */
 export const getAwaitingQuestions = (
     streams: AiAgentThreadStreamingState[],
-): AwaitingSqlApproval[] =>
+): AwaitingUserInput[] =>
     streams
         .filter((stream) => isAiAgentThreadStreamActive(stream.connection))
         .flatMap(({ threadUuid, projectUuid, agentUuid, parts }) =>
             parts.flatMap((part) =>
                 part.type === 'toolCall' &&
-                part.toolName === 'askUser' &&
-                part.isArgsPartial !== true
+                part.isArgsPartial !== true &&
+                parseAskUserCall(part.toolName, part.toolArgs) !== null
                     ? [
                           {
                               toolCallId: part.toolCallId,

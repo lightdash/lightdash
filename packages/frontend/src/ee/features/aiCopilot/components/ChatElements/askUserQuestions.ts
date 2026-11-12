@@ -1,5 +1,6 @@
 import {
-    toolAskUserArgsSchema,
+    ASK_USER_TOOL_NAME,
+    parseAskUserCall,
     type AiAgentMessage,
     type AskUserQuestion,
 } from '@lightdash/common';
@@ -17,10 +18,10 @@ export const getPendingAskUser = (
         return null;
     }
     const call = message.toolCalls.findLast(
-        ({ toolName }) => toolName === 'askUser',
+        ({ toolName }) => toolName === ASK_USER_TOOL_NAME,
     );
-    const parsed = toolAskUserArgsSchema.safeParse(call?.toolArgs);
-    return call && parsed.success
-        ? { toolCallId: call.toolCallId, questions: parsed.data.questions }
+    const args = call ? parseAskUserCall(call.toolName, call.toolArgs) : null;
+    return call && args
+        ? { toolCallId: call.toolCallId, questions: args.questions }
         : null;
 };

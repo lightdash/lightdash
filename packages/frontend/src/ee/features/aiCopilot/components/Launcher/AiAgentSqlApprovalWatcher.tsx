@@ -15,7 +15,7 @@ import {
     getQuestionNotificationContent,
     getSqlApprovalNotificationClickAction,
     getSqlApprovalNotificationContent,
-    type AwaitingSqlApproval,
+    type AwaitingUserInput,
 } from '../../utils/sqlApprovalNotification';
 import { isThreadSqlAutoApproved } from '../ChatElements/ToolCalls/useSqlAutoApprove';
 import { useIsLauncherHidden } from './useIsLauncherHidden';
@@ -48,7 +48,7 @@ export const AiAgentSqlApprovalWatcher: FC = () => {
     const handledToolCallIdsRef = useRef(new Set<string>());
 
     const openThread = useCallback(
-        ({ projectUuid, agentUuid, threadUuid }: AwaitingSqlApproval) => {
+        ({ projectUuid, agentUuid, threadUuid }: AwaitingUserInput) => {
             const action = getSqlApprovalNotificationClickAction({
                 threadUuid,
                 pathname,

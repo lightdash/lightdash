@@ -1,6 +1,17 @@
+.container {
+    width: 100%;
+    max-width: 48rem;
+    margin-inline: auto;
+    padding-inline: var(--mantine-spacing-md);
+}
+
 .card {
     max-height: 50vh;
     overflow-y: auto;
+}
+
+.card:focus {
+    outline: none;
 }
 
 .option {

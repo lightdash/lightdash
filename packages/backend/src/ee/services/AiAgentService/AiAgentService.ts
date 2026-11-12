@@ -17178,10 +17178,12 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         user,
                         featureFlagId: FeatureFlags.AiFilterExpressions,
                     });
-                // Only the web app renders askUser questions; others would stall.
+                // Only the web app thread view renders askUser questions; Battle
+                // panes and other surfaces would show the text without options.
                 const enableAskUser =
                     prompt.threadCreatedFrom === 'web_app' &&
                     !isSlackPrompt(prompt) &&
+                    prompt.battleProfile === null &&
                     responseExecution.mode === 'standard' &&
                     (
                         await this.featureFlagService.get({

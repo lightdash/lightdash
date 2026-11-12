@@ -8,6 +8,7 @@ import {
     Radio,
     Stack,
     Text,
+    TextInput,
 } from '@mantine/core';
 import { useEffect, useRef, useState, type FC } from 'react';
 import styles from './AskUserQuestionCard.module.css';
@@ -23,35 +24,56 @@ type Props = {
     onSubmit: (answer: string) => void;
 };
 
+type Answer = { selected: string[]; custom: string };
+
+const getAnswerText = ({ selected, custom }: Answer) =>
+    custom.trim() || selected.join(', ');
+
 /** One question at a time; the answers go out as the next user message. */
 export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
     const [index, setIndex] = useState(0);
-    const [selected, setSelected] = useState<string[][]>(() =>
-        questions.map(() => []),
+    const [answers, setAnswers] = useState<Answer[]>(() =>
+        questions.map(() => ({ selected: [], custom: '' })),
     );
     const question = questions[index];
     const isLast = index === questions.length - 1;
-    const current = selected[index];
+    const current = answers[index];
+    const canAdvance = getAnswerText(current) !== '';
 
-    const submit = (answers: string[][]) =>
+    // Focus the card so number keys pick options without a click first.
+    const cardRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        cardRef.current?.focus({ preventScroll: true });
+    }, []);
+
+    const setCurrent = (answer: Answer) =>
+        setAnswers((all) =>
+            all.map((value, i) => (i === index ? answer : value)),
+        );
+
+    const advance = () => {
+        if (!canAdvance) return;
+        if (!isLast) {
+            setIndex(index + 1);
+            return;
+        }
         onSubmit(
             formatAskUserAnswers(
                 questions.map(({ header }, i) => ({
                     header,
-                    answer: answers[i].join(', '),
+                    answer: getAnswerText(answers[i]),
                 })),
             ),
         );
+    };
 
     const toggle = (label: string) => {
-        const next = question.multiSelect
-            ? current.includes(label)
-                ? current.filter((value) => value !== label)
-                : [...current, label]
+        const selected = question.multiSelect
+            ? current.selected.includes(label)
+                ? current.selected.filter((value) => value !== label)
+                : [...current.selected, label]
             : [label];
-        setSelected((all) =>
-            all.map((value, i) => (i === index ? next : value)),
-        );
+        setCurrent({ selected, custom: '' });
         if (!question.multiSelect && !isLast) setIndex(index + 1);
     };
 
@@ -81,7 +103,7 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
         : Radio.Indicator;
 
     return (
-        <Paper p="md" className={styles.card}>
+        <Paper ref={cardRef} tabIndex={-1} p="md" className={styles.card}>
             <Stack gap="sm">
                 <Group justify="space-between" wrap="nowrap">
                     <Text fz="xs" fw={500} c="dimmed">
@@ -96,7 +118,7 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                 <Text fw={500}>{question.question}</Text>
                 <Stack gap="xs">
                     {question.options.map((option, i) => {
-                        const checked = current.includes(option.label);
+                        const checked = current.selected.includes(option.label);
                         const OptionCard = question.multiSelect
                             ? Checkbox.Card
                             : Radio.Card;
@@ -126,34 +148,38 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                         );
                     })}
                 </Stack>
-                <Group justify="space-between" wrap="nowrap">
-                    <Text fz="xs" c="dimmed">
-                        Or type your own answer below
-                    </Text>
-                    <Group gap="xs" wrap="nowrap">
-                        {index > 0 && (
-                            <Button
-                                size="xs"
-                                variant="default"
-                                onClick={() => setIndex(index - 1)}
-                            >
-                                Back
-                            </Button>
-                        )}
+                <TextInput
+                    size="xs"
+                    aria-label="Your own answer"
+                    placeholder="Type your own answer, or leave this blank to use the selected option"
+                    value={current.custom}
+                    onChange={(event) =>
+                        setCurrent({
+                            selected: [],
+                            custom: event.currentTarget.value,
+                        })
+                    }
+                    onKeyDown={(event) => {
+                        if (event.key === 'Enter') advance();
+                    }}
+                />
+                <Group justify="flex-end" gap="xs" wrap="nowrap">
+                    {index > 0 && (
                         <Button
                             size="xs"
-                            disabled={current.length === 0}
-                            onClick={() =>
-                                isLast ? submit(selected) : setIndex(index + 1)
-                            }
+                            variant="default"
+                            onClick={() => setIndex(index - 1)}
                         >
-                            {isLast
-                                ? questions.length > 1
-                                    ? 'Submit answers'
-                                    : 'Submit answer'
-                                : 'Next'}
+                            Back
                         </Button>
-                    </Group>
+                    )}
+                    <Button size="xs" disabled={!canAdvance} onClick={advance}>
+                        {isLast
+                            ? questions.length > 1
+                                ? 'Submit answers'
+                                : 'Submit answer'
+                            : 'Next'}
+                    </Button>
                 </Group>
             </Stack>
         </Paper>

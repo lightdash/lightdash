@@ -22,6 +22,7 @@ import { AssistantBubble } from './AgentChatAssistantBubble';
 import styles from './AgentChatDisplay.module.css';
 import { UserBubble } from './AgentChatUserBubble';
 import { AskUserQuestionCard } from './AskUserQuestionCard';
+import askUserStyles from './AskUserQuestionCard.module.css';
 import { getPendingAskUser } from './askUserQuestions';
 import { JevChoiceChips } from './JevChoiceChips';
 import ThreadScrollToBottom from './ScrollToBottom';
@@ -345,12 +346,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                         w="100%"
                     >
                         {pendingAskUser && onChoiceSelect && (
-                            <Box
-                                w={ChatElementsUtils.centeredElementProps.w}
-                                maw={ChatElementsUtils.centeredElementProps.maw}
-                                mx={ChatElementsUtils.centeredElementProps.mx}
-                                px={ChatElementsUtils.centeredElementProps.px}
-                            >
+                            <Box className={askUserStyles.container}>
                                 <AskUserQuestionCard
                                     key={pendingAskUser.toolCallId}
                                     questions={pendingAskUser.questions}

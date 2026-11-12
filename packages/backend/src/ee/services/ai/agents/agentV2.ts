@@ -94,7 +94,11 @@ import {
 } from '../promptTokenUsage';
 import type { AiAgentSkillReference } from '../skills/types';
 import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
-import { getAskUser, getAskUserResponse } from '../tools/askUser';
+import {
+    getAskUser,
+    getAskUserResponse,
+    withAskUserQuestions,
+} from '../tools/askUser';
 import { getClosePullRequest } from '../tools/closePullRequest';
 import { getCreateContent } from '../tools/createContent';
 import { getCreateScheduledDelivery } from '../tools/createScheduledDelivery';
@@ -3364,14 +3368,17 @@ const runGenerateAgentResponse = async ({
             },
             ...telemetry,
         });
-        const responseText = result.text.trim()
-            ? result.text
-            : (getTurnFastResponse(
-                  args.enableDataAnswerFastResponse,
-                  preparedContext?.turnIntent,
-                  result.steps,
-                  args.siteUrl,
-              ) ?? result.text);
+        const responseText = withAskUserQuestions(
+            result.text.trim()
+                ? result.text
+                : (getTurnFastResponse(
+                      args.enableDataAnswerFastResponse,
+                      preparedContext?.turnIntent,
+                      result.steps,
+                      args.siteUrl,
+                  ) ?? result.text),
+            result.steps.flatMap((step) => step.toolCalls),
+        );
 
         logger(
             'Generate Agent Response',
@@ -3934,14 +3941,17 @@ const runStreamAgentResponse = async ({
                 const modelResponse = steps
                     .map((step) => step.text ?? '')
                     .join('\n');
-                const responseText = modelResponse.trim()
-                    ? modelResponse
-                    : (getTurnFastResponse(
-                          args.enableDataAnswerFastResponse,
-                          preparedContext?.turnIntent,
-                          steps,
-                          args.siteUrl,
-                      ) ?? modelResponse);
+                const responseText = withAskUserQuestions(
+                    modelResponse.trim()
+                        ? modelResponse
+                        : (getTurnFastResponse(
+                              args.enableDataAnswerFastResponse,
+                              preparedContext?.turnIntent,
+                              steps,
+                              args.siteUrl,
+                          ) ?? modelResponse),
+                    steps.flatMap((step) => step.toolCalls),
+                );
                 const completeResponse =
                     agentContext.responseBlocks.render(responseText);
 

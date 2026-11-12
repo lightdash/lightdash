@@ -68,4 +68,19 @@ describe('AskUserQuestionCard', () => {
             'Period: November 2022\nMetrics: Revenue, Orders',
         );
     });
+
+    it('sends a typed answer in place of the options', () => {
+        const onSubmit = renderCard([period, metrics]);
+
+        fireEvent.change(screen.getByLabelText('Your own answer'), {
+            target: { value: 'Q4 2022' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+        fireEvent.click(screen.getByLabelText('Revenue'));
+        fireEvent.click(screen.getByRole('button', { name: 'Submit answers' }));
+
+        expect(onSubmit).toHaveBeenCalledWith(
+            'Period: Q4 2022\nMetrics: Revenue',
+        );
+    });
 });
