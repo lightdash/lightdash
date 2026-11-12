@@ -20,8 +20,6 @@ type SwaggerDoc = {
 const SCHEMA_REF_PREFIX = '#/components/schemas/';
 const DEFS_REF_PREFIX = '#/$defs/';
 const DASHBOARD_SCHEMA_NAME = 'DashboardAsCode';
-// Authored files take the upload config, which lets date zooms omit their uuid
-const DASHBOARD_CONFIG_SCHEMA_NAME = 'DashboardConfigUploadAsCode';
 
 export const getRepoRoot = (): string =>
     path.resolve(__dirname, '../../../../');
@@ -362,16 +360,7 @@ export const buildDashboardAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {
         );
     }
 
-    const dashboardRoot = resolveTopLevelAllOf(dashboardSchema, components);
-    const rootSchema = components[DASHBOARD_CONFIG_SCHEMA_NAME]
-        ? mergeObjectSchemas(dashboardRoot, {
-              properties: {
-                  config: {
-                      $ref: `${SCHEMA_REF_PREFIX}${DASHBOARD_CONFIG_SCHEMA_NAME}`,
-                  },
-              },
-          })
-        : dashboardRoot;
+    const rootSchema = resolveTopLevelAllOf(dashboardSchema, components);
     const refsToVisit = [...collectComponentRefs(rootSchema)];
     const visited = new Set<string>();
 

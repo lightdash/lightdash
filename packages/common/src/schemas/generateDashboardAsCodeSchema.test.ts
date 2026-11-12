@@ -65,7 +65,7 @@ describe('generateDashboardAsCodeSchema', () => {
         ).toBe(false);
     });
 
-    test('date zooms upload by slug without a uuid', () => {
+    test('date zooms take optional slugs beside their required uuids', () => {
         const ajv = new Ajv({ strict: false, validateFormats: false });
         const validate = ajv.compile(dashboardAsCodeSchema);
         const withZoom = (dateZoomConfig: unknown) =>
@@ -79,20 +79,36 @@ describe('generateDashboardAsCodeSchema', () => {
                 config: { isDateZoomDisabled: false, dateZoomConfig },
             });
         const target = { fieldId: 'orders_date', tableName: 'orders' };
+        const zoom = { name: 'Week', granularity: 'WEEK' };
         expect(
             withZoom({
-                controls: [{ slug: 'week', name: 'Week', granularity: 'WEEK' }],
-                tileTargets: { orders: { controlSlug: 'week', ...target } },
+                controls: [{ uuid: 'week', slug: 'week', ...zoom }],
+                tileTargets: {
+                    orders: {
+                        controlUuid: 'week',
+                        controlSlug: 'week',
+                        ...target,
+                    },
+                },
             }),
         ).toBe(true);
         expect(
             withZoom({
-                controls: [{ uuid: 'week', name: 'Week', granularity: 'WEEK' }],
+                controls: [{ uuid: 'week', ...zoom }],
                 tileTargets: { orders: { controlUuid: 'week', ...target } },
             }),
         ).toBe(true);
         expect(
-            withZoom({ controls: [{ slug: 'week' }], tileTargets: {} }),
+            withZoom({
+                controls: [{ slug: 'week', ...zoom }],
+                tileTargets: {},
+            }),
+        ).toBe(false);
+        expect(
+            withZoom({
+                controls: [{ uuid: 'week', ...zoom }],
+                tileTargets: { orders: { controlSlug: 'week', ...target } },
+            }),
         ).toBe(false);
     });
 

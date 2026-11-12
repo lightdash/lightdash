@@ -246,8 +246,8 @@ New control kinds (date zoom next) follow these rules:
    per-section line flags.
 4. Tiles are referenced by tile slug.
 
-Date zoom keeps its shipped `uuid`/`controlUuid` on download; upload accepts
-`slug`/`controlSlug` without them.
+Date zoom files keep `uuid`/`controlUuid` required both ways; `slug` and
+`controlSlug` are optional extras that only resolve `controlOrder` refs.
 
 ## Strings
 
