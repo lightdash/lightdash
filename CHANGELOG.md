@@ -1,3 +1,10 @@
+# [3.222.0](https://github.com/lightdash/lightdash/compare/3.221.0...3.222.0) (2026-11-12)
+
+
+### Features
+
+* **ai:** merge step reads as one sentence of lettered steps ([#32450](https://github.com/lightdash/lightdash/issues/32450)) ([e15b89f](https://github.com/lightdash/lightdash/commit/e15b89f040350e92411181eb9b5f9b29592c2963))
+
 # [3.221.0](https://github.com/lightdash/lightdash/compare/3.220.0...3.221.0) (2026-11-12)
 
 
