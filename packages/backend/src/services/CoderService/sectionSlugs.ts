@@ -100,10 +100,10 @@ const mapReferences = <Section>(
                 ...(dashboard.config.dateZoomConfig && {
                     dateZoomConfig: {
                         ...dashboard.config.dateZoomConfig,
-                        controls:
-                            dashboard.config.dateZoomConfig.controls.map(
-                                mapReference,
-                            ),
+                        // Uploads tolerate a config without controls
+                        controls: (
+                            dashboard.config.dateZoomConfig.controls ?? []
+                        ).map(mapReference),
                     },
                 }),
             },

@@ -246,6 +246,9 @@ New control kinds (date zoom next) follow these rules:
    per-section line flags.
 4. Tiles are referenced by tile slug.
 
+Date zoom files keep `uuid`/`controlUuid` required both ways; `slug` and
+`controlSlug` are optional extras that only resolve `controlOrder` refs.
+
 ## Strings
 
 Viewers and embeds see the editor, tile cards, field bar and tab counts, so

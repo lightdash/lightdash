@@ -174,6 +174,36 @@ describe('reconcileDashboardControlOrder', () => {
         ]);
     });
 
+    it('places date zooms only when they are passed', () => {
+        const zooms = sources({
+            controlOrder: [
+                ref(DATE_ZOOM, 'z2'),
+                ref(SECTION, 's1'),
+                ref(DATE_ZOOM, 'z1'),
+            ],
+            sections: [section('s1')],
+            dateZoomControls: [
+                { uuid: 'z1', name: 'Week', granularity: 'WEEK' },
+                {
+                    uuid: 'z2',
+                    name: 'Month',
+                    granularity: 'MONTH',
+                    sectionId: 's1',
+                },
+                { uuid: 'z3', name: 'Day', granularity: 'DAY' },
+            ],
+        });
+        expect(order(zooms)).toEqual([
+            'section:s1',
+            'dateZoom:z2',
+            'dateZoom:z1',
+            'dateZoom:z3',
+        ]);
+        expect(order({ ...zooms, dateZoomControls: undefined })).toEqual([
+            'section:s1',
+        ]);
+    });
+
     it('ignores malformed refs', () => {
         expect(
             order({
