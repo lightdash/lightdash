@@ -384,6 +384,7 @@ describe('MobileSignInService.getState', () => {
     ) => {
         const findForSession = vi.fn(async () => ({
             ...codeRow,
+            expires_at: new Date('2026-11-09T12:05:18.000Z'),
             effective_status: status,
             declined_by: declinedBy,
             client_name: 'Lightdash iOS',
