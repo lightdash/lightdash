@@ -90,3 +90,9 @@
 .signInPopover {
     color: var(--mantine-color-text);
 }
+
+@media ($navigation-compact <= width < $navigation-search-icon) {
+    .headerButton {
+        display: none;
+    }
+}

@@ -68,6 +68,7 @@ const MobileSignInPopover: FC<{ withLabel: boolean }> = ({ withLabel }) => {
                         aria-controls={opened ? `${id}-dropdown` : undefined}
                         variant="default"
                         size="xs"
+                        className={withLabel ? undefined : classes.headerButton}
                         onClick={() => (opened ? close() : setOpened(true))}
                     >
                         <MantineIcon icon={IconDeviceMobile} />
