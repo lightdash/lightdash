@@ -1,12 +1,15 @@
 /* After the grid, so the bar never covers the last tile row. In an SDK embed
    the bar is in it, sticky: above the tile overlays (z-index 2), below the
    sticky tabs */
-.host {
+.host,
+.fixed {
     /* Over the dashboard's scroll-to-top button, launcher or not */
     --controls-scroll-top-clearance: calc(
         var(--dashboard-scroll-to-top-reach) + var(--mantine-spacing-xs)
     );
+}
 
+.host {
     position: sticky;
     bottom: var(--mantine-spacing-md);
     z-index: 3;
@@ -17,8 +20,19 @@
     margin: var(--mantine-spacing-md) auto var(--mantine-spacing-md);
 }
 
+/* The fixed bar (FloatingBar): its portal node lets presses through */
+.fixed {
+    pointer-events: auto;
+}
+
 /* Narrow: the bar spans the button's corner, so it floats above it */
 @media (width < $mantine-breakpoint-sm) {
+    .fixed {
+        margin-bottom: calc(
+            var(--controls-scroll-top-clearance) - var(--mantine-spacing-md)
+        );
+    }
+
     .host {
         bottom: var(--controls-scroll-top-clearance);
         margin-bottom: var(--controls-scroll-top-clearance);
