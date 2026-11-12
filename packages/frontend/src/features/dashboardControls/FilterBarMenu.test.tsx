@@ -83,11 +83,11 @@ const setters = {
 const render = ({
     tiles = [tile],
     isDateZoomDisabled = false,
-    withDateZoomVisibility,
+    withDateZooms,
 }: {
     tiles?: DashboardTile[];
     isDateZoomDisabled?: boolean;
-    withDateZoomVisibility?: boolean;
+    withDateZooms?: boolean;
 } = {}) => {
     const store = createDashboardTestStore();
     seedDashboardEditState(store, {
@@ -102,7 +102,7 @@ const render = ({
     };
     renderWithProviders(
         <DashboardStoreTestProvider store={store}>
-            <FilterBarMenu withDateZoomVisibility={withDateZoomVisibility} />
+            <FilterBarMenu withDateZooms={withDateZooms} />
         </DashboardStoreTestProvider>,
     );
     return userEvent.click(
@@ -113,8 +113,8 @@ const render = ({
 describe('FilterBarMenu', () => {
     beforeEach(() => vi.clearAllMocks());
 
-    it('leaves out hiding date zoom where an embed token allows none, keeping the rest', async () => {
-        await render({ withDateZoomVisibility: false });
+    it('lists nothing about date zoom where an embed token allows none, keeping the rest', async () => {
+        await render({ withDateZooms: false });
         expect(
             screen.queryByRole('menuitem', {
                 name: 'Hide date zoom for viewers',
@@ -126,10 +126,22 @@ describe('FilterBarMenu', () => {
             }),
         ).toBeInTheDocument();
         expect(
-            screen.getByRole('menuitem', { name: 'Date zoom grains' }),
-        ).toBeInTheDocument();
+            screen.queryByRole('menuitem', { name: /date zoom/i }),
+        ).not.toBeInTheDocument();
         expect(
             screen.getByRole('menuitem', { name: 'Filter rules' }),
+        ).toBeInTheDocument();
+    });
+
+    it('lists both date zoom items where date zoom is allowed', async () => {
+        await render();
+        expect(
+            screen.getByRole('menuitem', {
+                name: 'Hide date zoom for viewers',
+            }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('menuitem', { name: 'Date zoom grains' }),
         ).toBeInTheDocument();
     });
 

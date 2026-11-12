@@ -31,7 +31,7 @@ const LABEL = 'Filter bar settings';
 
 // Date zoom's dashboard-wide settings, where the shipped eye and the Default
 // zoom menu's checklist were: hiding date zoom, and the grains viewers can pick
-const DateZoomItems: FC<{ withVisibility: boolean }> = ({ withVisibility }) => {
+const DateZoomItems: FC = () => {
     const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
     const setIsDateZoomDisabled = useDashboardContext(
         (c) => c.setIsDateZoomDisabled,
@@ -50,21 +50,19 @@ const DateZoomItems: FC<{ withVisibility: boolean }> = ({ withVisibility }) => {
     const { controls } = useDashboardDateZoomConfig();
     return (
         <>
-            {withVisibility && (
-                <Menu.Item
-                    leftSection={
-                        <MantineIcon
-                            icon={isDateZoomDisabled ? IconEye : IconEyeOff}
-                            size={14}
-                        />
-                    }
-                    onClick={() => setIsDateZoomDisabled(!isDateZoomDisabled)}
-                >
-                    {isDateZoomDisabled
-                        ? 'Show date zoom for viewers'
-                        : 'Hide date zoom for viewers'}
-                </Menu.Item>
-            )}
+            <Menu.Item
+                leftSection={
+                    <MantineIcon
+                        icon={isDateZoomDisabled ? IconEye : IconEyeOff}
+                        size={14}
+                    />
+                }
+                onClick={() => setIsDateZoomDisabled(!isDateZoomDisabled)}
+            >
+                {isDateZoomDisabled
+                    ? 'Show date zoom for viewers'
+                    : 'Hide date zoom for viewers'}
+            </Menu.Item>
             <Menu.Sub>
                 <Menu.Sub.Target>
                     <Menu.Sub.Item
@@ -99,9 +97,9 @@ const DateZoomItems: FC<{ withVisibility: boolean }> = ({ withVisibility }) => {
 // showing "Add filter" and date zoom to viewers or not, date zoom's grains,
 // and the shipped "Filter rules" popover, anchored here instead of on its own button
 export const FilterBarMenu: FC<{
-    /** Offers "Hide date zoom for viewers" (default true; off in an embed without date zoom). */
-    withDateZoomVisibility?: boolean;
-}> = ({ withDateZoomVisibility = true }) => {
+    /** Offers the date zoom items (default true; off in an embed whose token allows no date zoom). */
+    withDateZooms?: boolean;
+}> = ({ withDateZooms = true }) => {
     const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
     const setIsAddFilterDisabled = useDashboardContext(
         (c) => c.setIsAddFilterDisabled,
@@ -167,11 +165,7 @@ export const FilterBarMenu: FC<{
                                     ? 'Show Add filter for viewers'
                                     : 'Hide Add filter for viewers'}
                             </Menu.Item>
-                            {hasTiles && (
-                                <DateZoomItems
-                                    withVisibility={withDateZoomVisibility}
-                                />
-                            )}
+                            {hasTiles && withDateZooms && <DateZoomItems />}
                             <Menu.Divider />
                             <Menu.Item
                                 leftSection={

@@ -61,7 +61,12 @@ export type EmbedControlDrafts = {
     defaultDateZoomGranularity: DateGranularity | string | undefined;
     hasDefaultDateZoomGranularityChanged: boolean;
     requiredFiltersNote: string | undefined;
+    /** False where the token allows no parameters: they are saved as loaded */
+    areParametersAllowed: boolean;
 };
+
+/** The control kinds the embed token lets this bar show */
+export type EmbedTokenAllows = { dateZoom: boolean; parameters: boolean };
 
 type Args = {
     /** The dashboard as loaded */
@@ -79,12 +84,15 @@ type Args = {
     controlDrafts: EmbedControlDrafts | null;
 };
 
+// A kind the token does not allow has no control on the bar: whatever the
+// store holds for it, the save and "changed" read it as saved
 export const getEmbedControlDrafts = (
     state: DashboardStoreState,
     config: DashboardConfig | undefined,
+    allows: EmbedTokenAllows,
 ): EmbedControlDrafts => {
     const saved = getSavedDateZoomSettings(config);
-    return {
+    const drafts: EmbedControlDrafts = {
         controlOrder: selectControlOrder(state),
         hasControlOrderChanged: selectHasControlOrderChanged(state),
         controlSections: selectControlSections(state),
@@ -114,6 +122,24 @@ export const getEmbedControlDrafts = (
         requiredFiltersNote:
             selectEditedRequiredFiltersNote(state) ??
             config?.requiredFiltersNote,
+        areParametersAllowed: allows.parameters,
+    };
+    return {
+        ...drafts,
+        ...(!allows.dateZoom && {
+            dateZoomConfig: saved.dateZoomConfig,
+            hasDateZoomConfigChanged: false,
+            dateZoomGranularities: saved.dateZoomGranularities,
+            haveDateZoomGranularitiesChanged: false,
+            defaultDateZoomGranularity: saved.defaultDateZoomGranularity,
+            hasDefaultDateZoomGranularityChanged: false,
+        }),
+        ...(!allows.parameters && {
+            parameterControls: config?.parameterControls ?? null,
+            areParameterControlsSaved: config?.parameterControls !== undefined,
+            haveParameterControlsChanged: false,
+            parameterPicks: {},
+        }),
     };
 };
 
@@ -233,6 +259,8 @@ export const buildEmbedDashboardUpdate = ({
             // Never seeded in the embed's store: as loaded
             pinnedParameters: dashboard.config?.pinnedParameters,
         },
-        parameters: controlsToSave.parameters,
+        parameters: controlDrafts.areParametersAllowed
+            ? controlsToSave.parameters
+            : dashboard.parameters,
     };
 };

@@ -251,9 +251,7 @@ export const AddControl: FC<Props> = ({
                         unsavedFiltersTooltip={unsavedFiltersTooltip}
                         editModeAction={
                             isViewer ? undefined : (
-                                <FilterBarMenu
-                                    withDateZoomVisibility={withDateZooms}
-                                />
+                                <FilterBarMenu withDateZooms={withDateZooms} />
                             )
                         }
                         label={

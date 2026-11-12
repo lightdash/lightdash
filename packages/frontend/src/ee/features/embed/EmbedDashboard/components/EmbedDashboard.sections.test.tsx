@@ -922,7 +922,7 @@ describe('EmbedDashboard editor controls', () => {
             );
         });
 
-        it('is not offered where the token allows no date zoom, and the loaded value is saved', async () => {
+        it('leaves every date zoom item out where the token allows no date zoom, and the loaded value is saved', async () => {
             renderEmbed(true, zoomDashboard(false));
             await openMenu();
             expect(
@@ -932,7 +932,7 @@ describe('EmbedDashboard editor controls', () => {
             ).toBeInTheDocument();
             expect(
                 screen.queryByRole('menuitem', {
-                    name: /date zoom for viewers/,
+                    name: /date zoom/i,
                 }),
             ).not.toBeInTheDocument();
             expect(screen.getByTestId('zoom-hidden')).toHaveTextContent(
@@ -944,6 +944,55 @@ describe('EmbedDashboard editor controls', () => {
                 mocks.updateDashboard.mock.calls[0][0].config
                     .isDateZoomDisabled,
             ).toBe(true);
+        });
+    });
+
+    describe('what the token does not allow', () => {
+        it('never enables Save from a parameter or date zoom draft the bar cannot show', async () => {
+            // The fixture's token allows neither parameters nor date zoom
+            renderEmbed(true);
+            await screen.findByRole('button', { name: 'Filter bar settings' });
+            act(() => {
+                mocks.dispatch?.(
+                    dashboardParametersActions.setHaveParameterControlsChanged(
+                        true,
+                    ),
+                );
+                mocks.dispatch?.(
+                    dashboardEditActions.setHaveDateZoomGranularitiesChanged(
+                        true,
+                    ),
+                );
+            });
+            await act(async () => {});
+            expect(save()).toBeDisabled();
+        });
+
+        it('gives a viewer who may not add filters no way to add, remove or arrange', async () => {
+            renderEmbed(false, {
+                ...dashboard,
+                dashboardFiltersInteractivity: {
+                    enabled: 'all',
+                    canAddFilters: false,
+                },
+            } as unknown as Dashboard);
+            await screen.findByRole('group', { name: 'Dates' });
+            [
+                'Add filter',
+                'Add',
+                'Filter bar settings',
+                'Add filter to Dates',
+                'Dates menu',
+                'New section',
+                'Remove filter',
+            ].forEach((name) =>
+                expect(
+                    screen.queryByRole('button', { name }),
+                ).not.toBeInTheDocument(),
+            );
+            expect(
+                document.querySelector('[data-controls-pill][draggable]'),
+            ).toBeNull();
         });
     });
 

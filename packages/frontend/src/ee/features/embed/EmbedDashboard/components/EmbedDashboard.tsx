@@ -9,6 +9,7 @@ import {
     assertUnreachable,
     canAddDashboardFiltersInEmbed,
     getDefaultChartTileSize,
+    isParameterInteractivityEnabled,
     isTileInEmbedExport,
     type DashboardFilters,
     type DashboardTile,
@@ -793,13 +794,22 @@ const EmbedDashboard: FC<{
     const hasDateZoomVisibilityChanged =
         ownsDateZoomVisibility &&
         isDateZoomDisabled !== savedIsDateZoomDisabled;
+    // As the bar decides which kinds it shows
+    const canDateZoom = dashboard?.canDateZoom === true;
+    const areParametersAllowed = isParameterInteractivityEnabled(
+        dashboard?.parameterInteractivity,
+    );
+    const tokenAllows = useMemo(
+        () => ({ dateZoom: canDateZoom, parameters: areParametersAllowed }),
+        [canDateZoom, areParametersAllowed],
+    );
     const haveControlsChanged = useDashboardSelector(
         (state) =>
             isControlsEnabled &&
             !!dashboard &&
             haveEmbedControlsChanged(
                 dashboard,
-                getEmbedControlDrafts(state, dashboard.config),
+                getEmbedControlDrafts(state, dashboard.config, tokenAllows),
             ),
     );
     const canUseChartBuilder = canUseEmbeddedChartBuilder({
@@ -1060,6 +1070,7 @@ const EmbedDashboard: FC<{
                     ? getEmbedControlDrafts(
                           dashboardStore.getState(),
                           dashboard.config,
+                          tokenAllows,
                       )
                     : null,
             }),
@@ -1077,6 +1088,7 @@ const EmbedDashboard: FC<{
         draftDashboardName,
         currentDashboardTiles,
         filterLabelOverrides,
+        tokenAllows,
         updateDashboard,
     ]);
 

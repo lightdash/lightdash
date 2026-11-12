@@ -124,8 +124,8 @@ Openings (optional props, defaults are today's behaviour):
   passes one with its class contract). `AddControl`: `withParameters` and
   `withDateZooms` (default `true`; the embed passes what its token shows,
   so an editor cannot add a control the bar hides). `FilterBarMenu`:
-  `withDateZoomVisibility` (default `true`; `AddControl` passes its
-  `withDateZooms`).
+  `withDateZooms` (default `true`: both date zoom items; `AddControl`
+  passes its own, so a token without date zoom lists neither).
 - `DashboardProvider`: `isEditModeExternal` (default `false`: the route
   sets the parameters store's edit mode). The embed page passes it and
   `EmbedDashboard` dispatches the mode; without it the provider's effect,
@@ -249,7 +249,10 @@ Each one has broken before or would break silently.
   `parameterOrder`, and `isDateZoomDisabled` unless the token allows date
   zoom, where an editor's edit mode seeds it from the saved config, tiles
   or none (and puts it back to `false` on the way out: an embed viewer's
-  date zoom follows the token). A host turning `isEditMode` off without
+  date zoom follows the token). A kind the token does not allow (date
+  zoom, parameters) has no control on the bar, so `getEmbedControlDrafts`
+  reads it as saved: its drafts never enable Save and its keys (and
+  `parameters`) are sent as loaded. A host turning `isEditMode` off without
   Cancel drops the control drafts (what an open editor applies on the way
   out included) but keeps filter rule drafts, as before the controls. The embed resolves the flag for the JWT's
   organisation (`FeatureFlagService.getForAccount`).

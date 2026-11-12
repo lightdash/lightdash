@@ -104,7 +104,9 @@ const unchangedDrafts: EmbedControlDrafts = {
     defaultDateZoomGranularity: 'Week',
     hasDefaultDateZoomGranularityChanged: false,
     requiredFiltersNote: 'Pick a status',
+    areParametersAllowed: true,
 };
+const ALL_KINDS = { dateZoom: true, parameters: true };
 
 describe('buildEmbedDashboardUpdate', () => {
     it('sends the save as it was before the controls, with them off', () => {
@@ -287,6 +289,7 @@ describe('embed control drafts', () => {
         const drafts = getEmbedControlDrafts(
             store.getState(),
             dashboard.config,
+            ALL_KINDS,
         );
         expect(drafts).toMatchObject({
             dateZoomConfig: savedZoom,
@@ -322,8 +325,93 @@ describe('embed control drafts', () => {
         expect(
             haveEmbedControlsChanged(
                 dashboard,
-                getEmbedControlDrafts(store.getState(), dashboard.config),
+                getEmbedControlDrafts(
+                    store.getState(),
+                    dashboard.config,
+                    ALL_KINDS,
+                ),
             ),
         ).toBe(true);
+    });
+
+    describe('a kind the token does not allow', () => {
+        const emptiedZoom = dashboardEditActions.setDateZoomConfig({
+            value: { controls: [], tileTargets: {} },
+            changed: true,
+            saved: savedZoom,
+        } as Parameters<typeof dashboardEditActions.setDateZoomConfig>[0]);
+
+        it('reads and saves date zoom as loaded, whatever the store holds', () => {
+            const store = createDashboardTestStore();
+            store.dispatch(emptiedZoom);
+            store.dispatch(
+                dashboardEditActions.setHaveDateZoomGranularitiesChanged(true),
+            );
+            store.dispatch(
+                dashboardEditActions.setHasDefaultDateZoomGranularityChanged(
+                    true,
+                ),
+            );
+            const drafts = getEmbedControlDrafts(
+                store.getState(),
+                dashboard.config,
+                { dateZoom: false, parameters: true },
+            );
+            expect(haveEmbedControlsChanged(dashboard, drafts)).toBe(false);
+            expect(
+                buildEmbedDashboardUpdate({ ...base, controlDrafts: drafts }),
+            ).toMatchObject({
+                config: {
+                    dateZoomConfig: savedZoom,
+                    dateZoomGranularities: ['Day', 'Week'],
+                    defaultDateZoomGranularity: 'Week',
+                },
+            });
+        });
+
+        it('reads and saves parameters as loaded, whatever the store holds', () => {
+            const store = createDashboardTestStore();
+            store.dispatch(
+                dashboardParametersActions.syncParameterControls({
+                    controls: [regionControl('apac')],
+                    isSaved: true,
+                }),
+            );
+            store.dispatch(
+                dashboardParametersActions.setHaveParameterControlsChanged(
+                    true,
+                ),
+            );
+            const drafts = getEmbedControlDrafts(
+                store.getState(),
+                dashboard.config,
+                { dateZoom: true, parameters: false },
+            );
+            expect(haveEmbedControlsChanged(dashboard, drafts)).toBe(false);
+            const update = buildEmbedDashboardUpdate({
+                ...base,
+                controlDrafts: drafts,
+            });
+            expect(update).toMatchObject({
+                config: { parameterControls: [regionControl('emea')] },
+            });
+            expect('parameters' in update ? update.parameters : null).toBe(
+                dashboard.parameters,
+            );
+        });
+
+        it('still counts and saves the kinds it allows', () => {
+            const store = createDashboardTestStore();
+            store.dispatch(emptiedZoom);
+            expect(
+                haveEmbedControlsChanged(
+                    dashboard,
+                    getEmbedControlDrafts(store.getState(), dashboard.config, {
+                        dateZoom: true,
+                        parameters: false,
+                    }),
+                ),
+            ).toBe(true);
+        });
     });
 });
