@@ -34,6 +34,9 @@ const attachHeadlessServiceAccount = async (
         !serviceAccountUser ||
         serviceAccountUser.serviceAccount.uuid !== mark.serviceAccountUuid
     ) {
+        // Fails closed only because service-account user rows are created
+        // with is_active = false: isAuthenticated then refuses this plain
+        // session account. Keep that invariant if this fallback stays.
         attachSessionAccount(req);
         return;
     }
