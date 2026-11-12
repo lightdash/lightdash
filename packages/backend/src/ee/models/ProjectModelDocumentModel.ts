@@ -182,6 +182,7 @@ export class ProjectModelDocumentModel {
                 changeSetUuid,
                 firstName: `${UserTableName}.first_name`,
                 lastName: `${UserTableName}.last_name`,
+                byUserUuid: `${UserTableName}.user_uuid`,
                 contentBefore: `${ProjectModelRevisionsTableName}.content_before`,
                 contentAfter: `${ProjectModelRevisionsTableName}.content_after`,
                 source: `${ProjectModelChangeSetsTableName}.kind`,

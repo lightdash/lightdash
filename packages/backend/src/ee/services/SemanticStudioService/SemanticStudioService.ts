@@ -496,7 +496,11 @@ export class SemanticStudioService extends BaseService {
                 // Newest first, so the change before this one comes after it.
                 const previous = history.at(index + 1);
                 const overwritten =
-                    previous && previous.by !== change.by && !previous.reverted
+                    previous &&
+                    // Someone gone cannot be told apart from anyone else.
+                    (previous.byUserUuid === null ||
+                        previous.byUserUuid !== change.byUserUuid) &&
+                    !previous.reverted
                         ? pathsOf(previous).filter(
                               (path) =>
                                   // Building on a model someone made is not writing over them.

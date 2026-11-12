@@ -1909,7 +1909,12 @@ describe('SemanticStudioService', () => {
 
         it('names whose change a later change wrote over', async () => {
             const { service, findModelHistory } = setup();
-            const change = (by: string, before: string, after: string) => ({
+            const change = (
+                by: string,
+                before: string,
+                after: string,
+                byUserUuid: string | null = `user-${by}`,
+            ) => ({
                 changeSetUuid: `set-${by}`,
                 source: 'draft' as const,
                 question: null,
@@ -1919,6 +1924,7 @@ describe('SemanticStudioService', () => {
                 contentAfter: after,
                 otherModels: [],
                 by,
+                byUserUuid,
             });
             const labelled = orders.replace(
                 'name: orders',
@@ -1941,6 +1947,25 @@ describe('SemanticStudioService', () => {
                 { by: 'Ada', paths: ['label'] },
                 null,
             ]);
+            findModelHistory.mockResolvedValueOnce([
+                change(
+                    'Sam',
+                    labelled,
+                    labelled.replace('label: A', 'label: B'),
+                    'user-sam-2',
+                ),
+                change('Sam', orders, labelled, 'user-sam-1'),
+            ]);
+            const sameName = await service.getModel(
+                deployer,
+                PROJECT_UUID,
+                'orders',
+            );
+            // Two people who share a name are still two people.
+            expect(sameName?.history[0].replaced).toEqual({
+                by: 'Sam',
+                paths: ['label'],
+            });
         });
 
         it('returns null for a model the project does not keep', async () => {
