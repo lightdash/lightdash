@@ -1,4 +1,5 @@
 import { isToolEditDbtProjectResult, type CiChecks } from '@lightdash/common';
+import { findPreviewProjectUuid } from '../../../../../features/semanticStudio/useTryInExplore';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 import { usePullRequestCiChecks } from '../../hooks/usePullRequestCiChecks';
 import { useStudioAgent } from './useSemanticStudioChat';
@@ -17,8 +18,6 @@ export type StudioPullRequest = {
     /** Still open, so the next change joins it. */
     isOpen: boolean;
 };
-
-const PREVIEW_PROJECT = /\/projects\/([0-9a-f-]{36})/;
 
 /** The latest pull request of this project's Studio conversation, or null when it has opened none. */
 export const useStudioPullRequest = (
@@ -61,8 +60,7 @@ export const useStudioPullRequest = (
                     .flatMap(({ changedModels }) => changedModels ?? []),
             ),
         ].sort(),
-        previewProjectUuid:
-            PREVIEW_PROJECT.exec(metadata.previewUrl ?? '')?.[1] ?? null,
+        previewProjectUuid: findPreviewProjectUuid(metadata.previewUrl),
         ciChecks: ciChecks ?? null,
         isOpen: !!ciChecks && !ciChecks.merged && ciChecks.state === 'open',
     };

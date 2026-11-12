@@ -23,6 +23,7 @@ import {
     useDevelopmentView,
 } from '../../../../../features/semanticStudio/developmentView';
 import { ChangesSwitch } from '../../../../../features/semanticStudio/SemanticLayerDraft';
+import { useTryInExplore } from '../../../../../features/semanticStudio/useTryInExplore';
 import { useProject } from '../../../../../hooks/useProject';
 import { useClosePullRequest } from '../../hooks/useClosePullRequest';
 import { useMergePullRequest } from '../../hooks/useMergePullRequest';
@@ -77,6 +78,7 @@ export const StudioDevelopmentBar: FC<{
     const [merging, setMerging] = useState(false);
     const [discarding, setDiscarding] = useState(false);
     const [isTrying, setIsTrying] = useDevelopmentView();
+    const tryInExplore = useTryInExplore(projectUuid);
     const number = /\/(\d+)\/?$/.exec(prUrl)?.[1];
     const name = number ? `pull request #${number}` : 'the pull request';
     // The preview is the truer source once it is built, so a view switched on before then moves to it.
@@ -122,6 +124,19 @@ export const StudioDevelopmentBar: FC<{
                 isOnMyChanges={isTrying}
                 onChange={(next) => setIsTrying(next, previewProjectUuid)}
             />
+            {changedModels.length > 0 ? (
+                <Tooltip label="Switches to My changes and opens the changed model in Explore.">
+                    <Button
+                        size="xs"
+                        variant="default"
+                        onClick={() =>
+                            tryInExplore(changedModels[0], previewProjectUuid)
+                        }
+                    >
+                        Try in Explore
+                    </Button>
+                </Tooltip>
+            ) : null}
             <Tooltip
                 multiline
                 w={240}
@@ -229,6 +244,7 @@ export const StudioSavingBar: FC<{
 }> = ({ projectUuid, change }) => {
     const step = useWritebackStep(projectUuid, change.aiWritebackRunUuid);
     const elapsed = useElapsed(change.startedAt);
+    const [isOnMyChanges] = useDevelopmentView();
     return (
         <DevelopmentBar
             status={
@@ -247,6 +263,11 @@ export const StudioSavingBar: FC<{
                 </Text>
             }
         >
+            <ChangesSwitch
+                isOnMyChanges={isOnMyChanges}
+                onChange={() => undefined}
+                unavailableReason="Available when the save finishes."
+            />
             <Tooltip label="Usually takes 2 to 3 minutes. The pull request shows up here when it is ready.">
                 <Text fz="xs" c="dimmed" ff="monospace">
                     {elapsed}

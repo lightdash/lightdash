@@ -383,19 +383,23 @@ const DraftActions: FC<{
 export const ChangesSwitch: FC<{
     isOnMyChanges: boolean;
     onChange: (next: boolean) => void;
-}> = ({ isOnMyChanges, onChange }) => (
+    /** Why it cannot be switched right now; shown greyed out with this as its tooltip. */
+    unavailableReason?: string;
+}> = ({ isOnMyChanges, onChange, unavailableReason }) => (
     <Tooltip
         multiline
         w={240}
         label={
-            isOnMyChanges
+            unavailableReason ??
+            (isOnMyChanges
                 ? 'Explore, charts and dashboards are reading your changes. Only you see this.'
-                : 'Switch to My changes to try them in Explore, charts and dashboards. Only you see it.'
+                : 'Switch to My changes to try them in Explore, charts and dashboards. Only you see it.')
         }
     >
         <SegmentedControl
             size="xs"
             flex="none"
+            disabled={unavailableReason !== undefined}
             aria-label="What your queries read"
             color={isOnMyChanges ? 'orange' : undefined}
             value={isOnMyChanges ? 'mine' : 'live'}

@@ -40,6 +40,10 @@ import {
 import { Link } from 'react-router';
 import { useGithubUserCredential } from '../../../../../../components/common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import {
+    findPreviewProjectUuid,
+    useTryInExplore,
+} from '../../../../../../features/semanticStudio/useTryInExplore';
 import { useClosePullRequest } from '../../../hooks/useClosePullRequest';
 import { useMergePullRequest } from '../../../hooks/useMergePullRequest';
 import {
@@ -397,6 +401,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     startedAt,
 }) => {
     const quiet = useContext(QuietCardsContext);
+    const tryInExplore = useTryInExplore(projectUuid);
     // Hooks must run before the early returns below; the query is disabled until
     // there's a PR URL, so the error/no-PR branches don't fetch anything.
     const prUrl = metadata.status === 'success' ? metadata.prUrl : null;
@@ -642,6 +647,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     const title = 'Edited semantic layer';
     const isOpen = !ciChecks?.merged && ciChecks?.state !== 'closed';
     const resolvedPrUrl = metadata.prUrl;
+    const tryModel = metadata.changedModels?.at(0) ?? null;
 
     return (
         <Paper
@@ -745,6 +751,22 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             stack. View = preview / PR / diff; the preview URL is
                             generated server-side during the run — a setup PR never
                             previews itself. */}
+                        {quiet && isOpen && tryModel ? (
+                            <Button
+                                size="compact-xs"
+                                variant="default"
+                                onClick={() =>
+                                    tryInExplore(
+                                        tryModel,
+                                        findPreviewProjectUuid(
+                                            metadata.previewUrl,
+                                        ),
+                                    )
+                                }
+                            >
+                                Try in Explore
+                            </Button>
+                        ) : null}
                         <PullRequestViewMenu
                             projectUuid={projectUuid}
                             prUrl={metadata.prUrl}
