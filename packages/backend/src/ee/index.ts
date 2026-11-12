@@ -1072,8 +1072,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         aiModelCatalog,
                     }),
                 }),
-            schedulerAiAugmentationService: ({ models, repository }) =>
+            schedulerAiAugmentationService: ({ models, repository, context }) =>
                 new SchedulerAiAugmentationService({
+                    lightdashConfig: context.lightdashConfig,
                     agentPermissionService:
                         repository.getAgentPermissionService(),
                     featureFlagModel: models.getFeatureFlagModel(),

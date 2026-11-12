@@ -262,6 +262,7 @@ import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import {
     mapQueryHistoryRowToListItem,
     QueryHistoryModel,
+    QueryPollingTimeoutError,
     type CachedResultsContent,
 } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -503,6 +504,7 @@ import {
     assertAgentQueryWithinEstimateLimit,
     QueryEstimateCache,
 } from './queryCostEstimate';
+import type { QueryPollingSource } from './queryPollingSource';
 import { canReuseApiResult, canReuseQueryResult } from './queryResultReuse';
 import { queryUsageProperties, queryWorkloadOrigin } from './queryUsage';
 import {
@@ -16289,7 +16291,8 @@ export class AsyncQueryService extends ProjectService {
 
     /**
      * Poll for query completion with exponential backoff.
-     * Throws on CANCELLED, ERROR, or timeout.
+     * Throws on CANCELLED, ERROR, or timeout. A timeout cancels the query
+     * if it is still running.
      */
     async pollForQueryCompletion({
         account,
@@ -16299,6 +16302,7 @@ export class AsyncQueryService extends ProjectService {
         maxBackoffMs = 2000,
         timeoutMs = 5 * 60 * 1000, // 5 min default
         abortSignal,
+        source = 'other',
     }: {
         account: Account;
         projectUuid: string;
@@ -16307,16 +16311,66 @@ export class AsyncQueryService extends ProjectService {
         maxBackoffMs?: number;
         timeoutMs?: number;
         abortSignal?: AbortSignal;
+        source?: QueryPollingSource;
     }): Promise<void> {
-        await this.queryHistoryModel.pollForQueryCompletion({
-            queryUuid,
-            account,
-            projectUuid,
-            initialBackoffMs,
-            maxBackoffMs,
-            timeoutMs,
-            abortSignal,
-        });
+        try {
+            await this.queryHistoryModel.pollForQueryCompletion({
+                queryUuid,
+                account,
+                projectUuid,
+                initialBackoffMs,
+                maxBackoffMs,
+                timeoutMs,
+                abortSignal,
+            });
+        } catch (error) {
+            if (error instanceof QueryPollingTimeoutError) {
+                this.prometheusMetrics?.incrementQueryPollingTimeout(source);
+                await this.cancelTimedOutQuery({
+                    account,
+                    projectUuid,
+                    queryUuid,
+                });
+            }
+            throw error;
+        }
+    }
+
+    private async cancelTimedOutQuery({
+        account,
+        projectUuid,
+        queryUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+    }): Promise<void> {
+        try {
+            const history = await this.queryHistoryModel.get(
+                queryUuid,
+                projectUuid,
+                account,
+            );
+            if (
+                [
+                    QueryHistoryStatus.PENDING,
+                    QueryHistoryStatus.QUEUED,
+                    QueryHistoryStatus.EXECUTING,
+                ].includes(history.status)
+            ) {
+                await this.cancelAsyncQuery({
+                    account,
+                    projectUuid,
+                    queryUuid,
+                });
+            }
+        } catch (error) {
+            this.logger.warn(
+                `Failed to cancel query ${queryUuid} after polling timed out: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
     }
 
     async pollQueryHistoryUntilDeadline({

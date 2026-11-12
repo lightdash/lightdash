@@ -43,6 +43,7 @@ import {
     type WarehouseTypes,
 } from '@lightdash/common';
 import type { OnboardingFlow } from '../../analytics/LightdashAnalytics';
+import type { LightdashConfig } from '../../config/parseConfig';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
 import type { ConnectionRouteWithOriginal } from '../../models/WarehouseConnectionRouter/WarehouseConnectionRouter';
 import type {
@@ -51,6 +52,7 @@ import type {
 } from '../../utils/QueryBuilder/QueryComposer';
 import type { DocumentQueryContext } from '../DocumentService/DocumentQueryContext';
 import type { MeteredApiConnector } from '../QuerySourceService/api/ApiConnector';
+import type { QueryPollingSource } from './queryPollingSource';
 
 export type CommonAsyncQueryArgs = {
     querySurface?: QuerySurface;
@@ -324,6 +326,7 @@ export type PollingOptions = {
     initialBackoffMs?: number;
     maxBackoffMs?: number;
     timeoutMs?: number;
+    source?: QueryPollingSource;
 };
 
 /**
@@ -334,6 +337,14 @@ export const SCHEDULER_POLLING_OPTIONS: PollingOptions = {
     initialBackoffMs: 2000,
     maxBackoffMs: 5000,
 };
+
+export const getSchedulerPollingOptions = (
+    lightdashConfig: Pick<LightdashConfig, 'scheduler'>,
+): PollingOptions => ({
+    ...SCHEDULER_POLLING_OPTIONS,
+    timeoutMs: lightdashConfig.scheduler.queryPollingTimeout,
+    source: 'scheduler',
+});
 
 /** A pre-built client that runs the query instead of the project warehouse. */
 export type WarehouseClientOverride = {
