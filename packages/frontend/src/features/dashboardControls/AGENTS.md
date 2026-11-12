@@ -252,7 +252,10 @@ Each one has broken before or would break silently.
   date zoom follows the token). A kind the token does not allow (date
   zoom, parameters) has no control on the bar, so `getEmbedControlDrafts`
   reads it as saved: its drafts never enable Save and its keys (and
-  `parameters`) are sent as loaded. A host turning `isEditMode` off without
+  `parameters`) are sent as loaded, list order included; hidden filter
+  rules keep their loaded order too. A section holding a member of such a
+  kind has no remove item (`SectionedFilters` passes `onRemove: null` to
+  `SectionMenu`), so the member is never stranded. A host turning `isEditMode` off without
   Cancel drops the control drafts (what an open editor applies on the way
   out included) but keeps filter rule drafts, as before the controls. The embed resolves the flag for the JWT's
   organisation (`FeatureFlagService.getForAccount`).

@@ -105,8 +105,9 @@ const unchangedDrafts: EmbedControlDrafts = {
     hasDefaultDateZoomGranularityChanged: false,
     requiredFiltersNote: 'Pick a status',
     areParametersAllowed: true,
+    areFiltersShown: true,
 };
-const ALL_KINDS = { dateZoom: true, parameters: true };
+const ALL_KINDS = { dateZoom: true, parameters: true, filters: true };
 
 describe('buildEmbedDashboardUpdate', () => {
     it('sends the save as it was before the controls, with them off', () => {
@@ -355,7 +356,7 @@ describe('embed control drafts', () => {
             const drafts = getEmbedControlDrafts(
                 store.getState(),
                 dashboard.config,
-                { dateZoom: false, parameters: true },
+                { dateZoom: false, parameters: true, filters: true },
             );
             expect(haveEmbedControlsChanged(dashboard, drafts)).toBe(false);
             expect(
@@ -385,7 +386,7 @@ describe('embed control drafts', () => {
             const drafts = getEmbedControlDrafts(
                 store.getState(),
                 dashboard.config,
-                { dateZoom: true, parameters: false },
+                { dateZoom: true, parameters: false, filters: true },
             );
             expect(haveEmbedControlsChanged(dashboard, drafts)).toBe(false);
             const update = buildEmbedDashboardUpdate({
@@ -400,6 +401,83 @@ describe('embed control drafts', () => {
             );
         });
 
+        // A reorder: the second saved control first, then the filters swapped
+        const twoControls = [
+            regionControl('emea'),
+            {
+                ...regionControl('x'),
+                id: 'other',
+                parameters: { other: 'all' },
+            },
+        ] as DashboardParameterControl[];
+        const reordered = [
+            { kind: DashboardControlRefKind.PARAMETER, id: 'other' },
+            { kind: DashboardControlRefKind.FILTER, id: 'city' },
+            { kind: DashboardControlRefKind.PARAMETER, id: 'region-control' },
+            { kind: DashboardControlRefKind.FILTER, id: 'status' },
+        ];
+        const loaded = {
+            ...dashboard,
+            config: { ...dashboard.config, parameterControls: twoControls },
+        } as typeof dashboard;
+
+        it('keeps the loaded parameter controls in their order through a filter reorder', () => {
+            const update = buildEmbedDashboardUpdate({
+                ...base,
+                dashboard: loaded,
+                controlDrafts: {
+                    ...unchangedDrafts,
+                    parameterControls: twoControls,
+                    controlOrder: reordered,
+                    hasControlOrderChanged: true,
+                    areParametersAllowed: false,
+                },
+            });
+            if (!('config' in update) || !('filters' in update)) {
+                throw new Error('Expected a versioned update');
+            }
+            expect(update.config?.parameterControls).toEqual(twoControls);
+            expect(update.parameters).toBe(loaded.parameters);
+            // The filters do follow the order, whose refs keep both controls
+            expect(update.filters?.dimensions.map(({ id }) => id)).toEqual([
+                'city',
+                'status',
+            ]);
+            expect(
+                update.config?.controlOrder
+                    ?.filter(
+                        ({ kind }) =>
+                            kind === DashboardControlRefKind.PARAMETER,
+                    )
+                    .map(({ id }) => id),
+            ).toEqual(['other', 'region-control']);
+        });
+
+        it('keeps hidden filter rules in their loaded order when a parameter moves', () => {
+            const update = buildEmbedDashboardUpdate({
+                ...base,
+                dashboard: loaded,
+                controlDrafts: {
+                    ...unchangedDrafts,
+                    parameterControls: twoControls,
+                    controlOrder: reordered,
+                    hasControlOrderChanged: true,
+                    areFiltersShown: false,
+                },
+            });
+            if (!('config' in update) || !('filters' in update)) {
+                throw new Error('Expected a versioned update');
+            }
+            expect(update.filters?.dimensions.map(({ id }) => id)).toEqual([
+                'status',
+                'city',
+            ]);
+            // The parameters, which the token allows, follow the move
+            expect(
+                update.config?.parameterControls?.map(({ id }) => id),
+            ).toEqual(['other', 'region-control']);
+        });
+
         it('still counts and saves the kinds it allows', () => {
             const store = createDashboardTestStore();
             store.dispatch(emptiedZoom);
@@ -409,6 +487,7 @@ describe('embed control drafts', () => {
                     getEmbedControlDrafts(store.getState(), dashboard.config, {
                         dateZoom: true,
                         parameters: false,
+                        filters: true,
                     }),
                 ),
             ).toBe(true);

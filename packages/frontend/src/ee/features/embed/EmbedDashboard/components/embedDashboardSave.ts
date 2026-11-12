@@ -63,10 +63,17 @@ export type EmbedControlDrafts = {
     requiredFiltersNote: string | undefined;
     /** False where the token allows no parameters: they are saved as loaded */
     areParametersAllowed: boolean;
+    /** False where the token hides the filters: their rules keep their loaded order */
+    areFiltersShown: boolean;
 };
 
 /** The control kinds the embed token lets this bar show */
-export type EmbedTokenAllows = { dateZoom: boolean; parameters: boolean };
+export type EmbedTokenAllows = {
+    dateZoom: boolean;
+    parameters: boolean;
+    /** The bar shows the filter area */
+    filters: boolean;
+};
 
 type Args = {
     /** The dashboard as loaded */
@@ -123,6 +130,7 @@ export const getEmbedControlDrafts = (
             selectEditedRequiredFiltersNote(state) ??
             config?.requiredFiltersNote,
         areParametersAllowed: allows.parameters,
+        areFiltersShown: allows.filters,
     };
     return {
         ...drafts,
@@ -221,8 +229,13 @@ export const buildEmbedDashboardUpdate = ({
         tiles,
         filters: restoreFilterLabelOverrides(
             {
-                dimensions: controlsToSave.dimensions,
-                metrics: controlsToSave.metrics,
+                // A reorder (another kind's move) never rearranges hidden rules
+                dimensions: controlDrafts.areFiltersShown
+                    ? controlsToSave.dimensions
+                    : filters.dimensions,
+                metrics: controlDrafts.areFiltersShown
+                    ? controlsToSave.metrics
+                    : filters.metrics,
                 tableCalculations: filters.tableCalculations,
             },
             dashboard.filters,
@@ -253,7 +266,10 @@ export const buildEmbedDashboardUpdate = ({
                 controlSections: controlsToSave.controlSections,
                 haveControlSectionsChanged:
                     controlsToSave.haveControlSectionsChanged,
-                parameterControlsToSave: controlsToSave.parameterControlsToSave,
+                // Null carries the loaded list forward, in its loaded order
+                parameterControlsToSave: controlDrafts.areParametersAllowed
+                    ? controlsToSave.parameterControlsToSave
+                    : null,
                 controlOrderToSave: controlsToSave.controlOrderToSave,
             }),
             // Never seeded in the embed's store: as loaded

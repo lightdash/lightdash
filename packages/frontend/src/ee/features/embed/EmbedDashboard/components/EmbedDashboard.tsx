@@ -9,6 +9,7 @@ import {
     assertUnreachable,
     canAddDashboardFiltersInEmbed,
     getDefaultChartTileSize,
+    isFilterInteractivityEnabled,
     isParameterInteractivityEnabled,
     isTileInEmbedExport,
     type DashboardFilters,
@@ -799,9 +800,19 @@ const EmbedDashboard: FC<{
     const areParametersAllowed = isParameterInteractivityEnabled(
         dashboard?.parameterInteractivity,
     );
+    const filtersInteractivity = dashboard?.dashboardFiltersInteractivity;
+    const areFiltersShown = Boolean(
+        filtersInteractivity &&
+        isFilterInteractivityEnabled(filtersInteractivity) &&
+        !filtersInteractivity.hidden,
+    );
     const tokenAllows = useMemo(
-        () => ({ dateZoom: canDateZoom, parameters: areParametersAllowed }),
-        [canDateZoom, areParametersAllowed],
+        () => ({
+            dateZoom: canDateZoom,
+            parameters: areParametersAllowed,
+            filters: areFiltersShown,
+        }),
+        [canDateZoom, areParametersAllowed, areFiltersShown],
     );
     const haveControlsChanged = useDashboardSelector(
         (state) =>

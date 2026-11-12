@@ -968,6 +968,34 @@ describe('EmbedDashboard editor controls', () => {
             expect(save()).toBeDisabled();
         });
 
+        it('cannot remove a section that holds a parameter control the bar does not show', async () => {
+            renderEmbed(true, {
+                ...dashboard,
+                config: {
+                    ...dashboard.config,
+                    parameterControls: [
+                        {
+                            id: 'region-control',
+                            sectionId: 'a',
+                            label: 'Region',
+                            value: 'emea',
+                            valueType: { type: 'string', multiple: false },
+                            parameters: { region: 'all' },
+                        },
+                    ],
+                },
+            } as unknown as Dashboard);
+            await userEvent.click(
+                await screen.findByRole('button', { name: 'Dates menu' }),
+            );
+            expect(
+                await screen.findByRole('menuitem', { name: 'Rename' }),
+            ).toBeInTheDocument();
+            expect(
+                screen.queryByRole('menuitem', { name: /^Remove section/ }),
+            ).not.toBeInTheDocument();
+        });
+
         it('gives a viewer who may not add filters no way to add, remove or arrange', async () => {
             renderEmbed(false, {
                 ...dashboard,

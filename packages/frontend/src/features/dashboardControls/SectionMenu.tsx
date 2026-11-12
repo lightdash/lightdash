@@ -10,7 +10,8 @@ type MenuProps = {
     hasMembers: boolean;
     /** Names it in place, as a click on the name does */
     onRename: () => void;
-    onRemove: () => void;
+    /** Null: the section cannot be removed here, so the item is left out */
+    onRemove: (() => void) | null;
 };
 
 // A bar capsule's "..." menu: rename, and the remove item, one click:
@@ -34,14 +35,18 @@ export const SectionMenu: FC<MenuProps> = ({
             >
                 Rename
             </Menu.Item>
-            <Menu.Item
-                leftSection={<MantineIcon icon={IconFolderMinus} size={14} />}
-                onClick={onRemove}
-            >
-                {hasMembers
-                    ? 'Remove section, keep controls'
-                    : 'Remove section'}
-            </Menu.Item>
+            {onRemove !== null && (
+                <Menu.Item
+                    leftSection={
+                        <MantineIcon icon={IconFolderMinus} size={14} />
+                    }
+                    onClick={onRemove}
+                >
+                    {hasMembers
+                        ? 'Remove section, keep controls'
+                        : 'Remove section'}
+                </Menu.Item>
+            )}
         </Menu.Dropdown>
     </Menu>
 );

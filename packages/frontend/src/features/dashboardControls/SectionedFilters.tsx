@@ -77,6 +77,7 @@ import {
     selectParameterControls,
     selectDashboardFilters,
     selectSavedFilterOverrides,
+    useDashboardDateZoomConfig,
     useDashboardDispatch,
     useDashboardSelector,
     useDashboardStore,
@@ -170,7 +171,8 @@ type CapsuleActions = {
     /** Alt with an arrow on the name: along the bar, or to the line above or below */
     onMove: (direction: MoveDirection) => void;
     onRename: (name: string) => void;
-    onRemove: () => void;
+    /** Null where the section holds controls this bar does not show (an embed token's limits) */
+    onRemove: (() => void) | null;
 };
 
 type CapsuleProps = {
@@ -742,6 +744,17 @@ export const SectionedFilters: FC<Props> = ({
     const dateZoomEntries = withDateZooms
         ? zoomBar.filter(({ isNew }) => !isNew)
         : [];
+    // Members of a kind this bar leaves out (an embed token's limits), on any
+    // tab: removing their section here would strand them elsewhere
+    const zoomControls = useDashboardDateZoomConfig().controls;
+    const hasUnshownMembers = (sectionId: string) =>
+        (!withParameters &&
+            (parameterControls?.some(
+                (control) => control.sectionId === sectionId,
+            ) ??
+                false)) ||
+        (!withDateZooms &&
+            zoomControls.some((control) => control.sectionId === sectionId));
     const dateZoomCountOf = (sectionId: string | null) =>
         dateZoomEntries.filter((entry) => entry.sectionId === sectionId).length;
     const setZoomSection = useDateZoomEditorSelector((c) => c.setSection);
@@ -1110,26 +1123,28 @@ export const SectionedFilters: FC<Props> = ({
                                       name,
                                   }),
                               ),
-                          onRemove: () => {
-                              // The menu leaves with its capsule
-                              focusAfter.current = [ADD_FILTER_SELECTOR];
-                              const before = store.getState();
-                              dispatch(
-                                  dashboardEditActions.removeControlSection(
-                                      section.id,
-                                  ),
-                              );
-                              if (rules.length > 0) {
-                                  setDashboardFilters((filters) =>
-                                      removeSectionFromRules(
-                                          filters,
-                                          section.id,
-                                      ),
-                                  );
-                                  setHaveFiltersChanged(true);
-                              }
-                              orderSectionChanges(before);
-                          },
+                          onRemove: hasUnshownMembers(section.id)
+                              ? null
+                              : () => {
+                                    // The menu leaves with its capsule
+                                    focusAfter.current = [ADD_FILTER_SELECTOR];
+                                    const before = store.getState();
+                                    dispatch(
+                                        dashboardEditActions.removeControlSection(
+                                            section.id,
+                                        ),
+                                    );
+                                    if (rules.length > 0) {
+                                        setDashboardFilters((filters) =>
+                                            removeSectionFromRules(
+                                                filters,
+                                                section.id,
+                                            ),
+                                        );
+                                        setHaveFiltersChanged(true);
+                                    }
+                                    orderSectionChanges(before);
+                                },
                       }
             }
         />
