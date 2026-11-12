@@ -731,6 +731,9 @@ const MainPane: FC<{
  * typing re-renders only the rail, never the page beside it. The search box
  * drives the results: arrows move, Enter opens, Esc clears.
  */
+/** How many models a tree holds before its changed ones are pinned on top. */
+const PIN_CHANGED_OVER = 12;
+
 const Rail: FC<{
     view: ViewModel;
     expanded: Set<string>;
@@ -740,9 +743,11 @@ const Rail: FC<{
     onToggle: (key: string) => void;
     onOpen: (ref: NodeRef) => void;
 }> = ({ view, expanded, drafted, changed, onToggle, onOpen }) => {
-    const changedExplores = view.project.explores.filter(({ id }) =>
-        changed.includes(id),
-    );
+    // A short tree already shows its changed models; pinning them would only repeat them.
+    const changedExplores =
+        view.project.explores.length > PIN_CHANGED_OVER
+            ? view.project.explores.filter(({ id }) => changed.includes(id))
+            : [];
     const openExploreId =
         view.selected?.type === 'explore' || view.selected?.type === 'field'
             ? view.selected.exploreId
@@ -819,9 +824,7 @@ const Rail: FC<{
                 <>
                     {changedExplores.length > 0 ? (
                         <Box className={classes.changed}>
-                            <Text fz="xs" c="dimmed" px={8} pb={2}>
-                                Changed
-                            </Text>
+                            <Box className={classes.changedLabel}>Changed</Box>
                             {changedExplores.map(({ id, label }) => (
                                 <Box
                                     key={id}

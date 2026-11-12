@@ -91,14 +91,22 @@
     outline: none;
 }
 
-/* Changed models, pinned above the tree. */
+/* Changed models, pinned above the tree and lined up with its rows. */
 .changed {
     flex: none;
     max-height: 40%;
     overflow: auto;
-    margin-bottom: 6px;
-    padding: 0 8px 6px;
-    border-bottom: 1px solid var(--mantine-color-default-border);
+    padding: 0 8px 8px;
+}
+
+.changedLabel {
+    padding: 0 0 2px 24px;
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-xs);
+}
+
+.changed .fileRow {
+    padding-left: 24px;
 }
 
 .changed .fileRow:first-child {
