@@ -203,10 +203,10 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
     const pendingAskUser = onChoiceSelect
         ? getPendingAskUser(visibleMessages.at(-1))
         : null;
-    const askUser =
-        pendingAskUser && pendingAskUser.toolCallId !== skippedAskUserId
-            ? pendingAskUser
-            : null;
+    const isAskUserSkipped =
+        pendingAskUser !== null &&
+        pendingAskUser.toolCallId === skippedAskUserId;
+    const askUser = isAskUserSkipped ? null : pendingAskUser;
     const composer = useRef<HTMLDivElement>(null);
     const unanchoredDeepResearchRegistrations =
         deepResearchRegistrations.filter(
@@ -362,14 +362,20 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                         bottom={0}
                         w="100%"
                     >
-                        {askUser && onChoiceSelect && (
-                            <Box className={askUserStyles.container}>
+                        {/* Hidden while skipped, so Back to questions keeps the picks. */}
+                        {pendingAskUser && onChoiceSelect && (
+                            <Box
+                                className={askUserStyles.container}
+                                display={askUser ? undefined : 'none'}
+                            >
                                 <AskUserQuestionCard
-                                    key={askUser.toolCallId}
-                                    questions={askUser.questions}
+                                    key={pendingAskUser.toolCallId}
+                                    questions={pendingAskUser.questions}
                                     onSubmit={onChoiceSelect}
                                     onSkip={() => {
-                                        setSkippedAskUserId(askUser.toolCallId);
+                                        setSkippedAskUserId(
+                                            pendingAskUser.toolCallId,
+                                        );
                                         requestAnimationFrame(() =>
                                             composer.current
                                                 ?.querySelector<HTMLElement>(
@@ -381,7 +387,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                 />
                             </Box>
                         )}
-                        {pendingAskUser && !askUser && (
+                        {isAskUserSkipped && (
                             <Box className={askUserStyles.resume}>
                                 <Button
                                     size="xs"

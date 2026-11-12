@@ -307,6 +307,7 @@ describe('AgentChatDisplay', () => {
         expect(screen.getByRole('radio', { name: /November/ })).toBeVisible();
         expect(screen.getByLabelText('Composer')).not.toBeVisible();
 
+        fireEvent.click(screen.getByRole('radio', { name: /October/ }));
         fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
 
         expect(screen.queryByRole('radio', { name: /November/ })).toBeNull();
@@ -318,6 +319,6 @@ describe('AgentChatDisplay', () => {
         fireEvent.click(
             screen.getByRole('button', { name: 'Back to questions' }),
         );
-        expect(screen.getByRole('radio', { name: /November/ })).toBeVisible();
+        expect(screen.getByRole('radio', { name: /October/ })).toBeChecked();
     });
 });
