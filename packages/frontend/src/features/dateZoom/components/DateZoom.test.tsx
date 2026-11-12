@@ -1,0 +1,149 @@
+import { DateGranularity, type Dashboard } from '@lightdash/common';
+import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
+import {
+    createDashboardTestStore,
+    seedDashboardEditState,
+} from '../../../testing/dashboardStore';
+import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestProvider';
+import { renderWithProviders } from '../../../testing/testUtils';
+import { DateZoom } from './DateZoom';
+
+const { track } = vi.hoisted(() => ({ track: vi.fn() }));
+vi.mock('../../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track }),
+}));
+vi.mock('./DateZoomCrossTabFieldsLoader', () => ({
+    DateZoomCrossTabFieldsLoader: () => null,
+}));
+
+const config = {
+    isDateZoomDisabled: false,
+    dateZoomConfig: {
+        controls: [
+            {
+                uuid: 'z1',
+                name: 'Revenue zoom',
+                granularity: DateGranularity.WEEK,
+            },
+            {
+                uuid: 'z2',
+                name: 'Orders zoom',
+                granularity: DateGranularity.MONTH,
+                hidden: true,
+            },
+        ],
+        tileTargets: {
+            t1: { controlUuid: 'z1', fieldId: 'orders_date', tableName: 'o' },
+            t2: { controlUuid: 'z2', fieldId: 'orders_date', tableName: 'o' },
+        },
+    },
+};
+
+const renderDateZoom = (isEditMode: boolean, withControls?: boolean) => {
+    const store = createDashboardTestStore({
+        isEditMode,
+        source: { embedDashboard: { config } as unknown as Dashboard },
+    });
+    seedDashboardEditState(store, { dashboard: { config } });
+    renderWithProviders(
+        <DashboardStoreTestProvider store={store}>
+            <DateZoom isEditMode={isEditMode} withControls={withControls} />
+        </DashboardStoreTestProvider>,
+    );
+};
+
+// The shipped date zoom, which the bar keeps with the dashboard controls flag off
+describe('DateZoom with the flag off', () => {
+    it('shows an editor the Default menu, each zoom with its eye, and Add date zoom', () => {
+        renderDateZoom(true);
+        expect(
+            screen.getByRole('button', { name: 'Default zoom' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Revenue zoom · Week' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getByRole('button', { name: 'Orders zoom · Month' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.getAllByRole('button', {
+                name: 'Toggle zoom control visibility for viewers',
+            }),
+        ).toHaveLength(2);
+        expect(
+            screen.getByRole('button', { name: 'Add date zoom' }),
+        ).toBeInTheDocument();
+    });
+
+    it('shows a viewer only the zooms not hidden', () => {
+        renderDateZoom(false);
+        expect(
+            screen.getByRole('button', { name: 'Revenue zoom · Week' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /^Orders zoom/ }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Add date zoom' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it('leaves out the named zooms and Add date zoom without controls', () => {
+        renderDateZoom(true, false);
+        expect(
+            screen.getByRole('button', { name: 'Default zoom' }),
+        ).toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: /^Revenue zoom/ }),
+        ).not.toBeInTheDocument();
+        expect(
+            screen.queryByRole('button', { name: 'Add date zoom' }),
+        ).not.toBeInTheDocument();
+    });
+
+    it("picks a viewer's Default zoom at once, tracked, and None clears it", async () => {
+        const user = userEvent.setup();
+        const store = createDashboardTestStore({
+            isEditMode: false,
+            // A tile in no named zoom: the Default zoom governs it
+            chartZoomableFieldsByTileUuid: {
+                t3: [
+                    {
+                        fieldId: 'orders_date',
+                        label: 'Order date',
+                        tableName: 'o',
+                    },
+                ],
+            },
+            source: { embedDashboard: { config } as unknown as Dashboard },
+        });
+        seedDashboardEditState(store, { dashboard: { config } });
+        renderWithProviders(
+            <DashboardStoreTestProvider store={store}>
+                <DateZoom isEditMode={false} withControls={false} />
+            </DashboardStoreTestProvider>,
+        );
+        await user.click(screen.getByRole('button', { name: 'Default zoom' }));
+        await user.click(screen.getByRole('menuitem', { name: 'Week' }));
+        expect(store.getState().dateZoom.granularity).toBe(
+            DateGranularity.WEEK,
+        );
+        expect(track).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                properties: { granularity: DateGranularity.WEEK },
+            }),
+        );
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+        await user.click(
+            screen.getByRole('button', { name: 'Default zoom · Week' }),
+        );
+        await user.click(screen.getByRole('menuitem', { name: 'None' }));
+        expect(store.getState().dateZoom.granularity).toBeUndefined();
+        expect(track).toHaveBeenLastCalledWith(
+            expect.objectContaining({ properties: { granularity: 'default' } }),
+        );
+    });
+});

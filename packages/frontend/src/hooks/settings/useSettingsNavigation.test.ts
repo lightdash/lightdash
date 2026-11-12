@@ -39,7 +39,6 @@ const settingsContext = (
     isDataAppsFlagLoading: false,
     isApiQuerySourcesEnabled: false,
     isChartStudioAvailable: false,
-    externalSourcesFlag: undefined,
     isMobileSettingsEnabled: false,
     isMobileSettingsFlagLoading: false,
     isResultsCacheAvailable: false,
@@ -396,6 +395,7 @@ describe('managed analytics project settings navigation', () => {
                         health: {
                             softDelete: { enabled: true },
                             preAggregates: { enabled: false },
+                            externalSources: { engineAvailable: false },
                         } as SettingsContext['health'],
                         user: {
                             ability: new Ability([
@@ -540,7 +540,6 @@ describe('Project connections settings navigation', () => {
 
     it('links External sources to the Semantic Layer page, marked as moved', () => {
         const item = projectItems({
-            externalSourcesFlag: { id: 'external-sources', enabled: true },
             health: {
                 softDelete: { enabled: false },
                 preAggregates: { enabled: false },

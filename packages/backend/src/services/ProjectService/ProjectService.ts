@@ -122,7 +122,7 @@ import {
     getIntrinsicUserAttributes,
     getItemId,
     getItemMap,
-    getMergeSourceTableLabel,
+    getMergeSourceTableLabels,
     getMetricOverridesWithPopInheritance,
     getMetrics,
     getModelInventoryFromManifest,
@@ -331,7 +331,7 @@ import {
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { createHmac, timingSafeEqual } from 'crypto';
-import { isEqual, uniq } from 'es-toolkit/compat';
+import { isEqual, uniq, uniqBy } from 'es-toolkit/compat';
 import * as fs from 'fs';
 import { GoogleAuth } from 'google-auth-library';
 import * as yaml from 'js-yaml';
@@ -10170,6 +10170,8 @@ export class ProjectService
         /** One map for every source: sides of one question share their values. */
         parameters?: ParametersValuesMap;
         userAttributeOverrides?: UserAttributeValueMap;
+        /** Composer only: names a source of a shared explore by its node title, not its slot. */
+        sourceTitleById?: Record<string, string>;
     }): Promise<ApiCompiledMergeQueryResults> {
         const {
             account,
@@ -10689,10 +10691,6 @@ export class ProjectService
         // Present every merged column as an ordinary field. Downstream code
         // looks fields up by `getItemId`, so the items map is keyed by it and
         // the warehouse alias is kept only as the way back to the column.
-        const sourceIndexById = Object.fromEntries(
-            mergeQuery.sources.map((source, index) => [source.id, index]),
-        );
-
         const mergedItem = (itemArgs: {
             table: string;
             tableLabel: string;
@@ -10774,24 +10772,15 @@ export class ProjectService
             },
         );
 
-        // Headers say where a column came from, not which slot it rode in:
-        // the explore's label, unless both sides use the same explore and the
-        // slot is the only thing telling them apart.
-        const exploreLabels = mergeQuery.sources.map(
-            (source) =>
-                exploreBySourceId[source.id]?.label ??
-                resolvedMetricQueryBySourceId[source.id].exploreName,
-        );
-        const labelsCollide =
-            new Set(exploreLabels).size < exploreLabels.length;
-        const sourceTableLabel = (sourceId: string) => {
-            const sourceIndex = sourceIndexById[sourceId] ?? 0;
-            const exploreLabel = exploreLabels[sourceIndex];
-            return labelsCollide
-                ? `${exploreLabel} (${getMergeSourceTableLabel(sourceIndex)})`
-                : exploreLabel;
-        };
-
+        const tableLabelBySourceId = getMergeSourceTableLabels({
+            sources: mergeQuery.sources.map((source) => ({
+                id: source.id,
+                exploreLabel:
+                    exploreBySourceId[source.id]?.label ??
+                    resolvedMetricQueryBySourceId[source.id].exploreName,
+            })),
+            sourceTitleById: args.sourceTitleById ?? null,
+        });
         const valueEntries: MergeItemEntry[] = valueFields.flatMap((field) => {
             const { sourceId, sourceFieldId } = field;
             if (!sourceId || !sourceFieldId) return [];
@@ -10803,7 +10792,7 @@ export class ProjectService
                         // Attributed to the query it came from, so two sources
                         // of the same explore cannot collide.
                         table: sourceId,
-                        tableLabel: sourceTableLabel(sourceId),
+                        tableLabel: tableLabelBySourceId[sourceId],
                         // The origin field id, not its bare name: within one
                         // query two joined tables can both expose a `status`.
                         name: sourceFieldId,
@@ -16364,8 +16353,8 @@ export class ProjectService
                     this.findExplores({
                         account,
                         projectUuid: savedCharts[0].projectUuid, // TODO: route should be updated to be project/dashboard specific. For now we pick it from first chart as they all should be from the same project
-                        exploreNames: savedCharts.map(
-                            (chart) => chart.tableName,
+                        exploreNames: uniq(
+                            savedCharts.flatMap((chart) => chart.exploreNames),
                         ),
                         organizationUuid: account.organization.organizationUuid,
                     }),
@@ -16425,40 +16414,60 @@ export class ProjectService
                             };
                         }
 
-                        const cachedExplore = exploresMap[savedChart.tableName];
-                        const explore =
-                            shouldRedactSql &&
-                            cachedExplore &&
-                            !isExploreError(cachedExplore)
-                                ? redactExploreSql(cachedExplore)
-                                : cachedExplore;
-
-                        let filters: FilterableDimension[] = [];
-                        let metricFilters: Metric[] = [];
-                        let hiddenFieldIds: string[] = [];
-                        if (explore && !isExploreError(explore)) {
-                            const filtersPromise =
-                                filtersByExplore.get(savedChart.tableName) ??
-                                this.getFilterableDimensionsForExplore(
-                                    savedChart.projectUuid,
-                                    explore,
+                        // A merged chart filters on the fields of every query it merges
+                        const explores = savedChart.exploreNames.flatMap(
+                            (exploreName) => {
+                                const cachedExplore = exploresMap[exploreName];
+                                if (
+                                    !cachedExplore ||
+                                    isExploreError(cachedExplore)
+                                ) {
+                                    return [];
+                                }
+                                return [
+                                    {
+                                        exploreName,
+                                        explore: shouldRedactSql
+                                            ? redactExploreSql(cachedExplore)
+                                            : cachedExplore,
+                                    },
+                                ];
+                            },
+                        );
+                        const filters = await Promise.all(
+                            explores.map(({ exploreName, explore }) => {
+                                const filtersPromise =
+                                    filtersByExplore.get(exploreName) ??
+                                    this.getFilterableDimensionsForExplore(
+                                        savedChart.projectUuid,
+                                        explore,
+                                    );
+                                filtersByExplore.set(
+                                    exploreName,
+                                    filtersPromise,
                                 );
-                            filtersByExplore.set(
-                                savedChart.tableName,
-                                filtersPromise,
-                            );
-                            filters = await filtersPromise;
-                            metricFilters = getMetrics(explore).filter(
+                                return filtersPromise;
+                            }),
+                        );
+                        const metricFilters = explores.flatMap(({ explore }) =>
+                            getMetrics(explore).filter(
                                 (field) => !field.hidden,
-                            );
-                            hiddenFieldIds =
-                                getHiddenFilterableFieldIds(explore);
-                        }
+                            ),
+                        );
+                        const hiddenFieldIds = explores.flatMap(({ explore }) =>
+                            getHiddenFilterableFieldIds(explore),
+                        );
 
                         return {
                             uuid: savedChart.uuid,
-                            filters,
-                            metricFilters,
+                            filters: uniqBy(
+                                filters.flat(),
+                                getDashboardFilterableFieldKey,
+                            ),
+                            metricFilters: uniqBy(
+                                metricFilters,
+                                getDashboardFilterableFieldKey,
+                            ),
                             hiddenFieldIds,
                         };
                     }),

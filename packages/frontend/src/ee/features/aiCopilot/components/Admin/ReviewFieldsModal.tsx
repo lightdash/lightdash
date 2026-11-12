@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { Button, Center, Group, Loader, Stack, Text } from '@mantine/core';
 import {
-    Icon123,
+    IconNumber123,
     IconAbc,
     IconChartBar,
     IconCircle,
@@ -118,7 +118,7 @@ export const ReviewFieldsModal: FC<Props> = ({
             className={styles.row}
         >
             <MantineIcon
-                icon={field.fieldType === 'metric' ? Icon123 : IconAbc}
+                icon={field.fieldType === 'metric' ? IconNumber123 : IconAbc}
                 size="lg"
                 color={field.fieldType === 'metric' ? 'orange.6' : 'blue.6'}
             />

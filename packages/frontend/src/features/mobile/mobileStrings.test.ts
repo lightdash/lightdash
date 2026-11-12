@@ -15,5 +15,8 @@ describe('mobile sign-in strings', () => {
         expect(MOBILE_APP_SIGN_IN_STRINGS.wrongNumber(1)).toBe(
             'Wrong number. 1 try left.',
         );
+        expect(MOBILE_APP_SIGN_IN_STRINGS.cancelledTitle).toBe(
+            'Sign-in cancelled',
+        );
     });
 });

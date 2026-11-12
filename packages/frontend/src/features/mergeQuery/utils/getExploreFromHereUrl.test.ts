@@ -1,6 +1,10 @@
 import {
     ChartType,
+    DimensionType,
+    getComposerMergeSavedChart,
     MergeJoinType,
+    QuerySourceType,
+    type SemanticLayerSourceQuery,
     type SavedChart,
     type SavedMergeQuery,
     upgradeSavedMergeQuery,
@@ -139,5 +143,99 @@ describe('getExploreFromHereUrl', () => {
         expect(new URLSearchParams(url.search).has(MERGE_URL_PARAM)).toBe(
             false,
         );
+    });
+
+    it('opens a composer merge node with every source, key name, calc, repeat, sort and limit', () => {
+        const node = (
+            nodeId: string,
+            exploreName: string,
+        ): SemanticLayerSourceQuery => ({
+            sourceType: QuerySourceType.SEMANTIC_LAYER,
+            nodeId,
+            exploreName,
+            dimensions: [`${exploreName}_month`],
+            metrics: [`${exploreName}_total`],
+        });
+        const calc = {
+            name: 'gap',
+            displayName: 'Gap',
+            sql: '',
+            formula: '=${orders_m_orders_total} - ${payments_m_payments_total}',
+        };
+        const saved = getComposerMergeSavedChart({
+            config: {
+                source: 'composer',
+                schemaVersion: 2,
+                queries: [
+                    node('orders_m', 'orders'),
+                    node('payments_m', 'payments'),
+                    node('customers_m', 'customers'),
+                    {
+                        sourceType: QuerySourceType.MERGE,
+                        nodeId: 'merged',
+                        sources: [
+                            { nodeId: 'orders_m' },
+                            { nodeId: 'payments_m' },
+                            { nodeId: 'customers_m', repeatValues: true },
+                        ],
+                        joinKey: [
+                            {
+                                name: 'month',
+                                fieldIdBySourceId: {
+                                    orders_m: 'orders_month',
+                                    payments_m: 'payments_month',
+                                    customers_m: 'customers_month',
+                                },
+                            },
+                        ],
+                        joinType: MergeJoinType.INNER,
+                        tableCalculations: [calc],
+                        sorts: [{ fieldId: 'merge_gap', descending: true }],
+                        limit: 25,
+                    },
+                ],
+                terminalNodeId: 'merged',
+                vizConfig: null,
+            },
+            columns: [
+                { reference: 'merge_month', type: DimensionType.DATE },
+                { reference: 'merge_gap', type: DimensionType.NUMBER },
+            ],
+            metadata: { title: 'Gap', description: '' },
+        })!;
+
+        const url = getExploreFromHereUrl({
+            ...saved,
+            projectUuid: 'project-uuid',
+        });
+        const params = new URLSearchParams(url.search);
+
+        expect(url.pathname).toBe('/projects/project-uuid/tables/orders');
+        expect(parseChartParam(url.search).metricQuery).toMatchObject({
+            sorts: [{ fieldId: 'merge_gap', descending: true }],
+            limit: 25,
+        });
+        const state = parseMergeState(params.get(MERGE_URL_PARAM));
+        expect(state).toMatchObject({
+            primarySourceName: 'orders_m',
+            additionalSources: [
+                { name: 'payments_m', exploreName: 'payments' },
+                { name: 'customers_m', exploreName: 'customers' },
+            ],
+            joinType: MergeJoinType.INNER,
+            tableCalculations: [calc],
+        });
+        const [payments, customers] = state!.additionalSources;
+        expect(state!.repeatValuesSourceIds).toEqual([customers.id]);
+        expect(state!.joinParts).toEqual([
+            {
+                name: 'month',
+                fieldIdBySourceId: {
+                    a: 'orders_month',
+                    [payments.id]: 'payments_month',
+                    [customers.id]: 'customers_month',
+                },
+            },
+        ]);
     });
 });

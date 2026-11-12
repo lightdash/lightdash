@@ -11,6 +11,10 @@ export type RailContractClassNames = {
     parameter: string;
     /** The parameter popover. */
     parameterDropdown: string;
+    /** Each date zoom pill, named and Default. */
+    dateZoom: string;
+    /** The date zoom popovers. */
+    dateZoomDropdown: string;
 };
 
 export const RailContractClasses = createContext<RailContractClassNames | null>(

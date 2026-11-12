@@ -4718,6 +4718,66 @@ describe('AiAgentToolsService runComposerQueries', () => {
         );
     });
 
+    it('reads every terminal row when asked, up to the node limit', async () => {
+        const totalRows = 3000;
+        const getAsyncQueryResults = vi.fn(
+            async ({
+                page,
+                pageSize,
+                maxPageSize = 2500,
+            }: {
+                page: number;
+                pageSize: number;
+                maxPageSize?: number;
+            }) => {
+                validatePagination({
+                    page,
+                    pageSize,
+                    queryMaxLimit: maxPageSize,
+                    totalRowCount: totalRows,
+                });
+                return {
+                    ...readyResults,
+                    rows: Array.from(
+                        { length: Math.min(pageSize, totalRows) },
+                        (_, i) => ({ orders_total: { value: { raw: i } } }),
+                    ),
+                    totalResults: totalRows,
+                };
+            },
+        );
+        const service = makeService({
+            maxQueryLimit: 5000,
+            querySourceService: {
+                executeSourceQueries: vi
+                    .fn()
+                    .mockResolvedValue({ queries: submissions }),
+                getSourceQueryStatuses: vi
+                    .fn()
+                    .mockResolvedValue(readyStatuses),
+            },
+            asyncQueryService: { getAsyncQueryResults },
+        });
+
+        const result = await service
+            .createRuntime(makeRuntimeContext())
+            .runComposerQueriesUntilDeadline({
+                queries: composerQueries.map((query) =>
+                    query.nodeId === 'joined'
+                        ? { ...query, limit: totalRows }
+                        : query,
+                ),
+                terminalNodeId: 'joined',
+                otherUnreadNodeIds: [],
+                sampleNodeIds: [],
+                deadlineMs: Date.now() + 60_000,
+                readAllTerminalRows: true,
+            });
+
+        if (result.status !== 'success') throw new Error('expected success');
+        expect(result.terminal.rows).toHaveLength(totalRows);
+    });
+
     describe('node samples', () => {
         const ordersPage = async (pageSize: number) => ({
             status: QueryHistoryStatus.READY,

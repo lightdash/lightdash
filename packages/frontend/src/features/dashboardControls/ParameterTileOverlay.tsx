@@ -1,43 +1,27 @@
 import { interpolateUiString } from '@lightdash/common';
-import { Box, Button, Group, Paper, Stack, Text } from '@mantine/core';
+import { Stack, Text } from '@mantine/core';
 import { useCallbackRef } from '@mantine/hooks';
 import { IconAdjustmentsHorizontal } from '@tabler/icons-react';
-import {
-    memo,
-    useLayoutEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-} from 'react';
+import { memo, useLayoutEffect, useRef, useState, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import MantineIcon from '../../components/common/MantineIcon';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
-import {
-    selectActiveTab,
-    selectDashboardTabs,
-    selectDashboardTiles,
-    useDashboardSelector,
-} from '../dashboard/store';
 import { LazySelect } from './LazySelect';
-import { focusOnMount } from './mappingFocus';
 import {
     type ParameterTileCard,
     type TileParameterOption,
 } from './parameterPeers';
-import { getTilesOnTab } from './peers';
+import { ControlName, MoveQuestion, TileCard, TileVeil } from './TileCard';
 import { TileCardOffRow } from './TileOverlay';
-import classes from './TileOverlay.module.css';
 import {
     areTilePropsEqual,
-    getTileTitle,
+    getTileHighlight,
     type TileHighlight,
 } from './tileProps';
-import { getTileSelector, LOCKED_TILE_CLASS } from './tileSelector';
 import { useParameterEditorSelector } from './useParameterEditor';
 import { useParameterMapping } from './useParameterMapping';
-import { usePortalTargets } from './usePortalTargets';
 import { useScrollToHighlightedTile } from './useScrollToHighlightedTile';
+import { useTabTileTargets } from './useTabTileTargets';
 
 const NO_KEYS: string[] = [];
 // A tile card's select: the stand-in button, or the real input once used
@@ -68,13 +52,6 @@ type Props = {
     /** `isMove`: the author confirmed taking it from the control that sets it here. */
     onSet: (tileUuid: string, key: string | null, isMove: boolean) => void;
 };
-
-// A control named inside a sentence: the one part that reads at full weight
-const ControlName: FC<{ name: string }> = ({ name }) => (
-    <Text span inherit fw={600} c="text">
-        {name}
-    </Text>
-);
 
 const ParameterTileOverlay = memo<Props>(
     ({
@@ -122,13 +99,7 @@ const ParameterTileOverlay = memo<Props>(
 
         // As a filter's unreachable tile: the veil only, the reason as its hint
         if (cardKind === 'none') {
-            return (
-                <div
-                    className={`${classes.overlay} ${classes.unfilterable} ${LOCKED_TILE_CLASS}`}
-                    data-controls-overlay
-                    title={`No parameter ${controlName} can set`}
-                />
-            );
+            return <TileVeil title={`No parameter ${controlName} can set`} />;
         }
 
         // Only the names: the Move question is where another control is named
@@ -165,115 +136,80 @@ const ParameterTileOverlay = memo<Props>(
         };
 
         return (
-            <div
-                ref={overlayRef}
-                className={`${classes.overlay} ${LOCKED_TILE_CLASS}`}
-                data-controls-overlay
-                data-highlighted={highlight ?? undefined}
+            <TileCard
+                overlayRef={overlayRef}
+                highlight={highlight}
                 // Editors only map parameters
                 title="Tiles are locked while a parameter is edited"
             >
-                <Box className={classes.ring} aria-hidden />
-                <Paper
-                    shadow="md"
-                    p="sm"
-                    radius="md"
-                    className={classes.card}
-                    title=""
-                    data-controls-editor
-                >
-                    {pendingMove !== null ? (
-                        // The question on its own line: a long control name has room
-                        <Stack gap="xs">
-                            <Text fz="xs" role="status">
-                                {moveTemplate
-                                    .split('{controls}')
-                                    .flatMap((part, index) =>
-                                        index === 0
-                                            ? [part]
-                                            : [
-                                                  <ControlName
-                                                      key={index}
-                                                      name={pendingMove.from}
-                                                  />,
-                                                  part,
-                                              ],
-                                    )}
-                            </Text>
-                            <Group gap="xs" wrap="nowrap" justify="flex-end">
-                                <Button
-                                    variant="subtle"
-                                    size="xs"
-                                    onClick={() => answer(false)}
-                                >
-                                    Cancel
-                                </Button>
-                                {/* The row's Apply is the one filled button */}
-                                <Button
-                                    variant="default"
-                                    size="xs"
-                                    ref={focusOnMount}
-                                    onClick={() => answer(true)}
-                                >
-                                    Move
-                                </Button>
-                            </Group>
-                        </Stack>
-                    ) : isPickerShown ? (
-                        <Stack gap="xs">
-                            <Text fz="xs" c="dimmed" truncate>
-                                {setKey === null
-                                    ? 'Not set'
-                                    : `Set by ${controlName} through`}
-                            </Text>
-                            <LazySelect
-                                aria-label={selectLabel}
-                                leftSection={
-                                    <MantineIcon
-                                        icon={IconAdjustmentsHorizontal}
-                                        size={14}
-                                        color="dimmed"
-                                    />
-                                }
-                                placeholder="Select a parameter"
-                                clearLabel={`Stop setting this tile by ${controlName}`}
-                                options={{ kind: 'options', options }}
-                                nothingFoundMessage="No parameters match"
-                                value={setKey}
-                                onChange={pick}
-                                onReselect={
-                                    setKeys.length > 1 ? pick : undefined
-                                }
-                            />
-                            {setKey !== null && valueLabel !== null && (
-                                <Text fz="xs" c="dimmed" truncate>
-                                    {`Shows ${valueLabel}`}
-                                </Text>
+                {pendingMove !== null ? (
+                    <MoveQuestion
+                        question={moveTemplate
+                            .split('{controls}')
+                            .flatMap((part, index) =>
+                                index === 0
+                                    ? [part]
+                                    : [
+                                          <ControlName
+                                              key={index}
+                                              name={pendingMove.from}
+                                          />,
+                                          part,
+                                      ],
                             )}
-                        </Stack>
-                    ) : (
-                        // As a filter's card for a tile it is not on
-                        <TileCardOffRow
-                            label={
-                                takenByName === null ? (
-                                    'Not set'
-                                ) : (
-                                    <>
-                                        Set by{' '}
-                                        <ControlName name={takenByName} />
-                                    </>
-                                )
+                        onAnswer={answer}
+                    />
+                ) : isPickerShown ? (
+                    <Stack gap="xs">
+                        <Text fz="xs" c="dimmed" truncate>
+                            {setKey === null
+                                ? 'Not set'
+                                : `Set by ${controlName} through`}
+                        </Text>
+                        <LazySelect
+                            aria-label={selectLabel}
+                            leftSection={
+                                <MantineIcon
+                                    icon={IconAdjustmentsHorizontal}
+                                    size={14}
+                                    color="dimmed"
+                                />
                             }
-                            actionLabel="Set this tile"
-                            ariaLabel={selectLabel}
-                            onAction={() => {
-                                isFocusPending.current = true;
-                                setIsPicking(true);
-                            }}
+                            placeholder="Select a parameter"
+                            clearLabel={`Stop setting this tile by ${controlName}`}
+                            options={{ kind: 'options', options }}
+                            nothingFoundMessage="No parameters match"
+                            value={setKey}
+                            onChange={pick}
+                            onReselect={setKeys.length > 1 ? pick : undefined}
                         />
-                    )}
-                </Paper>
-            </div>
+                        {setKey !== null && valueLabel !== null && (
+                            <Text fz="xs" c="dimmed" truncate>
+                                {`Shows ${valueLabel}`}
+                            </Text>
+                        )}
+                    </Stack>
+                ) : (
+                    // As a filter's card for a tile it is not on
+                    <TileCardOffRow
+                        label={
+                            takenByName === null ? (
+                                'Not set'
+                            ) : (
+                                <>
+                                    Set by <ControlName name={takenByName} />
+                                </>
+                            )
+                        }
+                        actionLabel="Set this tile"
+                        ariaLabel={selectLabel}
+                        onAction={() => {
+                            isFocusPending.current = true;
+                            setIsPicking(true);
+                        }}
+                    />
+                )}
+            </TileCard>
         );
     },
     areTilePropsEqual,
@@ -293,22 +229,8 @@ const MappedTileOverlays: FC = () => {
     const hoveredKey = useParameterEditorSelector((c) => c.hoveredKey);
     const activeKey = hoveredKey ?? selectedKey;
     const setTiles = useParameterEditorSelector((c) => c.setTiles);
-    const dashboardTiles = useDashboardSelector(selectDashboardTiles);
-    const activeTab = useDashboardSelector(selectActiveTab);
-    const dashboardTabs = useDashboardSelector(selectDashboardTabs);
-    // As the grid draws them: a tile with no tab, or a stale one, is on the first
-    const tiles = useMemo(() => {
-        const all = dashboardTiles ?? [];
-        return activeTab && dashboardTabs.length > 0
-            ? getTilesOnTab(all, dashboardTabs, activeTab.uuid)
-            : all;
-    }, [dashboardTiles, dashboardTabs, activeTab]);
-    const tileUuids = useMemo(() => tiles.map((tile) => tile.uuid), [tiles]);
-    const targets = usePortalTargets(
-        tileUuids,
-        getTileSelector,
+    const { tiles, targets, selectLabelOf } = useTabTileTargets(
         mapping !== null,
-        true,
     );
     const handleSet = useCallbackRef(
         (tileUuid: string, key: string | null, isMove: boolean) =>
@@ -327,30 +249,17 @@ const MappedTileOverlays: FC = () => {
                 const options = mapping.optionsByTile[tile.uuid] ?? [];
                 if (card === undefined) return null;
                 const setKeys = card.kind === 'set' ? card.keys : NO_KEYS;
-                const highlight: TileHighlight | null =
-                    card.kind === 'none'
-                        ? null
-                        : card.kind === 'unset' || card.kind === 'taken'
-                          ? 'available'
-                          : activeKey === null
-                            ? 'filtered'
-                            : setKeys.includes(activeKey)
-                              ? 'mapped'
-                              : 'other';
+                const highlight = getTileHighlight({
+                    isReachable: card.kind !== 'none',
+                    isOnControl: card.kind === 'set',
+                    activeId: activeKey,
+                    isOnActive: (key) => setKeys.includes(key),
+                });
                 return createPortal(
                     <ParameterTileOverlay
                         tileUuid={tile.uuid}
                         controlName={mapping.name}
-                        selectLabel={interpolateUiString(
-                            getUiString('filters.tileCard.selectName'),
-                            {
-                                filter: mapping.name,
-                                tile: getTileTitle(
-                                    tile,
-                                    getUiString('filters.tileCard.thisTile'),
-                                ),
-                            },
-                        )}
+                        selectLabel={selectLabelOf(mapping.name, tile)}
                         cardKind={card.kind}
                         takenByName={
                             card.kind === 'taken'

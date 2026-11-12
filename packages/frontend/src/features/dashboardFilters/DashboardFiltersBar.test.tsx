@@ -33,11 +33,20 @@ vi.mock('../parameters/components/ParameterInput', () => ({
     ParameterInput: () => null,
 }));
 vi.mock('./index', () => ({ default: () => null }));
-vi.mock('./FilterGroupSeparator', () => ({ default: () => null }));
+vi.mock('./FilterGroupSeparator', () => ({
+    default: () => <span data-testid="group-marker" />,
+}));
 vi.mock('./FilterRequirements/FilterRequirementsButton', () => ({
     default: () => null,
 }));
-vi.mock('../dateZoom', () => ({ DateZoom: () => null }));
+vi.mock('../dateZoom', () => ({
+    DateZoom: ({ withControls = true }: { withControls?: boolean }) => (
+        <span
+            data-testid="date-zoom"
+            data-with-controls={String(withControls)}
+        />
+    ),
+}));
 
 const props: ComponentProps<typeof DashboardFiltersBar> = {
     isEditMode: false,
@@ -194,5 +203,53 @@ describe('DashboardFiltersBar isParametersColumn', () => {
         expect(parametersColumn()).toContainElement(
             parameterButtons('Metric is count')[0],
         );
+    });
+});
+
+describe('DashboardFiltersBar group markers and date zoom', () => {
+    beforeEach(() => {
+        compact.current = false;
+        context.current = {
+            isAddFilterDisabled: false,
+            dashboard: { projectUuid: 'project-uuid' },
+            setParameter: vi.fn(),
+            toggleParameterPin: vi.fn(),
+            setPinnedParameters: vi.fn(),
+            setIsDateZoomDisabled: vi.fn(),
+        } as unknown as DashboardContextType;
+    });
+
+    it('keeps the markers, the eye and the date zoom group by default, as with the flag off', () => {
+        renderBar({ isEditMode: true, isDateZoomDisabled: false });
+        // Filters, parameters and date zoom each have their circle
+        expect(screen.getAllByTestId('group-marker')).toHaveLength(3);
+        expect(screen.getByTestId('date-zoom')).toHaveAttribute(
+            'data-with-controls',
+            'true',
+        );
+        expect(
+            screen.getByRole('button', {
+                name: 'Toggle date zoom visibility for viewers',
+            }),
+        ).toBeInTheDocument();
+    });
+
+    it('leaves out the markers, the named zooms and the eye when asked, keeping Default zoom', () => {
+        renderBar({
+            isEditMode: true,
+            isDateZoomDisabled: false,
+            withGroupMarkers: false,
+            withDateZoomControls: false,
+        });
+        expect(screen.queryByTestId('group-marker')).not.toBeInTheDocument();
+        expect(screen.getByTestId('date-zoom')).toHaveAttribute(
+            'data-with-controls',
+            'false',
+        );
+        expect(
+            screen.queryByRole('button', {
+                name: 'Toggle date zoom visibility for viewers',
+            }),
+        ).not.toBeInTheDocument();
     });
 });

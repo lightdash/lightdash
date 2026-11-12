@@ -49,6 +49,8 @@ export type DashboardControlSources = {
     filters: Pick<DashboardFilters, 'dimensions' | 'metrics'>;
     parameterControls: DashboardParameterControl[];
     sections: DashboardControlSection[];
+    /** Absent: date zooms stay off the order, as for readers that don't place them yet */
+    dateZoomControls?: DateZoomControl[];
 };
 
 type Adapter<K extends DashboardControlKind> = (
@@ -95,8 +97,15 @@ const adapters: { [K in DashboardControlKind]: Adapter<K> } = {
             hidden: control.hidden ?? false,
             control,
         })),
-    // Date zoom controls don't join the shared order yet
-    [DashboardControlRefKind.DATE_ZOOM]: () => [],
+    [DashboardControlRefKind.DATE_ZOOM]: ({ dateZoomControls }, sectionOf) =>
+        (dateZoomControls ?? []).map((control) => ({
+            kind: DashboardControlRefKind.DATE_ZOOM,
+            id: control.uuid,
+            sectionId: sectionOf(control.sectionId),
+            label: control.name,
+            hidden: control.hidden ?? false,
+            control,
+        })),
     // A repeated section id would expand its members twice
     [DashboardControlRefKind.SECTION]: ({ sections }) =>
         uniqBy(sections, 'id').map((section) => ({

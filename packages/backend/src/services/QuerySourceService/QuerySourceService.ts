@@ -507,6 +507,25 @@ export class QuerySourceService extends BaseService {
             await this.assertAgentSqlAccess(account, projectUuid);
         }
 
+        const submission = ordered.map(({ nodeId, query }) => ({
+            ...query,
+            nodeId,
+        }));
+        await Promise.all(
+            ordered.map(({ source, query }) =>
+                source.validateQuery?.({
+                    account,
+                    projectUuid,
+                    query,
+                    submission,
+                    querySurface,
+                    parameters,
+                    userAttributeOverrides,
+                    invalidateCache,
+                }),
+            ),
+        );
+
         // nodeId -> queryUuid, grown as submissions happen so later queries'
         // node-id references resolve
         const resolvedReferences: Record<string, string> = {};
@@ -520,6 +539,7 @@ export class QuerySourceService extends BaseService {
                 context,
                 querySurface,
                 query: entry.query,
+                submission,
                 resolvedReferences: { ...resolvedReferences },
                 parameters,
                 userAttributeOverrides,
@@ -573,6 +593,7 @@ export class QuerySourceService extends BaseService {
                 externalNodeCount: count(QuerySourceType.EXTERNAL),
                 pythonNodeCount: count(QuerySourceType.PYTHON),
                 apiNodeCount: count(QuerySourceType.API),
+                mergeNodeCount: count(QuerySourceType.MERGE),
             },
         });
     }

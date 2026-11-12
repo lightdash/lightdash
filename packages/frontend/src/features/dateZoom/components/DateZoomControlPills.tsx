@@ -40,14 +40,13 @@ import { getGranularityLabel } from '../utils';
 import styles from './DateZoom.module.css';
 import { DateZoomControlConfig } from './DateZoomControlConfig';
 
-type Props = {
-    isEditMode: boolean;
+type MenuItemsProps = {
+    control: DateZoomControl;
 };
 
-export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
+/** A named zoom's grains and "Reset to default", picked at once. */
+export const DateZoomControlMenuItems: FC<MenuItemsProps> = ({ control }) => {
     const getUiString = useUiStrings();
-    const dateZoomConfig = useDashboardDateZoomConfig();
-    const setDateZoomConfig = useDashboardContext((c) => c.setDateZoomConfig);
     const controlGranularities = useDashboardSelector(
         selectControlGranularities,
     );
@@ -58,7 +57,6 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
         selectAvailableCustomGranularities,
     );
     const dateZoomGranularities = useDashboardDateZoomGranularities();
-    const defaultDateZoomGranularity = useDefaultDateZoomGranularity();
 
     // A control offers only the dashboard's enabled granularities, split into
     // standard and custom (customs sorted by label).
@@ -85,6 +83,79 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                 ),
         [dateZoomGranularities, availableCustomGranularities, getUiString],
     );
+    const activeGranularity = getControlActiveGranularity(
+        control,
+        controlGranularities,
+    );
+
+    return (
+        <>
+            <Menu.Label>Granularity</Menu.Label>
+            {standardGranularities.map((granularity) => (
+                <Menu.Item
+                    key={granularity}
+                    fz="xs"
+                    disabled={activeGranularity === granularity}
+                    onClick={() =>
+                        setControlGranularity(control.uuid, granularity)
+                    }
+                >
+                    {getGranularityLabel(
+                        granularity,
+                        availableCustomGranularities,
+                        getUiString,
+                    )}
+                </Menu.Item>
+            ))}
+            {customGranularities.length > 0 && (
+                <>
+                    <Menu.Divider />
+                    <Menu.Label>Custom</Menu.Label>
+                    {customGranularities.map((granularity) => (
+                        <Menu.Item
+                            key={granularity}
+                            fz="xs"
+                            disabled={activeGranularity === granularity}
+                            onClick={() =>
+                                setControlGranularity(control.uuid, granularity)
+                            }
+                        >
+                            {getGranularityLabel(
+                                granularity,
+                                availableCustomGranularities,
+                                getUiString,
+                            )}
+                        </Menu.Item>
+                    ))}
+                </>
+            )}
+            <Menu.Divider />
+            <Menu.Item
+                fz="xs"
+                onClick={() => setControlGranularity(control.uuid, undefined)}
+            >
+                Reset to default
+            </Menu.Item>
+        </>
+    );
+};
+
+type Props = {
+    isEditMode: boolean;
+};
+
+export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
+    const getUiString = useUiStrings();
+    const dateZoomConfig = useDashboardDateZoomConfig();
+    const setDateZoomConfig = useDashboardContext((c) => c.setDateZoomConfig);
+    const controlGranularities = useDashboardSelector(
+        selectControlGranularities,
+    );
+    const availableCustomGranularities = useDashboardSelector(
+        selectAvailableCustomGranularities,
+    );
+    const dateZoomGranularities = useDashboardDateZoomGranularities();
+    const defaultDateZoomGranularity = useDefaultDateZoomGranularity();
 
     const [editingControl, setEditingControl] = useState<DateZoomControl>();
     // Inner Select dropdowns portal outside the config popover; track them so a
@@ -193,77 +264,9 @@ export const DateZoomControlPills: FC<Props> = ({ isEditMode }) => {
                                             </Button>
                                         </Menu.Target>
                                         <Menu.Dropdown>
-                                            <Menu.Label>Granularity</Menu.Label>
-                                            {standardGranularities.map(
-                                                (granularity) => (
-                                                    <Menu.Item
-                                                        key={granularity}
-                                                        fz="xs"
-                                                        disabled={
-                                                            activeGranularity ===
-                                                            granularity
-                                                        }
-                                                        onClick={() =>
-                                                            setControlGranularity(
-                                                                control.uuid,
-                                                                granularity,
-                                                            )
-                                                        }
-                                                    >
-                                                        {getGranularityLabel(
-                                                            granularity,
-                                                            availableCustomGranularities,
-                                                            getUiString,
-                                                        )}
-                                                    </Menu.Item>
-                                                ),
-                                            )}
-                                            {customGranularities.length > 0 && (
-                                                <>
-                                                    <Menu.Divider />
-                                                    <Menu.Label>
-                                                        Custom
-                                                    </Menu.Label>
-                                                    {customGranularities.map(
-                                                        (granularity) => (
-                                                            <Menu.Item
-                                                                key={
-                                                                    granularity
-                                                                }
-                                                                fz="xs"
-                                                                disabled={
-                                                                    activeGranularity ===
-                                                                    granularity
-                                                                }
-                                                                onClick={() =>
-                                                                    setControlGranularity(
-                                                                        control.uuid,
-                                                                        granularity,
-                                                                    )
-                                                                }
-                                                            >
-                                                                {getGranularityLabel(
-                                                                    granularity,
-                                                                    availableCustomGranularities,
-                                                                    getUiString,
-                                                                )}
-                                                            </Menu.Item>
-                                                        ),
-                                                    )}
-                                                </>
-                                            )}
-                                            <Menu.Divider />
-                                            <Menu.Item
-                                                fz="xs"
-                                                onClick={() =>
-                                                    setControlGranularity(
-                                                        control.uuid,
-                                                        undefined,
-                                                    )
-                                                }
-                                            >
-                                                Reset to default
-                                            </Menu.Item>
+                                            <DateZoomControlMenuItems
+                                                control={control}
+                                            />
                                             {isEditMode && (
                                                 <>
                                                     <Menu.Item

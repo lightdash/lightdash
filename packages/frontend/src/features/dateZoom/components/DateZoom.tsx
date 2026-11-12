@@ -133,9 +133,15 @@ const ViewModeGranularityItem: FC<ViewModeGranularityItemProps> = ({
 type Props = {
     isEditMode: boolean;
     dropdownClassName?: string;
+    /** The named zooms' pills and "Add date zoom" after Default zoom (default true). */
+    withControls?: boolean;
 };
 
-export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
+export const DateZoom: FC<Props> = ({
+    isEditMode,
+    dropdownClassName,
+    withControls = true,
+}) => {
     const getUiString = useUiStrings();
     const [showOpenIcon, setShowOpenIcon] = useState(false);
 
@@ -562,7 +568,9 @@ export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
                         </Menu.Dropdown>
                     </Menu>
                 )}
-                <DateZoomControlPills isEditMode={isEditMode} />
+                {withControls && (
+                    <DateZoomControlPills isEditMode={isEditMode} />
+                )}
             </Group>
             {isEditMode && <DateZoomCrossTabFieldsLoader />}
         </Group>

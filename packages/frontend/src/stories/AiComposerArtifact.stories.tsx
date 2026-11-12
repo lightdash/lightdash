@@ -19,6 +19,8 @@ import { AiComposerLineage } from '../ee/features/aiCopilot/components/ChatEleme
 import { ComposerQueriesToolCallDescription } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/descriptions/ComposerQueriesToolCallDescription';
 import { type ComposerRunNodeStatus } from '../ee/features/aiCopilot/components/ChatElements/useComposerRunNodeStatuses';
 import {
+    mergeManyStepsStoryQueries,
+    mergeStoryQueries,
     ordersSemanticNode,
     STORY_PROJECT_UUID,
 } from './fixtures/semanticQueryStoryData';
@@ -397,6 +399,141 @@ export const SemanticNodeDetails: Story = {
     play: async ({ canvas, userEvent }) => {
         await userEvent.click(
             canvas.getByRole('button', { name: /View metric query/ }),
+        );
+    },
+};
+
+/** A left join of two steps: a key named differently per step, repeats, calculation, sort and limit. */
+export const MergeNode: Story = {
+    args: {
+        queries: mergeStoryQueries,
+        terminalNodeId: 'revenue_per_session',
+        lineage: true,
+        result: {
+            title: 'Revenue per session',
+            description:
+                'Weekly revenue by status beside that week’s sessions.',
+            columns: ['week', 'status', 'revenue', 'sessions', 'per_session'],
+            rows: [
+                ['2026-10-19', 'completed', 2480, 912, '2.72'],
+                ['2026-10-19', 'shipped', 610, 912, '0.67'],
+                ['2026-10-12', 'completed', 2215, 874, '2.53'],
+            ],
+        },
+    },
+};
+
+/** An inner join of three steps where two supply a column with the same label. */
+export const MergeNodeManySteps: Story = {
+    args: {
+        queries: mergeManyStepsStoryQueries,
+        terminalNodeId: 'revenue_change',
+        lineage: true,
+        result: {
+            title: 'Revenue change by week',
+            description: 'This year’s weekly revenue against last year’s.',
+            columns: ['week', 'revenue', 'revenue_last_year', 'change'],
+            rows: [
+                ['2026-10-19', 3090, 2410, '0.28'],
+                ['2026-10-12', 2215, 2050, '0.08'],
+            ],
+        },
+    },
+};
+
+/** The pipeline card of a merge run. */
+export const MergeNodeCard: StoryObj<
+    typeof ComposerQueriesToolCallDescription
+> = {
+    render: () => {
+        const merge = mergeStoryQueries[2];
+        return (
+            <Box w={640}>
+                <ComposerQueriesToolCallDescription
+                    queries={[
+                        {
+                            sourceType: QuerySourceType.SEMANTIC_LAYER,
+                            nodeId: 'weekly_revenue',
+                            title: 'Weekly revenue by status',
+                            exploreName: 'orders',
+                            dimensions: [
+                                'orders_order_date_week',
+                                'orders_status',
+                            ],
+                            metrics: ['orders_total_order_amount'],
+                            description: null,
+                            filters: null,
+                            customMetrics: null,
+                            periodComparisons: null,
+                            sorts: [],
+                            limit: 500,
+                        },
+                        {
+                            sourceType: QuerySourceType.SEMANTIC_LAYER,
+                            nodeId: 'weekly_sessions',
+                            title: 'Weekly web sessions',
+                            exploreName: 'web_sessions',
+                            dimensions: ['web_sessions_session_week'],
+                            metrics: ['web_sessions_session_count'],
+                            description: null,
+                            filters: null,
+                            customMetrics: null,
+                            periodComparisons: null,
+                            sorts: [],
+                            limit: 500,
+                        },
+                        {
+                            sourceType: QuerySourceType.MERGE,
+                            nodeId: 'revenue_per_session',
+                            title: 'Revenue per session',
+                            description: null,
+                            sources: [
+                                {
+                                    nodeId: 'weekly_revenue',
+                                    repeatValues: null,
+                                },
+                                {
+                                    nodeId: 'weekly_sessions',
+                                    repeatValues: true,
+                                },
+                            ],
+                            joinKey: [
+                                {
+                                    name: 'week',
+                                    fields: [
+                                        {
+                                            nodeId: 'weekly_revenue',
+                                            fieldId: 'orders_order_date_week',
+                                        },
+                                        {
+                                            nodeId: 'weekly_sessions',
+                                            fieldId:
+                                                'web_sessions_session_week',
+                                        },
+                                    ],
+                                },
+                            ],
+                            joinType: merge.joinType,
+                            tableCalculations: [
+                                {
+                                    name: 'revenue_per_session',
+                                    displayName: 'Revenue per session',
+                                    formula:
+                                        'weekly_revenue_orders_total_order_amount / weekly_sessions_web_sessions_session_count',
+                                    format: null,
+                                },
+                            ],
+                            sorts: null,
+                            limit: 500,
+                        },
+                    ]}
+                    nodeStatuses={{
+                        weekly_revenue: { status: 'success' },
+                        weekly_sessions: { status: 'success' },
+                        revenue_per_session: { status: 'success' },
+                    }}
+                />
+            </Box>
         );
     },
 };
