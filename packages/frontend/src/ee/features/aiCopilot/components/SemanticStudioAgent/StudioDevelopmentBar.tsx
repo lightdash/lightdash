@@ -20,11 +20,13 @@ import { type StudioPullRequest } from './useStudioPullRequest';
 
 /** Why an open pull request cannot be published yet. */
 const getBlockedReason = (ciChecks: CiChecks | null): string => {
-    if (!ciChecks) return 'Checking whether the pull request can be merged.';
-    switch (ciChecks.mergeState) {
+    const mergeState = ciChecks?.mergeState;
+    switch (mergeState) {
+        case undefined:
         case CiMergeState.READY:
         case CiMergeState.UNSTABLE:
-            return '';
+        case CiMergeState.UNKNOWN:
+            return 'Checking whether the pull request can be merged.';
         case CiMergeState.BLOCKED:
             return 'A required check failed or a review is missing.';
         case CiMergeState.CONFLICTS:
@@ -33,13 +35,8 @@ const getBlockedReason = (ciChecks: CiChecks | null): string => {
             return 'The branch is behind its base and needs updating first.';
         case CiMergeState.DRAFT:
             return 'The pull request is still a draft.';
-        case CiMergeState.UNKNOWN:
-            return 'Checking whether the pull request can be merged.';
         default:
-            return assertUnreachable(
-                ciChecks.mergeState,
-                'Unknown merge state',
-            );
+            return assertUnreachable(mergeState, 'Unknown merge state');
     }
 };
 
@@ -60,7 +57,7 @@ export const StudioDevelopmentBar: FC<{
         useMergePullRequest(projectUuid);
     const { mutate: close, isLoading: isClosing } =
         useClosePullRequest(projectUuid);
-    const [armed, setArmed] = useState(false);
+    const [publishing, setPublishing] = useState(false);
     const [discarding, setDiscarding] = useState(false);
     const [isTrying, setIsTrying] = useDevelopmentView();
     const number = /\/(\d+)\/?$/.exec(prUrl)?.[1];
@@ -70,7 +67,7 @@ export const StudioDevelopmentBar: FC<{
             ? project.dbtConnection.branch
             : null;
     const canPublish = isMergeable(ciChecks);
-    const canTry = !!previewProjectUuid || pullRequest.isOpen;
+    const destination = `${name}${branch ? ` into ${branch}` : ''}`;
     return (
         <DevelopmentBar
             summary={
@@ -82,7 +79,6 @@ export const StudioDevelopmentBar: FC<{
                         href={prUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        fz="xs"
                         c="dimmed"
                         underline="always"
                     >
@@ -91,36 +87,31 @@ export const StudioDevelopmentBar: FC<{
                 </Text>
             }
         >
-            {canTry ? (
-                <PreviewToggle
-                    isPreviewing={isTrying}
-                    onChange={(next) => setIsTrying(next, previewProjectUuid)}
-                />
-            ) : null}
+            <PreviewToggle
+                isPreviewing={isTrying}
+                onChange={(next) => setIsTrying(next, previewProjectUuid)}
+            />
             <Tooltip
                 multiline
                 w={240}
                 label={
                     canPublish
-                        ? `Merges ${name}${branch ? ` into ${branch}` : ''}.`
+                        ? `Merges ${destination}.`
                         : getBlockedReason(ciChecks)
                 }
             >
                 <Button
                     size="xs"
-                    loading={isMerging}
                     data-disabled={!canPublish || undefined}
-                    onBlur={() => setArmed(false)}
+                    aria-disabled={!canPublish}
                     onClick={() => {
-                        if (!canPublish) return;
-                        if (armed) merge({ prUrl, sha: commitSha });
-                        else setArmed(true);
+                        if (canPublish) setPublishing(true);
                     }}
                 >
-                    {armed ? 'Confirm publish' : 'Publish'}
+                    Publish
                 </Button>
             </Tooltip>
-            <Menu position="bottom-end" withinPortal>
+            <Menu position="bottom-end">
                 <Menu.Target>
                     <ActionIcon
                         size="md"
@@ -158,6 +149,22 @@ export const StudioDevelopmentBar: FC<{
                     </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
+            {publishing ? (
+                <MantineModal
+                    opened
+                    title="Publish changes"
+                    description={`This merges ${destination}, and everyone sees the changes once the project compiles.`}
+                    confirmLabel="Publish"
+                    confirmLoading={isMerging}
+                    onClose={() => setPublishing(false)}
+                    onConfirm={() =>
+                        merge(
+                            { prUrl, sha: commitSha },
+                            { onSettled: () => setPublishing(false) },
+                        )
+                    }
+                />
+            ) : null}
             {discarding ? (
                 <MantineModal
                     opened
