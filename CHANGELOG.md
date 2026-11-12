@@ -1,3 +1,10 @@
+# [3.226.0](https://github.com/lightdash/lightdash/compare/3.225.0...3.226.0) (2026-11-12)
+
+
+### Features
+
+* **analytics:** add a managed project homepage and Ask AI shortcut ([#32452](https://github.com/lightdash/lightdash/issues/32452)) ([617d100](https://github.com/lightdash/lightdash/commit/617d100485e17465894456fdfd0efff9596157cb))
+
 # [3.225.0](https://github.com/lightdash/lightdash/compare/3.224.0...3.225.0) (2026-11-12)
 
 
