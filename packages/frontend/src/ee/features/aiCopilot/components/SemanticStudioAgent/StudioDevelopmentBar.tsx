@@ -103,7 +103,7 @@ export const StudioDevelopmentBar: FC<{
                     href={prUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    color="blue"
+                    color="orange"
                     flex="none"
                     className={classes.statusLink}
                 >

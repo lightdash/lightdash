@@ -129,10 +129,7 @@ const SingleFileDiff: FC<{ patch: string }> = ({ patch }) => {
 // File-list sidebar + the selected file's diff. The split-and-select layout
 // keeps each diff a single file (what PatchDiff wants) and makes a large
 // many-file PR easy to navigate.
-const DiffBrowser: FC<{ patch: string; height: string }> = ({
-    patch,
-    height,
-}) => {
+const DiffBrowser: FC<{ patch: string }> = ({ patch }) => {
     const files = useMemo(() => splitPatchIntoFiles(patch), [patch]);
     const [selectedKey, setSelectedKey] = useState(files[0]?.key);
     const selected =
@@ -147,7 +144,7 @@ const DiffBrowser: FC<{ patch: string; height: string }> = ({
     }
 
     return (
-        <Flex gap="md" align="stretch" w="100%" h={height}>
+        <Flex gap="md" align="stretch" w="100%" h={VIEWER_HEIGHT}>
             <Box w={260} miw={260} h="100%" className={classes.fileList}>
                 <Text size="xs" c="dimmed" fw={600} px="xs" pb={4}>
                     {files.length} file{files.length > 1 ? 's' : ''} changed
@@ -227,13 +224,56 @@ export const WritebackDiffModal: FC<{
                     Couldn't load the diff for this pull request.
                 </Text>
             ) : (
-                <DiffBrowser patch={data.diff} height={VIEWER_HEIGHT} />
+                <DiffBrowser patch={data.diff} />
             )}
         </MantineModal>
     );
 };
 
-/** A pull request's diff filling the pane it is put in, file by file. */
+/** Every file of a diff, one under the other, each with its own header. */
+const DiffStack: FC<{ patch: string }> = ({ patch }) => {
+    const files = useMemo(() => splitPatchIntoFiles(patch), [patch]);
+    const colorScheme = useComputedColorScheme('light');
+    if (files.length === 0) {
+        return (
+            <Text size="sm" c="dimmed" ta="center" py="xl">
+                This pull request has no file changes.
+            </Text>
+        );
+    }
+    return (
+        <WorkerPoolContextProvider
+            poolOptions={POOL_OPTIONS}
+            highlighterOptions={HIGHLIGHTER_OPTIONS}
+        >
+            <Box className={classes.stack}>
+                {files.map((file) => (
+                    <Paper
+                        key={file.key}
+                        withBorder
+                        radius="md"
+                        className={classes.stackFile}
+                        style={{ '--diff-color-scheme': colorScheme }}
+                    >
+                        <PatchDiff
+                            patch={file.patch}
+                            className={classes.diffHost}
+                            options={{
+                                diffStyle: 'unified',
+                                theme:
+                                    colorScheme === 'dark'
+                                        ? 'pierre-dark'
+                                        : 'pierre-light',
+                            }}
+                        />
+                    </Paper>
+                ))}
+            </Box>
+        </WorkerPoolContextProvider>
+    );
+};
+
+/** A pull request's diff as a stack of its files, filling the pane it is put in. */
 export const PullRequestDiffPane: FC<{
     projectUuid: string;
     prUrl: string;
@@ -259,5 +299,5 @@ export const PullRequestDiffPane: FC<{
             </Text>
         );
     }
-    return <DiffBrowser patch={data.diff} height="100%" />;
+    return <DiffStack patch={data.diff} />;
 };

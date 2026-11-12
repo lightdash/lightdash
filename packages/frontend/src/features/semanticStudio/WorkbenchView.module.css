@@ -40,17 +40,14 @@
     border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
-/* Changes that are not live tint the toolbar in their status chip's colour. */
-.toolbar[data-status='draft'] {
+/* Changes that are not live tint the toolbar orange, the one colour for not live. */
+.toolbar[data-status='draft'],
+.toolbar[data-status='pull-request'] {
     background: color-mix(
         in srgb,
         var(--mantine-color-orange-5) 7%,
         transparent
     );
-}
-
-.toolbar[data-status='pull-request'] {
-    background: color-mix(in srgb, var(--mantine-color-blue-5) 7%, transparent);
 }
 
 .toolbar[data-status='saving'] {
