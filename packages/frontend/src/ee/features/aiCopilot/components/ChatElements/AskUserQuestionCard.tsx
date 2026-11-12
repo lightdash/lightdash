@@ -1,5 +1,6 @@
 import { formatAskUserAnswers, type AskUserQuestion } from '@lightdash/common';
 import {
+    Box,
     Button,
     Checkbox,
     Group,
@@ -8,7 +9,7 @@ import {
     Radio,
     Stack,
     Text,
-    TextInput,
+    Textarea,
 } from '@mantine/core';
 import { useEffect, useRef, useState, type FC } from 'react';
 import styles from './AskUserQuestionCard.module.css';
@@ -22,6 +23,8 @@ const isTypingTarget = (target: EventTarget | null) =>
 type Props = {
     questions: AskUserQuestion[];
     onSubmit: (answer: string) => void;
+    /** Hands the composer back for a message that answers nothing. */
+    onSkip: () => void;
 };
 
 type Answer = { selected: string[]; custom: string };
@@ -29,8 +32,12 @@ type Answer = { selected: string[]; custom: string };
 const getAnswerText = ({ selected, custom }: Answer) =>
     custom.trim() || selected.join(', ');
 
-/** One question at a time; the answers go out as the next user message. */
-export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
+/** Takes the composer's place: one question at a time, answers sent as the next message. */
+export const AskUserQuestionCard: FC<Props> = ({
+    questions,
+    onSubmit,
+    onSkip,
+}) => {
     const [index, setIndex] = useState(0);
     const [answers, setAnswers] = useState<Answer[]>(() =>
         questions.map(() => ({ selected: [], custom: '' })),
@@ -148,8 +155,10 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                         );
                     })}
                 </Stack>
-                <TextInput
-                    size="xs"
+                <Textarea
+                    autosize
+                    minRows={1}
+                    maxRows={4}
                     aria-label="Your own answer"
                     placeholder="Type your own answer, or leave this blank to use the selected option"
                     value={current.custom}
@@ -160,10 +169,17 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
                         })
                     }
                     onKeyDown={(event) => {
-                        if (event.key === 'Enter') advance();
+                        if (event.key === 'Enter' && !event.shiftKey) {
+                            event.preventDefault();
+                            advance();
+                        }
                     }}
                 />
-                <Group justify="flex-end" gap="xs" wrap="nowrap">
+                <Group gap="xs" wrap="nowrap">
+                    <Button size="xs" variant="subtle" onClick={onSkip}>
+                        Skip
+                    </Button>
+                    <Box flex={1} />
                     {index > 0 && (
                         <Button
                             size="xs"

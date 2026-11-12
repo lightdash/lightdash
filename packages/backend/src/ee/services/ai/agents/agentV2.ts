@@ -1339,9 +1339,7 @@ const getTurnFastResponse = (
     siteUrl: string,
 ) => {
     // Asking ends the turn on any intent; the questions are its reply.
-    const askUserResponse = getAskUserResponse(
-        steps.flatMap((step) => step.toolCalls),
-    );
+    const askUserResponse = getAskUserResponse(steps);
     if (askUserResponse !== null) return askUserResponse;
     if (enableDataAnswerFastResponse && turnIntent === 'data_answer')
         return getDataAnswerFastResponse(steps);
@@ -3377,7 +3375,7 @@ const runGenerateAgentResponse = async ({
                       result.steps,
                       args.siteUrl,
                   ) ?? result.text),
-            result.steps.flatMap((step) => step.toolCalls),
+            result.steps,
         );
 
         logger(
@@ -3950,7 +3948,7 @@ const runStreamAgentResponse = async ({
                               steps,
                               args.siteUrl,
                           ) ?? modelResponse),
-                    steps.flatMap((step) => step.toolCalls),
+                    steps,
                 );
                 const completeResponse =
                     agentContext.responseBlocks.render(responseText);

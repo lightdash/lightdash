@@ -12,7 +12,12 @@ const questions = [
         multiSelect: false,
     },
 ];
-const askCall = { toolName: 'askUser', input: { questions } };
+const askStep = {
+    toolCalls: [
+        { toolCallId: 'ask', toolName: 'askUser', input: { questions } },
+    ],
+    toolResults: [{ toolCallId: 'ask' }],
+};
 
 describe('askUser', () => {
     it('returns the structured output contract', async () => {
@@ -24,22 +29,41 @@ describe('askUser', () => {
     });
 
     it('keeps the question in the reply after the model text', () => {
-        expect(withAskUserQuestions('', [askCall])).toBe(
+        expect(withAskUserQuestions('', [askStep])).toBe(
             'Which month should I use?',
         );
-        expect(withAskUserQuestions('Two months fit.', [askCall])).toBe(
+        expect(withAskUserQuestions('Two months fit.', [askStep])).toBe(
             'Two months fit.\n\nWhich month should I use?',
         );
         expect(
-            withAskUserQuestions('Which month should I use?', [askCall]),
+            withAskUserQuestions('Which month should I use?', [askStep]),
         ).toBe('Which month should I use?');
     });
 
-    it('leaves the reply alone without a valid askUser call', () => {
+    it('leaves the reply alone without an executed, valid askUser call', () => {
         expect(
             withAskUserQuestions('Answer', [
-                { toolName: 'askUser', input: { questions: [] } },
-                { toolName: 'runQuery', input: { questions } },
+                {
+                    toolCalls: [
+                        // Rejected by the SDK: no result.
+                        {
+                            toolCallId: 'a',
+                            toolName: 'askUser',
+                            input: { questions },
+                        },
+                        {
+                            toolCallId: 'b',
+                            toolName: 'askUser',
+                            input: { questions: [] },
+                        },
+                        {
+                            toolCallId: 'c',
+                            toolName: 'runQuery',
+                            input: { questions },
+                        },
+                    ],
+                    toolResults: [{ toolCallId: 'b' }, { toolCallId: 'c' }],
+                },
             ]),
         ).toBe('Answer');
     });

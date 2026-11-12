@@ -11,7 +11,14 @@ import type { AiAgentExecutionConfig } from '../types/aiAgent';
 import type { ExecuteStructuredToolResult } from '../utils/structuredToolResult';
 import { toModelOutput } from '../utils/toModelOutput';
 
-type ToolCall = { toolName: string; input: unknown };
+type Step = {
+    toolCalls: ReadonlyArray<{
+        toolCallId: string;
+        toolName: string;
+        input: unknown;
+    }>;
+    toolResults: ReadonlyArray<{ toolCallId: string }>;
+};
 
 /**
  * Only the web app thread view renders the questions; Slack, Battle panes and
@@ -26,11 +33,19 @@ export const canOfferAskUser = (
     prompt.battleProfile === null &&
     executionMode === 'standard';
 
-/** The text of the turn's last valid askUser call, or null. */
+/**
+ * The text of the turn's last executed askUser call, or null. A call the SDK
+ * rejected (tool not offered, bad args) has no result and asks nothing.
+ */
 export const getAskUserResponse = (
-    toolCalls: ReadonlyArray<ToolCall>,
+    steps: ReadonlyArray<Step>,
 ): string | null => {
-    const args = toolCalls
+    const executed = new Set(
+        steps.flatMap((step) => step.toolResults.map((r) => r.toolCallId)),
+    );
+    const args = steps
+        .flatMap((step) => step.toolCalls)
+        .filter(({ toolCallId }) => executed.has(toolCallId))
         .map(({ toolName, input }) => parseAskUserCall(toolName, input))
         .findLast((parsed) => parsed !== null);
     return args ? formatAskUserQuestions(args) : null;
@@ -39,9 +54,9 @@ export const getAskUserResponse = (
 /** Keeps the asked questions in the reply, after any text the model wrote. */
 export const withAskUserQuestions = (
     reply: string,
-    toolCalls: ReadonlyArray<ToolCall>,
+    steps: ReadonlyArray<Step>,
 ): string => {
-    const questions = getAskUserResponse(toolCalls);
+    const questions = getAskUserResponse(steps);
     if (questions === null || reply.includes(questions)) return reply;
     return reply.trim() ? `${reply.trimEnd()}\n\n${questions}` : questions;
 };

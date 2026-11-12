@@ -188,9 +188,17 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
             message.role === 'user' ? [message.uuid] : [],
         ),
     );
+    // A skipped question gives the composer back until the next question.
+    const [skippedAskUserId, setSkippedAskUserId] = useState<string | null>(
+        null,
+    );
     const pendingAskUser = onChoiceSelect
         ? getPendingAskUser(visibleMessages.at(-1))
         : null;
+    const askUser =
+        pendingAskUser && pendingAskUser.toolCallId !== skippedAskUserId
+            ? pendingAskUser
+            : null;
     const unanchoredDeepResearchRegistrations =
         deepResearchRegistrations.filter(
             (registration) =>
@@ -345,16 +353,20 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                         bottom={0}
                         w="100%"
                     >
-                        {pendingAskUser && onChoiceSelect && (
+                        {askUser && onChoiceSelect ? (
                             <Box className={askUserStyles.container}>
                                 <AskUserQuestionCard
-                                    key={pendingAskUser.toolCallId}
-                                    questions={pendingAskUser.questions}
+                                    key={askUser.toolCallId}
+                                    questions={askUser.questions}
                                     onSubmit={onChoiceSelect}
+                                    onSkip={() =>
+                                        setSkippedAskUserId(askUser.toolCallId)
+                                    }
                                 />
                             </Box>
+                        ) : (
+                            children
                         )}
-                        {children}
                     </Box>
                 ) : null}
             </Flex>

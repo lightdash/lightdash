@@ -28,7 +28,11 @@ const renderCard = (questions: AskUserQuestion[]) => {
     const onSubmit = vi.fn();
     render(
         <MantineProvider env="test">
-            <AskUserQuestionCard questions={questions} onSubmit={onSubmit} />
+            <AskUserQuestionCard
+                questions={questions}
+                onSubmit={onSubmit}
+                onSkip={vi.fn()}
+            />
         </MantineProvider>,
     );
     return onSubmit;
@@ -81,6 +85,22 @@ describe('AskUserQuestionCard', () => {
 
         expect(onSubmit).toHaveBeenCalledWith(
             'Period: Q4 2022\nMetrics: Revenue',
+        );
+    });
+
+    it('keeps a picked option when the next answer is typed', () => {
+        const onSubmit = renderCard([period, metrics]);
+
+        fireEvent.click(screen.getByLabelText('November 2022'));
+        fireEvent.change(screen.getByLabelText('Your own answer'), {
+            target: { value: 'Margin' },
+        });
+        fireEvent.keyDown(screen.getByLabelText('Your own answer'), {
+            key: 'Enter',
+        });
+
+        expect(onSubmit).toHaveBeenCalledWith(
+            'Period: November 2022\nMetrics: Margin',
         );
     });
 });

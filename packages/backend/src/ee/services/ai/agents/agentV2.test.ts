@@ -197,7 +197,11 @@ describe('flags-off agent turns', () => {
                         return {
                             text: 'Answer',
                             steps: [
-                                { toolCalls: [], usage: { totalTokens: 1 } },
+                                {
+                                    toolCalls: [],
+                                    toolResults: [],
+                                    usage: { totalTokens: 1 },
+                                },
                             ],
                             finalStep: { usage: { totalTokens: 1 } },
                             usage: { totalTokens: 1 },
@@ -312,7 +316,13 @@ describe('MCP context preparation at the agent boundary', () => {
                     options = captured;
                     return {
                         text: 'Answer',
-                        steps: [{ toolCalls: [], usage: { totalTokens: 1 } }],
+                        steps: [
+                            {
+                                toolCalls: [],
+                                toolResults: [],
+                                usage: { totalTokens: 1 },
+                            },
+                        ],
                         finalStep: { usage: { totalTokens: 1 } },
                         usage: { totalTokens: 1 },
                         finishReason: 'stop',
@@ -450,7 +460,13 @@ describe('MCP context preparation at the agent boundary', () => {
                     options = captured;
                     return {
                         text: 'Answer',
-                        steps: [{ toolCalls: [], usage: { totalTokens: 1 } }],
+                        steps: [
+                            {
+                                toolCalls: [],
+                                toolResults: [],
+                                usage: { totalTokens: 1 },
+                            },
+                        ],
                         finalStep: { usage: { totalTokens: 1 } },
                         usage: { totalTokens: 1 },
                         finishReason: 'stop',
@@ -632,7 +648,7 @@ describe('unknown error copy at the agent boundary', () => {
 describe('empty finishes and interrupts', () => {
     const emptyGenerateResult = {
         text: '',
-        steps: [{ toolCalls: [], usage: { totalTokens: 10 } }],
+        steps: [{ toolCalls: [], toolResults: [], usage: { totalTokens: 10 } }],
         finalStep: { usage: { totalTokens: 10 } },
         usage: { totalTokens: 10 },
         finishReason: 'tool-calls',
@@ -1184,7 +1200,14 @@ describe('empty finishes and interrupts', () => {
         await capturedOptions.onEnd({
             usage: { totalTokens: 100 },
             totalUsage: { totalTokens: 100 },
-            steps: [{ text: '', toolCalls: [], usage: { totalTokens: 10 } }],
+            steps: [
+                {
+                    text: '',
+                    toolCalls: [],
+                    toolResults: [],
+                    usage: { totalTokens: 10 },
+                },
+            ],
             finalStep: { reasoning: [], usage: { totalTokens: 10 } },
             finishReason: 'tool-calls',
         });
@@ -1369,6 +1392,7 @@ describe('askUser', () => {
         Object.assign(dependencies, {
             isPromptInterrupted: async () => false,
             consumePromptSteers: async () => [],
+            updateProgress: vi.fn().mockResolvedValue(undefined),
         });
         const args = buildAgentArgs();
         args.enableAskUser = true;
@@ -1399,6 +1423,57 @@ describe('askUser', () => {
             expect.objectContaining({ errorMessage: expect.any(String) }),
         );
     });
+
+    it('generate: keeps going when the model calls askUser while it is off', async () => {
+        const { generateText: generateWithSdk } =
+            await vi.importActual<typeof import('ai')>('ai');
+        vi.mocked(generateText).mockImplementationOnce(generateWithSdk);
+        const dependencies = buildAgentDependencies(
+            vi.fn().mockResolvedValue(undefined),
+        );
+        Object.assign(dependencies, {
+            isPromptInterrupted: async () => false,
+            consumePromptSteers: async () => [],
+        });
+        const args = buildAgentArgs();
+        let calls = 0;
+        args.model = new MockLanguageModelV4({
+            doGenerate: async () => {
+                calls += 1;
+                return {
+                    content:
+                        calls === 1
+                            ? [
+                                  {
+                                      type: 'tool-call' as const,
+                                      toolCallId: 'ask-call',
+                                      toolName: 'askUser',
+                                      input: JSON.stringify({ questions }),
+                                  },
+                              ]
+                            : [{ type: 'text' as const, text: 'Answer' }],
+                    finishReason: {
+                        unified:
+                            calls === 1
+                                ? ('tool-calls' as const)
+                                : ('stop' as const),
+                        raw: undefined,
+                    },
+                    usage,
+                    warnings: [],
+                };
+            },
+        });
+
+        await expect(
+            generateAgentResponse({
+                args,
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            }),
+        ).resolves.toBe('Answer');
+        expect(calls).toBe(2);
+    });
 });
 
 describe('generateAgentResponse token usage persistence', () => {
@@ -1427,6 +1502,7 @@ describe('generateAgentResponse token usage persistence', () => {
                 text: 'Answer',
                 steps: stepTotals.map((totalTokens) => ({
                     toolCalls: [],
+                    toolResults: [],
                     usage: { totalTokens },
                 })),
                 finalStep: { usage: { totalTokens: stepTotals.at(-1) ?? 0 } },
@@ -3823,7 +3899,13 @@ describe('external MCP tool call activity', () => {
                     options = captured;
                     return {
                         text: 'Answer',
-                        steps: [{ toolCalls: [], usage: { totalTokens: 1 } }],
+                        steps: [
+                            {
+                                toolCalls: [],
+                                toolResults: [],
+                                usage: { totalTokens: 1 },
+                            },
+                        ],
                         finalStep: { usage: { totalTokens: 1 } },
                         usage: { totalTokens: 1 },
                         finishReason: 'stop',
@@ -4161,7 +4243,13 @@ describe.each(['generate', 'stream'] as const)(
                     options = captured;
                     return {
                         text: 'Answer',
-                        steps: [{ toolCalls: [], usage: { totalTokens: 1 } }],
+                        steps: [
+                            {
+                                toolCalls: [],
+                                toolResults: [],
+                                usage: { totalTokens: 1 },
+                            },
+                        ],
                         finalStep: { usage: { totalTokens: 1 } },
                         usage: { totalTokens: 1 },
                         finishReason: 'stop',
