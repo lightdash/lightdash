@@ -936,21 +936,20 @@ export const useDashboardVersionRollbackMutation = (
     );
 };
 
-export const appendNewTilesToBottom = <T extends Pick<DashboardTile, 'y'>>(
+export const appendNewTilesToBottom = <
+    T extends Pick<DashboardTile, 'y' | 'h'>,
+>(
     existingTiles: T[] | undefined,
     newTiles: T[],
 ): T[] => {
-    const tilesY =
-        existingTiles &&
-        existingTiles.map(function (tile) {
-            return tile.y;
-        });
-    const maxY =
-        tilesY && tilesY.length > 0 ? Math.max.apply(Math, tilesY) : -1;
+    const bottomY = (existingTiles ?? []).reduce(
+        (bottom, tile) => Math.max(bottom, tile.y + tile.h),
+        0,
+    );
     const reorderedTiles = newTiles.map((tile) => ({
         ...tile,
-        y: maxY + 1,
-    })); //add to the bottom
+        y: bottomY,
+    }));
 
     return [...(existingTiles ?? []), ...reorderedTiles];
 };
