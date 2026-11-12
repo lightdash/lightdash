@@ -1,3 +1,11 @@
+## [3.240.3](https://github.com/lightdash/lightdash/compare/3.240.2...3.240.3) (2026-11-12)
+
+
+### Bug Fixes
+
+* **ai:** have Studio check real values before suggesting on a dbt project ([#32519](https://github.com/lightdash/lightdash/issues/32519)) ([55e43cd](https://github.com/lightdash/lightdash/commit/55e43cdfc840340d22c221400b8fb1c95c2c8bf5))
+* **ai:** read results of a query run on your own unpublished model changes ([#32520](https://github.com/lightdash/lightdash/issues/32520)) ([cf625a0](https://github.com/lightdash/lightdash/commit/cf625a0baf8e4f2da435f51c1034f21d1da570ae))
+
 ## [3.240.2](https://github.com/lightdash/lightdash/compare/3.240.1...3.240.2) (2026-11-12)
 
 
