@@ -102,7 +102,7 @@ const KeepTheirsButton: FC<{
             loading={takeLive.isLoading}
             onClick={() => takeLive.mutate({ model, path })}
         >
-            Keep theirs
+            Keep
         </Button>
     );
 };
@@ -174,7 +174,7 @@ const PartValue: FC<{ value: string; children: ReactNode }> = ({
         </Text>
     );
 
-/** One of the two versions a contested part can end up as: whose it is, where it stands, and what keeping it does. */
+/** One of the two versions a contested part can end up as: whose it is, with a Keep button whose tooltip says what keeping it does. */
 const ConflictOption: FC<{
     title: string;
     state: string;
@@ -186,19 +186,27 @@ const ConflictOption: FC<{
     action: ReactNode;
 }> = ({ title, state, tone, value, base, outcome, action }) => (
     <Box className={classes.option}>
-        <Box>
-            <Text fz="xs" fw={500} truncate>
+        <Group gap="xs" wrap="nowrap" justify="space-between">
+            <Text fz="xs" truncate>
                 <Box
                     component="span"
                     className={classes.tone}
                     data-tone={tone}
                 />
-                {title}
+                <Text span fz="xs" fw={500}>
+                    {title}
+                </Text>
+                <Text span fz="xs" c="dimmed">
+                    {' · '}
+                    {state}
+                </Text>
             </Text>
-            <Text fz="xs" c="dimmed">
-                {state}
-            </Text>
-        </Box>
+            {action ? (
+                <Tooltip label={outcome} withinPortal maw={240} multiline>
+                    <Box flex="none">{action}</Box>
+                </Tooltip>
+            ) : null}
+        </Group>
         {value === null ? (
             <Text fz="sm" c="dimmed">
                 Removed
@@ -208,12 +216,6 @@ const ConflictOption: FC<{
                 <ChangedWords value={value} base={base} />
             </PartValue>
         )}
-        <Group gap="xs" wrap="nowrap" mt="auto">
-            {action}
-            <Text fz="xs" c="dimmed">
-                {outcome}
-            </Text>
-        </Group>
     </Box>
 );
 
@@ -235,7 +237,7 @@ const ConflictSides: FC<{
                 {conflict.base !== null && isYaml(conflict.base) ? (
                     <>
                         <Text fz="xs" c="dimmed">
-                            Before either change
+                            Originally
                         </Text>
                         <Box
                             component="pre"
@@ -247,21 +249,17 @@ const ConflictSides: FC<{
                     </>
                 ) : (
                     <Text fz="xs" c="dimmed">
-                        Before either change:{' '}
+                        Originally:{' '}
                         {conflict.base === null
-                            ? 'not there'
+                            ? 'not set'
                             : `“${conflict.base}”`}
                     </Text>
                 )}
             </Box>
             <Box className={classes.options}>
                 <ConflictOption
-                    title={
-                        publisher
-                            ? `${publisher}'s version`
-                            : 'The other version'
-                    }
-                    state={`Live for everyone, published ${publishedAgo}`}
+                    title={publisher ?? 'Someone else'}
+                    state={`live ${publishedAgo}`}
                     tone="live"
                     value={conflict.live}
                     base={conflict.base}
@@ -279,8 +277,8 @@ const ConflictSides: FC<{
                     }
                 />
                 <ConflictOption
-                    title="Your version"
-                    state="In your draft, not live yet"
+                    title="You"
+                    state="your draft"
                     tone="draft"
                     value={conflict.mine}
                     base={conflict.base}
@@ -294,7 +292,7 @@ const ConflictSides: FC<{
                             <KeepMineButton
                                 projectUuid={projectUuid}
                                 model={model}
-                                label="Keep mine"
+                                label="Keep"
                             />
                         )
                     }
@@ -358,25 +356,24 @@ export const ModelNotices: FC<{
             {conflicts.length > 0 ? (
                 <Stack gap="xs" data-conflict>
                     <NoticeRow icon={IconAlertTriangle} color="yellow">
-                        <Box flex={1}>
-                            <Text fz="xs">
-                                You and{' '}
+                        <Tooltip
+                            label="Choose which to keep. You can publish once you have."
+                            position="top-start"
+                            withinPortal
+                        >
+                            <Text fz="xs" w="fit-content">
                                 <Text span fw={600}>
                                     {publisher}
                                 </Text>{' '}
-                                both changed{' '}
+                                published a change to{' '}
                                 {conflicts.length === 1 ? (
                                     <ContestedPart path={conflicts[0].path} />
                                 ) : (
-                                    `the same ${conflicts.length} parts of this model`
-                                )}
-                                . Theirs is already live.
+                                    `${conflicts.length} parts of this model`
+                                )}{' '}
+                                that your draft also edits.
                             </Text>
-                            <Text fz="xs" c="dimmed">
-                                Choose which to keep. You can publish once you
-                                have.
-                            </Text>
-                        </Box>
+                        </Tooltip>
                     </NoticeRow>
                     {conflicts.map((conflict) => (
                         <ConflictSides
