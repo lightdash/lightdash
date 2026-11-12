@@ -1,3 +1,10 @@
+## [3.234.2](https://github.com/lightdash/lightdash/compare/3.234.1...3.234.2) (2026-11-12)
+
+
+### Bug Fixes
+
+* **ai:** Studio pull request card, previous conversation, and how to try a change ([#32481](https://github.com/lightdash/lightdash/issues/32481)) ([7ddabb7](https://github.com/lightdash/lightdash/commit/7ddabb79deebeb11e48bfa8419c9f1beb0435059))
+
 ## [3.234.1](https://github.com/lightdash/lightdash/compare/3.234.0...3.234.1) (2026-11-12)
 
 
