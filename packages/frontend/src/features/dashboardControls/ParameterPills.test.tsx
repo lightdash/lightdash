@@ -19,9 +19,9 @@ import {
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders } from '../../testing/testUtils';
 import { dashboardParametersActions } from '../dashboard/store';
+import { ControlContractClasses } from './controlContractClasses';
 import { ParameterEditorProvider } from './ParameterEditorProvider';
 import { ParameterPills } from './ParameterPills';
-import { RailContractClasses } from './railContractClasses';
 import {
     useParameterEditorSelector,
     type NewParameterControl,
@@ -158,11 +158,11 @@ const setup = ({
     const user = userEvent.setup();
     const ui = (mode: boolean) => (
         <DashboardStoreTestProvider store={store}>
-            <RailContractClasses.Provider
+            <ControlContractClasses.Provider
                 value={
                     isEmbed
                         ? {
-                              rail: 'ld-dashboard-filter-rail',
+                              editor: 'ld-dashboard-control-editor',
                               addFilterDropdown:
                                   'ld-dashboard-add-filter-dropdown',
                               filterDropdown: 'ld-dashboard-filter-dropdown',
@@ -189,7 +189,7 @@ const setup = ({
                     ))}
                     {added && <AddButton entry={added} />}
                 </ParameterEditorProvider>
-            </RailContractClasses.Provider>
+            </ControlContractClasses.Provider>
         </DashboardStoreTestProvider>
     );
     const { rerender } = renderWithProviders(ui(isViewer));

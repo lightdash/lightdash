@@ -13,7 +13,7 @@ import userEvent from '@testing-library/user-event';
 import { type ReactElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { dashboardParametersActions } from '../../../../../features/dashboard/store';
-import { RailContractClasses } from '../../../../../features/dashboardControls/railContractClasses';
+import { ControlContractClasses } from '../../../../../features/dashboardControls/controlContractClasses';
 import {
     createDashboardTestStore,
     seedDashboardEditState,
@@ -44,7 +44,7 @@ vi.mock('../../../../../features/dashboardControls/AddControl', () => ({
             className={triggerClassName}
             data-tooltip={unsavedFiltersTooltip}
         >
-            Rail add
+            Controls add
         </button>
     ),
 }));
@@ -61,7 +61,7 @@ vi.mock('../../../../../features/dashboardControls/FilterPills', async () => {
                     .isLoadingDashboardFilters === true;
             return (
                 <div
-                    data-testid="rail-pills"
+                    data-testid="controls-pills"
                     className={triggerClassName}
                     data-skeletons={isFirstLoad || undefined}
                 />
@@ -82,7 +82,7 @@ vi.mock('../../../../../features/dashboardControls/SectionedFilters', () => ({
         </div>
     ),
 }));
-// Reads the rail's provider, which the page puts around the bar
+// Reads the controls provider, which the page puts around the bar
 vi.mock('../../../../../features/dashboardControls/ControlsBar', () => ({
     MappingSwap: ({ children }: { children: ReactNode }) => (
         <div data-testid="mapping-swap">{children}</div>
@@ -96,7 +96,7 @@ vi.mock(
         }),
     }),
 );
-// The rail's state, which the page provides around the real date zoom pills
+// The controls state, which the page provides around the real date zoom pills
 vi.mock('../../../../../features/dashboardControls/useControlsSidebar', () => ({
     useControlsSidebarSelector: (
         selector: (c: Record<string, unknown>) => unknown,
@@ -202,35 +202,35 @@ describe('EmbedDashboardFilterBar', () => {
         mockDashboardContext.current = {};
     });
 
-    it('keeps the shipped filters while the rail is off', () => {
+    it('keeps the shipped filters while the controls bar is off', () => {
         renderBar(true, false);
         expect(screen.getByTestId('shipped-filters')).toBeInTheDocument();
-        expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('controls-pills')).not.toBeInTheDocument();
         expect(screen.queryByTestId('mapping-swap')).not.toBeInTheDocument();
     });
 
-    it("gives the rail's bar the mapping row's place, so a viewer can choose tiles", () => {
+    it("gives the controls bar the mapping row's place, so a viewer can choose tiles", () => {
         renderBar(true, true);
         expect(
             within(screen.getByTestId('mapping-swap')).getByTestId(
-                'rail-pills',
+                'controls-pills',
             ),
         ).toBeInTheDocument();
     });
 
-    it('opens the rail from "Add filter" and the pills, with the class contract', () => {
+    it('opens the editor from "Add filter" and the pills, with the class contract', () => {
         renderBar(true, true);
         expect(screen.queryByTestId('shipped-filters')).not.toBeInTheDocument();
-        expect(screen.getByRole('button', { name: 'Rail add' })).toHaveClass(
-            'ld-dashboard-add-filter',
-        );
         expect(
-            screen.getByRole('button', { name: 'Rail add' }),
+            screen.getByRole('button', { name: 'Controls add' }),
+        ).toHaveClass('ld-dashboard-add-filter');
+        expect(
+            screen.getByRole('button', { name: 'Controls add' }),
         ).toHaveAttribute(
             'data-tooltip',
             DEFAULT_UI_STRINGS['filters.unsavedFiltersTooltip'],
         );
-        expect(screen.getByTestId('rail-pills')).toHaveClass(
+        expect(screen.getByTestId('controls-pills')).toHaveClass(
             'ld-dashboard-filter',
         );
         expect(
@@ -251,12 +251,12 @@ describe('EmbedDashboardFilterBar', () => {
         expect(sectioned).toHaveClass('ld-dashboard-filter');
         // "Add filter" and the reset lead the sectioned bar
         expect(
-            within(sectioned).getByRole('button', { name: 'Rail add' }),
+            within(sectioned).getByRole('button', { name: 'Controls add' }),
         ).toHaveClass('ld-dashboard-add-filter');
         expect(
             within(sectioned).getByRole('button', { name: 'Reset' }),
         ).toBeInTheDocument();
-        expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('controls-pills')).not.toBeInTheDocument();
         // A size container, for the bar's narrow layouts
         expect(sectioned.closest('[class*="filterArea"]')).not.toBeNull();
     });
@@ -281,7 +281,7 @@ describe('EmbedDashboardFilterBar', () => {
         });
         renderWithProviders(barElement(false, true, store));
         expect(screen.getByTestId('sectioned-filters')).toBeInTheDocument();
-        expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('controls-pills')).not.toBeInTheDocument();
     });
 
     it('keeps the shipped filters for a dashboard with sections while the flag is off', () => {
@@ -356,9 +356,9 @@ describe('EmbedDashboardFilterBar', () => {
                 areParametersEnabled: true,
                 shouldShowFilters: true,
             });
-            expect(screen.getByTestId('rail-pills').nextElementSibling).toBe(
-                screen.getByTestId('parameter-pills'),
-            );
+            expect(
+                screen.getByTestId('controls-pills').nextElementSibling,
+            ).toBe(screen.getByTestId('parameter-pills'));
             expect(
                 screen.queryByTestId('shipped-parameters'),
             ).not.toBeInTheDocument();
@@ -472,9 +472,9 @@ describe('EmbedDashboardFilterBar', () => {
             renderWithProviders(
                 <DashboardStoreTestProvider store={zoomStore(hidden)}>
                     {/* As the embed page provides them */}
-                    <RailContractClasses.Provider
+                    <ControlContractClasses.Provider
                         value={{
-                            rail: 'ld-dashboard-filter-rail',
+                            editor: 'ld-dashboard-control-editor',
                             addFilterDropdown:
                                 'ld-dashboard-add-filter-dropdown',
                             filterDropdown: 'ld-dashboard-filter-dropdown',
@@ -495,7 +495,7 @@ describe('EmbedDashboardFilterBar', () => {
                             isEditMode={isEditMode}
                             isControlsEnabled={isControlsEnabled}
                         />
-                    </RailContractClasses.Provider>
+                    </ControlContractClasses.Provider>
                 </DashboardStoreTestProvider>,
             );
         const zoomPill = (name: string) =>
@@ -521,11 +521,13 @@ describe('EmbedDashboardFilterBar', () => {
             const user = userEvent.setup();
             renderBar(true, true);
             await user.click(screen.getByRole('button', { name: 'Hide' }));
-            expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
+            expect(
+                screen.queryByTestId('controls-pills'),
+            ).not.toBeInTheDocument();
             await user.click(
                 screen.getByRole('button', { name: 'Show filters' }),
             );
-            expect(screen.getByTestId('rail-pills')).toBeInTheDocument();
+            expect(screen.getByTestId('controls-pills')).toBeInTheDocument();
         });
 
         it('collapses named zooms alone behind Hide, counted in the summary', async () => {
@@ -584,7 +586,7 @@ describe('EmbedDashboardFilterBar', () => {
         };
         mockDashboardContext.current = loaded;
         const { rerender } = renderBar(true, true);
-        expect(screen.getByTestId('rail-pills')).not.toHaveAttribute(
+        expect(screen.getByTestId('controls-pills')).not.toHaveAttribute(
             'data-skeletons',
         );
 
@@ -597,7 +599,7 @@ describe('EmbedDashboardFilterBar', () => {
             allFilterableFields: undefined,
         };
         rerender(barElement(true, true));
-        expect(screen.getByTestId('rail-pills')).not.toHaveAttribute(
+        expect(screen.getByTestId('controls-pills')).not.toHaveAttribute(
             'data-skeletons',
         );
     });

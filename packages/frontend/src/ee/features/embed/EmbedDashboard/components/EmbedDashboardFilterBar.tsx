@@ -46,12 +46,12 @@ type Props = {
     /** Tiles rendered on the active tab */
     activeTiles: DashboardTile[];
     isEditMode?: boolean;
-    /** The filters open in the dashboard's filter rail (default false). */
+    /** The filters open in the dashboard's controls bar editor (default false). */
     isControlsEnabled?: boolean;
 };
 
-// The filters as the rail's bar has them: "Add filter" and the pills open
-// the rail, and stay on screen while it is open; a dashboard with sections
+// The filters as the controls bar has them: "Add filter" and the pills open
+// the editor, and stay on screen while it is open; a dashboard with sections
 // shows them as the app's viewer bar does
 const ControlsFilterArea: FC<{
     canAddFilters: boolean;

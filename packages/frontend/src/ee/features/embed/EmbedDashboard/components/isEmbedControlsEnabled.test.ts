@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { isEmbedFilterRailEnabled } from './isEmbedFilterRailEnabled';
+import { isEmbedControlsEnabled } from './isEmbedControlsEnabled';
 
-describe('isEmbedFilterRailEnabled', () => {
-    it('gives a viewer the rail under the flag', () => {
+describe('isEmbedControlsEnabled', () => {
+    it('gives a viewer the controls bar under the flag', () => {
         expect(
-            isEmbedFilterRailEnabled({
+            isEmbedControlsEnabled({
                 isFlagEnabled: true,
                 isEditorInEditMode: false,
             }),
@@ -13,16 +13,16 @@ describe('isEmbedFilterRailEnabled', () => {
 
     it('keeps the shipped filters for an embed editor in edit mode', () => {
         expect(
-            isEmbedFilterRailEnabled({
+            isEmbedControlsEnabled({
                 isFlagEnabled: true,
                 isEditorInEditMode: true,
             }),
         ).toBe(false);
     });
 
-    it('never opens the rail with the flag off', () => {
+    it('never opens the controls bar with the flag off', () => {
         expect(
-            isEmbedFilterRailEnabled({
+            isEmbedControlsEnabled({
                 isFlagEnabled: false,
                 isEditorInEditMode: false,
             }),

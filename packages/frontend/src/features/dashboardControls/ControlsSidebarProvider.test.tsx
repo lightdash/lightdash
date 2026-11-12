@@ -666,7 +666,7 @@ describe('ControlsSidebarProvider', () => {
             expect(result.current.editing).toEqual({ filterId: 'a' });
         });
 
-        it('a rule removed from outside closes the rail, and the next pill starts over', () => {
+        it('a rule removed from outside closes the editor, and the next pill starts over', () => {
             const { result } = setup();
             act(() => result.current.open('a'));
             act(() => result.current.updateFilter(rule('a', ['9'])));
@@ -3212,7 +3212,7 @@ describe('ControlsSidebarProvider', () => {
             expect(latest.changed).toBe(false);
         });
 
-        // The rail's "Required" switch, with the shipped disabled rule
+        // The editor's "Required" switch, with the shipped disabled rule
         const switchRequired = (
             from: DashboardFilterRule,
             savedRule: DashboardFilterRule,
@@ -3474,7 +3474,7 @@ describe('ControlsSidebarProvider in view mode', () => {
             );
         });
 
-    it('discarding a new filter leaves their other filters and closes the rail', () => {
+    it('discarding a new filter leaves their other filters and closes the editor', () => {
         const { result } = setup();
         seedOwn([rule('own', ['x'])]);
         act(() => result.current.openNew());
@@ -3486,7 +3486,7 @@ describe('ControlsSidebarProvider in view mode', () => {
         expect(result.current.isSidebarOpen).toBe(false);
     });
 
-    it('the X of their edited filter removes it and closes the rail', () => {
+    it('the X of their edited filter removes it and closes the editor', () => {
         const { result } = setup();
         seedOwn([rule('one', ['x']), rule('two', ['y'])]);
         act(() => result.current.open('one'));
@@ -3731,7 +3731,7 @@ describe('ControlsSidebarProvider in view mode', () => {
         });
     });
 
-    it('closes the rail when the dashboard enters edit mode', () => {
+    it('closes the editor when the dashboard enters edit mode', () => {
         const { result, rerender } = setup();
         act(() => result.current.openNew());
         expect(result.current.isSidebarOpen).toBe(true);

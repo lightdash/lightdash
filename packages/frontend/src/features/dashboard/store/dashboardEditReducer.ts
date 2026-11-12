@@ -76,7 +76,7 @@ export type DashboardEditState = {
         DateGranularity | string | undefined
     > | null;
     hasDefaultDateZoomGranularityChanged: boolean;
-    /** Staged sections of the controls rail, in display order */
+    /** Staged sections of the controls bar, in display order */
     controlSections: DashboardControlSection[];
     haveControlSectionsChanged: boolean;
     /** The bar's order of every control: the saved one, or the editor's reorder */

@@ -57,6 +57,10 @@ import {
     getFilterRuleWithDisabledState,
     isLockedRequiredMissingValue,
 } from '../dashboardFilters/FilterConfiguration/utils';
+import {
+    ControlContractClasses,
+    type ControlContractClassNames,
+} from './controlContractClasses';
 import { getOtherPillsSelector } from './controlKinds';
 import { DateZoomEditorProvider } from './DateZoomEditorProvider';
 import { getLinkKey } from './linkCandidates';
@@ -71,10 +75,6 @@ import {
     withoutDefaultTileTargets,
     type FieldsMap,
 } from './peers';
-import {
-    RailContractClasses,
-    type RailContractClassNames,
-} from './railContractClasses';
 import { countFilters, getMoveNeighbours } from './sections';
 import {
     canKeepFilterRule,
@@ -455,7 +455,7 @@ type ProviderProps = PropsWithChildren<{
     /** The dashboard's mode where no route says it, as in an embed (default: the route's). */
     isEditMode?: boolean;
     /** An embed's public class names on the editor (default none). */
-    contractClasses?: RailContractClassNames | null;
+    contractClasses?: ControlContractClassNames | null;
 }>;
 
 export const ControlsSidebarProvider: FC<ProviderProps> = ({
@@ -1884,13 +1884,13 @@ export const ControlsSidebarProvider: FC<ProviderProps> = ({
 
     return (
         <ControlsSidebarContext.Provider value={value}>
-            <RailContractClasses.Provider value={contractClasses}>
+            <ControlContractClasses.Provider value={contractClasses}>
                 <ParameterEditorProvider isViewer={isViewer}>
                     <DateZoomEditorProvider isViewer={isViewer}>
                         {children}
                     </DateZoomEditorProvider>
                 </ParameterEditorProvider>
-            </RailContractClasses.Provider>
+            </ControlContractClasses.Provider>
             <FocusReturn target={focusReturn} />
             {/* Moves happen in edit mode only */}
             {isEditMode && (

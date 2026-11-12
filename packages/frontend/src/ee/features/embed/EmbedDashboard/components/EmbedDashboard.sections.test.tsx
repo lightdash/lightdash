@@ -91,7 +91,7 @@ const dashboard = {
     name: 'Sales',
     projectUuid: 'project-1',
     spaceUuid: SPACE_UUID,
-    // A tile, so the grid and the filter rail's bar render
+    // A tile, so the grid and the controls bar render
     tiles: [
         {
             uuid: 'tile-1',

@@ -379,7 +379,7 @@ describe('AddControl', () => {
             mockSidebar.current.isViewer = true;
         });
 
-        it('is the shipped view mode button on the bar: no eye or menu, opens the rail', () => {
+        it('is the shipped view mode button on the bar: no eye or menu, opens the editor', () => {
             renderWithProviders(<AddControl />);
             expect(
                 screen.queryByRole('button', {

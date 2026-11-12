@@ -54,7 +54,7 @@ Gated on the flag:
   the `save` class, outlined by `DashboardHeader.module.css` under the guard's
   `[data-dashboard-header-guard][inert]`.
 - `ee/features/embed/EmbedDashboard/components/EmbedDashboard.tsx`:
-  `isEmbedFilterRailEnabled` (flag on, and not an embed editor in edit mode)
+  `isEmbedControlsEnabled` (flag on, and not an embed editor in edit mode)
   turns on `isControlsEnabled` for the header and filter bar, and
   renders `TileOverlays`, `TabCounts` and `FieldTilesBar` (all three act only in mapping). A dashboard with
   no tiles has no grid, so its header gets `isControlsEnabled={false}`.
@@ -159,7 +159,7 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `sectionVersionChanges.ts` | Section rows for the version comparison page |
 | `DashboardHeaderGuard.tsx` | Wraps the shipped header; inert while an editor's filter is edited |
 | `useEditorDismiss.ts` | Escape handling while a filter is edited |
-| `DropdownClass.tsx`, `railContractClasses.ts` | Embed class contract on the editor popover and portalled lists |
+| `DropdownClass.tsx`, `controlContractClasses.ts` | Embed class contract on the editor popover and portalled lists |
 | `requirements.ts`, `fieldLabels.ts` | Requirement rules, count copy |
 
 ## Invariants
@@ -209,7 +209,7 @@ Each one has broken before or would break silently.
 - **Escape does one thing per press.** Anything owning its own Escape marks
   itself `data-own-escape`; open lists are detected by `hasOpenLayer`.
 - **Embeds.** The editor goes through `contractClasses` and `DropdownClass`
-  (the embed class contract: `ld-dashboard-filter-rail` and
+  (the embed class contract: `ld-dashboard-control-editor` and
   `ld-dashboard-filter-dropdown` on the popover, `ld-dashboard-filter`,
   `ld-dashboard-add-filter`, `ld-dashboard-filter-dropdown` and
   `ld-dashboard-add-filter-dropdown` on lists); keep them on the equivalent

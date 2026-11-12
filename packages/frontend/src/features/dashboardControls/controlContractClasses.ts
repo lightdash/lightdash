@@ -1,8 +1,8 @@
 import { createContext, useContext } from 'react';
 
 /** The public class names an embed puts on the filter editor (default none). */
-export type RailContractClassNames = {
-    rail: string;
+export type ControlContractClassNames = {
+    editor: string;
     /** The field search's list while a filter is added. */
     addFilterDropdown: string;
     /** The value inputs' lists of the filter being edited. */
@@ -17,8 +17,8 @@ export type RailContractClassNames = {
     dateZoomDropdown: string;
 };
 
-export const RailContractClasses = createContext<RailContractClassNames | null>(
-    null,
-);
+export const ControlContractClasses =
+    createContext<ControlContractClassNames | null>(null);
 
-export const useRailContractClasses = () => useContext(RailContractClasses);
+export const useControlContractClasses = () =>
+    useContext(ControlContractClasses);

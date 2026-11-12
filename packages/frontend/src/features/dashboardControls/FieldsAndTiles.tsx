@@ -12,9 +12,9 @@ import {
 import SqlColumnSelect from '../dashboardFilters/FilterConfiguration/SqlColumnSelect';
 import { getUniqueSqlColumns } from '../dashboardFilters/FilterConfiguration/utils';
 import { useAddMenuBack } from './addMenuBack';
+import { useControlContractClasses } from './controlContractClasses';
 import { FieldPicker, PickerBack } from './ControlPickers';
 import { DropdownClass } from './DropdownClass';
-import { useRailContractClasses } from './railContractClasses';
 import { useControlsSidebar } from './useControlsSidebar';
 
 const NO_FIELDS: DashboardFilterableField[] = [];
@@ -25,7 +25,7 @@ export const FieldsAndTiles: FC = () => {
     const { editingRule, addFirstField, addFirstSqlColumn, isViewer } =
         useControlsSidebar();
     const onBack = useAddMenuBack();
-    const contractClasses = useRailContractClasses();
+    const contractClasses = useControlContractClasses();
     const dashboardTiles = useDashboardSelector(selectDashboardTiles);
     const dashboardTabs = useDashboardSelector(selectDashboardTabs);
     const activeTabUuid = useDashboardSelector(selectActiveTabUuid);

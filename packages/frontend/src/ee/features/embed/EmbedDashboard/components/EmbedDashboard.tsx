@@ -47,9 +47,9 @@ import {
     useDashboardTemporaryFilters,
     useDashboardUnmetFilterRequirements,
 } from '../../../../../features/dashboard/store';
+import { type ControlContractClassNames } from '../../../../../features/dashboardControls/controlContractClasses';
 import { ControlsSidebarProvider } from '../../../../../features/dashboardControls/ControlsSidebarProvider';
 import { FieldTilesBar } from '../../../../../features/dashboardControls/FieldTilesBar';
-import { type RailContractClassNames } from '../../../../../features/dashboardControls/railContractClasses';
 import { TabCounts } from '../../../../../features/dashboardControls/TabCounts';
 import { TileOverlays } from '../../../../../features/dashboardControls/TileOverlay';
 import GuidedFilterSetupOverlay from '../../../../../features/dashboardFilters/FilterRequirements/GuidedFilterSetupOverlay';
@@ -98,11 +98,11 @@ import EmbedDashboardHeader from './EmbedDashboardHeader';
 import EmbedDataAppTile from './EmbedDataAppTile';
 import { EmbedHeadingTile } from './EmbedHeadingTile';
 import { EmbedMarkdownTile } from './EmbedMarkdownTile';
-import { isEmbedFilterRailEnabled } from './isEmbedFilterRailEnabled';
+import { isEmbedControlsEnabled } from './isEmbedControlsEnabled';
 import '../../../../../styles/react-grid.css';
 
-const RAIL_CONTRACT_CLASSES: RailContractClassNames = {
-    rail: embedContractClass('ld-dashboard-filter-rail'),
+const CONTROL_CONTRACT_CLASSES: ControlContractClassNames = {
+    editor: embedContractClass('ld-dashboard-control-editor'),
     addFilterDropdown: embedContractClass('ld-dashboard-add-filter-dropdown'),
     filterDropdown: embedContractClass('ld-dashboard-filter-dropdown'),
     parameter: embedContractClass('ld-dashboard-parameter'),
@@ -705,7 +705,7 @@ const EmbedDashboard: FC<{
         !!dashboard &&
         writeSpaceUuids.includes(dashboard.spaceUuid) &&
         embedWriteContext?.canUpdateDashboard === true;
-    const isControlsEnabled = isEmbedFilterRailEnabled({
+    const isControlsEnabled = isEmbedControlsEnabled({
         isFlagEnabled: dashboardControlsFlag?.enabled === true,
         isEditorInEditMode: canWriteDashboard && isEditMode,
     });
@@ -1223,7 +1223,7 @@ const EmbedDashboard: FC<{
                     canAddFilters={canAddDashboardFiltersInEmbed(
                         dashboard.dashboardFiltersInteractivity,
                     )}
-                    contractClasses={RAIL_CONTRACT_CLASSES}
+                    contractClasses={CONTROL_CONTRACT_CLASSES}
                 >
                     {currentDashboardTiles.length === 0 ? (
                         <>
@@ -1232,7 +1232,7 @@ const EmbedDashboard: FC<{
                                 projectUuid={projectUuid}
                                 activeTiles={filteredTiles}
                                 isEditMode={canWriteDashboard && isEditMode}
-                                // No grid, so no rail: the shipped filters
+                                // No grid, so no controls bar: the shipped filters
                                 isControlsEnabled={false}
                             />
                             {renderDashboardEditToolbar()}
