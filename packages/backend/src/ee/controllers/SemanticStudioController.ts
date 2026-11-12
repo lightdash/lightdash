@@ -12,6 +12,7 @@ import {
     type ApiSemanticLayerDraftUsageResponse,
     type ApiSemanticLayerModelResponse,
     type ApiSemanticLayerStatusResponse,
+    type ApiSemanticLayerStoredModelsResponse,
     type ApiSemanticLayerUndoResponse,
     type ApiSuccessEmpty,
     type SemanticLayerUndoRequest,
@@ -65,6 +66,28 @@ export class SemanticStudioController extends BaseController {
         return {
             status: 'ok',
             results: await this.getService().getStatus(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    /**
+     * The names of the models whose YAML the project keeps.
+     * @summary List stored semantic layer models
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/models')
+    @OperationId('getSemanticLayerStoredModels')
+    async getStoredModels(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticLayerStoredModelsResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getStoredModels(
                 toSessionUser(req.account),
                 projectUuid,
             ),

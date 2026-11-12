@@ -56,6 +56,12 @@ export type SemanticLayerModelCode = {
 export type ApiSemanticLayerModelResponse =
     ApiSuccess<SemanticLayerModelCode | null>;
 
+/** The models whose YAML the project keeps, as opposed to ones deployed from elsewhere. */
+export type SemanticLayerStoredModels = { models: string[] };
+
+export type ApiSemanticLayerStoredModelsResponse =
+    ApiSuccess<SemanticLayerStoredModels>;
+
 /** How one model's part of a change fared when it was checked on top of a draft. */
 export type SemanticLayerDraftItemResult = {
     model: string;
