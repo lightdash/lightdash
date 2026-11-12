@@ -374,7 +374,7 @@ const DraftActions: FC<{
 };
 
 /** Switches the person's own queries between the live models and their changes in development. */
-const PreviewToggle: FC<{
+export const PreviewToggle: FC<{
     isPreviewing: boolean;
     onChange: (next: boolean) => void;
 }> = ({ isPreviewing, onChange }) => (
