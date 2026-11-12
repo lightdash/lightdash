@@ -67,6 +67,15 @@
     transition-delay: 80ms, 0ms;
 }
 
+.intro {
+    max-width: 268px;
+    padding: 10px 10px 2px;
+    color: var(--mantine-color-white);
+    font-weight: 400;
+    line-height: 1.45;
+    white-space: normal;
+}
+
 .heading {
     padding: 8px 10px 4px;
     color: rgb(255 255 255 / 0.55);

@@ -8,7 +8,10 @@ import {
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import { useStudioPullRequest } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
-import { useDevelopmentView } from '../../features/semanticStudio/developmentView';
+import {
+    useDevelopmentView,
+    wasJustSwitchedOn,
+} from '../../features/semanticStudio/developmentView';
 import { useModelsInDevelopment } from '../../features/semanticStudio/useModelsInDevelopment';
 import { useOptionalProjectRoute } from '../../hooks/useProjectRoute';
 import MantineIcon from '../common/MantineIcon';
@@ -34,6 +37,10 @@ const ChangesPanel: FC<{
     const number = /\/(\d+)\/?$/.exec(openPullRequest?.prUrl ?? '')?.[1];
     return (
         <>
+            <Box className={classes.intro}>
+                Explore, charts and dashboards now read your changes. Open a
+                model to try them.
+            </Box>
             <Box className={classes.heading}>
                 {openPullRequest
                     ? `In pull request${number ? ` #${number}` : ''}`
@@ -80,7 +87,11 @@ const ChangesPanel: FC<{
 export const DevelopmentViewIsland = () => {
     const [, setIsOn] = useDevelopmentView();
     const projectRoute = useOptionalProjectRoute();
-    const [isOpen, { toggle, close }] = useDisclosure(false);
+    // Switched on from Studio, where nothing else changes: it opens to say what to do next.
+    const [isOpen, { toggle, close }] = useDisclosure(
+        wasJustSwitchedOn() &&
+            window.location.pathname.includes('/semantic-layer'),
+    );
     const ref = useClickOutside(close);
     const { pathname } = window.location;
     const project = /\/projects\/([^/]+)/.exec(pathname)?.[1];
