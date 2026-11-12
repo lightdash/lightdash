@@ -1,3 +1,10 @@
+# [3.228.0](https://github.com/lightdash/lightdash/compare/3.227.0...3.228.0) (2026-11-12)
+
+
+### Features
+
+* **ai:** explore and view SQL of a composer merge step ([#32468](https://github.com/lightdash/lightdash/issues/32468)) ([fab6321](https://github.com/lightdash/lightdash/commit/fab6321bd35979e623c5b4b33072a0d1a21e0c15))
+
 # [3.227.0](https://github.com/lightdash/lightdash/compare/3.226.0...3.227.0) (2026-11-12)
 
 
