@@ -6,6 +6,7 @@ import {
     metricQueryOfSemanticNode,
     QuerySourceType,
     WarehouseTypes,
+    type MergeSourceQuery,
     type SemanticLayerSourceQuery,
     type SourceQuery,
 } from '@lightdash/common';
@@ -45,7 +46,7 @@ import { hasQueryDetails, type QueryPanel } from './semanticQueryOf';
 type CellCode = { code: string; language: 'sql' | 'python' };
 
 const codeOf = (
-    query: Exclude<SourceQuery, SemanticLayerSourceQuery>,
+    query: Exclude<SourceQuery, SemanticLayerSourceQuery | MergeSourceQuery>,
 ): CellCode => {
     switch (query.sourceType) {
         case QuerySourceType.SQL:
@@ -230,6 +231,21 @@ export const ExploreSource: FC<{
     );
 };
 
+export const MergeCellToggles: FC<{
+    openPanels: ReadonlySet<QueryPanel>;
+    onTogglePanel: (panel: QueryPanel) => void;
+}> = ({ openPanels, onTogglePanel }) => {
+    const getUiString = useUiStrings();
+    return (
+        <ToolbarToggle
+            label={getUiString('aiAgent.composer.mergeNode.setup')}
+            icon={IconFilterLines}
+            open={openPanels.has('details')}
+            onToggle={() => onTogglePanel('details')}
+        />
+    );
+};
+
 /** Toggles for a semantic cell's query views. */
 export const CellQueryToggles: FC<{
     query: SemanticLayerSourceQuery;
@@ -307,7 +323,7 @@ export const CellQueryPanels: FC<CellQueryProps> = ({ query, ...props }) => (
     <Box className={styles.panels}>
         {query.sourceType === QuerySourceType.SEMANTIC_LAYER ? (
             <SemanticPanels query={query} {...props} />
-        ) : (
+        ) : query.sourceType === QuerySourceType.MERGE ? null : (
             props.canViewSql && (
                 <Box className={styles.codePanel}>
                     <NotebookCode {...codeOf(query)} />

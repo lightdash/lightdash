@@ -22,6 +22,7 @@ import {
     updateMergeRequest,
 } from '../../../../clients/gitlab/Gitlab';
 import type { GitlabAppInstallationsModel } from '../../../../models/GitlabAppInstallations/GitlabAppInstallationsModel';
+import { normalizeCredentialHost } from '../../../../utils/credentialDestination';
 import type { SandboxHandle } from '../../SandboxRuntime';
 import { COMMIT_AUTHOR_EMAIL, COMMIT_AUTHOR_NAME, CWD } from '../constants';
 import { WritebackGitNotConnectedError } from '../errors';
@@ -80,18 +81,22 @@ const asGitlabInstallation = (
     return installation;
 };
 
+/** Host (including any non-default port) of the connected GitLab instance. */
+const getInstallationHost = (installation: GitlabInstallation): string =>
+    normalizeCredentialHost(new URL(installation.instanceUrl).host);
+
 /**
  * The OAuth token is only valid against the instance it was issued by, and the
  * clone/MR API target the dbt repo's host. If those hosts differ (self-hosted
  * misconfiguration) the token is silently rejected as "Invalid GitLab access
  * token"; fail early with an actionable message instead.
  */
-const assertSameHost = (
+export const assertSameHost = (
     connection: GitlabConnection,
     installation: GitlabInstallation,
 ): void => {
-    const installHost = new URL(installation.instanceUrl).hostname;
-    if (installHost !== connection.hostDomain) {
+    const installHost = getInstallationHost(installation);
+    if (installHost !== normalizeCredentialHost(connection.hostDomain)) {
         throw new ParameterError(
             `This project's GitLab host (${connection.hostDomain}) does not match the connected GitLab app instance (${installHost}). Connect the GitLab app for ${connection.hostDomain}.`,
         );
@@ -398,8 +403,15 @@ export class GitlabProvider implements GitProvider {
     }: ClosePullRequestArgs): Promise<ClosePullRequestResult> {
         const gitlab = asGitlabInstallation(installation);
         // The MR lives wherever the recorded workstream targeted; derive the
-        // host from its URL rather than the project's dbt connection.
-        const hostDomain = new URL(prUrl).hostname;
+        // host from its URL rather than the project's dbt connection. The
+        // token is only valid against the connected instance.
+        const hostDomain = new URL(prUrl).host;
+        const installHost = getInstallationHost(gitlab);
+        if (normalizeCredentialHost(hostDomain) !== installHost) {
+            throw new ParameterError(
+                `This merge request's host (${hostDomain}) does not match the connected GitLab app instance (${installHost}).`,
+            );
+        }
         return closeMergeRequest({
             owner,
             repo,

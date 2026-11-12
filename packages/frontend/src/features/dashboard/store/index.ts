@@ -82,6 +82,7 @@ export {
     selectActiveTab,
     selectActiveTabUuid,
     selectCanRedoTileLayout,
+    selectCanTidyTiles,
     selectCanUndoTileLayout,
     selectCanvasZoom,
     selectControlOrder,

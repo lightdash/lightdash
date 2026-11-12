@@ -2103,6 +2103,33 @@ describe('getStackTotalSeries', () => {
         expect(result[0].label?.show).toBe(true);
     });
 
+    // ECharts matches series between updates by id, then by position. With no
+    // id, hiding the first stack's total moved the second stack's total into
+    // its slot and the labels animated from one stack to the other.
+    test('gives each stack total a stable id that does not depend on the other stacks', () => {
+        const stackOf = (stack: string): EChartsSeries => ({
+            type: CartesianSeriesType.BAR,
+            stack,
+            stackLabel: { show: true },
+            yAxisIndex: 0,
+        });
+        const totalsFor = (seriesWithStack: EChartsSeries[]) =>
+            getStackTotalSeries(
+                baseArgs.rows,
+                seriesWithStack,
+                baseArgs.itemsMap,
+                baseArgs.flipAxis,
+                baseArgs.selectedLegendNames,
+                baseArgs.isStack100,
+            ).map((series) => series.id);
+
+        expect(totalsFor([stackOf('amount'), stackOf('count')])).toEqual([
+            'stack-total-amount',
+            'stack-total-count',
+        ]);
+        expect(totalsFor([stackOf('count')])).toEqual(['stack-total-count']);
+    });
+
     // The index-0 short-circuit broke total labels whenever the pivot-merge
     // re-ordered series and dropped an unconfigured auto-generated series
     // at the front of the stack. As long as ANY series in the stack has

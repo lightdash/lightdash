@@ -8,7 +8,10 @@ import {
     type AgentSuggestionTool,
     type AiAgentMessage,
 } from '@lightdash/common';
-import { DOCUMENT_OFFER_LINE } from '../ai/prompts/systemV2ContentTools';
+import {
+    MIN_CHARTS_FOR_DOCUMENT_OFFER,
+    removeDocumentOffer,
+} from '../ai/prompts/systemV2ContentTools';
 
 type SuggestionThread = {
     createdFrom: string;
@@ -76,7 +79,7 @@ export const DOCUMENT_SUGGESTION_CHIP: AgentSuggestionPromptChip = {
 
 const DOCUMENT_SAVE_TOOLS = new Set(['createContent', 'editContent']);
 
-/** Two or more charts or dashboards in the thread, and no Document saved from it yet. */
+/** Enough charts or dashboards in the thread for an analysis, and no Document saved from it yet. */
 export const shouldSuggestDocument = (
     messages: ReadonlyArray<AiAgentMessage>,
 ): boolean => {
@@ -93,7 +96,7 @@ export const shouldSuggestDocument = (
             artifactCount += message.artifacts?.length ?? 0;
         }
     }
-    return artifactCount >= 2;
+    return artifactCount >= MIN_CHARTS_FOR_DOCUMENT_OFFER;
 };
 
 // Generated chips that also offer a Document would duplicate the fixed chip.
@@ -107,4 +110,4 @@ export const withDocumentSuggestion = (
 
 // The agent's Document offer is answered by the Document chip, so it must not read as a clarifying question.
 export const withoutDocumentOffer = (text: string): string =>
-    text.replace(DOCUMENT_OFFER_LINE, '').trimEnd();
+    removeDocumentOffer(text).trimEnd();

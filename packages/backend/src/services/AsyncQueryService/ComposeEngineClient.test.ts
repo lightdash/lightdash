@@ -240,6 +240,9 @@ describe('ComposeEngineClient', () => {
             organizationConcurrencyAcquireTimeoutMs:
                 withPreAggregateBucket.externalSources
                     .duckdbQuerySlotWaitTimeoutMs,
+            processConcurrencyLimit:
+                withPreAggregateBucket.externalSources
+                    .maxConcurrentDuckdbQueries,
         });
     });
 
@@ -271,6 +274,7 @@ describe('ComposeEngineClient', () => {
             resourceLimits: { memoryLimit: '512MB', threads: 2 },
             organizationConcurrencyLimit: undefined,
             organizationConcurrencyAcquireTimeoutMs: undefined,
+            processConcurrencyLimit: undefined,
         });
         expect(createDuckdbWarehouseClient).not.toHaveBeenCalledWith(
             expect.objectContaining({

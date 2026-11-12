@@ -6,7 +6,7 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { chunk } from 'es-toolkit/compat';
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useLayoutEffect, useSyncExternalStore } from 'react';
 import {
     dashboardParametersActions,
     selectTileQuerySources,
@@ -41,6 +41,22 @@ export const useDashboardTileParameterReferences = ({
         dashboardControlsFlag?.enabled === true &&
         !!projectUuid &&
         tilesKey !== '';
+
+    // A tile pointed at another chart drops what it had, before its new query reports:
+    // a layout effect runs before every tile's effects, which report a cached chart at once
+    useLayoutEffect(() => {
+        if (dashboardControlsFlag?.enabled !== true) return;
+        store.dispatch(
+            dashboardParametersActions.resetChangedTileParameterSources(
+                Object.fromEntries(
+                    selectTileQuerySources(store.getState()).map((source) => [
+                        source.tileUuid,
+                        JSON.stringify(source),
+                    ]),
+                ),
+            ),
+        );
+    }, [dashboardControlsFlag?.enabled, store, tilesKey]);
 
     const { data } = useQuery<DashboardTileParameterReferences[], ApiError>({
         queryKey: [
@@ -98,6 +114,26 @@ export const useDashboardTileParameterReferences = ({
                 ? [result]
                 : [],
         );
+        const completeTiles = new Set(complete.map(({ tileUuid }) => tileUuid));
+        const { tileListedParameterSources } = store.getState().parameters;
+        // A failed refetch keeps a good listing of the same source
+        const failed = data.filter(
+            ({ tileUuid }) =>
+                sourceByTile[tileUuid] !== undefined &&
+                !completeTiles.has(tileUuid) &&
+                tileListedParameterSources[tileUuid] !== sourceByTile[tileUuid],
+        );
+        if (failed.length > 0)
+            store.dispatch(
+                dashboardParametersActions.markParameterReferencesFailed(
+                    Object.fromEntries(
+                        failed.map(({ tileUuid }) => [
+                            tileUuid,
+                            sourceByTile[tileUuid],
+                        ]),
+                    ),
+                ),
+            );
         if (complete.length === 0) return;
         store.dispatch(
             dashboardParametersActions.addDiscoveredParameterReferences({

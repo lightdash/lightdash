@@ -136,6 +136,7 @@ import DashboardPreAggRefreshModal from './DashboardPreAggRefreshModal';
 import { DashboardRefreshButton } from './DashboardRefreshButton';
 import { PendingChangesButton } from './PendingChangesButton';
 import { PreAggregateAuditDrawer } from './PreAggregateAuditIndicator';
+import { TidyTilesButton } from './TidyTilesButton';
 import { TileLayoutHistoryButtons } from './TileLayoutHistoryButtons';
 import { useDashboardManageAccess } from './useDashboardManageAccess';
 
@@ -760,8 +761,6 @@ const DashboardHeader = memo(
                             >
                                 <TileLayoutHistoryButtons />
                                 <ActionBar.Divider />
-                                <CanvasZoomControls />
-                                <ActionBar.Divider />
                                 <AddTileButton
                                     onAddTiles={onAddTiles}
                                     disabled={isSaving}
@@ -771,7 +770,9 @@ const DashboardHeader = memo(
                                     onNewChart={onNewChart}
                                     radius="md"
                                 />
+                                <TidyTilesButton />
                                 <ActionBar.Divider />
+                                <CanvasZoomControls />
                                 <EditFiltersVisibilityControl
                                     value={editFiltersVisibility}
                                     onChange={onEditFiltersVisibilityChange}

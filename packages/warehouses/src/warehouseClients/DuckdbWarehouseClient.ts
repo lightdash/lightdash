@@ -236,6 +236,8 @@ export type DuckdbWarehouseClientOptions = {
      * before it fails. Without it, a query over the cap fails at once.
      */
     organizationConcurrencyAcquireTimeoutMs?: number;
+    /** Process-local cap, across organizations, on the queries that take a per-organization slot. */
+    processConcurrencyLimit?: number;
     /**
      * Confine the instance to its storage bucket(s) and a private temp
      * directory. Serve sessions only read object storage, so they have no
@@ -577,6 +579,8 @@ const EMBEDDED_MAX_CONCURRENT_QUERIES_PER_ORGANIZATION =
         4,
     );
 
+// Shorter slot waits are scheduling noise, not contention
+const SLOT_WAIT_LOG_THRESHOLD_MS = 100;
 const EMBEDDED_CONCURRENCY_ACQUIRE_TIMEOUT_MS =
     getPositiveIntegerEnvironmentVariable(
         'PLAYGROUND_CONCURRENCY_ACQUIRE_TIMEOUT_MS',
@@ -686,6 +690,11 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         ConcurrencyBudget
     >();
 
+    private static readonly processConcurrencyBudgets = new Map<
+        number,
+        ConcurrencyBudget
+    >();
+
     private static readonly sqlBuilder = new DuckdbSqlBuilder();
 
     private readonly databasePath: string;
@@ -721,6 +730,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
     private readonly organizationConcurrencyLimit?: number;
 
     private readonly organizationConcurrencyAcquireTimeoutMs: number;
+
+    private readonly processConcurrencyLimit?: number;
 
     private readonly objectStorageOnly: boolean;
 
@@ -875,6 +886,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             options?.organizationConcurrencyLimit;
         this.organizationConcurrencyAcquireTimeoutMs =
             options?.organizationConcurrencyAcquireTimeoutMs ?? 0;
+        this.processConcurrencyLimit = options?.processConcurrencyLimit;
         this.objectStorageOnly = options?.objectStorageOnly ?? false;
     }
 
@@ -990,7 +1002,9 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
         organizationUuid: string,
         limit: number,
         timeoutMs: number,
+        processLimit: number | undefined,
     ): Promise<(() => void) | undefined> {
+        const acquireDeadline = Date.now() + timeoutMs;
         const key = `${limit}:${organizationUuid}`;
         const budget =
             DuckdbWarehouseClient.organizationConcurrencyBudgets.get(key) ??
@@ -1008,18 +1022,50 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             }
             return undefined;
         }
-        let released = false;
-        return () => {
-            if (released) {
-                return;
-            }
-            released = true;
+        const releaseOrganization = () => {
             budget.release();
             if (budget.isIdle()) {
                 DuckdbWarehouseClient.organizationConcurrencyBudgets.delete(
                     key,
                 );
             }
+        };
+        if (!processLimit) {
+            let organizationReleased = false;
+            return () => {
+                if (organizationReleased) {
+                    return;
+                }
+                organizationReleased = true;
+                releaseOrganization();
+            };
+        }
+        // Organization slot first, so one organization's queue cannot hold process slots
+        const processBudget =
+            DuckdbWarehouseClient.processConcurrencyBudgets.get(processLimit) ??
+            new ConcurrencyBudget(processLimit);
+        DuckdbWarehouseClient.processConcurrencyBudgets.set(
+            processLimit,
+            processBudget,
+        );
+        const processAcquired =
+            timeoutMs > 0
+                ? await processBudget.acquire(
+                      Math.max(0, acquireDeadline - Date.now()),
+                  )
+                : processBudget.tryAcquire();
+        if (!processAcquired) {
+            releaseOrganization();
+            return undefined;
+        }
+        let released = false;
+        return () => {
+            if (released) {
+                return;
+            }
+            released = true;
+            processBudget.release();
+            releaseOrganization();
         };
     }
 
@@ -1774,6 +1820,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             budget.reset(),
         );
         DuckdbWarehouseClient.organizationConcurrencyBudgets.clear();
+        DuckdbWarehouseClient.processConcurrencyBudgets.forEach((budget) =>
+            budget.reset(),
+        );
+        DuckdbWarehouseClient.processConcurrencyBudgets.clear();
     }
 
     async close(): Promise<void> {
@@ -2589,12 +2639,25 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbMothe
             organizationUuid &&
             this.organizationConcurrencyLimit
         ) {
+            const waitStartedAt = Date.now();
             releaseOrganizationConcurrency =
                 await DuckdbWarehouseClient.acquireOrganizationConcurrency(
                     organizationUuid,
                     this.organizationConcurrencyLimit,
                     this.organizationConcurrencyAcquireTimeoutMs,
+                    this.processConcurrencyLimit,
                 );
+            const waitMs = Date.now() - waitStartedAt;
+            if (
+                waitMs >= SLOT_WAIT_LOG_THRESHOLD_MS ||
+                !releaseOrganizationConcurrency
+            ) {
+                this.logger?.info('DuckDB query slot wait', {
+                    organizationUuid,
+                    waitMs,
+                    acquired: !!releaseOrganizationConcurrency,
+                });
+            }
             if (!releaseOrganizationConcurrency) {
                 throw new WarehouseQueryError(
                     'External source query capacity is full. Try again shortly.',

@@ -32,6 +32,8 @@ describe('NatsWorker subject dispatch', () => {
     const asyncQueryService = {
         runAsyncWarehouseQueryFromHistory: vi.fn(async () => true),
         runAsyncDuckdbQueryFromHistory: vi.fn(async () => true),
+        runAsyncExternalSourceQueryFromHistory: vi.fn(async () => true),
+        markClaimedQueryAsErrored: vi.fn(async () => undefined),
         runAsyncPreAggregateQueryFromHistory: vi.fn(async () => true),
     };
     const queryHistoryModel = {
@@ -71,6 +73,46 @@ describe('NatsWorker subject dispatch', () => {
             expect.any(Function),
         );
         expect(message.ack).toHaveBeenCalled();
+    });
+
+    it.each([
+        ['dedicated DuckDB', () => STREAM_CONFIGS.duckdb.subjects],
+        ['pre-aggregate', () => STREAM_CONFIGS['pre-aggregate'].subjects],
+    ])(
+        'runs an external source job from the %s stream on its own runner',
+        async (_, subjects) => {
+            const message = jobMessage(subjects().externalSource);
+
+            await buildWorker().handleMessage(message, 'worker-1');
+
+            expect(
+                asyncQueryService.runAsyncExternalSourceQueryFromHistory,
+            ).toHaveBeenCalledWith(
+                'query-1',
+                'worker-1',
+                undefined,
+                expect.any(Function),
+            );
+            expect(
+                asyncQueryService.runAsyncDuckdbQueryFromHistory,
+            ).not.toHaveBeenCalled();
+            expect(message.ack).toHaveBeenCalled();
+        },
+    );
+
+    it('fails the query and drops the job when it has no runner for the subject', async () => {
+        const message = jobMessage('pre_aggregate.not_a_subject.jobs');
+
+        await buildWorker().handleMessage(message, 'worker-1');
+
+        expect(
+            asyncQueryService.markClaimedQueryAsErrored,
+        ).toHaveBeenCalledWith(
+            'query-1',
+            expect.stringContaining('cannot run'),
+        );
+        expect(message.term).toHaveBeenCalled();
+        expect(message.ack).not.toHaveBeenCalled();
     });
 
     it('runs a DuckDB job that rode the pre-aggregate stream', async () => {

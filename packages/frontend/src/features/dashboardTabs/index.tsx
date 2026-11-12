@@ -27,7 +27,7 @@ import {
     useTransition,
     type FC,
 } from 'react';
-import { type Layout } from 'react-grid-layout';
+import { type ItemCallback, type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import {
@@ -64,6 +64,8 @@ import {
     useDashboardUnmetFilterRequirements,
 } from '../dashboard/store';
 import { ControlsBar } from '../dashboardControls/ControlsBar';
+import { useParameterBarControls } from '../dashboardControls/useParameterBarControls';
+import { useParameterEditorSelector } from '../dashboardControls/useParameterEditor';
 import addFilterClasses from '../dashboardFilters/AddFilterButton.module.css';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
@@ -79,7 +81,17 @@ import { TabEditModal } from './EditTabModal';
 import GridTile from './GridTile';
 import {
     convertLayoutToBaseCoordinates,
-    hasGridItemMoved,
+    pinGridItem,
+    resolveDropOverlaps,
+    getRowInsertion,
+    getGapFill,
+    getPointerCell,
+    getPointerPosition,
+    hasLayoutChanged,
+    countResizedItems,
+    withGridItem,
+    getSnapTarget,
+    GRID_DESKTOP_COLS,
     DEFAULT_ROW_HEIGHT,
     EDIT_ACTION_BAR_CLEARANCE,
     FINE_GRID_SCALE,
@@ -106,9 +118,18 @@ const EMPTY_LAYOUTS: DashboardLayouts = {
 // Unset outside edit mode, where the grid is never zoomed
 type DashboardGridProps = ReturnType<typeof getResponsiveGridLayoutProps> & {
     transformScale: number | undefined;
+    allowOverlap: boolean;
 };
 
 const DASHBOARD_GRID_BOTTOM_PADDING = 60;
+
+/** A little longer than the drop transition in tabs.module.css */
+const DROP_SETTLE_MS = 260;
+
+type SettleMode = 'position' | 'positionAndSize';
+
+/** Each resizing chart redraws on every frame, so bigger drops only move */
+const MAX_ANIMATED_RESIZES = 4;
 
 type TabGridPanelProps = {
     tabUuid: string;
@@ -119,10 +140,11 @@ type TabGridPanelProps = {
     locked: boolean;
     gridProps: DashboardGridProps;
     dashboardTabs: DashboardTab[];
-    onDragStart: () => void;
-    onDragStop: (layout: Layout[], before: Layout, after: Layout) => void;
-    onResizeStart: () => void;
-    onResizeStop: (layout: Layout[], before: Layout, after: Layout) => void;
+    onDragStart: ItemCallback;
+    onDrag: ItemCallback;
+    onDragStop: ItemCallback;
+    onResizeStart: ItemCallback;
+    onResizeStop: ItemCallback;
     onWidthChange: (width: number) => void;
     onDeleteTile: (tile: IDashboard['tiles'][number]) => Promise<void>;
     onEditTile: (tile: IDashboard['tiles'][number]) => void;
@@ -151,6 +173,7 @@ const TabGridPanel = memo<TabGridPanelProps>(
         gridProps,
         dashboardTabs,
         onDragStart,
+        onDrag,
         onDragStop,
         onResizeStart,
         onResizeStop,
@@ -172,6 +195,7 @@ const TabGridPanel = memo<TabGridPanelProps>(
                         key={gridProps.cols.lg}
                         {...gridProps}
                         onDragStart={onDragStart}
+                        onDrag={onDrag}
                         onDragStop={onDragStop}
                         onResizeStart={onResizeStart}
                         onResizeStop={onResizeStop}
@@ -220,7 +244,8 @@ const TabGridPanel = memo<TabGridPanelProps>(
         // Drop handlers close over the grid scale
         if (
             nextProps.isActive &&
-            (prevProps.onDragStop !== nextProps.onDragStop ||
+            (prevProps.onDrag !== nextProps.onDrag ||
+                prevProps.onDragStop !== nextProps.onDragStop ||
                 prevProps.onResizeStop !== nextProps.onResizeStop)
         )
             return false;
@@ -317,15 +342,31 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         FeatureFlags.DashboardEditErgonomics,
     );
     // Editing gets a grid twice as fine; stored positions stay in base units
-    const gridScale =
-        isEditMode && editErgonomicsFlag?.enabled === true
-            ? FINE_GRID_SCALE
-            : 1;
+    const isEditErgonomicsEnabled =
+        isEditMode && editErgonomicsFlag?.enabled === true;
+    const gridScale = isEditErgonomicsEnabled ? FINE_GRID_SCALE : 1;
     const FiltersBar = isDashboardControlsEnabled
         ? ControlsBar
         : DashboardFiltersBar;
 
     const [isInteracting, setIsInteracting] = useState(false);
+    // Just after a drop, while tiles travel to where the drop put them
+    const [settleMode, setSettleMode] = useState<SettleMode | null>(null);
+    useEffect(() => {
+        if (settleMode === null) return;
+        const timer = window.setTimeout(
+            () => setSettleMode(null),
+            DROP_SETTLE_MS,
+        );
+        return () => window.clearTimeout(timer);
+    }, [settleMode]);
+    // An attribute, not state: it flips many times in one drag
+    const setShadowSnapped = useCallback((isSnapped: boolean) => {
+        gridWrapperRef.current?.toggleAttribute(
+            'data-shadow-snapped',
+            isSnapped,
+        );
+    }, []);
 
     const showGridLines = isEditMode && isInteracting;
 
@@ -343,26 +384,128 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const { start: startAutoScroll, stop: stopAutoScroll } =
         useAutoScrollOnDrag();
 
-    const handleDragStart = useCallback(() => {
-        setIsInteracting(true);
-        startAutoScroll();
-    }, [startAutoScroll]);
+    const endInteraction = useCallback(() => {
+        stopAutoScroll();
+        setIsInteracting(false);
+        setShadowSnapped(false);
+    }, [stopAutoScroll, setShadowSnapped]);
+    const handleInteractionStart = useCallback<ItemCallback>(
+        (_layout, _before, _after, _placeholder, _event, node) => {
+            if (isEditErgonomicsEnabled) pinGridItem(node);
+            setIsInteracting(true);
+            startAutoScroll();
+            // The grid reports no stop for a press that never moved
+            const release = new AbortController();
+            const handleRelease = () => {
+                release.abort();
+                endInteraction();
+            };
+            ['mouseup', 'touchend', 'touchcancel'].forEach((type) =>
+                window.addEventListener(type, handleRelease, {
+                    signal: release.signal,
+                }),
+            );
+        },
+        [startAutoScroll, endInteraction, isEditErgonomicsEnabled],
+    );
     // The grid reports its whole layout on every stop, with stored overlaps
-    // pushed apart, so a click that moved nothing must not apply it
-    const handleInteractionStop = useCallback(
-        (layout: Layout[], before: Layout, after: Layout) => {
-            stopAutoScroll();
-            setIsInteracting(false);
-            if (hasGridItemMoved(before, after)) {
-                void handleUpdateTilesWithScaling(layout);
+    // pushed apart, so a gesture that changed nothing must not apply it
+    const applyDrop = useCallback(
+        (layoutBefore: Layout[], layout: Layout[]) => {
+            endInteraction();
+            if (!hasLayoutChanged(layoutBefore, layout)) return;
+            if (isEditErgonomicsEnabled) {
+                setSettleMode(
+                    countResizedItems(layoutBefore, layout) <=
+                        MAX_ANIMATED_RESIZES
+                        ? 'positionAndSize'
+                        : 'position',
+                );
+            }
+            void handleUpdateTilesWithScaling(layout);
+        },
+        [endInteraction, handleUpdateTilesWithScaling, isEditErgonomicsEnabled],
+    );
+    const handleResizeStop = useCallback<ItemCallback>(
+        (layout, before, after) =>
+            applyDrop(
+                withGridItem(layout, before),
+                isEditErgonomicsEnabled
+                    ? resolveDropOverlaps(layout, [after.i])
+                    : layout,
+            ),
+        [applyDrop, isEditErgonomicsEnabled],
+    );
+    // A slot beside the tile under the pointer, else the empty space under it
+    const getDragSnap = useCallback(
+        (
+            layout: Layout[],
+            before: Layout,
+            event: MouseEvent | TouchEvent,
+            node: HTMLElement,
+        ) => {
+            const pointer = getPointerPosition(event);
+            if (!isEditErgonomicsEnabled || !pointer) return null;
+            const cols = GRID_DESKTOP_COLS * gridScale;
+            const layoutBefore = withGridItem(layout, before);
+            const target = getSnapTarget(pointer, before.i);
+            if (target) {
+                return getRowInsertion({
+                    layout: layoutBefore,
+                    draggedId: before.i,
+                    target,
+                    cols,
+                });
+            }
+            return getGapFill({
+                layout: layoutBefore,
+                draggedId: before.i,
+                cols,
+                // The dragged tile is held where it started, so it measures
+                // the grid
+                cell: getPointerCell({
+                    pointer,
+                    tile: before,
+                    tileRect: node.getBoundingClientRect(),
+                }),
+            });
+        },
+        [isEditErgonomicsEnabled, gridScale],
+    );
+    const handleDrag = useCallback<ItemCallback>(
+        (layout, before, _after, placeholder, event, node) => {
+            const snap = getDragSnap(layout, before, event, node);
+            setShadowSnapped(snap !== null);
+            // The grid draws the shadow from this object after the callback
+            if (snap) {
+                const { x, y, w, h } = snap.slot;
+                Object.assign(placeholder, { x, y, w, h });
             }
         },
-        [handleUpdateTilesWithScaling, stopAutoScroll],
+        [getDragSnap, setShadowSnapped],
     );
-    const handleResizeStart = useCallback(() => {
-        setIsInteracting(true);
-        startAutoScroll();
-    }, [startAutoScroll]);
+    const handleDragStop = useCallback<ItemCallback>(
+        (layout, before, after, placeholder, event, node) => {
+            const snap = getDragSnap(layout, before, event, node);
+            if (!snap) {
+                handleResizeStop(
+                    layout,
+                    before,
+                    after,
+                    placeholder,
+                    event,
+                    node,
+                );
+                return;
+            }
+            // The grid keeps this object as the tile's place, so a snap that
+            // changes nothing still puts the tile back
+            const { x, y, w, h } = snap.slot;
+            Object.assign(after, { x, y, w, h });
+            applyDrop(withGridItem(layout, before), snap.layout);
+        },
+        [getDragSnap, handleResizeStop, applyDrop],
+    );
     const handleWidthChange = useCallback(
         (cw: number) => setGridWidth(cw),
         [setGridWidth],
@@ -530,8 +673,16 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         () => ({
             ...unzoomedGridProps,
             transformScale: isCanvasZoomable ? canvasZoom : undefined,
+            // Only mid-gesture, so the grid still pushes stored overlaps apart
+            allowOverlap: isEditErgonomicsEnabled && isInteracting,
         }),
-        [unzoomedGridProps, isCanvasZoomable, canvasZoom],
+        [
+            unzoomedGridProps,
+            isCanvasZoomable,
+            canvasZoom,
+            isEditErgonomicsEnabled,
+            isInteracting,
+        ],
     );
     const layoutsByTab = useMemo(() => {
         const map = new Map<string, DashboardLayouts>();
@@ -675,7 +826,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const totalFiltersCount =
         dashboardFilters.dimensions.length +
         dashboardTemporaryFilters.dimensions.length;
-    const totalParametersCount = Object.keys(activeTabParameters).length;
+    const parameterBar = useParameterBarControls();
+    const isParameterViewer = useParameterEditorSelector((c) => c.isViewer);
+    // With the controls, the pills the bar shows
+    const totalParametersCount = isDashboardControlsEnabled
+        ? parameterBar.entries.filter(
+              ({ control }) => !(isParameterViewer && control.hidden),
+          ).length
+        : Object.keys(activeTabParameters).length;
 
     const currentTabHasTiles = !!dashboardTiles?.some((tile) =>
         isActiveTile(tile),
@@ -1218,6 +1376,15 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                 isFitToScreenSnapping
                                     ? styles.gridSnapping
                                     : undefined,
+                                gridProps.allowOverlap
+                                    ? styles.dropShadow
+                                    : undefined,
+                                settleMode !== null
+                                    ? styles.gridSettling
+                                    : undefined,
+                                settleMode === 'positionAndSize'
+                                    ? styles.gridSettlingSize
+                                    : undefined,
                             ]
                                 .filter(Boolean)
                                 .join(' ')}
@@ -1262,15 +1429,16 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                   }
                                                   gridProps={gridProps}
                                                   dashboardTabs={dashboardTabs}
-                                                  onDragStart={handleDragStart}
-                                                  onDragStop={
-                                                      handleInteractionStop
+                                                  onDragStart={
+                                                      handleInteractionStart
                                                   }
+                                                  onDrag={handleDrag}
+                                                  onDragStop={handleDragStop}
                                                   onResizeStart={
-                                                      handleResizeStart
+                                                      handleInteractionStart
                                                   }
                                                   onResizeStop={
-                                                      handleInteractionStop
+                                                      handleResizeStop
                                                   }
                                                   onWidthChange={
                                                       handleWidthChange
@@ -1289,12 +1457,15 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                           <ResponsiveGridLayout
                                               key={gridProps.cols.lg}
                                               {...gridProps}
-                                              onDragStart={handleDragStart}
-                                              onDragStop={handleInteractionStop}
-                                              onResizeStart={handleResizeStart}
-                                              onResizeStop={
-                                                  handleInteractionStop
+                                              onDragStart={
+                                                  handleInteractionStart
                                               }
+                                              onDrag={handleDrag}
+                                              onDragStop={handleDragStop}
+                                              onResizeStart={
+                                                  handleInteractionStart
+                                              }
+                                              onResizeStop={handleResizeStop}
                                               onWidthChange={handleWidthChange}
                                               layouts={allTilesLayouts}
                                           >

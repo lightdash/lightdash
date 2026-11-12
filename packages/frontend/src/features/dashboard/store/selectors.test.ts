@@ -190,6 +190,23 @@ describe('parameter selectors', () => {
                 });
             });
 
+            it('is not known while its latest listing failed, until it runs', () => {
+                const failed = stateWith({
+                    ...listed,
+                    tileChartSavedParameters: { 'tile-1': {} },
+                    tileFailedParameterSources: { 'tile-1': 'chart-2' },
+                });
+                expect(selectMissingRequiredParameters(failed)).toEqual([]);
+                expect(selectMissingParametersByTile(failed)).toEqual({});
+                const ran = stateWith({
+                    ...failed.parameters,
+                    tileQueryParameterReferences: { 'tile-1': ['status'] },
+                });
+                expect(selectMissingRequiredParameters(ran)).toEqual([
+                    'status',
+                ]);
+            });
+
             it('is satisfied by its listed chart value', () => {
                 const state = stateWith({
                     ...listed,
