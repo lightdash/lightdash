@@ -1219,7 +1219,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                             isChatOpen) ? null : (
                             <Group
                                 className={classes.toolbar}
-                                data-my-changes={isTryingChanges || undefined}
                                 data-status={changeStatus}
                                 justify="space-between"
                                 wrap="nowrap"
