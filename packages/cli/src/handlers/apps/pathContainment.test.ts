@@ -5,6 +5,7 @@ import * as path from 'path';
 import {
     assertOutDirSafeToClear,
     canonicalizeForContainment,
+    resolveContainedPath,
 } from './pathContainment';
 
 const describePosix = process.platform === 'win32' ? describe.skip : describe;
@@ -53,6 +54,38 @@ describePosix('canonicalizeForContainment', () => {
         await expect(
             canonicalizeForContainment(impossiblePath),
         ).rejects.toMatchObject({ code: 'ENOTDIR' });
+    });
+
+    it('distinguishes an unresolved link from a missing path', async () => {
+        const dir = await mkTmpDir('ld-canon-missing-');
+        const link = path.join(dir, 'link');
+        await fs.symlink('not-created', link);
+
+        await expect(canonicalizeForContainment(link)).rejects.toMatchObject({
+            code: 'ENOENT',
+        });
+    });
+});
+
+describePosix('resolveContainedPath', () => {
+    it('allows a new file below a linked directory inside the root', async () => {
+        const dir = await mkTmpDir('ld-contained-');
+        await fs.mkdir(path.join(dir, 'source'));
+        await fs.symlink('source', path.join(dir, 'alias'), 'dir');
+
+        await expect(resolveContainedPath(dir, 'alias/new/file')).resolves.toBe(
+            path.join(await fs.realpath(dir), 'source', 'new', 'file'),
+        );
+    });
+
+    it('requires the resolved directory to stay within the selected root', async () => {
+        const root = await mkTmpDir('ld-contained-');
+        const sibling = await mkTmpDir('ld-contained-sibling-');
+        await fs.symlink(sibling, path.join(root, 'alias'), 'dir');
+
+        await expect(resolveContainedPath(root, 'alias')).rejects.toThrow(
+            'outside the target directory',
+        );
     });
 });
 
