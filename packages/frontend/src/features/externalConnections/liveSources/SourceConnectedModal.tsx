@@ -95,7 +95,7 @@ export const SourceConnectedModal: FC<Props> = ({
                     <Select
                         allowDeselect={false}
                         label="Reattach a deleted source"
-                        description="Its charts work again with this source, and its field edits come back."
+                        description="This source takes its Source ID, so its charts work again and its field edits come back."
                         value={selectedUuid}
                         onChange={setPicked}
                         data={[

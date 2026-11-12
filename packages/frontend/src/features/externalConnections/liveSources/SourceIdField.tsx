@@ -16,7 +16,7 @@ export const SourceIdField: FC<Props> = ({ connection, sourceId }) => {
                 label="Source ID"
                 value={connection.liveSourceName}
                 readOnly
-                description="Set when the source was created. To use another, delete this source and add a new one."
+                description="Prefix for this source's explore names. It never changes, so saved charts keep working. To use another, delete this source and add a new one."
             />
         ) : null;
     }
@@ -29,11 +29,9 @@ export const SourceIdField: FC<Props> = ({ connection, sourceId }) => {
                 value={value}
                 onChange={(event) => onChange(event.currentTarget.value)}
                 error={error}
-                description={
-                    exploreName
-                        ? `Charts will refer to it as ${exploreName}. It can't be changed later.`
-                        : "Charts refer to this. It can't be changed later."
-                }
+                description={`Prefix for explore names${
+                    exploreName ? `, e.g. ${exploreName}` : ''
+                }. Keep the default if it's your only source of this type. It never changes, so saved charts keep working and reattaching reuses it.`}
             />
             {suggestion && (
                 <Text fz="xs" c="dimmed">
