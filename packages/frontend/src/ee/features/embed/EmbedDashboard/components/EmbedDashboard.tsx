@@ -12,6 +12,7 @@ import {
     isFilterInteractivityEnabled,
     isParameterInteractivityEnabled,
     isTileInEmbedExport,
+    translateDashboardControlNames,
     type DashboardFilters,
     type DashboardTile,
     type EmbedDashboard as EmbedDashboardType,
@@ -627,19 +628,57 @@ const EmbedDashboard: FC<{
     );
     const filterLabelOverrides = dashboardContentOverrides?.filters;
 
+    const writeSpaceUuids = useMemo(
+        () => getEmbedWriteSpaceUuids(writeActions),
+        [writeActions],
+    );
+    const canWriteDashboard =
+        !!dashboard &&
+        writeSpaceUuids.includes(dashboard.spaceUuid) &&
+        embedWriteContext?.canUpdateDashboard === true;
+    const isEditorInEditMode = canWriteDashboard && isEditMode;
+
     // Translated filter labels are applied before the dashboard seeds the
     // provider so every viewer surface (pills, guided setup, popovers) sees
     // them; handleSaveDashboard restores the untranslated labels.
-    const translatedDashboard = useMemo(() => {
-        if (!dashboard || !filterLabelOverrides) return dashboard;
-        return {
-            ...dashboard,
-            filters: applyFilterLabelOverrides(
-                dashboard.filters,
-                filterLabelOverrides,
-            ),
-        };
-    }, [dashboard, filterLabelOverrides]);
+    const translatedFilters = useMemo(
+        () =>
+            dashboard && filterLabelOverrides
+                ? applyFilterLabelOverrides(
+                      dashboard.filters,
+                      filterLabelOverrides,
+                  )
+                : dashboard?.filters,
+        [dashboard, filterLabelOverrides],
+    );
+    // Section, parameter control and date zoom names are translated for
+    // viewing only: an editor in edit mode works on, and saves, the source names
+    const translatedConfig = useMemo(
+        () =>
+            dashboard?.config &&
+            dashboardContentOverrides &&
+            !isEditorInEditMode
+                ? translateDashboardControlNames(
+                      dashboard.config,
+                      dashboardContentOverrides,
+                  )
+                : dashboard?.config,
+        [dashboard, dashboardContentOverrides, isEditorInEditMode],
+    );
+    const translatedDashboard = useMemo(
+        () =>
+            dashboard &&
+            translatedFilters &&
+            (translatedFilters !== dashboard.filters ||
+                translatedConfig !== dashboard.config)
+                ? {
+                      ...dashboard,
+                      filters: translatedFilters,
+                      config: translatedConfig,
+                  }
+                : dashboard,
+        [dashboard, translatedFilters, translatedConfig],
+    );
 
     const setEmbedDashboard = useDashboardContext((c) => c.setEmbedDashboard);
     useEffect(() => {
@@ -753,15 +792,6 @@ const EmbedDashboard: FC<{
         [filteredTiles, isEditMode],
     );
 
-    const writeSpaceUuids = useMemo(
-        () => getEmbedWriteSpaceUuids(writeActions),
-        [writeActions],
-    );
-    const canWriteDashboard =
-        !!dashboard &&
-        writeSpaceUuids.includes(dashboard.spaceUuid) &&
-        embedWriteContext?.canUpdateDashboard === true;
-    const isEditorInEditMode = canWriteDashboard && isEditMode;
     // With the controls, the stores know an editor is editing, as in the app:
     // a viewer's parameter picks and zoom pick are dropped, never saved
     const isControlsEditor = isControlsEnabled && isEditorInEditMode;
@@ -1020,10 +1050,11 @@ const EmbedDashboard: FC<{
     useEffect(() => {
         const wasEditMode = wasEditModeRef.current;
         wasEditModeRef.current = isEditMode;
+        // The config as the store is seeded on the way out: translated
         if (isControlsEnabled && wasEditMode && !isEditMode) {
-            resetControlDrafts(dashboard?.config);
+            resetControlDrafts(translatedConfig);
         }
-    }, [dashboard, isControlsEnabled, isEditMode, resetControlDrafts]);
+    }, [translatedConfig, isControlsEnabled, isEditMode, resetControlDrafts]);
 
     // Filters are not part of resetDashboardDraft: it also runs on mount, where
     // it would clobber the SDK/URL filter overrides the provider applies.

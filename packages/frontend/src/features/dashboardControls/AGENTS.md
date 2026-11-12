@@ -258,7 +258,12 @@ Each one has broken before or would break silently.
   `SectionMenu`), so the member is never stranded. A host turning `isEditMode` off without
   Cancel drops the control drafts (what an open editor applies on the way
   out included) but keeps filter rule drafts, as before the controls. The embed resolves the flag for the JWT's
-  organisation (`FeatureFlagService.getForAccount`).
+  organisation (`FeatureFlagService.getForAccount`). A language map's
+  control names (`sections.names`, `parameterControls.labels`,
+  `dateZooms.names`, each keyed by source name) are applied to the config
+  that seeds the store for viewing only (`translatedConfig` in
+  `EmbedDashboard`): an editor in edit mode is seeded with, and saves, the
+  source names.
 - **Saved section keys survive every rewrite**: `sectionId` is carried in
   `applyDimensionOverrides` / `applyMetricOverrides`, `adoptPlaceholder` and
   the emptied placeholder. See `docs/sections.md`.

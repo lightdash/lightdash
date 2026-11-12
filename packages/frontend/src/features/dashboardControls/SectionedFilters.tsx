@@ -225,6 +225,8 @@ const SectionCapsule: FC<CapsuleProps> = ({
     renderMembers,
 }) => {
     const getUiString = useUiStrings();
+    // What a viewer reads; an editor's name button keeps the name as saved
+    const displayName = section.name || getUiString('controls.untitledSection');
     const summaryId = useId();
     const [isRenaming, setIsRenaming] = useState(false);
     const { ref: nameRef, exit: renameExit } = useRefocusAfter(isRenaming);
@@ -245,7 +247,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
         getUiString(
             isOpen ? 'controls.collapseSection' : 'controls.expandSection',
         ),
-        { section: section.name },
+        { section: displayName },
     );
     // Nothing to show on this tab (an editor's bar only): the member count
     // Date zooms count with parameters: both read as controls
@@ -279,7 +281,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
                     color="dimmed"
                 />
                 <Text span fz="xs" fw={600}>
-                    {section.name}
+                    {displayName}
                 </Text>
             </UnstyledButton>
         ) : (
@@ -383,7 +385,7 @@ const SectionCapsule: FC<CapsuleProps> = ({
         <Box
             ref={setNodeRef}
             role="group"
-            aria-label={section.name}
+            aria-label={displayName}
             className={classes.capsule}
             data-collapsed={isFolded || undefined}
             data-editable={actions !== null || undefined}
