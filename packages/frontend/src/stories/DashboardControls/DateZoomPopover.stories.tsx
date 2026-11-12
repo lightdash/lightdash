@@ -229,7 +229,7 @@ export const Default: Story = {
         );
         await userEvent.click(dialog.getByRole('button', { name: 'Apply' }));
         await expect(await defaultZoom(page)).toHaveTextContent(
-            'Default zoom None',
+            /^Default zoom\s*$/,
         );
     },
 };
@@ -247,7 +247,7 @@ export const DefaultViewer: Story = {
         );
         await expect(
             page.getByRole('button', { name: /^Default zoom/ }),
-        ).toHaveTextContent('Default zoom · Week');
+        ).toHaveTextContent('Default zoom Week');
     },
 };
 

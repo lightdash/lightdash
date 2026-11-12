@@ -6,6 +6,7 @@ import {
     useDashboardSelector,
 } from '../dashboard/store';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
+import { DateZoom } from '../dateZoom';
 import { DateZoomCrossTabFieldsLoader } from '../dateZoom/components/DateZoomCrossTabFieldsLoader';
 import { AddControl } from './AddControl';
 import classes from './ControlsBar.module.css';
@@ -59,14 +60,17 @@ export const ControlsBar: FC<Props> = (props) => {
             withGroupMarkers={false}
             // Default zoom stays on the right; named zooms are pills
             withDateZoomControls={false}
-            // An editor's Default zoom opens its popover; grains stay in "..."
+            // One quiet button in both modes: an editor's opens its popover
+            // (grains stay in "..."), a viewer's the shipped menu
             defaultZoom={
                 props.isEditMode ? (
                     <>
                         <DefaultZoomButton />
                         <DateZoomCrossTabFieldsLoader />
                     </>
-                ) : undefined
+                ) : (
+                    <DateZoom isEditMode={false} withControls={false} isQuiet />
+                )
             }
             filterArea={
                 <SettledFilterFields>

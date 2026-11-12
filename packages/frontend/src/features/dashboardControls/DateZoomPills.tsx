@@ -491,19 +491,20 @@ export const DefaultZoomButton: FC = () => {
                         <Text span c="dimmed">
                             {getUiString('dateZoom.defaultZoom')}{' '}
                         </Text>
-                        <Text
-                            span
-                            fw={isInEffect ? 600 : undefined}
-                            c={isInEffect ? undefined : 'dimmed'}
-                        >
-                            {granularity === null
-                                ? getUiString('dateZoom.none')
-                                : getGranularityLabel(
-                                      granularity,
-                                      customLabels,
-                                      getUiString,
-                                  )}
-                        </Text>
+                        {/* No grain: the name alone */}
+                        {granularity !== null && (
+                            <Text
+                                span
+                                fw={isInEffect ? 600 : undefined}
+                                c={isInEffect ? undefined : 'dimmed'}
+                            >
+                                {getGranularityLabel(
+                                    granularity,
+                                    customLabels,
+                                    getUiString,
+                                )}
+                            </Text>
+                        )}
                     </Text>
                 </Button>
             </Tooltip>
