@@ -854,13 +854,16 @@ export class ProjectModelDocumentModel {
                                   added,
                               )
                               .groupBy(`${ProjectModelRevisionsTableName}.name`)
-                              .select<{ name: string; version: number }[]>({
+                              .select({
                                   name: `${ProjectModelRevisionsTableName}.name`,
-                                  version: trx.raw(
-                                      `max(${ProjectModelRevisionsTableName}.document_version)`,
-                                  ),
                               })
-                      ).map(({ name, version }) => [name, version]),
+                              .max({
+                                  version: `${ProjectModelRevisionsTableName}.document_version`,
+                              })
+                      ).map(({ name, version }): [string, number] => [
+                          name,
+                          Number(version),
+                      ]),
             );
             await Promise.all(
                 documents.map(async ({ name, content }) => {
