@@ -1,4 +1,5 @@
 import {
+    DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
     DimensionType,
     FieldType,
     mcpQueryStructuredOutputSchema,
@@ -499,8 +500,9 @@ describe('McpService query tool', () => {
         ).resolves.toBe(false);
     });
 
-    it("returns the terminal node's preview and every node's query uuid", async () => {
-        const { service, call } = makeService();
+    it("returns every terminal row and every node's query uuid", async () => {
+        const { service, call, runComposerQueriesUntilDeadline } =
+            makeService();
         await createServer(service);
 
         const result = await call(
@@ -516,6 +518,10 @@ describe('McpService query tool', () => {
             status: 'done',
             terminalNodeId: 'totals',
             rowCount: 2,
+            rows: [
+                { orders_status: 'completed', total: 3 },
+                { orders_status: 'placed', total: 1 },
+            ],
             nodes: [
                 {
                     nodeId: 'orders',
@@ -575,6 +581,9 @@ describe('McpService query tool', () => {
         );
         expect(textOf(result)).toContain(
             'orders_status,total\ncompleted,3\nplaced,1',
+        );
+        expect(runComposerQueriesUntilDeadline).toHaveBeenCalledWith(
+            expect.objectContaining({ readAllTerminalRows: true }),
         );
     });
 
@@ -810,6 +819,13 @@ describe('McpService query tool', () => {
                 rows: [{ total: 4 }],
             },
         });
+        // Every row, not the page size stored on the query by its first read.
+        expect(asyncQueryService.getAsyncQueryResults).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                pageSize: DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
+                maxPageSize: DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
+            }),
+        );
     });
 
     it('lists the failed node with its error first, then the nodes it reads with their columns and samples', async () => {

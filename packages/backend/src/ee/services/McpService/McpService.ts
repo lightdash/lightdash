@@ -218,7 +218,6 @@ import type {
     BuiltInSkillToolResource,
 } from '../ai/skills/builtInSkills';
 import {
-    buildComposerPreview,
     buildComposerQueryPipeline,
     getFailedRunNodes,
     hasReachedLimit,
@@ -1660,6 +1659,7 @@ export class McpService extends BaseService {
                 (nodeId) => nodeId !== terminalNodeId,
             ),
             deadlineMs,
+            readAllTerminalRows: true,
         });
         // Only ready nodes are saved, as in the agent; other node ids stay free to resubmit.
         const saved = run.nodeStatuses.filter(isSaved);
@@ -1710,10 +1710,11 @@ export class McpService extends BaseService {
         const queryUuids = new Map(
             run.submissions.map(({ nodeId, queryUuid }) => [nodeId, queryUuid]),
         );
-        const { nodeStatuses, terminalRowLimit } = shareComposerPreview(
+        // The terminal returns every row, so the other unread nodes share the whole preview.
+        const { nodeStatuses } = shareComposerPreview(
             run.nodeStatuses,
             otherUnreadNodeIds,
-            run.status === 'success' ? run.terminal.rowCount : 0,
+            0,
         );
         const nodes = queries.map((node) => {
             const nodeStatus = nodeStatuses.find(
@@ -1770,6 +1771,7 @@ export class McpService extends BaseService {
                 status: 'running',
                 terminalNodeId,
                 rowCount: null,
+                rows: null,
                 nodes,
             };
             return mcpQueryTool.result.structured(
@@ -1778,12 +1780,18 @@ export class McpService extends BaseService {
             );
         }
 
-        const preview = buildComposerPreview(run.terminal, terminalRowLimit);
+        const references = Object.values(run.terminal.columns).map(
+            ({ reference }) => reference,
+        );
+        const rows = run.terminal.rows.map((row) =>
+            Object.fromEntries(references.map((col) => [col, row[col]])),
+        );
         const structuredContent: McpQueryStructuredContent = {
             sessionId,
             status: 'done',
             terminalNodeId,
             rowCount: run.terminal.rowCount,
+            rows,
             nodes,
         };
         const text = [
@@ -1796,13 +1804,16 @@ export class McpService extends BaseService {
                 ({ nodeId, ...applied }) =>
                     `Node "${nodeId}":${renderAppliedParameters(applied)}`,
             ),
-            ...(preview.truncated
+            ...(rows.length > 0
                 ? [
-                      `Showing the first ${preview.rows.length} rows; call get_query_result with queryUuid ${terminalQueryUuid} for more.`,
+                      serializeData(
+                          stringify(rows, {
+                              header: true,
+                              columns: references,
+                          }),
+                          'csv',
+                      ),
                   ]
-                : []),
-            ...(run.terminal.rowCount > 0
-                ? [serializeData(preview.csv, 'csv')]
                 : []),
         ].join('\n');
         return mcpQueryTool.result.structured(text, structuredContent);
@@ -2408,6 +2419,7 @@ export class McpService extends BaseService {
         projectUuid,
         agentUuid,
         pageSize,
+        maxPageSize = this.lightdashConfig.mcp.runSqlMaxLimit,
         includeStatus,
         sqlRunnerUrl,
     }: {
@@ -2416,6 +2428,7 @@ export class McpService extends BaseService {
         projectUuid: string;
         agentUuid?: string;
         pageSize?: number;
+        maxPageSize?: number;
         includeStatus: boolean;
         sqlRunnerUrl: string | null;
     }) {
@@ -2431,7 +2444,7 @@ export class McpService extends BaseService {
             queryUuid,
             page: 1,
             pageSize,
-            maxPageSize: this.lightdashConfig.mcp.runSqlMaxLimit,
+            maxPageSize,
             aiAccessOnly: true,
         });
 
@@ -5367,11 +5380,14 @@ export class McpService extends BaseService {
                                     metricQuery: queryHistory.metricQuery,
                                 });
                             }
+                            // A node holds at most its limit, so one max-size page is every row.
                             return await this.buildSqlQueryResultResponse({
                                 ctx,
                                 queryUuid: args.queryUuid,
                                 projectUuid,
                                 agentUuid: args.agentUuid,
+                                pageSize: DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
+                                maxPageSize: DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
                                 includeStatus: true,
                                 sqlRunnerUrl: null,
                             });
