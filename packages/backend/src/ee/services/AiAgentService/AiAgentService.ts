@@ -709,7 +709,10 @@ import {
     WritebackAgentAccessError,
     WritebackThreadPrClosedError,
 } from '../AiWritebackService/errors';
-import type { AiWritebackSource } from '../AiWritebackService/types';
+import type {
+    AiWritebackSource,
+    ParsedDbtProject,
+} from '../AiWritebackService/types';
 import { createWritebackAgentDeliveryGuard } from '../AiWritebackService/writebackAgentWork';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import type { AppGenerateService } from '../AppGenerateService/AppGenerateService';
@@ -13847,11 +13850,11 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 const runArgs = {
                     ...(prompt.threadCreatedFrom === 'semantic_studio'
                         ? {
-                              onDbtManifest: (manifestJson: string) =>
+                              onDbtProject: (project: ParsedDbtProject) =>
                                   this.semanticStudioService.saveDbtTryOut(
                                       user,
                                       projectUuid,
-                                      manifestJson,
+                                      project,
                                   ),
                           }
                         : {}),

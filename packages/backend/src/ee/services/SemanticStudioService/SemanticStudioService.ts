@@ -54,6 +54,7 @@ import {
     type StoredDraftChange,
 } from '../../models/ProjectModelDocumentModel';
 import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
+import { type ParsedDbtProject } from '../AiWritebackService/types';
 import {
     dbtTryOutFileId,
     findLiveTableLocations,
@@ -693,7 +694,7 @@ export class SemanticStudioService extends BaseService {
     async saveDbtTryOut(
         user: SessionUser,
         projectUuid: string,
-        manifestJson: string,
+        { manifestJson, lightdashConfigYaml }: ParsedDbtProject,
     ): Promise<void> {
         if (!this.fileStorageClient.isEnabled()) return;
         const status = await this.getStatus(user, projectUuid);
@@ -720,6 +721,7 @@ export class SemanticStudioService extends BaseService {
                 user,
                 projectUuid,
                 pointed.manifest,
+                lightdashConfigYaml,
             ),
             pointed.newModels,
         );
@@ -782,6 +784,10 @@ export class SemanticStudioService extends BaseService {
             this.projectModel.getAllExploreSummaries(projectUuid),
             this.projectModel.findExploresFromCache(previewProjectUuid, 'name'),
         ]);
+        // A preview has no explores until its first compile; until then the person's own compiled change stands in.
+        if (Object.keys(explores).length === 0) {
+            return this.findDbtTryOutExplores(user, projectUuid);
+        }
         return new Map<string, Explore | ExploreError | null>([
             // A model the branch removes is in the live project and not in its preview.
             ...live.flatMap((explore): [string, null][] =>

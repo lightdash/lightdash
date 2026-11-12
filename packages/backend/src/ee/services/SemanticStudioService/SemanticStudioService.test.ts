@@ -126,6 +126,12 @@ const validator = withAbility([
     { subject: 'Validation', action: 'manage' },
 ]);
 
+const TRY_OUT_EXPLORE: ExploreError = {
+    name: 'try_out',
+    label: 'Try out',
+    errors: [],
+};
+
 const setup = ({
     stored = [{ name: 'orders', content: orders }],
     otherDrafters = [],
@@ -306,8 +312,7 @@ const setup = ({
     );
     const queueImpactCheck = vi.fn(async () => undefined);
     const compileExploresFromManifest = vi.fn(
-        async (): Promise<(Explore | ExploreError)[]> =>
-            Object.values(previewExplores),
+        async (): Promise<(Explore | ExploreError)[]> => [TRY_OUT_EXPLORE],
     );
     const files = new Map<string, string>();
     const args: SemanticStudioServiceArguments = {
@@ -1011,23 +1016,17 @@ describe('SemanticStudioService', () => {
     });
 
     describe('trying a dbt change before its preview', () => {
-        const manifest = JSON.stringify({
-            nodes: {},
-            metadata: { adapter_type: 'postgres' },
-            metrics: {},
-            docs: {},
-        });
-        const dbt = () =>
-            setup({
-                dbtConnection: DBT_IN_GITHUB,
-                previewExplores: {
-                    payments: {
-                        name: 'payments',
-                        label: 'Payments',
-                        errors: [],
-                    },
-                },
-            });
+        const project = {
+            manifestJson: JSON.stringify({
+                nodes: {},
+                metadata: { adapter_type: 'postgres' },
+                metrics: {},
+                docs: {},
+            }),
+            lightdashConfigYaml: 'spotlight:\n  default_visibility: show\n',
+        };
+        const dbt = (overrides: Parameters<typeof setup>[0] = {}) =>
+            setup({ dbtConnection: DBT_IN_GITHUB, ...overrides });
 
         it('shows the person who made the change what it compiles to, and no one else', async () => {
             const context = dbt();
@@ -1040,7 +1039,13 @@ describe('SemanticStudioService', () => {
             await context.service.saveDbtTryOut(
                 repoWriter,
                 PROJECT_UUID,
-                manifest,
+                project,
+            );
+            expect(context.compileExploresFromManifest).toHaveBeenCalledWith(
+                repoWriter,
+                PROJECT_UUID,
+                expect.anything(),
+                project.lightdashConfigYaml,
             );
             expect(
                 (
@@ -1048,8 +1053,8 @@ describe('SemanticStudioService', () => {
                         repoWriter,
                         PROJECT_UUID,
                     )
-                )?.get('payments'),
-            ).toEqual({ name: 'payments', label: 'Payments', errors: [] });
+                )?.get('try_out'),
+            ).toEqual(TRY_OUT_EXPLORE);
             expect(
                 await context.service.findDevelopmentExplores(
                     deployer,
@@ -1058,18 +1063,35 @@ describe('SemanticStudioService', () => {
             ).toBeNull();
         });
 
+        it('stands in for a preview that has not compiled yet', async () => {
+            const context = dbt({ previewExplores: {} });
+            await context.service.saveDbtTryOut(
+                repoWriter,
+                PROJECT_UUID,
+                project,
+            );
+            expect(
+                (
+                    await context.service.findPreviewExplores(
+                        repoWriter,
+                        PROJECT_UUID,
+                        PREVIEW_UUID,
+                    )
+                )?.get('try_out'),
+            ).toEqual(TRY_OUT_EXPLORE);
+        });
+
         it('compiles nothing for someone who cannot change the project, or a manifest that is not JSON', async () => {
             const context = dbt();
             await context.service.saveDbtTryOut(
                 deployer,
                 PROJECT_UUID,
-                manifest,
+                project,
             );
-            await context.service.saveDbtTryOut(
-                repoWriter,
-                PROJECT_UUID,
-                '{not json',
-            );
+            await context.service.saveDbtTryOut(repoWriter, PROJECT_UUID, {
+                ...project,
+                manifestJson: '{not json',
+            });
             expect(context.compileExploresFromManifest).not.toHaveBeenCalled();
         });
     });

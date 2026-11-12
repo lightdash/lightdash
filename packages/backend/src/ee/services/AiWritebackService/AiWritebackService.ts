@@ -152,6 +152,7 @@ import type {
     CodingAgentConfig,
     GitConnection,
     GitInstallation,
+    ParsedDbtProject,
     RepoContext,
     SetStage,
     TurnContext,
@@ -2668,7 +2669,7 @@ export class AiWritebackService extends BaseService {
             pauseOnExit = applied.pauseOnExit;
 
             if (
-                args.onDbtManifest &&
+                args.onDbtProject &&
                 hasChanges &&
                 config.mode === 'dbt-writeback' &&
                 !(
@@ -2679,11 +2680,7 @@ export class AiWritebackService extends BaseService {
                     turn.gitConnection.semanticLayer === 'lightdash'
                 )
             ) {
-                await this.handOverDbtManifest(
-                    sandbox,
-                    turn,
-                    args.onDbtManifest,
-                );
+                await this.handOverDbtProject(sandbox, turn, args.onDbtProject);
             }
 
             tracker.completed({
@@ -4174,11 +4171,12 @@ export class AiWritebackService extends BaseService {
      * Parses the edited project into a manifest and hands it over. Best-effort: a
      * change that cannot be tried here still has its pull request and preview.
      */
-    private async handOverDbtManifest(
+    private async handOverDbtProject(
         sandbox: SandboxHandle,
         turn: TurnContext,
-        onDbtManifest: (manifestJson: string) => Promise<void>,
+        onDbtProject: (project: ParsedDbtProject) => Promise<void>,
     ): Promise<void> {
+        const projectDir = `${CWD}/${turn.gitConnection.projectSubPath}`;
         const unsetFlags = COMPILE_STRIPPED_ENV_VARS.map(
             (name) => `-u ${name}`,
         ).join(' ');
@@ -4187,13 +4185,17 @@ export class AiWritebackService extends BaseService {
             // Same secret-stripped env as the compile wrapper: dbt renders the repo's Jinja.
             await sandbox.commands.run(
                 `env ${unsetFlags} PATH="${dbtBin}:$PATH" dbt parse --project-dir ${quoteShellArgument(
-                    `${CWD}/${turn.gitConnection.projectSubPath}`,
+                    projectDir,
                 )} --profiles-dir ${TMP_PROFILES_DIR} --target-path ${TRY_OUT_TARGET_DIR}`,
                 { cwd: CWD, timeoutMs: TRY_OUT_PARSE_TIMEOUT_MS },
             );
-            await onDbtManifest(
-                await sandbox.files.read(`${TRY_OUT_TARGET_DIR}/manifest.json`),
+            const manifestJson = await sandbox.files.read(
+                `${TRY_OUT_TARGET_DIR}/manifest.json`,
             );
+            const lightdashConfigYaml = await sandbox.files
+                .read(`${projectDir}/lightdash.config.yml`)
+                .catch(() => null);
+            await onDbtProject({ manifestJson, lightdashConfigYaml });
         } catch (error) {
             this.logger.warn(
                 `AiWriteback: could not prepare the change to be tried before its preview: ${getErrorMessage(
