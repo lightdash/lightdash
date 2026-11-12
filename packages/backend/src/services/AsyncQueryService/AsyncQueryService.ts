@@ -367,6 +367,7 @@ import { OrganizationAccessService } from '../OrganizationAccessService/Organiza
 import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
+import { developmentView } from '../ProjectService/developmentView';
 import { getFieldValuesMetricQuery } from '../ProjectService/fieldValuesQueryBuilder';
 import {
     areDashboardControlsEnabled,
@@ -2069,10 +2070,25 @@ export class AsyncQueryService extends ProjectService {
         const getUnfilteredExplore = (name: string) => {
             let explore = unfilteredExplorePromises.get(name);
             if (!explore) {
-                explore = this.projectModel.getExploreFromCache(
-                    projectUuid,
-                    name,
-                );
+                // A result run in the development view is checked against the same unpublished models it read.
+                explore = (async () => {
+                    const inDevelopment =
+                        (await developmentView
+                            .getStore()
+                            ?.findExplores(
+                                await getCurrentAccount(),
+                                projectUuid,
+                            )) ?? null;
+                    if (!inDevelopment?.has(name)) {
+                        return this.projectModel.getExploreFromCache(
+                            projectUuid,
+                            name,
+                        );
+                    }
+                    const changed = inDevelopment.get(name);
+                    if (!changed) throw new ForbiddenError();
+                    return changed;
+                })();
                 unfilteredExplorePromises.set(name, explore);
             }
             return explore;
