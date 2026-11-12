@@ -551,6 +551,29 @@ export class AiDeepResearchRunModel {
             .first();
     }
 
+    /** A project's completed runs that answered this exact question. */
+    async findCompletedByProjectAndPrompt(args: {
+        projectUuid: string;
+        prompt: string;
+    }): Promise<
+        Pick<
+            DbAiDeepResearchRun,
+            'ai_deep_research_run_uuid' | 'prompt_uuid' | 'ai_thread_uuid'
+        >[]
+    > {
+        return this.database<AiDeepResearchRunsTable>(
+            AiDeepResearchRunsTableName,
+        )
+            .select(
+                'ai_deep_research_run_uuid',
+                'prompt_uuid',
+                'ai_thread_uuid',
+            )
+            .where('project_uuid', args.projectUuid)
+            .where('prompt', args.prompt)
+            .where('status', 'completed');
+    }
+
     async findByPromptForExecution(args: {
         promptUuid: string;
         organizationUuid: string;

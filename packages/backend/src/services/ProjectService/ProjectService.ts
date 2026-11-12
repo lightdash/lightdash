@@ -803,12 +803,14 @@ export type ProjectServiceArguments = {
     }) => Promise<EnableLearnResults>;
     /**
      * Seeds a fresh training copy with the Enterprise samples copies do not
-     * carry (the training agent's knowledge document). Set by EE; core has
-     * none.
+     * carry (the training agent's knowledge document and the deep research
+     * report's Document). Set by EE; core has none.
      */
     seedTrainingCopyEnterpriseContent?: (args: {
         organizationUuid: string;
         projectUuid: string;
+        /** The copy's training space; null when the copy has none. */
+        spaceUuid: string | null;
         createdByUserUuid: string | null;
     }) => Promise<void>;
 };
@@ -17808,17 +17810,19 @@ export class ProjectService
                 Sentry.captureException(error);
             }
         };
-        await bestEffort('document', () =>
-            this.seedSampleDocumentsInCopy(
+        let spaceUuid: string | null = null;
+        await bestEffort('document', async () => {
+            spaceUuid = await this.seedSampleDocumentsInCopy(
                 user,
                 projectUuid,
                 createdByUserUuid,
-            ),
-        );
-        await bestEffort('knowledge document', () =>
+            );
+        });
+        await bestEffort('Enterprise samples', () =>
             this.seedTrainingCopyEnterpriseContent?.({
                 organizationUuid,
                 projectUuid,
+                spaceUuid,
                 createdByUserUuid,
             }),
         );
@@ -17827,13 +17831,14 @@ export class ProjectService
     /**
      * Copies carry no documents, so the sample a learner reads in the
      * documents walkthrough is made in each copy, in the seeded space and
-     * credited to whoever enabled Learn.
+     * credited to whoever enabled Learn. Returns that space, or null when
+     * the copy has none.
      */
     private async seedSampleDocumentsInCopy(
         user: SessionUser,
         projectUuid: string,
         createdByUserUuid: string | null,
-    ): Promise<void> {
+    ): Promise<string | null> {
         const [space] = await this.spaceModel.find({
             projectUuid,
             path: TRAINING_SPACE.path,
@@ -17842,7 +17847,7 @@ export class ProjectService
             Logger.warn(
                 `Training copy ${projectUuid} has no "${TRAINING_SPACE.path}" space; skipping its sample documents`,
             );
-            return;
+            return null;
         }
         await seedTrainingCopyDocuments({
             projectUuid,
@@ -17850,6 +17855,7 @@ export class ProjectService
             createdByUserUuid,
             documentModel: this.documentModel,
         });
+        return space.uuid;
     }
 
     private static readonly TRAINING_PREVIEW_EXPIRES_IN_HOURS = 24;
