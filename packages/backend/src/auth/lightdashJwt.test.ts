@@ -95,6 +95,68 @@ describe('JwtUtil', () => {
     });
 
     describe('decodeJwt', () => {
+        const actor = {
+            serviceAccountUserUuid: '00000000-0000-4000-8000-000000000001',
+            writeSpaceUuids: ['00000000-0000-4000-8000-000000000002'],
+        };
+
+        it.each<CreateEmbedJwt['content']>([
+            { type: 'dashboard', dashboardUuid: 'dashboard' },
+            { type: 'chart', contentId: 'chart' },
+            { type: 'aiAgent', agentUuid: 'agent' },
+            { type: 'metricsCatalog', projectUuid: 'project' },
+            { type: 'dataApp', appUuid: 'app' },
+            {
+                type: 'apiAccess',
+                serviceAccountUserUuid: actor.serviceAccountUserUuid,
+            },
+        ])(
+            'normalizes signed $type actor tokens without changing permission mode',
+            (content) => {
+                const claims = {
+                    ...mockJwtData,
+                    content,
+                    iat: Math.floor(Date.now() / 1000),
+                };
+                for (const permissionsMode of [
+                    undefined,
+                    'default',
+                    'roles',
+                ] as const) {
+                    const configuredActor = { ...actor, permissionsMode };
+                    const canonical = encodeLightdashJwt(
+                        { ...claims, actor: configuredActor },
+                        encodedSecret,
+                        '1h',
+                    );
+                    const legacy = encodeLightdashJwt(
+                        { ...claims, writeActions: configuredActor },
+                        encodedSecret,
+                        '1h',
+                    );
+                    expect(
+                        decodeLightdashJwt(canonical, encodedSecret),
+                    ).toEqual(decodeLightdashJwt(legacy, encodedSecret));
+                }
+            },
+        );
+
+        it.each([
+            { actor, writeActions: actor },
+            { actor: { ...actor, scopes: ['view:EmbedCsvExport'] } },
+            { actor: { ...actor, permissionsMode: 'invalid' } },
+            { actor: { ...actor, serviceAccountUserUuid: 'invalid' } },
+        ])('rejects invalid signed actor claims: %j', (extra) => {
+            const token = encodeLightdashJwt(
+                { ...mockJwtData, ...extra } as unknown as CreateEmbedJwt,
+                encodedSecret,
+                '1h',
+            );
+            expect(() => decodeLightdashJwt(token, encodedSecret)).toThrow(
+                ForbiddenError,
+            );
+        });
+
         it.each(['jwt', 'legacy', 'invalid', '', null, true])(
             'rejects signed dashboard tokens with invalid permission mode %s',
             (permissionsMode) => {

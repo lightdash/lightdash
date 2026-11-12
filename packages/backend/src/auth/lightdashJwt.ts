@@ -7,6 +7,7 @@ import {
     ForbiddenError,
     getErrorMessage,
     isDashboardUuidContent,
+    normalizeEmbedJwt,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -51,7 +52,8 @@ export function decodeLightdashJwt(
                 ? encodedSecret
                 : Buffer.from(encodedSecret),
         );
-        const decodedToken = verify(token, secret) as CreateEmbedJwt;
+        const verifiedToken = verify(token, secret) as CreateEmbedJwt;
+        const decodedToken = normalizeEmbedJwt(verifiedToken);
 
         // Unknown authorization modes must not fall back to default permissions.
         if (
@@ -81,7 +83,7 @@ export function decodeLightdashJwt(
 
         // Alert if the token is not in the expected format so we can inform the org before enforcing validation
         try {
-            EmbedJwtSchema.parse(decodedToken);
+            EmbedJwtSchema.parse(verifiedToken);
         } catch (e) {
             let errorIdentifier = 'unknown';
             if (decodedToken?.content) {

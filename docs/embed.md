@@ -16,14 +16,16 @@ underlying identity and role model.
 | Concept | Internal representation and responsibility |
 | --- | --- |
 | Project embed configuration | The `embedding` database row holds an encrypted project signing secret, content allowlists, and `allow_all_*` settings. `EmbedModel.get` loads it with the project's organization. |
-| Embed JWT | Signed claims described by `CreateEmbedJwt`: `content`, optional `writeActions`, `userAttributes`, viewer metadata in `user`, and token timestamps. |
+| Embed JWT | Signed claims described by `CreateEmbedJwt`: `content`, optional `actor` (alias `writeActions`), `userAttributes`, viewer metadata in `user`, and token timestamps. |
 | Embedded viewer | An `AnonymousAccount` with `authentication.type = 'jwt'`. Its `ExternalUser` has an `external::...` ID, not a registered user UUID. |
-| Write/permission actor | A real Lightdash user or service account resolved into `embedWriteUser`. Supplies role permissions and attribution for supported writes. |
+| Actor (alias `writeActions`) | A real Lightdash user or service account resolved into `embedWriteUser`. Supplies role permissions and attribution for supported writes. |
 | Access controls | `account.access.controls` contains the effective custom and intrinsic attributes used for data restrictions. |
 | Write context | `embedWriteContext` exposes capabilities such as chart creation and AI access after checking the actor and destination space. |
 
-The optional `writeActions.userUuid` or `writeActions.serviceAccountUserUuid`
-selects the actor. Selecting one does not sign the viewer in as that actor or
+The optional `actor.userUuid` or `actor.serviceAccountUserUuid` selects the actor.
+`actor` reuses the `writeActions` fields and permission behavior, including the
+optional `permissionsMode`. Per-token `scopes` are not supported. Supply only one
+of `actor` and `writeActions`. Selecting one does not sign the viewer in as that actor or
 copy all of the actor's ordinary application abilities onto the viewer.
 `user.externalId` identifies the external viewer; it does not select a role.
 Do not use the viewer's synthesized ID in foreign keys that require a real user.
@@ -78,8 +80,8 @@ replace resource ownership, project, allowlist, or space checks.
 
 ## Feature access
 
-For dashboard embeds, `writeActions.permissionsMode` selects the source of
-capability permissions:
+For dashboard embeds, `actor.permissionsMode` (or
+`writeActions.permissionsMode`) selects the source of capability permissions:
 
 | Mode | What grants dashboard capabilities |
 | --- | --- |
@@ -87,8 +89,8 @@ capability permissions:
 | `'roles'` | The resolved actor's corresponding embed scopes |
 
 In `'roles'` mode, JWT capability flags are ignored whether they are `true`,
-`false`, or omitted. A resolved actor is required. Adding an actor without
-selecting `'roles'` does not switch dashboard capabilities to role checks.
+`false`, or omitted. A resolved actor is required. Using either alias without
+selecting `'roles'` retains flag-based dashboard capabilities.
 Write operations still require the actor's permissions and destination-space
 access. Organization and project permission grants are additive.
 

@@ -82,6 +82,7 @@ import {
     type AuthType,
     type CaslSubjectNames,
     type CreateBigqueryCredentials,
+    type CreateEmbedJwt,
     type DashboardParameterControl,
     type Document,
     type DocumentQueryReference,
@@ -16882,6 +16883,11 @@ describe('saved chart query result access', () => {
                 conditions: { inheritsFromOrgOrProject: true },
             },
             { subject: 'UnderlyingData', action: 'view' },
+            {
+                subject: 'Dashboard',
+                action: 'export',
+                conditions: { type: 'csv' },
+            },
             { subject: 'Explore', action: 'manage' },
         ]);
         const history: QueryHistory = {
@@ -20621,11 +20627,18 @@ describe('DuckDB source queries on the worker', () => {
 });
 
 describe('chart embed token query history access', () => {
-    const buildChartEmbedAccount = (explores: string[]) =>
+    const buildChartEmbedAccount = (
+        explores: string[],
+        canExportCsv: boolean,
+    ) =>
         fromJwt({
             decodedToken: {
                 user: { externalId: 'external-user-123' },
-                content: { type: 'chart', contentId: 'source-chart-uuid' },
+                content: {
+                    type: 'chart',
+                    contentId: 'source-chart-uuid',
+                    canExportCsv,
+                },
             },
             embed: {
                 projectUuid,
@@ -20654,8 +20667,8 @@ describe('chart embed token query history access', () => {
             userAttributes: { userAttributes: {}, intrinsicUserAttributes: {} },
         });
 
-    const buildFixture = (explores: string[]) => {
-        const account = buildChartEmbedAccount(explores);
+    const buildFixture = (explores: string[], canExportCsv = true) => {
+        const account = buildChartEmbedAccount(explores, canExportCsv);
         const history: QueryHistory = {
             queryUuid: 'source-query-uuid',
             projectUuid,
@@ -20794,12 +20807,24 @@ describe('chart embed token query history access', () => {
             );
         },
     );
+
+    it('allows rendering results without export permission', async () => {
+        const { account, service } = buildFixture([validExplore.name], false);
+        await expect(run(service, account, 'stream')).resolves.toBeDefined();
+        await expect(run(service, account, 'download')).rejects.toThrow(
+            ForbiddenError,
+        );
+    });
 });
 
-describe('embedded AI agent result downloads', () => {
+describe('embedded result downloads', () => {
     const writeActorUuid = 'write-actor-uuid';
 
-    const buildAiAgentAccount = (actorScopes: CaslSubjectNames[]) => {
+    const buildEmbedAccount = (
+        actorScopes: CaslSubjectNames[],
+        content: CreateEmbedJwt['content'],
+        permissionsMode: 'default' | 'roles',
+    ) => {
         const actorAbility = new AbilityBuilder<MemberAbility>(Ability);
         actorScopes.forEach((resource) =>
             actorAbility.can('view', resource, { projectUuid }),
@@ -20807,10 +20832,11 @@ describe('embedded AI agent result downloads', () => {
         return fromJwt({
             decodedToken: {
                 user: { externalId: 'external-user-123' },
-                content: { type: 'aiAgent', agentUuid: 'agent-uuid' },
+                content,
                 writeActions: {
                     userUuid: writeActorUuid,
                     spaceUuid: 'space-uuid',
+                    permissionsMode,
                 },
             },
             embed: {
@@ -20832,8 +20858,8 @@ describe('embedded AI agent result downloads', () => {
             },
             source: 'test-jwt-token',
             content: {
-                type: 'aiAgent',
-                agentUuid: 'agent-uuid',
+                ...content,
+                dashboardUuid: 'dashboard-uuid',
                 chartUuids: [],
                 explores: [],
             },
@@ -20853,8 +20879,19 @@ describe('embedded AI agent result downloads', () => {
         });
     };
 
-    const buildFixture = (actorScopes: CaslSubjectNames[]) => {
-        const account = buildAiAgentAccount(actorScopes);
+    const buildFixture = (
+        actorScopes: CaslSubjectNames[],
+        content: CreateEmbedJwt['content'] = {
+            type: 'aiAgent',
+            agentUuid: 'agent-uuid',
+        },
+        permissionsMode: 'default' | 'roles' = 'default',
+    ) => {
+        const account = buildEmbedAccount(
+            actorScopes,
+            content,
+            permissionsMode,
+        );
         const history: QueryHistory = {
             queryUuid: 'ai-query-uuid',
             projectUuid,
@@ -20932,12 +20969,13 @@ describe('embedded AI agent result downloads', () => {
         service: AsyncQueryService,
         account: Account,
         operation: (typeof operations)[number],
+        type: DownloadFileType | undefined,
     ) => {
         const args = {
             account,
             projectUuid,
             queryUuid: 'ai-query-uuid',
-            type: DownloadFileType.CSV,
+            type,
         };
         switch (operation) {
             case 'schedule':
@@ -20964,7 +21002,7 @@ describe('embedded AI agent result downloads', () => {
         async (operation) => {
             const { account, service, scheduleDownload, formatFile } =
                 buildFixture(['EmbedCsvExport']);
-            await run(service, account, operation);
+            await run(service, account, operation, DownloadFileType.CSV);
             if (operation === 'schedule') {
                 expect(scheduleDownload).toHaveBeenCalled();
             } else {
@@ -20978,14 +21016,262 @@ describe('embedded AI agent result downloads', () => {
         async (operation) => {
             const { account, service, scheduleDownload, formatFile } =
                 buildFixture([]);
-            await expect(run(service, account, operation)).rejects.toThrow(
-                ForbiddenError,
-            );
+            await expect(
+                run(service, account, operation, DownloadFileType.CSV),
+            ).rejects.toThrow(ForbiddenError);
             expect(scheduleDownload).not.toHaveBeenCalled();
             expect(formatFile).not.toHaveBeenCalled();
             expect(service.queryHistoryModel.get).not.toHaveBeenCalled();
         },
     );
+
+    const cases: {
+        name: string;
+        content: CreateEmbedJwt['content'];
+        scopes: CaslSubjectNames[];
+        mode: 'default' | 'roles';
+        allowed: boolean;
+    }[] = [
+        {
+            name: 'chart flag',
+            content: {
+                type: 'chart',
+                contentId: 'chart-uuid',
+                canExportCsv: true,
+            },
+            scopes: [],
+            mode: 'default',
+            allowed: true,
+        },
+        {
+            name: 'chart role despite false flag',
+            content: {
+                type: 'chart',
+                contentId: 'chart-uuid',
+                canExportCsv: false,
+            },
+            scopes: ['EmbedCsvExport'],
+            mode: 'default',
+            allowed: true,
+        },
+        {
+            name: 'chart without export',
+            content: { type: 'chart', contentId: 'chart-uuid' },
+            scopes: [],
+            mode: 'default',
+            allowed: false,
+        },
+        {
+            name: 'chart images only',
+            content: {
+                type: 'chart',
+                contentId: 'chart-uuid',
+                canExportImages: true,
+            },
+            scopes: [],
+            mode: 'default',
+            allowed: false,
+        },
+        {
+            name: 'Explore role',
+            content: { type: 'metricsCatalog', projectUuid, canExplore: true },
+            scopes: ['EmbedCsvExport'],
+            mode: 'default',
+            allowed: true,
+        },
+        {
+            name: 'Explore without export',
+            content: { type: 'metricsCatalog', projectUuid, canExplore: true },
+            scopes: [],
+            mode: 'default',
+            allowed: false,
+        },
+        {
+            name: 'dashboard flag',
+            content: {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-uuid',
+                canExportCsv: true,
+            },
+            scopes: [],
+            mode: 'default',
+            allowed: true,
+        },
+        {
+            name: 'dashboard default ignores actor export',
+            content: {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-uuid',
+                canExportCsv: false,
+            },
+            scopes: ['EmbedCsvExport'],
+            mode: 'default',
+            allowed: false,
+        },
+        {
+            name: 'dashboard roles ignores flag',
+            content: {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-uuid',
+                canExportCsv: true,
+            },
+            scopes: [],
+            mode: 'roles',
+            allowed: false,
+        },
+        {
+            name: 'dashboard roles export',
+            content: { type: 'dashboard', dashboardUuid: 'dashboard-uuid' },
+            scopes: ['EmbedCsvExport'],
+            mode: 'roles',
+            allowed: true,
+        },
+        {
+            name: 'dashboard bulk export only',
+            content: {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-uuid',
+                canExportDashboardCsv: true,
+            },
+            scopes: [],
+            mode: 'default',
+            allowed: false,
+        },
+        {
+            name: 'data app with export scope',
+            content: { type: 'dataApp', appUuid: 'app-uuid' },
+            scopes: ['EmbedCsvExport'],
+            mode: 'default',
+            allowed: false,
+        },
+        {
+            name: 'API access with export scope',
+            content: {
+                type: 'apiAccess',
+                projectUuid,
+                serviceAccountUserUuid: writeActorUuid,
+            },
+            scopes: ['EmbedCsvExport'],
+            mode: 'default',
+            allowed: false,
+        },
+    ];
+
+    describe.each(cases)('$name', ({ content, scopes, mode, allowed }) => {
+        it.each(operations)(
+            '%s enforces export permissions',
+            async (operation) => {
+                const { account, service, scheduleDownload, formatFile } =
+                    buildFixture(scopes, content, mode);
+                // Isolate export authorization from the separately tested query-access checks.
+                vi.spyOn(
+                    service as AnyType,
+                    'assertQueryHistoryReadAccess',
+                ).mockResolvedValue(undefined);
+                vi.spyOn(
+                    service as AnyType,
+                    'assertCanReadStoredResults',
+                ).mockResolvedValue(undefined);
+                if (allowed) {
+                    await run(
+                        service,
+                        account,
+                        operation,
+                        DownloadFileType.CSV,
+                    );
+                    expect(
+                        operation === 'schedule'
+                            ? scheduleDownload
+                            : formatFile,
+                    ).toHaveBeenCalled();
+                } else {
+                    await Promise.all(
+                        [
+                            DownloadFileType.CSV,
+                            DownloadFileType.XLSX,
+                            DownloadFileType.JSONL,
+                            undefined,
+                        ].map(async (type) => {
+                            await expect(
+                                run(service, account, operation, type),
+                            ).rejects.toThrow(ForbiddenError);
+                        }),
+                    );
+                    expect(scheduleDownload).not.toHaveBeenCalled();
+                    expect(formatFile).not.toHaveBeenCalled();
+                    expect(
+                        service.queryHistoryModel.get,
+                    ).not.toHaveBeenCalled();
+                }
+            },
+        );
+    });
+
+    it('allows the dashboard bulk worker without granting direct query downloads', async () => {
+        const { account, service, formatFile } = buildFixture([], {
+            type: 'dashboard',
+            dashboardUuid: 'dashboard-uuid',
+            canExportDashboardCsv: true,
+        });
+        vi.spyOn(
+            service as AnyType,
+            'assertQueryHistoryReadAccess',
+        ).mockResolvedValue(undefined);
+        vi.spyOn(
+            service as AnyType,
+            'assertCanReadStoredResults',
+        ).mockResolvedValue(undefined);
+        const args = {
+            account,
+            projectUuid,
+            queryUuid: 'ai-query-uuid',
+            type: DownloadFileType.CSV,
+            accessMode: PersistentDownloadFileAccessMode.SIGNED as const,
+        };
+        await expect(
+            service.downloadSyncQueryResults(
+                args,
+                undefined,
+                'other-dashboard',
+            ),
+        ).rejects.toThrow(ForbiddenError);
+        await service.downloadSyncQueryResults(
+            args,
+            undefined,
+            'dashboard-uuid',
+        );
+        expect(formatFile).toHaveBeenCalledOnce();
+        await expect(service.download(args)).rejects.toThrow(ForbiddenError);
+    });
+
+    it('rechecks export permission when executing a previously scheduled download', async () => {
+        const content = {
+            type: 'metricsCatalog',
+            projectUuid,
+            canExplore: true,
+        } as const;
+        const { account, service, scheduleDownload, formatFile } = buildFixture(
+            ['EmbedCsvExport'],
+            content,
+        );
+        vi.spyOn(
+            service as AnyType,
+            'assertQueryHistoryReadAccess',
+        ).mockResolvedValue(undefined);
+        vi.spyOn(
+            service as AnyType,
+            'assertCanReadStoredResults',
+        ).mockResolvedValue(undefined);
+        await run(service, account, 'schedule', DownloadFileType.CSV);
+        expect(scheduleDownload).toHaveBeenCalledWith(
+            expect.objectContaining({ encodedJwt: 'test-jwt-token' }),
+        );
+        const refreshedAccount = buildEmbedAccount([], content, 'default');
+        await expect(
+            run(service, refreshedAccount, 'download', DownloadFileType.CSV),
+        ).rejects.toThrow(ForbiddenError);
+        expect(formatFile).not.toHaveBeenCalled();
+    });
 });
 
 describe('embedded field value search dashboard scoping', () => {
