@@ -395,6 +395,7 @@ import {
 } from '../QuerySourceService/api/apiQueryOutcome';
 import { toApiSourceQueryError } from '../QuerySourceService/api/apiSourceExplore';
 import {
+    assertApiResultComplete,
     compileApiSourceMetricQuery,
     toApiSourceResult,
 } from '../QuerySourceService/api/apiSourceExplores';
@@ -12480,8 +12481,20 @@ export class AsyncQueryService extends ProjectService {
                 args.invalidateCache ??
                 false,
             history: { fields, requestParameters, metricQuery, explore },
-            toResult: (result) =>
-                toApiSourceResult({ compiled, rows: result.rows, fields }),
+            toResult: (result) => {
+                const { label, maxRows } = connector.describe();
+                assertApiResultComplete({
+                    compiled,
+                    hasMoreRows: result.hasMoreRows,
+                    label,
+                    maxRows,
+                });
+                return toApiSourceResult({
+                    compiled,
+                    rows: result.rows,
+                    fields,
+                });
+            },
         });
         return {
             queryUuid,
@@ -12785,7 +12798,7 @@ export class AsyncQueryService extends ProjectService {
                     executeMs = Date.now() - startedAt;
                     span.setAttributes({
                         'lightdash.rowCount': result.rows.length,
-                        'lightdash.truncated': result.truncated,
+                        'lightdash.truncated': result.hasMoreRows,
                         'lightdash.apiCalls': connector.usage().apiCalls,
                         ...(result.bytesRead !== null
                             ? { 'lightdash.bytesRead': result.bytesRead }
@@ -12869,18 +12882,20 @@ export class AsyncQueryService extends ProjectService {
                         errorMessage: null,
                         totalRowCount: shaped.rows.length,
                         columnsCount: Object.keys(shaped.columns).length,
-                        truncated: result.truncated,
+                        truncated: result.hasMoreRows,
                     });
                     logCall({
                         outcome: 'ok',
                         errorMessage: null,
                         rowCount: shaped.rows.length,
                         columnCount: Object.keys(shaped.columns).length,
-                        truncated: result.truncated,
+                        truncated: result.hasMoreRows,
                     });
                     this.logger.info(
                         `Api query ${queryUuid} ready: ${shaped.rows.length} rows${
-                            result.truncated ? ' (truncated)' : ''
+                            result.hasMoreRows
+                                ? ' (more rows past the limit)'
+                                : ''
                         } from ${connectorType} in ${Date.now() - startedAt}ms`,
                     );
                 } catch (e) {
@@ -13006,7 +13021,7 @@ export class AsyncQueryService extends ProjectService {
                 'ok',
                 Date.now() - startedAt,
             );
-            if (result.truncated) {
+            if (result.hasMoreRows) {
                 this.prometheusMetrics?.incrementApiSourceTruncated(
                     connectorType,
                 );

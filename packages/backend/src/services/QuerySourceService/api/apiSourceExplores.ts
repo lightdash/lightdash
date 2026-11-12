@@ -28,6 +28,7 @@ import {
     type ApiSourceScan,
 } from './ApiSourceIntegration';
 import { getApiSourceIntegration } from './apiSourceIntegrations';
+import { tooManyRowsError } from './apiSourceRows';
 import {
     applyLiveSourceFieldEdits,
     type LiveSourceFieldEdits,
@@ -378,6 +379,27 @@ export const toPeriodStart = (
         }
         default:
             return assertUnreachable(format, 'Unknown period format');
+    }
+};
+
+/**
+ * Refuses a result sorted on our side when the API kept rows back: the sort
+ * would rank only the rows read, so the top rows shown could be the wrong
+ * ones. A result in the API's own order only loses rows past its limit.
+ */
+export const assertApiResultComplete = ({
+    compiled,
+    hasMoreRows,
+    label,
+    maxRows,
+}: {
+    compiled: Pick<CompiledApiSourceQuery, 'localSorts'>;
+    hasMoreRows: boolean;
+    label: string;
+    maxRows: number;
+}): void => {
+    if (hasMoreRows && compiled.localSorts.length > 0) {
+        throw tooManyRowsError({ label, maxRows });
     }
 };
 

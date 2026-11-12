@@ -2055,7 +2055,9 @@ describe('AsyncQueryService', () => {
         };
 
         const setup = (composer: Partial<QueryComposer> = {}) => {
-            const connector = { describe: vi.fn() };
+            const connector = {
+                describe: vi.fn(() => ({ label: 'GA4', maxRows: 100000 })),
+            };
             const getApiSourceConnector = vi.fn(async () => connector);
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 getApiSourceConnector,
