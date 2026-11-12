@@ -533,7 +533,7 @@ const answer = async (props: LightdashApiProps): Promise<unknown> => {
         } satisfies ApiExecuteAsyncFieldValueSearchResults;
     }
     const queryResults = QUERY_RESULTS_URL.exec(props.url);
-    if (queryResults)
+    if (queryResults && props.method === 'GET')
         // Only what the value search reads from a ready results page
         return {
             status: QueryHistoryStatus.READY,
