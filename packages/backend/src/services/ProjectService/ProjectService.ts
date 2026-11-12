@@ -611,6 +611,7 @@ import {
     getDatabaseListFailureReason,
     listConnectionDatabases,
 } from './connectionSqlRunner';
+import { developmentView, toExploreSummary } from './developmentView';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
 import { mergePersonalWarehouseCredentials } from './personalWarehouseCredentials';
@@ -14268,8 +14269,22 @@ export class ProjectService
         includeErrors: boolean = true,
     ) {
         // Use optimized query that only fetches summary fields instead of full explore JSON
-        const exploreSummaries =
-            await this.projectModel.getAllExploreSummaries(projectUuid);
+        const [liveSummaries, inDevelopment] = await Promise.all([
+            this.projectModel.getAllExploreSummaries(projectUuid),
+            developmentView.getStore()?.findExplores(account, projectUuid) ??
+                null,
+        ]);
+        // In the development view the list is the person's own: their new models join it and the ones they removed leave.
+        const exploreSummaries = inDevelopment
+            ? [
+                  ...(liveSummaries ?? []).filter(
+                      ({ name }) => !inDevelopment.has(name),
+                  ),
+                  ...[...inDevelopment.values()].flatMap((explore) =>
+                      explore ? [toExploreSummary(explore)] : [],
+                  ),
+              ]
+            : liveSummaries;
 
         if (!exploreSummaries || exploreSummaries.length === 0) {
             return [];
@@ -14579,14 +14594,30 @@ export class ProjectService
                 if (isForbidden) {
                     throw new ForbiddenError();
                 }
-                const [explores, baseUserAccessControls] = await Promise.all([
-                    this.projectModel.findExploresFromCache(
-                        projectUuid,
-                        'name',
-                        exploreNames,
-                    ),
-                    this.getUserAttributes({ account }),
-                ]);
+                const [liveExplores, baseUserAccessControls, inDevelopment] =
+                    await Promise.all([
+                        this.projectModel.findExploresFromCache(
+                            projectUuid,
+                            'name',
+                            exploreNames,
+                        ),
+                        this.getUserAttributes({ account }),
+                        developmentView
+                            .getStore()
+                            ?.findExplores(account, projectUuid) ?? null,
+                    ]);
+                // A request in the development view reads this person's own unpublished models over the live ones.
+                const explores = inDevelopment
+                    ? [
+                          ...Object.values(liveExplores).filter(
+                              ({ name }) => !inDevelopment.has(name),
+                          ),
+                          ...exploreNames.flatMap((name) => {
+                              const explore = inDevelopment.get(name);
+                              return explore ? [explore] : [];
+                          }),
+                      ]
+                    : liveExplores;
                 const userAccessControls = {
                     ...baseUserAccessControls,
                     userAttributes: mergeUserAttributes(

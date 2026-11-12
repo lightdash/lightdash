@@ -17,6 +17,10 @@ import { addBreadcrumb, spanToTraceHeader, startSpan } from '@sentry/react';
 // resolves at call time instead.
 import { EMBED_KEY, type InMemoryEmbed } from './ee/providers/Embed/types';
 import { recordServerBuildHash } from './features/buildHashHandshake/buildHashHandshake';
+import {
+    DEVELOPMENT_VIEW_HEADER,
+    isDevelopmentViewOn,
+} from './features/semanticStudio/developmentView';
 import { getFromInMemoryStorage } from './utils/inMemoryStorage';
 import {
     diagnoseTransportFailure,
@@ -51,6 +55,9 @@ const getDefaultHeaders = (): Record<string, string> => {
 
     if (sdkVersion) {
         headers[LightdashSdkVersionHeader] = sdkVersion;
+    }
+    if (isDevelopmentViewOn()) {
+        headers[DEVELOPMENT_VIEW_HEADER] = 'true';
     }
 
     return headers;

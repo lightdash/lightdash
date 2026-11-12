@@ -517,6 +517,34 @@ export class SemanticStudioService extends BaseService {
         };
     }
 
+    /**
+     * Every explore as the person's draft leaves it, by name, with null for a model
+     * the draft removes; null when they have nothing drafted or cannot change the
+     * project. This is what lets them query their own changes on the live project.
+     */
+    async findDevelopmentExplores(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<Map<string, Explore | ExploreError | null> | null> {
+        if (!(await this.canEditModels(user, projectUuid))) return null;
+        const draft = await this.loadDraft(projectUuid, user.userUuid, null);
+        if (draft.writes.size === 0) return null;
+        const { explores } = await this.checker.compile(
+            projectUuid,
+            withWrites(draft.live, draft.writes),
+        );
+        // Everything compiled, not only what was drafted: an explore that joins a changed model changes too.
+        return new Map<string, Explore | ExploreError | null>([
+            ...[...draft.writes].flatMap(([name, content]): [string, null][] =>
+                content === null ? [[name, null]] : [],
+            ),
+            ...explores.map((explore): [string, Explore | ExploreError] => [
+                explore.name,
+                explore,
+            ]),
+        ]);
+    }
+
     /** What the person's draft does to what is live right now; empty for someone who cannot change the project. */
     async getDraft(
         user: SessionUser,
