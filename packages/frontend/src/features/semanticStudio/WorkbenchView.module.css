@@ -114,6 +114,39 @@
     padding: 0 8px 8px;
 }
 
+.allModels {
+    all: unset;
+    box-sizing: border-box;
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    margin: 0 8px 2px;
+    padding: 0 4px;
+    border-radius: 6px;
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-xs);
+    cursor: pointer;
+}
+
+.allModels:hover {
+    background: color-mix(in srgb, var(--mantine-color-text) 3%, transparent);
+}
+
+.allModels:focus-visible {
+    outline: 2px solid var(--mantine-primary-color-filled);
+    outline-offset: -2px;
+}
+
+.allModelsChevron {
+    transition: rotate 150ms ease;
+}
+
+.allModels[aria-expanded='true'] .allModelsChevron {
+    rotate: 90deg;
+}
+
 .changedLabel {
     padding: 0 0 2px 24px;
     color: var(--mantine-color-dimmed);

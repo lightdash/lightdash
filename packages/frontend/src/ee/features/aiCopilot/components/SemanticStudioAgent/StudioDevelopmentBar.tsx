@@ -5,7 +5,6 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
-    Anchor,
     Badge,
     Button,
     Loader,
@@ -14,7 +13,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconDots, IconExternalLink } from '@tabler/icons-react';
-import { Fragment, useEffect, useState, type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
@@ -113,31 +112,7 @@ export const StudioDevelopmentBar: FC<{
             }
             summary={
                 <Text fz="xs" c="dimmed" truncate>
-                    {changedModels.length === 0
-                        ? 'Not live until it merges'
-                        : null}
-                    {changedModels.slice(0, 2).map((model, index) => (
-                        <Fragment key={model}>
-                            {index > 0 ? ', ' : null}
-                            <Tooltip label="Try in Explore with your changes">
-                                <Anchor
-                                    component="button"
-                                    type="button"
-                                    fz="xs"
-                                    c="dimmed"
-                                    underline="always"
-                                    onClick={() =>
-                                        tryInExplore(model, previewProjectUuid)
-                                    }
-                                >
-                                    {model}
-                                </Anchor>
-                            </Tooltip>
-                        </Fragment>
-                    ))}
-                    {changedModels.length > 2
-                        ? ` and ${changedModels.length - 2} more`
-                        : null}
+                    Not live until it merges
                 </Text>
             }
         >

@@ -86,6 +86,7 @@ import {
     type NodeRef,
     type TreeNode,
 } from './model';
+import { ModelChangeSummary } from './ModelChangeSummary';
 import {
     DRAFT_PARAM,
     DRAFT_REVIEW,
@@ -561,7 +562,17 @@ const MainPane: FC<{
     onOpen: (ref: NodeRef | null) => void;
     onOpenNode: (node: TreeNode) => void;
     onBuildModel: (() => void) | null;
-}> = ({ view, onOpen, onOpenNode, onBuildModel }) => {
+    /** Models with changes that are not live. */
+    changed: string[];
+    previewProjectUuid: string | null;
+}> = ({
+    view,
+    onOpen,
+    onOpenNode,
+    onBuildModel,
+    changed,
+    previewProjectUuid,
+}) => {
     const selected = view.selected;
     const ref = selected ? containerOf(selected) : null;
     const node = ref ? findNode(view.tree.nodes, nodeKey(ref)) : undefined;
@@ -673,6 +684,14 @@ const MainPane: FC<{
                 </Group>
             </Box>
             <Box className={classes.mainBody}>
+                {explore && changed.includes(explore.id) ? (
+                    <ModelChangeSummary
+                        key={explore.id}
+                        projectUuid={view.project.id}
+                        model={explore.id}
+                        previewProjectUuid={previewProjectUuid}
+                    />
+                ) : null}
                 {onBuildModel && !ref ? (
                     <SemanticLayerNudge onBuild={onBuildModel} />
                 ) : null}
@@ -731,9 +750,6 @@ const MainPane: FC<{
  * typing re-renders only the rail, never the page beside it. The search box
  * drives the results: arrows move, Enter opens, Esc clears.
  */
-/** How many models a tree holds before its changed ones are pinned on top. */
-const PIN_CHANGED_OVER = 12;
-
 const Rail: FC<{
     view: ViewModel;
     expanded: Set<string>;
@@ -743,11 +759,12 @@ const Rail: FC<{
     onToggle: (key: string) => void;
     onOpen: (ref: NodeRef) => void;
 }> = ({ view, expanded, drafted, changed, onToggle, onOpen }) => {
-    // A short tree already shows its changed models; pinning them would only repeat them.
-    const changedExplores =
-        view.project.explores.length > PIN_CHANGED_OVER
-            ? view.project.explores.filter(({ id }) => changed.includes(id))
-            : [];
+    const changedExplores = view.project.explores.filter(({ id }) =>
+        changed.includes(id),
+    );
+    // With changes to check, the rest of the tree folds away until asked for.
+    const [showsAll, setShowsAll] = useState(false);
+    const isFolded = changedExplores.length > 0 && !showsAll;
     const openExploreId =
         view.selected?.type === 'explore' || view.selected?.type === 'field'
             ? view.selected.exploreId
@@ -861,13 +878,32 @@ const Rail: FC<{
                             ))}
                         </Box>
                     ) : null}
-                    <Tree
-                        view={view}
-                        expanded={expanded}
-                        drafted={drafted}
-                        onToggle={onToggle}
-                        onSelect={(node) => view.select(node.ref)}
-                    />
+                    {changedExplores.length > 0 ? (
+                        <Box
+                            component="button"
+                            type="button"
+                            className={classes.allModels}
+                            aria-expanded={!isFolded}
+                            onClick={() => setShowsAll(isFolded)}
+                        >
+                            <MantineIcon
+                                icon={IconChevronRight}
+                                size={14}
+                                color="dimmed"
+                                className={classes.allModelsChevron}
+                            />
+                            All models
+                        </Box>
+                    ) : null}
+                    {isFolded ? null : (
+                        <Tree
+                            view={view}
+                            expanded={expanded}
+                            drafted={drafted}
+                            onToggle={onToggle}
+                            onSelect={(node) => view.select(node.ref)}
+                        />
+                    )}
                 </>
             )}
         </Box>
@@ -1150,6 +1186,10 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         view={view}
                         onOpen={(ref) => (ref ? open(ref) : view.select(null))}
                         onOpenNode={openNode}
+                        changed={changed}
+                        previewProjectUuid={
+                            development?.previewProjectUuid ?? null
+                        }
                         onBuildModel={
                             canNudge
                                 ? () => {
