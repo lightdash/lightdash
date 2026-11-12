@@ -397,6 +397,7 @@
         "aiAgent.composer.mergeNode.stepExplore": "Consulta {explore}",
         "aiAgent.composer.mergeNode.stepKey": "Se combina por {fields}",
         "aiAgent.composer.mergeNode.columnFrom": "{column} de {step}",
+        "aiAgent.composer.mergeNode.compileError": "No se pudo compilar esta combinación.",
         "aiAgent.composer.actions.quickActions": "Acciones rápidas",
         "aiAgent.composer.actions.downloadResults": "Descargar resultados",
         "aiAgent.composer.nodeStatus.pending": "En cola",

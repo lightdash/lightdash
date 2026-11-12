@@ -397,6 +397,7 @@
         "aiAgent.composer.mergeNode.stepExplore": "მოითხოვს {explore}-ს",
         "aiAgent.composer.mergeNode.stepKey": "ერთიანდება {fields} ველით",
         "aiAgent.composer.mergeNode.columnFrom": "{column} — {step}",
+        "aiAgent.composer.mergeNode.compileError": "ამ გაერთიანების კომპილაცია ვერ მოხერხდა.",
         "aiAgent.composer.actions.quickActions": "სწრაფი მოქმედებები",
         "aiAgent.composer.actions.downloadResults": "შედეგების ჩამოტვირთვა",
         "aiAgent.composer.nodeStatus.pending": "რიგშია",

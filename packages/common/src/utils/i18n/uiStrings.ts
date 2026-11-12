@@ -649,6 +649,7 @@ export const DEFAULT_UI_STRINGS = {
     'aiAgent.composer.mergeNode.stepExplore': 'Queries {explore}',
     'aiAgent.composer.mergeNode.stepKey': 'Joins on {fields}',
     'aiAgent.composer.mergeNode.columnFrom': '{column} from {step}',
+    'aiAgent.composer.mergeNode.compileError': 'Could not compile this merge.',
     'aiAgent.thread.boundDashboard': 'Linked dashboard',
     'aiAgent.thread.boundDashboardUnavailable': 'Dashboard no longer available',
     'aiAgent.thread.boundChart': 'Linked chart',

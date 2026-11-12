@@ -1,3 +1,22 @@
+# [3.228.0](https://github.com/lightdash/lightdash/compare/3.227.0...3.228.0) (2026-11-12)
+
+
+### Features
+
+* **ai:** explore and view SQL of a composer merge step ([#32468](https://github.com/lightdash/lightdash/issues/32468)) ([fab6321](https://github.com/lightdash/lightdash/commit/fab6321bd35979e623c5b4b33072a0d1a21e0c15))
+
+# [3.227.0](https://github.com/lightdash/lightdash/compare/3.226.0...3.227.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **mobile:** give QR sign-in tokens the registered scope when none is sent ([#32454](https://github.com/lightdash/lightdash/issues/32454)) ([d2ba243](https://github.com/lightdash/lightdash/commit/d2ba24352750e03ba57186e738f885da0723355b))
+
+
+### Features
+
+* **nats:** log event-loop stalls, redeliveries and nak/term in the query worker ([#32442](https://github.com/lightdash/lightdash/issues/32442)) ([e9b0ba9](https://github.com/lightdash/lightdash/commit/e9b0ba95349beae0a0bcc231f45a3985117b4354))
+
 # [3.226.0](https://github.com/lightdash/lightdash/compare/3.225.0...3.226.0) (2026-11-12)
 
 

@@ -1,4 +1,4 @@
-import { type SourceQuery } from '@lightdash/common';
+import { QuerySourceType, type SourceQuery } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -29,6 +29,7 @@ import {
     type Ref,
 } from 'react';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
+import useIsEmbedded from '../../../../../../providers/Embed/useIsEmbedded';
 import { useUiStrings } from '../../../../../../providers/Embed/useUiStrings';
 import { useCanViewAiAgentSql } from '../../../../hooks/useCanViewAiAgentSql';
 import { useComposerNodeRowsLabel } from '../../composerNodeStatus';
@@ -52,7 +53,7 @@ import {
     semanticQueryOf,
     type QueryPanel,
 } from './semanticQueryOf';
-import { useExploreFromHere } from './useExploreFromHere';
+import { getNodeExploreUrl, useExploreFromHere } from './useExploreFromHere';
 import { useMergeNodeView } from './useMergeNodeView';
 
 const FLASH_MS = 1200;
@@ -146,12 +147,23 @@ const NotebookCell: FC<CellProps> = ({
 }) => {
     const getUiString = useUiStrings();
     const rowsLabel = useComposerNodeRowsLabel();
-    const canViewSql = useCanViewAiAgentSql();
-    const exploreFromHere = useExploreFromHere(projectUuid);
+    const isEmbed = useIsEmbedded();
+    const canViewAgentSql = useCanViewAiAgentSql();
+    const exploreFromHere = useExploreFromHere();
     const [resultsOpen, setResultsOpen] = useState(resultsInitiallyOpen);
     const status = nodeStatuses[node.nodeId];
     const semanticQuery = semanticQueryOf(node.query);
     const mergeView = useMergeNodeView(node.query, references, projectUuid);
+    // Merges compile through an endpoint embed accounts cannot call
+    const canViewSql =
+        canViewAgentSql &&
+        !(node.query.sourceType === QuerySourceType.MERGE && isEmbed);
+    const referenceQueries = references.map((reference) => reference.query);
+    const getExploreUrl = getNodeExploreUrl(
+        node.query,
+        referenceQueries,
+        projectUuid,
+    );
     const hasResult =
         displayableNodeIds.has(node.nodeId) &&
         (status === undefined || status.status === 'success');
@@ -235,13 +247,13 @@ const NotebookCell: FC<CellProps> = ({
                             {addToChatLabel}
                         </Button>
                     )}
-                    {semanticQuery && exploreFromHere && (
+                    {getExploreUrl && exploreFromHere && (
                         <Tooltip label={exploreLabel}>
                             <ActionIcon
                                 size="sm"
                                 aria-label={exploreLabel}
                                 onClick={() =>
-                                    void exploreFromHere(semanticQuery)
+                                    void exploreFromHere(getExploreUrl())
                                 }
                             >
                                 <MantineIcon icon={IconTelescope} />
@@ -295,6 +307,7 @@ const NotebookCell: FC<CellProps> = ({
                             >
                                 <MergeStepTitle view={mergeView} />
                                 <MergeCellToggles
+                                    canViewSql={canViewSql}
                                     openPanels={openPanels}
                                     onTogglePanel={togglePanel}
                                 />
@@ -308,6 +321,7 @@ const NotebookCell: FC<CellProps> = ({
                     )}
                     <CellQueryPanels
                         query={node.query}
+                        reads={referenceQueries}
                         projectUuid={projectUuid}
                         canViewSql={canViewSql}
                         openPanels={openPanels}
