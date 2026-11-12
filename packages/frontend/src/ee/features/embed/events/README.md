@@ -23,12 +23,22 @@ The event system must be enabled in the Lightdash embedding configuration. Direc
 `contentStateChanged` tells the host what the user is looking at, for example to export it. The payload's `type` says which shape it is:
 
 - `dashboard`: `{ dashboardUuid, activeTabUuid, dashboard, exportRequest }`. `dashboard` is the dashboard as it is now (`tiles`, `tabs`, `filters`, `parameters`, `config`), with unsaved edits, the filters the user added and the current parameter values. Filter labels are the untranslated ones. `exportRequest` is ready for the export request: `dashboardFilters` (the same as `dashboard.filters`) and `parameters`, plus `tileParameters` when the dashboard uses parameter controls and `dateZoomGranularity` when date zoom is set. Omitted keys must stay omitted.
-- `chart`: `{ chartUuid, chart }` for a saved chart in `Lightdash.Chart` with `isEditMode` set. `chart` is the unsaved chart version (`tableName`, `metricQuery`, `parameters`, `chartConfig`, `tableConfig`, `pivotConfig`), unsaved edits included.
-- `explore`: `{ chart }` for a query that isn't a saved chart, such as `Lightdash.Explore` or "Explore from here".
+- `chart`: `{ chartUuid, chart, exportRequest }` for a saved chart in `Lightdash.Chart` with `isEditMode` set. `chart` is the unsaved chart version (`tableName`, `metricQuery`, `parameters`, `chartConfig`, `tableConfig`, `pivotConfig`), unsaved edits included.
+- `explore`: `{ chart, exportRequest }` for a query that isn't a saved chart, such as `Lightdash.Explore` or "Explore from here".
 
-`chart` has the saved chart's shape, so hosts can build export options (column order, labels, hidden fields, pivots, totals, conditional formatting) the same way they do for a saved chart.
+For `chart` and `explore`, `exportRequest` holds the `queryUuid` of the query on screen (`null` before the first run; it can lag behind edits the user hasn't run yet) and the download options a saved chart's export uses: column order, custom labels, hidden fields, table names, pivot config, conditional formatting and totals. Omitted keys must stay omitted. To export the rows on screen, send it to `schedule-download` with a `type`:
 
-A host can export what the user sees by sending `exportRequest` plus a `format` (and optionally `options` or `selectedTabs`) to `POST /api/v2/dashboards/{uuid}/exports`:
+```js
+const { queryUuid, ...options } = event.payload.exportRequest;
+fetch(`/api/v2/projects/${projectUuid}/query/${queryUuid}/schedule-download`, {
+    method: 'POST',
+    body: JSON.stringify({ ...options, type: 'xlsx' }),
+});
+```
+
+For other row limits, run `chart.metricQuery` with `chart.parameters` through `POST /api/v2/projects/{projectUuid}/query/metric-query` and use the returned `queryUuid`. Stored results are only readable by the same embed user, so the host's token needs the same `user.externalId`.
+
+For dashboards, a host can export what the user sees by sending `exportRequest` plus a `format` (and optionally `options` or `selectedTabs`) to `POST /api/v2/dashboards/{uuid}/exports`:
 
 ```js
 onEvent={(event) => {

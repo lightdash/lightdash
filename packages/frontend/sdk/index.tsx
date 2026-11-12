@@ -50,6 +50,7 @@ import {
 import {
     LightdashEventType,
     type ChartContentState,
+    type ChartExportRequest,
     type ContentStateChangedPayload,
     type DashboardContentState,
     type ExploreContentState,
@@ -1573,6 +1574,7 @@ export type {
     ContentStateChangedPayload,
     DashboardContentState,
     ChartContentState,
+    ChartExportRequest,
     ExploreContentState,
     SdkError,
     SdkErrorKind,

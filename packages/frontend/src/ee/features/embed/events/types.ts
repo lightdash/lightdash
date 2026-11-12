@@ -1,6 +1,7 @@
 import {
     type CreateSavedChartVersion,
     type DashboardVersionedFields,
+    type DownloadAsyncQueryResultsRequestParams,
     type ExportContentRequest,
 } from '@lightdash/common';
 
@@ -126,17 +127,35 @@ export type DashboardContentState = {
     >;
 };
 
+/** Ready for the schedule-download request, add type; omitted keys must stay omitted */
+export type ChartExportRequest = Pick<
+    DownloadAsyncQueryResultsRequestParams,
+    | 'columnOrder'
+    | 'customLabels'
+    | 'hiddenFields'
+    | 'showTableNames'
+    | 'pivotConfig'
+    | 'exportPivotedData'
+    | 'conditionalFormattings'
+    | 'showColumnTotals'
+> & {
+    // The last query that ran, for the request path; null before the first run
+    queryUuid: string | null;
+};
+
 /** A saved chart open in the explorer, unsaved edits included */
 export type ChartContentState = {
     type: 'chart';
     chartUuid: string;
     chart: CreateSavedChartVersion;
+    exportRequest: ChartExportRequest;
 };
 
 /** An explore query that isn't a saved chart */
 export type ExploreContentState = {
     type: 'explore';
     chart: CreateSavedChartVersion;
+    exportRequest: ChartExportRequest;
 };
 
 /**

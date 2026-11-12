@@ -29,6 +29,11 @@ const exploreState = (limit: number): ExploreContentState => ({
         chartConfig: { type: ChartType.TABLE, config: undefined },
         tableConfig: { columnOrder: [] },
     },
+    exportRequest: {
+        queryUuid: null,
+        columnOrder: [],
+        exportPivotedData: true,
+    },
 });
 
 describe('useEmbedContentStateEvent', () => {

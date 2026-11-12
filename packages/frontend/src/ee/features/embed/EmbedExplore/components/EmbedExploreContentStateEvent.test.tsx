@@ -87,6 +87,9 @@ describe('EmbedExploreContentStateEvent', () => {
                     },
                     pivotConfig: { columns: ['orders_status'] },
                 }),
+                exportRequest: expect.objectContaining({
+                    columnOrder: ['orders_status', 'orders_total'],
+                }),
             },
         );
     });
@@ -116,6 +119,27 @@ describe('EmbedExploreContentStateEvent', () => {
                     tableConfig: {
                         columnOrder: ['orders_total', 'orders_date'],
                     },
+                }),
+            }),
+        );
+    });
+
+    it('sends the query on screen as the export query', () => {
+        const store = createStore();
+        renderEmitter(store);
+        act(() => {
+            store.dispatch(explorerActions.addQueryUuid('first-run'));
+            store.dispatch(explorerActions.addQueryUuid('second-run'));
+        });
+        act(() => {
+            vi.advanceTimersByTime(CONTENT_STATE_DEBOUNCE_MS);
+        });
+
+        expect(dispatchEmbedEvent).toHaveBeenCalledExactlyOnceWith(
+            LightdashEventType.ContentStateChanged,
+            expect.objectContaining({
+                exportRequest: expect.objectContaining({
+                    queryUuid: 'second-run',
                 }),
             }),
         );
