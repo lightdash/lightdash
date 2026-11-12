@@ -4,7 +4,13 @@ import {
     type DashboardTile,
     type DateZoomConfig,
 } from '@lightdash/common';
-import { act, screen, waitFor, within } from '@testing-library/react';
+import {
+    act,
+    fireEvent,
+    screen,
+    waitFor,
+    within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type FC } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -105,6 +111,42 @@ const AddButton: FC = () => {
     return <button onClick={() => add(null)}>Add it</button>;
 };
 
+// Moves tile-2 into the zoom being edited, as choosing tiles on the grid does.
+// Clicked with fireEvent: a pointer press outside the popover cancels the edit
+const TileProbe: FC = () => {
+    const startMapping = useDateZoomEditorSelector((c) => c.startMapping);
+    const setTiles = useDateZoomEditorSelector((c) => c.setTiles);
+    const endMapping = useDateZoomEditorSelector((c) => c.endMapping);
+    const owner = useDateZoomEditorSelector(
+        (c) => c.draftTargets?.['tile-2']?.controlUuid ?? 'none',
+    );
+    return (
+        <>
+            <button onClick={startMapping}>Choose tiles probe</button>
+            <button
+                onClick={() =>
+                    setTiles(
+                        [
+                            {
+                                tileUuid: 'tile-2',
+                                target: {
+                                    fieldId: 'orders_date',
+                                    tableName: 'orders',
+                                },
+                            },
+                        ],
+                        'add',
+                    )
+                }
+            >
+                Take tile-2
+            </button>
+            <button onClick={endMapping}>Done probe</button>
+            <output data-testid="tile-2-owner">{owner}</output>
+        </>
+    );
+};
+
 const setup = ({
     isViewer = false,
     controlGranularities = {},
@@ -153,6 +195,7 @@ const setup = ({
                         <DateZoomPills />
                         {!isViewer && <DefaultZoomButton />}
                         <AddButton />
+                        <TileProbe />
                         <button type="button" data-controls-pill="f1">
                             Region filter
                         </button>
@@ -420,6 +463,29 @@ describe('Date zoom editor', () => {
             screen.getByRole('dialog', { name: 'Orders zoom' }),
         ).toBeVisible();
         expect(config()).toEqual(saved);
+    });
+
+    it('opens the next zoom on the tiles the applied edit left, not the ones from before', async () => {
+        const { user, config } = setup({
+            config: {
+                ...saved,
+                tileTargets: {
+                    ...saved.tileTargets,
+                    'tile-3': saved.tileTargets['tile-2'],
+                },
+            },
+        });
+        await user.click(pill('Revenue zoom'));
+        fireEvent.click(screen.getByText('Choose tiles probe'));
+        fireEvent.click(screen.getByText('Take tile-2'));
+        fireEvent.click(screen.getByText('Done probe'));
+        await user.click(pill('Orders zoom'));
+        await user.click(promptButton('Apply'));
+        expect(config().tileTargets['tile-2'].controlUuid).toBe('z1');
+        expect(
+            screen.getByRole('dialog', { name: 'Orders zoom' }),
+        ).toBeVisible();
+        expect(screen.getByTestId('tile-2-owner')).toHaveTextContent('z1');
     });
 
     it("switches to another kind's pill: at once when clean, after asking when not", async () => {

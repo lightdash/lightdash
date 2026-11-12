@@ -147,6 +147,8 @@ export const DateZoomEditorProvider: FC<{
         if (!isDefault && controlGranularities[control.uuid] !== undefined)
             setControlGranularity(control.uuid, undefined);
         const pick = isDefault ? (defaultGranularity ?? null) : null;
+        // Read now: after "Apply changes first?" this runs before the next render
+        const { tileTargets } = selectCurrentDateZoomConfig(store.getState());
         session.begin({
             id: control.uuid,
             isDefault,
@@ -154,8 +156,8 @@ export const DateZoomEditorProvider: FC<{
             isViewer,
             snapshot: control,
             draft: control,
-            snapshotTargets: config.tileTargets,
-            draftTargets: config.tileTargets,
+            snapshotTargets: tileTargets,
+            draftTargets: tileTargets,
             snapshotPick: pick,
             pick,
             mapping: null,
