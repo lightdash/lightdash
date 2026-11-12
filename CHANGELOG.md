@@ -1,3 +1,10 @@
+## [3.240.1](https://github.com/lightdash/lightdash/compare/3.240.0...3.240.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* **ai:** list only models with YAML in the Studio code view ([#32506](https://github.com/lightdash/lightdash/issues/32506)) ([346d366](https://github.com/lightdash/lightdash/commit/346d366f879079af67740629fdd6984adc822965))
+
 # [3.240.0](https://github.com/lightdash/lightdash/compare/3.239.0...3.240.0) (2026-11-12)
 
 
