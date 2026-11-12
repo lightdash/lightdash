@@ -12,15 +12,23 @@ import {
     type AiArtifact,
     type PossibleAbilities,
     type QueryHistory,
+    type RegisteredAccount,
     type SessionUser,
     type SlackPrompt,
 } from '@lightdash/common';
 import { Readable } from 'node:stream';
-import { fromApiKey, fromSession } from '../../../auth/account/account';
+import {
+    fromApiKey,
+    fromOauth,
+    fromSession,
+} from '../../../auth/account/account';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import Logger from '../../../logging/logger';
-import { agentExecutionContext } from '../../../services/AiAccessService/agentExecutionContext';
+import {
+    agentExecutionContext,
+    createAgentExecutionContext,
+} from '../../../services/AiAccessService/agentExecutionContext';
 import { AiAccessService } from '../../../services/AiAccessService/AiAccessService';
 import { aiServiceAccountPlanMock } from '../../../services/AiAccessService/AiAccessService.mock';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
@@ -30,7 +38,8 @@ import { withWarehouseCredentialVersion } from '../../../utils/warehouseCredenti
 import { type SlackArtifactRenderInput } from '../../database/entities/aiSlackArtifactDeliveries';
 import { AiAgentService } from './AiAgentService';
 
-const setup = () => {
+const setup = ({ personReadAccess = false } = {}) => {
+    let agentResultReadAccess: AiAgentService | null = null;
     const ability = new Ability<PossibleAbilities>([
         { action: 'manage', subject: 'all' },
     ]);
@@ -137,8 +146,11 @@ const setup = () => {
             },
         ),
     };
+    const otherUser: SessionUser = { ...user, userUuid: 'other-user' };
     const userModel = {
-        findSessionUserAndOrgByUuid: vi.fn(async () => user),
+        findSessionUserAndOrgByUuid: vi.fn(async (userUuid: string) =>
+            userUuid === otherUser.userUuid ? otherUser : user,
+        ),
     };
     const factory = {
         resolveWarehouseCredentials: vi.fn(async () => ({
@@ -155,6 +167,7 @@ const setup = () => {
         },
     };
     const access = new AiAccessService({
+        getAgentResultReadAccess: () => agentResultReadAccess,
         lightdashConfig: config,
         featureFlagModel: { get: async () => flags },
         projectModel,
@@ -272,6 +285,7 @@ const setup = () => {
         asyncQueryService: asyncService,
         querySourceService,
     } as unknown as ConstructorParameters<typeof AiAgentService>[0]);
+    if (personReadAccess) agentResultReadAccess = service;
     vi.spyOn(service, 'getAgent').mockImplementation(async () => agent);
     vi.spyOn(
         service as unknown as {
@@ -305,6 +319,7 @@ const setup = () => {
         querySourceService,
         histories,
         user,
+        otherUser,
         history,
         producer,
         claim,
@@ -875,5 +890,184 @@ describe('artifact result identity boundaries', () => {
             rows: [{}],
         });
         expect(getDownloadStream).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("artifact results read with the owner's own bearer token", () => {
+    const mobileOauth = (sessionUser: SessionUser) =>
+        fromOauth(sessionUser, {
+            accessToken: 'test-oauth-token',
+            client: { id: 'registered-mobile-client' },
+            scope: [],
+        });
+    const grantOauth = (sessionUser: SessionUser) =>
+        fromOauth(
+            sessionUser,
+            {
+                accessToken: 'test-grant-token',
+                client: { id: AGENT_CLIENT_IDS[AgentActorSurface.CLI] },
+                scope: [],
+            },
+            null,
+            {
+                grantUuid: 'grant',
+                revision: 1,
+                approvedProjectUuids: ['project'],
+                approvedCapabilities: [],
+                expiresAt: new Date(Date.now() + 60_000),
+                clientId: AGENT_CLIENT_IDS[AgentActorSurface.CLI],
+                resource: 'https://lightdash.test/api',
+                resourceConstraints: null,
+                grantContractVersion: 1,
+            } as unknown as Parameters<typeof fromOauth>[3],
+        );
+    const cliOauth = (sessionUser: SessionUser) =>
+        fromOauth(sessionUser, {
+            accessToken: 'test-cli-token',
+            client: { id: AGENT_CLIENT_IDS[AgentActorSurface.CLI] },
+            scope: [],
+        });
+
+    const runOwnerArtifact = async (
+        ctx: ReturnType<typeof setup>,
+        account: RegisteredAccount,
+    ) => {
+        const { service, asyncService, artifact, prompt, producer, history } =
+            ctx;
+        artifact.chartConfig = { source: 'sql', sql: 'select 1', limit: 2 };
+        delete (prompt as Partial<SlackPrompt>).slackUserId;
+        const runAccounts: RegisteredAccount[] = [];
+        vi.spyOn(asyncService, 'executeAsyncSqlQuery').mockImplementation(
+            async ({ account: runAccount }) => {
+                const scope = agentExecutionContext.getStore();
+                runAccounts.push(runAccount as RegisteredAccount);
+                producer.authMethod = runAccount.authentication.type;
+                producer.agentIdentity = scope?.claim ?? null;
+                history.agentIdentity = scope?.claim ?? null;
+                return {
+                    queryUuid: 'execution',
+                    fields: {},
+                    cacheMetadata: { cacheHit: false },
+                } as never;
+            },
+        );
+        await Reflect.apply(service.getArtifactVizQuery, service, [
+            ctx.user,
+            ctx.options,
+            account,
+        ]);
+        return runAccounts;
+    };
+
+    it.each([
+        ['PAT', (u: SessionUser) => fromApiKey(u, 'test-pat')],
+        ['mobile OAuth token', mobileOauth],
+    ])(
+        "reads the owner's in-app agent answer with the owner's %s",
+        async (_name, buildAccount) => {
+            const ctx = setup({ personReadAccess: true });
+            const account = buildAccount(ctx.user);
+            const runAccounts = await runOwnerArtifact(ctx, account);
+            expect(ctx.producer.agentIdentity?.act.surface).toBe(
+                AgentActorSurface.IN_APP_AGENT,
+            );
+            await expect(
+                ctx.asyncService.getAsyncQueryResults({
+                    account,
+                    projectUuid: 'project',
+                    queryUuid: 'execution',
+                }),
+            ).resolves.toMatchObject({
+                status: QueryHistoryStatus.READY,
+                rows: [{}],
+            });
+            expect(runAccounts.map((a) => a.authentication.type)).toEqual([
+                account.authentication.type,
+            ]);
+            await expect(
+                Reflect.apply(
+                    ctx.service.getArtifactQueryResults,
+                    ctx.service,
+                    [ctx.user, { ...ctx.options, cached: false }, account],
+                ),
+            ).resolves.toMatchObject({
+                status: QueryHistoryStatus.READY,
+                rows: [{}],
+            });
+        },
+    );
+
+    it('refuses a different agent reading the owner answer with the same message', async () => {
+        const ctx = setup({ personReadAccess: true });
+        const account = fromApiKey(ctx.user, 'test-pat');
+        await runOwnerArtifact(ctx, account);
+        await expect(
+            agentExecutionContext.run(
+                createAgentExecutionContext({
+                    account,
+                    surface: AgentActorSurface.MCP,
+                    clientId: null,
+                    agentUuid: null,
+                    agentIdentityEnabled: true,
+                }),
+                () =>
+                    ctx.asyncService.getAsyncQueryResults({
+                        account,
+                        projectUuid: 'project',
+                        queryUuid: 'execution',
+                    }),
+            ),
+        ).rejects.toThrow(
+            'A different agent produced these results. Run the query again through this agent.',
+        );
+        expect(ctx.getDownloadStream).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        [
+            'grant-bound OAuth token',
+            grantOauth,
+            "Agents can't use these results because your current agent sign-in didn't produce them. Run the query again through your agent.",
+        ],
+        [
+            'CLI OAuth token',
+            cliOauth,
+            'A different agent produced these results. Run the query again through this agent.',
+        ],
+    ])(
+        'keeps running a %s answer as the session it ran as before',
+        async (_name, buildAccount, refusal) => {
+            const ctx = setup({ personReadAccess: true });
+            const runAccounts = await runOwnerArtifact(
+                ctx,
+                buildAccount(ctx.user),
+            );
+            expect(runAccounts.map((a) => a.authentication.type)).toEqual([
+                'session',
+            ]);
+            await expect(
+                ctx.asyncService.getAsyncQueryResults({
+                    account: buildAccount(ctx.user),
+                    projectUuid: 'project',
+                    queryUuid: 'execution',
+                }),
+            ).rejects.toThrow(refusal);
+            expect(ctx.getDownloadStream).not.toHaveBeenCalled();
+        },
+    );
+
+    it("refuses another person's bearer token on the owner's answer", async () => {
+        const ctx = setup({ personReadAccess: true });
+        await runOwnerArtifact(ctx, fromApiKey(ctx.user, 'test-pat'));
+        await expect(
+            ctx.asyncService.getAsyncQueryResults({
+                account: fromApiKey(ctx.otherUser, 'other-pat'),
+                projectUuid: 'project',
+                queryUuid: 'execution',
+            }),
+        ).rejects.toThrow(
+            'An AI agent produced these results for another person. Run the query again to see them with your own access.',
+        );
+        expect(ctx.getDownloadStream).not.toHaveBeenCalled();
     });
 });

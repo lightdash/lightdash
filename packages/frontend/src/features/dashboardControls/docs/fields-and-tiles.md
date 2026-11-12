@@ -171,7 +171,8 @@ filter has a field.
 
 ## Pill hover (`useTileHover`)
 
-With no filter open, hovering an editor's pill sets `data-controls-hovered`
+With no control open, hovering an editor's filter, parameter or date zoom
+pill sets `data-controls-hovered`
 on its tiles' grid items directly (the mapping ring's 2px ink, no tint): no
 re-render, veil or scroll. Only the pill that marked last clears
 (`tileHoverOwner`), after `LEAVE_GRACE_MS`.
@@ -181,3 +182,16 @@ re-render, veil or scroll. Only the pill that marked last clears
 Editors choose tiles on a draft of every control. Each parameter key has its own `all`, `only`, or `except` rule. A confirmed move updates both owners in the same draft; Apply writes the changes, Cancel restores the mapping, and Undo restores the previous step. A tile picker can narrow one key without excluding another from the whole control.
 
 A newly linked key follows all tiles when no control holds it; otherwise it starts with explicit tile assignments. Bulk Set and Clear act on the selected key without taking a tile from another control. Clear all excludes every current layout tile from each key, including tiles on unopened tabs; future tiles still follow default rules. A control with no assigned tiles remains on the bar so an editor can assign or remove it.
+
+## Date zooms
+
+`DateZoomMappingRow` stands in for the bar while a zoom's tiles are chosen
+(`MappingSwap`). Each tile gets a card (`DateZoomTileOverlay`, memoised on
+primitives): a clearable "Date field" select on a tile with zoomable date
+fields (`chartZoomableFieldsByTileUuid`), a switch on a tile that only reads
+`${ld.parameters.date_zoom}` (stored with `fieldId: null`), a veil on the
+rest. A pick on a tile another zoom has asks "Move from X?", and says when
+that zoom would be left with no tile. `DateZoomTilesBar` is the field bar
+for the zoom: add every tile in no zoom (first field, or none for a
+parameter-only tile), Clear, Undo. `TabCounts` counts the zoom's tiles over
+the tiles a zoom can take.

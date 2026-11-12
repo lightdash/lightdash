@@ -48,6 +48,21 @@ export class OrganizationAllowedEmailDomainsModel {
         };
     }
 
+    async isEmailDomainAllowedByAnyOrganization(
+        emailDomain: string,
+    ): Promise<boolean> {
+        const [row] = await this.database(
+            OrganizationAllowedEmailDomainsTableName,
+        )
+            .whereRaw(
+                'EXISTS (SELECT 1 FROM unnest(email_domains) AS domain WHERE lower(domain) = ?)',
+                [emailDomain.toLowerCase()],
+            )
+            .select('organization_uuid')
+            .limit(1);
+        return row !== undefined;
+    }
+
     async findAllowedEmailDomains(
         orgUuid: string,
     ): Promise<AllowedEmailDomains | undefined> {

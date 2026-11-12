@@ -30,6 +30,10 @@ export const youtubeAnalyticsIntegration: ApiSourceIntegration<ApiConnectorType.
             connector: z.literal(ApiConnectorType.YOUTUBE_ANALYTICS),
             channelId: z.string(),
         }),
+        describeTarget: ({ apiSource: { channelId }, targetLabel }) =>
+            targetLabel
+                ? `YouTube channel "${targetLabel}" (ID ${channelId})`
+                : `YouTube channel ${channelId}`,
         baseLayer: {
             baseVersion: YOUTUBE_ANALYTICS_SEMANTIC_LAYER_VERSION,
             capabilities: YOUTUBE_ANALYTICS_CAPABILITIES,

@@ -78,6 +78,7 @@ import type {
     ApiDataAppVizPreviewTokenResponse,
     ApiDataAppVizRenderMetadataResponse,
     ApiDataAppVizUpgradeImpactResponse,
+    ApiExplorePrefixCheckResponse,
     ApiExternalConnectionAsCodeListResponse,
     ApiExternalConnectionAsCodeUpsertResponse,
     ApiGenerateAppResponse,
@@ -109,6 +110,7 @@ import type {
     ApiPromoteAiAgentMemoryResponse,
     ApiPromoteAppDiffResponse,
     ApiPromoteAppResponse,
+    ApiReattachableLiveSourcesResponse,
     ApiReplaceProjectContextResults,
     ApiResolvedHomepageResponse,
     ApiSkillsAsCodeListResponse,
@@ -1701,6 +1703,8 @@ type ApiResults =
     | ApiExternalConnectionAsCodeListResponse['results']
     | ApiExternalConnectionAsCodeUpsertResponse['results']
     | ApiLiveSourceFieldsResponse['results']
+    | ApiExplorePrefixCheckResponse['results']
+    | ApiReattachableLiveSourcesResponse['results']
     | ApiSpaceAsCodeListResponse['results']
     | ApiSpaceAsCodeUpsertResponse['results']
     | ApiChartAsCodeUpsertResponse['results']

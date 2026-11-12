@@ -53,9 +53,6 @@ const SemanticStudioPage: FC = () => {
         [navigate, projectUuid],
     );
     const { user } = useApp();
-    const externalSourcesFlag = useServerFeatureFlag(
-        FeatureFlags.ExternalSources,
-    );
     const liveSourcesFlag = useServerFeatureFlag(FeatureFlags.ApiQuerySources);
     const {
         data: project,
@@ -65,10 +62,9 @@ const SemanticStudioPage: FC = () => {
     const explores = useExplores(projectUuid, true);
     const ability = user.data?.ability;
     const organizationUuid = user.data?.organizationUuid;
-    const isExternalSourcesEnabled = !!externalSourcesFlag.data?.enabled;
     const isLiveSourcesEnabled = !!liveSourcesFlag.data?.enabled;
     // A kind whose feature flag is off can't be added or managed, matching
-    // the Explorer and project settings.
+    // project settings.
     const permissions = useMemo((): StudioPermissions | null => {
         if (!ability || !organizationUuid || !projectUuid) return null;
         const granted = getStudioPermissions(
@@ -78,16 +74,9 @@ const SemanticStudioPage: FC = () => {
         );
         return {
             ...granted,
-            files: granted.files && isExternalSourcesEnabled,
             live: granted.live && isLiveSourcesEnabled,
         };
-    }, [
-        ability,
-        organizationUuid,
-        projectUuid,
-        isExternalSourcesEnabled,
-        isLiveSourcesEnabled,
-    ]);
+    }, [ability, organizationUuid, projectUuid, isLiveSourcesEnabled]);
     const canOpen =
         !!ability &&
         !!organizationUuid &&
@@ -128,7 +117,6 @@ const SemanticStudioPage: FC = () => {
     );
 
     if (
-        externalSourcesFlag.isInitialLoading ||
         liveSourcesFlag.isInitialLoading ||
         isProjectLoading ||
         explores.isInitialLoading ||

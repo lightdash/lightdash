@@ -1660,6 +1660,7 @@ export class McpService extends BaseService {
                 (nodeId) => nodeId !== terminalNodeId,
             ),
             deadlineMs,
+            readAllTerminalRows: true,
         });
         // Only ready nodes are saved, as in the agent; other node ids stay free to resubmit.
         const saved = run.nodeStatuses.filter(isSaved);
@@ -1710,7 +1711,7 @@ export class McpService extends BaseService {
         const queryUuids = new Map(
             run.submissions.map(({ nodeId, queryUuid }) => [nodeId, queryUuid]),
         );
-        const { nodeStatuses, terminalRowLimit } = shareComposerPreview(
+        const { nodeStatuses } = shareComposerPreview(
             run.nodeStatuses,
             otherUnreadNodeIds,
             run.status === 'success' ? run.terminal.rowCount : 0,
@@ -1770,6 +1771,7 @@ export class McpService extends BaseService {
                 status: 'running',
                 terminalNodeId,
                 rowCount: null,
+                rows: null,
                 nodes,
             };
             return mcpQueryTool.result.structured(
@@ -1778,12 +1780,16 @@ export class McpService extends BaseService {
             );
         }
 
-        const preview = buildComposerPreview(run.terminal, terminalRowLimit);
+        const preview = buildComposerPreview(
+            run.terminal,
+            run.terminal.rowCount,
+        );
         const structuredContent: McpQueryStructuredContent = {
             sessionId,
             status: 'done',
             terminalNodeId,
             rowCount: run.terminal.rowCount,
+            rows: preview.rows,
             nodes,
         };
         const text = [
@@ -1796,11 +1802,6 @@ export class McpService extends BaseService {
                 ({ nodeId, ...applied }) =>
                     `Node "${nodeId}":${renderAppliedParameters(applied)}`,
             ),
-            ...(preview.truncated
-                ? [
-                      `Showing the first ${preview.rows.length} rows; call get_query_result with queryUuid ${terminalQueryUuid} for more.`,
-                  ]
-                : []),
             ...(run.terminal.rowCount > 0
                 ? [serializeData(preview.csv, 'csv')]
                 : []),
@@ -2408,6 +2409,7 @@ export class McpService extends BaseService {
         projectUuid,
         agentUuid,
         pageSize,
+        maxPageSize = this.lightdashConfig.mcp.runSqlMaxLimit,
         includeStatus,
         sqlRunnerUrl,
     }: {
@@ -2416,6 +2418,7 @@ export class McpService extends BaseService {
         projectUuid: string;
         agentUuid?: string;
         pageSize?: number;
+        maxPageSize?: number;
         includeStatus: boolean;
         sqlRunnerUrl: string | null;
     }) {
@@ -2431,7 +2434,7 @@ export class McpService extends BaseService {
             queryUuid,
             page: 1,
             pageSize,
-            maxPageSize: this.lightdashConfig.mcp.runSqlMaxLimit,
+            maxPageSize,
             aiAccessOnly: true,
         });
 
@@ -5367,11 +5370,14 @@ export class McpService extends BaseService {
                                     metricQuery: queryHistory.metricQuery,
                                 });
                             }
+                            // A node holds at most its limit, so one max-size page is every row.
                             return await this.buildSqlQueryResultResponse({
                                 ctx,
                                 queryUuid: args.queryUuid,
                                 projectUuid,
                                 agentUuid: args.agentUuid,
+                                pageSize: DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
+                                maxPageSize: DEFAULT_COMPOSER_QUERY_MAX_LIMIT,
                                 includeStatus: true,
                                 sqlRunnerUrl: null,
                             });

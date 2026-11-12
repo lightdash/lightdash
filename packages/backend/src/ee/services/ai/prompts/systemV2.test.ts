@@ -435,7 +435,7 @@ describe('getSystemPromptV2 composer queries', () => {
     const composerSections = (...sections: PromptSection[]) =>
         new Set<PromptSection>(['queryingComposer', ...sections]);
 
-    test('directs cross-explore questions to a duckdb node over semanticLayer nodes', () => {
+    test('directs joins on shared dimensions to a merge node, and other combinations to duckdb', () => {
         const content = promptText({
             availableExplores: [],
             promptSections: composerSections('runSql'),
@@ -443,7 +443,10 @@ describe('getSystemPromptV2 composer queries', () => {
         });
 
         expect(content).toContain(
-            'combine explores that are not joined in the semantic layer with a duckdb node',
+            'Combine semanticLayer nodes that meet on dimensions they share at the same grain (both by month, both by customer) with a merge node.',
+        );
+        expect(content).toContain(
+            '- Combine results any other way with a duckdb node',
         );
     });
 

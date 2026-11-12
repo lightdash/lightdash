@@ -256,7 +256,32 @@ const useCodeLifecycle = ({
     );
 };
 
-export const useMobileSignInCode = () => {
+const useAutoShow = ({
+    autoShow,
+    isVisible,
+    show,
+}: {
+    autoShow: boolean;
+    isVisible: boolean;
+    show: () => void;
+}) => {
+    const hasAutoShown = useRef(false);
+    useEffect(() => {
+        if (!autoShow) {
+            hasAutoShown.current = false;
+            return;
+        }
+        const isDocumentVisible =
+            isVisible && document.visibilityState === 'visible';
+        if (!isDocumentVisible || hasAutoShown.current) return;
+        hasAutoShown.current = true;
+        show();
+    }, [autoShow, isVisible, show]);
+};
+
+export const useMobileSignInCode = ({
+    autoShow = false,
+}: { autoShow?: boolean } = {}) => {
     const isVisible = useDocumentVisibility() === 'visible';
     const [isShown, setIsShown] = useState(false);
     const [shownAt, setShownAt] = useState<number | null>(null);
@@ -315,6 +340,8 @@ export const useMobileSignInCode = () => {
         setCode(null);
         mintCode('show');
     }, [mintCode, resetMint]);
+
+    useAutoShow({ autoShow, isVisible, show });
 
     useCodeLifecycle({
         code,

@@ -118,6 +118,7 @@ export const AGENT_TOOL_CAPABILITIES = {
     submitWorkerFindings: [AgentCapability.ReadDiscover],
     syncDbtProject: [AgentCapability.DeployUpload],
     updateUserName: [AgentCapability.Administration],
+    askUser: [AgentCapability.ReadDiscover],
 } as const satisfies Record<
     AgentToolName | 'exportChartAsCode' | 'loadAgentTools',
     RequiredAgentCapabilities
@@ -362,6 +363,9 @@ export const REST_OPERATION_CAPABILITIES = {
         AgentCapability.ContentWrite,
     ],
     'AiAgentController.runEvaluation': [AgentCapability.Query],
+    'AiAgentController.sendVisualizeSlackChart': [
+        AgentCapability.Administration,
+    ],
     'AiAgentController.setArtifactVersionVerified': [AgentCapability.Publish],
     'AiAgentController.setUserDefaultAgent': [AgentCapability.ReadDiscover],
     'AiAgentController.startMcpOAuthConnection': [
@@ -867,6 +871,9 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExploreController.SetExplores': [AgentCapability.DeployUpload],
     'ExploreController.ValidateFormula': [AgentCapability.Query],
     'ExploreController.getChartsByExploreName': [AgentCapability.ReadDiscover],
+    'ExternalConnectionController.checkLiveSourceExplorePrefix': [
+        AgentCapability.Administration,
+    ],
     'ExternalConnectionController.createExternalConnection': [
         AgentCapability.Administration,
     ],
@@ -908,7 +915,13 @@ export const REST_OPERATION_CAPABILITIES = {
     'ExternalConnectionController.listExternalConnections': [
         AgentCapability.ReadDiscover,
     ],
+    'ExternalConnectionController.listLiveSourceReattachCandidates': [
+        AgentCapability.Administration,
+    ],
     'ExternalConnectionController.proposeExternalConnectionConfig': [
+        AgentCapability.Administration,
+    ],
+    'ExternalConnectionController.reattachLiveSource': [
         AgentCapability.Administration,
     ],
     'ExternalConnectionController.refreshExternalConnectionExplores': [

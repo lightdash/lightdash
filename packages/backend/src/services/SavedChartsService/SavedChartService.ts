@@ -79,6 +79,7 @@ import {
     type SpaceSummaryBase,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
+import { isEqual } from 'es-toolkit/compat';
 import { Knex } from 'knex';
 import { validate as isValidUuid } from 'uuid';
 import {
@@ -1186,6 +1187,23 @@ export class SavedChartService
             : chartVersion.merge;
         if (chartVersion.merge && !merge) {
             throw new ParameterError('Invalid saved merge definition.');
+        }
+
+        if (
+            merge &&
+            !isEqual(merge, existingChart.merge) &&
+            auditedAbility.cannot(
+                'manage',
+                subject('MergeQuery', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { savedChartUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot save charts with a new or modified merge',
+            );
         }
 
         await this.validateMetricReferences(
@@ -2425,6 +2443,19 @@ export class SavedChartService
             throw new ForbiddenError(
                 'User cannot save queries with SQL table calculations',
             );
+        }
+
+        if (
+            chartToSave.merge &&
+            auditedAbility.cannot(
+                'manage',
+                subject('MergeQuery', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError('User cannot save merged charts');
         }
 
         const chartBase = {
