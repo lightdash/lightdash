@@ -67,10 +67,16 @@ const getMergeNodeChart = (node: MergeSourceQuery, queries: SourceQuery[]) => {
         return null;
     }
     const [primary] = mergeQuery.sources;
-    const merge = buildSavedMergeDefinition({
-        mergeQuery,
-        chartSourceId: primary.id,
-    });
+    let merge: SavedMergeDefinition;
+    try {
+        merge = buildSavedMergeDefinition({
+            mergeQuery,
+            chartSourceId: primary.id,
+        });
+    } catch {
+        // e.g. a join key part without a field on the first source
+        return null;
+    }
     // Node ids that are not saved-merge names (e.g. `merge`, a leading digit) cannot be saved
     if (!parseSavedMergeDefinition(merge)) return null;
 

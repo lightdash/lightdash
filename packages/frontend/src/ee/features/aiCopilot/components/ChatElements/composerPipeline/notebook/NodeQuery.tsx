@@ -141,7 +141,7 @@ const CompiledSql: FC<{
         return <NotebookCode code={formatSql(data.query)} language="sql" />;
     }
     return error ? (
-        <CompileError
+        <InlineErrorState
             message={getUiString('aiAgent.composer.semanticNode.compileError')}
             onRetry={() => void refetch()}
         />
@@ -149,11 +149,6 @@ const CompiledSql: FC<{
         <Compiling />
     );
 };
-
-const CompileError: FC<{ message: string; onRetry?: () => void }> = ({
-    message,
-    onRetry,
-}) => <InlineErrorState message={message} onRetry={onRetry} />;
 
 const Compiling: FC = () => {
     const getUiString = useUiStrings();
@@ -202,10 +197,10 @@ const MergeCompiledSql: FC<{
         request?.parameters,
     );
     const compileError = getUiString('aiAgent.composer.mergeNode.compileError');
-    if (!request) return <CompileError message={compileError} />;
+    if (!request) return <InlineErrorState message={compileError} />;
     if (error) {
         return (
-            <CompileError
+            <InlineErrorState
                 message={compileError}
                 onRetry={() => void refetch()}
             />
@@ -217,7 +212,7 @@ const MergeCompiledSql: FC<{
     return sql ? (
         <NotebookCode code={sql} language="sql" />
     ) : (
-        <CompileError
+        <InlineErrorState
             message={
                 data.errors.map(({ message }) => message).join(' ') ||
                 compileError

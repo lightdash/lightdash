@@ -1,4 +1,4 @@
-import { type SourceQuery } from '@lightdash/common';
+import { QuerySourceType, type SourceQuery } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
@@ -155,7 +155,9 @@ const NotebookCell: FC<CellProps> = ({
     const semanticQuery = semanticQueryOf(node.query);
     const mergeView = useMergeNodeView(node.query, references, projectUuid);
     // Merges compile through an endpoint embed accounts cannot call
-    const canViewSql = canViewAgentSql && !(mergeView && isEmbed);
+    const canViewSql =
+        canViewAgentSql &&
+        !(node.query.sourceType === QuerySourceType.MERGE && isEmbed);
     const referenceQueries = references.map((reference) => reference.query);
     const getExploreUrl = getNodeExploreUrl(
         node.query,

@@ -6,6 +6,7 @@ import {
     type SemanticLayerSourceQuery,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
+import { PRIMARY_SOURCE_ID } from '../../../../../../../features/mergeQuery/constants';
 import {
     MERGE_URL_PARAM,
     parseMergeState,
@@ -81,7 +82,7 @@ describe('getNodeExploreUrl', () => {
             {
                 name: 'partner',
                 fieldIdBySourceId: {
-                    a: 'orders_partner',
+                    [PRIMARY_SOURCE_ID]: 'orders_partner',
                     [state.additionalSources[0].id]: 'tickets_partner',
                 },
             },
