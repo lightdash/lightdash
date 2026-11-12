@@ -1,4 +1,5 @@
 import {
+    DashboardTileTypes,
     getMissingRequiredDashboardParameters,
     getDashboardTileParameterOverrides,
     omitDisallowedParameterValues,
@@ -13,10 +14,13 @@ import { createSelector } from '@reduxjs/toolkit';
 import { type DashboardStoreState } from '.';
 import { applyParameterLabelOverrides } from '../../../providers/Dashboard/parameterLabelOverrides';
 import { getEffectiveControlOrder } from '../../dashboardControls/controlOrder';
+import { getSavedDateZoomSettings } from './dashboardEditReducer';
 import {
     selectControlOrder,
     selectControlSections,
+    selectDateZoomConfig,
 } from './dashboardEditSelectors';
+import { selectDashboard } from './dashboardSourceSelectors';
 import {
     getParameterControlInputs,
     getDashboardParameterOptionValues,
@@ -391,6 +395,27 @@ export const selectControlGranularities = (state: DashboardStoreState) =>
 export const selectChartZoomableFieldsByTileUuid = (
     state: DashboardStoreState,
 ) => state.dateZoom.chartZoomableFieldsByTileUuid;
+/**
+ * Whether every chart tile keeps its saved grain under date zoom, as live
+ * data source tiles do, so the control would change nothing. False until
+ * every chart tile has reported.
+ */
+export const selectIsDateZoomRefusedOnAllChartTiles = (
+    state: DashboardStoreState,
+) => {
+    const chartTiles =
+        state.edit.tiles?.filter(
+            ({ type }) =>
+                type === DashboardTileTypes.SAVED_CHART ||
+                type === DashboardTileTypes.SQL_CHART,
+        ) ?? [];
+    return (
+        chartTiles.length > 0 &&
+        chartTiles.every(
+            ({ uuid }) => state.dateZoom.dateZoomRefusedByTileUuid[uuid],
+        )
+    );
+};
 export const selectTilesWithDateZoomApplied = (state: DashboardStoreState) =>
     state.dateZoom.tilesWithDateZoomApplied;
 export const selectIsDateZoomAppliedToTile = (
@@ -423,6 +448,13 @@ export const selectAvailableCustomGranularities = (
 export const selectCompletedEmbedTiles = (state: DashboardStoreState) =>
     state.tileStatus.completedEmbedTiles;
 
+/** The date zoom config as edited, resolved against the loaded dashboard's, as `useDashboardDateZoomConfig` */
+export const selectCurrentDateZoomConfig = (state: DashboardStoreState) =>
+    selectDateZoomConfig(
+        state,
+        getSavedDateZoomSettings(selectDashboard(state)?.config).dateZoomConfig,
+    );
+
 /** Every control in bar order: the stored order (none when absent or empty), else the default bar */
 export const selectOrderedControls = createSelector(
     [
@@ -431,8 +463,16 @@ export const selectOrderedControls = createSelector(
         selectParameterControls,
         selectAreParameterControlsSaved,
         selectControlSections,
+        selectCurrentDateZoomConfig,
     ],
-    (controlOrder, filters, parameterControls, areSaved, sections) =>
+    (
+        controlOrder,
+        filters,
+        parameterControls,
+        areSaved,
+        sections,
+        dateZoomConfig,
+    ) =>
         reconcileDashboardControlOrder({
             controlOrder: getEffectiveControlOrder(
                 controlOrder,
@@ -442,6 +482,7 @@ export const selectOrderedControls = createSelector(
             filters,
             parameterControls: parameterControls ?? [],
             sections,
+            dateZoomControls: dateZoomConfig.controls,
         }),
 );
 

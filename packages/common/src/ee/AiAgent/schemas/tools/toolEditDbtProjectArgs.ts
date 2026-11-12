@@ -83,6 +83,8 @@ export const toolEditDbtProjectMetadataSchema = z.discriminatedUnion('status', [
                 }),
             )
             .nullish(),
+        // Models whose files this turn changed. Nullish: older rows and non-Studio runs.
+        changedModels: z.array(z.string()).nullish(),
         needsDbtSourceSelection: z.boolean().nullish(),
         dbtSourceOptions: z
             .array(

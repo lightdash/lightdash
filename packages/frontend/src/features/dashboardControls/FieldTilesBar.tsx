@@ -5,7 +5,6 @@ import {
     Button,
     Divider,
     Group,
-    Paper,
     Text,
     Tooltip,
 } from '@mantine/core';
@@ -18,6 +17,7 @@ import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { selectActiveTabUuid, useDashboardSelector } from '../dashboard/store';
 import { formatTileCount, formatTilesOf } from './fieldLabels';
 import classes from './FieldTilesBar.module.css';
+import { FloatingBar } from './FloatingBar';
 import {
     fieldBarMarker,
     findFieldBarStart,
@@ -175,13 +175,11 @@ export const FieldBar: FC<{
     };
 
     return (
-        <Paper
+        <FloatingBar
             ref={regionRef}
             role="region"
             tabIndex={-1}
             aria-label={interpolateUiString(words.region, { field: label })}
-            shadow="md"
-            radius="md"
             className={classes.bar}
             data-arrive={arrives || undefined}
             data-controls-editor
@@ -201,7 +199,7 @@ export const FieldBar: FC<{
                 chip.focus();
             }}
         >
-            <Group gap="md" justify="center">
+            <Group gap="sm" justify="center">
                 <Group gap={6} wrap="nowrap">
                     {field !== null && (
                         <FieldIcon item={field} size={16} aria-hidden />
@@ -217,7 +215,10 @@ export const FieldBar: FC<{
                         {name}
                     </Text>
                 </Group>
-                <Divider orientation="vertical" />
+                <Divider
+                    orientation="vertical"
+                    color="var(--mantine-color-default-border)"
+                />
                 <Group gap="sm">
                     <Text fz="sm" aria-live="polite">
                         {possible === 0 ? (
@@ -275,13 +276,16 @@ export const FieldBar: FC<{
                     </Tooltip>
                     {undo !== null && (
                         <>
-                            <Divider orientation="vertical" />
+                            <Divider
+                                orientation="vertical"
+                                color="var(--mantine-color-default-border)"
+                            />
                             <Tooltip
                                 fz="xs"
                                 label={getUiString('filters.fieldBar.undo')}
                             >
                                 <ActionIcon
-                                    size="sm"
+                                    size="md"
                                     // Right after a field is added, its Undo is the one step to take
                                     variant={
                                         undo.kind === 'add'
@@ -311,7 +315,7 @@ export const FieldBar: FC<{
                     )}
                 </Group>
             </Group>
-        </Paper>
+        </FloatingBar>
     );
 };
 

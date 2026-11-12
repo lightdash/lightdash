@@ -103,6 +103,7 @@ import {
 } from './DataAppBuildCard/AiDataAppBuildCard';
 import { AiDataAppRestoreCard } from './DataAppBuildCard/AiDataAppRestoreCard';
 import { getDataAppRestoreItem } from './DataAppBuildCard/dataAppBuildCardState';
+import { DiffMarkdownCodeBlock } from './DiffMarkdownCodeBlock';
 import { isHiddenToolName } from './hiddenToolNames';
 import {
     MEMORY_CITATION_ALLOWED_TAGS,
@@ -442,6 +443,10 @@ const AssistantBubbleContent: FC<{
                         />
                     ),
                 },
+                {
+                    language: ['diff', 'patch'],
+                    component: DiffMarkdownCodeBlock,
+                },
             ],
         }),
         [canOpenSqlRunner, projectUuid],
@@ -524,7 +529,7 @@ const AssistantBubbleContent: FC<{
     const editDbtProjectResult: {
         metadata: ToolEditDbtProjectOutput['metadata'];
     } | null = (() => {
-        const writebackResult = message.toolResults.find(
+        const writebackResult = message.toolResults.findLast(
             isToolEditDbtProjectResult,
         );
         if (writebackResult) return { metadata: writebackResult.metadata };

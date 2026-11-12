@@ -90,6 +90,11 @@ const buildService = ({
     let storedSecret: string | null = secret;
     const connection = signedInConnection();
     const externalConnectionModel = {
+        listHeldLiveSourceNames: vi.fn(async () => new Set<string>()),
+        claimLiveSourceName: vi.fn(
+            async (_project: string, _uuid: string, names: string[]) =>
+                names[0],
+        ),
         findByUuid: vi.fn().mockResolvedValue(connection),
         getProjectOrganizationUuid: vi.fn().mockResolvedValue('org-1'),
         getDecryptedSecret: vi.fn(async () => storedSecret),
@@ -115,6 +120,7 @@ const buildService = ({
         projectModel: {
             replaceApiSourceExplores: vi.fn(),
             deleteApiSourceExplores: vi.fn(),
+            findExploreNamesTakenByOthers: vi.fn(async () => []),
         },
         allowedPrivateHostCidrs: {},
         externalConnectionModel,
@@ -235,6 +241,30 @@ describe('PostHog sign-in', () => {
                 connectionUuid: null,
             }),
         );
+    });
+
+    it('creates a signed-in source with the explore prefix the admin typed', async () => {
+        const { service, externalConnectionModel, fetchToken } = buildService();
+        fetchToken.mockResolvedValue(
+            jsonResponse(200, {
+                access_token: 'pha_1',
+                refresh_token: 'phr_1',
+                expires_in: 36000,
+                scoped_teams: [7],
+            }),
+        );
+        const { session } = await service.startPostHogOAuth(account, 'proj-1', {
+            region: 'us',
+            name: 'PostHog',
+            explorePrefix: 'web_events',
+            connectionUuid: null,
+        });
+
+        await service.completePostHogOAuth(account, session, 'code-1');
+
+        expect(
+            externalConnectionModel.claimLiveSourceName.mock.calls[0][2],
+        ).toEqual(['web_events']);
     });
 
     it('creates a signed-in source for the project the user picked', async () => {

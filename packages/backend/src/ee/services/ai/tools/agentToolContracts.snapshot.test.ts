@@ -158,7 +158,7 @@ const makeAgentTools = (enableFilterExpressions = false) => {
         editProjectContext: getEditProjectContext({
             editProjectContext: noop,
         }),
-        exploreRepo: getExploreRepo({ exploreRepo: noop }),
+        exploreRepo: getExploreRepo({ exploreRepo: noop, question: '' }),
         discoverRepos: getDiscoverRepos({ discoverRepos: noop }),
         listWorkstreams: getListWorkstreams({ listWorkstreams: noop }),
         closePullRequest: getClosePullRequest({ closePullRequest: noopAsync }),

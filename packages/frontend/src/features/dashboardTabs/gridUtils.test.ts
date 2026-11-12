@@ -1,4 +1,11 @@
 import { DashboardTileTypes, type DashboardTile } from '@lightdash/common';
+import { type Layout } from 'react-grid-layout';
+import {
+    dashboardEditActions as actions,
+    initialDashboardEditState,
+    dashboardEditReducer as reducer,
+    type DashboardEditState,
+} from '../dashboard/store/dashboardEditReducer';
 import {
     AUTO_FIT_MAX_SCALE,
     AUTO_FIT_MIN_SCALE,
@@ -13,14 +20,25 @@ import {
     getBreakpointForWidth,
     getFitToScreenRowHeight,
     getGridHeight,
+    getLayoutToSaveAfterEdit,
     getGridTotalRows,
     getViewModeActiveTabTiles,
     hasGridItemMoved,
+    resolveDropOverlaps,
+    getRowInsertion,
+    getGapFill,
+    getPointerCell,
+    getPointerPosition,
+    hasLayoutChanged,
+    countResizedItems,
     getDashboardLayouts,
     getMobileGridLayout,
     getResponsiveGridLayoutProps,
     getRowHeightForScale,
     GRID_MARGIN,
+    keepResizedTileCorner,
+    matchesSavedLayout,
+    settleLayoutAfterEdit,
 } from './gridUtils';
 
 const chart = (uuid: string, x: number, y: number, h = 6): DashboardTile => ({
@@ -307,6 +325,365 @@ describe('a drag or resize that ends', () => {
     );
 });
 
+describe('dropping a tile that was dragged over others', () => {
+    const item = (i: string, x: number, y: number, w = 12, h = 4) => ({
+        i,
+        x,
+        y,
+        w,
+        h,
+    });
+    const position = (layout: ReturnType<typeof item>[], i: string) => {
+        const { x, y } = layout.find((l) => l.i === i)!;
+        return { x, y };
+    };
+
+    it('leaves every tile alone when the drop lands on free space', () => {
+        const layout = [item('a', 0, 0), item('b', 12, 0), item('c', 0, 4)];
+        expect(resolveDropOverlaps(layout, ['c'])).toEqual(layout);
+    });
+
+    it('keeps the dropped tile in place and moves the covered tile below it', () => {
+        const layout = [item('a', 0, 0), item('dropped', 0, 2)];
+        const result = resolveDropOverlaps(layout, ['dropped']);
+        expect(position(result, 'dropped')).toEqual({ x: 0, y: 2 });
+        expect(position(result, 'a')).toEqual({ x: 0, y: 6 });
+    });
+
+    it('puts a same-sized tile below when dropped exactly on top of it', () => {
+        const layout = [item('a', 0, 0), item('dropped', 0, 0)];
+        const result = resolveDropOverlaps(layout, ['dropped']);
+        expect(position(result, 'dropped')).toEqual({ x: 0, y: 0 });
+        expect(position(result, 'a')).toEqual({ x: 0, y: 4 });
+    });
+
+    it('moves tiles further down the column out of the way of a pushed tile', () => {
+        const layout = [
+            item('dropped', 0, 0),
+            item('a', 0, 2),
+            item('b', 0, 6),
+            item('beside', 12, 0),
+        ];
+        const result = resolveDropOverlaps(layout, ['dropped']);
+        expect(position(result, 'a')).toEqual({ x: 0, y: 4 });
+        expect(position(result, 'b')).toEqual({ x: 0, y: 8 });
+        expect(position(result, 'beside')).toEqual({ x: 12, y: 0 });
+    });
+
+    it('leaves no two tiles overlapping', () => {
+        const layout = [
+            item('a', 0, 0, 12, 6),
+            item('b', 12, 0, 12, 6),
+            item('c', 6, 6, 12, 4),
+            item('dropped', 6, 3, 12, 4),
+        ];
+        const result = resolveDropOverlaps(layout, ['dropped']);
+        const overlaps = result.flatMap((a, index) =>
+            result
+                .slice(index + 1)
+                .filter(
+                    (b) =>
+                        a.x < b.x + b.w &&
+                        a.x + a.w > b.x &&
+                        a.y < b.y + b.h &&
+                        a.y + a.h > b.y,
+                ),
+        );
+        expect(overlaps).toEqual([]);
+    });
+
+    it('moves a covered tile to a whole stored row on the fine edit grid', () => {
+        const layout = [item('a', 0, 0), item('dropped', 0, 3)];
+        const result = resolveDropOverlaps(
+            layout,
+            ['dropped'],
+            FINE_GRID_SCALE,
+        );
+        expect(position(result, 'dropped')).toEqual({ x: 0, y: 3 });
+        expect(position(result, 'a')).toEqual({ x: 0, y: 8 });
+    });
+});
+
+describe('dropping a tile beside another one', () => {
+    const item = (i: string, x: number, y: number, w = 12, h = 4) => ({
+        i,
+        x,
+        y,
+        w,
+        h,
+        minW: 4,
+    });
+    const shape = (layout: { i: string }[], i: string) => {
+        const { x, y, w, h } = layout.find((l) => l.i === i) as ReturnType<
+            typeof item
+        >;
+        return { x, y, w, h };
+    };
+    const insert = (
+        layout: ReturnType<typeof item>[],
+        tileId: string,
+        side: 'before' | 'after',
+    ) =>
+        getRowInsertion({
+            layout,
+            draggedId: 'dragged',
+            target: { tileId, side },
+            cols: 36,
+        });
+
+    it('splits a single-tile row in half', () => {
+        const layout = [item('a', 0, 0, 36), item('dragged', 0, 10)];
+        const result = insert(layout, 'a', 'after')!;
+        expect(shape(result.layout, 'a')).toEqual({ x: 0, y: 0, w: 18, h: 4 });
+        expect(result.slot).toMatchObject({ x: 18, y: 0, w: 18, h: 4 });
+    });
+
+    it('makes three equal tiles when dropped between two', () => {
+        const layout = [
+            item('a', 0, 0, 18),
+            item('b', 18, 0, 18),
+            item('dragged', 0, 10),
+        ];
+        const result = insert(layout, 'a', 'after')!;
+        expect(shape(result.layout, 'a')).toMatchObject({ x: 0, w: 12 });
+        expect(shape(result.layout, 'dragged')).toMatchObject({
+            x: 12,
+            y: 0,
+            w: 12,
+        });
+        expect(shape(result.layout, 'b')).toMatchObject({ x: 24, w: 12 });
+    });
+
+    it('puts the tile first when dropped before the first tile', () => {
+        const layout = [item('a', 0, 0, 36), item('dragged', 0, 10)];
+        const result = insert(layout, 'a', 'before')!;
+        expect(result.slot).toMatchObject({ x: 0, w: 18 });
+        expect(shape(result.layout, 'a')).toMatchObject({ x: 18, w: 18 });
+    });
+
+    it('takes the height of the row it joins', () => {
+        const layout = [item('a', 0, 0, 36, 7), item('dragged', 0, 10, 12, 3)];
+        expect(insert(layout, 'a', 'after')!.slot.h).toBe(7);
+    });
+
+    it('reorders within a row without changing the shares', () => {
+        const layout = [
+            item('a', 0, 0),
+            item('dragged', 12, 0),
+            item('b', 24, 0),
+        ];
+        const result = insert(layout, 'b', 'after')!;
+        expect(shape(result.layout, 'a')).toMatchObject({ x: 0, w: 12 });
+        expect(shape(result.layout, 'b')).toMatchObject({ x: 12, w: 12 });
+        expect(shape(result.layout, 'dragged')).toMatchObject({ x: 24, w: 12 });
+    });
+
+    it('gives leftover columns to the leftmost tiles', () => {
+        const layout = [
+            ...[0, 1, 2, 3].map((n) => item(`t${n}`, n * 9, 0, 9)),
+            item('dragged', 0, 10),
+        ];
+        const result = insert(layout, 't3', 'after')!;
+        const widths = ['t0', 't1', 't2', 't3', 'dragged'].map(
+            (i) => shape(result.layout, i).w,
+        );
+        expect(widths).toEqual([8, 7, 7, 7, 7]);
+    });
+
+    it('leaves tiles on other lines alone', () => {
+        const layout = [
+            item('a', 0, 0, 36),
+            item('below', 0, 4, 36),
+            item('dragged', 0, 10),
+        ];
+        const result = insert(layout, 'a', 'after')!;
+        expect(shape(result.layout, 'below')).toEqual({
+            x: 0,
+            y: 4,
+            w: 36,
+            h: 4,
+        });
+    });
+
+    it('offers no slot when a tile from the row above reaches into the row', () => {
+        const layout = [
+            item('tall', 24, 0, 12, 8),
+            item('a', 0, 4, 24),
+            item('dragged', 0, 20),
+        ];
+        expect(insert(layout, 'a', 'after')).toBeNull();
+    });
+
+    it('offers no slot when the row is already as full as tiles allow', () => {
+        const layout = [
+            ...Array.from({ length: 9 }, (_, n) => item(`t${n}`, n * 4, 0, 4)),
+            item('dragged', 0, 10),
+        ];
+        expect(insert(layout, 't0', 'before')).toBeNull();
+    });
+});
+
+describe('dropping a tile on empty space', () => {
+    const item = (i: string, x: number, y: number, w = 12, h = 4) => ({
+        i,
+        x,
+        y,
+        w,
+        h,
+        minW: 4,
+        minH: 1,
+    });
+    const fill = (layout: ReturnType<typeof item>[], x: number, y: number) =>
+        getGapFill({ layout, draggedId: 'dragged', cell: { x, y }, cols: 36 });
+
+    it('fills a hole between two tiles in a row', () => {
+        const layout = [
+            item('a', 0, 0),
+            item('b', 24, 0),
+            item('below', 0, 4, 36),
+            item('dragged', 0, 20, 30, 9),
+        ];
+        expect(fill(layout, 15, 2)!.slot).toMatchObject({
+            x: 12,
+            y: 0,
+            w: 12,
+            h: 4,
+        });
+    });
+
+    it('fills the rest of the last row, as tall as the tiles beside it', () => {
+        const layout = [item('a', 0, 0, 12, 6), item('dragged', 0, 20)];
+        expect(fill(layout, 30, 3)!.slot).toMatchObject({
+            x: 12,
+            y: 0,
+            w: 24,
+            h: 6,
+        });
+    });
+
+    it('stops at the tiles above and below the space', () => {
+        const layout = [
+            item('above', 0, 0, 36),
+            item('below', 0, 10, 36),
+            item('dragged', 0, 20),
+        ];
+        expect(fill(layout, 5, 7)!.slot).toMatchObject({
+            x: 0,
+            y: 4,
+            w: 36,
+            h: 6,
+        });
+    });
+
+    it('offers nothing over the place the tile is leaving', () => {
+        const layout = [item('a', 0, 0), item('dragged', 12, 0)];
+        expect(fill(layout, 13, 1)).toBeNull();
+    });
+
+    it('counts the place the tile is leaving as part of a wider space', () => {
+        const layout = [item('a', 0, 0), item('dragged', 12, 0)];
+        expect(fill(layout, 30, 1)!.slot).toMatchObject({ x: 12, w: 24 });
+    });
+
+    it('moves no other tile', () => {
+        const layout = [
+            item('a', 0, 0),
+            item('b', 24, 0),
+            item('dragged', 0, 20),
+        ];
+        const result = fill(layout, 15, 2)!;
+        expect(result.layout.filter((l) => l.i !== 'dragged')).toEqual(
+            layout.filter((l) => l.i !== 'dragged'),
+        );
+    });
+
+    it('offers nothing over another tile', () => {
+        const layout = [item('a', 0, 0), item('dragged', 0, 20)];
+        expect(fill(layout, 3, 2)).toBeNull();
+    });
+
+    it('offers nothing in open space with no tile beside or below it', () => {
+        const layout = [item('a', 0, 0), item('dragged', 0, 20)];
+        expect(fill(layout, 20, 9)).toBeNull();
+    });
+
+    it('offers nothing when the space is narrower than a tile can be', () => {
+        const layout = [
+            item('a', 0, 0, 17),
+            item('b', 19, 0, 17),
+            item('dragged', 0, 20),
+        ];
+        expect(fill(layout, 17, 1)).toBeNull();
+    });
+});
+
+describe('reading where the pointer is', () => {
+    it('reads a mouse event', () => {
+        const event = new MouseEvent('mousemove', { clientX: 40, clientY: 70 });
+        expect(getPointerPosition(event)).toMatchObject({
+            clientX: 40,
+            clientY: 70,
+        });
+    });
+
+    it('reads the finger of a touch event, also once it has lifted', () => {
+        const finger = { clientX: 40, clientY: 70 };
+        const lifted = { changedTouches: [finger], touches: [] };
+        expect(
+            getPointerPosition(lifted as unknown as TouchEvent),
+        ).toMatchObject(finger);
+    });
+
+    it('has no position for a touch event without a finger', () => {
+        const empty = { changedTouches: [], touches: [] };
+        expect(getPointerPosition(empty as unknown as TouchEvent)).toBeNull();
+    });
+});
+
+describe('telling what a drop changed', () => {
+    const item = (i: string, x: number, w = 12) => ({ i, x, y: 0, w, h: 4 });
+    const before = [item('a', 0), item('b', 12), item('c', 24)];
+
+    it('sees no change when every tile is where it was', () => {
+        expect(
+            hasLayoutChanged(
+                before,
+                before.map((l) => ({ ...l })),
+            ),
+        ).toBe(false);
+    });
+
+    it('sees a change when one tile moved', () => {
+        const after = [item('a', 0), item('b', 24), item('c', 12)];
+        expect(hasLayoutChanged(before, after)).toBe(true);
+    });
+
+    it('counts only the tiles whose size changed', () => {
+        const after = [item('a', 0, 18), item('b', 18, 6), item('c', 24)];
+        expect(countResizedItems(before, after)).toBe(2);
+    });
+});
+
+describe('finding the grid cell under the pointer', () => {
+    const tile = { i: 't', x: 12, y: 4, w: 12, h: 6 };
+    const tileRect = { left: 300, top: 200, width: 240, height: 180 };
+    const cellAt = (clientX: number, clientY: number) =>
+        getPointerCell({ pointer: { clientX, clientY }, tile, tileRect });
+
+    it('reads the cell inside the measuring tile', () => {
+        expect(cellAt(300, 200)).toEqual({ x: 12, y: 4 });
+        expect(cellAt(539, 379)).toEqual({ x: 23, y: 9 });
+    });
+
+    it('reads cells left of and above the measuring tile', () => {
+        expect(cellAt(70, 50)).toEqual({ x: 0, y: -1 });
+    });
+
+    it('reads cells right of and below the measuring tile', () => {
+        expect(cellAt(560, 410)).toEqual({ x: 25, y: 11 });
+    });
+});
+
 describe('same grid at every window width', () => {
     const props = getResponsiveGridLayoutProps({ isEditMode: true });
     const row = [
@@ -370,6 +747,473 @@ describe('saving after a drag or resize', () => {
             expect(new Set([cols.lg, cols.md, cols.sm, cols.xs])).toEqual(
                 new Set([36 * gridScale]),
             );
+        });
+    });
+});
+
+describe('tiles after a drag or resize', () => {
+    type Rect = { x: number; y: number; w: number; h: number };
+    const START: Record<string, Rect> = {
+        A: { x: 0, y: 0, w: 18, h: 6 },
+        B: { x: 18, y: 0, w: 18, h: 6 },
+        C: { x: 0, y: 6, w: 18, h: 6 },
+        D: { x: 18, y: 6, w: 18, h: 6 },
+        E: { x: 0, y: 14, w: 36, h: 6 },
+        M: { x: 0, y: 20, w: 36, h: 3 },
+    };
+
+    const toLayout = (rects: Record<string, Rect>): Layout[] =>
+        Object.entries(rects).map(([i, rect]) => ({ i, ...rect }));
+
+    const positions = (layout: Layout[]): Record<string, Rect> =>
+        Object.fromEntries(
+            layout.map(({ i, x, y, w, h }) => [i, { x, y, w, h }]),
+        );
+
+    const createSession = (initial: Record<string, Rect>) => {
+        let saved = { ...initial };
+        const home = new Map(
+            Object.entries(initial).map(([i, rect]) => [i, rect.y]),
+        );
+        return {
+            drop: (gridLayout: Record<string, Rect>, editedTileId: string) => {
+                const settled = settleLayoutAfterEdit({
+                    layout: toLayout(gridLayout),
+                    editedTileId,
+                    previous: new Map(
+                        Object.entries(saved).map(([i, rect]) => [
+                            i,
+                            { i, ...rect },
+                        ]),
+                    ),
+                    home,
+                });
+                saved = positions(settled);
+                home.set(editedTileId, saved[editedTileId].y);
+                return saved;
+            },
+            addTile: (i: string, rect: Rect) => {
+                saved = { ...saved, [i]: rect };
+                home.set(i, rect.y);
+                return saved;
+            },
+            get saved() {
+                return saved;
+            },
+        };
+    };
+
+    const overlapping = (rects: Record<string, Rect>) =>
+        Object.entries(rects).flatMap(([a, ra]) =>
+            Object.entries(rects)
+                .filter(
+                    ([b, rb]) =>
+                        a < b &&
+                        ra.x < rb.x + rb.w &&
+                        rb.x < ra.x + ra.w &&
+                        ra.y < rb.y + rb.h &&
+                        rb.y < ra.y + ra.h,
+                )
+                .map(([b]) => `${a}/${b}`),
+        );
+
+    const hasWholeRows = (rects: Record<string, Rect>) =>
+        Object.values(rects).every(
+            ({ y, h }) => Number.isInteger(y) && Number.isInteger(h),
+        );
+
+    it('resizing a tile taller moves the tile below just enough and keeps the gap above E', () => {
+        const session = createSession(START);
+        const saved = session.drop(
+            { ...START, A: { ...START.A, h: 8 }, C: { ...START.C, y: 8 } },
+            'A',
+        );
+        expect(saved.A.h).toBe(8);
+        expect(saved.C.y).toBe(8);
+        expect(saved.E.y).toBe(14);
+        expect(saved.M.y).toBe(20);
+    });
+
+    it('dragging a tile down and back brings the pushed tiles back to their rows', () => {
+        const session = createSession(START);
+        session.drop(
+            {
+                ...START,
+                A: { ...START.A, y: 3 },
+                C: { ...START.C, y: 9 },
+                E: { ...START.E, y: 15 },
+                M: { ...START.M, y: 21 },
+            },
+            'A',
+        );
+        expect(session.saved.E.y).toBe(15);
+        const saved = session.drop(
+            {
+                ...session.saved,
+                A: { ...START.A, y: 0 },
+            },
+            'A',
+        );
+        expect(saved).toEqual(START);
+    });
+
+    it('repeated drag rounds do not ratchet untouched tiles down', () => {
+        const session = createSession(START);
+        for (let round = 0; round < 3; round += 1) {
+            session.drop(
+                {
+                    ...session.saved,
+                    A: { ...START.A, y: 1 },
+                    C: { ...START.C, y: 7 },
+                },
+                'A',
+            );
+            session.drop(
+                {
+                    ...session.saved,
+                    A: { ...START.A, y: 0 },
+                    C: { ...START.C, y: 7 },
+                },
+                'A',
+            );
+            expect(session.saved).toEqual(START);
+        }
+    });
+
+    it('dragging a tile up over others never saves an overlap or a half row on tiles the user did not place', () => {
+        const session = createSession(START);
+        const saved = session.drop(
+            {
+                ...START,
+                E: { ...START.E, y: 10 },
+                C: { ...START.C, y: 9.5 },
+                D: { ...START.D, y: 9.5 },
+                M: { ...START.M, y: 21 },
+            },
+            'E',
+        );
+        expect(overlapping(saved)).toEqual([]);
+        expect(hasWholeRows(saved)).toBe(true);
+        expect(saved.E.y).toBe(10);
+        expect(saved.C.y).toBe(16);
+        expect(saved.D.y).toBe(16);
+        expect(saved.M.y).toBe(22);
+        expect(saved.A).toEqual(START.A);
+        expect(saved.B).toEqual(START.B);
+    });
+
+    it('a later small drag does not move tiles that the user did not touch', () => {
+        const session = createSession(START);
+        session.drop(
+            {
+                ...START,
+                E: { ...START.E, y: 10 },
+                C: { ...START.C, y: 9.5 },
+                D: { ...START.D, y: 9.5 },
+                M: { ...START.M, y: 21 },
+            },
+            'E',
+        );
+        const afterDrop = session.saved;
+        const saved = session.drop(
+            {
+                ...afterDrop,
+                A: { ...START.A, y: 0 },
+                E: { ...afterDrop.E, y: 15.5 },
+                M: { ...afterDrop.M, y: 21.5 },
+            },
+            'A',
+        );
+        expect(saved).toEqual(afterDrop);
+    });
+
+    it('a drag after adding a tile keeps the new tile and the gaps', () => {
+        const session = createSession(START);
+        session.addTile('N', { x: 0, y: 23, w: 15, h: 9 });
+        expect(overlapping(session.saved)).toEqual([]);
+        const saved = session.drop(
+            {
+                ...session.saved,
+                B: { ...START.B, h: 7 },
+                D: { ...START.D, y: 7 },
+            },
+            'B',
+        );
+        expect(saved.N).toEqual({ x: 0, y: 23, w: 15, h: 9 });
+        expect(saved.D.y).toBe(7);
+        expect(saved.E.y).toBe(14);
+    });
+
+    it('the edited tile keeps the position the user gave it', () => {
+        expect(
+            settleLayoutAfterEdit({
+                layout: [{ i: 'X', x: 0, y: 3, w: 4, h: 2 }],
+                editedTileId: 'X',
+                previous: new Map([['X', { i: 'X', x: 0, y: 0, w: 4, h: 2 }]]),
+                home: new Map([['X', 0]]),
+            }),
+        ).toEqual([{ i: 'X', x: 0, y: 3, w: 4, h: 2 }]);
+    });
+
+    it('a saved layout reloads to the same positions and a no-op drop keeps them', () => {
+        const session = createSession(START);
+        session.drop(
+            { ...START, A: { ...START.A, h: 8 }, C: { ...START.C, y: 8 } },
+            'A',
+        );
+        const reloaded = createSession(session.saved);
+        expect(reloaded.drop(reloaded.saved, 'C')).toEqual(session.saved);
+    });
+
+    it('keeps the swap the grid showed when a tile is dragged down past another', () => {
+        const session = createSession(START);
+        const saved = session.drop(
+            {
+                ...START,
+                A: { ...START.A, y: 7 },
+                C: { ...START.C, y: 1 },
+                E: { ...START.E, y: 17 },
+                M: { ...START.M, y: 23 },
+            },
+            'A',
+        );
+        expect(saved.A.y).toBe(7);
+        expect(saved.C.y).toBe(1);
+        expect(saved.E.y).toBe(14);
+        expect(saved.M.y).toBe(20);
+        expect(overlapping(saved)).toEqual([]);
+    });
+
+    it('a resized tile keeps its top-left corner when the grid pushed it', () => {
+        const before = { i: 'C', ...START.C };
+        const gridLayout = toLayout({
+            ...START,
+            C: { ...START.C, y: 12, h: 9 },
+        });
+        const layout = keepResizedTileCorner(gridLayout, before);
+        expect(layout.find((item) => item.i === 'C')).toEqual({
+            i: 'C',
+            x: 0,
+            y: 6,
+            w: 18,
+            h: 9,
+        });
+        const session = createSession(START);
+        const saved = session.drop(positions(layout), 'C');
+        expect(saved.C).toEqual({ x: 0, y: 6, w: 18, h: 9 });
+        expect(saved.E.y).toBe(15);
+        expect(overlapping(saved)).toEqual([]);
+    });
+
+    it('keeps the fine-grid position of the tile the user placed and puts pushed tiles on whole rows', () => {
+        const session = createSession(START);
+        const saved = session.drop(
+            { ...START, B: { ...START.B, y: 0.5 }, D: { ...START.D, y: 6.5 } },
+            'B',
+        );
+        expect(saved.B.y).toBe(0.5);
+        expect(saved.D.y).toBe(7);
+        expect(overlapping(saved)).toEqual([]);
+    });
+
+    it('step ii: a tile dropped at a half row pushes the tiles below it to whole rows', () => {
+        const session = createSession(START);
+        const saved = session.drop(
+            {
+                ...START,
+                A: { ...START.A, y: 4.5 },
+                C: { ...START.C, y: 10.5 },
+                E: { ...START.E, y: 16.5 },
+                M: { ...START.M, y: 22.5 },
+            },
+            'A',
+        );
+        expect(saved.A.y).toBe(4.5);
+        expect(saved.C.y).toBe(11);
+        expect(saved.E.y).toBe(17);
+        expect(saved.M.y).toBe(23);
+        expect(saved.B).toEqual(START.B);
+        expect(saved.D).toEqual(START.D);
+        const { A: _placed, ...untouched } = saved;
+        expect(hasWholeRows(untouched)).toBe(true);
+        expect(overlapping(saved)).toEqual([]);
+    });
+
+    it('a tile swapped above a tile dropped at a half row lands on a whole row', () => {
+        const session = createSession(START);
+        const saved = session.drop(
+            {
+                ...START,
+                A: { ...START.A, y: 7.5 },
+                C: { ...START.C, y: 1.5 },
+            },
+            'A',
+        );
+        expect(saved.C.y).toBe(1);
+        expect(saved.E.y).toBe(14);
+        expect(overlapping(saved)).toEqual([]);
+    });
+
+    describe('on the dashboard store', () => {
+        const scaled = (rects: Record<string, Rect>): Layout[] =>
+            toLayout(rects).map((item) => ({
+                ...item,
+                x: item.x * FINE_GRID_SCALE,
+                y: item.y * FINE_GRID_SCALE,
+                w: item.w * FINE_GRID_SCALE,
+                h: item.h * FINE_GRID_SCALE,
+            }));
+
+        const editing = (rects: Record<string, Rect>) =>
+            reducer(
+                initialDashboardEditState,
+                actions.setTiles(
+                    Object.entries(rects).map(([i, { x, y, w, h }]) => ({
+                        ...chart(i, x, y, h),
+                        w,
+                    })),
+                ),
+            );
+
+        const placements = (state: DashboardEditState) =>
+            Object.fromEntries(
+                (state.tiles ?? []).map(({ uuid, x, y, w, h }) => [
+                    uuid,
+                    { x, y, w, h },
+                ]),
+            );
+
+        const savedRects = (state: DashboardEditState) =>
+            new Map(
+                Object.entries(placements(state)).map(([i, rect]) => [
+                    i,
+                    { i, ...rect },
+                ]),
+            );
+
+        const drop = (
+            state: DashboardEditState,
+            drawn: Record<string, Rect>,
+            tileId: string,
+        ) => {
+            const [before] = scaled({ [tileId]: placements(state)[tileId] });
+            const [after] = scaled({ [tileId]: drawn[tileId] });
+            const layout = getLayoutToSaveAfterEdit({
+                layout: scaled(drawn),
+                before,
+                after,
+                gridScale: FINE_GRID_SCALE,
+                previous: savedRects(state),
+                home: new Map(
+                    Object.entries(START).map(([i, rect]) => [i, rect.y]),
+                ),
+            });
+            return layout
+                ? reducer(
+                      state,
+                      actions.moveTiles(
+                          layout.map(({ i, x, y, w, h }) => ({
+                              uuid: i,
+                              x,
+                              y,
+                              w,
+                              h,
+                          })),
+                      ),
+                  )
+                : state;
+        };
+
+        it('saves a drag that pushes several tiles as one undo step, and undo puts every tile back', () => {
+            const start = editing(START);
+            const moved = drop(
+                start,
+                {
+                    ...START,
+                    A: { ...START.A, y: 3 },
+                    C: { ...START.C, y: 9 },
+                    E: { ...START.E, y: 15 },
+                    M: { ...START.M, y: 21 },
+                },
+                'A',
+            );
+            expect(placements(moved)).toMatchObject({
+                A: { y: 3 },
+                C: { y: 9 },
+                E: { y: 15 },
+                M: { y: 21 },
+            });
+            expect(moved.tileLayoutHistory.past).toHaveLength(1);
+            expect(
+                placements(reducer(moved, actions.undoTileLayout())),
+            ).toEqual(START);
+        });
+
+        it('a drop that moves nothing adds no undo step, while the grid still shows the tile it pushed', () => {
+            const start = editing(START);
+            const drawn = { ...START, C: { ...START.C, y: 9 } };
+            expect(drop(start, drawn, 'A')).toBe(start);
+            expect(
+                matchesSavedLayout(
+                    convertLayoutToBaseCoordinates(
+                        scaled(drawn),
+                        FINE_GRID_SCALE,
+                    ),
+                    savedRects(start),
+                ),
+            ).toBe(false);
+            const savedLayout = Object.entries(START).map(([uuid, rect]) => ({
+                uuid,
+                ...rect,
+            }));
+            expect(reducer(start, actions.moveTiles(savedLayout))).toBe(start);
+            expect(start.tileLayoutHistory.past).toHaveLength(0);
+        });
+
+        it('puts pushed and pulled-up tiles on whole rows', () => {
+            const pushed = drop(
+                editing(START),
+                {
+                    ...START,
+                    A: { ...START.A, y: 4.5 },
+                    C: { ...START.C, y: 10.5 },
+                    E: { ...START.E, y: 16.5 },
+                    M: { ...START.M, y: 22.5 },
+                },
+                'A',
+            );
+            expect(placements(pushed)).toMatchObject({
+                A: { y: 4.5 },
+                C: { y: 11 },
+                E: { y: 17 },
+                M: { y: 23 },
+            });
+            const pulledUp = drop(
+                pushed,
+                { ...placements(pushed), A: { ...START.A, y: 0.5 } },
+                'A',
+            );
+            expect(placements(pulledUp)).toMatchObject({
+                A: { y: 0.5 },
+                C: { y: 7 },
+                E: { y: 14 },
+                M: { y: 20 },
+            });
+            const { A: _placed, ...others } = placements(pulledUp);
+            expect(hasWholeRows(others)).toBe(true);
+            expect(pulledUp.tileLayoutHistory.past).toHaveLength(2);
+        });
+
+        it('a resize keeps the top-left corner of the tile when the grid pushed it', () => {
+            const resized = drop(
+                editing(START),
+                { ...START, C: { ...START.C, y: 12, h: 9 } },
+                'C',
+            );
+            expect(placements(resized)).toMatchObject({
+                C: { x: 0, y: 6, w: 18, h: 9 },
+                E: { y: 15 },
+            });
         });
     });
 });

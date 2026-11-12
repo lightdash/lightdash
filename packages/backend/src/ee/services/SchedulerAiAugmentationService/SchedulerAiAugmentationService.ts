@@ -22,6 +22,7 @@ import {
     type DashboardDAO,
 } from '@lightdash/common';
 import { fromSession } from '../../../auth/account/account';
+import type { LightdashConfig } from '../../../config/parseConfig';
 import { type AgentActionLogModel } from '../../../models/AgentActionLogModel';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
@@ -49,7 +50,10 @@ import {
     recordAgentRefusal,
 } from '../../../services/AiAccessService/logAgentContentWrite';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
-import { SCHEDULER_POLLING_OPTIONS } from '../../../services/AsyncQueryService/types';
+import {
+    getSchedulerPollingOptions,
+    type PollingOptions,
+} from '../../../services/AsyncQueryService/types';
 import { BaseService } from '../../../services/BaseService';
 import { SchedulerService } from '../../../services/SchedulerService/SchedulerService';
 import { SchedulerAiAugmentationModel } from '../../models/SchedulerAiAugmentationModel';
@@ -89,6 +93,7 @@ type Dependencies = {
     asyncQueryService: AsyncQueryService;
     aiAgentService: AiAgentService;
     aiService: AiService;
+    lightdashConfig: Pick<LightdashConfig, 'scheduler'>;
 };
 
 export class SchedulerAiAugmentationService
@@ -119,6 +124,8 @@ export class SchedulerAiAugmentationService
 
     private readonly aiService: AiService;
 
+    private readonly schedulerPollingOptions: PollingOptions;
+
     constructor(dependencies: Dependencies) {
         super();
         this.agentPermissionService = dependencies.agentPermissionService;
@@ -136,6 +143,9 @@ export class SchedulerAiAugmentationService
         this.asyncQueryService = dependencies.asyncQueryService;
         this.aiAgentService = dependencies.aiAgentService;
         this.aiService = dependencies.aiService;
+        this.schedulerPollingOptions = getSchedulerPollingOptions(
+            dependencies.lightdashConfig,
+        );
     }
 
     // getScheduler enforces view access on the scheduler before its augmentation
@@ -622,7 +632,7 @@ export class SchedulerAiAugmentationService
                         : undefined,
                     context: QueryExecutionContext.AI,
                 },
-                SCHEDULER_POLLING_OPTIONS,
+                this.schedulerPollingOptions,
             );
         const limitedRows = rows.slice(0, MAX_ROWS_PER_CHART);
         return serializeSections(
@@ -672,7 +682,7 @@ export class SchedulerAiAugmentationService
                             context: QueryExecutionContext.AI,
                             parameters,
                         },
-                        SCHEDULER_POLLING_OPTIONS,
+                        this.schedulerPollingOptions,
                     );
                 const limitedRows = rows.slice(0, MAX_ROWS_PER_CHART);
                 return appendCsvSection(

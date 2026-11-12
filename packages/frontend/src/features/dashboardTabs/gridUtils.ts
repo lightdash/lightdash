@@ -13,7 +13,7 @@ import { type Layout } from 'react-grid-layout';
  * get narrower columns. The breakpoints only decide where the phone stack
  * starts and where fit to screen is offered.
  */
-const GRID_DESKTOP_COLS = 36;
+export const GRID_DESKTOP_COLS = 36;
 
 /** The narrowest a tile can be resized to, in stored columns */
 const MIN_TILE_COLS = 4;
@@ -186,6 +186,450 @@ export const hasGridItemMoved = (before: Layout, after: Layout): boolean =>
     before.y !== after.y ||
     before.w !== after.w ||
     before.h !== after.h;
+
+type GridRect = Pick<Layout, 'i' | 'x' | 'y' | 'w' | 'h'>;
+
+const rectsOverlap = (a: GridRect, b: GridRect): boolean =>
+    a.i !== b.i &&
+    a.x < b.x + b.w &&
+    b.x < a.x + a.w &&
+    a.y < b.y + b.h &&
+    b.y < a.y + a.h;
+
+export const settleLayoutAfterEdit = ({
+    layout,
+    editedTileId,
+    previous,
+    home,
+}: {
+    layout: Layout[];
+    editedTileId: string;
+    previous: ReadonlyMap<string, GridRect>;
+    home: ReadonlyMap<string, number>;
+}): Layout[] => {
+    const edited = layout.find((item) => item.i === editedTileId);
+    if (!edited) return layout;
+
+    const order = new Map(layout.map((item, index) => [item.i, index]));
+    const byRow = (a: Layout, b: Layout) =>
+        a.y - b.y || (order.get(a.i) ?? 0) - (order.get(b.i) ?? 0);
+    const isFree = (item: Layout, placed: Layout[]) =>
+        !placed.some((other) => rectsOverlap(item, other));
+
+    const others = layout
+        .filter((item) => item.i !== editedTileId)
+        .map((drawn) => {
+            const before = previous.get(drawn.i) ?? drawn;
+            return {
+                drawn,
+                item: {
+                    ...drawn,
+                    x: before.x,
+                    y: before.y,
+                    w: before.w,
+                    h: before.h,
+                },
+            };
+        })
+        .sort((a, b) => byRow(a.item, b.item));
+
+    const placed: Layout[] = [edited];
+    for (const { drawn, item } of others) {
+        let next = item;
+        const swappedUp = { ...item, y: Math.floor(drawn.y) };
+        if (!isFree(next, placed) && drawn.y < item.y) {
+            if (isFree(swappedUp, placed)) next = swappedUp;
+        }
+        let blockers = placed.filter((other) => rectsOverlap(next, other));
+        while (blockers.length > 0) {
+            next = {
+                ...next,
+                y: Math.ceil(
+                    Math.max(...blockers.map((other) => other.y + other.h)),
+                ),
+            };
+            blockers = placed.filter((other) => rectsOverlap(next, other));
+        }
+        placed.push(next);
+    }
+
+    placed
+        .slice(1)
+        .sort(byRow)
+        .forEach((item) => {
+            const homeRow = home.get(item.i);
+            if (homeRow === undefined || homeRow >= item.y) return;
+            const index = placed.findIndex((other) => other.i === item.i);
+            const rest = placed.filter((other) => other.i !== item.i);
+            const freeRow = [
+                homeRow,
+                ...rest
+                    .map((other) => Math.ceil(other.y + other.h))
+                    .filter((row) => row > homeRow && row < item.y),
+            ]
+                .sort((a, b) => a - b)
+                .find((row) => isFree({ ...item, y: row }, rest));
+            if (freeRow !== undefined) {
+                placed[index] = { ...item, y: freeRow };
+            }
+        });
+
+    const placedById = new Map(placed.map((item) => [item.i, item]));
+    return layout.map((item) => placedById.get(item.i) ?? item);
+};
+
+export const keepResizedTileCorner = (
+    layout: Layout[],
+    before: Layout,
+): Layout[] =>
+    layout.map((item) =>
+        item.i === before.i ? { ...item, x: before.x, y: before.y } : item,
+    );
+
+export const matchesSavedLayout = (
+    layout: Layout[],
+    saved: ReadonlyMap<string, GridRect>,
+): boolean =>
+    layout.every((item) => {
+        const tile = saved.get(item.i);
+        return tile !== undefined && !hasGridItemMoved(tile, item);
+    });
+
+export const getLayoutToSaveAfterEdit = ({
+    layout,
+    before,
+    after,
+    gridScale,
+    previous,
+    home,
+}: {
+    layout: Layout[];
+    before: Layout;
+    after: Layout;
+    gridScale: number;
+    previous: ReadonlyMap<string, GridRect>;
+    home: ReadonlyMap<string, number>;
+}): Layout[] | null => {
+    if (!hasGridItemMoved(before, after)) return null;
+    const isResize = before.w !== after.w || before.h !== after.h;
+    const settled = settleLayoutAfterEdit({
+        layout: convertLayoutToBaseCoordinates(
+            isResize ? keepResizedTileCorner(layout, before) : layout,
+            gridScale,
+        ),
+        editedTileId: after.i,
+        previous,
+        home,
+    });
+    return matchesSavedLayout(settled, previous) ? null : settled;
+};
+
+export const withGridItem = (layout: Layout[], item: Layout): Layout[] =>
+    layout.map((other) => (other.i === item.i ? item : other));
+
+/** Whether any tile ends somewhere else or at another size */
+export const hasLayoutChanged = (before: Layout[], after: Layout[]): boolean =>
+    after.some((item) => {
+        const previous = before.find((other) => other.i === item.i);
+        return !previous || hasGridItemMoved(previous, item);
+    });
+
+export const countResizedItems = (before: Layout[], after: Layout[]): number =>
+    after.filter((item) => {
+        const previous = before.find((other) => other.i === item.i);
+        return previous && (previous.w !== item.w || previous.h !== item.h);
+    }).length;
+
+export type PointerPosition = { clientX: number; clientY: number };
+
+/** Drags report mouse events, or touch events on touch screens */
+export const getPointerPosition = (
+    event: MouseEvent | TouchEvent,
+): PointerPosition | null => {
+    if (!('changedTouches' in event)) return event;
+    const touch = event.changedTouches[0] ?? event.touches[0];
+    return touch ?? null;
+};
+
+const PINNED_GRID_ITEM_PROPERTIES = ['top', 'left', 'width', 'height'] as const;
+
+const findGridItem = (node: HTMLElement): HTMLElement | null =>
+    node.closest<HTMLElement>('.react-grid-item');
+
+/**
+ * Records where a tile sits as its drag or resize starts, so styles can hold
+ * it there while only the drop shadow follows the pointer. The record stays
+ * after the drop: the tile's travel to its new place starts from it.
+ */
+export const pinGridItem = (node: HTMLElement): void => {
+    const item = findGridItem(node);
+    if (!item) return;
+    PINNED_GRID_ITEM_PROPERTIES.forEach((property) =>
+        item.style.setProperty(
+            `--pinned-${property}`,
+            item.style.getPropertyValue(property),
+        ),
+    );
+};
+
+const doGridItemsOverlap = (a: Layout, b: Layout): boolean =>
+    a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+
+/**
+ * Settles a drop made while tiles could overlap: the dropped tiles stay where
+ * they were put, and every tile they cover moves down until nothing overlaps.
+ */
+export const resolveDropOverlaps = (
+    layout: Layout[],
+    droppedIds: string[],
+    rowStep = 1,
+): Layout[] => {
+    const isDropped = (item: Layout) => droppedIds.includes(item.i);
+    const settled = sortBy(
+        layout.filter((item) => !isDropped(item)),
+        ['y', 'x'],
+    ).reduce<Layout[]>((placed, item) => {
+        const settle = (candidate: Layout): Layout => {
+            const blockers = placed.filter((other) =>
+                doGridItemsOverlap(candidate, other),
+            );
+            return blockers.length === 0
+                ? candidate
+                : settle({
+                      ...candidate,
+                      y:
+                          Math.ceil(
+                              Math.max(...blockers.map((b) => b.y + b.h)) /
+                                  rowStep,
+                          ) * rowStep,
+                  });
+        };
+        return [...placed, settle(item)];
+    }, layout.filter(isDropped));
+    const settledById = new Map(settled.map((item) => [item.i, item]));
+    return layout.map((item) => settledById.get(item.i) ?? item);
+};
+
+/** The share of a tile's width, at each side, that offers a slot beside it */
+const SNAP_ZONE_WIDTH_RATIO = 0.25;
+
+export type SnapTarget = {
+    tileId: string;
+    side: 'before' | 'after';
+};
+
+export type SnapPlacement = {
+    /** Where the dragged tile lands */
+    slot: Layout;
+    /** The whole layout once the row has made room */
+    layout: Layout[];
+};
+
+/**
+ * Dropping a tile beside another one adds it to that tile's row: every tile
+ * starting on the same line shares the full width equally with the newcomer.
+ * No insertion when the shares would be narrower than a tile can be.
+ */
+export const getRowInsertion = ({
+    layout,
+    draggedId,
+    target,
+    cols,
+}: {
+    layout: Layout[];
+    draggedId: string;
+    target: SnapTarget;
+    cols: number;
+}): SnapPlacement | null => {
+    const dragged = layout.find((item) => item.i === draggedId);
+    const targetItem = layout.find((item) => item.i === target.tileId);
+    if (!dragged || !targetItem || dragged.i === targetItem.i) return null;
+
+    // A tile reaching down into the row from above would be covered by it
+    const isRowCrossed = layout.some(
+        (item) =>
+            item.i !== draggedId &&
+            item.y < targetItem.y &&
+            item.y + item.h > targetItem.y,
+    );
+    if (isRowCrossed) return null;
+
+    const row = sortBy(
+        layout.filter(
+            (item) => item.i !== draggedId && item.y === targetItem.y,
+        ),
+        ['x'],
+    );
+    const index =
+        row.findIndex((item) => item.i === targetItem.i) +
+        (target.side === 'after' ? 1 : 0);
+    const count = row.length + 1;
+    const share = Math.floor(cols / count);
+    const minShare = Math.max(
+        ...[dragged, ...row].map((item) => item.minW ?? 1),
+    );
+    if (share < minShare) return null;
+
+    // Columns that don't divide evenly go to the leftmost tiles
+    const spare = cols - share * count;
+    const placed = [
+        ...row.slice(0, index),
+        { ...dragged, y: targetItem.y, h: targetItem.h },
+        ...row.slice(index),
+    ].map((item, position) => ({
+        ...item,
+        x: position * share + Math.min(position, spare),
+        w: share + (position < spare ? 1 : 0),
+    }));
+    const placedById = new Map(placed.map((item) => [item.i, item]));
+
+    return {
+        slot: placed[index],
+        layout: resolveDropOverlaps(
+            layout.map((item) => placedById.get(item.i) ?? item),
+            placed.map((item) => item.i),
+        ),
+    };
+};
+
+export type GridCell = { x: number; y: number };
+
+/**
+ * The grid cell under the pointer, measured from a tile whose place on screen
+ * and in the grid are both known. Tiles sit edge to edge, so any tile gives
+ * the size of a cell, zoom included.
+ */
+export const getPointerCell = ({
+    pointer,
+    tile,
+    tileRect,
+}: {
+    pointer: PointerPosition;
+    tile: Layout;
+    tileRect: { left: number; top: number; width: number; height: number };
+}): GridCell => ({
+    x:
+        tile.x +
+        Math.floor(
+            (pointer.clientX - tileRect.left) / (tileRect.width / tile.w),
+        ),
+    y:
+        tile.y +
+        Math.floor(
+            (pointer.clientY - tileRect.top) / (tileRect.height / tile.h),
+        ),
+});
+
+/**
+ * Dropping a tile on empty space fills that space: the tile stretches to the
+ * tiles and grid edges around the cell. Space with nothing below it ends where
+ * the tiles beside it end; with none beside it either there is no gap to fill.
+ */
+export const getGapFill = ({
+    layout,
+    draggedId,
+    cell,
+    cols,
+}: {
+    layout: Layout[];
+    draggedId: string;
+    cell: GridCell;
+    cols: number;
+}): SnapPlacement | null => {
+    const dragged = layout.find((item) => item.i === draggedId);
+    if (!dragged || cell.x < 0 || cell.x >= cols || cell.y < 0) return null;
+
+    const isOnCell = (item: Layout) =>
+        item.x <= cell.x &&
+        cell.x < item.x + item.w &&
+        item.y <= cell.y &&
+        cell.y < item.y + item.h;
+    // Over its own place the tile is being nudged, not sent to a gap
+    if (layout.some(isOnCell)) return null;
+
+    const others = layout.filter((item) => item.i !== draggedId);
+    const onLine = others.filter(
+        (item) => item.y <= cell.y && cell.y < item.y + item.h,
+    );
+
+    const left = Math.max(
+        0,
+        ...onLine
+            .filter((item) => item.x + item.w <= cell.x)
+            .map((item) => item.x + item.w),
+    );
+    const right = Math.min(
+        cols,
+        ...onLine.filter((item) => item.x > cell.x).map((item) => item.x),
+    );
+    const inColumn = others.filter(
+        (item) => item.x < right && item.x + item.w > left,
+    );
+    const top = Math.max(
+        0,
+        ...inColumn
+            .filter((item) => item.y + item.h <= cell.y)
+            .map((item) => item.y + item.h),
+    );
+    const floors = [
+        ...inColumn.filter((item) => item.y > cell.y).map((item) => item.y),
+        ...(onLine.length > 0
+            ? [Math.max(...onLine.map((item) => item.y + item.h))]
+            : []),
+    ];
+    if (floors.length === 0) return null;
+
+    const slot = {
+        ...dragged,
+        x: left,
+        y: top,
+        w: right - left,
+        h: Math.min(...floors) - top,
+    };
+    if (slot.w < (dragged.minW ?? 1) || slot.h < (dragged.minH ?? 1))
+        return null;
+
+    return {
+        slot,
+        layout: layout.map((item) => (item.i === draggedId ? slot : item)),
+    };
+};
+
+/** The tile under the pointer, when the pointer is in one of its side zones */
+export const getSnapTarget = (
+    pointer: PointerPosition,
+    draggedId: string,
+): SnapTarget | null => {
+    const tile = document
+        .elementsFromPoint(pointer.clientX, pointer.clientY)
+        .find(
+            (element): element is HTMLElement =>
+                element instanceof HTMLElement &&
+                element.matches('.react-grid-item[data-tile-uuid]') &&
+                element.dataset.tileUuid !== draggedId,
+        );
+    const tileId = tile?.dataset.tileUuid;
+    if (!tile || !tileId) return null;
+
+    const { left, width } = tile.getBoundingClientRect();
+    const position = (pointer.clientX - left) / width;
+    if (position < SNAP_ZONE_WIDTH_RATIO) return { tileId, side: 'before' };
+    if (position > 1 - SNAP_ZONE_WIDTH_RATIO) return { tileId, side: 'after' };
+    return null;
+};
+export type ResizeHandle = NonNullable<Layout['resizeHandles']>[number];
+
+export const DEFAULT_RESIZE_HANDLES: ResizeHandle[] = ['se'];
+
+// No top corners: they sit under the tile's drag grip and actions menu
+export const EDIT_RESIZE_HANDLES: ResizeHandle[] = [
+    'n',
+    'e',
+    's',
+    'w',
+    'se',
+    'sw',
+];
 
 export type ResponsiveGridLayoutProps = {
     compactType: null;

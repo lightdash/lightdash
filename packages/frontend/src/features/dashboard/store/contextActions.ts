@@ -333,6 +333,13 @@ export const createDashboardContextActions = (
                     fields,
                 }),
             ),
+        setTileDateZoomRefused: (tileUuid: string, isRefused: boolean) =>
+            dispatch(
+                dashboardDateZoomActions.setTileDateZoomRefused({
+                    tileUuid,
+                    isRefused,
+                }),
+            ),
         setTileChartSorts: (tileUuid: string, sorts: SortField[]) =>
             dispatch(
                 dashboardChartSortActions.setTileSorts({ tileUuid, sorts }),

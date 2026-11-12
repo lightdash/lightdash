@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     DATA_REFERENCE_EXTRACTOR_VERSION,
+    FeatureFlags,
     ForbiddenError,
     ProjectType,
     SpaceMemberRole,
@@ -79,6 +80,7 @@ const dataReferences = (
 const versionRow = (
     references: PersistedDataAppDataReferences | null,
     addAnalysisDismissedAt: Date | null,
+    consumerReferences: PersistedDataAppDataReferences | null = references,
 ) => ({
     version: 1,
     status: 'ready' as const,
@@ -92,6 +94,7 @@ const versionRow = (
     dependencies: null,
     viz_schema: null,
     data_references: references,
+    consumer_data_references: consumerReferences,
     thumbnail_captured_at: null,
     thumbnail_is_manual: null,
     agent_identity: null,
@@ -126,11 +129,19 @@ const buildUser = (canManage: boolean): SessionUser => {
 const buildService = ({
     references,
     addAnalysisDismissedAt = null,
+    consumerReferences = references,
+    consumerAccessEnabled = true,
 }: {
     references: PersistedDataAppDataReferences | null;
     addAnalysisDismissedAt?: Date | null;
+    consumerReferences?: PersistedDataAppDataReferences | null;
+    consumerAccessEnabled?: boolean;
 }) => {
-    const row = versionRow(references, addAnalysisDismissedAt);
+    const row = versionRow(
+        references,
+        addAnalysisDismissedAt,
+        consumerReferences,
+    );
     const dismissAddAnalysisOffer = vi.fn().mockResolvedValue(undefined);
     const appModel = {
         getApp: async () => app,
@@ -185,7 +196,12 @@ const buildService = ({
         userModel: {} as never,
         appModel: appModel as never,
         featureFlagModel: {
-            get: async () => ({ enabled: true }),
+            get: async ({ featureFlagId }: { featureFlagId: string }) => ({
+                enabled:
+                    featureFlagId === FeatureFlags.DataAppConsumerAccess
+                        ? consumerAccessEnabled
+                        : true,
+            }),
         } as never,
         organizationSettingsModel: {} as never,
         organizationDesignModel: {} as never,
@@ -310,5 +326,78 @@ describe('AppGenerateService add-analysis offer', () => {
             ),
         ).rejects.toThrow(ForbiddenError);
         expect(dismissAddAnalysisOffer).not.toHaveBeenCalled();
+    });
+});
+
+describe('AppGenerateService consumer access report', () => {
+    const UNREADABLE_SORT: ExtractedDataReference = {
+        ...QUERY_REFERENCE,
+        explore: 'payments',
+        unresolved: ['sorts'],
+        location: { path: 'src/Table.tsx', line: 12, column: 5 },
+    };
+    const getAppVersions = (
+        opts: Parameters<typeof buildService>[0],
+        canManage = true,
+    ) =>
+        buildService(opts).service.getAppVersions(
+            buildUser(canManage),
+            PROJECT_UUID,
+            APP_UUID,
+            {},
+        );
+
+    it('tells a manager which queries users without Explore cannot run', async () => {
+        const result = await getAppVersions({
+            references: dataReferences([QUERY_REFERENCE, UNREADABLE_SORT]),
+        });
+        expect(result.latestReadyVersionConsumerAccess).toEqual({
+            status: 'limited',
+            queryCount: 2,
+            issues: [
+                {
+                    kind: 'query',
+                    explore: 'payments',
+                    unresolved: ['sorts'],
+                    location: UNREADABLE_SORT.location,
+                },
+            ],
+        });
+    });
+
+    it('reads the frozen snapshot, not the refreshed references', async () => {
+        const result = await getAppVersions({
+            references: dataReferences([QUERY_REFERENCE]),
+            consumerReferences: dataReferences([UNREADABLE_SORT]),
+        });
+        expect(result.latestReadyVersionConsumerAccess?.status).toBe(
+            'unavailable',
+        );
+    });
+
+    it('is unavailable for a version without a snapshot', async () => {
+        const result = await getAppVersions({
+            references: dataReferences([QUERY_REFERENCE]),
+            consumerReferences: null,
+        });
+        expect(result.latestReadyVersionConsumerAccess?.status).toBe(
+            'unavailable',
+        );
+    });
+
+    it('is left out when consumer access is off for the organization', async () => {
+        const result = await getAppVersions({
+            references: dataReferences([UNREADABLE_SORT]),
+            consumerAccessEnabled: false,
+        });
+        expect(result.latestReadyVersionConsumerAccess).toBeNull();
+    });
+
+    it('is left out for someone who can only view the app', async () => {
+        const result = await getAppVersions(
+            { references: dataReferences([UNREADABLE_SORT]) },
+            false,
+        );
+        expect(result.latestReadyVersionConsumerAccess).toBeNull();
     });
 });

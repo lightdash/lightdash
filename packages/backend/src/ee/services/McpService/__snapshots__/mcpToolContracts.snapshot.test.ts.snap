@@ -10622,7 +10622,7 @@ A python node's "code" defines \`def run(inputs, params)\`, and semanticLayer "f
 
 Reuse earlier nodes: a result returns a sessionId once a node has finished; finished nodes are saved in it. On a follow-up, pass that sessionId and read saved nodes by node id in "references", submitting only the new nodes. Reused nodes bring everything they read and are served from cache when possible. A saved node id names one node for the whole session, so give a changed node a new node id; a failed or unfinished node is not saved, so resubmit it under the same id. Omit sessionId to start a new session.
 
-Returns the terminal node's first rows, other submitted nodes' columns and first rows, and every node's queryUuid. If the result is running, follow up with get_query_result on each queryUuid it names; it also fetches the first page of any node's result by its queryUuid. query computes data only; it saves and charts nothing.",
+Returns every row of the terminal node, other submitted nodes' columns and first rows, and every node's queryUuid. If the result is running, follow up with get_query_result on each queryUuid it names; it also fetches every row of any node's result by its queryUuid. query computes data only; it saves and charts nothing.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -11584,6 +11584,24 @@ Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, po
             ],
             "description": "Total rows in the terminal result; null while running.",
           },
+          "rows": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": {},
+                  "propertyNames": {
+                    "type": "string",
+                  },
+                  "type": "object",
+                },
+                "type": "array",
+              },
+              {
+                "type": "null",
+              },
+            ],
+            "description": "Every row of the terminal result, keyed by column reference; null while running.",
+          },
           "sessionId": {
             "description": "Composer session holding the ready nodes; pass it as sessionId to read them by node id in a later call. Null when no node was saved and no sessionId was passed.",
             "type": [
@@ -11600,7 +11618,7 @@ Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, po
             "type": "string",
           },
           "terminalNodeId": {
-            "description": "Node whose rows are previewed.",
+            "description": "Node whose rows are returned.",
             "pattern": "^[a-zA-Z_][a-zA-Z0-9_]{0,62}$",
             "type": "string",
           },
@@ -11610,6 +11628,7 @@ Libraries: pandas 2.2, numpy 2.2, scipy 1.15, pyarrow 19.0, scikit-learn 1.9, po
           "status",
           "terminalNodeId",
           "rowCount",
+          "rows",
           "nodes",
         ],
         "type": "object",

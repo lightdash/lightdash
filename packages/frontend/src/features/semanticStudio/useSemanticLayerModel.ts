@@ -3,20 +3,27 @@ import {
     type ApiError,
     type ApiResponse,
     type SemanticLayerDraft,
+    type SemanticLayerDraftedModels,
+    type SemanticLayerDraftState,
     type SemanticLayerDraftApplyResult,
     type SemanticLayerDraftImpact,
+    type SemanticLayerDraftMoveDirection,
+    type SemanticLayerDraftUsage,
     type SemanticLayerModelCode,
     type SemanticLayerStatus,
+    type SemanticLayerStoredModels,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 
 const DRAFT_KEY = 'semantic-layer-draft';
+const DRAFT_STATE_KEY = 'semantic-layer-draft-state';
 const MODEL_KEY = 'semantic-layer-model';
 const PENDING_POLL_MS = 2000;
+const DRAFT_POLL_MS = 60_000;
 
 const toUrl = (projectUuid: string, path: string) =>
     `/projects/${projectUuid}/semantic-studio${path}`;
@@ -32,9 +39,14 @@ const useGet = <T extends ApiResponse['results']>(
     enabled: boolean,
     /** Polls while this holds for what was last read. */
     isPending: (data: T) => boolean = () => false,
+    /** How often to read again otherwise; false never does. */
+    idlePollMs: number | false = false,
 ) => {
     const lightdashApi = useLightdashApi();
-    const flag = useServerFeatureFlag(FeatureFlags.SemanticStudioEditing);
+    // Not asked for at all while this read is off: some callers sit on pages everyone opens.
+    const flag = useServerFeatureFlag(FeatureFlags.SemanticStudioEditing, {
+        enabled,
+    });
     return useQuery<T, ApiError>({
         queryKey,
         queryFn: () =>
@@ -45,18 +57,43 @@ const useGet = <T extends ApiResponse['results']>(
             }),
         enabled: enabled && flag.data?.enabled === true,
         refetchInterval: (data) =>
-            data !== undefined && isPending(data) ? PENDING_POLL_MS : false,
+            data !== undefined && isPending(data)
+                ? PENDING_POLL_MS
+                : idlePollMs,
     });
 };
 
-/** Whether this person can change this project's models from the server. */
-export const useCanEditSemanticLayer = (projectUuid: string): boolean =>
+const useStatus = (projectUuid: string) =>
     useGet<SemanticLayerStatus>(
         ['semantic-layer-status', projectUuid],
         projectUuid,
         '/status',
         true,
-    ).data?.enabled === true;
+    ).data;
+
+/** Whether this person can change this project's models here. */
+export const useCanEditSemanticLayer = (projectUuid: string): boolean =>
+    useStatus(projectUuid)?.enabled === true;
+
+/** Whether changes here go through a draft; false on a dbt project, where the agent edits the repository in a pull request. */
+export const useKeepsSemanticLayerDraft = (projectUuid: string): boolean =>
+    useStatus(projectUuid)?.appliesAs !== 'dbt_pull_request';
+
+/** Whether applying a draft opens a pull request on the project's repository instead of going live. */
+export const useAppliesAsPullRequest = (projectUuid: string): boolean =>
+    useStatus(projectUuid)?.appliesAs === 'pull_request';
+
+/** The models whose YAML the project keeps; empty for someone who cannot change the project. */
+export const useSemanticLayerStoredModels = (
+    projectUuid: string,
+    enabled: boolean,
+) =>
+    useGet<SemanticLayerStoredModels>(
+        [MODEL_KEY, projectUuid],
+        projectUuid,
+        '/models',
+        enabled,
+    );
 
 /** A model's YAML and history; null when the project keeps no such model or this person cannot change it. */
 export const useSemanticLayerModel = (projectUuid: string, modelName: string) =>
@@ -68,12 +105,59 @@ export const useSemanticLayerModel = (projectUuid: string, modelName: string) =>
     );
 
 /** This person's draft, replayed on what is live; empty for someone who cannot change the project. */
-export const useSemanticLayerDraft = (projectUuid: string) =>
+export const useSemanticLayerDraft = (
+    projectUuid: string,
+    enabled: boolean = true,
+) =>
     useGet<SemanticLayerDraft>(
         [DRAFT_KEY, projectUuid],
         projectUuid,
         '/draft',
+        enabled,
+    );
+
+/**
+ * Keeps the draft on a page current without reading it on a timer: a cheap
+ * value is asked for instead, and the draft is read again only when it changes.
+ * Mounted once, on the page that shows the draft.
+ */
+export const useDraftFreshness = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { data } = useGet<SemanticLayerDraftState>(
+        [DRAFT_STATE_KEY, projectUuid],
+        projectUuid,
+        '/draft/state',
         true,
+        undefined,
+        DRAFT_POLL_MS,
+    );
+    const seen = useRef<string | null>(null);
+    const fingerprint = data?.fingerprint ?? null;
+    useEffect(() => {
+        if (fingerprint === null) return;
+        const previous = seen.current;
+        seen.current = fingerprint;
+        // The first value is what the draft on screen was already read against.
+        if (previous === null || previous === fingerprint) return;
+        // A read already under way, as after a write here, sees the change.
+        if (queryClient.isFetching({ queryKey: [DRAFT_KEY, projectUuid] }))
+            return;
+        void queryClient.invalidateQueries({
+            queryKey: [DRAFT_KEY, projectUuid],
+        });
+    }, [fingerprint, projectUuid, queryClient]);
+};
+
+/** The names of the models this person has in development, for pages that only mark them. */
+export const useSemanticLayerDraftedModels = (
+    projectUuid: string,
+    enabled: boolean,
+) =>
+    useGet<SemanticLayerDraftedModels>(
+        [DRAFT_KEY, projectUuid, 'models'],
+        projectUuid,
+        '/draft/models',
+        enabled,
     );
 
 /** What the background check found the draft, or one model of it, would break in saved charts and dashboards. */
@@ -87,6 +171,15 @@ export const useSemanticLayerDraftImpact = (
         `/draft/impact${model === null ? '' : `?model=${encodeURIComponent(model)}`}`,
         true,
         ({ status }) => status === 'checking',
+    );
+
+/** Saved content that reads a field the draft defines differently or removes. */
+export const useSemanticLayerDraftUsage = (projectUuid: string) =>
+    useGet<SemanticLayerDraftUsage>(
+        [DRAFT_KEY, projectUuid, 'usage'],
+        projectUuid,
+        '/draft/usage',
+        true,
     );
 
 export const useRefreshSemanticLayerDraft = (projectUuid: string) => {
@@ -132,15 +225,20 @@ const useWrite = <TResult extends ApiResponse['results'], TInput>({
             Promise.all(
                 [
                     [DRAFT_KEY, projectUuid],
-                    ...(changesLive
-                        ? [[MODEL_KEY, projectUuid], ['tables']]
-                        : []),
+                    [DRAFT_STATE_KEY, projectUuid],
+                    // Explores read the draft while the development view is on.
+                    ['tables'],
+                    ...(changesLive ? [[MODEL_KEY, projectUuid]] : []),
                 ].map((queryKey) =>
                     queryClient.invalidateQueries({ queryKey }),
                 ),
             ),
         onError: ({ error }) => {
             showToastApiError({ title: errorTitle, apiError: error });
+            // A refusal often means the draft on screen is out of date.
+            void queryClient.invalidateQueries({
+                queryKey: [DRAFT_KEY, projectUuid],
+            });
         },
     });
 };
@@ -193,6 +291,48 @@ export const useDiscardDraftChange = (projectUuid: string) =>
             body: undefined,
         }),
         errorTitle: 'Could not discard',
+        changesLive: false,
+    });
+
+/** Keeps the draft of a model over what was published to it since. */
+export const useKeepDraftModel = (projectUuid: string) =>
+    useWrite<undefined, { model: string; liveVersion: number | null }>({
+        projectUuid,
+        request: ({ model, liveVersion }) => ({
+            path: `${toDraftPath(model)}/keep`,
+            method: 'POST',
+            body: JSON.stringify({ liveVersion }),
+        }),
+        errorTitle: 'Could not keep your version',
+        changesLive: false,
+    });
+
+/** Leaves one part of a drafted model as it is live. */
+export const useTakeLiveDraftPart = (projectUuid: string) =>
+    useWrite<undefined, { model: string; path: string }>({
+        projectUuid,
+        request: ({ model, path }) => ({
+            path: `${toDraftPath(model)}/take-live`,
+            method: 'POST',
+            body: JSON.stringify({ path }),
+        }),
+        errorTitle: 'Could not take the live version',
+        changesLive: false,
+    });
+
+/** Moves one change one place earlier or later in the draft. */
+export const useMoveDraftChange = (projectUuid: string) =>
+    useWrite<
+        undefined,
+        { draftChangeUuid: string; direction: SemanticLayerDraftMoveDirection }
+    >({
+        projectUuid,
+        request: ({ draftChangeUuid, direction }) => ({
+            path: `/draft/changes/${draftChangeUuid}/move`,
+            method: 'POST',
+            body: JSON.stringify({ direction }),
+        }),
+        errorTitle: 'Could not move',
         changesLive: false,
     });
 

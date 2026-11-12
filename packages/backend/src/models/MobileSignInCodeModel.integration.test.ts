@@ -80,6 +80,42 @@ describe('MobileSignInCodeModel (PostgreSQL)', () => {
         });
     };
 
+    const decline = async (codeUuid: string, nonce: string) =>
+        model.decide({
+            codeUuid,
+            userUuid,
+            sessionId,
+            nonce,
+            decision: 'declined',
+        });
+
+    const probe = async (
+        code: string,
+        overrides: Partial<{ clientId: string; codeVerifier: string }> = {},
+    ) => {
+        await allowNextRedeem(code);
+        return model.probe({
+            code,
+            clientId,
+            codeVerifier: verifier,
+            ...overrides,
+        });
+    };
+
+    const cancelFromPhone = (
+        code: string,
+        overrides: Partial<{ clientId: string; codeVerifier: string }> = {},
+    ) =>
+        model.cancelFromPhone({
+            code,
+            clientId,
+            codeVerifier: verifier,
+            ...overrides,
+        });
+
+    const stateOf = (codeUuid: string) =>
+        model.findForSession({ codeUuid, userUuid, sessionId });
+
     const claimedAndApproved = async () => {
         const minted = await mint();
         const claimed = await claim(minted.code);
@@ -294,6 +330,7 @@ describe('MobileSignInCodeModel (PostgreSQL)', () => {
         expect(await redeem(minted.code, matchNumber)).toEqual({
             outcome: 'declined',
         });
+        expect((await row(minted.code))?.declined_by).toBe('failed_redeems');
     });
 
     it('counts a wrong client or verifier as a code mismatch', async () => {
@@ -406,6 +443,253 @@ describe('MobileSignInCodeModel (PostgreSQL)', () => {
         expect(await model.findOwner('A'.repeat(43))).toBeNull();
         expect(await model.findOwner('short')).toBeNull();
         expect((await row(minted.code))?.status).toBe('claimed');
+    });
+
+    it('lets the web decline after it approved, and records the web as the decliner', async () => {
+        const { minted, matchNumber } = await claimedAndApproved();
+        expect(
+            (await decline(minted.codeUuid, minted.approvalNonce)).outcome,
+        ).toBe('decided');
+        expect(await row(minted.code)).toMatchObject({
+            status: 'declined',
+            declined_by: 'web',
+        });
+        expect(await redeem(minted.code, matchNumber)).toEqual({
+            outcome: 'declined',
+        });
+        expect(await approve(minted.codeUuid, minted.approvalNonce)).toEqual({
+            outcome: 'invalid_state',
+            status: MobileSignInCodeStatus.DECLINED,
+        });
+    });
+
+    it('does not approve a code twice', async () => {
+        const { minted } = await claimedAndApproved();
+        expect(await approve(minted.codeUuid, minted.approvalNonce)).toEqual({
+            outcome: 'invalid_state',
+            status: MobileSignInCodeStatus.APPROVED,
+        });
+    });
+
+    it('clears the decliner when the session mints a new code', async () => {
+        const minted = await mint();
+        await claim(minted.code);
+        await decline(minted.codeUuid, minted.approvalNonce);
+        await mint();
+        expect(
+            await database(MobileSignInCodesTableName)
+                .where('session_id_hash', sha256(sessionId))
+                .first(),
+        ).toMatchObject({ status: 'pending', declined_by: null });
+    });
+
+    describe('probe without a number', () => {
+        it('answers authorization_pending while claimed and match_number_required once approved', async () => {
+            const minted = await mint();
+            await claim(minted.code);
+            expect(await probe(minted.code)).toEqual({
+                outcome: 'authorization_pending',
+            });
+            await approve(minted.codeUuid, minted.approvalNonce);
+            expect(await probe(minted.code)).toEqual({
+                outcome: 'match_number_required',
+            });
+            expect(await probe(minted.code)).toEqual({
+                outcome: 'match_number_required',
+            });
+            expect(await row(minted.code)).toMatchObject({
+                status: 'approved',
+                failed_redeems: 0,
+            });
+        });
+
+        it('never counts a failed attempt, even with the wrong verifier', async () => {
+            const { minted, matchNumber } = await claimedAndApproved();
+            for (let attempt = 0; attempt < 4; attempt += 1) {
+                // eslint-disable-next-line no-await-in-loop
+                const result = await probe(minted.code, {
+                    codeVerifier: 'another-verifier-0000-test-0000-test-0000',
+                });
+                expect(result).toEqual({ outcome: 'code_mismatch' });
+            }
+            expect(
+                await probe(minted.code, { clientId: otherClientId }),
+            ).toEqual({ outcome: 'code_mismatch' });
+            expect((await row(minted.code))?.failed_redeems).toBe(0);
+            expect((await redeem(minted.code, matchNumber)).outcome).toBe(
+                'redeemed',
+            );
+        });
+
+        it('shares the 2 s limiter with redeem', async () => {
+            const { minted, matchNumber } = await claimedAndApproved();
+            await probe(minted.code);
+            expect(
+                await model.probe({
+                    code: minted.code,
+                    clientId,
+                    codeVerifier: verifier,
+                }),
+            ).toEqual({ outcome: 'slow_down' });
+            expect(
+                await model.redeem({
+                    code: minted.code,
+                    clientId,
+                    codeVerifier: verifier,
+                    matchNumber,
+                }),
+            ).toEqual({ outcome: 'slow_down' });
+            expect((await row(minted.code))?.status).toBe('approved');
+        });
+
+        it('answers declined and expired like a redeem', async () => {
+            const declined = await mint();
+            await claim(declined.code);
+            await decline(declined.codeUuid, declined.approvalNonce);
+            expect(await probe(declined.code)).toEqual({
+                outcome: 'declined',
+            });
+
+            const expired = await mint('session-0000-test-other');
+            await claim(expired.code);
+            await expire(expired.code);
+            expect(await probe(expired.code)).toEqual({ outcome: 'expired' });
+            expect(await probe('A'.repeat(43))).toEqual({
+                outcome: 'expired',
+            });
+        });
+    });
+
+    describe('cancel from the phone', () => {
+        it('declines a claimed code, records the phone, and answers a repeat the same way', async () => {
+            const minted = await mint();
+            await claim(minted.code);
+            const first = await cancelFromPhone(minted.code);
+            expect(first).toMatchObject({
+                outcome: 'cancelled',
+                isRepeat: false,
+            });
+            expect(await cancelFromPhone(minted.code)).toMatchObject({
+                outcome: 'cancelled',
+                isRepeat: true,
+            });
+            expect(await stateOf(minted.codeUuid)).toMatchObject({
+                effective_status: MobileSignInCodeStatus.DECLINED,
+                declined_by: 'phone',
+            });
+            expect(await probe(minted.code)).toEqual({ outcome: 'declined' });
+        });
+
+        it('declines an approved code so the number no longer works', async () => {
+            const { minted, matchNumber } = await claimedAndApproved();
+            expect((await cancelFromPhone(minted.code)).outcome).toBe(
+                'cancelled',
+            );
+            expect(await redeem(minted.code, matchNumber)).toEqual({
+                outcome: 'declined',
+            });
+        });
+
+        it('refuses the wrong verifier or client and leaves the code alone', async () => {
+            const { minted } = await claimedAndApproved();
+            expect(
+                await cancelFromPhone(minted.code, {
+                    codeVerifier: 'another-verifier-0000-test-0000-test-0000',
+                }),
+            ).toEqual({ outcome: 'code_mismatch' });
+            expect(
+                await cancelFromPhone(minted.code, { clientId: otherClientId }),
+            ).toEqual({ outcome: 'code_mismatch' });
+            expect(await row(minted.code)).toMatchObject({
+                status: 'approved',
+                declined_by: null,
+                failed_redeems: 0,
+            });
+        });
+
+        it('refuses a code the web declined, a redeemed, an expired or an unknown code', async () => {
+            const webDeclined = await mint();
+            await claim(webDeclined.code);
+            await decline(webDeclined.codeUuid, webDeclined.approvalNonce);
+            expect(await cancelFromPhone(webDeclined.code)).toEqual({
+                outcome: 'declined',
+            });
+            expect((await row(webDeclined.code))?.declined_by).toBe('web');
+
+            await database(MobileSignInCodesTableName).delete();
+            const { minted, matchNumber } = await claimedAndApproved();
+            await redeem(minted.code, matchNumber);
+            expect(await cancelFromPhone(minted.code)).toEqual({
+                outcome: 'redeemed',
+            });
+
+            const expired = await mint('session-0000-test-other');
+            await claim(expired.code);
+            await expire(expired.code);
+            expect(await cancelFromPhone(expired.code)).toEqual({
+                outcome: 'expired',
+            });
+            expect(await cancelFromPhone('A'.repeat(43))).toEqual({
+                outcome: 'expired',
+            });
+        });
+
+        it('cannot cancel a code no phone has claimed', async () => {
+            const minted = await mint();
+            expect(await cancelFromPhone(minted.code)).toEqual({
+                outcome: 'code_mismatch',
+            });
+            expect((await row(minted.code))?.status).toBe('pending');
+        });
+    });
+
+    describe('old clients that send the number on every poll', () => {
+        it('answers authorization_pending while claimed, then redeems once the web approves', async () => {
+            const minted = await mint();
+            const claimed = await claim(minted.code);
+            if (claimed.outcome !== 'claimed') throw new Error('claim failed');
+            const matchNumber = claimed.row.match_number!;
+            for (let poll = 0; poll < 3; poll += 1) {
+                // eslint-disable-next-line no-await-in-loop
+                expect(await redeem(minted.code, matchNumber)).toEqual({
+                    outcome: 'authorization_pending',
+                });
+            }
+            expect((await row(minted.code))?.failed_redeems).toBe(0);
+            await approve(minted.codeUuid, minted.approvalNonce);
+            expect((await redeem(minted.code, matchNumber)).outcome).toBe(
+                'redeemed',
+            );
+        });
+
+        it('counts a wrong number after the approve toward the 3-try lockout', async () => {
+            const minted = await mint();
+            const claimed = await claim(minted.code);
+            if (claimed.outcome !== 'claimed') throw new Error('claim failed');
+            const matchNumber = claimed.row.match_number!;
+            const wrong = (matchNumber + 1) % 100;
+            expect(await redeem(minted.code, wrong)).toEqual({
+                outcome: 'authorization_pending',
+            });
+            await approve(minted.codeUuid, minted.approvalNonce);
+            expect((await redeem(minted.code, wrong)).outcome).toBe(
+                'wrong_number',
+            );
+            expect((await redeem(minted.code, wrong)).outcome).toBe(
+                'wrong_number',
+            );
+            expect(await redeem(minted.code, wrong)).toEqual({
+                outcome: 'wrong_number',
+                declined: expect.objectContaining({ user_uuid: userUuid }),
+            });
+            expect(await stateOf(minted.codeUuid)).toMatchObject({
+                effective_status: MobileSignInCodeStatus.DECLINED,
+                declined_by: 'failed_redeems',
+            });
+            expect(await redeem(minted.code, matchNumber)).toEqual({
+                outcome: 'declined',
+            });
+        });
     });
 
     it('reads a rate counter without changing it', async () => {

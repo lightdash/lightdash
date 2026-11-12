@@ -277,3 +277,51 @@ export const mergeStoryQueries: [
         limit: 500,
     },
 ];
+
+/** Three steps on one week key; two supply a column with the same label. */
+export const mergeManyStepsStoryQueries: [
+    SemanticLayerSourceQuery,
+    SemanticLayerSourceQuery,
+    SemanticLayerSourceQuery,
+    MergeSourceQuery,
+] = [
+    mergeStoryQueries[0],
+    {
+        ...mergeStoryQueries[0],
+        nodeId: 'weekly_revenue_last_year',
+        title: 'Weekly revenue last year',
+    },
+    mergeStoryQueries[1],
+    {
+        sourceType: QuerySourceType.MERGE,
+        nodeId: 'revenue_change',
+        title: 'Revenue change by week',
+        description: 'This year’s weekly revenue against last year’s.',
+        sources: [
+            { nodeId: 'weekly_revenue' },
+            { nodeId: 'weekly_revenue_last_year' },
+            { nodeId: 'weekly_sessions' },
+        ],
+        joinKey: [
+            {
+                name: 'week',
+                fieldIdBySourceId: {
+                    weekly_revenue: 'orders_order_date_week',
+                    weekly_revenue_last_year: 'orders_order_date_week',
+                    weekly_sessions: 'web_sessions_session_week',
+                },
+            },
+        ],
+        joinType: MergeJoinType.INNER,
+        tableCalculations: [
+            {
+                name: 'revenue_change',
+                displayName: 'Revenue change',
+                sql: '',
+                formula:
+                    '=weekly_revenue_orders_total_order_amount / weekly_revenue_last_year_orders_total_order_amount - 1',
+            },
+        ],
+        sorts: [{ fieldId: 'merge_revenue_change', descending: true }],
+    },
+];

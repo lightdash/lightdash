@@ -132,6 +132,9 @@ export type DbAppVersion = {
     // Static data references found in this version's source. Null when not
     // recorded, including versions created before persistence was added.
     data_references: PersistedDataAppDataReferences | null;
+    // Write-once snapshot that authorizes Viewer app queries. Refreshes of
+    // data_references never change it.
+    consumer_data_references: PersistedDataAppDataReferences | null;
     // Token/cost spend for this version's generation. Null when the version
     // predates spend recording or never called the model.
     generation_usage: DataAppGenerationUsage | null;
@@ -256,6 +259,7 @@ export type AppVersionsTable = Knex.CompositeTableType<
             | 'viz_schema'
             | 'viz_preview'
             | 'data_references'
+            | 'consumer_data_references'
             | 'generation_usage'
             | 'registry_version'
             | 'thumbnail_captured_at'

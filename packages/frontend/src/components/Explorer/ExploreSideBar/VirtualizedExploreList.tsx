@@ -7,6 +7,8 @@ import { Box, Divider, Text } from '@mantine/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { groupBy } from 'es-toolkit/compat';
 import { memo, useCallback, useMemo, useRef, useState, type FC } from 'react';
+import { useModelsInDevelopment } from '../../../features/semanticStudio/useModelsInDevelopment';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { getConnectionName } from '../../common/connectionName';
 import ExploreNavLink from './ExploreNavLink';
 import {
@@ -99,6 +101,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
         new Set(),
     );
     const parentRef = useRef<HTMLDivElement>(null);
+    const inDevelopment = useModelsInDevelopment(useProjectUuid());
 
     const toggleGroup = useCallback((path: string) => {
         setExpandedGroupPaths((prev) => {
@@ -330,6 +333,9 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                                     item.explore.warehouseConnectionUuid,
                                 )}
                                 query={searchQuery}
+                                isInDevelopment={inDevelopment.has(
+                                    item.explore.name,
+                                )}
                                 onClick={() => onExploreClick(item.explore)}
                             />
                         </Box>
@@ -364,7 +370,14 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                     return null;
             }
         },
-        [searchQuery, connections, toggleGroup, toggleSection, onExploreClick],
+        [
+            searchQuery,
+            connections,
+            inDevelopment,
+            toggleGroup,
+            toggleSection,
+            onExploreClick,
+        ],
     );
 
     return (

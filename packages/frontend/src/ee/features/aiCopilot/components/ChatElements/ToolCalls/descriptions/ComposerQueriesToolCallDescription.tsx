@@ -43,8 +43,8 @@ import {
     useComposerNodeStatusLabel,
     type ComposerQueryNodeStatus,
 } from '../../composerNodeStatus';
-import { RepeatsValuesBadge } from '../../composerPipeline/MergeNodeDetails';
 import { summarizeMergeNode } from '../../composerPipeline/mergeNodeSummary';
+import { RepeatsValuesBadge } from '../../composerPipeline/MergeStepParts';
 import { useMergeNodeCopy } from '../../composerPipeline/useMergeNodeCopy';
 import shimmerStyles from '../../shimmer.module.css';
 import {

@@ -94,6 +94,11 @@ import {
 } from '../promptTokenUsage';
 import type { AiAgentSkillReference } from '../skills/types';
 import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
+import {
+    getAskUser,
+    getAskUserResponse,
+    withAskUserQuestions,
+} from '../tools/askUser';
 import { getClosePullRequest } from '../tools/closePullRequest';
 import { getCreateContent } from '../tools/createContent';
 import { getCreateScheduledDelivery } from '../tools/createScheduledDelivery';
@@ -1333,6 +1338,9 @@ const getTurnFastResponse = (
     steps: ReadonlyArray<FastChartStep>,
     siteUrl: string,
 ) => {
+    // Asking ends the turn on any intent; the questions are its reply.
+    const askUserResponse = getAskUserResponse(steps);
+    if (askUserResponse !== null) return askUserResponse;
     if (enableDataAnswerFastResponse && turnIntent === 'data_answer')
         return getDataAnswerFastResponse(steps);
     if (turnIntent === 'chart_from_previous')
@@ -1987,6 +1995,7 @@ export const getAgentTools = (
             getResolveUrl({ resolveUrl: dependencies.resolveUrl }),
         updateUserName: () =>
             getUpdateUserName({ updateUserName: dependencies.updateUserName }),
+        askUser: () => getAskUser(),
         readContent: () =>
             getReadContent({
                 readContent: dependencies.readContent,
@@ -2180,7 +2189,11 @@ export const getAgentTools = (
                 updateProgress: dependencies.updateProgress,
             }),
         exploreRepo: () =>
-            getExploreRepo({ exploreRepo: dependencies.exploreRepo }),
+            getExploreRepo({
+                exploreRepo: dependencies.exploreRepo,
+                decisions: args.decisions,
+                question: getAgentQuestion(args),
+            }),
         readAttachments: () =>
             getReadAttachments({
                 readAttachments: dependencies.readAttachments,
@@ -3357,14 +3370,17 @@ const runGenerateAgentResponse = async ({
             },
             ...telemetry,
         });
-        const responseText = result.text.trim()
-            ? result.text
-            : (getTurnFastResponse(
-                  args.enableDataAnswerFastResponse,
-                  preparedContext?.turnIntent,
-                  result.steps,
-                  args.siteUrl,
-              ) ?? result.text);
+        const responseText = withAskUserQuestions(
+            result.text.trim()
+                ? result.text
+                : (getTurnFastResponse(
+                      args.enableDataAnswerFastResponse,
+                      preparedContext?.turnIntent,
+                      result.steps,
+                      args.siteUrl,
+                  ) ?? result.text),
+            result.steps,
+        );
 
         logger(
             'Generate Agent Response',
@@ -3927,14 +3943,17 @@ const runStreamAgentResponse = async ({
                 const modelResponse = steps
                     .map((step) => step.text ?? '')
                     .join('\n');
-                const responseText = modelResponse.trim()
-                    ? modelResponse
-                    : (getTurnFastResponse(
-                          args.enableDataAnswerFastResponse,
-                          preparedContext?.turnIntent,
-                          steps,
-                          args.siteUrl,
-                      ) ?? modelResponse);
+                const responseText = withAskUserQuestions(
+                    modelResponse.trim()
+                        ? modelResponse
+                        : (getTurnFastResponse(
+                              args.enableDataAnswerFastResponse,
+                              preparedContext?.turnIntent,
+                              steps,
+                              args.siteUrl,
+                          ) ?? modelResponse),
+                    steps,
+                );
                 const completeResponse =
                     agentContext.responseBlocks.render(responseText);
 

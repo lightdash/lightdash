@@ -2,7 +2,9 @@ import { VizAggregationOptions } from '../visualizations/types';
 import {
     getPivotValueColumnBaseName,
     getPivotValueColumnName,
+    isOtherPivotReference,
     NULL_PIVOT_KEY,
+    OTHER_PIVOT_KEY,
 } from './pivotColumnName';
 
 describe('getPivotValueColumnBaseName', () => {
@@ -84,5 +86,24 @@ describe('getPivotValueColumnName', () => {
                 7,
             ]),
         ).toBe('value_any_false_7');
+    });
+});
+
+describe('isOtherPivotReference', () => {
+    it('is true when a group-by value is the "Other" placeholder', () => {
+        expect(
+            isOtherPivotReference({
+                pivotValues: [{ value: OTHER_PIVOT_KEY }],
+            }),
+        ).toBe(true);
+    });
+
+    it.each([
+        ['a real value', { pivotValues: [{ value: 'completed' }] }],
+        ['a real value spelled "Other"', { pivotValues: [{ value: 'Other' }] }],
+        ['no group-by values', {}],
+        ['no reference', undefined],
+    ])('is false for %s', (_, pivotReference) => {
+        expect(isOtherPivotReference(pivotReference)).toBe(false);
     });
 });

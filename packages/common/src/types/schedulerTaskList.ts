@@ -237,8 +237,8 @@ export const EE_SCHEDULER_TASKS = {
     CONSOLIDATE_AI_AGENT_MEMORY_PARTITION: 'consolidateAiAgentMemoryPartition',
     CLEAN_MCP_TOOL_CALLS: 'cleanMcpToolCalls',
     CLEAN_RATE_COUNTERS: 'cleanRateCounters',
+    REBUILD_OUTDATED_API_SOURCE_EXPLORES: 'rebuildOutdatedApiSourceExplores',
     CLEAN_DATA_APP_ANALYSES: 'cleanDataAppAnalyses',
-    CLEAN_AI_DEEP_RESEARCH_REPORTS: 'cleanAiDeepResearchReports',
     CLEAN_AI_AGENT_THREADS: 'cleanAiAgentThreads',
     CLEAN_SCIM_REQUEST_LOGS: 'cleanScimRequestLogs',
     CLEAN_APP_STATE_HISTORY: 'cleanAppStateHistory',
@@ -397,7 +397,6 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_RATE_COUNTERS]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_DATA_APP_ANALYSES]: TraceTaskBase;
-    [SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_APP_STATE_HISTORY]: TraceTaskBase;
@@ -407,6 +406,10 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE]: IngestExternalSourceJobPayload;
     [SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE_ATTACHMENT]: IngestExternalSourceJobPayload;
     [SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: Record<string, never>;
+    [SCHEDULER_TASKS.REBUILD_OUTDATED_API_SOURCE_EXPLORES]: Record<
+        string,
+        never
+    >;
     [SCHEDULER_TASKS.SCAN_API_SOURCE_SCHEMA]: ScanApiSourceSchemaJobPayload;
     [SCHEDULER_TASKS.SWEEP_UNCLAIMED_AI_THREAD_FILES]: Record<string, never>;
     [SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY_START]: MobilePushLiveActivityStartJobPayload;
@@ -452,7 +455,6 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.CLEAN_RATE_COUNTERS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.CLEAN_DATA_APP_ANALYSES]: TraceTaskBase;
-    [EE_SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.CLEAN_SCIM_REQUEST_LOGS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.CLEAN_APP_STATE_HISTORY]: TraceTaskBase;
@@ -465,6 +467,10 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE]: IngestExternalSourceJobPayload;
     [EE_SCHEDULER_TASKS.INGEST_EXTERNAL_SOURCE_ATTACHMENT]: IngestExternalSourceJobPayload;
     [EE_SCHEDULER_TASKS.MAINTAIN_EXTERNAL_SOURCES]: Record<string, never>;
+    [EE_SCHEDULER_TASKS.REBUILD_OUTDATED_API_SOURCE_EXPLORES]: Record<
+        string,
+        never
+    >;
     [EE_SCHEDULER_TASKS.SCAN_API_SOURCE_SCHEMA]: ScanApiSourceSchemaJobPayload;
     [EE_SCHEDULER_TASKS.SWEEP_UNCLAIMED_AI_THREAD_FILES]: Record<string, never>;
     [EE_SCHEDULER_TASKS.MOBILE_PUSH_LIVE_ACTIVITY_START]: MobilePushLiveActivityStartJobPayload;

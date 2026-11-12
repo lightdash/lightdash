@@ -1,6 +1,7 @@
 import {
     MobileSignInRefusal,
     type MobileSignInCodeState,
+    type MobileSignInDeclinedBy,
 } from '@lightdash/common';
 import {
     Box,
@@ -16,6 +17,7 @@ import { lazy, Suspense, type FC } from 'react';
 import Callout from '../../components/common/Callout';
 import MantineIcon from '../../components/common/MantineIcon';
 import MantineModal from '../../components/common/MantineModal';
+import AppColorSchemeScope from '../../components/NavBar/AppColorSchemeScope';
 import { maskEmail } from './mobileFormat';
 import classes from './MobileSettingsPage.module.css';
 import { MOBILE_SIGN_IN_STRINGS as S, MOBILE_STRINGS } from './mobileStrings';
@@ -117,11 +119,19 @@ const ClaimedNote: FC<StepContext> = () => null;
 
 const ApprovedNumber: FC<StepContext> = ({ signIn }) =>
     signIn.state?.matchNumber ? (
-        <Stack gap="xs" align="flex-start">
+        <Stack gap="sm" align="flex-start">
             <Text size="sm" fw={600}>
                 {S.typeOnPhone}
             </Text>
             <MatchNumber value={signIn.state.matchNumber} />
+            <Button
+                size="xs"
+                variant="default"
+                onClick={signIn.decline}
+                loading={signIn.isDeciding}
+            >
+                {S.cancel}
+            </Button>
         </Stack>
     ) : null;
 
@@ -134,9 +144,23 @@ const ExpiredCode: FC<StepContext> = ({ signIn }) => (
     </Stack>
 );
 
+const DECLINED_TITLES: Record<MobileSignInDeclinedBy, string> = {
+    web: S.declined,
+    phone: S.cancelledOnPhone,
+    failed_redeems: S.tooManyWrongNumbers,
+};
+
 const DeclinedCode: FC<StepContext> = ({ signIn }) => (
     <Stack gap="sm" align="flex-start">
-        <Callout variant="neutral" title={S.declined} w="100%" />
+        <Callout
+            variant="neutral"
+            title={
+                signIn.state?.declinedBy
+                    ? DECLINED_TITLES[signIn.state.declinedBy]
+                    : S.declined
+            }
+            w="100%"
+        />
         <Button size="xs" variant="default" onClick={signIn.show}>
             {S.newCode}
         </Button>
@@ -188,32 +212,22 @@ const ConfirmModal: FC<StepContext> = ({ signIn, site, account, platform }) => (
         onConfirm={signIn.approve}
         confirmLoading={signIn.isDeciding}
     >
-        <Stack gap="md">
-            <Box component="dl" className={classes.confirmRows}>
-                {[
-                    [S.confirm.account, account],
-                    [S.confirm.site, site],
-                    ...(platform ? [[S.confirm.device, platform]] : []),
-                ].map(([label, value]) => (
-                    <Box key={label} className={classes.confirmRow}>
-                        <Text component="dt" size="sm" c="dimmed">
-                            {label}
-                        </Text>
-                        <Text component="dd" size="sm">
-                            {value}
-                        </Text>
-                    </Box>
-                ))}
-            </Box>
-            {signIn.state?.matchNumber && (
-                <Stack gap="xs" align="center">
-                    <Text size="sm" fw={600}>
-                        {S.typeOnPhone}
+        <Box component="dl" className={classes.confirmRows}>
+            {[
+                [S.confirm.account, account],
+                [S.confirm.site, site],
+                ...(platform ? [[S.confirm.device, platform]] : []),
+            ].map(([label, value]) => (
+                <Box key={label} className={classes.confirmRow}>
+                    <Text component="dt" size="sm" c="dimmed">
+                        {label}
                     </Text>
-                    <MatchNumber value={signIn.state.matchNumber} />
-                </Stack>
-            )}
-        </Stack>
+                    <Text component="dd" size="sm">
+                        {value}
+                    </Text>
+                </Box>
+            ))}
+        </Box>
     </MantineModal>
 );
 
@@ -241,7 +255,9 @@ export const MobileSignInStep: FC<{
     return (
         <Stack gap="sm">
             <PhaseView {...context} />
-            <ConfirmModal {...context} />
+            <AppColorSchemeScope>
+                <ConfirmModal {...context} />
+            </AppColorSchemeScope>
             <VisuallyHidden aria-live="polite">
                 {getAnnouncement(signIn)}
             </VisuallyHidden>

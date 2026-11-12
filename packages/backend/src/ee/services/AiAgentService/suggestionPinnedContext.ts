@@ -121,6 +121,12 @@ export const buildDashboardSuggestionContext = (
     availableExplores: Explore[],
     runtimeOverrides?: AiDashboardRuntimeOverrides,
 ): SuggestionPinnedContext => {
+    // Per-tile state carries tile uuids, which suggestions have no use for
+    const {
+        dateZoomControls: _dateZoomControls,
+        tileParameters: _tileParameters,
+        ...dashboardWideOverrides
+    } = runtimeOverrides ?? {};
     const chartContexts = charts.map((chart) =>
         buildChartSuggestionContext(chart, availableExplores),
     );
@@ -146,7 +152,7 @@ export const buildDashboardSuggestionContext = (
                 ),
             ],
             tabNames: dashboard.tabs.map(({ name }) => name),
-            runtimeOverrides: runtimeOverrides ?? null,
+            runtimeOverrides: runtimeOverrides ? dashboardWideOverrides : null,
         },
     };
 };

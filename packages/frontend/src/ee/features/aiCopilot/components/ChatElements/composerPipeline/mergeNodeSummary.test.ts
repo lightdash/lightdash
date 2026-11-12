@@ -84,11 +84,9 @@ describe('summarizeMergeNode', () => {
         ]);
     });
 
-    it("labels a key by the first source's field and says when sources differ", () => {
+    it('labels a key by its first listed field', () => {
         const summary = summarize(node);
-        expect(summary.keys).toEqual([
-            { name: 'week', label: 'Order week', sharedAcrossSources: false },
-        ]);
+        expect(summary.keys).toEqual([{ name: 'week', label: 'Order week' }]);
         expect(summary.keyLabel).toBe('Order week');
         expect(summary.firstSourceTitle).toBe('Weekly orders');
     });
@@ -101,21 +99,34 @@ describe('summarizeMergeNode', () => {
                 column: {
                     label: 'Total revenue',
                     sourceTitle: 'Weekly orders',
+                    sourceNodeId: 'weekly_orders',
                 },
             },
             { kind: 'text', text: ' / ' },
             {
                 kind: 'column',
-                column: { label: 'Sessions', sourceTitle: 'Weekly sessions' },
+                column: {
+                    label: 'Sessions',
+                    sourceTitle: 'Weekly sessions',
+                    sourceNodeId: 'weekly_sessions',
+                },
             },
         ]);
         expect(summary.sorts).toEqual([
             {
-                column: { label: 'Order week', sourceTitle: null },
+                column: {
+                    label: 'Order week',
+                    sourceTitle: null,
+                    sourceNodeId: null,
+                },
                 descending: true,
             },
             {
-                column: { label: 'Revenue per session', sourceTitle: null },
+                column: {
+                    label: 'Revenue per session',
+                    sourceTitle: null,
+                    sourceNodeId: null,
+                },
                 descending: false,
             },
         ]);
@@ -147,7 +158,11 @@ describe('summarizeMergeNode', () => {
         expect(summary.calculations[0].formula).toEqual([
             {
                 kind: 'column',
-                column: { label: 'Status', sourceTitle: 'Last year' },
+                column: {
+                    label: 'Status',
+                    sourceTitle: 'Last year',
+                    sourceNodeId: 'orders_2',
+                },
             },
         ]);
     });

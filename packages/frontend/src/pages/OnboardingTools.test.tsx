@@ -109,7 +109,6 @@ describe('OnboardingTools', () => {
     it('offers every enabled group and lets the user skip', async () => {
         mockFlags({
             [FeatureFlags.ApiQuerySources]: true,
-            [FeatureFlags.ExternalSources]: true,
         });
         renderPage({ hasGoogleLiveSources: true });
 

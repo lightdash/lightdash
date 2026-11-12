@@ -29,6 +29,7 @@ import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectIsAddFilterDisabled,
+    selectIsDateZoomRefusedOnAllChartTiles,
     useDashboardAllFilters,
     useDashboardSelector,
 } from '../dashboard/store';
@@ -71,6 +72,12 @@ type Props = {
      * spans several lines (default false: inline with the filters).
      */
     isParametersColumn?: boolean;
+    /** The funnel, sliders and calendar circles before each group (default true). */
+    withGroupMarkers?: boolean;
+    /** The named zooms' pills, "Add date zoom" and the editor's eye beside Default zoom (default true). */
+    withDateZoomControls?: boolean;
+    /** Replaces the shipped Default zoom on the right. Defaults to `DateZoom`. */
+    defaultZoom?: ReactNode;
 };
 
 export const DashboardFiltersBar: FC<Props> = ({
@@ -95,6 +102,9 @@ export const DashboardFiltersBar: FC<Props> = ({
     isCompactDrawerSuppressed = false,
     filtersAlign = 'flex-start',
     isParametersColumn = false,
+    withGroupMarkers = true,
+    withDateZoomControls = true,
+    defaultZoom,
 }) => {
     const compact = useCompactContentHeader();
     const [opened, { open, close }] = useDisclosure(false);
@@ -109,6 +119,10 @@ export const DashboardFiltersBar: FC<Props> = ({
     }
     const getUiString = useUiStrings();
     const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
+    // Only live data source tiles, which keep their saved grain: no zoom to offer
+    const isDateZoomRefusedOnAllChartTiles = useDashboardSelector(
+        selectIsDateZoomRefusedOnAllChartTiles,
+    );
     const allFilters = useDashboardAllFilters();
     const setIsDateZoomDisabled = useDashboardContext(
         (c) => c.setIsDateZoomDisabled,
@@ -178,7 +192,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                             gap="xs"
                             wrap="wrap"
                         >
-                            {renderFilters && (
+                            {renderFilters && withGroupMarkers && (
                                 <FilterGroupSeparator
                                     icon={IconFilter}
                                     tooltipLabel={
@@ -234,7 +248,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                                                 onParameterReorder
                                             }
                                             separator={
-                                                compact
+                                                compact || !withGroupMarkers
                                                     ? undefined
                                                     : parametersSeparator
                                             }
@@ -249,25 +263,31 @@ export const DashboardFiltersBar: FC<Props> = ({
                 {/* Right section - date zoom and hide button */}
                 <Group gap="xs" ml="auto" wrap={compact ? 'wrap' : 'nowrap'}>
                     {hasDashboardTiles &&
+                        !isDateZoomRefusedOnAllChartTiles &&
                         (!isDateZoomDisabled || isEditMode) && (
                             <>
-                                <Divider orientation="vertical" />
+                                {/* A replaced Default zoom is one of the bar's controls: no rule before it */}
+                                {defaultZoom === undefined && (
+                                    <Divider orientation="vertical" />
+                                )}
 
-                                <FilterGroupSeparator
-                                    icon={IconCalendar}
-                                    tooltipLabel={
-                                        <Box>
-                                            <Text fw={500} fz="xs">
-                                                Date Zoom
-                                            </Text>
-                                            <Text fz="xs">
-                                                Quickly change the date
-                                                granularity of charts.
-                                            </Text>
-                                        </Box>
-                                    }
-                                />
-                                {isEditMode && (
+                                {withGroupMarkers && (
+                                    <FilterGroupSeparator
+                                        icon={IconCalendar}
+                                        tooltipLabel={
+                                            <Box>
+                                                <Text fw={500} fz="xs">
+                                                    Date Zoom
+                                                </Text>
+                                                <Text fz="xs">
+                                                    Quickly change the date
+                                                    granularity of charts.
+                                                </Text>
+                                            </Box>
+                                        }
+                                    />
+                                )}
+                                {isEditMode && withDateZoomControls && (
                                     <Tooltip
                                         label={
                                             isDateZoomDisabled
@@ -294,7 +314,12 @@ export const DashboardFiltersBar: FC<Props> = ({
                                         </ActionIcon>
                                     </Tooltip>
                                 )}
-                                <DateZoom isEditMode={isEditMode} />
+                                {defaultZoom ?? (
+                                    <DateZoom
+                                        isEditMode={isEditMode}
+                                        withControls={withDateZoomControls}
+                                    />
+                                )}
                             </>
                         )}
 

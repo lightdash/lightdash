@@ -21,7 +21,10 @@ import { useEffect, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import TruncatedText from '../../../../components/common/TruncatedText';
-import { rehypeRemoveHeaderLinks } from '../../../../utils/markdownUtils';
+import {
+    markdownSanitizeRehypePlugins,
+    rehypeRemoveHeaderLinks,
+} from '../../../../utils/markdownUtils';
 import {
     useAgentAiMcpServerTools,
     useRefreshAiMcpServerToolsMutation,
@@ -102,6 +105,7 @@ const ToolDescriptionModal = ({
                     <Box data-color-mode={colorScheme}>
                         <MarkdownPreview
                             source={source}
+                            rehypePlugins={markdownSanitizeRehypePlugins}
                             rehypeRewrite={rehypeRemoveHeaderLinks}
                             className={classes.description}
                         />

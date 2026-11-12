@@ -45,9 +45,50 @@
 }
 
 .react-grid-item:not(.react-resizable-hide) > .react-resizable-handle {
+    --handle-size: 20px;
+    --handle-edge: 8px;
     position: absolute;
-    width: 20px;
-    height: 20px;
+    box-sizing: border-box;
+}
+
+.react-grid-item > .react-resizable-handle-n,
+.react-grid-item > .react-resizable-handle-s {
+    left: calc(var(--tile-gutter) + var(--handle-size));
+    right: calc(var(--tile-gutter) + var(--handle-size));
+    height: var(--handle-edge);
+    cursor: ns-resize;
+}
+.react-grid-item > .react-resizable-handle-e,
+.react-grid-item > .react-resizable-handle-w {
+    top: calc(var(--tile-gutter) + var(--handle-size));
+    bottom: calc(var(--tile-gutter) + var(--handle-size));
+    width: var(--handle-edge);
+    cursor: ew-resize;
+}
+.react-grid-item > .react-resizable-handle-n {
+    top: var(--tile-gutter);
+}
+.react-grid-item > .react-resizable-handle-s {
+    bottom: var(--tile-gutter);
+}
+.react-grid-item > .react-resizable-handle-e {
+    right: var(--tile-gutter);
+}
+.react-grid-item > .react-resizable-handle-w {
+    left: var(--tile-gutter);
+}
+
+.react-grid-item > .react-resizable-handle-se,
+.react-grid-item > .react-resizable-handle-sw {
+    width: var(--handle-size);
+    height: var(--handle-size);
+}
+.react-grid-item > .react-resizable-handle-sw {
+    bottom: var(--tile-gutter);
+    left: var(--tile-gutter);
+    cursor: nesw-resize;
+}
+.react-grid-item > .react-resizable-handle-se {
     bottom: var(--tile-gutter);
     right: var(--tile-gutter);
     background: url('data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBzdGFuZGFsb25lPSJubyI/Pg08IS0tIEdlbmVyYXRvcjogQWRvYmUgRmlyZXdvcmtzIENTNiwgRXhwb3J0IFNWRyBFeHRlbnNpb24gYnkgQWFyb24gQmVhbGwgKGh0dHA6Ly9maXJld29ya3MuYWJlYWxsLmNvbSkgLiBWZXJzaW9uOiAwLjYuMSAgLS0+DTwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DTxzdmcgaWQ9IlVudGl0bGVkLVBhZ2UlMjAxIiB2aWV3Qm94PSIwIDAgNiA2IiBzdHlsZT0iYmFja2dyb3VuZC1jb2xvcjojZmZmZmZmMDAiIHZlcnNpb249IjEuMSINCXhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIHhtbDpzcGFjZT0icHJlc2VydmUiDQl4PSIwcHgiIHk9IjBweCIgd2lkdGg9IjZweCIgaGVpZ2h0PSI2cHgiDT4NCTxnIG9wYWNpdHk9IjAuMzAyIj4NCQk8cGF0aCBkPSJNIDYgNiBMIDAgNiBMIDAgNC4yIEwgNCA0LjIgTCA0LjIgNC4yIEwgNC4yIDAgTCA2IDAgTCA2IDYgTCA2IDYgWiIgZmlsbD0iIzAwMDAwMCIvPg0JPC9nPg08L3N2Zz4=');
@@ -55,6 +96,79 @@
     padding: 0 3px 3px 0;
     background-repeat: no-repeat;
     background-origin: content-box;
+    cursor: nwse-resize;
+}
+
+/* Grips shown on every edge while the tile is hovered or resized; corners
+   resize too but stay unmarked */
+.react-grid-item {
+    --grip-length: 32px;
+    --grip-thickness: 6px;
+    --grip-color: var(--mantine-color-ldGray-4);
+}
+
+.react-grid-item
+    > :is(
+        .react-resizable-handle-n,
+        .react-resizable-handle-e,
+        .react-resizable-handle-s,
+        .react-resizable-handle-w
+    )::after {
+    content: '';
+    position: absolute;
     box-sizing: border-box;
-    cursor: se-resize;
+    background: var(--mantine-color-body);
+    border: 1px solid var(--grip-color);
+    border-radius: var(--grip-thickness);
+    opacity: 0;
+    transition:
+        opacity 100ms ease,
+        background-color 100ms ease;
+}
+/* In step with the tile's lift: in after a beat, out at once */
+.react-grid-item:hover > .react-resizable-handle::after,
+.react-grid-item.resizing > .react-resizable-handle::after {
+    opacity: 1;
+    transition:
+        opacity 180ms ease 40ms,
+        background-color 100ms ease;
+}
+.react-grid-item > .react-resizable-handle:hover::after {
+    background: var(--mantine-color-ldGray-2);
+}
+
+/* A grip straddles the tile's border, shrinks with a short edge and goes once
+   there is no room */
+.react-grid-item > .react-resizable-handle-n::after,
+.react-grid-item > .react-resizable-handle-s::after {
+    left: 50%;
+    translate: -50% 0;
+    width: min(var(--grip-length), 100% - 8px);
+    max-width: max(0px, (100% - 20px) * 999);
+    height: var(--grip-thickness);
+}
+.react-grid-item > .react-resizable-handle-e::after,
+.react-grid-item > .react-resizable-handle-w::after {
+    top: 50%;
+    translate: 0 -50%;
+    width: var(--grip-thickness);
+    height: min(var(--grip-length), 100% - 8px);
+    max-height: max(0px, (100% - 20px) * 999);
+}
+.react-grid-item > .react-resizable-handle-n::after {
+    top: calc(var(--grip-thickness) / -2);
+}
+.react-grid-item > .react-resizable-handle-s::after {
+    bottom: calc(var(--grip-thickness) / -2);
+}
+.react-grid-item > .react-resizable-handle-e::after {
+    right: calc(var(--grip-thickness) / -2);
+}
+.react-grid-item > .react-resizable-handle-w::after {
+    left: calc(var(--grip-thickness) / -2);
+}
+
+/* A lone bottom-right handle keeps its icon */
+.react-grid-item:has(> .react-resizable-handle-n) > .react-resizable-handle-se {
+    background-image: none;
 }

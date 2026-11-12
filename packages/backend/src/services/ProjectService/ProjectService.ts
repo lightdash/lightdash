@@ -331,12 +331,14 @@ import {
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { createHmac, timingSafeEqual } from 'crypto';
-import { isEqual, uniq } from 'es-toolkit/compat';
+import { isEqual, uniq, uniqBy } from 'es-toolkit/compat';
 import * as fs from 'fs';
 import { GoogleAuth } from 'google-auth-library';
 import * as yaml from 'js-yaml';
 import { type Knex } from 'knex';
 import fetch from 'node-fetch';
+import * as os from 'os';
+import * as path from 'path';
 import { Readable } from 'stream';
 import { URL } from 'url';
 import { promisify } from 'util';
@@ -446,6 +448,7 @@ import {
     type CompilableDbtSource,
 } from '../../projectAdapters/CompileGroup';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
+import { DbtManifestProjectAdapter } from '../../projectAdapters/dbtManifestProjectAdapter';
 import { assertGithubInstallationResolved } from '../../projectAdapters/githubAuthorization';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import {
@@ -611,6 +614,7 @@ import {
     getDatabaseListFailureReason,
     listConnectionDatabases,
 } from './connectionSqlRunner';
+import { developmentView, toExploreSummary } from './developmentView';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
 import { mergePersonalWarehouseCredentials } from './personalWarehouseCredentials';
@@ -799,12 +803,14 @@ export type ProjectServiceArguments = {
     }) => Promise<EnableLearnResults>;
     /**
      * Seeds a fresh training copy with the Enterprise samples copies do not
-     * carry (the training agent's knowledge document). Set by EE; core has
-     * none.
+     * carry (the training agent's knowledge document and the deep research
+     * report's Document). Set by EE; core has none.
      */
     seedTrainingCopyEnterpriseContent?: (args: {
         organizationUuid: string;
         projectUuid: string;
+        /** The copy's training space; null when the copy has none. */
+        spaceUuid: string | null;
         createdByUserUuid: string | null;
     }) => Promise<void>;
 };
@@ -8369,6 +8375,84 @@ export class ProjectService
         );
     }
 
+    /**
+     * Compiles explores from a dbt manifest made elsewhere against this project's
+     * warehouse, without saving them: the live project is left as it is.
+     */
+    async compileExploresFromManifest(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        projectUuid: string,
+        manifest: DbtManifest,
+        lightdashConfigYaml: string | null,
+    ): Promise<(Explore | ExploreError)[]> {
+        const {
+            project,
+            warehouseCredentials,
+            cachedWarehouse,
+            dbtVersionOption,
+        } = await this.prepareCompileAdapter(projectUuid, user);
+        // The adapter reads the project's lightdash.config.yml from a directory.
+        const projectDir =
+            lightdashConfigYaml === null
+                ? undefined
+                : await fs.promises.mkdtemp(
+                      path.join(os.tmpdir(), 'ld-manifest-config-'),
+                  );
+        try {
+            if (projectDir !== undefined && lightdashConfigYaml !== null) {
+                await fs.promises.writeFile(
+                    path.join(projectDir, 'lightdash.config.yml'),
+                    lightdashConfigYaml,
+                );
+            }
+            return await this.warehouseClientFactory.withWarehouseClient(
+                {
+                    kind: 'compile',
+                    projectUuid,
+                    credentials: warehouseCredentials,
+                },
+                connectionContextFromUser(
+                    { userUuid: user.userUuid },
+                    {
+                        organizationUuid: project.organizationUuid,
+                        queryContext: null,
+                        purpose: 'compile',
+                    },
+                ),
+                async (connection) => {
+                    const adapter = new DbtManifestProjectAdapter({
+                        parsedManifest: manifest,
+                        dbtProjectDir: projectDir,
+                        warehouseClient: connection.warehouseClient,
+                        // Columns new to the catalog stay out of the live project's cache.
+                        cachedWarehouse: {
+                            ...cachedWarehouse,
+                            onWarehouseCatalogChange: async () => {},
+                        },
+                        dbtVersion: resolveDbtVersion(dbtVersionOption),
+                        analytics: this.analytics,
+                    });
+                    try {
+                        return await adapter.compileAllExplores(
+                            undefined,
+                            false,
+                            true,
+                        );
+                    } finally {
+                        await adapter.destroy();
+                    }
+                },
+            );
+        } finally {
+            if (projectDir !== undefined) {
+                await fs.promises.rm(projectDir, {
+                    recursive: true,
+                    force: true,
+                });
+            }
+        }
+    }
+
     private async destroyPrimaryCompileAdapter(
         adapter: ProjectAdapter,
         manifestFetchAdapters: ProjectAdapter[],
@@ -14268,8 +14352,22 @@ export class ProjectService
         includeErrors: boolean = true,
     ) {
         // Use optimized query that only fetches summary fields instead of full explore JSON
-        const exploreSummaries =
-            await this.projectModel.getAllExploreSummaries(projectUuid);
+        const [liveSummaries, inDevelopment] = await Promise.all([
+            this.projectModel.getAllExploreSummaries(projectUuid),
+            developmentView.getStore()?.findExplores(account, projectUuid) ??
+                null,
+        ]);
+        // In the development view the list is the person's own: their new models join it and the ones they removed leave.
+        const exploreSummaries = inDevelopment
+            ? [
+                  ...(liveSummaries ?? []).filter(
+                      ({ name }) => !inDevelopment.has(name),
+                  ),
+                  ...[...inDevelopment.values()].flatMap((explore) =>
+                      explore ? [toExploreSummary(explore)] : [],
+                  ),
+              ]
+            : liveSummaries;
 
         if (!exploreSummaries || exploreSummaries.length === 0) {
             return [];
@@ -14579,14 +14677,30 @@ export class ProjectService
                 if (isForbidden) {
                     throw new ForbiddenError();
                 }
-                const [explores, baseUserAccessControls] = await Promise.all([
-                    this.projectModel.findExploresFromCache(
-                        projectUuid,
-                        'name',
-                        exploreNames,
-                    ),
-                    this.getUserAttributes({ account }),
-                ]);
+                const [liveExplores, baseUserAccessControls, inDevelopment] =
+                    await Promise.all([
+                        this.projectModel.findExploresFromCache(
+                            projectUuid,
+                            'name',
+                            exploreNames,
+                        ),
+                        this.getUserAttributes({ account }),
+                        developmentView
+                            .getStore()
+                            ?.findExplores(account, projectUuid) ?? null,
+                    ]);
+                // A request in the development view reads this person's own unpublished models over the live ones.
+                const explores = inDevelopment
+                    ? [
+                          ...Object.values(liveExplores).filter(
+                              ({ name }) => !inDevelopment.has(name),
+                          ),
+                          ...exploreNames.flatMap((name) => {
+                              const explore = inDevelopment.get(name);
+                              return explore ? [explore] : [];
+                          }),
+                      ]
+                    : liveExplores;
                 const userAccessControls = {
                     ...baseUserAccessControls,
                     userAttributes: mergeUserAttributes(
@@ -16322,8 +16436,8 @@ export class ProjectService
                     this.findExplores({
                         account,
                         projectUuid: savedCharts[0].projectUuid, // TODO: route should be updated to be project/dashboard specific. For now we pick it from first chart as they all should be from the same project
-                        exploreNames: savedCharts.map(
-                            (chart) => chart.tableName,
+                        exploreNames: uniq(
+                            savedCharts.flatMap((chart) => chart.exploreNames),
                         ),
                         organizationUuid: account.organization.organizationUuid,
                     }),
@@ -16383,40 +16497,60 @@ export class ProjectService
                             };
                         }
 
-                        const cachedExplore = exploresMap[savedChart.tableName];
-                        const explore =
-                            shouldRedactSql &&
-                            cachedExplore &&
-                            !isExploreError(cachedExplore)
-                                ? redactExploreSql(cachedExplore)
-                                : cachedExplore;
-
-                        let filters: FilterableDimension[] = [];
-                        let metricFilters: Metric[] = [];
-                        let hiddenFieldIds: string[] = [];
-                        if (explore && !isExploreError(explore)) {
-                            const filtersPromise =
-                                filtersByExplore.get(savedChart.tableName) ??
-                                this.getFilterableDimensionsForExplore(
-                                    savedChart.projectUuid,
-                                    explore,
+                        // A merged chart filters on the fields of every query it merges
+                        const explores = savedChart.exploreNames.flatMap(
+                            (exploreName) => {
+                                const cachedExplore = exploresMap[exploreName];
+                                if (
+                                    !cachedExplore ||
+                                    isExploreError(cachedExplore)
+                                ) {
+                                    return [];
+                                }
+                                return [
+                                    {
+                                        exploreName,
+                                        explore: shouldRedactSql
+                                            ? redactExploreSql(cachedExplore)
+                                            : cachedExplore,
+                                    },
+                                ];
+                            },
+                        );
+                        const filters = await Promise.all(
+                            explores.map(({ exploreName, explore }) => {
+                                const filtersPromise =
+                                    filtersByExplore.get(exploreName) ??
+                                    this.getFilterableDimensionsForExplore(
+                                        savedChart.projectUuid,
+                                        explore,
+                                    );
+                                filtersByExplore.set(
+                                    exploreName,
+                                    filtersPromise,
                                 );
-                            filtersByExplore.set(
-                                savedChart.tableName,
-                                filtersPromise,
-                            );
-                            filters = await filtersPromise;
-                            metricFilters = getMetrics(explore).filter(
+                                return filtersPromise;
+                            }),
+                        );
+                        const metricFilters = explores.flatMap(({ explore }) =>
+                            getMetrics(explore).filter(
                                 (field) => !field.hidden,
-                            );
-                            hiddenFieldIds =
-                                getHiddenFilterableFieldIds(explore);
-                        }
+                            ),
+                        );
+                        const hiddenFieldIds = explores.flatMap(({ explore }) =>
+                            getHiddenFilterableFieldIds(explore),
+                        );
 
                         return {
                             uuid: savedChart.uuid,
-                            filters,
-                            metricFilters,
+                            filters: uniqBy(
+                                filters.flat(),
+                                getDashboardFilterableFieldKey,
+                            ),
+                            metricFilters: uniqBy(
+                                metricFilters,
+                                getDashboardFilterableFieldKey,
+                            ),
                             hiddenFieldIds,
                         };
                     }),
@@ -17676,17 +17810,19 @@ export class ProjectService
                 Sentry.captureException(error);
             }
         };
-        await bestEffort('document', () =>
-            this.seedSampleDocumentsInCopy(
+        let spaceUuid: string | null = null;
+        await bestEffort('document', async () => {
+            spaceUuid = await this.seedSampleDocumentsInCopy(
                 user,
                 projectUuid,
                 createdByUserUuid,
-            ),
-        );
-        await bestEffort('knowledge document', () =>
+            );
+        });
+        await bestEffort('Enterprise samples', () =>
             this.seedTrainingCopyEnterpriseContent?.({
                 organizationUuid,
                 projectUuid,
+                spaceUuid,
                 createdByUserUuid,
             }),
         );
@@ -17695,13 +17831,14 @@ export class ProjectService
     /**
      * Copies carry no documents, so the sample a learner reads in the
      * documents walkthrough is made in each copy, in the seeded space and
-     * credited to whoever enabled Learn.
+     * credited to whoever enabled Learn. Returns that space, or null when
+     * the copy has none.
      */
     private async seedSampleDocumentsInCopy(
         user: SessionUser,
         projectUuid: string,
         createdByUserUuid: string | null,
-    ): Promise<void> {
+    ): Promise<string | null> {
         const [space] = await this.spaceModel.find({
             projectUuid,
             path: TRAINING_SPACE.path,
@@ -17710,7 +17847,7 @@ export class ProjectService
             Logger.warn(
                 `Training copy ${projectUuid} has no "${TRAINING_SPACE.path}" space; skipping its sample documents`,
             );
-            return;
+            return null;
         }
         await seedTrainingCopyDocuments({
             projectUuid,
@@ -17718,6 +17855,7 @@ export class ProjectService
             createdByUserUuid,
             documentModel: this.documentModel,
         });
+        return space.uuid;
     }
 
     private static readonly TRAINING_PREVIEW_EXPIRES_IN_HOURS = 24;

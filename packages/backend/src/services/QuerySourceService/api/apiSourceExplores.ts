@@ -2,7 +2,7 @@ import {
     ApiConnectorType,
     assertUnreachable,
     DimensionType,
-    generateSlug,
+    getItemId,
     isDimension,
     SupportedDbtAdapter,
     UnexpectedServerError,
@@ -14,6 +14,8 @@ import {
     type SortField,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
+import { createHash } from 'crypto';
+import { isPlainObject, memoize } from 'es-toolkit/compat';
 import {
     assertApiSourceQuery,
     buildApiSourceExplore,
@@ -26,6 +28,7 @@ import {
     type ApiSourceScan,
 } from './ApiSourceIntegration';
 import { getApiSourceIntegration } from './apiSourceIntegrations';
+import { tooManyRowsError } from './apiSourceRows';
 import {
     applyLiveSourceFieldEdits,
     type LiveSourceFieldEdits,
@@ -43,12 +46,11 @@ const DEFAULT_SQL_BUILDER = warehouseSqlBuilderFromType(
  *
  * - explore = `<prefix>_<model>`, e.g. `google_analytics_report`
  * - field id = `<explore>_<field>`, e.g. `google_analytics_report_sessions`
- * - the prefix is the source name, fixed when the source is first built and
- *   stored (`liveSourceName`); a future configurable prefix follows the
- *   same rule
- * - display names change no id: the source's display name seeds the prefix
- *   only at first build, and model or field labels never feed ids, so
- *   renaming a source or relabelling a field keeps every chart working
+ * - the prefix is set once, when a source is created or reattached, and
+ *   stored (`liveSourceName`). A deleted source's prefix stays held until a
+ *   source reattaches to it, so its charts can't read another target
+ * - display names change no id: renaming a source or relabelling a field
+ *   keeps every chart working
  * - models are only ever added: today's model of each integration stays
  *   as its permanent wide model, and planned models reserve their names
  *   up front (`plannedModelNames`) so a dbt explore can't take them first
@@ -66,15 +68,6 @@ export const getLegacyLiveSourceName = (
     connector: ApiConnectorType,
     connectionUuid: string,
 ) => `${connector}_${connectionUuid.replace(/-/g, '').slice(0, 8)}`;
-
-/** A new source's name before any clash suffix: `PostHog` → `posthog`. */
-export const getLiveSourceNameBase = (
-    connector: ApiConnectorType,
-    name: string,
-) => {
-    const base = generateSlug(name).replace(/-/g, '_');
-    return /^[a-z][a-z0-9_]*$/.test(base) ? base : connector;
-};
 
 export const getApiSourceBaseLayer = (
     connector: ApiConnectorType,
@@ -140,6 +133,113 @@ export const toScannedLiveSourceFields = (
     ];
 };
 
+const buildDefinitionExplore = (
+    connector: ApiConnectorType,
+    args: Pick<
+        Parameters<typeof buildApiSourceExplore>[0],
+        | 'definition'
+        | 'exploreName'
+        | 'label'
+        | 'connectionUuid'
+        | 'definitionHash'
+        | 'aiHint'
+    >,
+) => {
+    const { baseVersion, capabilities } = getApiSourceBaseLayer(connector);
+    return buildApiSourceExplore({
+        ...args,
+        integration: connector,
+        baseVersion,
+        capabilities,
+        warehouseSqlBuilder:
+            getApiSourceIntegration(connector).warehouseSqlBuilder ??
+            DEFAULT_SQL_BUILDER,
+    });
+};
+
+/** JSON with object keys sorted, so a hash can't depend on key order. */
+const toStableJson = (value: unknown): string =>
+    JSON.stringify(value, (_key, nested: unknown) =>
+        isPlainObject(nested)
+            ? Object.fromEntries(
+                  Object.entries(nested as object).sort(([left], [right]) =>
+                      left < right ? -1 : 1,
+                  ),
+              )
+            : nested,
+    );
+
+/**
+ * What the integration's code currently builds, by model name. Each hash
+ * comes from the explore built with placeholders for everything specific to
+ * one source (prefix, label, connection, scanned fields, field edits), so it
+ * changes when the code's output does, and nobody has to bump a version.
+ */
+export const getApiSourceDefinitionHashes = memoize(
+    (connector: ApiConnectorType): Record<string, string> =>
+        Object.fromEntries(
+            getApiSourceBaseLayer(connector).definitions.map((definition) => [
+                definition.name,
+                createHash('sha256')
+                    .update(
+                        toStableJson(
+                            buildDefinitionExplore(connector, {
+                                definition,
+                                exploreName: getApiSourceExploreName(
+                                    'source',
+                                    definition.name,
+                                ),
+                                label: 'source',
+                                connectionUuid: 'connection',
+                                // A placeholder, so a change to how hints
+                                // are built still changes the hash
+                                aiHint: ['hint'],
+                            }),
+                        ),
+                    )
+                    .digest('hex'),
+            ]),
+        ),
+);
+
+/**
+ * Field ids stored today that a rebuild would lose, which would break the
+ * charts on them. A field an admin took out of use isn't lost.
+ */
+export const getLostApiSourceFieldIds = ({
+    storedFieldIds,
+    rebuilt,
+    edits,
+}: {
+    storedFieldIds: string[];
+    rebuilt: Explore[];
+    edits: LiveSourceFieldEdits;
+}): string[] => {
+    const kept = new Set([
+        ...rebuilt.flatMap(({ apiSource }) =>
+            Object.keys(apiSource?.fields ?? {}),
+        ),
+        ...Object.entries(edits).flatMap(([name, edit]) =>
+            edit.inUse === false
+                ? [getItemId({ table: rebuilt[0].name, name })]
+                : [],
+        ),
+    ]);
+    return storedFieldIds.filter((fieldId) => !kept.has(fieldId));
+};
+
+/** What the source reads, for the AI agent. Admins can't remove this. */
+export const describeApiSourceTarget = (
+    apiSource: ExternalConnectionApiSource,
+    origin: string,
+    targetLabel: string | null,
+): string =>
+    getApiSourceIntegration(apiSource.connector).describeTarget({
+        apiSource,
+        origin,
+        targetLabel,
+    });
+
 /** The explores a live data source answers metric queries with. */
 export const buildApiSourceExplores = ({
     connectionUuid,
@@ -148,6 +248,7 @@ export const buildApiSourceExplores = ({
     apiSource,
     scannedFields,
     edits,
+    aiHint,
 }: {
     connectionUuid: string;
     sourceName: string;
@@ -155,25 +256,22 @@ export const buildApiSourceExplores = ({
     apiSource: ExternalConnectionApiSource;
     scannedFields: ScannedLiveSourceField[];
     edits: LiveSourceFieldEdits;
+    /** The target first, then the admin's text. */
+    aiHint?: string[];
 }): Explore[] => {
     const {
-        baseVersion,
-        capabilities,
         definitions: [wide, ...others],
     } = getApiSourceBaseLayer(apiSource.connector);
+    const definitionHashes = getApiSourceDefinitionHashes(apiSource.connector);
     const build = (definition: ApiSourceExploreDefinition, isWide: boolean) =>
-        buildApiSourceExplore({
+        buildDefinitionExplore(apiSource.connector, {
             definition,
             exploreName: getApiSourceExploreName(sourceName, definition.name),
             // The wide model keeps the source's name; the others add theirs
             label: isWide ? label : `${label} ${definition.label}`,
             connectionUuid,
-            integration: apiSource.connector,
-            baseVersion,
-            capabilities,
-            warehouseSqlBuilder:
-                getApiSourceIntegration(apiSource.connector)
-                    .warehouseSqlBuilder ?? DEFAULT_SQL_BUILDER,
+            definitionHash: definitionHashes[definition.name],
+            aiHint,
         });
     return [
         build(
@@ -281,6 +379,27 @@ export const toPeriodStart = (
         }
         default:
             return assertUnreachable(format, 'Unknown period format');
+    }
+};
+
+/**
+ * Refuses a result sorted on our side when the API kept rows back: the sort
+ * would rank only the rows read, so the top rows shown could be the wrong
+ * ones. A result in the API's own order only loses rows past its limit.
+ */
+export const assertApiResultComplete = ({
+    compiled,
+    hasMoreRows,
+    label,
+    maxRows,
+}: {
+    compiled: Pick<CompiledApiSourceQuery, 'localSorts'>;
+    hasMoreRows: boolean;
+    label: string;
+    maxRows: number;
+}): void => {
+    if (hasMoreRows && compiled.localSorts.length > 0) {
+        throw tooManyRowsError({ label, maxRows });
     }
 };
 

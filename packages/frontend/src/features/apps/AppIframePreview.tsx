@@ -67,6 +67,8 @@ type Props = {
     onExternalRequestEvent?: (event: ExternalRequestEvent) => void;
     /** Reports app-state reads/writes for the same inspector tab. */
     onAppStateEvent?: (event: AppStateEvent) => void;
+    /** A request was refused because a newer app version is now the ready one. */
+    onNewerVersion?: () => void;
     onElementSelected?: (event: ElementSelectedEvent) => void;
     /** When true, the iframe-side inspector overlay is active and clicks
      *  are intercepted to produce element-selected events. */
@@ -214,6 +216,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onQueryEvent,
             onExternalRequestEvent,
             onAppStateEvent,
+            onNewerVersion,
             onElementSelected,
             inspectorEnabled,
             onInspectorAvailabilityChange,
@@ -388,6 +391,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onLineageSelected,
             onExternalRequestEvent,
             onAppStateEvent,
+            onNewerVersion,
             dataAppVizContext,
             dataAppVizMode,
             chartContext,

@@ -33,7 +33,7 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
         });
         can('view', 'JobStatus', {
-            // createdByUserUuid: userUuid,
+            organizationUuid,
         });
         can('view', 'PinnedItems', {
             organizationUuid,
@@ -275,6 +275,9 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
         });
         can('manage', 'CustomFields', {
+            organizationUuid,
+        });
+        can('manage', 'MergeQuery', {
             organizationUuid,
         });
         can('view', 'CompiledSql', {

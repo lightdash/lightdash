@@ -133,11 +133,14 @@ import { createPlaygroundAppFileStore } from './services/ProjectService/playgrou
 import { provisionPlaygroundProject } from './services/ProjectService/provisionPlaygroundProject';
 import { seedTrainingCopyAgentDocuments } from './services/ProjectService/seedPlaygroundAgentDocuments';
 import { seedPlaygroundContent } from './services/ProjectService/seedPlaygroundContent';
+import { seedTrainingCopyDeepResearchDocument } from './services/ProjectService/seedPlaygroundDeepResearchDocument';
 import { seedPlaygroundMetricsTrees } from './services/ProjectService/seedPlaygroundMetricsTrees';
 import { ReleaseHighlightsService } from './services/ReleaseHighlightsService/ReleaseHighlightsService';
 import { RoadmapService } from './services/RoadmapService/RoadmapService';
 import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import { ScimService } from './services/ScimService/ScimService';
+import { developmentViewMiddleware } from './services/SemanticStudioService/developmentViewMiddleware';
+import { RepoModelSource } from './services/SemanticStudioService/repoModels';
 import { SemanticStudioService } from './services/SemanticStudioService/SemanticStudioService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
 import { CommercialSlackService } from './services/SlackService/SlackService';
@@ -197,6 +200,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             }) =>
                 new AnalyticsProjectService({
                     lightdashConfig: context.lightdashConfig,
+                    aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
+                    getAiAgentService: () =>
+                        repository.getAiAgentService<AiAgentService>(),
                     schedulerClient: clients.getSchedulerClient(),
                     contentAsCodeSnapshotModel:
                         models.getContentAsCodeSnapshotModel(),
@@ -208,6 +214,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getContentVerificationModel(),
                     spaceModel: models.getSpaceModel(),
                     dashboardModel: models.getDashboardModel(),
+                    projectHomepageModel:
+                        models.getProjectHomepageModel<ProjectHomepageModel>(),
                     savedChartModel: models.getSavedChartModel(),
                     projectModel: models.getProjectModel(),
                     projectService: repository.getProjectService(),
@@ -422,6 +430,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getProjectModelDocumentModel<ProjectModelDocumentModel>(),
                     projectService: repository.getProjectService(),
                     validationService: repository.getValidationService(),
+                    repoModels: new RepoModelSource({
+                        githubAppInstallationsModel:
+                            models.getGithubAppInstallationsModel(),
+                    }),
+                    savedChartModel: models.getSavedChartModel(),
+                    fileStorageClient: clients.getFileStorageClient(),
                 }),
             homepageRecommendedActionSkipsService: ({ models }) =>
                 new HomepageRecommendedActionSkipsService({
@@ -1060,8 +1074,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         aiModelCatalog,
                     }),
                 }),
-            schedulerAiAugmentationService: ({ models, repository }) =>
+            schedulerAiAugmentationService: ({ models, repository, context }) =>
                 new SchedulerAiAugmentationService({
+                    lightdashConfig: context.lightdashConfig,
                     agentPermissionService:
                         repository.getAgentPermissionService(),
                     featureFlagModel: models.getFeatureFlagModel(),
@@ -1395,13 +1410,34 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                                 }),
                             analytics: context.lightdashAnalytics,
                         }),
-                    seedTrainingCopyEnterpriseContent: (args) =>
-                        seedTrainingCopyAgentDocuments({
-                            ...args,
-                            aiAgentModel: models.getAiAgentModel(),
-                            aiAgentDocumentModel:
-                                models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
-                        }),
+                    seedTrainingCopyEnterpriseContent: async (args) => {
+                        // Each sample seeds on its own, so one failing still
+                        // leaves the other in the copy.
+                        const results = await Promise.allSettled([
+                            seedTrainingCopyAgentDocuments({
+                                ...args,
+                                aiAgentModel: models.getAiAgentModel(),
+                                aiAgentDocumentModel:
+                                    models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
+                            }),
+                            args.spaceUuid &&
+                                seedTrainingCopyDeepResearchDocument({
+                                    projectUuid: args.projectUuid,
+                                    spaceUuid: args.spaceUuid,
+                                    createdByUserUuid: args.createdByUserUuid,
+                                    documentModel: models.getDocumentModel(),
+                                    aiDeepResearchRunModel:
+                                        models.getAiDeepResearchRunModel<AiDeepResearchRunModel>(),
+                                    aiAgentModel:
+                                        models.getAiAgentModel<AiAgentModel>(),
+                                }),
+                        ]);
+                        const failure = results.find(
+                            (result): result is PromiseRejectedResult =>
+                                result.status === 'rejected',
+                        );
+                        if (failure) throw failure.reason;
+                    },
                     provisionTrainingProject: ({ user, projectService }) =>
                         provisionTrainingProject({
                             user,
@@ -1616,6 +1652,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     directAccessService: repository.getDirectAccessService(),
                     organizationSettingsModel:
                         models.getOrganizationSettingsModel(),
+                    getAppGenerateService: () =>
+                        repository.getAppGenerateService<AppGenerateService>(),
                     getDataAppCustomSqlProvenance: (args) =>
                         repository
                             .getAppGenerateService<AppGenerateService>()
@@ -1842,6 +1880,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             },
             (expressApp: Express) => {
                 expressApp.use('/api/v1/scim/v2', scimRequestLoggingMiddleware);
+            },
+            (expressApp: Express) => {
+                expressApp.use(developmentViewMiddleware);
             },
         ],
         schedulerWorkerFactory: (context) =>

@@ -273,6 +273,7 @@ import {
 } from '../WarehouseClientFactory/WarehouseClientFactory';
 import { getAgentTableListScopeFingerprint } from './agentTableList';
 import * as analyticsClient from './analyticsProject/analyticsProjectClient';
+import { developmentView } from './developmentView';
 import { clearSecretsFromCredentials } from './personalWarehouseCredentials';
 import { type CheckGoogleRefreshToken } from './previewBigquerySsoCredentials';
 import { ProjectService, type ProjectServiceArguments } from './ProjectService';
@@ -1499,6 +1500,7 @@ describe('ProjectService', () => {
                     expect(enterprise).toHaveBeenCalledExactlyOnceWith({
                         organizationUuid: 'organization-uuid',
                         projectUuid: 'copy',
+                        spaceUuid: 'training-space',
                         createdByUserUuid: 'creator',
                     });
                     expect(reported).not.toHaveBeenCalled();
@@ -1511,7 +1513,9 @@ describe('ProjectService', () => {
                     await expect(
                         seedAll(createLearnService(enterprise)),
                     ).resolves.toBeUndefined();
-                    expect(enterprise).toHaveBeenCalledTimes(1);
+                    expect(enterprise).toHaveBeenCalledExactlyOnceWith(
+                        expect.objectContaining({ spaceUuid: null }),
+                    );
                     expect(reported).toHaveBeenCalledExactlyOnceWith(failure);
                 });
 
@@ -9259,6 +9263,56 @@ describe('ProjectService', () => {
                 expect(explore.unfilteredTables).toBeUndefined();
             },
         );
+
+        test("reads a person's unpublished model over the live one only in the development view", async () => {
+            const drafted: Explore = {
+                ...validExplore,
+                label: 'In development',
+            };
+            const findExplores = vi.fn(
+                async () => new Map([[validExplore.name, drafted]]),
+            );
+            vi.mocked(projectModel.findExploresFromCache).mockResolvedValue([
+                validExplore,
+            ]);
+
+            const live = await service.getExplore(
+                account,
+                projectUuid,
+                validExplore.name,
+            );
+            expect(live.label).toBe(validExplore.label);
+            expect(findExplores).not.toHaveBeenCalled();
+
+            const inDevelopment = await developmentView.run(
+                { findExplores, hasChanges: async () => true },
+                () =>
+                    service.getExplore(account, projectUuid, validExplore.name),
+            );
+            expect(inDevelopment.label).toBe('In development');
+            expect(findExplores).toHaveBeenCalledWith(account, projectUuid);
+        });
+
+        test('hides a model the person removed, in the development view', async () => {
+            vi.mocked(projectModel.findExploresFromCache).mockResolvedValue([
+                validExplore,
+            ]);
+            await expect(
+                developmentView.run(
+                    {
+                        findExplores: async () =>
+                            new Map([[validExplore.name, null]]),
+                        hasChanges: async () => true,
+                    },
+                    () =>
+                        service.getExplore(
+                            account,
+                            projectUuid,
+                            validExplore.name,
+                        ),
+                ),
+            ).rejects.toThrow('does not exist');
+        });
 
         test('returns split candidates when the requested explore name was qualified', async () => {
             vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce(
@@ -19479,6 +19533,7 @@ describe('available filter week boundaries', () => {
                 uuid: `weekly-chart-${index}`,
                 name: 'Weekly chart',
                 tableName,
+                exploreNames: [tableName],
                 projectUuid: projectSummary.projectUuid,
                 spaceUuid: 'space',
                 dashboardUuid: null,
@@ -19589,6 +19644,7 @@ describe('dashboard available filters', () => {
                 uuid: `chart-${index}`,
                 name: `Chart ${index}`,
                 tableName,
+                exploreNames: [tableName],
                 projectUuid: projectSummary.projectUuid,
                 spaceUuid: 'space',
                 dashboardUuid: null,
@@ -19650,6 +19706,106 @@ describe('dashboard available filters', () => {
             'tile-2': [0],
         });
     });
+
+    test('offers a merged tile the fields of every query it merges', async () => {
+        const filterAccount = {
+            ...account,
+            user: {
+                ...account.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: 'view' },
+                    { subject: 'SavedChart', action: 'view' },
+                ]),
+            },
+        } as typeof account;
+        const exploreOf = (name: string) => ({
+            ...validExplore,
+            name,
+            tables: {
+                [name]: {
+                    ...validExplore.tables.a,
+                    name,
+                    dimensions: {
+                        id: {
+                            ...validExplore.tables.a.dimensions.dim1,
+                            table: name,
+                            name: 'id',
+                        },
+                    },
+                    metrics: {
+                        total: {
+                            ...validExplore.tables.a.metrics.met1,
+                            table: name,
+                            name: 'total',
+                        },
+                    },
+                },
+            },
+        });
+        const charts = [
+            { uuid: 'merged', exploreNames: ['orders', 'payments'] },
+            { uuid: 'plain', exploreNames: ['orders'] },
+        ].map(({ uuid, exploreNames }) => ({
+            uuid,
+            name: uuid,
+            tableName: exploreNames[0],
+            exploreNames,
+            projectUuid: projectSummary.projectUuid,
+            spaceUuid: 'space',
+            dashboardUuid: null,
+        }));
+        savedChartModel.getInfoForAvailableFilters.mockResolvedValueOnce(
+            charts,
+        );
+        vi.mocked(projectModel.findExploresFromCache).mockResolvedValueOnce([
+            exploreOf('orders'),
+            exploreOf('payments'),
+        ]);
+        const service = getMockedProjectService(
+            lightdashConfigWithGoogleOAuthMock,
+            {
+                spacePermissionService: {
+                    resolveAccessBatch: vi.fn().mockResolvedValue(
+                        charts.map((chart) => ({
+                            target: { type: 'chart', chartUuid: chart.uuid },
+                            context: {
+                                organizationUuid:
+                                    account.organization.organizationUuid,
+                                projectUuid: projectSummary.projectUuid,
+                                inheritsFromOrgOrProject: true,
+                                access: [],
+                            },
+                        })),
+                    ),
+                } as unknown as SpacePermissionService,
+            },
+        );
+
+        const result = await service.getAvailableFiltersForSavedQueries(
+            filterAccount,
+            charts.map((chart) => ({
+                savedChartUuid: chart.uuid,
+                tileUuid: `tile-${chart.uuid}`,
+            })),
+        );
+
+        expect(result.allFilterableFields.map(getItemId)).toEqual([
+            'orders_id',
+            'payments_id',
+        ]);
+        expect(result.allFilterableMetrics.map(getItemId)).toEqual([
+            'orders_total',
+            'payments_total',
+        ]);
+        expect(result.savedQueryFilters).toEqual({
+            'tile-merged': [0, 1],
+            'tile-plain': [0],
+        });
+        expect(result.savedQueryMetricFilters).toEqual({
+            'tile-merged': [0, 1],
+            'tile-plain': [0],
+        });
+    });
 });
 
 describe('dashboard available filters hidden fields', () => {
@@ -19702,6 +19858,7 @@ describe('dashboard available filters hidden fields', () => {
             uuid,
             name: uuid,
             tableName,
+            exploreNames: [tableName],
             projectUuid: projectSummary.projectUuid,
             spaceUuid: 'space',
             dashboardUuid: null,
