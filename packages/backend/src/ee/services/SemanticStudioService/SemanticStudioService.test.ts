@@ -1,8 +1,10 @@
 import { Ability } from '@casl/ability';
 import {
+    DBFieldTypes,
     DbtProjectType,
     DimensionType,
     ExploreType,
+    FieldImpactSeverity,
     ForbiddenError,
     isExploreError,
     MetricType,
@@ -92,6 +94,7 @@ const repoWriter = withAbility([
     { subject: 'Project', action: 'view' },
     { subject: 'SourceCode', action: 'manage' },
 ]);
+const PREVIEW_UUID = 'preview-project';
 const PULL_REQUEST_URL = 'https://github.example/acme/analytics/pull/1';
 const GITHUB_REPO = {
     type: DbtProjectType.GITHUB,
@@ -123,6 +126,11 @@ const validator = withAbility([
 
 const setup = ({
     stored = [{ name: 'orders', content: orders }],
+    otherDrafters = [],
+    usedFields = [],
+    previewOf = PROJECT_UUID,
+    previewExplores = {},
+    publishedSince = new Map(),
     enabled = true,
     dbtConnection = { type: DbtProjectType.NONE },
     appInstalled = true,
@@ -135,6 +143,13 @@ const setup = ({
     validationFor = () => [],
 }: {
     stored?: { name: string; content: string; version?: number }[];
+    otherDrafters?: { name: string; models: string[] }[];
+    /** Field ids a saved chart reads. */
+    usedFields?: string[];
+    /** The project the preview project was built from. */
+    previewOf?: string;
+    previewExplores?: Record<string, Explore | ExploreError>;
+    publishedSince?: Map<string, { by: string | null; at: Date }>;
     enabled?: boolean;
     /** A repository connection makes `stored` the models in that repository. */
     dbtConnection?: Project['dbtConnection'];
@@ -238,6 +253,39 @@ const setup = ({
     );
     let impactCheck: DraftImpactCheck | null = null;
     const recordedPullRequests: string[] = [];
+    const analyzeFieldImpact = vi.fn(
+        async (projectUuid: string, fieldId: string) => ({
+            projectUuid,
+            fieldId,
+            fieldType: null,
+            severity: FieldImpactSeverity.Safe,
+            summary: {
+                charts: usedFields.includes(fieldId) ? 1 : 0,
+                dashboards: 0,
+                dashboardFilterTargets: 0,
+                metricTreeDependents: 0,
+                scheduledDeliveries: 0,
+            },
+            charts: usedFields.includes(fieldId)
+                ? [
+                      {
+                          uuid: 'chart-1',
+                          name: 'Saved chart',
+                          fieldType: DBFieldTypes.METRIC,
+                          viewsCount: 0,
+                          spaceUuid: 'space',
+                          spaceName: 'Space',
+                          dashboardUuid: null,
+                          dashboardName: null,
+                      },
+                  ]
+                : [],
+            dashboards: [],
+            dashboardFilterTargets: [],
+            metricTreeDependents: [],
+            scheduledDeliveries: [],
+        }),
+    );
     const openPullRequest = vi.fn(
         async (_args: {
             writes: Map<string, string | null>;
@@ -251,16 +299,30 @@ const setup = ({
             get: async () => ({ id: 'semantic-studio-editing', enabled }),
         },
         projectModel: {
-            get: async () => ({
-                projectUuid: PROJECT_UUID,
-                organizationUuid: ORGANIZATION_UUID,
-                upstreamProjectUuid: undefined,
-                type: ProjectType.DEFAULT,
-                createdByUserUuid: USER_UUID,
-                dbtConnection,
-            }),
+            get: async (projectUuid) =>
+                projectUuid === PREVIEW_UUID
+                    ? {
+                          projectUuid: PREVIEW_UUID,
+                          organizationUuid: ORGANIZATION_UUID,
+                          upstreamProjectUuid: previewOf,
+                          type: ProjectType.PREVIEW,
+                          createdByUserUuid: USER_UUID,
+                          dbtConnection,
+                      }
+                    : {
+                          projectUuid: PROJECT_UUID,
+                          organizationUuid: ORGANIZATION_UUID,
+                          upstreamProjectUuid: undefined,
+                          type: ProjectType.DEFAULT,
+                          createdByUserUuid: USER_UUID,
+                          dbtConnection,
+                      },
             getAllExploreSummaries: async () =>
-                exploreTypes.map((type) => ({ type })),
+                exploreTypes.map((type, index) => ({
+                    name: `explore_${index}`,
+                    type,
+                })),
+            findExploresFromCache: async () => previewExplores,
             deleteCachedExplores,
         },
         projectModelDocumentModel: {
@@ -273,6 +335,17 @@ const setup = ({
                 ),
             findModelHistory,
             findDraftChanges: async () => drafts,
+            findOtherDrafters: async () => otherDrafters,
+            swapDraftChanges: async (_owner, [first, second]) => {
+                const a = drafts.findIndex(
+                    (change) => change.draftChangeUuid === first,
+                );
+                const b = drafts.findIndex(
+                    (change) => change.draftChangeUuid === second,
+                );
+                [drafts[a], drafts[b]] = [drafts[b], drafts[a]];
+            },
+            findPublishedSince: async () => publishedSince,
             findSettledDraftChanges: async () => [],
             createDraftChange: async ({ promptUuid, models }) => {
                 const draftChangeUuid = `draft-${drafts.length + 1}`;
@@ -331,6 +404,7 @@ const setup = ({
         },
         schedulerClient: { checkSemanticLayerDraftImpact: queueImpactCheck },
         validationService: { generateValidation },
+        savedChartModel: { analyzeFieldImpact },
         repoModels: {
             isInstalled: async () => appInstalled,
             load: async (_organizationUuid, connection) => ({
@@ -826,6 +900,183 @@ describe('SemanticStudioService', () => {
                     PROJECT_UUID,
                 ),
             ).toBeNull();
+        });
+    });
+
+    describe('the development view of a dbt project', () => {
+        const branch: ExploreError = {
+            name: 'payments',
+            label: 'Payments',
+            errors: [],
+        };
+        const dbt = (overrides: Parameters<typeof setup>[0] = {}) =>
+            setup({
+                dbtConnection: DBT_IN_GITHUB,
+                exploreTypes: [ExploreType.DEFAULT],
+                previewExplores: { payments: branch },
+                ...overrides,
+            });
+
+        it("reads the explores of the pull request's preview, and hides what the branch removes", async () => {
+            const explores = await dbt().service.findPreviewExplores(
+                repoWriter,
+                PROJECT_UUID,
+                PREVIEW_UUID,
+            );
+            expect(explores?.get('payments')).toBe(branch);
+            expect(explores?.get('explore_0')).toBeNull();
+        });
+
+        it('is nothing for a preview of another project, a person who cannot write, or a project that keeps a draft', async () => {
+            expect(
+                await dbt({
+                    previewOf: 'another-project',
+                }).service.findPreviewExplores(
+                    repoWriter,
+                    PROJECT_UUID,
+                    PREVIEW_UUID,
+                ),
+            ).toBeNull();
+            expect(
+                await dbt().service.findPreviewExplores(
+                    deployer,
+                    PROJECT_UUID,
+                    PREVIEW_UUID,
+                ),
+            ).toBeNull();
+            expect(
+                await setup().service.findPreviewExplores(
+                    deployer,
+                    PROJECT_UUID,
+                    PREVIEW_UUID,
+                ),
+            ).toBeNull();
+        });
+    });
+
+    describe('the order of a draft', () => {
+        it('moves a change one place, and stays put at either end', async () => {
+            const context = setup();
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+            );
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel('label: Orders\n')],
+                null,
+            );
+            const order = () =>
+                context.drafts.map((change) => change.draftChangeUuid);
+            expect(order()).toEqual(['draft-1', 'draft-2']);
+            await context.service.moveDraftChange(
+                deployer,
+                PROJECT_UUID,
+                'draft-2',
+                'earlier',
+            );
+            expect(order()).toEqual(['draft-2', 'draft-1']);
+            await context.service.moveDraftChange(
+                deployer,
+                PROJECT_UUID,
+                'draft-2',
+                'earlier',
+            );
+            expect(order()).toEqual(['draft-2', 'draft-1']);
+            await expect(
+                context.service.moveDraftChange(
+                    deployer,
+                    PROJECT_UUID,
+                    'missing',
+                    'later',
+                ),
+            ).rejects.toThrow(NotFoundError);
+            await expect(
+                context.service.moveDraftChange(
+                    viewer,
+                    PROJECT_UUID,
+                    'draft-1',
+                    'later',
+                ),
+            ).rejects.toThrow(ForbiddenError);
+        });
+    });
+
+    describe('what is happening around a draft', () => {
+        it('lists the saved content that reads a field the draft redefines, and nothing for a field it only adds', async () => {
+            const context = setup({ usedFields: ['orders_amount'] });
+            expect(
+                await context.service.getDraftUsage(deployer, PROJECT_UUID),
+            ).toEqual({ fields: [], checkedFields: 0 });
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [
+                    draftModel(
+                        `dimensions:
+  - name: amount
+    type: number
+    sql: \${TABLE}.amount * 100
+    metrics:
+      revenue:
+        type: sum
+`,
+                    ),
+                ],
+                null,
+            );
+            const usage = await context.service.getDraftUsage(
+                deployer,
+                PROJECT_UUID,
+            );
+            expect(usage.fields).toEqual([
+                {
+                    model: 'orders',
+                    fieldId: 'orders_amount',
+                    label: expect.any(String),
+                    kind: 'changed',
+                    charts: [{ uuid: 'chart-1', name: 'Saved chart' }],
+                    dashboards: 0,
+                    scheduledDeliveries: 0,
+                },
+            ]);
+            expect(usage.checkedFields).toBe(1);
+            expect(
+                await context.service.getDraftUsage(viewer, PROJECT_UUID),
+            ).toEqual({ fields: [], checkedFields: 0 });
+        });
+
+        it('says who else is changing a drafted model and what was published under it', async () => {
+            const at = new Date('2026-01-02T00:00:00Z');
+            const context = setup({
+                otherDrafters: [
+                    { name: 'Ada Lovelace', models: ['orders'] },
+                    { name: 'Alan Turing', models: ['customers'] },
+                ],
+                publishedSince: new Map([
+                    ['orders', { by: 'Grace Hopper', at }],
+                ]),
+            });
+            await context.service.proposeDraftChange(
+                deployer,
+                PROJECT_UUID,
+                [draftModel(REVENUE_YAML)],
+                null,
+            );
+            const draft = await context.service.getDraft(
+                deployer,
+                PROJECT_UUID,
+            );
+            expect(draft.models).toEqual([
+                expect.objectContaining({
+                    model: 'orders',
+                    alsoChanging: [{ name: 'Ada Lovelace', paths: [] }],
+                    publishedSince: { by: 'Grace Hopper', at },
+                }),
+            ]);
         });
     });
 

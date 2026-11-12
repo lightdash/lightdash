@@ -5,6 +5,8 @@ import {
     type SemanticLayerDraft,
     type SemanticLayerDraftApplyResult,
     type SemanticLayerDraftImpact,
+    type SemanticLayerDraftMoveDirection,
+    type SemanticLayerDraftUsage,
     type SemanticLayerModelCode,
     type SemanticLayerStatus,
 } from '@lightdash/common';
@@ -17,6 +19,7 @@ import { useLightdashApi } from '../../providers/LightdashApi/useLightdashApi';
 const DRAFT_KEY = 'semantic-layer-draft';
 const MODEL_KEY = 'semantic-layer-model';
 const PENDING_POLL_MS = 2000;
+const DRAFT_POLL_MS = 60_000;
 
 const toUrl = (projectUuid: string, path: string) =>
     `/projects/${projectUuid}/semantic-studio${path}`;
@@ -32,6 +35,8 @@ const useGet = <T extends ApiResponse['results']>(
     enabled: boolean,
     /** Polls while this holds for what was last read. */
     isPending: (data: T) => boolean = () => false,
+    /** How often to read again otherwise; false never does. */
+    idlePollMs: number | false = false,
 ) => {
     const lightdashApi = useLightdashApi();
     const flag = useServerFeatureFlag(FeatureFlags.SemanticStudioEditing);
@@ -45,7 +50,9 @@ const useGet = <T extends ApiResponse['results']>(
             }),
         enabled: enabled && flag.data?.enabled === true,
         refetchInterval: (data) =>
-            data !== undefined && isPending(data) ? PENDING_POLL_MS : false,
+            data !== undefined && isPending(data)
+                ? PENDING_POLL_MS
+                : idlePollMs,
     });
 };
 
@@ -79,12 +86,18 @@ export const useSemanticLayerModel = (projectUuid: string, modelName: string) =>
     );
 
 /** This person's draft, replayed on what is live; empty for someone who cannot change the project. */
-export const useSemanticLayerDraft = (projectUuid: string) =>
+export const useSemanticLayerDraft = (
+    projectUuid: string,
+    enabled: boolean = true,
+) =>
     useGet<SemanticLayerDraft>(
         [DRAFT_KEY, projectUuid],
         projectUuid,
         '/draft',
-        true,
+        enabled,
+        undefined,
+        // A draft is replayed on what is live at each read, so reading again is how a person learns that live moved.
+        DRAFT_POLL_MS,
     );
 
 /** What the background check found the draft, or one model of it, would break in saved charts and dashboards. */
@@ -98,6 +111,15 @@ export const useSemanticLayerDraftImpact = (
         `/draft/impact${model === null ? '' : `?model=${encodeURIComponent(model)}`}`,
         true,
         ({ status }) => status === 'checking',
+    );
+
+/** Saved content that reads a field the draft defines differently or removes. */
+export const useSemanticLayerDraftUsage = (projectUuid: string) =>
+    useGet<SemanticLayerDraftUsage>(
+        [DRAFT_KEY, projectUuid, 'usage'],
+        projectUuid,
+        '/draft/usage',
+        true,
     );
 
 export const useRefreshSemanticLayerDraft = (projectUuid: string) => {
@@ -204,6 +226,22 @@ export const useDiscardDraftChange = (projectUuid: string) =>
             body: undefined,
         }),
         errorTitle: 'Could not discard',
+        changesLive: false,
+    });
+
+/** Moves one change one place earlier or later in the draft. */
+export const useMoveDraftChange = (projectUuid: string) =>
+    useWrite<
+        undefined,
+        { draftChangeUuid: string; direction: SemanticLayerDraftMoveDirection }
+    >({
+        projectUuid,
+        request: ({ draftChangeUuid, direction }) => ({
+            path: `/draft/changes/${draftChangeUuid}/move`,
+            method: 'POST',
+            body: JSON.stringify({ direction }),
+        }),
+        errorTitle: 'Could not move',
         changesLive: false,
     });
 

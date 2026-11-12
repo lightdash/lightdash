@@ -433,6 +433,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         githubAppInstallationsModel:
                             models.getGithubAppInstallationsModel(),
                     }),
+                    savedChartModel: models.getSavedChartModel(),
                 }),
             homepageRecommendedActionSkipsService: ({ models }) =>
                 new HomepageRecommendedActionSkipsService({

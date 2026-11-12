@@ -87,6 +87,9 @@ export type SemanticLayerDraftChange = {
     }[];
 };
 
+/** Someone else with a draft of a model, and the parts of it they are changing. */
+export type SemanticLayerDrafter = { name: string; paths: string[] };
+
 /** A model as the draft leaves it, against what is live. */
 export type SemanticLayerDraftModel = {
     model: string;
@@ -96,6 +99,10 @@ export type SemanticLayerDraftModel = {
     contentAfter: string | null;
     /** The model as the draft compiles it; null when it is removed or does not compile. */
     explore: Explore | null;
+    /** Other people with unpublished changes to this model, and the parts each is changing; never the content. */
+    alsoChanging: SemanticLayerDrafter[];
+    /** The latest change someone else published to this model since this draft first touched it; null when none. */
+    publishedSince: { by: string | null; at: Date } | null;
 };
 
 /** What became of a change that left the draft. */
@@ -154,3 +161,32 @@ export type SemanticLayerUndoRequest = {
 export type ApiSemanticLayerUndoResponse = ApiSuccess<{
     exploreCount: number;
 }>;
+
+/** A field the draft defines differently or removes, with the saved content that reads it. */
+export type SemanticLayerDraftFieldUsage = {
+    model: string;
+    fieldId: string;
+    label: string;
+    /** `changed` keeps the field with a different definition, so numbers move; `removed` takes it away. */
+    kind: 'changed' | 'removed';
+    charts: { uuid: string; name: string }[];
+    dashboards: number;
+    scheduledDeliveries: number;
+};
+
+/** Saved content that reads what the draft changes: what to look at before publishing, whether or not anything breaks. */
+export type SemanticLayerDraftUsage = {
+    fields: SemanticLayerDraftFieldUsage[];
+    /** How many changed or removed fields were looked up; the rest of a very large draft is not. */
+    checkedFields: number;
+};
+
+export type ApiSemanticLayerDraftUsageResponse =
+    ApiSuccess<SemanticLayerDraftUsage>;
+
+/** Which way a change moves in a draft's order. */
+export type SemanticLayerDraftMoveDirection = 'earlier' | 'later';
+
+export type ApiSemanticLayerDraftMoveRequest = {
+    direction: SemanticLayerDraftMoveDirection;
+};

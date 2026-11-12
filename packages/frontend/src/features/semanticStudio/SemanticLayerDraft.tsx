@@ -21,7 +21,7 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import { countBy, uniqBy } from 'es-toolkit/compat';
-import { useEffect, useState, type FC } from 'react';
+import { useEffect, useRef, useState, type FC } from 'react';
 import { Navigate, useSearchParams } from 'react-router';
 import Callout from '../../components/common/Callout';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -34,6 +34,13 @@ import useToaster from '../../hooks/toaster/useToaster';
 import { ChangeDiff } from './ChangeDiff';
 import { DevelopmentBar } from './DevelopmentBar';
 import { useDevelopmentView } from './developmentView';
+import {
+    ChangeQueue,
+    DraftUsage,
+    MetricComparison,
+    ModelNotices,
+    PublishChecklist,
+} from './DraftInsights';
 import {
     CHANGE_KIND_LABELS,
     count,
@@ -52,6 +59,7 @@ import {
     useDiscardSemanticLayerDraft,
     useSemanticLayerDraft,
     useSemanticLayerDraftImpact,
+    useSemanticLayerDraftUsage,
 } from './useSemanticLayerModel';
 
 const KIND_NOUNS: [ChangeKind, string][] = [
@@ -182,6 +190,7 @@ const ApplyModal: FC<{
     onClose: () => void;
 }> = ({ projectUuid, draft, model, onClose }) => {
     const impact = useSemanticLayerDraftImpact(projectUuid, model);
+    const usage = useSemanticLayerDraftUsage(projectUuid);
     const apply = useApplySemanticLayerDraft(projectUuid);
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const { showToastSuccess } = useToaster();
@@ -227,6 +236,30 @@ const ApplyModal: FC<{
                         ? `Your changes to ${models} go to the project's repository as a pull request. They go live once it merges and the project refreshes.`
                         : `Your changes to ${models} go live for everyone on this project. Undo is on each model's History tab.`}
                 </Text>
+                <PublishChecklist
+                    draft={draft}
+                    model={model}
+                    breaks={
+                        impact.data?.status === 'done'
+                            ? impact.data.breaks.length
+                            : null
+                    }
+                    chartsThatChange={
+                        usage.data
+                            ? new Set(
+                                  usage.data.fields
+                                      .filter(
+                                          (field) =>
+                                              model === null ||
+                                              field.model === model,
+                                      )
+                                      .flatMap(({ charts }) =>
+                                          charts.map(({ uuid }) => uuid),
+                                      ),
+                              ).size
+                            : null
+                    }
+                />
                 <DraftImpact projectUuid={projectUuid} model={model} />
                 <MessageList
                     variant="danger"
@@ -334,6 +367,39 @@ const PreviewToggle: FC<{
     </Tooltip>
 );
 
+/** Says so once when someone publishes to a model this person has in development, since the page does not reload for it. */
+const usePublishedUnderNotice = (draft: SemanticLayerDraft | undefined) => {
+    const { showToastInfo } = useToaster();
+    // Null until the first read, which is not news: it was already so when the page opened.
+    const seen = useRef<Set<string> | null>(null);
+    useEffect(() => {
+        if (!draft) return;
+        const current = draft.models.flatMap(({ model, publishedSince }) =>
+            publishedSince
+                ? [
+                      {
+                          key: `${model}@${new Date(publishedSince.at).getTime()}`,
+                          model,
+                          by: publishedSince.by,
+                      },
+                  ]
+                : [],
+        );
+        const known = seen.current;
+        seen.current = new Set(current.map(({ key }) => key));
+        if (known === null) return;
+        current
+            .filter(({ key }) => !known.has(key))
+            .forEach(({ model, by }) =>
+                showToastInfo({
+                    title: `${by ?? 'Someone'} published a change to ${model}`,
+                    subtitle:
+                        'Your changes in development are now shown on top of it.',
+                }),
+            );
+    }, [draft, showToastInfo]);
+};
+
 /** A draft in the toolbar: what it changes, the way to its review and back, and publishing it. */
 export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     projectUuid,
@@ -342,7 +408,9 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
     const [searchParams, setSearchParams] = useSearchParams();
     const [publishing, setPublishing] = useState(false);
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
+    const discard = useDiscardSemanticLayerDraft(projectUuid);
     const isEmpty = !draft || draft.changes.length === 0;
+    usePublishedUnderNotice(draft);
     // Once nothing is in development there is nothing to preview.
     useEffect(() => {
         if (draft && isEmpty && isPreviewing) setIsPreviewing(false);
@@ -360,6 +428,13 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                 </Text>
             }
         >
+            {reviewing ? (
+                <DiscardButton
+                    label={draft.models.length > 1 ? 'Discard all' : 'Discard'}
+                    disabled={discard.isLoading}
+                    onConfirm={() => discard.mutate(null)}
+                />
+            ) : null}
             <PreviewToggle
                 isPreviewing={isPreviewing}
                 onChange={setIsPreviewing}
@@ -431,6 +506,11 @@ const DraftNotes: FC<{ draft: SemanticLayerDraft }> = ({ draft }) => {
 
 type DraftProps = { projectUuid: string; draft: SemanticLayerDraft };
 
+type DraftReviewProps = DraftProps & {
+    /** Hands a request to the agent beside the review. */
+    onAskAgent: (prompt: string) => void;
+};
+
 export const DraftReviewHeading: FC<DraftProps> = ({ projectUuid, draft }) => {
     const [isPreviewing, setIsPreviewing] = useDevelopmentView();
     return (
@@ -458,7 +538,11 @@ export const DraftReviewHeading: FC<DraftProps> = ({ projectUuid, draft }) => {
     );
 };
 
-export const DraftReview: FC<DraftProps> = ({ projectUuid, draft }) => {
+export const DraftReview: FC<DraftReviewProps> = ({
+    projectUuid,
+    draft,
+    onAskAgent,
+}) => {
     // Applying or discarding the last change leaves nothing to review.
     if (draft.changes.length === 0) {
         return <Navigate to={{ search: '' }} replace />;
@@ -474,6 +558,12 @@ export const DraftReview: FC<DraftProps> = ({ projectUuid, draft }) => {
             />
             <DraftImpact projectUuid={projectUuid} model={null} />
             <DraftNotes draft={draft} />
+            <DraftUsage projectUuid={projectUuid} />
+            <ChangeQueue
+                projectUuid={projectUuid}
+                draft={draft}
+                onAskAgent={onAskAgent}
+            />
             <WorkerPoolContextProvider
                 poolOptions={PIERRE_POOL_OPTIONS}
                 highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
@@ -520,10 +610,16 @@ export const DraftReview: FC<DraftProps> = ({ projectUuid, draft }) => {
                                     />
                                 ) : null}
                             </Group>
+                            <ModelNotices model={modelChange} />
                             <ChangeDiff
                                 modelName={modelChange.model}
                                 change={modelChange}
                                 variant="full"
+                            />
+                            <MetricComparison
+                                projectUuid={projectUuid}
+                                draft={draft}
+                                model={modelChange}
                             />
                         </Paper>
                     );

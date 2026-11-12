@@ -32,5 +32,5 @@ export type ProjectModelDraftChangesTable = Knex.CompositeTableType<
             DbProjectModelDraftChange,
             'status' | 'applied_change_set_uuid' | 'applied_pull_request_url'
         >
-    > & { models?: string }
+    > & { models?: string; created_at?: Knex.Raw }
 >;

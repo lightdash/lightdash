@@ -10,6 +10,9 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 /** Sent by a client that wants a person's unpublished model changes applied to what it reads. */
 export const DEVELOPMENT_VIEW_HEADER = 'Lightdash-Development-View';
 
+/** Names the preview project to read instead, for a project whose unpublished changes live on a branch. */
+export const DEVELOPMENT_PREVIEW_HEADER = 'Lightdash-Development-Preview';
+
 export type DevelopmentView = {
     /**
      * The explores as this person's unpublished changes leave them, by name, with
