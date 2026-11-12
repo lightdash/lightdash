@@ -196,7 +196,7 @@ describe('GoogleAdsConnector', () => {
 
         await expect(
             run(connector, 'SELECT metrics.clicks FROM campaign', 50_000),
-        ).rejects.toThrow(/more rows than the 9,999/);
+        ).rejects.toThrow(/more than 9,999 rows/);
         expect(send.mock.calls[0][0].body).toEqual({
             query: 'SELECT metrics.clicks FROM campaign LIMIT 10000',
         });

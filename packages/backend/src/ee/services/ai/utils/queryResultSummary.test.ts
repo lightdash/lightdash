@@ -2,43 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
     getContextTruncationNote,
     getExecutionStatsNote,
-    getLiveSourceCompletenessNote,
     getQueryResultSummary,
 } from './queryResultSummary';
-
-describe('live data source completeness', () => {
-    it('never says nothing was truncated when the source cut the rows', () => {
-        const summary = getQueryResultSummary({
-            rowCount: 12,
-            requestedLimit: null,
-            effectiveLimit: 1000,
-            maxLimit: 1000,
-            liveSourceCompleteness: 'source_cut',
-        });
-
-        expect(summary).toContain('This result is incomplete');
-        expect(summary).not.toContain('nothing was truncated');
-    });
-
-    it('reads a result past its own limit like any other', () => {
-        const summary = getQueryResultSummary({
-            rowCount: 500,
-            requestedLimit: 500,
-            effectiveLimit: 500,
-            maxLimit: 1000,
-            liveSourceCompleteness: 'own_limit',
-        });
-
-        expect(summary).toContain('reaching the row limit of 500');
-    });
-
-    it.each(['complete', 'own_limit', null, undefined] as const)(
-        'adds no note for %s',
-        (completeness) => {
-            expect(getLiveSourceCompletenessNote(completeness)).toBe('');
-        },
-    );
-});
 
 describe('getQueryResultSummary', () => {
     it('states nothing was truncated when the limit was not reached', () => {

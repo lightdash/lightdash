@@ -256,7 +256,7 @@ describe('MetaAdsConnector', () => {
                 META_ADS_MAX_QUERY_ROWS,
             ),
         ).rejects.toThrow(
-            /more rows than the 5,000 one query can read, so this result would be incomplete/,
+            /has more than 5,000 rows, the most one query can read, so its result would be incomplete/,
         );
         expect(send).toHaveBeenCalledTimes(10);
     });

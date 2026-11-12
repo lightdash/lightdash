@@ -59,8 +59,8 @@ export type ApiConnectorResult = {
     columns: ApiConnectorColumn[];
     rows: Record<string, unknown>[];
     /**
-     * True when the API had rows past the ones read. Whether that leaves the
-     * result incomplete depends on the query, see getApiResultCompleteness.
+     * True when the API had rows past the ones read. A query sorted on our
+     * side is refused then, see assertApiResultComplete.
      */
     hasMoreRows: boolean;
     /** Bytes the API reports reading, or null when it doesn't report them. */

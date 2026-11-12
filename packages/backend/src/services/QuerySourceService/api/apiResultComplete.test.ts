@@ -4,9 +4,9 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import {
+    assertApiResultComplete,
     buildApiSourceExplores,
     compileApiSourceMetricQuery,
-    getApiResultCompleteness,
     getLegacyLiveSourceName,
     toScannedLiveSourceFields,
 } from './apiSourceExplores';
@@ -52,20 +52,22 @@ const query = (
     tableCalculations: [],
 });
 
-const completeness = (
-    explore: Explore,
-    metricQuery: MetricQuery,
-    hasMoreRows: boolean,
-) =>
-    getApiResultCompleteness({
-        compiled: compileApiSourceMetricQuery({
-            explore,
-            metricQuery,
-            timezone: 'UTC',
-            now: new Date('2026-11-04T12:00:00Z'),
-        }),
-        hasMoreRows,
-    });
+const MESSAGE =
+    'This Source query has more than 5,000 rows, the most one query can read, so its result would be incomplete. Narrow the date range, add a filter or remove a dimension.';
+
+const check =
+    (explore: Explore, metricQuery: MetricQuery, hasMoreRows: boolean) => () =>
+        assertApiResultComplete({
+            compiled: compileApiSourceMetricQuery({
+                explore,
+                metricQuery,
+                timezone: 'UTC',
+                now: new Date('2026-11-04T12:00:00Z'),
+            }),
+            hasMoreRows,
+            label: 'Source',
+            maxRows: 5000,
+        });
 
 /**
  * Each integration with the query it reads in the API's own order, and, where
@@ -156,52 +158,44 @@ const integrations: {
 ];
 
 describe.each(integrations)(
-    '$name result completeness',
+    '$name result check',
     ({ explore, fields, apiOrder, localOrder }) => {
-        test('is complete when the API has no more rows', () => {
+        test('answers when the API has no more rows', () => {
             const source = explore();
             expect(
-                completeness(source, query(source, fields, apiOrder), false),
-            ).toBe('complete');
+                check(source, query(source, fields, apiOrder), false),
+            ).not.toThrow();
         });
 
-        test('more rows in the API order are past its own limit', () => {
+        test('answers when more rows in the API order are past its own limit', () => {
             const source = explore();
             expect(
-                completeness(source, query(source, fields, apiOrder), true),
-            ).toBe('own_limit');
+                check(source, query(source, fields, apiOrder), true),
+            ).not.toThrow();
         });
 
         if (localOrder) {
-            test('more rows under a sort on our side are a source cut', () => {
+            test('refuses more rows under a sort on our side', () => {
                 const source = explore();
                 expect(
-                    completeness(
-                        source,
-                        query(source, fields, localOrder),
-                        true,
-                    ),
-                ).toBe('source_cut');
+                    check(source, query(source, fields, localOrder), true),
+                ).toThrow(MESSAGE);
             });
 
-            test('a sort on our side is complete when the API has no more rows', () => {
+            test('answers a sort on our side when the API has no more rows', () => {
                 const source = explore();
                 expect(
-                    completeness(
-                        source,
-                        query(source, fields, localOrder),
-                        false,
-                    ),
-                ).toBe('complete');
+                    check(source, query(source, fields, localOrder), false),
+                ).not.toThrow();
             });
         }
     },
 );
 
-test('Search Console grouped by date is a source cut when sorted', () => {
+test('Search Console grouped by date is refused when cut and sorted', () => {
     const source = integrations[0].explore();
     const metricQuery = query(source, { dimension: 'date', metric: 'clicks' }, [
         { fieldId: 'clicks', descending: true },
     ]);
-    expect(completeness(source, metricQuery, true)).toBe('source_cut');
+    expect(check(source, metricQuery, true)).toThrow(MESSAGE);
 });

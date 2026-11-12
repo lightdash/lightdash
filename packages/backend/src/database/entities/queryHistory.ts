@@ -3,7 +3,6 @@ import type {
     AuthType,
     DuckdbExecutionSpec,
     ItemsMap,
-    LiveSourceResultCompleteness,
     MetricQuery,
     ParametersValuesMap,
     PivotConfiguration,
@@ -71,7 +70,6 @@ export type DbQueryHistory = {
     request_dashboard_uuid: string | null;
     metric_query_explore_name: string | null;
     warehouse_bytes_billed: number | null;
-    live_source_completeness: LiveSourceResultCompleteness | null; // null for warehouse queries
 };
 
 export type DbQueryHistoryIn = Omit<
@@ -83,7 +81,6 @@ export type DbQueryHistoryIn = Omit<
     | 'cache_miss_reason'
     | 'cache_refresh_requested'
     | 'warehouse_bytes_billed'
-    | 'live_source_completeness'
 > & {
     created_by_actor_type: AuthType;
     agent_identity?: AgentIdentityClaim;
@@ -130,7 +127,6 @@ export type DbQueryHistoryUpdate = Partial<
         | 'pre_aggregate_fallback_reason'
         | 'processing_started_at'
         | 'duckdb_execution'
-        | 'live_source_completeness'
     >
 >;
 

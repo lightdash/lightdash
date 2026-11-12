@@ -1969,7 +1969,7 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncApiQuery result reuse', () => {
-        test('keeps the original fetch time and completeness when reusing a live result', async () => {
+        test('keeps the original fetch time when reusing a live result', async () => {
             const now = new Date();
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 featureFlagModel: {
@@ -1984,7 +1984,6 @@ describe('AsyncQueryService', () => {
                         queryHistory: {
                             status: QueryHistoryStatus.READY,
                             warehouseExecutionTimeMs: 254,
-                            liveSourceCompleteness: 'source_cut',
                         },
                         totalRowCount: 3,
                         resultsFileName: 'api-results.jsonl',
@@ -2026,69 +2025,6 @@ describe('AsyncQueryService', () => {
                 expect.objectContaining({
                     status: QueryHistoryStatus.READY,
                     warehouse_execution_time_ms: 254,
-                    live_source_completeness: 'source_cut',
-                }),
-                sessionAccount,
-            );
-        });
-    });
-
-    describe('runApiQuery result completeness', () => {
-        test('stores the completeness with the ready query', async () => {
-            const update = vi.fn();
-            const service = getMockedAsyncQueryService(lightdashConfigMock, {
-                queryHistoryModel: { update } as unknown as QueryHistoryModel,
-            } as never);
-            (service as AnyType).getResultsStorageClientForContext = () => ({
-                isEnabled: true,
-                createUploadStream: () => ({
-                    write: vi.fn(async () => undefined),
-                    close: vi.fn(async () => undefined),
-                }),
-            });
-            (service as AnyType).getCacheExpiresAt = vi.fn(async () => null);
-            const execute = vi.fn(async () => ({
-                columns: [],
-                rows: [{ a: 1 }],
-                hasMoreRows: true,
-                bytesRead: null,
-            }));
-
-            await (service as AnyType).runApiQuery({
-                account: sessionAccount,
-                queryUuid: 'live-uuid',
-                projectUuid,
-                organizationUuid: 'org-uuid',
-                connector: {
-                    describe: () => ({ connector: 'search_console' }),
-                    execute,
-                    usage: () => ({
-                        apiCalls: 1,
-                        responseBytes: 0,
-                        providerStatus: 200,
-                    }),
-                    logCall: vi.fn(async () => undefined),
-                },
-                payload: { kind: 'query', query: '{}' },
-                limit: 10,
-                cacheKey: 'cache-key',
-                context: QueryExecutionContext.EXPLORE,
-                queryCreatedAt: new Date(),
-                fields: {},
-                exploreName: 'search_console',
-                toResult: () => ({
-                    rows: [{ a: 1 }],
-                    columns: {},
-                    completeness: 'source_cut',
-                }),
-            });
-
-            expect(update).toHaveBeenCalledWith(
-                'live-uuid',
-                projectUuid,
-                expect.objectContaining({
-                    status: QueryHistoryStatus.READY,
-                    live_source_completeness: 'source_cut',
                 }),
                 sessionAccount,
             );
@@ -2118,7 +2054,9 @@ describe('AsyncQueryService', () => {
         };
 
         const setup = (composer: Partial<QueryComposer> = {}) => {
-            const connector = { describe: vi.fn() };
+            const connector = {
+                describe: vi.fn(() => ({ label: 'GA4', maxRows: 100000 })),
+            };
             const getApiSourceConnector = vi.fn(async () => connector);
             const service = getMockedAsyncQueryService(lightdashConfigMock, {
                 getApiSourceConnector,
@@ -2202,20 +2140,6 @@ describe('AsyncQueryService', () => {
                     columns: [],
                 }).rows,
             ).toEqual([{ [channel]: 'Direct', [sessions]: 5 }]);
-        });
-
-        test('records whether the integration had rows past the ones read', async () => {
-            const { execute, submitApiQuery } = setup();
-
-            await execute();
-
-            const [[submitted]] = submitApiQuery.mock.calls as AnyType;
-            const shape = (hasMoreRows: boolean) =>
-                submitted.toResult({ rows: [], columns: [], hasMoreRows })
-                    .completeness;
-            // GA4 sorts the rows itself, so more rows are past the chart's limit
-            expect(shape(false)).toBe('complete');
-            expect(shape(true)).toBe('own_limit');
         });
 
         test('passes the live explore so its results are fingerprinted like the read check', async () => {
@@ -8616,7 +8540,6 @@ describe('AsyncQueryService', () => {
             preAggregateExecution: null,
             preAggregateFallbackReason: null,
             processingStartedAt: null,
-            liveSourceCompleteness: null,
             agentIdentity: null,
         });
 
@@ -8756,7 +8679,6 @@ describe('AsyncQueryService', () => {
                 preAggregateExecution: null,
                 preAggregateFallbackReason: null,
                 processingStartedAt: null,
-                liveSourceCompleteness: null,
                 agentIdentity: null,
             });
 
@@ -9003,7 +8925,6 @@ describe('AsyncQueryService', () => {
                 preAggregateExecution: null,
                 preAggregateFallbackReason: null,
                 processingStartedAt: null,
-                liveSourceCompleteness: null,
                 agentIdentity: null,
             };
 
@@ -9131,7 +9052,6 @@ describe('AsyncQueryService', () => {
                 preAggregateExecution: null,
                 preAggregateFallbackReason: null,
                 processingStartedAt: null,
-                liveSourceCompleteness: null,
                 agentIdentity: null,
             };
 
@@ -9237,7 +9157,6 @@ describe('AsyncQueryService', () => {
                 preAggregateExecution: null,
                 preAggregateFallbackReason: null,
                 processingStartedAt: null,
-                liveSourceCompleteness: null,
                 agentIdentity: null,
             };
 
@@ -9309,7 +9228,6 @@ describe('AsyncQueryService', () => {
                 preAggregateExecution: 'duckdb',
                 preAggregateFallbackReason: 'duckdb_execution_error',
                 processingStartedAt: null,
-                liveSourceCompleteness: null,
                 agentIdentity: null,
             };
 
@@ -9339,7 +9257,6 @@ describe('AsyncQueryService', () => {
                         execution: 'duckdb',
                         fallbackReason: 'duckdb_execution_error',
                     },
-                    liveSourceCompleteness: null,
                 },
             });
         });
@@ -9714,7 +9631,6 @@ describe('AsyncQueryService', () => {
                 preAggregateExecution: null,
                 preAggregateFallbackReason: null,
                 processingStartedAt: null,
-                liveSourceCompleteness: null,
                 agentIdentity: null,
                 ...overrides,
             }) as QueryHistory;
@@ -10409,7 +10325,6 @@ describe('AsyncQueryService', () => {
                     preAggregateExecution: null,
                     preAggregateFallbackReason: null,
                     processingStartedAt: null,
-                    liveSourceCompleteness: null,
                 };
                 vi.mocked(service.queryHistoryModel.get).mockResolvedValue(
                     history,
@@ -10682,7 +10597,6 @@ describe('AsyncQueryService', () => {
             preAggregateExecution: null,
             preAggregateFallbackReason: null,
             processingStartedAt: null,
-            liveSourceCompleteness: null,
             agentIdentity: null,
         });
 
@@ -10862,7 +10776,6 @@ describe('AsyncQueryService', () => {
         preAggregateExecution: null,
         preAggregateFallbackReason: null,
         processingStartedAt: null,
-        liveSourceCompleteness: null,
         agentIdentity: null,
     });
 
@@ -17011,7 +16924,6 @@ describe('saved chart query result access', () => {
             preAggregateExecution: null,
             preAggregateFallbackReason: null,
             processingStartedAt: null,
-            liveSourceCompleteness: null,
             agentIdentity: null,
         };
         const getChart = vi.fn().mockResolvedValue({
@@ -19970,7 +19882,6 @@ describe('executeAsyncMergeQuery over a result source', () => {
         preAggregateExecution: null,
         preAggregateFallbackReason: null,
         processingStartedAt: null,
-        liveSourceCompleteness: null,
         agentIdentity: null,
     });
 
@@ -20785,7 +20696,6 @@ describe('chart embed token query history access', () => {
             preAggregateExecution: null,
             preAggregateFallbackReason: null,
             processingStartedAt: null,
-            liveSourceCompleteness: null,
             agentIdentity: null,
         };
         const service = getMockedAsyncQueryService(lightdashConfigMock);
@@ -20985,7 +20895,6 @@ describe('embedded AI agent result downloads', () => {
             preAggregateExecution: null,
             preAggregateFallbackReason: null,
             processingStartedAt: null,
-            liveSourceCompleteness: null,
             agentIdentity: null,
         };
         const service = getMockedAsyncQueryService(lightdashConfigMock);

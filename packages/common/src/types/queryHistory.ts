@@ -6,7 +6,6 @@ import type { QueryExecutionContext, QuerySurface } from './analytics';
 import type { ExecuteAsyncQueryRequestParams } from './api/paginatedQuery';
 import type { AuthType } from './auth';
 import type { ItemsMap } from './field';
-import type { LiveSourceResultCompleteness } from './liveSourceResultCompleteness';
 import type { MetricQuery } from './metricQuery';
 import type { ParametersValuesMap } from './parameters';
 import type { WarehouseTypes } from './projects';
@@ -180,7 +179,6 @@ export type QueryHistory = {
     preAggregateExecution: PreAggregateExecutionEngine | null; // engine for preAggregateCompiledSql
     preAggregateFallbackReason: PreAggregateFallbackReason | null; // non-null ⇒ matched but served from source warehouse
     processingStartedAt: Date | null; // when the NATS worker picked up the job
-    liveSourceCompleteness: LiveSourceResultCompleteness | null; // null for warehouse queries
 };
 
 /**

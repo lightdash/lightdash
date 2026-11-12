@@ -179,7 +179,7 @@ describe('YoutubeAnalyticsConnector', () => {
         );
         await expect(
             execute(connector, { ...BASE, dimensions: 'day' }, 20_000),
-        ).rejects.toThrow('more than 9999 rows');
+        ).rejects.toThrow('more than 9,999 rows');
     });
 
     it.each([

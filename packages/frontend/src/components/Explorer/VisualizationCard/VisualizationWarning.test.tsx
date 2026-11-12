@@ -1,9 +1,4 @@
-import {
-    ChartType,
-    DimensionType,
-    FieldType,
-    LIVE_SOURCE_SOURCE_CUT_MESSAGE,
-} from '@lightdash/common';
+import { ChartType, DimensionType, FieldType } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
@@ -108,64 +103,4 @@ describe('VisualizationWarning', () => {
             screen.queryByRole('img', { name: 'Results may be incorrect' }),
         ).not.toBeInTheDocument();
     });
-
-    const usedDimensionsChart: PivotMismatchWarningProps['chartConfig'] = {
-        type: ChartType.CARTESIAN,
-        config: {
-            layout: {
-                xField: 'orders_date',
-                yField: ['orders_status'],
-            },
-            eChartsConfig: {},
-        },
-    };
-    const withCompleteness = (
-        liveSourceCompleteness: 'complete' | 'own_limit' | 'source_cut',
-    ) => ({
-        ...props.resultsData,
-        metadata: {
-            performance: {
-                initialQueryExecutionMs: null,
-                resultsPageExecutionMs: 1,
-                queueTimeMs: null,
-            },
-            preAggregate: null,
-            liveSourceCompleteness,
-        },
-    });
-
-    it('warns when the live data source cut the results', async () => {
-        renderWithProviders(
-            <VisualizationWarning
-                {...props}
-                chartConfig={usedDimensionsChart}
-                resultsData={withCompleteness('source_cut')}
-            />,
-        );
-
-        await userEvent.hover(
-            screen.getByRole('img', { name: 'Results may be incorrect' }),
-        );
-
-        expect(await screen.findByRole('tooltip')).toHaveTextContent(
-            LIVE_SOURCE_SOURCE_CUT_MESSAGE,
-        );
-    });
-
-    it.each(['complete', 'own_limit'] as const)(
-        'does not warn when a live data source result is %s',
-        (completeness) => {
-            renderWithProviders(
-                <VisualizationWarning
-                    {...props}
-                    chartConfig={usedDimensionsChart}
-                    resultsData={withCompleteness(completeness)}
-                />,
-            );
-
-            expect(
-                screen.queryByRole('img', { name: 'Results may be incorrect' }),
-            ).not.toBeInTheDocument();
-        },
-    );
 });

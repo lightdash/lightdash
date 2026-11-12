@@ -9,7 +9,6 @@ import {
     type Explore,
     type ExternalConnectionApiSource,
     type ItemsMap,
-    type LiveSourceResultCompleteness,
     type MetricQuery,
     type ResultColumns,
     type SortField,
@@ -29,6 +28,7 @@ import {
     type ApiSourceScan,
 } from './ApiSourceIntegration';
 import { getApiSourceIntegration } from './apiSourceIntegrations';
+import { tooManyRowsError } from './apiSourceRows';
 import {
     applyLiveSourceFieldEdits,
     type LiveSourceFieldEdits,
@@ -383,22 +383,24 @@ export const toPeriodStart = (
 };
 
 /**
- * Whether a compiled query got every row it needed. Rows past the query's own
- * limit don't matter when the API returned them in the query's order. A query
- * sorted on our side needs every row, so rows the API kept back can be the
- * ones the sort would show, and the result is incomplete.
+ * Refuses a result sorted on our side when the API kept rows back: the sort
+ * would rank only the rows read, so the top rows shown could be the wrong
+ * ones. A result in the API's own order only loses rows past its limit.
  */
-export const getApiResultCompleteness = ({
+export const assertApiResultComplete = ({
     compiled,
     hasMoreRows,
+    label,
+    maxRows,
 }: {
     compiled: Pick<CompiledApiSourceQuery, 'localSorts'>;
     hasMoreRows: boolean;
-}): LiveSourceResultCompleteness => {
-    if (!hasMoreRows) {
-        return 'complete';
+    label: string;
+    maxRows: number;
+}): void => {
+    if (hasMoreRows && compiled.localSorts.length > 0) {
+        throw tooManyRowsError({ label, maxRows });
     }
-    return compiled.localSorts.length > 0 ? 'source_cut' : 'own_limit';
 };
 
 /** The connector's rows as result rows keyed by field id, sorted and limited. */

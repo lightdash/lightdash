@@ -1,5 +1,22 @@
 import { ParameterError } from '@lightdash/common';
 
+/**
+ * The error every live data source gives when a query has more rows than one
+ * query can read: answering from part of the rows would sort and total wrong.
+ */
+export const tooManyRowsError = ({
+    label,
+    maxRows,
+}: {
+    label: string;
+    maxRows: number;
+}): ParameterError =>
+    new ParameterError(
+        `This ${label} query has more than ${maxRows.toLocaleString(
+            'en-US',
+        )} rows, the most one query can read, so its result would be incomplete. Narrow the date range, add a filter or remove a dimension.`,
+    );
+
 type ApiSourcePage = {
     rows: Record<string, unknown>[];
     /** Where the next page starts, when there is one. */
@@ -55,11 +72,7 @@ export const readRowsWithinCap = async ({
     const ranOutOfPages = hasMore && rows.length <= rowLimit;
     const hitTheCap = rows.length > rowLimit && rowLimit < requestedRows;
     if (ranOutOfPages || hitTheCap) {
-        throw new ParameterError(
-            `${label} has more rows than the ${maxRows.toLocaleString(
-                'en-US',
-            )} one query can read, so this result would be incomplete. Narrow the date range, add a filter or remove a dimension.`,
-        );
+        throw tooManyRowsError({ label, maxRows });
     }
 
     return {

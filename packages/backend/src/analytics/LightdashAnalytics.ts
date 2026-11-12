@@ -28,7 +28,6 @@ import {
     LightdashRequestMethodHeader,
     LightdashUser,
     LiveSourceRefusalCode,
-    LiveSourceResultCompleteness,
     LiveSourceUpstreamErrorCode,
     MergeJoinType,
     MergeQueryErrorKind,
@@ -826,10 +825,7 @@ export type QueryCompletedEvent = BaseTrack & {
         apiQueryOutcome?: ApiQueryOutcome;
         /** Set only when a live_source query failed. */
         liveSourceErrorCode?: LiveSourceUpstreamErrorCode;
-        /** True when the API had rows past the ones read. */
         truncated?: boolean;
-        /** Set only when a live_source query succeeded; `source_cut` is an incomplete result. */
-        liveSourceCompleteness?: LiveSourceResultCompleteness;
     };
 };
 

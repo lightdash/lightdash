@@ -111,7 +111,6 @@ function convertDbQueryHistoryToQueryHistory(
         preAggregateExecution: queryHistory.pre_aggregate_execution,
         preAggregateFallbackReason: queryHistory.pre_aggregate_fallback_reason,
         processingStartedAt: queryHistory.processing_started_at,
-        liveSourceCompleteness: queryHistory.live_source_completeness ?? null,
         warehouseConnectionUuid: queryHistory.warehouse_connection_uuid ?? null,
     };
 }
@@ -271,7 +270,6 @@ export class QueryHistoryModel {
             | 'preAggregateExecution'
             | 'preAggregateFallbackReason'
             | 'processingStartedAt'
-            | 'liveSourceCompleteness'
             | 'createdByAccount'
             | 'createdByUserUuid'
             | 'createdByActorType'

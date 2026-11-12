@@ -187,7 +187,7 @@ describe('LinkedInAdsConnector', () => {
                 ...REQUEST,
                 dimensions: ['campaign.id'],
             }),
-        ).rejects.toThrow('more than 14999 rows');
+        ).rejects.toThrow('more than 14,999 rows');
 
         const small = createConnector(() =>
             jsonResponse({

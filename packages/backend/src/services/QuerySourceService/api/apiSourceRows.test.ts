@@ -62,7 +62,7 @@ describe('readRowsWithinCap', () => {
             }),
         ).rejects.toThrow(
             new ParameterError(
-                'Source has more rows than the 300 one query can read, so this result would be incomplete. Narrow the date range, add a filter or remove a dimension.',
+                'This Source query has more than 300 rows, the most one query can read, so its result would be incomplete. Narrow the date range, add a filter or remove a dimension.',
             ),
         );
     });

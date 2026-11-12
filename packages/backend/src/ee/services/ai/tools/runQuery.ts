@@ -1021,8 +1021,6 @@ export const getRunQuery = ({
                         requestedLimit,
                         effectiveLimit,
                         maxLimit,
-                        liveSourceCompleteness:
-                            queryResults.liveSourceCompleteness,
                     }) +
                     summarizeAppliedParameters(
                         explore,

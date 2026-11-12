@@ -1,19 +1,4 @@
-import {
-    LIVE_SOURCE_SOURCE_CUT_MESSAGE,
-    type LiveSourceResultCompleteness,
-    type WarehouseExecutionStats,
-} from '@lightdash/common';
-
-/**
- * Tells the agent a live data source cut the result, so it never reports the
- * numbers as complete. Empty for complete results and warehouse queries.
- */
-export const getLiveSourceCompletenessNote = (
-    completeness: LiveSourceResultCompleteness | null | undefined,
-): string =>
-    completeness === 'source_cut'
-        ? ` ${LIVE_SOURCE_SOURCE_CUT_MESSAGE} Tell the user these numbers are incomplete; don't present them as totals or as the full ranking.`
-        : '';
+import type { WarehouseExecutionStats } from '@lightdash/common';
 
 // States the row count and the limit behind it, so the agent never infers one.
 export const getQueryResultSummary = ({
@@ -21,7 +6,6 @@ export const getQueryResultSummary = ({
     requestedLimit,
     effectiveLimit,
     maxLimit,
-    liveSourceCompleteness = null,
 }: {
     rowCount: number;
     // What the tool call asked for; null means "use the maximum".
@@ -29,13 +13,7 @@ export const getQueryResultSummary = ({
     // What was applied, after null-resolution and clamping.
     effectiveLimit: number;
     maxLimit: number;
-    liveSourceCompleteness?: LiveSourceResultCompleteness | null;
 }): string => {
-    if (liveSourceCompleteness === 'source_cut') {
-        return `Returned ${rowCount} rows.${getLiveSourceCompletenessNote(
-            liveSourceCompleteness,
-        )}`;
-    }
     if (rowCount < effectiveLimit) {
         return `Returned all ${rowCount} rows matching this query. The row limit of ${effectiveLimit} was not reached and nothing was truncated.`;
     }
