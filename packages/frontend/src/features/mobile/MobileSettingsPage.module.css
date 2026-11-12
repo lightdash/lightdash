@@ -86,3 +86,7 @@
     margin: 0;
     overflow-wrap: anywhere;
 }
+
+.signInPopover {
+    width: min(420px, calc(100vw - 32px));
+}

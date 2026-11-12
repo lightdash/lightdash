@@ -51,6 +51,9 @@ vi.mock('./SharedSignInExpiryListener', () => ({
     SharedSignInExpiryListener: () => null,
 }));
 vi.mock('../../features/learn/LearnLink', () => ({ LearnLink: () => null }));
+vi.mock('../../features/mobile/MobileSignInMenu', () => ({
+    MobileSignInMenu: () => null,
+}));
 vi.mock('./NavBarLogo', () => ({ NavBarLogo: () => null }));
 
 describe('MainNavBarContent compact navigation', () => {

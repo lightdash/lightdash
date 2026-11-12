@@ -1,0 +1,228 @@
+import { MobileSignInCodeStatus, type ApiError } from '@lightdash/common';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockedLightdashApi } from '../../testing/mockedLightdashApi';
+import { renderWithProviders } from '../../testing/testUtils';
+import { MobileSignInMenu } from './MobileSignInMenu';
+
+vi.mock('../../api');
+vi.mock('../../hooks/health/useHealth', () => ({
+    default: () => ({ data: { siteUrl: 'https://app.example.com' } }),
+}));
+const qrSignIn = vi.hoisted(() => ({ enabled: true }));
+vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: () => ({
+        data: { id: 'mobile-qr-sign-in', enabled: qrSignIn.enabled },
+    }),
+}));
+
+const api = mockedLightdashApi;
+
+type Call = { url: string; method: string };
+
+const mockServer = ({
+    mintError,
+    isClaimed = false,
+}: { mintError?: ApiError; isClaimed?: boolean } = {}) => {
+    const calls: Call[] = [];
+    api.mockImplementation(
+        async ({ url, method }: { url: string; method: string }) => {
+            calls.push({ url, method });
+            if (method === 'POST' && url === '/user/mobile/sign-in-codes') {
+                if (mintError) throw mintError;
+                return {
+                    codeUuid: 'code-1',
+                    signInUrl: 'https://app.example.com/m/sign-in#c=code-1',
+                    approvalNonce: 'nonce-1',
+                    expiresAt: new Date(Date.now() + 120_000).toISOString(),
+                    expiresInSeconds: 120,
+                };
+            }
+            if (method === 'POST' && url.endsWith('/approve')) {
+                return {
+                    status: MobileSignInCodeStatus.APPROVED,
+                    matchNumber: '47',
+                };
+            }
+            if (method === 'DELETE') return undefined;
+            return {
+                codeUuid: 'code-1',
+                status: isClaimed
+                    ? MobileSignInCodeStatus.CLAIMED
+                    : MobileSignInCodeStatus.PENDING,
+                expiresAt: new Date(Date.now() + 120_000).toISOString(),
+                matchNumber: null,
+                declinedBy: null,
+                device: isClaimed
+                    ? { platform: 'ios', clientName: 'Lightdash iOS' }
+                    : null,
+            };
+        },
+    );
+    const of = (method: string, match: (url: string) => boolean) =>
+        calls.filter((call) => call.method === method && match(call.url));
+    return {
+        mints: () => of('POST', (url) => url === '/user/mobile/sign-in-codes'),
+        deletes: () => of('DELETE', () => true).map((call) => call.url),
+        approvals: () => of('POST', (url) => url.endsWith('/approve')),
+    };
+};
+
+const openButton = () =>
+    screen.getByRole('button', { name: 'Sign in on your phone' });
+
+beforeEach(() => {
+    api.mockReset();
+    qrSignIn.enabled = true;
+});
+
+describe('MobileSignInMenu', () => {
+    it('renders nothing and mints nothing with mobile-qr-sign-in off', () => {
+        qrSignIn.enabled = false;
+        const server = mockServer();
+        const { container } = renderWithProviders(
+            <div data-testid="header-group">
+                <MobileSignInMenu />
+            </div>,
+        );
+
+        expect(screen.getByTestId('header-group')).toBeEmptyDOMElement();
+        expect(container.querySelector('button')).toBeNull();
+        expect(screen.getByTestId('header-group').outerHTML).toBe(
+            '<div data-testid="header-group"></div>',
+        );
+        expect(
+            screen.queryByRole('button', { name: 'Sign in on your phone' }),
+        ).not.toBeInTheDocument();
+        expect(server.mints()).toEqual([]);
+    });
+
+    it('mints no code until the popover opens, then shows the sign-in step', async () => {
+        const user = userEvent.setup();
+        const server = mockServer();
+        renderWithProviders(<MobileSignInMenu />);
+
+        expect(openButton()).toBeVisible();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(server.mints()).toEqual([]);
+
+        await user.click(openButton());
+
+        const popover = await screen.findByRole('dialog', {
+            name: 'Sign in on your phone',
+        });
+        expect(
+            within(popover).getByRole('heading', {
+                name: 'Sign in on your phone',
+            }),
+        ).toBeVisible();
+        expect(
+            await within(popover).findByRole('img', {
+                name: 'Sign-in QR code',
+            }),
+        ).toBeInTheDocument();
+        expect(within(popover).getByText('Waiting for scan')).toBeVisible();
+        expect(server.mints()).toHaveLength(1);
+    });
+
+    it('closes on Escape and cancels the unused code', async () => {
+        const user = userEvent.setup();
+        const server = mockServer();
+        renderWithProviders(<MobileSignInMenu />);
+
+        await user.click(openButton());
+        await screen.findByRole('img', { name: 'Sign-in QR code' });
+        expect(server.deletes()).toEqual([]);
+
+        await user.keyboard('{Escape}');
+
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        await waitFor(() =>
+            expect(server.deletes()).toEqual([
+                '/user/mobile/sign-in-codes/code-1',
+            ]),
+        );
+        expect(openButton()).toHaveFocus();
+    });
+
+    it('cancels the code when the icon is clicked again', async () => {
+        const user = userEvent.setup();
+        const server = mockServer();
+        renderWithProviders(<MobileSignInMenu />);
+
+        await user.click(openButton());
+        await screen.findByRole('img', { name: 'Sign-in QR code' });
+        await user.click(openButton());
+
+        await waitFor(() =>
+            expect(server.deletes()).toEqual([
+                '/user/mobile/sign-in-codes/code-1',
+            ]),
+        );
+    });
+
+    it('closes on a click outside and cancels the unused code', async () => {
+        const user = userEvent.setup();
+        const server = mockServer();
+        renderWithProviders(<MobileSignInMenu />);
+
+        await user.click(openButton());
+        await screen.findByRole('img', { name: 'Sign-in QR code' });
+        fireEvent.mouseDown(document.body);
+
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        await waitFor(() =>
+            expect(server.deletes()).toEqual([
+                '/user/mobile/sign-in-codes/code-1',
+            ]),
+        );
+    });
+
+    it('cancels nothing when no code was created', async () => {
+        const user = userEvent.setup();
+        const server = mockServer({
+            mintError: {
+                status: 'error',
+                error: { name: 'Error', statusCode: 500, message: 'boom' },
+            } as ApiError,
+        });
+        renderWithProviders(<MobileSignInMenu />);
+
+        await user.click(openButton());
+        await screen.findByText("Couldn't create the code");
+        await user.keyboard('{Escape}');
+
+        await waitFor(() =>
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+        );
+        expect(server.mints()).toHaveLength(1);
+        expect(server.deletes()).toEqual([]);
+    });
+
+    it('stays open while the user confirms a phone in the dialog', async () => {
+        const user = userEvent.setup();
+        const server = mockServer({ isClaimed: true });
+        renderWithProviders(<MobileSignInMenu />);
+
+        await user.click(openButton());
+        const confirm = await screen.findByRole('dialog', {
+            name: 'A phone wants to sign in as you',
+        });
+        await user.click(
+            within(confirm).getByRole('button', { name: 'Confirm' }),
+        );
+
+        await waitFor(() => expect(server.approvals()).toHaveLength(1));
+        fireEvent.mouseDown(document.body);
+        fireEvent.keyDown(confirm, { key: 'Escape' });
+        expect(
+            screen.getByRole('dialog', { name: 'Sign in on your phone' }),
+        ).toBeInTheDocument();
+        expect(server.deletes()).toEqual([]);
+    });
+});
