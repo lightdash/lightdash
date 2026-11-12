@@ -1137,7 +1137,7 @@ export const DraftExplainer: FC<{ asPullRequest: boolean }> = ({
                 {asPullRequest
                     ? 'Publishing opens a pull request, and nothing is live until it merges.'
                     : 'Publishing makes them live for everyone on this project.'}{' '}
-                Switch to My changes above to try them on your charts first.
+                Use View my changes above to try them on your charts first.
             </Text>
             <Button
                 size="compact-xs"

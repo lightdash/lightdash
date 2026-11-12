@@ -10,7 +10,6 @@ import {
     Loader,
     Menu,
     Paper,
-    SegmentedControl,
     Stack,
     Text,
     ThemeIcon,
@@ -384,7 +383,7 @@ const DraftActions: FC<{
 export const ChangesSwitch: FC<{
     isOnMyChanges: boolean;
     onChange: (next: boolean) => void;
-    /** Why it cannot be switched right now; shown greyed out with this as its tooltip. */
+    /** Why it cannot be switched right now; shown disabled with this as its tooltip. */
     unavailableReason?: string;
 }> = ({ isOnMyChanges, onChange, unavailableReason }) => (
     <Tooltip
@@ -393,23 +392,24 @@ export const ChangesSwitch: FC<{
         label={
             unavailableReason ??
             (isOnMyChanges
-                ? 'Explore, charts and dashboards are reading your changes. Only you see this.'
-                : 'Switch to My changes to try them in Explore, charts and dashboards. Only you see it.')
+                ? 'Explore, charts and dashboards are reading your changes. Only you see this. Click to go back to live.'
+                : 'Try your changes in Explore, charts and dashboards. Only you see it.')
         }
     >
-        <SegmentedControl
+        <Button
             size="xs"
             flex="none"
-            disabled={unavailableReason !== undefined}
-            aria-label="What your queries read"
+            variant={isOnMyChanges ? 'light' : 'default'}
             color={isOnMyChanges ? 'orange' : undefined}
-            value={isOnMyChanges ? 'mine' : 'live'}
-            onChange={(next) => onChange(next === 'mine')}
-            data={[
-                { value: 'live', label: 'Live' },
-                { value: 'mine', label: 'My changes' },
-            ]}
-        />
+            aria-pressed={isOnMyChanges}
+            data-disabled={unavailableReason !== undefined || undefined}
+            aria-disabled={unavailableReason !== undefined}
+            onClick={() => {
+                if (unavailableReason === undefined) onChange(!isOnMyChanges);
+            }}
+        >
+            {isOnMyChanges ? 'Viewing my changes' : 'View my changes'}
+        </Button>
     </Tooltip>
 );
 
