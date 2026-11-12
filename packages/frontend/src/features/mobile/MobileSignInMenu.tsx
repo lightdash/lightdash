@@ -20,6 +20,8 @@ import { MobileSignInStep } from './MobileSignInStep';
 import { MOBILE_STRINGS } from './mobileStrings';
 import { useMobileSignInCode } from './useMobileSignInCode';
 
+const POPOVER_WIDTH = 'calc(min(420px, 100vw - 32px))';
+
 const MobileSignInPopover: FC<{ withLabel: boolean }> = ({ withLabel }) => {
     const menuProps = useNavBarMenuProps();
     const { user } = useApp();
@@ -42,6 +44,7 @@ const MobileSignInPopover: FC<{ withLabel: boolean }> = ({ withLabel }) => {
             position="bottom-end"
             arrowOffset={16}
             offset={-2}
+            width={menuProps.withinPortal ? POPOVER_WIDTH : 'target'}
             classNames={{ dropdown: classes.signInPopover }}
             zIndex={getDefaultZIndex('max')}
             trapFocus
