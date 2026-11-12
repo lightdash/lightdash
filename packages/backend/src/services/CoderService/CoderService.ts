@@ -5852,7 +5852,10 @@ export class CoderService extends BaseService {
                 ...dashboardWithDefaults.filters.dimensions,
                 ...dashboardWithDefaults.filters.metrics,
                 ...dashboardWithDefaults.filters.tableCalculations,
-            ].some((filter) => filter.slug !== undefined)
+            ].some((filter) => filter.slug !== undefined) ||
+            dashboardWithDefaults.config?.dateZoomConfig?.controls?.some(
+                (control) => control.slug !== undefined,
+            )
         ) {
             const enabled =
                 await this.dashboardService.areDashboardControlsEnabled(

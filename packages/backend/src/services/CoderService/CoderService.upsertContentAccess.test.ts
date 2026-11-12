@@ -3916,13 +3916,16 @@ describe('CoderService dashboard control order as code', () => {
         return vi.mocked(service.promoteService.getPromotedDashboard).mock
             .calls[0][1];
     };
-    const rejection = async (file: DashboardAsCode) => {
+    const rejection = async (
+        file: DashboardAsCode,
+        saved: DashboardDAO = savedDashboard(),
+    ) => {
         const service = buildService();
         vi.mocked(service.dashboardModel.find).mockResolvedValue([
             { uuid: 'dashboard-uuid' } as AnyType,
         ]);
         vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue(
-            savedDashboard(),
+            saved,
         );
         service.projectService = {
             projectParametersModel: { find: vi.fn(async () => []) },
@@ -5345,6 +5348,44 @@ describe('CoderService dashboard control order as code', () => {
             expect(await rejection(withMalformedSlug())).toContain(
                 'Invalid date zoom control slug "Week!"',
             );
+        });
+
+        describe.each([
+            ['a malformed slug', 'Week!', 'Invalid date zoom control slug'],
+            ['duplicate slugs', 'month', 'is duplicated'],
+        ])('on a dashboard with only zooms, %s', (_name, weekSlug, error) => {
+            const controls = [
+                { uuid: 'week-uuid', name: 'Week', granularity: 'WEEK' },
+                { uuid: 'month-uuid', name: 'Month', granularity: 'MONTH' },
+            ];
+            const saved = {
+                ...zoomDashboard(),
+                filters: { dimensions: [], metrics: [], tableCalculations: [] },
+                config: {
+                    isDateZoomDisabled: false,
+                    dateZoomConfig: { ...zoomConfig, controls },
+                },
+            } as AnyType as DashboardDAO;
+            const file = download(saved, false);
+            file.config = {
+                ...file.config!,
+                dateZoomConfig: {
+                    ...handWritten().config!.dateZoomConfig!,
+                    controls: [
+                        { ...controls[0], slug: weekSlug },
+                        { ...controls[1], slug: 'month' },
+                    ] as AnyType,
+                },
+            };
+
+            it('is ignored with the flag off', async () => {
+                const uploaded = await upload(file, { enabled: false, saved });
+                expect(zoomsOf(uploaded)).toEqual(zoomsOf(saved));
+            });
+
+            it('is rejected with the flag on', async () => {
+                expect(await rejection(file, saved)).toContain(error);
+            });
         });
 
         it('uploads an old-format file unchanged with the flag off', async () => {
