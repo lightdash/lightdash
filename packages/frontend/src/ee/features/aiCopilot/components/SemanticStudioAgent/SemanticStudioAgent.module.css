@@ -94,10 +94,6 @@
     background-color: var(--mantine-color-default-border);
 }
 
-.statusLink {
-    cursor: pointer;
-}
-
 .changes {
     display: flex;
     flex-direction: column;
@@ -105,4 +101,22 @@
     height: 100%;
     overflow: auto;
     padding: var(--mantine-spacing-md);
+}
+
+/* A change arrives from the chat's side, since that is where it was asked for. */
+.arrives {
+    animation: arrive 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes arrive {
+    from {
+        opacity: 0;
+        translate: 56px 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .arrives {
+        animation: none;
+    }
 }

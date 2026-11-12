@@ -40,22 +40,21 @@
     border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
-/* Changes that are not live tint the toolbar orange, the one colour for not live. */
-.toolbar[data-status='draft'],
-.toolbar[data-status='pull-request'] {
-    background: color-mix(
-        in srgb,
-        var(--mantine-color-orange-5) 7%,
-        transparent
-    );
+/* Where the person is in the workspace: the models, or the changes the conversation made. */
+.crumb {
+    padding: 4px 6px;
+    border-radius: 6px;
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-sm);
 }
 
-.toolbar[data-status='saving'] {
-    background: color-mix(
-        in srgb,
-        var(--mantine-color-gray-5) 10%,
-        transparent
-    );
+.crumb:hover {
+    background: color-mix(in srgb, var(--mantine-color-text) 5%, transparent);
+}
+
+.crumb[aria-current='page'] {
+    color: var(--mantine-color-text);
+    font-weight: 500;
 }
 
 .workspaceBody {

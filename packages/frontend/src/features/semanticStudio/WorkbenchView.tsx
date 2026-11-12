@@ -6,10 +6,11 @@
  */
 import { assertUnreachable } from '@lightdash/common';
 import {
+    ActionIcon,
     Anchor,
     Box,
-    Button,
     Breadcrumbs,
+    Button,
     Center,
     Group,
     Loader,
@@ -18,14 +19,13 @@ import {
     TextInput,
     Title,
     Tooltip,
+    UnstyledButton,
 } from '@mantine/core';
 import {
     IconChevronRight,
     IconCode,
     IconFileCode,
-    IconGitCompare,
     IconSearch,
-    IconTable,
 } from '@tabler/icons-react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
@@ -39,8 +39,8 @@ import {
 } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
-import { PullRequestChanges } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/PullRequestChanges';
 import { SemanticStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/SemanticStudioAgent';
+import { StudioChanges } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/StudioChanges';
 import {
     StudioDevelopmentBar,
     StudioSavingBar,
@@ -51,6 +51,7 @@ import {
 } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import {
     useStudioPendingChange,
+    useStudioProposal,
     useStudioPullRequest,
 } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
 import { useProject } from '../../hooks/useProject';
@@ -866,36 +867,6 @@ const CodeRail: FC<{
 
 const FILE_PARAM = 'file';
 
-const CHANGES_OPTION = {
-    value: 'changes',
-    label: (
-        <Group gap={6} wrap="nowrap">
-            <MantineIcon icon={IconGitCompare} size={14} />
-            Changes
-        </Group>
-    ),
-};
-
-const MODELS_OPTION = {
-    value: 'models',
-    label: (
-        <Group gap={6} wrap="nowrap">
-            <MantineIcon icon={IconTable} size={14} />
-            Models
-        </Group>
-    ),
-};
-
-const CODE_OPTION = {
-    value: 'code',
-    label: (
-        <Group gap={6} wrap="nowrap">
-            <MantineIcon icon={IconCode} size={14} />
-            Code
-        </Group>
-    ),
-};
-
 const BUILD_MODEL_PROMPT =
     'Look through my warehouse and suggest the first model and metrics to add.';
 
@@ -997,14 +968,6 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const development = !keepsDraft && pullRequest?.isOpen ? pullRequest : null;
     const pendingChange = useStudioPendingChange(view.project.id);
     const saving = keepsDraft ? null : pendingChange;
-    // Tints the toolbar while the project has changes that are not live, in the colour of their status chip.
-    const changeStatus = saving
-        ? 'saving'
-        : development
-          ? 'pull-request'
-          : keepsDraft && hasDraft && !isBuildingFirstModel
-            ? 'draft'
-            : undefined;
     const [isTryingChanges, setIsTryingChanges] = useDevelopmentView();
     // A dbt project's changes are tried through its pull request's preview, so there is nothing to try once that closes.
     const hasClosedPullRequest =
@@ -1024,19 +987,47 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         }
         wasSaving.current = !!saving;
     }, [saving, development, setSearchParams]);
-    // A dbt project's changes are its pull request's: its files live in the repository.
+    const proposal = useStudioProposal(view.project.id);
+    const hasProposal = !keepsDraft && proposal.length > 0;
+    // A dbt project's changes are its conversation's: what it proposes, and what its pull request holds.
     const isChanges =
         !keepsDraft &&
-        !!development &&
+        (!!development || hasProposal) &&
         (searchParams.get(VIEW_PARAM) === 'changes' || isDefaultView);
     const hasChanges = keepsDraft
         ? hasDraft && !isBuildingFirstModel
-        : !!development;
-    const viewOptions = [
-        ...(hasChanges ? [CHANGES_OPTION] : []),
-        MODELS_OPTION,
-        ...(keepsDraft ? [CODE_OPTION] : []),
-    ];
+        : !!development || hasProposal;
+    // A new proposal opens the changes, like a save does.
+    const proposalKey = hasProposal ? proposal.join('\n') : null;
+    const lastProposalKey = useRef(proposalKey);
+    useEffect(() => {
+        if (proposalKey && proposalKey !== lastProposalKey.current) {
+            setSearchParams({ [VIEW_PARAM]: 'changes' });
+        }
+        lastProposalKey.current = proposalKey;
+    }, [proposalKey, setSearchParams]);
+    // The workspace the conversation made, named for where its changes stand.
+    const pullRequestNumber = /\/(\d+)\/?$/.exec(development?.prUrl ?? '')?.[1];
+    const workspace = saving
+        ? { name: 'Saving', hint: 'The change is being saved.' }
+        : development
+          ? {
+                name: pullRequestNumber
+                    ? `Pull request #${pullRequestNumber}`
+                    : 'Pull request',
+                hint: 'Not live until it merges.',
+            }
+          : hasProposal
+            ? {
+                  name: 'Proposed change',
+                  hint: 'Not saved yet. Open the pull request from the chat to save it.',
+              }
+            : keepsDraft && hasDraft && !isBuildingFirstModel
+              ? {
+                    name: 'Draft',
+                    hint: 'Only you see these changes until you publish them.',
+                }
+              : null;
     // Only models with YAML here have a file: a deployed model's YAML lives where it was deployed from.
     const { data: stored } = useSemanticLayerStoredModels(
         view.project.id,
@@ -1102,12 +1093,13 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const renderPane = () => {
         switch (pane) {
             case 'changes':
-                return development ? (
-                    <PullRequestChanges
+                return (
+                    <StudioChanges
                         projectUuid={view.project.id}
                         pullRequest={development}
+                        proposal={hasProposal ? proposal : []}
                     />
-                ) : null;
+                );
             case 'code':
                 return file ? (
                     <ModelCodeView
@@ -1217,30 +1209,49 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         (!keepsDraft &&
                             !development &&
                             !saving &&
+                            !hasProposal &&
                             isChatOpen) ? null : (
                             <Group
                                 className={classes.toolbar}
-                                data-status={changeStatus}
                                 justify="space-between"
                                 wrap="nowrap"
                                 gap="sm"
                             >
-                                {keepsDraft || development ? (
-                                    <SegmentedControl
-                                        size="xs"
-                                        flex="none"
-                                        value={
-                                            isCode
-                                                ? 'code'
-                                                : pane === 'review' ||
-                                                    pane === 'changes'
-                                                  ? 'changes'
-                                                  : 'models'
+                                <Group gap={6} wrap="nowrap" flex="none">
+                                    <UnstyledButton
+                                        className={classes.crumb}
+                                        aria-current={
+                                            pane === 'browse'
+                                                ? 'page'
+                                                : undefined
                                         }
-                                        onChange={switchView}
-                                        data={viewOptions}
-                                    />
-                                ) : null}
+                                        onClick={() => switchView('models')}
+                                    >
+                                        Models
+                                    </UnstyledButton>
+                                    {workspace ? (
+                                        <>
+                                            <Text fz="xs" c="dimmed">
+                                                /
+                                            </Text>
+                                            <Tooltip label={workspace.hint}>
+                                                <UnstyledButton
+                                                    className={classes.crumb}
+                                                    aria-current={
+                                                        isReviewPane
+                                                            ? 'page'
+                                                            : undefined
+                                                    }
+                                                    onClick={() =>
+                                                        switchView('changes')
+                                                    }
+                                                >
+                                                    {workspace.name}
+                                                </UnstyledButton>
+                                            </Tooltip>
+                                        </>
+                                    ) : null}
+                                </Group>
                                 {saving ? (
                                     <StudioSavingBar
                                         projectUuid={view.project.id}
@@ -1259,11 +1270,37 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                     />
                                 ) : null}
                                 <Group gap="xs" wrap="nowrap" miw={0} ml="auto">
+                                    {keepsDraft ? (
+                                        <Tooltip
+                                            label={
+                                                isCode
+                                                    ? 'Back to models'
+                                                    : 'Read the YAML'
+                                            }
+                                        >
+                                            <ActionIcon
+                                                size="md"
+                                                variant={
+                                                    isCode ? 'light' : 'default'
+                                                }
+                                                aria-label="Code"
+                                                aria-pressed={isCode}
+                                                onClick={() =>
+                                                    switchView(
+                                                        isCode
+                                                            ? 'models'
+                                                            : 'code',
+                                                    )
+                                                }
+                                            >
+                                                <MantineIcon icon={IconCode} />
+                                            </ActionIcon>
+                                        </Tooltip>
+                                    ) : null}
                                     {chat.isAvailable && !isChatOpen ? (
                                         <Button
                                             size="xs"
-                                            variant="light"
-                                            color="indigo"
+                                            variant="default"
                                             flex="none"
                                             onClick={() => setIsChatOpen(true)}
                                         >

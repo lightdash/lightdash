@@ -1,4 +1,4 @@
-import { Box, Button, Center, Group, Loader, Stack, Text } from '@mantine/core';
+import { Button, Center, Group, Loader, Stack, Text } from '@mantine/core';
 import { IconTable } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -56,9 +56,9 @@ export const PullRequestChanges: FC<{
     );
     return (
         <DiffWorkers>
-            <Box className={classes.changes}>
+            <>
                 {changedModels.map((model) => (
-                    <Stack key={model} gap="xs">
+                    <Stack key={model} gap="xs" className={classes.arrives}>
                         <Group gap="xs" wrap="nowrap">
                             <MantineIcon
                                 icon={IconTable}
@@ -91,7 +91,7 @@ export const PullRequestChanges: FC<{
                     </Stack>
                 ))}
                 {others.length > 0 ? (
-                    <Stack gap="xs">
+                    <Stack gap="xs" className={classes.arrives}>
                         <Text component="h3" fz="sm" fw={600}>
                             {changedModels.length > 0 ? 'Other files' : 'Files'}
                         </Text>
@@ -100,7 +100,7 @@ export const PullRequestChanges: FC<{
                         ))}
                     </Stack>
                 ) : null}
-            </Box>
+            </>
         </DiffWorkers>
     );
 };

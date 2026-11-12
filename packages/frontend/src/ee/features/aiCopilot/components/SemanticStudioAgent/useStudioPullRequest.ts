@@ -1,7 +1,9 @@
 import { isToolEditDbtProjectResult, type CiChecks } from '@lightdash/common';
+import { useMemo } from 'react';
 import { findPreviewProjectUuid } from '../../../../../features/semanticStudio/useTryInExplore';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 import { usePullRequestCiChecks } from '../../hooks/usePullRequestCiChecks';
+import { getOpenProposal } from './studioProposal';
 import { useStudioAgent } from './useSemanticStudioChat';
 
 /** The pull request a Studio conversation on a dbt project is building up. */
@@ -97,4 +99,21 @@ export const useStudioPendingChange = (
               startedAt: new Date(latest.createdAt).toISOString(),
           }
         : null;
+};
+
+const NO_PROPOSAL: string[] = [];
+
+/** The diffs the conversation's latest reply proposes and has not saved, one per file. */
+export const useStudioProposal = (projectUuid: string): string[] => {
+    const { thread } = useStudioAgent(projectUuid);
+    const { data } = useAiAgentThread(
+        projectUuid,
+        thread?.agent.uuid,
+        thread?.threadUuid,
+        { enabled: !!thread },
+    );
+    return useMemo(() => {
+        const proposal = data ? getOpenProposal(data.messages) : NO_PROPOSAL;
+        return proposal.length > 0 ? proposal : NO_PROPOSAL;
+    }, [data]);
 };

@@ -3,15 +3,7 @@ import {
     CiMergeState,
     type CiChecks,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Badge,
-    Button,
-    Loader,
-    Menu,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Button, Menu, Text, Tooltip } from '@mantine/core';
 import { IconDots, IconExternalLink } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { Link } from 'react-router';
@@ -33,7 +25,6 @@ import {
 } from '../../hooks/useWritebackProgress';
 import { isMergeable } from '../ChatElements/ToolCalls/pullRequestActions';
 import { WRITEBACK_STEPS } from '../ChatElements/ToolCalls/writebackProgress';
-import classes from './SemanticStudioAgent.module.css';
 import {
     type StudioPendingChange,
     type StudioPullRequest,
@@ -96,22 +87,7 @@ export const StudioDevelopmentBar: FC<{
     const canMerge = isMergeable(ciChecks);
     const destination = `${name}${branch ? ` into ${branch}` : ''}`;
     return (
-        <DevelopmentBar
-            status={
-                <Badge
-                    component="a"
-                    href={prUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    color="orange"
-                    flex="none"
-                    className={classes.statusLink}
-                >
-                    {number ? `Pull request #${number}` : 'Pull request'}
-                </Badge>
-            }
-            summary={null}
-        >
+        <DevelopmentBar summary={null}>
             {/* Once on, the dock says so on every page and holds the way back. */}
             {isTrying ? null : (
                 <ChangesSwitch
@@ -246,19 +222,6 @@ export const StudioSavingBar: FC<{
     const [isOnMyChanges, setIsOnMyChanges] = useDevelopmentView();
     return (
         <DevelopmentBar
-            status={
-                <Badge
-                    color="gray"
-                    flex="none"
-                    leftSection={
-                        state === 'running' ? (
-                            <Loader size={10} color="gray" />
-                        ) : null
-                    }
-                >
-                    Saving
-                </Badge>
-            }
             summary={
                 <Text fz="xs" c="dimmed" truncate>
                     {state === 'running'

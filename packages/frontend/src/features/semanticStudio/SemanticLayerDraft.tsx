@@ -491,21 +491,6 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
             ?.model ?? null;
     return (
         <DevelopmentBar
-            status={
-                <Tooltip
-                    multiline
-                    w={240}
-                    label={
-                        asPullRequest
-                            ? 'Only you see these changes. Publishing opens a pull request, and nothing is live until it merges.'
-                            : 'Only you see these changes. Publishing makes them live for everyone on this project.'
-                    }
-                >
-                    <Badge color="orange" flex="none">
-                        Draft
-                    </Badge>
-                </Tooltip>
-            }
             summary={
                 draft.models.length > 0 ? null : (
                     <Text fz="xs" c="dimmed" truncate>
