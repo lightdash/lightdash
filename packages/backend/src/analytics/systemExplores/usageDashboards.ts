@@ -369,7 +369,7 @@ export const buildUsageDashboards = (
             slug: spec.key,
             spaceSlug,
             name: spec.name,
-            description: `${spec.description} Duplicate this dashboard to keep a customized copy separate from future Sync content updates.`,
+            description: `${spec.description} Duplicate this dashboard to keep your edits when built-in content updates.`,
             filters: spec.filters ?? {
                 dimensions: [],
                 metrics: [],

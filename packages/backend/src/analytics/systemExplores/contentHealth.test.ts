@@ -338,8 +338,10 @@ describe('Content health', () => {
             await db.run(
                 `CREATE VIEW query_events AS SELECT * FROM read_parquet('${file}')`,
             );
+            // One thread, as in production Parquet sessions: each extra thread
+            // decodes its own row group, so peak memory varied with scheduling.
             await db.run("SET memory_limit = '64MB'");
-            await db.run('SET threads = 4');
+            await db.run('SET threads = 1');
             await db.run("SET temp_directory = ''");
             const rows = (
                 await db.runAndReadAll(

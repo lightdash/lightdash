@@ -21,5 +21,5 @@ export const hasQueryDetails = (query: SemanticLayerSourceQuery) => {
     );
 };
 
-/** A semantic cell's toggleable query views. */
+/** A semantic or merge cell's toggleable query views. */
 export type QueryPanel = 'details' | 'sql';

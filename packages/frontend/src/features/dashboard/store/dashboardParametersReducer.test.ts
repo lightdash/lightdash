@@ -47,6 +47,33 @@ describe('dashboardParametersReducer', () => {
             });
         });
 
+        it('follows a saved change for values the viewer did not set', () => {
+            const state = stateWith({
+                savedParameters: {
+                    status: { parameterName: 'status', value: 'Shipped' },
+                    region: { parameterName: 'region', value: 'EU' },
+                    removed: { parameterName: 'removed', value: 'x' },
+                },
+                parameters: {
+                    status: { parameterName: 'status', value: 'Shipped' },
+                    region: { parameterName: 'region', value: 'US' },
+                    removed: { parameterName: 'removed', value: 'x' },
+                },
+                parameterPicks: { region: 'US' },
+            });
+            const next = reducer(
+                state,
+                actions.setSavedParameters({
+                    status: { parameterName: 'status', value: 'Returned' },
+                    region: { parameterName: 'region', value: 'APAC' },
+                }),
+            );
+            expect(next.parameters).toEqual({
+                status: { parameterName: 'status', value: 'Returned' },
+                region: { parameterName: 'region', value: 'US' },
+            });
+        });
+
         it('replaces staged values with the saved object in edit mode', () => {
             const state = stateWith({
                 isEditMode: true,
@@ -771,6 +798,21 @@ describe('dashboardParametersReducer', () => {
                 ]),
             );
             expect(arranged.haveParameterControlsChanged).toBe(true);
+            // A new section stores the bar's order too
+            expect(
+                reducer(
+                    filled,
+                    dashboardEditActions.addControlSection({
+                        section: { id: 's', name: 'New' },
+                        barOrder: [
+                            {
+                                kind: DashboardControlRefKind.PARAMETER,
+                                id: 'a',
+                            },
+                        ],
+                    }),
+                ).haveParameterControlsChanged,
+            ).toBe(true);
             // A refill from the tiles no longer replaces the listed ids
             expect(
                 reducer(
@@ -792,6 +834,23 @@ describe('dashboardParametersReducer', () => {
             expect(
                 reducer(saved, dashboardEditActions.arrangeControls([])),
             ).toBe(saved);
+            // No controls: nothing to keep, so tiles still fill the list
+            const empty = reducer(
+                stateWith(),
+                actions.syncParameterControls({ controls: [], isSaved: false }),
+            );
+            expect(
+                reducer(
+                    empty,
+                    dashboardEditActions.addControlSection({
+                        section: { id: 's', name: 'New' },
+                        barOrder: [],
+                    }),
+                ),
+            ).toBe(empty);
+            expect(
+                reducer(empty, dashboardEditActions.arrangeControls([])),
+            ).toBe(empty);
         });
 
         it('marks updates and removals as changed, and stops seeding until reset', () => {

@@ -3990,6 +3990,10 @@ describe('AiWritebackService repo read access', () => {
         });
 
         it('rejects before any request when the connection host points elsewhere', async () => {
+            const getGitlabProjects = vi.spyOn(
+                GitlabClient,
+                'getGitlabProjects',
+            );
             const service = buildGitlab('attacker.example');
             await expect(
                 service.getGitlabInstallationRepoReadAccess({
@@ -3997,6 +4001,8 @@ describe('AiWritebackService repo read access', () => {
                     projectUuid: 'p1',
                 }),
             ).rejects.toThrow(ParameterError);
+            expect(getGitlabProjects).not.toHaveBeenCalled();
+            getGitlabProjects.mockRestore();
         });
 
         it('rejects a user without view:SourceCode', async () => {

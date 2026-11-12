@@ -80,13 +80,18 @@ import {
     applyFilterLabelOverrides,
     restoreFilterLabelOverrides,
 } from '../filterLabelOverrides';
-import { useEmbedDashboard, useEmbedSavedParameters } from '../hooks';
+import {
+    useEmbedDashboard,
+    useEmbedDashboardRefreshKey,
+    useEmbedSavedParameters,
+} from '../hooks';
 import {
     type ChartSaveDestination,
     type EmbedChartSaveDashboard,
 } from '../types';
 import { canUseEmbeddedChartBuilder } from '../utils';
 import classes from './EmbedDashboard.module.css';
+import { EmbedDashboardAiAgentContextPublisher } from './EmbedDashboardAiAgentContextPublisher';
 import EmbedDashboardChartEditorModal from './EmbedDashboardChartEditorModal';
 import EmbedDashboardChartTile from './EmbedDashboardChartTile';
 import EmbedDashboardHeader from './EmbedDashboardHeader';
@@ -369,12 +374,16 @@ const EmbedDashboard: FC<{
     isEditMode?: boolean;
     onEditModeChange?: (isEditMode: boolean) => void;
     chartSaveDestinations?: ChartSaveDestination[];
+    sharesViewWithAiAgent?: boolean;
+    refreshKey?: number;
 }> = ({
     containerStyles,
     initialDashboard,
     isEditMode: controlledIsEditMode,
     onEditModeChange,
     chartSaveDestinations,
+    sharesViewWithAiAgent = true,
+    refreshKey,
 }) => {
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const activeTab = useDashboardSelector(selectActiveTab);
@@ -474,6 +483,7 @@ const EmbedDashboard: FC<{
         !initialDashboard,
         embedDashboardUuid,
     );
+    useEmbedDashboardRefreshKey(refreshKey, isEditMode);
     useEffect(() => {
         if (initialDashboard) {
             setLocalDashboard(initialDashboard);
@@ -1202,6 +1212,9 @@ const EmbedDashboard: FC<{
         >
             <div ref={setContentElement} className={classes.content}>
                 <DocumentTitle title={dashboard.name} />
+                {sharesViewWithAiAgent && (
+                    <EmbedDashboardAiAgentContextPublisher />
+                )}
                 <ControlsSidebarProvider
                     // No route says the mode in an embed
                     isEditMode={canWriteDashboard && isEditMode}

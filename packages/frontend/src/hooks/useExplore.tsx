@@ -10,7 +10,7 @@ import { useLightdashApi } from '../providers/LightdashApi/useLightdashApi';
 import { useProjectUuid } from './useProjectUuid';
 import useQueryError from './useQueryError';
 
-const getExplore = async (
+export const getExplore = async (
     lightdashApi: LightdashApi,
     projectUuid: string,
     exploreId: string,

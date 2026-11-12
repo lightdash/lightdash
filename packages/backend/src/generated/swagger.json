@@ -15703,6 +15703,16 @@
                     "hasSecret": {
                         "type": "boolean"
                     },
+                    "targetLabel": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The name the connection picker showed for the source's target."
+                    },
+                    "aiHint": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "What an admin says this live source is for. Reaches the AI agent."
+                    },
                     "liveSourceName": {
                         "type": "string",
                         "nullable": true,
@@ -16220,6 +16230,10 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "explorePrefix": {
+                        "type": "string",
+                        "description": "Prefix of a new live source's explore names. Defaults to one derived\nfrom the name. It is set once and can't be changed afterwards."
+                    },
                     "apiSource": {
                         "allOf": [
                             {
@@ -16615,7 +16629,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Partial_CreateExternalConnection_": {
+            "Partial_Omit_CreateExternalConnection.explorePrefix__": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -16736,8 +16750,21 @@
                 "description": "Make all properties in T optional"
             },
             "UpdateExternalConnection": {
-                "$ref": "#/components/schemas/Partial_CreateExternalConnection_",
-                "description": "Omitted/blank `secret` means the stored secret is left unchanged."
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Partial_Omit_CreateExternalConnection.explorePrefix__"
+                    },
+                    {
+                        "properties": {
+                            "aiHint": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Live sources only. Empty or null clears it."
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
             },
             "LiveSourceFieldEditor": {
                 "properties": {
@@ -16847,11 +16874,21 @@
                         "nullable": true,
                         "description": "ISO timestamp of the last scan, or null when the source was never scanned."
                     },
+                    "usedByChartCount": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Saved charts on any of the source's explores, each counted once."
+                    },
                     "exploreName": {
                         "type": "string"
                     }
                 },
-                "required": ["fields", "scannedAt", "exploreName"],
+                "required": [
+                    "fields",
+                    "scannedAt",
+                    "usedByChartCount",
+                    "exploreName"
+                ],
                 "type": "object"
             },
             "ApiLiveSourceFieldsResponse": {
@@ -17311,6 +17348,130 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "ExplorePrefixCheck": {
+                "properties": {
+                    "suggestionExploreNames": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "suggestion": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "A free prefix close to the one asked for, when it's taken."
+                    },
+                    "error": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "exploreNames": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "The explore names the prefix gives; empty when its format is invalid."
+                    },
+                    "prefix": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "suggestionExploreNames",
+                    "suggestion",
+                    "error",
+                    "exploreNames",
+                    "prefix"
+                ],
+                "type": "object",
+                "description": "Whether a new live source can use an explore prefix."
+            },
+            "ApiExplorePrefixCheckResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ExplorePrefixCheck"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ReattachableLiveSource": {
+                "properties": {
+                    "isSameTarget": {
+                        "type": "boolean",
+                        "description": "Reads the same target as the source being reattached."
+                    },
+                    "usedByChartCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "deletedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "apiSource": {
+                        "$ref": "#/components/schemas/ExternalConnectionApiSource"
+                    },
+                    "exploreNames": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "explorePrefix": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "externalConnectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "isSameTarget",
+                    "usedByChartCount",
+                    "deletedAt",
+                    "apiSource",
+                    "exploreNames",
+                    "explorePrefix",
+                    "name",
+                    "externalConnectionUuid"
+                ],
+                "type": "object",
+                "description": "A deleted live source whose explore prefix a new source can take over."
+            },
+            "ApiReattachableLiveSourcesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ReattachableLiveSource"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiReattachLiveSourceRequest": {
+                "properties": {
+                    "deletedConnectionUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["deletedConnectionUuid"],
                 "type": "object"
             },
             "Pick_Organization.name-or-organizationUuid-or-createdAt_": {
@@ -20616,6 +20777,10 @@
                         },
                         "required": ["nested", "or"],
                         "type": "object"
+                    },
+                    "definitionHash": {
+                        "type": "string",
+                        "description": "Hash of what the integration's code defines for this explore. Absent on\nexplores built before hashes, which counts as out of date."
                     },
                     "baseVersion": {
                         "type": "number",
@@ -32388,6 +32553,106 @@
                 "type": "object",
                 "description": "Rows and a visualize-tool viz config to draw as the Slack chart image; vizConfig is parsed server-side."
             },
+            "SlackNativeChartImageReason": {
+                "type": "string",
+                "enum": [
+                    "unsupported_type",
+                    "horizontal_bar",
+                    "area",
+                    "secondary_axis",
+                    "stacked",
+                    "no_rows",
+                    "no_x_axis",
+                    "no_series",
+                    "too_many_categories",
+                    "too_many_series",
+                    "missing_value",
+                    "non_numeric_value",
+                    "invalid_time_value",
+                    "empty_label",
+                    "duplicate_category",
+                    "duplicate_series",
+                    "category_label_collision",
+                    "series_label_collision"
+                ]
+            },
+            "ApiAiAgentVisualizeSlackSendResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "permalink": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "ts": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "blocks": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Record_string.unknown_"
+                                },
+                                "type": "array",
+                                "description": "Empty when nothing was posted."
+                            },
+                            "reason": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/SlackNativeChartImageReason"
+                                    }
+                                ],
+                                "nullable": true,
+                                "description": "Why the chart is not native; null when it is."
+                            },
+                            "route": {
+                                "type": "string",
+                                "enum": ["native", "image"]
+                            }
+                        },
+                        "required": [
+                            "permalink",
+                            "ts",
+                            "blocks",
+                            "reason",
+                            "route"
+                        ],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentVisualizeSlackSendRequest": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ApiAiAgentVisualizeSlackPreviewRequest"
+                    },
+                    {
+                        "properties": {
+                            "route": {
+                                "type": "string",
+                                "enum": ["auto", "native", "image"],
+                                "description": "auto applies the native chart rules; native and image force a route."
+                            },
+                            "threadTs": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "channel": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["route", "threadTs", "channel"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Dev-only harness: posts a visualize chart to Slack, native or as an image."
+            },
             "AiAgentUserPreferences": {
                 "properties": {
                     "defaultAgentUuid": {
@@ -35808,6 +36073,7 @@
                     "findContent",
                     "createContent",
                     "analyzeFieldImpact",
+                    "askUser",
                     "closePullRequest",
                     "createScheduledDelivery",
                     "delegateResearchTask",
@@ -39842,6 +40108,85 @@
                 "type": "object",
                 "description": "A query sent live to an external API at question time. Nothing is ingested:\nthe connector runs the payload and its rows become this node's result."
             },
+            "QuerySourceType.MERGE": {
+                "enum": ["merge"],
+                "type": "string"
+            },
+            "MergeSourceQueryInput": {
+                "properties": {
+                    "repeatValues": {
+                        "type": "boolean",
+                        "description": "See MergeQueryMetricSource.repeatValues."
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId"
+                    }
+                },
+                "required": ["nodeId"],
+                "type": "object",
+                "description": "One input of a merge node: a semanticLayer node of the same submission."
+            },
+            "MergeSourceQuery": {
+                "properties": {
+                    "pivotConfiguration": {
+                        "$ref": "#/components/schemas/PivotConfiguration",
+                        "description": "Merge queries refuse a pivot; pivot in a referencing duckdb query."
+                    },
+                    "limit": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "sorts": {
+                        "items": {
+                            "$ref": "#/components/schemas/SortField"
+                        },
+                        "type": "array",
+                        "description": "Sort of the merged result, by merged column id. Defaults to join-key order."
+                    },
+                    "tableCalculations": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeTableCalculation"
+                        },
+                        "type": "array",
+                        "description": "Calculations over the merged row. Defaults to none."
+                    },
+                    "joinType": {
+                        "$ref": "#/components/schemas/MergeJoinType"
+                    },
+                    "joinKey": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeJoinKeyPart"
+                        },
+                        "type": "array",
+                        "description": "Join key parts, each naming one field per source by node id."
+                    },
+                    "sources": {
+                        "items": {
+                            "$ref": "#/components/schemas/MergeSourceQueryInput"
+                        },
+                        "type": "array",
+                        "description": "At least two semanticLayer nodes, in order; a left join keeps the first one's rows."
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One-line note on what this query does, shown under the title."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Plain-language label shown to users instead of the node id. Optional: the public query-sources API accepts and ignores it."
+                    },
+                    "nodeId": {
+                        "$ref": "#/components/schemas/QueryNodeId",
+                        "description": "Names this query so other queries in the same submission can reference its results."
+                    },
+                    "sourceType": {
+                        "$ref": "#/components/schemas/QuerySourceType.MERGE"
+                    }
+                },
+                "required": ["joinType", "joinKey", "sources", "sourceType"],
+                "type": "object",
+                "description": "semanticLayer nodes joined on shared keys; the nodes are the legs, read as they ran.\nColumns are `<nodeId>_<fieldId>`, and `merge_<name>` for keys and calculations."
+            },
             "SourceQuery": {
                 "anyOf": [
                     {
@@ -39861,6 +40206,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/ApiSourceQuery"
+                    },
+                    {
+                        "$ref": "#/components/schemas/MergeSourceQuery"
                     }
                 ],
                 "description": "The tagged union every submit endpoint takes: one shape per source,\ndiscriminated by sourceType. New sources add a member here — this union is\nthe extension point, not new WarehouseTypes values."
@@ -58726,6 +59074,7 @@
                     "consolidateAiAgentMemoryPartition",
                     "cleanMcpToolCalls",
                     "cleanRateCounters",
+                    "rebuildOutdatedApiSourceExplores",
                     "cleanDataAppAnalyses",
                     "cleanAiDeepResearchReports",
                     "cleanAiAgentThreads",
@@ -64939,7 +65288,7 @@
             },
             "OrganizationDesignFileKind": {
                 "type": "string",
-                "enum": ["instruction", "css", "font", "image"]
+                "enum": ["instruction", "image", "css", "font"]
             },
             "ApiOrganizationDesignFile": {
                 "properties": {
@@ -67047,6 +67396,10 @@
                 ],
                 "type": "string"
             },
+            "MobileSignInDeclinedBy": {
+                "type": "string",
+                "enum": ["web", "phone", "failed_redeems"]
+            },
             "MobileSignInPlatform": {
                 "type": "string",
                 "enum": ["ios", "android"]
@@ -67081,6 +67434,14 @@
                         ],
                         "nullable": true
                     },
+                    "declinedBy": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MobileSignInDeclinedBy"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "matchNumber": {
                         "type": "string",
                         "nullable": true
@@ -67097,6 +67458,7 @@
                 },
                 "required": [
                     "device",
+                    "declinedBy",
                     "matchNumber",
                     "expiresAt",
                     "status",
@@ -73605,7 +73967,8 @@
                     "duckdb",
                     "external",
                     "python",
-                    "api"
+                    "api",
+                    "merge"
                 ],
                 "type": "string"
             },
@@ -77401,7 +77764,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.211.5",
+        "version": "3.228.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

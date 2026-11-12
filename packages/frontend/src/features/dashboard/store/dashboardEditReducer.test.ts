@@ -319,15 +319,22 @@ describe('tile selectors', () => {
                     actions.syncControlSections(sections),
                 );
 
-            it('stores no order for the first section', () => {
+            it('stores the first section inline at the end of the bar order', () => {
+                const loose = [{ kind: FILTER, id: 'f' }];
                 const state = reducer(
                     initialDashboardEditState,
-                    actions.addControlSection({ section: added, barOrder: [] }),
+                    actions.addControlSection({
+                        section: added,
+                        barOrder: loose,
+                    }),
                 );
                 expect(state.controlSections).toEqual([added]);
                 expect(state.haveControlSectionsChanged).toBe(true);
-                expect(state.controlOrder).toBeUndefined();
-                expect(state.hasControlOrderChanged).toBe(false);
+                expect(state.controlOrder).toEqual([
+                    ...loose,
+                    { kind: SECTION, id: 'c' },
+                ]);
+                expect(state.hasControlOrderChanged).toBe(true);
             });
 
             it('stores the bar order with it on the line of the section before, without a stored order', () => {
@@ -450,6 +457,50 @@ describe('tile layout undo and redo', () => {
         actions.moveTiles([{ uuid, x, y: 0, w: 6, h: 3 }]);
     const xs = (state: typeof initialDashboardEditState) =>
         state.tiles?.map((t) => t.x);
+
+    it('tidies the tab in view only, as one undo step', () => {
+        const tabs = ['one', 'two'].map((uuid, order) => ({
+            uuid,
+            name: uuid,
+            order,
+        }));
+        const on = (uuid: string, tabUuid: string, y: number) => ({
+            ...tile(uuid),
+            tabUuid,
+            y,
+        });
+        const ys = (state: typeof initialDashboardEditState) =>
+            state.tiles?.map((t) => t.y);
+        const start = [
+            actions.setTabs(tabs),
+            actions.setActiveTab(tabs[0]),
+        ].reduce(
+            reducer,
+            editing([on('a', 'one', 5), on('b', 'one', 20), on('c', 'two', 9)]),
+        );
+
+        const tidy = reducer(start, actions.tidyTiles());
+        expect(ys(tidy)).toEqual([0, 3, 9]);
+        expect(tidy.haveTilesChanged).toBe(true);
+
+        expect(ys(reducer(tidy, actions.undoTileLayout()))).toEqual([5, 20, 9]);
+        expect(reducer(tidy, actions.tidyTiles())).toBe(tidy);
+    });
+
+    it('tidies gaps and row widths in one undo step', () => {
+        const start = editing([tile('a'), { ...tile('b', 6), y: 12 }]);
+        const placement = (state: typeof initialDashboardEditState) =>
+            state.tiles?.map(({ x, y, w }) => [x, y, w]);
+
+        const tidy = reducer(start, actions.tidyTiles());
+        expect(placement(tidy)).toEqual([
+            [0, 0, 18],
+            [18, 0, 18],
+        ]);
+        expect(placement(reducer(tidy, actions.undoTileLayout()))).toEqual(
+            placement(start),
+        );
+    });
 
     it('undoes and redoes a move', () => {
         const moved = reducer(editing([tile('a'), tile('b', 6)]), move('a', 3));

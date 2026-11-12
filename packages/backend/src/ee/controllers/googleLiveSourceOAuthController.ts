@@ -48,12 +48,14 @@ export class GoogleLiveSourceOAuthController extends BaseController {
         @Query() name: string,
         @Query() connectionUuid?: string,
         @Query() returnTo?: string,
+        @Query() explorePrefix?: string,
     ): Promise<void> {
         assertRegisteredAccount(req.account);
         const { authorizeUrl, state, session } =
             await this.getService().startGoogleOAuth(req.account, projectUuid, {
                 connector,
                 name,
+                explorePrefix,
                 connectionUuid: connectionUuid ?? null,
             });
         req.session.oauth = {

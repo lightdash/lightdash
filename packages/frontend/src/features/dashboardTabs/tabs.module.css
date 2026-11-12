@@ -46,9 +46,10 @@
 
 .list {
     /* Quiet tabs: no grip, the whole tab drags. One trailing slot holds the
-       menu and the tab count in a single grid cell, as wide as the widest
-       count, so nothing in it ever changes the tab's width. The draggable
-       wrapper carries the attribute: its hover and focus reveal the menu */
+       menu and the tab count in a single grid cell. While a filter is open it
+       is as wide as the widest count, so no count changes the tab's width. The
+       draggable wrapper carries the attribute: its hover and focus reveal the
+       menu */
     [data-quiet-actions] {
         cursor: grab;
 
@@ -159,6 +160,86 @@
 
 .gridInteracting {
     user-select: none;
+}
+
+/* The tile holds its place until the drop; only its shadow moves */
+.dropShadow :global(.react-grid-item.react-draggable-dragging),
+.dropShadow :global(.react-grid-item.resizing) {
+    top: var(--pinned-top) !important;
+    left: var(--pinned-left) !important;
+    width: var(--pinned-width) !important;
+    height: var(--pinned-height) !important;
+    z-index: 1;
+    /* Dimmed to show which tile the shadow stands for */
+    opacity: 0.5;
+    transition: opacity 120ms var(--grid-ease-out);
+}
+
+.dropShadow,
+.gridSettling {
+    --grid-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* Where the tile will land, drawn over the tiles it would push down */
+.dropShadow :global(.react-grid-item.react-grid-placeholder) {
+    background: none;
+    opacity: 1;
+    /* It is the only thing following the pointer, so its position must not
+       trail it */
+    transition: opacity 100ms var(--grid-ease-out);
+
+    &::after {
+        content: '';
+        position: absolute;
+        inset: var(--tile-gutter);
+        border-radius: var(--mantine-radius-md);
+        background: color-mix(
+            in srgb,
+            var(--mantine-color-ldGray-5) 35%,
+            transparent
+        );
+    }
+}
+
+@starting-style {
+    .dropShadow :global(.react-grid-item.react-grid-placeholder) {
+        opacity: 0;
+    }
+}
+
+/* Jumping into a row slot is a change of state, so it eases there */
+.dropShadow[data-shadow-snapped]
+    :global(.react-grid-item.react-grid-placeholder) {
+    transition:
+        opacity 100ms var(--grid-ease-out),
+        left 150ms var(--grid-ease-out),
+        top 150ms var(--grid-ease-out),
+        width 150ms var(--grid-ease-out),
+        height 150ms var(--grid-ease-out);
+}
+
+/* After a drop, tiles travel to their new place. Keep DROP_SETTLE_MS in step
+   with the duration */
+.gridSettling :global(.react-grid-item) {
+    transition-property: left, top, opacity;
+    transition-duration: 200ms;
+    transition-timing-function: var(--grid-ease-out);
+}
+
+/* Size joins in only when few tiles resize */
+.gridSettlingSize :global(.react-grid-item) {
+    transition-property: left, top, width, height, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dropShadow[data-shadow-snapped]
+        :global(.react-grid-item.react-grid-placeholder) {
+        transition: opacity 100ms var(--grid-ease-out);
+    }
+
+    .gridSettling :global(.react-grid-item) {
+        transition-property: opacity;
+    }
 }
 
 /* Fit to screen jumping to another snap target: the tiles and the grid spring

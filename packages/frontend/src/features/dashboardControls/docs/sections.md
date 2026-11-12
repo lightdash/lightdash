@@ -24,12 +24,12 @@ _group_ (that is `requiredGroupId`).
 
 - **An order is stored only after a reorder.** That means a drag, a keyboard
   move, any section change (by drag, the editor's Section setting, or the
-  selection bar), or adding a section after the first. Every other edit keeps
-  what is stored, which may be none.
+  selection bar), or adding a section. Every other edit keeps what is
+  stored, which may be none.
   The save (`getControlsToSave`) writes the full reconciled list, never `[]`,
   and sorts each kind's array to follow it. A flag-off save carries the
   stored order forward.
-- **A reorder freezes never-saved parameter controls.** Their ids are made per
+- **A reorder or a new section freezes never-saved parameter controls.** Their ids are made per
   load, so `arrangeControls` marks them changed and the save stores them with
   the order. An order that doesn't list them shows them before the first
   section (`getEffectiveControlOrder`).
@@ -45,12 +45,11 @@ _group_ (that is `requiredGroupId`).
 ## Bar layout
 
 - No stored order: "Add filter", unsectioned pills, one capsule per section
-  on its own line, then "New section" (edit mode). Adding a section after the
-  first stores the bar's order with the new section last and no `newLine`,
-  so it joins the line of the section before it (`addControlSection`).
-- "New section" and a new section's name input end the last line once a
-  section exists, where the new section lands; the first is named on the
-  line below the filters.
+  on its own line, then "New section" (edit mode). Adding a section, the
+  first included, stores the bar's order with the new section last and no
+  `newLine`, so it ends the bar's last line (`addControlSection`).
+- "New section" and a new section's name input end the last line, where the
+  new section lands: inline after the pills for the first.
 - Stored order: one `.orderLine` per line. "Add filter" is first on line one,
   kinds are mixed, and a capsule holds its members in order. Unsaved pills
   ("needs value", temporary and the viewer's own) end the last line.

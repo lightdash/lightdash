@@ -222,6 +222,7 @@ export enum EventName {
     AI_AGENT_SUGGESTIONS_DISPLAYED = 'ai_agent.suggestions_displayed',
     AI_AGENT_SUGGESTION_IMPRESSION = 'ai_agent.suggestion_impression',
     AI_AGENT_SUGGESTION_CLICK = 'ai_agent.suggestion_click',
+    AI_AGENT_QUESTION_ANSWERED = 'ai_agent.question_answered',
     AI_DEEP_RESEARCH_REPORT_ENGAGED = 'ai_deep_research.report_engaged',
     AI_AGENT_BATTLE_STARTED = 'ai_agent_battle.started',
     AI_AGENT_RESPONSE_FEEDBACK_CLICKED = 'ai_agent_response.feedback_clicked',

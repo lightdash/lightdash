@@ -1,6 +1,7 @@
 {
     "base": "no_data_access",
     "addOns": [
+        "askUser",
         "contentReads",
         "contentTools",
         "customChartTypes",
@@ -25,6 +26,7 @@
     ],
     "toolNames": [
         "analyzeFieldImpact",
+        "askUser",
         "closePullRequest",
         "createContent",
         "createScheduledDelivery",

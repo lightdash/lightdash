@@ -673,6 +673,9 @@ const getMockedAsyncQueryService = (
             enqueueDuckdbQuery: vi.fn(async () => ({
                 jobId: 'test-nats-duckdb-job-id',
             })),
+            enqueueExternalSourceQuery: vi.fn(async () => ({
+                jobId: 'test-nats-external-source-job-id',
+            })),
         } as unknown as INatsClient,
         downloadFileModel: {} as unknown as DownloadFileModel,
         fileStorageClient: {} as FileStorageClient,
@@ -1657,20 +1660,10 @@ describe('AsyncQueryService', () => {
             });
         };
 
-        test('requires the external sources flag', async () => {
-            await expect(
-                execute({
-                    [FeatureFlags.ComposeSqlRunner]: true,
-                }),
-            ).rejects.toThrow('External sources are not enabled');
-        });
-
         test('requires the compose SQL runner flag', async () => {
-            await expect(
-                execute({
-                    [FeatureFlags.ExternalSources]: true,
-                }),
-            ).rejects.toThrow('Compose SQL queries are not enabled');
+            await expect(execute({})).rejects.toThrow(
+                'Compose SQL queries are not enabled',
+            );
         });
 
         test('rejects attachments created by another user', async () => {
@@ -7103,6 +7096,7 @@ describe('AsyncQueryService', () => {
                               userAttributeOverrides: {},
                               invalidateCache: false,
                               resolvedReferences: {},
+                              submission: [],
                               pivotConfiguration: null,
                               plan: null,
                           });
@@ -19534,6 +19528,7 @@ describe('query sources carry the execution context', () => {
         projectUuid,
         context: QueryExecutionContext.MULTI_SOURCE_QUERY,
         resolvedReferences: {},
+        submission: [],
         parameters: {},
         userAttributeOverrides: {},
         invalidateCache: false,
@@ -22262,9 +22257,7 @@ describe('fresh stored result read boundary', () => {
         vi.mocked(f.service.featureFlagModel.get).mockImplementation(
             async ({ featureFlagId }) => ({
                 id: featureFlagId,
-                enabled:
-                    featureFlagId === FeatureFlags.AgentIdentity ||
-                    featureFlagId === FeatureFlags.ExternalSources,
+                enabled: featureFlagId === FeatureFlags.AgentIdentity,
             }),
         );
         vi.mocked(f.service.projectModel.getExploreFromCache).mockResolvedValue(
@@ -22344,7 +22337,7 @@ describe('fresh stored result read boundary', () => {
         vi.mocked(f.service.featureFlagModel.get).mockImplementation(
             async ({ featureFlagId }) => ({
                 id: featureFlagId,
-                enabled: featureFlagId === FeatureFlags.ExternalSources,
+                enabled: false,
             }),
         );
         await expect(submit()).resolves.toHaveProperty('queryUuid');
@@ -24474,7 +24467,6 @@ describe('fresh execution producer to result reader', () => {
                 enabled: [
                     FeatureFlags.AgentIdentity,
                     FeatureFlags.ComposeSqlRunner,
-                    FeatureFlags.ExternalSources,
                 ].some((flag) => flag === featureFlagId),
             }),
         );
@@ -29339,6 +29331,7 @@ describe('fresh execution producer to result reader', () => {
                 }
                 registerPreAggregateStream();
                 const message = {
+                    info: { deliveryCount: 1 },
                     subject: STREAM_CONFIGS[kind].subjects.query,
                     data: StringCodec().encode(
                         JSON.stringify({
@@ -31361,5 +31354,220 @@ describe('results cache stats', () => {
                 7,
             ),
         ).rejects.toThrow(ForbiddenError);
+    });
+});
+
+describe('external source explore queries on the worker', () => {
+    const table = {
+        external_source_table_uuid: 'source-table',
+        external_source_scope: ExternalSourceScope.CATALOG,
+        external_source_created_by_user_uuid: 'someone',
+        external_source_status: ExternalSourceStatus.READY,
+        version: 1,
+        locator: { format: 'parquet', uri: 's3://fixture/source.parquet' },
+        columns: {
+            a_dim1: { reference: 'a_dim1', type: DimensionType.STRING },
+        },
+    };
+
+    const setup = () => {
+        const service = getMockedAsyncQueryService({
+            ...lightdashConfigMock,
+            natsWorker: { ...lightdashConfigMock.natsWorker, enabled: true },
+        });
+        const history = {
+            queryUuid: 'external-query',
+            projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            status: QueryHistoryStatus.QUEUED,
+            createdAt: new Date(),
+            context: QueryExecutionContext.EXPLORE,
+            createdByActorType: 'session',
+            createdByUserUuid: 'user-uuid',
+            compiledSql: 'SELECT a_dim1 FROM "uploads"',
+            requestParameters: { externalSourceReferences: ['source-table'] },
+            metricQuery: { ...metricQueryMock, exploreName: 'uploads' },
+            fields: {},
+        } as QueryHistory;
+        vi.mocked(service.queryHistoryModel.getByQueryUuid).mockResolvedValue(
+            history,
+        );
+        const createExecutionWarehouseClient = vi.fn(() => ({
+            credentials: { type: WarehouseTypes.DUCKDB },
+        }));
+        const resolver = vi.fn(async () => table);
+        Object.assign(service, {
+            externalSourceTableResolver: resolver,
+            composeEngineClient: { createExecutionWarehouseClient },
+        });
+        const run = vi
+            .spyOn(service, 'runAsyncWarehouseQuery')
+            .mockResolvedValue(undefined);
+        return {
+            service,
+            history,
+            run,
+            resolver,
+            createExecutionWarehouseClient,
+        };
+    };
+
+    const submit = (f: ReturnType<typeof setup>) => {
+        const explore: Explore = {
+            ...structuredClone(validExplore),
+            type: ExploreType.EXTERNAL_SOURCE,
+            targetDatabase: SupportedDbtAdapter.DUCKDB,
+            externalSource: {
+                tableUuid: 'source-table',
+                sourceUuid: 'source',
+                sourceType: ExternalSourceType.CSV,
+            },
+        };
+        vi.mocked(f.service.featureFlagModel.get).mockImplementation(
+            async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled: false,
+            }),
+        );
+        vi.mocked(f.service.projectModel.getExploreFromCache).mockResolvedValue(
+            explore,
+        );
+        vi.spyOn(f.service, 'getUserAttributes').mockResolvedValue({
+            userAttributes: {},
+            intrinsicUserAttributes: {},
+        });
+        return f.service['executeAsyncQuery'](
+            {
+                account: sessionAccount,
+                projectUuid,
+                context: QueryExecutionContext.EXPLORE,
+                aiPrincipalUuid: null,
+                inheritedFromProjectUuid: null,
+                warehouseCredentials: copyWarehouseCredentialVersions(
+                    {
+                        ...aiExecutionPlanMock.credentials,
+                        userWarehouseCredentialsUuid: undefined,
+                    },
+                    aiExecutionPlanMock.credentials,
+                ),
+                warehouseConnectionUuid: null,
+                queryComposer: createQueryComposerMock({ explore }),
+                queryTags: { query_context: QueryExecutionContext.EXPLORE },
+            },
+            { query: metricQueryMock },
+        );
+    };
+
+    it('hands a submitted query to the worker and runs nothing itself', async () => {
+        const f = setup();
+
+        const { queryUuid } = await submit(f);
+
+        expect(
+            f.service.natsClient.enqueueExternalSourceQuery,
+        ).toHaveBeenCalledWith(expect.objectContaining({ queryUuid }));
+        expect(
+            f.service.queryHistoryModel.updateStatusToQueued,
+        ).toHaveBeenCalledWith(queryUuid);
+        expect(f.run).not.toHaveBeenCalled();
+    });
+
+    it('runs in this process when no worker takes the subject', async () => {
+        const f = setup();
+        vi.mocked(
+            f.service.natsClient.enqueueExternalSourceQuery,
+        ).mockRejectedValueOnce(
+            new NatsNoRespondersError('pre_aggregate.external_source.jobs'),
+        );
+
+        await submit(f);
+
+        await vi.waitFor(() => expect(f.run).toHaveBeenCalledOnce());
+        expect(f.run.mock.calls[0][0].query).toContain(
+            's3://fixture/source.parquet',
+        );
+    });
+
+    it('rebinds the file from the history row and runs on a session scoped to it', async () => {
+        const f = setup();
+
+        await expect(
+            f.service.runAsyncExternalSourceQueryFromHistory(
+                'external-query',
+                'worker-1',
+            ),
+        ).resolves.toBe(true);
+
+        expect(f.resolver).toHaveBeenCalledWith(projectUuid, 'source-table');
+        expect(f.createExecutionWarehouseClient).toHaveBeenCalledWith({
+            storage: 'externalSources',
+            scope: 's3://fixture/source.parquet',
+        });
+        const [args] = f.run.mock.calls[0];
+        expect(args.query).toContain('"uploads" AS (SELECT * FROM');
+        expect(args.query).toContain('s3://fixture/source.parquet');
+        expect(args.query).toContain(f.history.compiledSql);
+        expect(args.warehouseClientOverride?.executionSource).toBe(
+            'external_source_duckdb',
+        );
+    });
+
+    it('records the stored warehouse connection on the result producer', async () => {
+        const f = setup();
+        f.history.warehouseConnectionUuid = 'connection-uuid';
+
+        await f.service.runAsyncExternalSourceQueryFromHistory(
+            'external-query',
+            'worker-1',
+        );
+
+        expect(
+            f.run.mock.calls[0][0].resultProducerOverride
+                ?.warehouseConnectionUuid,
+        ).toBe('connection-uuid');
+    });
+
+    it('errors the claimed row when the history row names no source table', async () => {
+        const f = setup();
+        f.history.requestParameters = {
+            ...f.history.requestParameters,
+            externalSourceReferences: undefined,
+        };
+
+        await expect(
+            f.service.runAsyncExternalSourceQueryFromHistory(
+                'external-query',
+                'worker-1',
+            ),
+        ).rejects.toThrow('External source reference not found');
+
+        expect(
+            f.service.queryHistoryModel.updateClaimedQueryToError,
+        ).toHaveBeenCalledWith(
+            'external-query',
+            expect.stringContaining('External source reference not found'),
+        );
+        expect(f.run).not.toHaveBeenCalled();
+    });
+
+    it('errors the claimed row when the table is no longer ready', async () => {
+        const f = setup();
+        f.resolver.mockResolvedValueOnce({
+            ...table,
+            external_source_status: ExternalSourceStatus.SYNCING,
+        });
+
+        await f.service.runAsyncExternalSourceQueryFromHistory(
+            'external-query',
+            'worker-1',
+        );
+
+        expect(
+            f.service.queryHistoryModel.updateClaimedQueryToError,
+        ).toHaveBeenCalledWith(
+            'external-query',
+            expect.stringContaining('not ready'),
+        );
+        expect(f.run).not.toHaveBeenCalled();
     });
 });

@@ -238,9 +238,11 @@ export const getControlsToSave = ({
         ...parameterInputs,
         parameterControls:
             orderToSave?.parameterControls ?? parameterInputs.parameterControls,
+        // An empty list has no ids to keep; saving it would stop the tile fill
         haveParameterControlsChanged:
             parameterInputs.haveParameterControlsChanged ||
-            orderToSave !== null,
+            (orderToSave !== null &&
+                (parameterInputs.parameterControls?.length ?? 0) > 0),
     });
     return {
         dimensions: orderToSave?.dimensions ?? dimensions,

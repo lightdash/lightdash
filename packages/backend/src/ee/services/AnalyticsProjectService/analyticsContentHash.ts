@@ -6,6 +6,7 @@ import {
 import { createHash } from 'crypto';
 import { analyticsDefaultSpace } from '../../../analytics/systemExplores/sampleContent';
 import { buildContentAsCodeSnapshot } from '../../../services/CoderService/contentAsCodeSnapshot';
+import { analyticsHomepage } from './analyticsHomepage';
 
 export const getAnalyticsContentHash = (
     explores: Explore[],
@@ -16,6 +17,7 @@ export const getAnalyticsContentHash = (
             JSON.stringify({
                 explores,
                 space: analyticsDefaultSpace,
+                homepage: analyticsHomepage,
                 bundles: bundles.map(({ dashboard, charts }) => ({
                     dashboard:
                         buildContentAsCodeSnapshot(dashboard).snapshotHash,

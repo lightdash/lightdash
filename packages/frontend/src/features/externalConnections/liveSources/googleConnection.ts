@@ -66,9 +66,11 @@ export const getGoogleSignInUrl = (
     name: string,
     connectionUuid: string | null,
     returnTo: LiveSourceReturnTo,
+    explorePrefix?: string,
 ) => {
     const params = new URLSearchParams({ connector, name: name.trim() });
     if (connectionUuid) params.set('connectionUuid', connectionUuid);
+    if (explorePrefix) params.set('explorePrefix', explorePrefix);
     setLiveSourceReturnTo(params, returnTo);
     return `/api/v1/ee/projects/${projectUuid}/live-sources/google/oauth/start?${params.toString()}`;
 };

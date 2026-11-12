@@ -80,6 +80,25 @@ const getRenderPropertiesByField = (
     return renderProperties;
 };
 
+/**
+ * Whether each field's stack total is on, for fields that already have series.
+ * A stack's total is drawn when any of its series asks for it (see
+ * getStackTotalSeries), so new series of a field follow the same rule.
+ */
+const getIsStackTotalShownByField = (
+    existingSeries: Series[] | undefined,
+): Map<string, boolean> => {
+    const isShownByField = new Map<string, boolean>();
+    (existingSeries ?? []).forEach((series) => {
+        const field = series.encode.yRef.field;
+        isShownByField.set(
+            field,
+            (isShownByField.get(field) ?? false) || !!series.stackLabel?.show,
+        );
+    });
+    return isShownByField;
+};
+
 export type GetExpectedSeriesMapArgs = {
     defaultSmooth?: boolean;
     defaultShowSymbol?: boolean;
@@ -134,12 +153,31 @@ export const getExpectedSeriesMap = ({
         }),
     };
     const renderPropertiesByField = getRenderPropertiesByField(existingSeries);
+    const isStackTotalShownByField =
+        getIsStackTotalShownByField(existingSeries);
 
-    const getPropertiesForField = (field: string) => ({
-        ...defaultProperties,
-        yAxisIndex: defaultYAxisIndexByField?.[field] ?? 0,
-        ...renderPropertiesByField.get(field),
-    });
+    const getPropertiesForField = (field: string) => {
+        // The chart-wide default comes from the chart's first series, which
+        // may belong to another field. A field that already has series keeps
+        // its own total setting instead.
+        const { stackLabel: chartStackLabel, ...properties } = {
+            stackLabel: undefined,
+            ...defaultProperties,
+        };
+        const isStackTotalShown = isStackTotalShownByField.get(field);
+        const stackLabel =
+            isStackTotalShown === undefined
+                ? chartStackLabel
+                : isStackTotalShown
+                  ? { show: true }
+                  : undefined;
+        return {
+            ...properties,
+            ...(stackLabel !== undefined && { stackLabel }),
+            yAxisIndex: defaultYAxisIndexByField?.[field] ?? 0,
+            ...renderPropertiesByField.get(field),
+        };
+    };
 
     if (pivotKeys && pivotKeys.length > 0) {
         const { rowKeyMap } = getPivotedDataFromPivotDetails(
