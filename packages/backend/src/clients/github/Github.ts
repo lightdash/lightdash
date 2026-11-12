@@ -824,19 +824,26 @@ export const listReposAccessibleToUser = async ({
     }
 };
 
-export const getInstallationToken = async (
+export const getInstallationAccessToken = async (
     installationId: string,
-): Promise<string> => {
+): Promise<{ token: string; expiresAt: string }> => {
     try {
         const octokit = getOctokitRestForApp(installationId);
         const response = await octokit.rest.apps.createInstallationAccessToken({
             installation_id: parseInt(installationId, 10),
         });
-        return response.data.token;
+        return {
+            token: response.data.token,
+            expiresAt: response.data.expires_at,
+        };
     } catch (error) {
         throw new UnexpectedGitError(getErrorMessage(error));
     }
 };
+
+export const getInstallationToken = async (
+    installationId: string,
+): Promise<string> => (await getInstallationAccessToken(installationId)).token;
 
 export const updateFile = async ({
     owner,

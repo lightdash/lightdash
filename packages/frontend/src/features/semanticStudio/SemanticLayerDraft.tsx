@@ -389,7 +389,7 @@ const PreviewToggle: FC<{
     >
         <ActionIcon
             size="md"
-            variant={isPreviewing ? 'filled' : 'default'}
+            variant={isPreviewing ? 'light' : 'default'}
             color={isPreviewing ? 'orange' : undefined}
             aria-label={isPreviewing ? 'Back to live' : 'Try my changes'}
             aria-pressed={isPreviewing}

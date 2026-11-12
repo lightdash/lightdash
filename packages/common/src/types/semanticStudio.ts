@@ -39,6 +39,8 @@ export type SemanticLayerModelChange = {
     otherModels: string[];
     /** Who made the change; null when that person is gone. */
     by: string | null;
+    /** The uuid of who made the change; null when that person is gone. */
+    byUserUuid: string | null;
     /** The parts this change wrote over that someone else had changed just before; null when it wrote over nobody. */
     replaced: { by: string | null; paths: string[] } | null;
 };

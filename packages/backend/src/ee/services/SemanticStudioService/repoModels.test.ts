@@ -1,6 +1,24 @@
 import { DbtProjectType } from '@lightdash/common';
-import { describe, expect, it } from 'vitest';
-import { describePullRequest, resolveRepoConnection } from './repoModels';
+import { describe, expect, it, vi } from 'vitest';
+import {
+    getInstallationAccessToken,
+    getLastCommit,
+    getRepoTree,
+} from '../../../clients/github/Github';
+import {
+    describePullRequest,
+    RepoModelSource,
+    resolveRepoConnection,
+} from './repoModels';
+
+vi.mock('../../../clients/github/Github', () => ({
+    getInstallationAccessToken: vi.fn(async () => ({
+        token: 'token',
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    })),
+    getLastCommit: vi.fn(async () => ({ sha: 'sha' })),
+    getRepoTree: vi.fn(async () => ({ files: [], truncated: false })),
+}));
 
 const github = {
     type: DbtProjectType.GITHUB,
@@ -25,6 +43,45 @@ describe('resolveRepoConnection', () => {
     it('is nothing for a dbt project or a project with no repository', () => {
         expect(resolveRepoConnection(github)).toBeNull();
         expect(resolveRepoConnection({ type: DbtProjectType.NONE })).toBeNull();
+    });
+
+    it('is nothing for a connection that does not use the GitHub App on github.com', () => {
+        const native = { ...github, semanticLayer: 'lightdash' } as const;
+        expect(
+            resolveRepoConnection({
+                ...native,
+                authorization_method: 'personal_access_token',
+            }),
+        ).toBeNull();
+        expect(
+            resolveRepoConnection({
+                ...native,
+                host_domain: 'github.example.com',
+            }),
+        ).toBeNull();
+        expect(
+            resolveRepoConnection({ ...native, host_domain: 'GitHub.com' }),
+        ).not.toBeNull();
+    });
+});
+
+describe('RepoModelSource', () => {
+    it('mints one installation token for reads until it nears expiry', async () => {
+        const source = new RepoModelSource({
+            githubAppInstallationsModel: {
+                findInstallationId: async () => '42',
+            },
+        });
+        const connection = resolveRepoConnection({
+            ...github,
+            semanticLayer: 'lightdash',
+        });
+        if (!connection) throw new Error('expected a connection');
+        await source.load('org', connection);
+        await source.load('org', connection);
+        expect(getInstallationAccessToken).toHaveBeenCalledTimes(1);
+        expect(getLastCommit).toHaveBeenCalledTimes(2);
+        expect(getRepoTree).toHaveBeenCalledTimes(1);
     });
 });
 
