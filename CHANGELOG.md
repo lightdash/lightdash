@@ -1,3 +1,15 @@
+# [3.231.0](https://github.com/lightdash/lightdash/compare/3.230.0...3.231.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **ai:** align tool description formatting ([#32465](https://github.com/lightdash/lightdash/issues/32465)) ([0c251f8](https://github.com/lightdash/lightdash/commit/0c251f823fc616bbfc5d8ee8c35d7a9079221244))
+
+
+### Features
+
+* **permissions:** add manage:MergeQuery scope for merge authoring ([#32475](https://github.com/lightdash/lightdash/issues/32475)) ([0db28dd](https://github.com/lightdash/lightdash/commit/0db28ddaf49ff0f6ba78602a04330343417ae09b))
+
 # [3.230.0](https://github.com/lightdash/lightdash/compare/3.229.0...3.230.0) (2026-11-12)
 
 

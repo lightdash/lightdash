@@ -1267,6 +1267,14 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:MergeQuery',
+        description: 'Merge queries and save merged charts',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }, { name: 'manage:Explore' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:Explore@self',
         description:
             'Explore and query data in preview projects created by the user',
