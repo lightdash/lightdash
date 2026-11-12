@@ -305,6 +305,8 @@ export type AiAgentArgs = AnyAiModel & {
     enableEditProjectContext: boolean;
     // A thread started in Semantic Studio: it drafts model changes and builds no content.
     isSemanticStudioThread: boolean;
+    // Whether that thread proposes into a draft; false on a dbt project, where it edits the repository.
+    semanticStudioDrafts: boolean;
     // Which GitHub identity a writeback PR would be attributed to (advisory,
     // resolved at prompt-assembly time). null when not applicable/unresolved.
     writebackAttribution: AiWritebackAttribution | null;

@@ -143,6 +143,7 @@ export type LoadoutInput = Pick<
     | 'enableRepoDiscovery'
     | 'enableEditProjectContext'
     | 'isSemanticStudioThread'
+    | 'semanticStudioDrafts'
     | 'enableReadAttachments'
     | 'enableAskUser'
     | 'customSkills'

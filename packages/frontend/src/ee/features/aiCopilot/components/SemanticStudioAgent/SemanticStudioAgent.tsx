@@ -1,5 +1,6 @@
 import {
     type AiAgentSummary,
+    type AiAgentThread,
     type AiPromptContext,
     type AiPromptContextInput,
 } from '@lightdash/common';
@@ -14,10 +15,17 @@ import {
     Text,
     Tooltip,
 } from '@mantine/core';
-import { IconLayoutSidebarRightCollapse, IconPlus } from '@tabler/icons-react';
+import {
+    IconGitPullRequest,
+    IconLayoutSidebarRightCollapse,
+    IconPlus,
+} from '@tabler/icons-react';
 import { useEffect, useEffectEvent, useRef, type FC } from 'react';
 import { Provider } from 'react-redux';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { SidebarPosition } from '../../../../../components/common/Page/types';
+import { useKeepsSemanticLayerDraft } from '../../../../../features/semanticStudio/useSemanticLayerModel';
+import useSidebarResize from '../../../../../hooks/useSidebarResize';
 import { useAiAgentSqlModeAvailable } from '../../hooks/useAiAgentSqlModeAvailable';
 import { usePendingThreadRefetch } from '../../hooks/usePendingThreadRefetch';
 import {
@@ -29,12 +37,14 @@ import { store } from '../../store';
 import { AiAgentThreadStreamAbortControllerContextProvider } from '../../streaming/AiAgentThreadStreamAbortControllerContextProvider';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
+import { QuietCardsContext } from '../ChatElements/ToolCalls/quietCards';
 import classes from './SemanticStudioAgent.module.css';
 import {
     useChatOpen,
     useStudioAgent,
     type StoredThread,
 } from './useSemanticStudioChat';
+import { useStudioPullRequest } from './useStudioPullRequest';
 
 type OpenModel = { modelName: string | null; fieldName: string | null };
 
@@ -58,6 +68,19 @@ const withOpenModel = (
         context: [...item, ...(context ?? [])],
         optimisticContext: [...item, ...(optimisticContext ?? [])],
     };
+};
+
+const PANEL_WIDTH = 360;
+const PANEL_MIN_WIDTH = 300;
+
+/** Whether the agent's latest reply proposes a change that no pull request carries yet. */
+const hasOpenProposal = (messages: AiAgentThread['messages']): boolean => {
+    const last = messages.findLast(({ role }) => role === 'assistant');
+    return (
+        last?.role === 'assistant' &&
+        (last.message ?? '').includes('```diff') &&
+        !last.toolCalls.some(({ toolName }) => toolName === 'editDbtProject')
+    );
 };
 
 const useStartThread = (
@@ -149,12 +172,14 @@ const NewThread: FC<
         fieldName,
     });
     useAskedPrompt({ prompt, onPromptTaken }, (message) => start({ message }));
+    const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
     return (
         <>
             <Stack flex={1} justify="center" align="center" px="md">
                 <Text fz="xs" c="dimmed" ta="center">
-                    Ask for a model, a metric or a join. Changes collect in your
-                    draft, and nothing goes live until you apply it.
+                    {keepsDraft
+                        ? 'Ask for a model, a metric or a join. Changes stay in development, and nothing goes live until you publish.'
+                        : 'Ask for a model, a metric or a join. Changes go to your repository as a pull request, and nothing goes live until it merges.'}
                 </Text>
                 {showStarters ? (
                     <Group gap="xs" justify="center">
@@ -226,6 +251,8 @@ const ExistingThread: FC<
                 ...withOpenModel({ modelName, fieldName }, { message }),
             }),
     );
+    const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
+    const pullRequest = useStudioPullRequest(projectUuid);
     if (isLoading || !thread) {
         return (
             <Center flex={1}>
@@ -233,6 +260,7 @@ const ExistingThread: FC<
             </Center>
         );
     }
+    const isBusy = isSending || isStreaming || isThreadPending;
     return (
         <AgentChatDisplay
             thread={thread}
@@ -242,9 +270,33 @@ const ExistingThread: FC<
             agentUuid={agent.uuid}
             renderArtifactsInline
         >
+            {!keepsDraft && !isBusy && hasOpenProposal(thread.messages) ? (
+                <Button
+                    size="xs"
+                    variant="default"
+                    mb="xs"
+                    leftSection={
+                        <MantineIcon icon={IconGitPullRequest} size={14} />
+                    }
+                    onClick={() =>
+                        void sendMessage({
+                            enableSqlMode: sqlMode,
+                            prompt: pullRequest?.isOpen
+                                ? 'Save this to the pull request.'
+                                : 'Open the pull request.',
+                            // The pull request tools only join a turn that carries this hint.
+                            toolHints: ['editDbtProject'],
+                        })
+                    }
+                >
+                    {pullRequest?.isOpen
+                        ? 'Save to pull request'
+                        : 'Open pull request'}
+                </Button>
+            ) : null}
             <AgentChatInput
                 accessCalloutVariant="inline"
-                loading={isSending || isStreaming || isThreadPending}
+                loading={isBusy}
                 onSubmit={(submitted) =>
                     void sendMessage({
                         enableSqlMode: sqlMode,
@@ -276,56 +328,81 @@ const SemanticStudioAgentPanel: FC<AgentProps> = ({
     const { isEnabled, agent, thread, setStored } = useStudioAgent(projectUuid);
     const [isOpen, setIsOpen] = useChatOpen();
 
+    const { sidebarRef, sidebarWidth, isResizing, startResizing } =
+        useSidebarResize({
+            defaultWidth: PANEL_WIDTH,
+            minWidth: PANEL_MIN_WIDTH,
+            position: SidebarPosition.RIGHT,
+        });
+
     if (!isEnabled || !agent) return null;
     if (!isOpen) return null;
     return (
-        <Box className={classes.panel}>
-            <Group className={classes.actions} gap={4} wrap="nowrap">
-                {thread ? (
-                    <Tooltip label="New conversation">
+        <QuietCardsContext.Provider value>
+            <Box
+                ref={sidebarRef}
+                className={classes.panel}
+                w={sidebarWidth}
+                data-quiet-cards
+            >
+                <Box
+                    className={classes.resizeHandle}
+                    data-resizing={isResizing}
+                    onMouseDown={(event) => {
+                        // Without this the drag selects text across the page.
+                        event.preventDefault();
+                        startResizing();
+                    }}
+                />
+                <Group className={classes.actions} gap={4} wrap="nowrap">
+                    {thread ? (
+                        <Tooltip label="New conversation">
+                            <ActionIcon
+                                aria-label="New conversation"
+                                onClick={() => setStored(null)}
+                            >
+                                <MantineIcon icon={IconPlus} />
+                            </ActionIcon>
+                        </Tooltip>
+                    ) : null}
+                    <Tooltip label="Hide chat">
                         <ActionIcon
-                            aria-label="New conversation"
-                            onClick={() => setStored(null)}
+                            aria-label="Hide chat"
+                            onClick={() => setIsOpen(false)}
                         >
-                            <MantineIcon icon={IconPlus} />
+                            <MantineIcon
+                                icon={IconLayoutSidebarRightCollapse}
+                            />
                         </ActionIcon>
                     </Tooltip>
-                ) : null}
-                <Tooltip label="Hide chat">
-                    <ActionIcon
-                        aria-label="Hide chat"
-                        onClick={() => setIsOpen(false)}
-                    >
-                        <MantineIcon icon={IconLayoutSidebarRightCollapse} />
-                    </ActionIcon>
-                </Tooltip>
-            </Group>
-            <Box className={classes.body}>
-                {thread ? (
-                    <ExistingThread
-                        key={thread.threadUuid}
-                        projectUuid={projectUuid}
-                        agent={thread.agent}
-                        threadUuid={thread.threadUuid}
-                        modelName={modelName}
-                        fieldName={fieldName}
-                        prompt={prompt}
-                        onPromptTaken={onPromptTaken}
-                    />
-                ) : (
-                    <NewThread
-                        projectUuid={projectUuid}
-                        agent={agent}
-                        onCreated={setStored}
-                        showStarters={showStarters}
-                        modelName={modelName}
-                        fieldName={fieldName}
-                        prompt={prompt}
-                        onPromptTaken={onPromptTaken}
-                    />
-                )}
+                </Group>
+                <Box className={classes.body}>
+                    {thread ? (
+                        <ExistingThread
+                            key={thread.threadUuid}
+                            projectUuid={projectUuid}
+                            agent={thread.agent}
+                            threadUuid={thread.threadUuid}
+                            modelName={modelName}
+                            fieldName={fieldName}
+                            prompt={prompt}
+                            onPromptTaken={onPromptTaken}
+                        />
+                    ) : (
+                        <NewThread
+                            projectUuid={projectUuid}
+                            agent={agent}
+                            onCreated={setStored}
+                            showStarters={showStarters}
+                            modelName={modelName}
+                            fieldName={fieldName}
+                            prompt={prompt}
+                            onPromptTaken={onPromptTaken}
+                        />
+                    )}
+                </Box>
             </Box>
-        </Box>
+        </QuietCardsContext.Provider>
     );
 };
 

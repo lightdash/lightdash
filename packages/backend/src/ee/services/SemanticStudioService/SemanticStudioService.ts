@@ -9,6 +9,7 @@ import {
     isExploreError,
     NotFoundError,
     ParameterError,
+    ProjectType,
     ValidationTarget,
     type Explore,
     type ExploreError,
@@ -36,6 +37,7 @@ import {
     type ProjectModelDocumentModel,
     type StoredDraftChange,
 } from '../../models/ProjectModelDocumentModel';
+import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
 import {
     DraftChecker,
     usesAnyModel,
@@ -197,7 +199,7 @@ export class SemanticStudioService extends BaseService {
     }
 
     /** Why this person cannot change this project's models here, or null when they can. */
-    private async findBlocker(
+    private async findAccessBlocker(
         user: SessionUser,
         project: ModelProject,
     ): Promise<LightdashError | null> {
@@ -228,30 +230,45 @@ export class SemanticStudioService extends BaseService {
             },
             featureFlagId: FeatureFlags.SemanticStudioEditing,
         });
-        if (!enabled) {
-            return new ForbiddenError('This feature is not enabled');
-        }
+        return enabled
+            ? null
+            : new ForbiddenError('This feature is not enabled');
+    }
+
+    /** A write to the project's repository needs what any write to it needs. */
+    private findSourceBlocker(
+        user: SessionUser,
+        project: ModelProject,
+    ): LightdashError | null {
+        return this.createAuditedAbility(user).cannot(
+            'manage',
+            subject('SourceCode', {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+                isProtectedBranch: false,
+            }),
+        )
+            ? new ForbiddenError(
+                  "User does not have permission to change this project's repository",
+              )
+            : null;
+    }
+
+    /** Why this person cannot keep a draft of this project's models, or null when they can. */
+    private async findBlocker(
+        user: SessionUser,
+        project: ModelProject,
+    ): Promise<LightdashError | null> {
+        const blocker = await this.findAccessBlocker(user, project);
+        if (blocker) return blocker;
         if (project.dbtConnection.type === DbtProjectType.NONE) return null;
         if (!resolveRepoConnection(project.dbtConnection)) {
             return new ParameterError(
-                'Models can be changed here for a project without a dbt connection, or one that keeps its models in GitHub',
+                'A draft is kept for a project without a dbt connection, or one that keeps its models in GitHub',
             );
         }
-        // Applying sends a commit to the repository, so it needs what any write to it needs.
-        if (
-            this.createAuditedAbility(user).cannot(
-                'manage',
-                subject('SourceCode', {
-                    organizationUuid: project.organizationUuid,
-                    projectUuid: project.projectUuid,
-                    isProtectedBranch: false,
-                }),
-            )
-        ) {
-            return new ForbiddenError(
-                "User does not have permission to change this project's repository",
-            );
-        }
+        const sourceBlocker = this.findSourceBlocker(user, project);
+        if (sourceBlocker) return sourceBlocker;
         return (await this.repoModels.isInstalled(project.organizationUuid))
             ? null
             : new ParameterError(
@@ -265,9 +282,26 @@ export class SemanticStudioService extends BaseService {
         projectUuid: string,
     ): Promise<SemanticLayerStatus> {
         const project = await this.projectModel.get(projectUuid);
+        const { dbtConnection } = project;
+        if (
+            dbtConnection.type !== DbtProjectType.NONE &&
+            !resolveRepoConnection(dbtConnection)
+        ) {
+            // A dbt project keeps no draft: the agent edits the repository in a pull request.
+            return {
+                enabled:
+                    // A preview is a look at a pull request's branch, not a place to start another.
+                    project.type !== ProjectType.PREVIEW &&
+                    getWritebackConnectionSupport(dbtConnection)
+                        .editDbtProject &&
+                    (await this.findAccessBlocker(user, project)) === null &&
+                    this.findSourceBlocker(user, project) === null,
+                appliesAs: 'dbt_pull_request',
+            };
+        }
         return {
             enabled: (await this.findBlocker(user, project)) === null,
-            appliesAs: resolveRepoConnection(project.dbtConnection)
+            appliesAs: resolveRepoConnection(dbtConnection)
                 ? 'pull_request'
                 : 'live',
         };

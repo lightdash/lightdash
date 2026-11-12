@@ -76,6 +76,7 @@ const fullInput: LoadoutInput = {
     enableRepoDiscovery: true,
     enableEditProjectContext: true,
     isSemanticStudioThread: false,
+    semanticStudioDrafts: false,
     enableReadAttachments: true,
     enableAskUser: true,
     customSkills: [],
@@ -109,6 +110,7 @@ const minimalInput: LoadoutInput = {
     enableRepoDiscovery: false,
     enableEditProjectContext: false,
     isSemanticStudioThread: false,
+    semanticStudioDrafts: false,
     enableReadAttachments: false,
     enableAskUser: false,
     customSkills: [],
@@ -145,7 +147,11 @@ const deepResearch = (
 
 const inputs: Record<LoadoutBase, LoadoutInput> = {
     classic: fullInput,
-    semantic_studio: { ...fullInput, isSemanticStudioThread: true },
+    semantic_studio: {
+        ...fullInput,
+        isSemanticStudioThread: true,
+        semanticStudioDrafts: true,
+    },
     composer: { ...fullInput, enableComposerQueries: true },
     no_data_access: {
         ...fullInput,
@@ -315,6 +321,24 @@ describe('loadout contracts', () => {
 });
 
 describe('resolveLoadout', () => {
+    it('gives a Semantic Studio thread the draft tools, or the repository tools on a dbt project, never both', () => {
+        const drafts = resolveLoadout(inputs.semantic_studio).toolNames;
+        expect(drafts.has('proposeSemanticLayerChange')).toBe(true);
+        expect(drafts.has('editDbtProject')).toBe(false);
+        expect(drafts.has('exploreRepo')).toBe(false);
+
+        const dbt = resolveLoadout({
+            ...inputs.semantic_studio,
+            semanticStudioDrafts: false,
+        });
+        expect(dbt.base).toBe('semantic_studio');
+        expect(dbt.toolNames.has('proposeSemanticLayerChange')).toBe(false);
+        expect(dbt.toolNames.has('readSemanticModel')).toBe(false);
+        expect(dbt.toolNames.has('editDbtProject')).toBe(true);
+        expect(dbt.toolNames.has('exploreRepo')).toBe(true);
+        expect(dbt.toolNames.has('generateVisualization')).toBe(false);
+    });
+
     test.each<[string, LoadoutInput, LoadoutBase]>([
         ['classic by default', fullInput, 'classic'],
         ['composer with the composer flag', inputs.composer, 'composer'],

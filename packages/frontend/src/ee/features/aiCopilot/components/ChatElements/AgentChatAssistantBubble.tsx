@@ -103,6 +103,7 @@ import {
 } from './DataAppBuildCard/AiDataAppBuildCard';
 import { AiDataAppRestoreCard } from './DataAppBuildCard/AiDataAppRestoreCard';
 import { getDataAppRestoreItem } from './DataAppBuildCard/dataAppBuildCardState';
+import { DiffMarkdownCodeBlock } from './DiffMarkdownCodeBlock';
 import { isHiddenToolName } from './hiddenToolNames';
 import {
     MEMORY_CITATION_ALLOWED_TAGS,
@@ -441,6 +442,10 @@ const AssistantBubbleContent: FC<{
                             canOpenSqlRunner={canOpenSqlRunner}
                         />
                     ),
+                },
+                {
+                    language: ['diff', 'patch'],
+                    component: DiffMarkdownCodeBlock,
                 },
             ],
         }),

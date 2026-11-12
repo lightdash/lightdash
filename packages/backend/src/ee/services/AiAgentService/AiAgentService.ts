@@ -5798,10 +5798,12 @@ export class AiAgentService extends BaseService {
                 );
             }
             if (
-                !(await this.semanticStudioService.canEditModels(
-                    user,
-                    agent.projectUuid,
-                ))
+                !(
+                    await this.semanticStudioService.getStatus(
+                        user,
+                        agent.projectUuid,
+                    )
+                ).enabled
             ) {
                 throw new ForbiddenError(
                     'You cannot change the semantic layer of this project',
@@ -17548,6 +17550,15 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                             featureFlagId: FeatureFlags.AiAgentAskUser,
                         })
                     ).enabled;
+                // A dbt project keeps no draft in Semantic Studio; its thread edits the repository instead.
+                const semanticStudioDrafts =
+                    isSemanticStudioThread &&
+                    (
+                        await this.semanticStudioService.getStatus(
+                            user,
+                            promptProject.projectUuid,
+                        )
+                    ).appliesAs !== 'dbt_pull_request';
                 let aiWritebackEnabled = hasTrustedPromptUserIdentity;
                 if (!aiWritebackEnabled) {
                     this.logger.info(
@@ -17559,6 +17570,15 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 if (
                     aiWritebackEnabled &&
                     !writebackConnectionSupport.editDbtProject
+                ) {
+                    aiWritebackEnabled = false;
+                }
+
+                // On a dbt project Semantic Studio proposes first: the pull request tools join only the turn the person asks for one.
+                if (
+                    isSemanticStudioThread &&
+                    !semanticStudioDrafts &&
+                    !options.toolHints?.includes('editDbtProject')
                 ) {
                     aiWritebackEnabled = false;
                 }
@@ -18036,6 +18056,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     enableAiWriteback: aiWritebackEnabled,
                     enableEditProjectContext: isReviewRemediationWorkThread,
                     isSemanticStudioThread,
+                    semanticStudioDrafts,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,

@@ -61,6 +61,10 @@ const useStatus = (projectUuid: string) =>
 export const useCanEditSemanticLayer = (projectUuid: string): boolean =>
     useStatus(projectUuid)?.enabled === true;
 
+/** Whether changes here go through a draft; false on a dbt project, where the agent edits the repository in a pull request. */
+export const useKeepsSemanticLayerDraft = (projectUuid: string): boolean =>
+    useStatus(projectUuid)?.appliesAs !== 'dbt_pull_request';
+
 /** Whether applying a draft opens a pull request on the project's repository instead of going live. */
 export const useAppliesAsPullRequest = (projectUuid: string): boolean =>
     useStatus(projectUuid)?.appliesAs === 'pull_request';

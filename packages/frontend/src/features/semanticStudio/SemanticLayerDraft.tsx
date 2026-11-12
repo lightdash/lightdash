@@ -27,6 +27,7 @@ import {
 } from '../../ee/features/aiCopilot/components/Admin/pierreDiffConfig';
 import useToaster from '../../hooks/toaster/useToaster';
 import { ChangeDiff } from './ChangeDiff';
+import { DevelopmentBar } from './DevelopmentBar';
 import {
     CHANGE_KIND_LABELS,
     count,
@@ -179,7 +180,7 @@ const ApplyModal: FC<{
     const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const { showToastSuccess } = useToaster();
     const models = model ?? draft.models.map((m) => m.model).join(', ');
-    const confirmLabel = asPullRequest ? 'Open pull request' : 'Apply';
+    const confirmLabel = asPullRequest ? 'Open pull request' : 'Publish';
     // Applying never waits for the check: an unchecked draft is applied knowingly, like one that breaks something.
     const isRisky =
         impact.data?.status !== 'done' || impact.data.breaks.length > 0;
@@ -187,7 +188,7 @@ const ApplyModal: FC<{
         <MantineModal
             opened
             onClose={onClose}
-            title={model === null ? 'Apply your draft' : `Apply ${model}`}
+            title={model === null ? 'Publish your changes' : `Publish ${model}`}
             confirmLabel={isRisky ? `${confirmLabel} anyway` : confirmLabel}
             confirmLoading={apply.isLoading}
             onConfirm={() =>
@@ -223,7 +224,7 @@ const ApplyModal: FC<{
                 <DraftImpact projectUuid={projectUuid} model={model} />
                 <MessageList
                     variant="danger"
-                    title="Nothing was applied"
+                    title="Nothing was published"
                     messages={(apply.data?.failures ?? []).map(
                         (failure) => `${failure.model}: ${failure.error}`,
                     )}
@@ -264,7 +265,6 @@ const DraftActions: FC<{
     model: string | null;
 }> = ({ projectUuid, draft, model }) => {
     const discard = useDiscardSemanticLayerDraft(projectUuid);
-    const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const [applying, setApplying] = useState(false);
     const isAll = model === null && draft.models.length > 1;
     const blocked = cannotApply(draft, model);
@@ -290,11 +290,7 @@ const DraftActions: FC<{
                             if (!blocked) setApplying(true);
                         }}
                     >
-                        {asPullRequest
-                            ? 'Open pull request'
-                            : isAll
-                              ? 'Apply all'
-                              : 'Apply'}
+                        {isAll ? 'Publish all' : 'Publish'}
                     </Button>
                 </Tooltip>
             ) : null}
@@ -310,25 +306,62 @@ const DraftActions: FC<{
     );
 };
 
-/** The way to the draft's review from any other page, and back. */
-export const DraftBar: FC<{ projectUuid: string }> = ({ projectUuid }) => {
+/** A draft in the toolbar: what it changes, the way to its review and back, and publishing it. */
+export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
+    projectUuid,
+}) => {
     const { data: draft } = useSemanticLayerDraft(projectUuid);
     const [searchParams, setSearchParams] = useSearchParams();
+    const [publishing, setPublishing] = useState(false);
     if (!draft || draft.changes.length === 0) return null;
     const reviewing = searchParams.get(DRAFT_PARAM) === DRAFT_REVIEW;
+    const blocked = cannotApply(draft, null);
     return (
-        <Button
-            size="xs"
-            variant={reviewing ? 'default' : 'filled'}
-            flex="none"
-            onClick={() =>
-                setSearchParams(
-                    reviewing ? {} : { [DRAFT_PARAM]: DRAFT_REVIEW },
-                )
+        <DevelopmentBar
+            summary={
+                <Text fz="xs" c="dimmed" truncate>
+                    {draft.models.length > 0
+                        ? summarizeDraftModels(draft)
+                        : 'Nothing new to publish'}
+                </Text>
             }
         >
-            {reviewing ? 'Close review' : 'Review draft'}
-        </Button>
+            <Button
+                size="xs"
+                variant="default"
+                onClick={() =>
+                    setSearchParams(
+                        reviewing ? {} : { [DRAFT_PARAM]: DRAFT_REVIEW },
+                    )
+                }
+            >
+                {reviewing ? 'Close review' : 'Review'}
+            </Button>
+            {draft.models.length > 0 ? (
+                <Tooltip
+                    label="Some changes no longer pass their checks."
+                    disabled={!blocked}
+                >
+                    <Button
+                        size="xs"
+                        data-disabled={blocked || undefined}
+                        onClick={() => {
+                            if (!blocked) setPublishing(true);
+                        }}
+                    >
+                        Publish
+                    </Button>
+                </Tooltip>
+            ) : null}
+            {publishing ? (
+                <ApplyModal
+                    projectUuid={projectUuid}
+                    draft={draft}
+                    model={null}
+                    onClose={() => setPublishing(false)}
+                />
+            ) : null}
+        </DevelopmentBar>
     );
 };
 
@@ -362,11 +395,13 @@ type DraftProps = { projectUuid: string; draft: SemanticLayerDraft };
 
 export const DraftReviewHeading: FC<DraftProps> = ({ projectUuid, draft }) => (
     <Group className={classes.heading} gap="xs" wrap="nowrap">
-        <Badge flex="none">Draft</Badge>
+        <Badge color="orange" flex="none">
+            In development
+        </Badge>
         <Text fz="sm" fw={500} truncate flex={1}>
             {draft.models.length > 0
                 ? summarizeDraftModels(draft)
-                : 'Already live, nothing to apply'}
+                : 'Already live, nothing to publish'}
         </Text>
         <DraftActions projectUuid={projectUuid} draft={draft} model={null} />
     </Group>
