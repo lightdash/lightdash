@@ -44,6 +44,7 @@ vi.mock('react-router', () => ({
 import { sharedLightdashApi } from '../../api';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
 import {
+    appendNewTilesToBottom,
     useExportDashboardContentPreview,
     useUpdateDashboard,
 } from './useDashboard';
@@ -180,5 +181,37 @@ describe('useUpdateDashboard', () => {
         expect(showToastSuccess.mock.calls[0][0]).not.toHaveProperty(
             'subtitle',
         );
+    });
+});
+
+describe('appendNewTilesToBottom', () => {
+    it('places a new tile below the tiles of its own tab, not of other tabs', () => {
+        const existing = [
+            { y: 0, tabUuid: 'short' },
+            { y: 3, tabUuid: 'short' },
+            { y: 40, tabUuid: 'long' },
+        ];
+
+        const result = appendNewTilesToBottom(existing, [
+            { y: 0, tabUuid: 'short' },
+            { y: 0, tabUuid: 'empty' },
+        ]);
+
+        expect(result.slice(3)).toEqual([
+            { y: 4, tabUuid: 'short' },
+            { y: 0, tabUuid: 'empty' },
+        ]);
+    });
+
+    it('places a new tile below every tile when the dashboard has no tabs', () => {
+        const result = appendNewTilesToBottom(
+            [
+                { y: 2, tabUuid: undefined },
+                { y: 7, tabUuid: null },
+            ],
+            [{ y: 0, tabUuid: undefined }],
+        );
+
+        expect(result[2].y).toBe(8);
     });
 });

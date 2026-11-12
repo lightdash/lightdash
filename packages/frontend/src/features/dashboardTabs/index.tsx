@@ -718,6 +718,15 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         rowHeight: unzoomedGridProps.rowHeight,
     });
 
+    const canvasStyles = useMemo(
+        () =>
+            gridLineStyles && {
+                ...gridLineStyles,
+                '--canvas-bottom-pad': `${dashboardGridBottomPadding}px`,
+            },
+        [gridLineStyles, dashboardGridBottomPadding],
+    );
+
     // Compute whether there are unmet filter requirements that apply to the current tab
     // Note: We use doesFilterApplyToTile because getTabUuidsForFilterRules from common
     // skips disabled filters, but required filters ARE disabled until a value is set
@@ -852,6 +861,12 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const currentTabHasTiles = !!dashboardTiles?.some((tile) =>
         isActiveTile(tile),
     );
+    const isCanvasFilled =
+        isEditErgonomicsEnabled && !!hasDashboardTiles && currentTabHasTiles;
+    // An empty tab shows its empty state, not a strip of grid above it
+    const isGridDrawn = isEditErgonomicsEnabled
+        ? isCanvasFilled
+        : showGridLines;
 
     const handleChangeTab = useCallback(
         (tab: DashboardTab) => {
@@ -1386,12 +1401,16 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                         />
                     )}
 
-                    <Group grow pb={dashboardGridBottomPadding} px="xs">
+                    <Group
+                        grow
+                        pb={isCanvasFilled ? 0 : dashboardGridBottomPadding}
+                        px="xs"
+                    >
                         <div
                             ref={mergedGridWrapperRef}
                             className={[
                                 styles.tabGridContainer,
-                                showGridLines ? styles.gridLines : undefined,
+                                isGridDrawn ? styles.gridLines : undefined,
                                 isInteracting
                                     ? styles.gridInteracting
                                     : undefined,
@@ -1418,8 +1437,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     ? canvasBackground
                                     : undefined
                             }
+                            data-fill-window={isCanvasFilled || undefined}
                             // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
-                            style={showGridLines ? gridLineStyles : undefined}
+                            style={isGridDrawn ? canvasStyles : undefined}
                         >
                             {tabsEnabled
                                 ? visibleTabs
