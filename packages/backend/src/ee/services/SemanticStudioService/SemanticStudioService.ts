@@ -16,6 +16,7 @@ import {
     ProjectType,
     readModelPart,
     ValidationTarget,
+    type DbtManifest,
     type Explore,
     type ExploreError,
     type LightdashError,
@@ -36,6 +37,8 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { createHash } from 'node:crypto';
+import { text } from 'node:stream/consumers';
+import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import { type DraftImpactBreaks } from '../../../database/entities/projectModelDraftImpacts';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type SavedChartModel } from '../../../models/SavedChartModel';
@@ -51,6 +54,15 @@ import {
     type StoredDraftChange,
 } from '../../models/ProjectModelDocumentModel';
 import { getWritebackConnectionSupport } from '../AiAgentService/writebackConnection';
+import { type ParsedDbtProject } from '../AiWritebackService/types';
+import {
+    dbtTryOutFileId,
+    findChangedModels,
+    findLiveTableLocations,
+    markNewModels,
+    pointManifestAtLiveTables,
+    type DbtTryOut,
+} from './dbtTryOut';
 import {
     DraftChecker,
     usesAnyModel,
@@ -125,8 +137,15 @@ export type SemanticStudioServiceArguments = {
         }) => Promise<unknown>;
     };
     validationService: Pick<ValidationService, 'generateValidation'>;
-    projectService: Pick<ProjectService, 'setExplores'> &
+    projectService: Pick<
+        ProjectService,
+        'setExplores' | 'compileExploresFromManifest'
+    > &
         DraftCheckerProjectService;
+    fileStorageClient: Pick<
+        FileStorageClient,
+        'isEnabled' | 'uploadTxt' | 'getFileStream' | 'deleteFile'
+    >;
     repoModels: Pick<
         RepoModelSource,
         'isInstalled' | 'load' | 'openPullRequest'
@@ -221,6 +240,8 @@ export class SemanticStudioService extends BaseService {
 
     private readonly savedChartModel: SemanticStudioServiceArguments['savedChartModel'];
 
+    private readonly fileStorageClient: SemanticStudioServiceArguments['fileStorageClient'];
+
     private readonly checker: DraftChecker;
 
     /** Publishes under way, so a repeated request joins the one already running. */
@@ -239,6 +260,7 @@ export class SemanticStudioService extends BaseService {
         this.schedulerClient = args.schedulerClient;
         this.repoModels = args.repoModels;
         this.savedChartModel = args.savedChartModel;
+        this.fileStorageClient = args.fileStorageClient;
         this.checker = new DraftChecker(args.projectService);
     }
 
@@ -636,6 +658,12 @@ export class SemanticStudioService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<Map<string, Explore | ExploreError | null> | null> {
+        const status = await this.getStatus(user, projectUuid);
+        if (status.appliesAs === 'dbt_pull_request') {
+            return status.enabled
+                ? this.findDbtTryOutExplores(user, projectUuid)
+                : null;
+        }
         if (!(await this.canEditModels(user, projectUuid))) return null;
         // Asked first: with nothing drafted there is no reason to read the live models, which for a repository is a network call.
         const changes = await this.projectModelDocumentModel.findDraftChanges(
@@ -659,6 +687,99 @@ export class SemanticStudioService extends BaseService {
                 explore,
             ]),
         ]);
+    }
+
+    /** Stores what this person's latest dbt change leaves to try, and returns the models it changed. */
+    async saveDbtTryOut(
+        user: SessionUser,
+        projectUuid: string,
+        {
+            manifestJson,
+            lightdashConfigYaml,
+            changedFiles,
+            prUrl,
+        }: ParsedDbtProject,
+    ): Promise<string[]> {
+        let manifest: DbtManifest;
+        try {
+            manifest = JSON.parse(manifestJson);
+        } catch {
+            this.logger.warn(
+                `Skipped trying a dbt change on project ${projectUuid}: its manifest is not valid JSON`,
+            );
+            return [];
+        }
+        const changedModels = findChangedModels(manifest, changedFiles);
+        if (!this.fileStorageClient.isEnabled()) return changedModels;
+        const status = await this.getStatus(user, projectUuid);
+        if (!status.enabled || status.appliesAs !== 'dbt_pull_request')
+            return changedModels;
+        const live = await this.projectModel.findExploresFromCache(
+            projectUuid,
+            'name',
+        );
+        const pointed = pointManifestAtLiveTables(
+            manifest,
+            findLiveTableLocations(Object.values(live)),
+        );
+        const explores = markNewModels(
+            await this.projectService.compileExploresFromManifest(
+                user,
+                projectUuid,
+                pointed.manifest,
+                lightdashConfigYaml,
+            ),
+            pointed.newModels,
+        );
+        const tryOut: DbtTryOut = { prUrl, explores };
+        await this.fileStorageClient.uploadTxt(
+            Buffer.from(JSON.stringify(tryOut)),
+            dbtTryOutFileId(projectUuid, user.userUuid),
+        );
+        return changedModels;
+    }
+
+    /** Forgets this person's try-out once its pull request is merged or closed. */
+    async retireDbtTryOut(
+        user: SessionUser,
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<void> {
+        const tryOut = await this.readDbtTryOut(user, projectUuid);
+        if (tryOut?.prUrl !== prUrl) return;
+        await this.fileStorageClient.deleteFile(
+            `${dbtTryOutFileId(projectUuid, user.userUuid)}.txt`,
+        );
+    }
+
+    private async readDbtTryOut(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<DbtTryOut | null> {
+        if (!this.fileStorageClient.isEnabled()) return null;
+        try {
+            const { stream } = await this.fileStorageClient.getFileStream(
+                `${dbtTryOutFileId(projectUuid, user.userUuid)}.txt`,
+            );
+            const tryOut: DbtTryOut = JSON.parse(await text(stream));
+            return Array.isArray(tryOut.explores) ? tryOut : null;
+        } catch (error) {
+            if (error instanceof NotFoundError || error instanceof SyntaxError)
+                return null;
+            throw error;
+        }
+    }
+
+    /** The explores this person's latest dbt change leaves, by name; null when they have none to try. */
+    private async findDbtTryOutExplores(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<Map<string, Explore | ExploreError> | null> {
+        const tryOut = await this.readDbtTryOut(user, projectUuid);
+        // ponytail: models the change removes still show; the preview shows removals.
+        return tryOut
+            ? new Map(tryOut.explores.map((explore) => [explore.name, explore]))
+            : null;
     }
 
     /**
@@ -694,6 +815,10 @@ export class SemanticStudioService extends BaseService {
             this.projectModel.getAllExploreSummaries(projectUuid),
             this.projectModel.findExploresFromCache(previewProjectUuid, 'name'),
         ]);
+        // A preview has no explores until its first compile; until then the person's own compiled change stands in.
+        if (Object.keys(explores).length === 0) {
+            return this.findDbtTryOutExplores(user, projectUuid);
+        }
         return new Map<string, Explore | ExploreError | null>([
             // A model the branch removes is in the live project and not in its preview.
             ...live.flatMap((explore): [string, null][] =>

@@ -337,6 +337,8 @@ import { GoogleAuth } from 'google-auth-library';
 import * as yaml from 'js-yaml';
 import { type Knex } from 'knex';
 import fetch from 'node-fetch';
+import * as os from 'os';
+import * as path from 'path';
 import { Readable } from 'stream';
 import { URL } from 'url';
 import { promisify } from 'util';
@@ -446,6 +448,7 @@ import {
     type CompilableDbtSource,
 } from '../../projectAdapters/CompileGroup';
 import { DbtBaseProjectAdapter } from '../../projectAdapters/dbtBaseProjectAdapter';
+import { DbtManifestProjectAdapter } from '../../projectAdapters/dbtManifestProjectAdapter';
 import { assertGithubInstallationResolved } from '../../projectAdapters/githubAuthorization';
 import { projectAdapterFromConfig } from '../../projectAdapters/projectAdapter';
 import {
@@ -8368,6 +8371,84 @@ export class ProjectService
                 }
             },
         );
+    }
+
+    /**
+     * Compiles explores from a dbt manifest made elsewhere against this project's
+     * warehouse, without saving them: the live project is left as it is.
+     */
+    async compileExploresFromManifest(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+        projectUuid: string,
+        manifest: DbtManifest,
+        lightdashConfigYaml: string | null,
+    ): Promise<(Explore | ExploreError)[]> {
+        const {
+            project,
+            warehouseCredentials,
+            cachedWarehouse,
+            dbtVersionOption,
+        } = await this.prepareCompileAdapter(projectUuid, user);
+        // The adapter reads the project's lightdash.config.yml from a directory.
+        const projectDir =
+            lightdashConfigYaml === null
+                ? undefined
+                : await fs.promises.mkdtemp(
+                      path.join(os.tmpdir(), 'ld-manifest-config-'),
+                  );
+        try {
+            if (projectDir !== undefined && lightdashConfigYaml !== null) {
+                await fs.promises.writeFile(
+                    path.join(projectDir, 'lightdash.config.yml'),
+                    lightdashConfigYaml,
+                );
+            }
+            return await this.warehouseClientFactory.withWarehouseClient(
+                {
+                    kind: 'compile',
+                    projectUuid,
+                    credentials: warehouseCredentials,
+                },
+                connectionContextFromUser(
+                    { userUuid: user.userUuid },
+                    {
+                        organizationUuid: project.organizationUuid,
+                        queryContext: null,
+                        purpose: 'compile',
+                    },
+                ),
+                async (connection) => {
+                    const adapter = new DbtManifestProjectAdapter({
+                        parsedManifest: manifest,
+                        dbtProjectDir: projectDir,
+                        warehouseClient: connection.warehouseClient,
+                        // Columns new to the catalog stay out of the live project's cache.
+                        cachedWarehouse: {
+                            ...cachedWarehouse,
+                            onWarehouseCatalogChange: async () => {},
+                        },
+                        dbtVersion: resolveDbtVersion(dbtVersionOption),
+                        analytics: this.analytics,
+                    });
+                    try {
+                        return await adapter.compileAllExplores(
+                            undefined,
+                            false,
+                            true,
+                        );
+                    } finally {
+                        await adapter.destroy();
+                    }
+                },
+            );
+        } finally {
+            if (projectDir !== undefined) {
+                await fs.promises.rm(projectDir, {
+                    recursive: true,
+                    force: true,
+                });
+            }
+        }
     }
 
     private async destroyPrimaryCompileAdapter(
