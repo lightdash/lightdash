@@ -26,7 +26,7 @@ import { FilterPills } from '../../../../../features/dashboardControls/FilterPil
 import { ParameterPills } from '../../../../../features/dashboardControls/ParameterPills';
 import { SectionedFilters } from '../../../../../features/dashboardControls/SectionedFilters';
 import { SettledFilterFields } from '../../../../../features/dashboardControls/SettledFilterFields';
-import { useDateZoomBar } from '../../../../../features/dashboardControls/useDateZoomBar';
+import { useNamedDateZoomCount } from '../../../../../features/dashboardControls/useDateZoomBar';
 import { useParameterBarControls } from '../../../../../features/dashboardControls/useParameterBarControls';
 import { DashboardFiltersBarSummary } from '../../../../../features/dashboardFilters/DashboardFiltersBarSummary';
 import { DateZoom } from '../../../../../features/dateZoom';
@@ -153,10 +153,8 @@ const EmbedDashboardFilterBar: FC<Props> = ({
     // With the controls on, the legacy parameters never show: none until the controls are built
     const showsLegacyParameters = parametersEnabled && !isControlsEnabled;
 
-    const dateZoomBar = useDateZoomBar();
-    const totalDateZoomsCount = withDateZoomPills
-        ? dateZoomBar.filter(({ isNew }) => !isNew).length
-        : 0;
+    const namedDateZoomCount = useNamedDateZoomCount();
+    const totalDateZoomsCount = withDateZoomPills ? namedDateZoomCount : 0;
 
     // Collapsing hides filters, parameters and named zooms; the shipped
     // Default zoom on the right stays visible, as in the app

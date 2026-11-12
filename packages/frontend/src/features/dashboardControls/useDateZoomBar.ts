@@ -85,6 +85,10 @@ export const useDateZoomBar = (): DateZoomBarEntry[] => {
     ]);
 };
 
+/** Named date zooms the user sees, as saved (a draft one doesn't count) */
+export const useNamedDateZoomCount = (): number =>
+    useDateZoomBar().filter(({ isNew }) => !isNew).length;
+
 /** Tiles the default zoom governs: zoomable tiles no named zoom has, as the shipped Default counts them */
 export const useDefaultZoomTileCount = (): number => {
     const config = useDashboardDateZoomConfig();
