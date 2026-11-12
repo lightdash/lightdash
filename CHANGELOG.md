@@ -1,3 +1,16 @@
+# [3.234.0](https://github.com/lightdash/lightdash/compare/3.233.0...3.234.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **data-apps:** keep shared app state from users without Explore ([#32416](https://github.com/lightdash/lightdash/issues/32416)) ([ab4af3e](https://github.com/lightdash/lightdash/commit/ab4af3e0c29b70fbfed6b867f9e6a8ba84acf143))
+
+
+### Features
+
+* **data-apps:** let Viewers run data app queries behind a flag ([#32358](https://github.com/lightdash/lightdash/issues/32358)) ([63f2fb0](https://github.com/lightdash/lightdash/commit/63f2fb01bfcb95f75b0c0870fad60c53f8abb586))
+* **data-apps:** warn app managers when Viewers can't load an app's data ([#32418](https://github.com/lightdash/lightdash/issues/32418)) ([6232048](https://github.com/lightdash/lightdash/commit/62320489756a9db7ccc1ebb3db1f564e4d0f2c0a))
+
 # [3.233.0](https://github.com/lightdash/lightdash/compare/3.232.0...3.233.0) (2026-11-12)
 
 
