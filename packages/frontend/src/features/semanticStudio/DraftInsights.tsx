@@ -16,6 +16,7 @@ import {
     Badge,
     Box,
     Button,
+    Center,
     Group,
     Paper,
     Stack,
@@ -30,7 +31,7 @@ import {
     IconArrowDown,
     IconArrowUp,
     IconGitMerge,
-    IconScale,
+    IconArrowsDiff,
     IconSparkles,
     IconInfoCircle,
     IconTable,
@@ -206,6 +207,20 @@ const ConflictSides: FC<{
     </Stack>
 );
 
+/** One notice on a model's card: its icon sits in the column the card's own icon uses, so the words line up with the title. */
+const NoticeRow: FC<{
+    icon: typeof IconUsers;
+    color: 'yellow' | 'dimmed';
+    children: ReactNode;
+}> = ({ icon, color, children }) => (
+    <Group gap="xs" wrap="nowrap" align="flex-start">
+        <Center w={24} h={18} flex="none">
+            <MantineIcon icon={icon} size={14} color={color} />
+        </Center>
+        {children}
+    </Group>
+);
+
 /** What happened to a model outside this draft: a publish under it, or someone else's work in it. */
 export const ModelNotices: FC<{
     projectUuid: string;
@@ -230,12 +245,7 @@ export const ModelNotices: FC<{
         <Stack gap={4} className={classes.notices}>
             {conflicts.length > 0 ? (
                 <Stack gap="xs" data-conflict>
-                    <Group gap={6} wrap="nowrap" align="flex-start">
-                        <MantineIcon
-                            icon={IconAlertTriangle}
-                            size={14}
-                            color="yellow"
-                        />
+                    <NoticeRow icon={IconAlertTriangle} color="yellow">
                         <Text fz="xs" flex={1}>
                             {publisher} published a change to{' '}
                             {conflicts.length === 1
@@ -244,7 +254,7 @@ export const ModelNotices: FC<{
                             of this model that you changed too. Pick the version
                             to keep before you publish.
                         </Text>
-                    </Group>
+                    </NoticeRow>
                     {conflicts.map((conflict) => (
                         <ConflictSides
                             key={conflict.path}
@@ -254,7 +264,7 @@ export const ModelNotices: FC<{
                             canKeepMineHere={conflicts.length === 1}
                         />
                     ))}
-                    <Group gap={4}>
+                    <Group gap={4} className={classes.conflictActions}>
                         {conflicts.length > 1 ? (
                             <KeepMineButton
                                 projectUuid={projectUuid}
@@ -292,8 +302,7 @@ export const ModelNotices: FC<{
                 </Stack>
             ) : null}
             {publishedUnder && conflicts.length === 0 ? (
-                <Group gap={6} wrap="nowrap">
-                    <MantineIcon icon={IconGitMerge} size={14} color="dimmed" />
+                <NoticeRow icon={IconGitMerge} color="dimmed">
                     <Text fz="xs" c="dimmed">
                         {publisher} published a change to this model{' '}
                         {publishedAgo}, after you started
@@ -302,11 +311,10 @@ export const ModelNotices: FC<{
                             : ''}
                         . Your changes are shown on top of it.
                     </Text>
-                </Group>
+                </NoticeRow>
             ) : null}
             {model.alsoChanging.map(({ name, paths }) => (
-                <Group key={name} gap={6} wrap="nowrap">
-                    <MantineIcon icon={IconUsers} size={14} color="dimmed" />
+                <NoticeRow key={name} icon={IconUsers} color="dimmed">
                     <Text fz="xs" c="dimmed">
                         {name} is also changing{' '}
                         {paths.length > 0
@@ -314,7 +322,7 @@ export const ModelNotices: FC<{
                             : 'this model'}
                         , in development.
                     </Text>
-                </Group>
+                </NoticeRow>
             ))}
         </Stack>
     );
@@ -662,7 +670,9 @@ export const MetricComparison: FC<{
                     <Button
                         size="compact-xs"
                         variant="subtle"
-                        leftSection={<MantineIcon icon={IconScale} size={12} />}
+                        leftSection={
+                            <MantineIcon icon={IconArrowsDiff} size={14} />
+                        }
                         onClick={() => setIsAsked(true)}
                     >
                         {isNewModel

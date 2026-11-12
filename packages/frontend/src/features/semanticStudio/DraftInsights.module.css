@@ -4,6 +4,12 @@
     background-color: var(--mantine-color-ldGray-0);
 }
 
+/* Under a notice, everything starts where its words do, past the icon column. */
+.conflict,
+.conflictActions {
+    padding-left: calc(rem(24px) + var(--mantine-spacing-xs));
+}
+
 .conflict {
     padding-top: var(--mantine-spacing-xs);
 }
