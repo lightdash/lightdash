@@ -1,51 +1,25 @@
 import { useMemo, type FC } from 'react';
 import {
-    selectChartConfig,
-    selectColumnOrder,
-    selectMetricQuery,
-    selectParameters,
-    selectPivotConfig,
     selectSavedChart,
-    selectTableName,
+    selectUnsavedChartVersion,
     useExplorerSelector,
 } from '../../../../../features/explorer/store';
 import { type ContentStateChangedPayload } from '../../events/types';
 import { useEmbedContentStateEvent } from '../../hooks/useEmbedContentStateEvent';
 
 const EmbedExploreContentStateEvent: FC = () => {
-    const exploreName = useExplorerSelector(selectTableName);
-    const metricQuery = useExplorerSelector(selectMetricQuery);
-    const parameters = useExplorerSelector(selectParameters);
-    const chartConfig = useExplorerSelector(selectChartConfig);
-    const columnOrder = useExplorerSelector(selectColumnOrder);
-    const pivotConfig = useExplorerSelector(selectPivotConfig);
+    const chart = useExplorerSelector(selectUnsavedChartVersion);
     // Only set when the explorer edits a saved chart in place
     const chartUuid = useExplorerSelector(
         (state) => selectSavedChart(state)?.uuid ?? null,
     );
 
     const state = useMemo<ContentStateChangedPayload | null>(() => {
-        if (!exploreName) return null;
-        const explorerState = {
-            exploreName,
-            metricQuery,
-            parameters,
-            chartConfig,
-            tableConfig: { columnOrder },
-            pivotConfig: pivotConfig ?? null,
-        };
+        if (!chart.tableName) return null;
         return chartUuid
-            ? { type: 'chart', chartUuid, ...explorerState }
-            : { type: 'explore', ...explorerState };
-    }, [
-        chartConfig,
-        chartUuid,
-        columnOrder,
-        exploreName,
-        metricQuery,
-        parameters,
-        pivotConfig,
-    ]);
+            ? { type: 'chart', chartUuid, chart }
+            : { type: 'explore', chart };
+    }, [chart, chartUuid]);
 
     useEmbedContentStateEvent(state);
 

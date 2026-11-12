@@ -77,14 +77,16 @@ describe('EmbedExploreContentStateEvent', () => {
             LightdashEventType.ContentStateChanged,
             {
                 type: 'explore',
-                exploreName: 'orders',
-                metricQuery: expect.objectContaining(metricQuery),
-                parameters: { region: 'EMEA' },
-                chartConfig: { type: ChartType.TABLE, config: undefined },
-                tableConfig: {
-                    columnOrder: ['orders_status', 'orders_total'],
-                },
-                pivotConfig: { columns: ['orders_status'] },
+                chart: expect.objectContaining({
+                    tableName: 'orders',
+                    metricQuery: expect.objectContaining(metricQuery),
+                    parameters: { region: 'EMEA' },
+                    chartConfig: { type: ChartType.TABLE, config: undefined },
+                    tableConfig: {
+                        columnOrder: ['orders_status', 'orders_total'],
+                    },
+                    pivotConfig: { columns: ['orders_status'] },
+                }),
             },
         );
     });
@@ -107,10 +109,14 @@ describe('EmbedExploreContentStateEvent', () => {
             expect.objectContaining({
                 type: 'chart',
                 chartUuid: 'chart-uuid',
-                metricQuery: expect.objectContaining({
-                    dimensions: ['orders_date'],
+                chart: expect.objectContaining({
+                    metricQuery: expect.objectContaining({
+                        dimensions: ['orders_date'],
+                    }),
+                    tableConfig: {
+                        columnOrder: ['orders_total', 'orders_date'],
+                    },
                 }),
-                tableConfig: { columnOrder: ['orders_total', 'orders_date'] },
             }),
         );
     });

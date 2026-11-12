@@ -15,20 +15,20 @@ vi.mock('../../../providers/Embed/useEmbed', () => ({
 
 const exploreState = (limit: number): ExploreContentState => ({
     type: 'explore',
-    exploreName: 'orders',
-    metricQuery: {
-        exploreName: 'orders',
-        dimensions: ['orders_status'],
-        metrics: [],
-        filters: {},
-        sorts: [],
-        limit,
-        tableCalculations: [],
+    chart: {
+        tableName: 'orders',
+        metricQuery: {
+            exploreName: 'orders',
+            dimensions: ['orders_status'],
+            metrics: [],
+            filters: {},
+            sorts: [],
+            limit,
+            tableCalculations: [],
+        },
+        chartConfig: { type: ChartType.TABLE, config: undefined },
+        tableConfig: { columnOrder: [] },
     },
-    parameters: {},
-    chartConfig: { type: ChartType.TABLE, config: undefined },
-    tableConfig: { columnOrder: [] },
-    pivotConfig: null,
 });
 
 describe('useEmbedContentStateEvent', () => {
