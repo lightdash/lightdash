@@ -1,3 +1,62 @@
+## [3.236.1](https://github.com/lightdash/lightdash/compare/3.236.0...3.236.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* **dashboard-controls:** draw floating bars with the edit toolbar bar ([#32487](https://github.com/lightdash/lightdash/issues/32487)) ([484d5c9](https://github.com/lightdash/lightdash/commit/484d5c93e047911accb14be2f3a781b2d3c236cd))
+* **data-apps:** move an open app to the latest version when a newer one is ready ([#32486](https://github.com/lightdash/lightdash/issues/32486)) ([129dca8](https://github.com/lightdash/lightdash/commit/129dca89bbdba88375917ac4b51498fff0c227ff))
+
+# [3.236.0](https://github.com/lightdash/lightdash/compare/3.235.0...3.236.0) (2026-11-12)
+
+
+### Features
+
+* **ai:** drop legacy Deep Research report columns ([#32458](https://github.com/lightdash/lightdash/issues/32458)) ([1bac45d](https://github.com/lightdash/lightdash/commit/1bac45dd3f0810e5b9d105c95c2e0f061c44198e))
+* **ai:** remove legacy Deep Research markdown reports ([#32457](https://github.com/lightdash/lightdash/issues/32457)) ([a1757d4](https://github.com/lightdash/lightdash/commit/a1757d4cb27ec147198b0ecabebf5a96f0cd5148))
+* **ai:** try a Studio dbt change before its preview project is built ([#32482](https://github.com/lightdash/lightdash/issues/32482)) ([429425d](https://github.com/lightdash/lightdash/commit/429425d3776fdcdcbb733f257d12858cf3e57793))
+
+# [3.235.0](https://github.com/lightdash/lightdash/compare/3.234.6...3.235.0) (2026-11-12)
+
+
+### Bug Fixes
+
+* **scheduler:** make the scheduler polling timeout configurable and mark timed-out queries cancelled ([#32439](https://github.com/lightdash/lightdash/issues/32439)) ([32bb52c](https://github.com/lightdash/lightdash/commit/32bb52c9813b155dbc60bf59d60eba5f53e44416)), closes [#27245](https://github.com/lightdash/lightdash/issues/27245) [#27245](https://github.com/lightdash/lightdash/issues/27245)
+
+
+### Features
+
+* **mobile:** phone sign-in in the header and settings behind the QR flag ([#32464](https://github.com/lightdash/lightdash/issues/32464)) ([820c82b](https://github.com/lightdash/lightdash/commit/820c82b5664977b9f61035cbdfd9d36a3c420c6a))
+
+## [3.234.6](https://github.com/lightdash/lightdash/compare/3.234.5...3.234.6) (2026-11-12)
+
+
+### Bug Fixes
+
+* **live-sources:** refuse a live data source result the source cut ([#32467](https://github.com/lightdash/lightdash/issues/32467)) ([89ccd24](https://github.com/lightdash/lightdash/commit/89ccd24c0789cb953a702f05ea8bddc8ecf9216c))
+
+## [3.234.5](https://github.com/lightdash/lightdash/compare/3.234.4...3.234.5) (2026-11-12)
+
+
+### Bug Fixes
+
+* **dashboards:** keep live data source tiles working under date zoom ([#32466](https://github.com/lightdash/lightdash/issues/32466)) ([3afc2de](https://github.com/lightdash/lightdash/commit/3afc2de760b8084aff82452958ec5f32da99910f))
+* **live-sources:** refuse ads queries grouped by an attribute alone ([#32463](https://github.com/lightdash/lightdash/issues/32463)) ([f4d7a30](https://github.com/lightdash/lightdash/commit/f4d7a300c9d08c8eba2e00a960bea2beca78d889))
+
+## [3.234.4](https://github.com/lightdash/lightdash/compare/3.234.3...3.234.4) (2026-11-12)
+
+
+### Bug Fixes
+
+* **visualization:** draw no stack totals on charts that are not stacked ([#32438](https://github.com/lightdash/lightdash/issues/32438)) ([8392996](https://github.com/lightdash/lightdash/commit/8392996f15b70609ae58868bd8a3fe3d3b7e83ec))
+
+## [3.234.3](https://github.com/lightdash/lightdash/compare/3.234.2...3.234.3) (2026-11-12)
+
+
+### Bug Fixes
+
+* **dashboards:** align Markdown tile formatting ([#32485](https://github.com/lightdash/lightdash/issues/32485)) ([10d6820](https://github.com/lightdash/lightdash/commit/10d6820fcb65b90599e67cd5435a762137bf254b))
+* **pivot:** fold groups past the column limit into "Other" on stacked charts ([#32373](https://github.com/lightdash/lightdash/issues/32373)) ([a422260](https://github.com/lightdash/lightdash/commit/a4222607aa30b483f5ee21077a3ecbcca7d709ae))
+
 ## [3.234.2](https://github.com/lightdash/lightdash/compare/3.234.1...3.234.2) (2026-11-12)
 
 

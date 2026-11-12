@@ -384,62 +384,17 @@ describe('managed agent runtime variable', () => {
 });
 
 describe('query history retention', () => {
-    it('warns when cleanup can expire charts before their Deep Research reports', () => {
-        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        process.env.QUERY_HISTORY_RETENTION_DAYS = '29';
-
-        try {
-            expect(
-                parseConfig().scheduler.queryHistory.cleanup.retentionDays,
-            ).toBe(29);
-            expect(warn).toHaveBeenCalledWith(
-                'WARNING: QUERY_HISTORY_RETENTION_DAYS is below the 30-day Deep Research report retention. Report charts may become unavailable before their reports expire.',
-            );
-        } finally {
-            warn.mockRestore();
-        }
-    });
-
-    it.each([undefined, '30', '32', '60'])(
-        'does not warn for a sufficient retention window: %s',
+    it.each([undefined, '1', '60'])(
+        'reads the retention window: %s',
         (retentionDays) => {
-            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
             if (retentionDays !== undefined) {
                 process.env.QUERY_HISTORY_RETENTION_DAYS = retentionDays;
             }
-
-            try {
-                expect(
-                    parseConfig().scheduler.queryHistory.cleanup.retentionDays,
-                ).toBe(
-                    retentionDays === undefined ? 32 : Number(retentionDays),
-                );
-                expect(warn).not.toHaveBeenCalledWith(
-                    expect.stringContaining('QUERY_HISTORY_RETENTION_DAYS'),
-                );
-            } finally {
-                warn.mockRestore();
-            }
+            expect(
+                parseConfig().scheduler.queryHistory.cleanup.retentionDays,
+            ).toBe(retentionDays === undefined ? 32 : Number(retentionDays));
         },
     );
-
-    it('does not warn when query history cleanup is disabled', () => {
-        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        process.env.QUERY_HISTORY_RETENTION_DAYS = '1';
-        process.env.QUERY_HISTORY_CLEANUP_ENABLED = 'false';
-
-        try {
-            expect(parseConfig().scheduler.queryHistory.cleanup).toMatchObject({
-                enabled: false,
-                retentionDays: 1,
-            });
-            expect(warn).not.toHaveBeenCalledWith(
-                expect.stringContaining('QUERY_HISTORY_RETENTION_DAYS'),
-            );
-        } finally {
-            warn.mockRestore();
-        }
-    });
 });
 
 describe('dashboard tile query concurrency', () => {
@@ -476,6 +431,67 @@ describe('scheduler daily job generation concurrency', () => {
 
         expect(() => parseConfig()).toThrow(ParseError);
     });
+});
+
+describe('scheduler query polling timeout', () => {
+    it('defaults to 5 minutes', () => {
+        expect(parseConfig().scheduler.queryPollingTimeout).toBe(300_000);
+    });
+
+    it('reads the configured timeout', () => {
+        process.env.SCHEDULER_QUERY_POLLING_TIMEOUT = '540000';
+
+        expect(parseConfig().scheduler.queryPollingTimeout).toBe(540_000);
+    });
+
+    it('accepts a timeout that leaves a tenth of the job timeout', () => {
+        process.env.SCHEDULER_JOB_TIMEOUT = '1800000';
+        process.env.SCHEDULER_QUERY_POLLING_TIMEOUT = '1620000';
+
+        expect(parseConfig().scheduler.queryPollingTimeout).toBe(1_620_000);
+    });
+
+    it('keeps the default wait below a short job timeout', () => {
+        process.env.SCHEDULER_JOB_TIMEOUT = '120000';
+
+        expect(parseConfig().scheduler).toMatchObject({
+            jobTimeout: 120_000,
+            queryPollingTimeout: 108_000,
+        });
+    });
+
+    it.each(['0', '-1', 'invalid', '2147483648'])(
+        'rejects an invalid timeout: %s',
+        (value) => {
+            process.env.SCHEDULER_QUERY_POLLING_TIMEOUT = value;
+
+            expect(() => parseConfig()).toThrow(ParseError);
+        },
+    );
+
+    it.each([
+        ['equal to the job timeout', undefined, '600000'],
+        ['without headroom below the job timeout', undefined, '540001'],
+        ['above a short job timeout', '120000', '300000'],
+    ])('rejects a timeout %s', (_case, jobTimeout, queryPollingTimeout) => {
+        if (jobTimeout) process.env.SCHEDULER_JOB_TIMEOUT = jobTimeout;
+        process.env.SCHEDULER_QUERY_POLLING_TIMEOUT = queryPollingTimeout;
+
+        expect(() => parseConfig()).toThrow(ParseError);
+        expect(() => parseConfig()).toThrow(
+            /SCHEDULER_QUERY_POLLING_TIMEOUT.*SCHEDULER_JOB_TIMEOUT/,
+        );
+    });
+
+    it.each(['0', '-1', 'invalid'])(
+        'rejects an invalid job timeout: %s',
+        (value) => {
+            process.env.SCHEDULER_JOB_TIMEOUT = value;
+
+            expect(() => parseConfig()).toThrow(ParseError);
+            expect(() => parseConfig()).toThrow(/SCHEDULER_JOB_TIMEOUT/);
+        },
+    );
 });
 
 describe('usage events storage endpoint', () => {

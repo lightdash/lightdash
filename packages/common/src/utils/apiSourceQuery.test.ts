@@ -10,6 +10,7 @@ import { TimeFrames } from '../types/timeFrames';
 import {
     getApiSourceCapabilities,
     getApiSourceQueryIssues,
+    isDateZoomRefusedOnExplore,
     type ApiSourceQueryContext,
 } from './apiSourceQuery';
 
@@ -568,5 +569,33 @@ describe('getApiSourceQueryIssues with declared capabilities', () => {
             dateZoom: 'refused',
         });
         expect(getApiSourceCapabilities(declared)).toBe(capabilities);
+    });
+});
+
+describe('isDateZoomRefusedOnExplore', () => {
+    test('is false for a warehouse explore', () => {
+        expect(isDateZoomRefusedOnExplore({})).toBe(false);
+    });
+
+    test('is true for a live data source that refuses date zoom', () => {
+        expect(isDateZoomRefusedOnExplore({ apiSource })).toBe(true);
+    });
+
+    test('is false for a live data source that runs date zoom natively', () => {
+        const capabilities = getApiSourceCapabilities(apiSource);
+        expect(
+            isDateZoomRefusedOnExplore({
+                apiSource: {
+                    ...apiSource,
+                    capabilities: {
+                        ...capabilities,
+                        pushdown: {
+                            ...capabilities.pushdown,
+                            dateZoom: 'native',
+                        },
+                    },
+                },
+            }),
+        ).toBe(false);
     });
 });

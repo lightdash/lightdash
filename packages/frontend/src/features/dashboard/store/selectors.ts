@@ -1,4 +1,5 @@
 import {
+    DashboardTileTypes,
     getMissingRequiredDashboardParameters,
     getDashboardTileParameterOverrides,
     omitDisallowedParameterValues,
@@ -394,6 +395,27 @@ export const selectControlGranularities = (state: DashboardStoreState) =>
 export const selectChartZoomableFieldsByTileUuid = (
     state: DashboardStoreState,
 ) => state.dateZoom.chartZoomableFieldsByTileUuid;
+/**
+ * Whether every chart tile keeps its saved grain under date zoom, as live
+ * data source tiles do, so the control would change nothing. False until
+ * every chart tile has reported.
+ */
+export const selectIsDateZoomRefusedOnAllChartTiles = (
+    state: DashboardStoreState,
+) => {
+    const chartTiles =
+        state.edit.tiles?.filter(
+            ({ type }) =>
+                type === DashboardTileTypes.SAVED_CHART ||
+                type === DashboardTileTypes.SQL_CHART,
+        ) ?? [];
+    return (
+        chartTiles.length > 0 &&
+        chartTiles.every(
+            ({ uuid }) => state.dateZoom.dateZoomRefusedByTileUuid[uuid],
+        )
+    );
+};
 export const selectTilesWithDateZoomApplied = (state: DashboardStoreState) =>
     state.dateZoom.tilesWithDateZoomApplied;
 export const selectIsDateZoomAppliedToTile = (

@@ -711,7 +711,10 @@ import {
     WritebackAgentAccessError,
     WritebackThreadPrClosedError,
 } from '../AiWritebackService/errors';
-import type { AiWritebackSource } from '../AiWritebackService/types';
+import type {
+    AiWritebackSource,
+    ParsedDbtProject,
+} from '../AiWritebackService/types';
 import { createWritebackAgentDeliveryGuard } from '../AiWritebackService/writebackAgentWork';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import type { AppGenerateService } from '../AppGenerateService/AppGenerateService';
@@ -12763,7 +12766,7 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
     }
 
     static createDeepResearchRunContext(
-        runs: AiDeepResearchRunContextRow[],
+        runs: Array<AiDeepResearchRunContextRow & { has_report: boolean }>,
         latestProgressEvents: DbAiDeepResearchEvent[],
         now = new Date(),
     ): AiAgentDeepResearchRunContext[] {
@@ -12803,9 +12806,9 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
         });
     }
 
-    static selectDeepResearchContextRuns(
-        runs: AiDeepResearchRunContextRow[],
-    ): AiDeepResearchRunContextRow[] {
+    static selectDeepResearchContextRuns<T extends AiDeepResearchRunContextRow>(
+        runs: T[],
+    ): T[] {
         const activeRuns = runs.filter(
             ({ status }) => !isAiDeepResearchRunTerminal(status),
         );
@@ -13861,8 +13864,23 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
             toolResultReady = true;
 
             let result: AiWritebackRunResult;
+            let changedModels: string[] | null = null;
             try {
                 const runArgs = {
+                    ...(prompt.threadCreatedFrom === 'semantic_studio'
+                        ? {
+                              onDbtProject: async (
+                                  project: ParsedDbtProject,
+                              ) => {
+                                  changedModels =
+                                      await this.semanticStudioService.saveDbtTryOut(
+                                          user,
+                                          projectUuid,
+                                          project,
+                                      );
+                              },
+                          }
+                        : {}),
                     agentPermissionsApply: true,
                     user,
                     projectUuid,
@@ -14044,6 +14062,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     deletions: result.deletions ?? null,
                     previewUrl: previewUrl ?? null,
                     steps: result.steps,
+                    changedModels,
                     needsDbtSourceSelection:
                         result.needsDbtSourceSelection ?? null,
                     dbtSourceOptions: result.dbtSourceOptions ?? null,
@@ -17526,11 +17545,9 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     AiAgentService.selectDeepResearchContextRuns(
                         threadDeepResearchRuns.map((run) => ({
                             ...run,
-                            has_report:
-                                run.has_report ||
-                                researchDocuments.has(
-                                    run.ai_deep_research_run_uuid,
-                                ),
+                            has_report: researchDocuments.has(
+                                run.ai_deep_research_run_uuid,
+                            ),
                         })),
                     );
                 const latestDeepResearchProgress =

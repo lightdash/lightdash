@@ -20,6 +20,7 @@ import {
     type ApiConnectorResult,
     type ApiConnectorTransport,
 } from '../ApiConnector';
+import { tooManyRowsError } from '../apiSourceRows';
 import {
     LINKEDIN_ADS_CAMPAIGN_COLUMNS,
     LINKEDIN_ADS_CAMPAIGN_GROUP_COLUMNS,
@@ -407,9 +408,10 @@ export class LinkedInAdsConnector implements ApiConnector {
         const elements = parsed.data.elements ?? [];
         // The API stops at 15,000 with no way to read the rest
         if (elements.length >= LINKEDIN_ADS_MAX_ELEMENTS) {
-            throw new ParameterError(
-                `This query has more than ${LINKEDIN_ADS_MAX_QUERY_ROWS} rows, the most one LinkedIn Ads query can return. Narrow it with filters or a shorter time range.`,
-            );
+            throw tooManyRowsError({
+                label: 'LinkedIn Ads',
+                maxRows: LINKEDIN_ADS_MAX_QUERY_ROWS,
+            });
         }
 
         const dimensions = new Set(request.dimensions);
@@ -491,7 +493,7 @@ export class LinkedInAdsConnector implements ApiConnector {
         return {
             columns,
             rows,
-            truncated: elements.length > rowLimit,
+            hasMoreRows: elements.length > rowLimit,
             bytesRead: null,
         };
     }

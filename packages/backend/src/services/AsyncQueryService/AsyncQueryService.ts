@@ -83,6 +83,7 @@ import {
     isCustomDimension,
     isDashboardChartTileType,
     isDateItem,
+    isDateZoomRefusedOnExplore,
     isExploreError,
     isField,
     isJwtUser,
@@ -261,6 +262,7 @@ import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import {
     mapQueryHistoryRowToListItem,
     QueryHistoryModel,
+    QueryPollingTimeoutError,
     type CachedResultsContent,
 } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -394,6 +396,7 @@ import {
 } from '../QuerySourceService/api/apiQueryOutcome';
 import { toApiSourceQueryError } from '../QuerySourceService/api/apiSourceExplore';
 import {
+    assertApiResultComplete,
     compileApiSourceMetricQuery,
     toApiSourceResult,
 } from '../QuerySourceService/api/apiSourceExplores';
@@ -501,6 +504,7 @@ import {
     assertAgentQueryWithinEstimateLimit,
     QueryEstimateCache,
 } from './queryCostEstimate';
+import type { QueryPollingSource } from './queryPollingSource';
 import { canReuseApiResult, canReuseQueryResult } from './queryResultReuse';
 import { queryUsageProperties, queryWorkloadOrigin } from './queryUsage';
 import {
@@ -2569,20 +2573,6 @@ export class AsyncQueryService extends ProjectService {
                 'Embed token is not allowed to download AI agent results',
             );
         }
-    }
-
-    async bindQueryToResearchRun(
-        account: Account,
-        projectUuid: string,
-        queryUuid: string,
-        runUuid: string,
-    ): Promise<void> {
-        await this.queryHistoryModel.recordResultResearchRun(
-            queryUuid,
-            projectUuid,
-            account.user.id,
-            runUuid,
-        );
     }
 
     async bindQueryToArtifact(
@@ -10135,7 +10125,7 @@ export class AsyncQueryService extends ProjectService {
         dashboardUuid,
         dashboardFilters,
         dashboardSorts,
-        dateZoom,
+        dateZoom: requestedDateZoom,
         context,
         querySurface,
         invalidateCache,
@@ -10175,6 +10165,13 @@ export class AsyncQueryService extends ProjectService {
                 organizationUuid,
             ),
         ]);
+
+        // A live data source whose integration refuses date zoom keeps its
+        // saved grain, so one zoom never fails its tiles. Direct metric
+        // queries still refuse the zoom.
+        const dateZoom = isDateZoomRefusedOnExplore(explore)
+            ? undefined
+            : requestedDateZoom;
 
         let effectiveDashboardUuid: string | undefined = dashboardUuid;
 
@@ -12472,8 +12469,20 @@ export class AsyncQueryService extends ProjectService {
                 args.invalidateCache ??
                 false,
             history: { fields, requestParameters, metricQuery, explore },
-            toResult: (result) =>
-                toApiSourceResult({ compiled, rows: result.rows, fields }),
+            toResult: (result) => {
+                const { label, maxRows } = connector.describe();
+                assertApiResultComplete({
+                    compiled,
+                    hasMoreRows: result.hasMoreRows,
+                    label,
+                    maxRows,
+                });
+                return toApiSourceResult({
+                    compiled,
+                    rows: result.rows,
+                    fields,
+                });
+            },
         });
         return {
             queryUuid,
@@ -12777,7 +12786,7 @@ export class AsyncQueryService extends ProjectService {
                     executeMs = Date.now() - startedAt;
                     span.setAttributes({
                         'lightdash.rowCount': result.rows.length,
-                        'lightdash.truncated': result.truncated,
+                        'lightdash.truncated': result.hasMoreRows,
                         'lightdash.apiCalls': connector.usage().apiCalls,
                         ...(result.bytesRead !== null
                             ? { 'lightdash.bytesRead': result.bytesRead }
@@ -12861,18 +12870,20 @@ export class AsyncQueryService extends ProjectService {
                         errorMessage: null,
                         totalRowCount: shaped.rows.length,
                         columnsCount: Object.keys(shaped.columns).length,
-                        truncated: result.truncated,
+                        truncated: result.hasMoreRows,
                     });
                     logCall({
                         outcome: 'ok',
                         errorMessage: null,
                         rowCount: shaped.rows.length,
                         columnCount: Object.keys(shaped.columns).length,
-                        truncated: result.truncated,
+                        truncated: result.hasMoreRows,
                     });
                     this.logger.info(
                         `Api query ${queryUuid} ready: ${shaped.rows.length} rows${
-                            result.truncated ? ' (truncated)' : ''
+                            result.hasMoreRows
+                                ? ' (more rows past the limit)'
+                                : ''
                         } from ${connectorType} in ${Date.now() - startedAt}ms`,
                     );
                 } catch (e) {
@@ -12998,7 +13009,7 @@ export class AsyncQueryService extends ProjectService {
                 'ok',
                 Date.now() - startedAt,
             );
-            if (result.truncated) {
+            if (result.hasMoreRows) {
                 this.prometheusMetrics?.incrementApiSourceTruncated(
                     connectorType,
                 );
@@ -16266,7 +16277,8 @@ export class AsyncQueryService extends ProjectService {
 
     /**
      * Poll for query completion with exponential backoff.
-     * Throws on CANCELLED, ERROR, or timeout.
+     * Throws on CANCELLED, ERROR, or timeout. A timeout cancels the query
+     * if it is still running.
      */
     async pollForQueryCompletion({
         account,
@@ -16276,6 +16288,7 @@ export class AsyncQueryService extends ProjectService {
         maxBackoffMs = 2000,
         timeoutMs = 5 * 60 * 1000, // 5 min default
         abortSignal,
+        source = 'other',
     }: {
         account: Account;
         projectUuid: string;
@@ -16284,16 +16297,66 @@ export class AsyncQueryService extends ProjectService {
         maxBackoffMs?: number;
         timeoutMs?: number;
         abortSignal?: AbortSignal;
+        source?: QueryPollingSource;
     }): Promise<void> {
-        await this.queryHistoryModel.pollForQueryCompletion({
-            queryUuid,
-            account,
-            projectUuid,
-            initialBackoffMs,
-            maxBackoffMs,
-            timeoutMs,
-            abortSignal,
-        });
+        try {
+            await this.queryHistoryModel.pollForQueryCompletion({
+                queryUuid,
+                account,
+                projectUuid,
+                initialBackoffMs,
+                maxBackoffMs,
+                timeoutMs,
+                abortSignal,
+            });
+        } catch (error) {
+            if (error instanceof QueryPollingTimeoutError) {
+                this.prometheusMetrics?.incrementQueryPollingTimeout(source);
+                await this.cancelTimedOutQuery({
+                    account,
+                    projectUuid,
+                    queryUuid,
+                });
+            }
+            throw error;
+        }
+    }
+
+    private async cancelTimedOutQuery({
+        account,
+        projectUuid,
+        queryUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+    }): Promise<void> {
+        try {
+            const history = await this.queryHistoryModel.get(
+                queryUuid,
+                projectUuid,
+                account,
+            );
+            if (
+                [
+                    QueryHistoryStatus.PENDING,
+                    QueryHistoryStatus.QUEUED,
+                    QueryHistoryStatus.EXECUTING,
+                ].includes(history.status)
+            ) {
+                await this.cancelAsyncQuery({
+                    account,
+                    projectUuid,
+                    queryUuid,
+                });
+            }
+        } catch (error) {
+            this.logger.warn(
+                `Failed to cancel query ${queryUuid} after polling timed out: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
     }
 
     async pollQueryHistoryUntilDeadline({

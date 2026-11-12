@@ -9,14 +9,12 @@ import {
     SchedulerJobStatus,
     type AnonymousAccount,
 } from '@lightdash/common';
-import type { AddJobFunction } from 'graphile-worker';
 import Logger from '../../logging/logger';
 import { type ContentReviewRequestModel } from '../../models/ContentReviewRequestModel';
 import { type ContentReviewSettingsModel } from '../../models/ContentReviewSettingsModel';
 import { type OpenIdIdentityModel } from '../../models/OpenIdIdentitiesModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type UserModel } from '../../models/UserModel';
-import type PrometheusMetrics from '../../prometheus/PrometheusMetrics';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { tryJobOrTimeout } from '../../scheduler/SchedulerJobTimeout';
 import {
@@ -64,7 +62,6 @@ import { sendReviewNotification } from './tasks/sendReviewNotification';
 
 const MCP_TOOL_CALL_RETENTION_DAYS = 90;
 const AI_THREAD_RETENTION_CLEANUP_BATCH_SIZE = 500;
-export const AI_DEEP_RESEARCH_REPORT_CLEANUP_BATCH_SIZE = 100;
 const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_REMEDIATION_RUN_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const DATA_APP_INVESTIGATE_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes
@@ -79,51 +76,6 @@ const AI_AGENT_MEMORY_CONSOLIDATE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 const AI_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000;
 const EXTERNAL_SOURCE_INGEST_TIMEOUT_MS = 30 * 60 * 1000;
-
-export const cleanAiDeepResearchReports = async ({
-    aiDeepResearchService,
-    cleanupMetrics,
-    addJob,
-}: {
-    aiDeepResearchService: Pick<AiDeepResearchService, 'cleanExpiredReports'>;
-    cleanupMetrics: Pick<
-        PrometheusMetrics,
-        'incrementAiDeepResearchReportCleanup'
-    > | null;
-    addJob: AddJobFunction;
-}): Promise<void> => {
-    Logger.info('Starting Deep Research report cleanup job');
-    const result = await aiDeepResearchService.cleanExpiredReports(
-        AI_DEEP_RESEARCH_REPORT_CLEANUP_BATCH_SIZE,
-    );
-    cleanupMetrics?.incrementAiDeepResearchReportCleanup(
-        'scanned',
-        result.scanned,
-    );
-    cleanupMetrics?.incrementAiDeepResearchReportCleanup(
-        'expired',
-        result.expired,
-    );
-    cleanupMetrics?.incrementAiDeepResearchReportCleanup(
-        'failed',
-        result.failed,
-    );
-    Logger.info(
-        `Deep Research report cleanup completed. Scanned: ${result.scanned}; expired: ${result.expired}; failed: ${result.failed}`,
-    );
-    if (result.failed > 0) {
-        throw new Error(
-            `Failed to clean ${result.failed} Deep Research reports`,
-        );
-    }
-    if (result.scanned === AI_DEEP_RESEARCH_REPORT_CLEANUP_BATCH_SIZE) {
-        await addJob(
-            EE_SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS,
-            {},
-            { maxAttempts: 3 },
-        );
-    }
-};
 
 type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     analyticsProjectService: Pick<
@@ -251,8 +203,6 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     private readonly findRetainedOrganizations: () => Promise<string[]>;
 
-    private readonly cleanupMetrics: PrometheusMetrics | null;
-
     constructor(args: CommercialSchedulerWorkerArguments) {
         super(args);
         this.analyticsProjectService = args.analyticsProjectService;
@@ -294,7 +244,6 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.sendAiCreditAllowanceAlerts = args.sendAiCreditAllowanceAlerts;
         this.findRetainedOrganizations =
             args.findAiUsageLedgerRetainedOrganizations;
-        this.cleanupMetrics = args.prometheusMetrics ?? null;
     }
 
     protected findAiUsageLedgerRetainedOrganizations(): Promise<string[]> {
@@ -428,14 +377,6 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 pattern: '55 0 * * *', // 00:55 UTC daily
                 options: {
                     backfillPeriod: 24 * 3600 * 1000,
-                    maxAttempts: 3,
-                },
-            },
-            {
-                task: EE_SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS,
-                pattern: '41 * * * *',
-                options: {
-                    backfillPeriod: 2 * 60 * 60 * 1000,
                     maxAttempts: 3,
                 },
             },
@@ -578,15 +519,6 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     );
                 }
             },
-            [EE_SCHEDULER_TASKS.CLEAN_AI_DEEP_RESEARCH_REPORTS]: async (
-                _payload,
-                helpers,
-            ) =>
-                cleanAiDeepResearchReports({
-                    aiDeepResearchService: this.aiDeepResearchService,
-                    cleanupMetrics: this.cleanupMetrics,
-                    addJob: helpers.addJob,
-                }),
             [EE_SCHEDULER_TASKS.CLEAN_AI_AGENT_THREADS]: async (
                 _payload,
                 helpers,

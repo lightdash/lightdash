@@ -434,6 +434,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             models.getGithubAppInstallationsModel(),
                     }),
                     savedChartModel: models.getSavedChartModel(),
+                    fileStorageClient: clients.getFileStorageClient(),
                 }),
             homepageRecommendedActionSkipsService: ({ models }) =>
                 new HomepageRecommendedActionSkipsService({
@@ -1072,8 +1073,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         aiModelCatalog,
                     }),
                 }),
-            schedulerAiAugmentationService: ({ models, repository }) =>
+            schedulerAiAugmentationService: ({ models, repository, context }) =>
                 new SchedulerAiAugmentationService({
+                    lightdashConfig: context.lightdashConfig,
                     agentPermissionService:
                         repository.getAgentPermissionService(),
                     featureFlagModel: models.getFeatureFlagModel(),

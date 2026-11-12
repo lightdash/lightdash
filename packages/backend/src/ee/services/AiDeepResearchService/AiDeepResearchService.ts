@@ -230,11 +230,8 @@ const getCompletionClass = (
 };
 
 const getReportQuality = (run: DbAiDeepResearchRun, hasReport: boolean) => {
-    // Published Documents passed report preparation; legacy reports are linted.
-    const structureValid =
-        hasReport &&
-        (run.result_markdown === null ||
-            lintDeepResearchReport(run.result_markdown).length === 0);
+    // Published Documents passed report preparation.
+    const structureValid = hasReport;
     const evidenceGrounded = hasReport && (run.findings_count ?? 0) > 0;
     const reproducible = hasReport && (run.warehouse_query_count ?? 0) > 0;
     let qualityClass: 'none' | 'strong' | 'partial';
@@ -502,70 +499,46 @@ export const getAiDeepResearchRunBudget = (
     };
 };
 
-const getReportExpiresAt = (row: DbAiDeepResearchRun): Date | null => {
-    if (row.report_expires_at) {
-        return row.report_expires_at;
-    }
-    if (row.completed_at && row.result_markdown !== null) {
-        return new Date(row.completed_at.getTime() + 30 * 24 * 60 * 60 * 1_000);
-    }
-    return null;
-};
-
 const toRun = (
     row: DbAiDeepResearchRun,
     document: AiDeepResearchRunDocument | null,
-): AiDeepResearchRun => {
-    const reportExpiresAt = getReportExpiresAt(row);
-    const isReportExpired =
-        row.report_expired_at !== null ||
-        (reportExpiresAt !== null && reportExpiresAt.getTime() <= Date.now());
-    return {
-        aiDeepResearchRunUuid: row.ai_deep_research_run_uuid,
-        projectUuid: row.project_uuid,
-        agentUuid: row.agent_uuid,
-        aiThreadUuid: row.ai_thread_uuid,
-        promptUuid: row.prompt_uuid,
-        resumedFromRunUuid: row.resume_from_run_uuid,
-        entryPoint: row.entry_point,
-        prompt: row.prompt,
-        status: row.status,
-        terminalReason: row.terminal_reason,
-        resultMarkdown:
-            isReportExpired ||
-            (row.status !== 'completed' && row.status !== 'partially_completed')
-                ? null
-                : row.result_markdown,
-        reportExpiresAt: reportExpiresAt?.toISOString() ?? null,
-        reportExpiredAt: row.report_expired_at?.toISOString() ?? null,
-        isReportExpired,
-        document,
-        budget: getAiDeepResearchRunBudget(row.budget_snapshot),
-        executionContextSnapshot: row.execution_context_snapshot,
-        metrics: {
-            durationMs: row.duration_ms,
-            inputTokens: row.input_tokens,
-            outputTokens: row.output_tokens,
-            cacheReadTokens: row.cache_read_tokens,
-            cacheWriteTokens: row.cache_write_tokens,
-            reasoningTokens: row.reasoning_tokens,
-            totalTokens: row.total_tokens,
-            tokenUsageComplete: row.token_usage_complete,
-            toolCallCount: row.tool_call_count,
-            toolErrorCount: row.tool_error_count,
-            warehouseQueryCount: row.warehouse_query_count,
-            findingsCount: row.findings_count,
-            chartCount: row.chart_count,
-        },
-        errorMessage: row.error_message,
-        cancellationRequestedAt:
-            row.cancellation_requested_at?.toISOString() ?? null,
-        createdAt: row.created_at.toISOString(),
-        updatedAt: row.updated_at.toISOString(),
-        startedAt: row.started_at?.toISOString() ?? null,
-        completedAt: row.completed_at?.toISOString() ?? null,
-    };
-};
+): AiDeepResearchRun => ({
+    aiDeepResearchRunUuid: row.ai_deep_research_run_uuid,
+    projectUuid: row.project_uuid,
+    agentUuid: row.agent_uuid,
+    aiThreadUuid: row.ai_thread_uuid,
+    promptUuid: row.prompt_uuid,
+    resumedFromRunUuid: row.resume_from_run_uuid,
+    entryPoint: row.entry_point,
+    prompt: row.prompt,
+    status: row.status,
+    terminalReason: row.terminal_reason,
+    document,
+    budget: getAiDeepResearchRunBudget(row.budget_snapshot),
+    executionContextSnapshot: row.execution_context_snapshot,
+    metrics: {
+        durationMs: row.duration_ms,
+        inputTokens: row.input_tokens,
+        outputTokens: row.output_tokens,
+        cacheReadTokens: row.cache_read_tokens,
+        cacheWriteTokens: row.cache_write_tokens,
+        reasoningTokens: row.reasoning_tokens,
+        totalTokens: row.total_tokens,
+        tokenUsageComplete: row.token_usage_complete,
+        toolCallCount: row.tool_call_count,
+        toolErrorCount: row.tool_error_count,
+        warehouseQueryCount: row.warehouse_query_count,
+        findingsCount: row.findings_count,
+        chartCount: row.chart_count,
+    },
+    errorMessage: row.error_message,
+    cancellationRequestedAt:
+        row.cancellation_requested_at?.toISOString() ?? null,
+    createdAt: row.created_at.toISOString(),
+    updatedAt: row.updated_at.toISOString(),
+    startedAt: row.started_at?.toISOString() ?? null,
+    completedAt: row.completed_at?.toISOString() ?? null,
+});
 
 const toEvent = (row: DbAiDeepResearchEvent): AiDeepResearchEvent => {
     const event = {
@@ -780,7 +753,7 @@ export class AiDeepResearchService extends BaseService {
         const hasReport =
             (args.run.status === 'completed' ||
                 args.run.status === 'partially_completed') &&
-            (hasDocument || args.run.result_markdown !== null);
+            hasDocument;
         const reportQuality = getReportQuality(args.run, hasReport);
         this.analytics.track({
             messageId: args.event.ai_deep_research_analytics_event_uuid,
@@ -1220,72 +1193,6 @@ export class AiDeepResearchService extends BaseService {
         return findAiDeepResearchRunDocuments(this.aiAgentModel, runs);
     }
 
-    async cleanExpiredReports(batchSize: number) {
-        return this.aiDeepResearchRunModel.cleanExpiredReports(batchSize);
-    }
-
-    async refreshChart(args: {
-        account: Account;
-        user: SessionUser;
-        projectUuid: string;
-        aiDeepResearchRunUuid: string;
-        chartKey: string;
-    }): Promise<ApiAiAgentThreadMessageVizQuery> {
-        const run = await this.findCreatorOwnedRun(
-            args.user,
-            args.projectUuid,
-            args.aiDeepResearchRunUuid,
-        );
-        const chart = await this.getRunChart(run, args.chartKey);
-        const scope = await this.getRunExecutionScope(
-            args.account,
-            args.user,
-            run,
-        );
-        const prompt = await this.aiAgentModel.findWebAppPrompt(
-            run.prompt_uuid,
-        );
-        const query = await agentExecutionContext.run(scope, () =>
-            this.asyncQueryService.executeAsyncMetricQuery({
-                account: args.account,
-                projectUuid: args.projectUuid,
-                metricQuery: chart.metricQuery,
-                context: QueryExecutionContext.AI,
-                querySurface: prompt
-                    ? querySurfaceFromPrompt(prompt)
-                    : QuerySurface.APP,
-                pivotConfiguration: this.getChartPivotConfiguration(chart),
-            }),
-        );
-        if (scope.agentIdentityEnabled)
-            await this.asyncQueryService.bindQueryToResearchRun(
-                args.account,
-                args.projectUuid,
-                query.queryUuid,
-                run.ai_deep_research_run_uuid,
-            );
-
-        return {
-            source: 'semantic',
-            type: AiResultType.QUERY_RESULT,
-            mergeQuery: null,
-            query: {
-                queryUuid: query.queryUuid,
-                cacheMetadata: query.cacheMetadata,
-                metricQuery: query.metricQuery,
-                fields: query.fields,
-                warnings: query.warnings,
-                parameterReferences: [],
-                usedParametersValues: {},
-                resolvedTimezone: query.metricQuery.timezone ?? null,
-            },
-            metadata: {
-                title: chart.title,
-                description: null,
-            },
-        };
-    }
-
     private async getRunExecutionScope(
         account: Account,
         user: SessionUser,
@@ -1328,146 +1235,6 @@ export class AiDeepResearchService extends BaseService {
             agentUuid: run.agent_uuid,
             agentIdentityEnabled,
         });
-    }
-
-    async getChartQueryResults(args: {
-        account: Account;
-        user: SessionUser;
-        projectUuid: string;
-        aiDeepResearchRunUuid: string;
-        queryUuid: string;
-        page?: number;
-        pageSize?: number;
-    }) {
-        const { enabled } = await this.featureFlagService.get({
-            user: args.user,
-            featureFlagId: FeatureFlags.AgentIdentity,
-        });
-        let reader: QueryResultReader = {
-            kind: 'person',
-            authMethod: args.account.authentication.type,
-        };
-        if (enabled) {
-            const history = await this.queryHistoryModel.getByQueryUuid(
-                args.queryUuid,
-            );
-            if (
-                !history ||
-                history.projectUuid !== args.projectUuid ||
-                history.organizationUuid !== args.user.organizationUuid ||
-                history.requestParameters.resultResearchRunUuid !==
-                    args.aiDeepResearchRunUuid
-            )
-                throw new NotFoundError(
-                    'Deep Research chart results are unavailable',
-                );
-            const run = await this.aiDeepResearchRunModel.findByUuidScoped({
-                aiDeepResearchRunUuid: args.aiDeepResearchRunUuid,
-                organizationUuid: args.user.organizationUuid!,
-                projectUuid: args.projectUuid,
-            });
-            if (!run) throw new NotFoundError('Deep Research run not found');
-            if (run.created_by_user_uuid === args.account.user.id) {
-                await this.assertCurrentRunAccess(args.user, run);
-                const scope = await this.getRunExecutionScope(
-                    args.account,
-                    args.user,
-                    run,
-                );
-                if (scope.agentIdentityEnabled && scope.claim)
-                    reader = {
-                        kind: 'agent',
-                        claim: scope.claim,
-                        authMethod: args.account.authentication.type,
-                    };
-            }
-        }
-        return this.asyncQueryService.getAsyncQueryResults({
-            account: args.account,
-            projectUuid: args.projectUuid,
-            queryUuid: args.queryUuid,
-            page: args.page,
-            pageSize: args.pageSize,
-            reader,
-        });
-    }
-
-    // Grouped charts expect server-pivoted results, matching the chat viz path.
-    private getChartPivotConfiguration(
-        chart: AiDeepResearchChartData,
-    ): PivotConfiguration | undefined {
-        try {
-            const webAiChartConfig = getWebAiChartConfig({
-                vizConfig: buildDeepResearchVizConfig(chart),
-                metricQuery: chart.metricQuery,
-                fieldsMap: chart.fields,
-                overrideChartType: chart.chartConfig.defaultVizType,
-            });
-            const groupByDimensions = getGroupByDimensions(webAiChartConfig);
-            if (!groupByDimensions?.length) {
-                return undefined;
-            }
-            return derivePivotConfigurationFromChart(
-                {
-                    chartConfig: webAiChartConfig.echartsConfig,
-                    pivotConfig: { columns: groupByDimensions },
-                },
-                chart.metricQuery,
-                chart.fields,
-            );
-        } catch (error) {
-            this.logger.warn(
-                `Deep Research chart ${chart.queryUuid} refresh falls back to unpivoted results: ${getErrorMessage(error)}`,
-            );
-            return undefined;
-        }
-    }
-
-    async getChart(args: {
-        user: SessionUser;
-        projectUuid: string;
-        aiDeepResearchRunUuid: string;
-        queryUuid: string;
-    }): Promise<AiDeepResearchChartData> {
-        const run = await this.findCreatorOwnedRun(
-            args.user,
-            args.projectUuid,
-            args.aiDeepResearchRunUuid,
-        );
-        return this.getRunChart(run, args.queryUuid);
-    }
-
-    private async getRunChart(
-        run: DbAiDeepResearchRun,
-        queryUuid: string,
-    ): Promise<AiDeepResearchChartData> {
-        const reportExpiresAt = getReportExpiresAt(run);
-        const isExpired =
-            run.report_expired_at !== null ||
-            (reportExpiresAt && reportExpiresAt.getTime() <= Date.now());
-        const isReferenced = findDeepResearchChartRefs(
-            run.result_markdown ?? '',
-        ).some(({ key }) => key === queryUuid);
-        if (isExpired || !isReferenced) {
-            throw new NotFoundError(
-                `Deep Research chart ${queryUuid} not found`,
-            );
-        }
-
-        const chart = await this.findRunWarehouseChart(run, queryUuid);
-        const chartData = chart
-            ? await this.buildWarehouseChartData(
-                  run,
-                  chart,
-                  new Set([queryUuid]),
-              )
-            : null;
-        if (!chartData) {
-            throw new NotFoundError(
-                `Deep Research chart ${queryUuid} not found`,
-            );
-        }
-        return chartData;
     }
 
     async listEvents(args: {
@@ -1531,13 +1298,7 @@ export class AiDeepResearchService extends BaseService {
         }
         await this.dispatchPendingLifecycleAnalytics(aiDeepResearchRunUuid);
         return {
-            ...toRun(
-                {
-                    ...run,
-                    result_markdown: null,
-                },
-                null,
-            ),
+            ...toRun(run, null),
             executionContextSnapshot: null,
         };
     }
@@ -2044,14 +1805,6 @@ export class AiDeepResearchService extends BaseService {
                     : [],
             ),
         );
-    }
-
-    private async findRunWarehouseChart(
-        run: DbAiDeepResearchRun,
-        queryUuid: string,
-    ): Promise<AiDeepResearchWarehouseChart | null> {
-        const charts = await this.getRunWarehouseCharts(run);
-        return charts.get(queryUuid)?.chart ?? null;
     }
 
     /**

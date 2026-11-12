@@ -1311,82 +1311,14 @@ describe('AiAgentToolsService', () => {
             project_uuid: projectUuid,
             created_by_user_uuid: userUuid,
             prompt: 'Why did revenue fall?',
-            result_markdown: '# Revenue report',
-            content_size_bytes: 16,
             created_at: new Date('2026-07-29T10:00:00.000Z'),
             updated_at: new Date('2026-07-29T10:05:00.000Z'),
         };
-
-        it('lists report-bearing runs as virtual thread documents', async () => {
-            const service = makeService({
-                aiAgentDocumentModel: {
-                    findAllForAgent: vi.fn().mockResolvedValue([]),
-                },
-                aiDeepResearchRunModel: {
-                    findReportSummariesByThreadScoped: vi
-                        .fn()
-                        .mockResolvedValue([run]),
-                    findByThreadScoped: vi.fn().mockResolvedValue([]),
-                },
-            });
-            const runtime = service.createRuntime(
-                makeRuntimeContext({
-                    agentUuid: 'agent-uuid',
-                    threadUuid: 'thread-uuid',
-                }),
-            );
-
-            await expect(runtime.listKnowledgeDocuments()).resolves.toEqual([
-                expect.objectContaining({
-                    uuid: 'run-uuid',
-                    name: 'Why did revenue fall?',
-                    mimeType: 'text/markdown',
-                    alwaysIncludeInContext: false,
-                }),
-            ]);
-        });
-
-        it('reads report Markdown only from the current user and thread scope', async () => {
-            const findReportByUuidThreadScoped = vi.fn().mockResolvedValue(run);
-            const service = makeService({
-                aiAgentDocumentModel: {
-                    getContentForAgent: vi.fn().mockResolvedValue(undefined),
-                },
-                aiDeepResearchRunModel: {
-                    findReportByUuidThreadScoped,
-                },
-            });
-            const runtime = service.createRuntime(
-                makeRuntimeContext({
-                    agentUuid: 'agent-uuid',
-                    threadUuid: 'thread-uuid',
-                }),
-            );
-
-            await expect(
-                runtime.getKnowledgeDocumentContent({
-                    documentUuid: 'run-uuid',
-                }),
-            ).resolves.toEqual({
-                uuid: 'run-uuid',
-                name: 'Why did revenue fall?',
-                mimeType: 'text/markdown',
-                content: '# Revenue report',
-            });
-            expect(findReportByUuidThreadScoped).toHaveBeenCalledWith({
-                aiDeepResearchRunUuid: 'run-uuid',
-                aiThreadUuid: 'thread-uuid',
-                organizationUuid,
-                projectUuid,
-                createdByUserUuid: userUuid,
-            });
-        });
 
         const publishedRun = {
             ...run,
             ai_deep_research_run_uuid: 'published-run',
             prompt_uuid: 'prompt-uuid',
-            result_markdown: null,
         };
         const publishedDocument = {
             documentUuid: '3f1d9a52-1d1c-4b7e-9a51-0d8c2f6e7a10',
@@ -1412,12 +1344,6 @@ describe('AiAgentToolsService', () => {
                 getContentForAgent: vi.fn().mockResolvedValue(undefined),
             },
             aiDeepResearchRunModel: {
-                findReportSummariesByThreadScoped: vi
-                    .fn()
-                    .mockResolvedValue([]),
-                findReportByUuidThreadScoped: vi
-                    .fn()
-                    .mockResolvedValue(undefined),
                 findByThreadScoped: vi.fn().mockResolvedValue([publishedRun]),
             },
             aiAgentModel: {
@@ -1528,9 +1454,6 @@ describe('AiAgentToolsService', () => {
                     getContentForAgent: vi.fn().mockResolvedValue(undefined),
                 },
                 aiDeepResearchRunModel: {
-                    findReportByUuidThreadScoped: vi
-                        .fn()
-                        .mockResolvedValue(undefined),
                     findByThreadScoped: vi.fn().mockResolvedValue([]),
                 },
             });
