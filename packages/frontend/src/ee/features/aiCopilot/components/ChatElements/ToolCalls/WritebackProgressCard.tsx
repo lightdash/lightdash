@@ -74,7 +74,7 @@ export const WritebackProgressCard: FC<{
                         ))}
                     </Stack>
                     <Text size="xs" c="dimmed">
-                        Usually takes a few minutes. You can leave this page,
+                        Usually takes 2 to 3 minutes. You can leave this page,
                         and the pull request shows up here when it is ready.
                     </Text>
                 </Stack>

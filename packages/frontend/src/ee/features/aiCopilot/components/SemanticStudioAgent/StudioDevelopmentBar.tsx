@@ -247,7 +247,7 @@ export const StudioSavingBar: FC<{
                 </Text>
             }
         >
-            <Tooltip label="Usually takes a few minutes. The pull request shows up here when it is ready.">
+            <Tooltip label="Usually takes 2 to 3 minutes. The pull request shows up here when it is ready.">
                 <Text fz="xs" c="dimmed" ff="monospace">
                     {elapsed}
                 </Text>

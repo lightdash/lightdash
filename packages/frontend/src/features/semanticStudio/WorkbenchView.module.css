@@ -40,6 +40,27 @@
     border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
+/* Changes that are not live tint the toolbar in their status chip's colour. */
+.toolbar[data-status='draft'] {
+    background: color-mix(
+        in srgb,
+        var(--mantine-color-orange-5) 7%,
+        transparent
+    );
+}
+
+.toolbar[data-status='pull-request'] {
+    background: color-mix(in srgb, var(--mantine-color-blue-5) 7%, transparent);
+}
+
+.toolbar[data-status='saving'] {
+    background: color-mix(
+        in srgb,
+        var(--mantine-color-gray-5) 10%,
+        transparent
+    );
+}
+
 /* Studio reads the person's changes too, and looks the same either way without this. */
 .toolbar[data-my-changes] {
     border-bottom-color: var(--mantine-color-orange-5);

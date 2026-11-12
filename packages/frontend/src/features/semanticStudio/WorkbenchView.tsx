@@ -1028,6 +1028,14 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         [keepsDraft, drafted, development],
     );
     const saving = keepsDraft ? null : pendingChange;
+    // Tints the toolbar while the project has changes that are not live, in the colour of their status chip.
+    const changeStatus = saving
+        ? 'saving'
+        : development
+          ? 'pull-request'
+          : keepsDraft && hasDraft && !isBuildingFirstModel
+            ? 'draft'
+            : undefined;
     const [isTryingChanges, setIsTryingChanges] = useDevelopmentView();
     // A dbt project's changes are tried through its pull request's preview, so there is nothing to try once that closes.
     const hasClosedPullRequest =
@@ -1206,6 +1214,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                             <Group
                                 className={classes.toolbar}
                                 data-my-changes={isTryingChanges || undefined}
+                                data-status={changeStatus}
                                 justify="space-between"
                                 wrap="nowrap"
                                 gap="sm"
