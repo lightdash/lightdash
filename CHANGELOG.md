@@ -1,3 +1,10 @@
+# [3.224.0](https://github.com/lightdash/lightdash/compare/3.223.0...3.224.0) (2026-11-12)
+
+
+### Features
+
+* **ai:** send bar and line charts as native Slack charts ([#32453](https://github.com/lightdash/lightdash/issues/32453)) ([b34aa94](https://github.com/lightdash/lightdash/commit/b34aa948b4825ad21e8de81ee112d5249e33f579))
+
 # [3.223.0](https://github.com/lightdash/lightdash/compare/3.222.0...3.223.0) (2026-11-12)
 
 

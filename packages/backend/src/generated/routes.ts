@@ -30795,6 +30795,130 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    SlackNativeChartImageReason: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['unsupported_type'] },
+                { dataType: 'enum', enums: ['horizontal_bar'] },
+                { dataType: 'enum', enums: ['area'] },
+                { dataType: 'enum', enums: ['secondary_axis'] },
+                { dataType: 'enum', enums: ['stacked'] },
+                { dataType: 'enum', enums: ['no_rows'] },
+                { dataType: 'enum', enums: ['no_x_axis'] },
+                { dataType: 'enum', enums: ['no_series'] },
+                { dataType: 'enum', enums: ['too_many_categories'] },
+                { dataType: 'enum', enums: ['too_many_series'] },
+                { dataType: 'enum', enums: ['missing_value'] },
+                { dataType: 'enum', enums: ['non_numeric_value'] },
+                { dataType: 'enum', enums: ['invalid_time_value'] },
+                { dataType: 'enum', enums: ['empty_label'] },
+                { dataType: 'enum', enums: ['duplicate_category'] },
+                { dataType: 'enum', enums: ['duplicate_series'] },
+                { dataType: 'enum', enums: ['category_label_collision'] },
+                { dataType: 'enum', enums: ['series_label_collision'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAiAgentVisualizeSlackSendResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        permalink: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        ts: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        blocks: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'Record_string.unknown_',
+                            },
+                            required: true,
+                        },
+                        reason: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'SlackNativeChartImageReason' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        route: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'enum', enums: ['native'] },
+                                { dataType: 'enum', enums: ['image'] },
+                            ],
+                            required: true,
+                        },
+                    },
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAiAgentVisualizeSlackSendRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                { ref: 'ApiAiAgentVisualizeSlackPreviewRequest' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        route: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'enum', enums: ['auto'] },
+                                {
+                                    dataType: 'union',
+                                    subSchemas: [
+                                        { dataType: 'enum', enums: ['native'] },
+                                        { dataType: 'enum', enums: ['image'] },
+                                    ],
+                                },
+                            ],
+                            required: true,
+                        },
+                        threadTs: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        channel: { dataType: 'string', required: true },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentUserPreferences: {
         dataType: 'refAlias',
         type: {
@@ -70543,9 +70667,9 @@ const models: TsoaRoute.Models = {
             dataType: 'union',
             subSchemas: [
                 { dataType: 'enum', enums: ['instruction'] },
+                { dataType: 'enum', enums: ['image'] },
                 { dataType: 'enum', enums: ['css'] },
                 { dataType: 'enum', enums: ['font'] },
-                { dataType: 'enum', enums: ['image'] },
             ],
             validators: {},
         },
@@ -105309,6 +105433,71 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'previewVisualizeSlackChart',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentController_sendVisualizeSlackChart: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ApiAiAgentVisualizeSlackSendRequest',
+        },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/aiAgents/visualize/slack-send',
+        ...fetchMiddlewares<RequestHandler>(AiAgentController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentController.prototype.sendVisualizeSlackChart,
+        ),
+
+        async function AiAgentController_sendVisualizeSlackChart(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentController_sendVisualizeSlackChart,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'sendVisualizeSlackChart',
                     controller,
                     response,
                     next,
