@@ -20,10 +20,12 @@ import {
     useDashboardDateZoomGranularities,
     useDashboardSelector,
     useDashboardStore,
+    useDefaultDateZoomGranularity,
 } from '../dashboard/store';
 import {
     applyZoomDraft,
     DEFAULT_DATE_ZOOM_NAME,
+    DEFAULT_ZOOM_SELECTOR,
     dateZoomPillSelector,
     moveZoom,
     removeZoom,
@@ -45,11 +47,16 @@ import { useDateZoomMappingModel } from './useDateZoomMapping';
 import { useEditorSession, type EditSession } from './useEditorSession';
 
 type EditState = EditSession<DateZoomTileTargets> & {
+    /** The default zoom, whose `id` is only a session key: a saved zoom's uuid can be any string. */
+    isDefault: boolean;
     snapshot: DateZoomControl;
     draft: DateZoomControl;
     /** Every tile target as it opened, and as the draft leaves them. */
     snapshotTargets: DateZoomTileTargets;
     draftTargets: DateZoomTileTargets;
+    /** The default zoom's draft, as it opened and now; null: cleared. */
+    snapshotPick: string | null;
+    pick: string | null;
 };
 
 // The section is no edit: it moves on the dashboard at once, as a filter's
@@ -57,8 +64,10 @@ const withoutSection = (control: DateZoomControl) =>
     withZoomSection(control, null);
 
 const isDirty = (edit: EditState) =>
-    !isEqual(withoutSection(edit.snapshot), withoutSection(edit.draft)) ||
-    !isEqual(edit.snapshotTargets, edit.draftTargets);
+    edit.isDefault
+        ? edit.pick !== edit.snapshotPick
+        : !isEqual(withoutSection(edit.snapshot), withoutSection(edit.draft)) ||
+          !isEqual(edit.snapshotTargets, edit.draftTargets);
 
 const noop = () => {};
 
@@ -66,9 +75,10 @@ const findPill = (id: string) =>
     document.querySelector<HTMLElement>(dateZoomPillSelector(id));
 
 // A reader of the context, so it runs once the pills have updated
-const DateZoomFocusReturn: FC<{ target: RefObject<FocusTarget | null> }> = ({
-    target,
-}) => {
+const DateZoomFocusReturn: FC<{
+    target: RefObject<FocusTarget | null>;
+    findPill: (id: string) => HTMLElement | null;
+}> = ({ target, findPill }) => {
     const isOpen = useDateZoomEditorSelector((c) => c.editingId !== null);
     return (
         <EditorFocusReturn
@@ -100,6 +110,10 @@ export const DateZoomEditorProvider: FC<{
     const setDateZoomGranularity = useDashboardContext(
         (c) => c.setDateZoomGranularity,
     );
+    const defaultGranularity = useDefaultDateZoomGranularity();
+    const setDefaultDateZoomGranularity = useDashboardContext(
+        (c) => c.setDefaultDateZoomGranularity,
+    );
     // As the shipped bar: edit mode starts from the default, with no viewer's pick.
     // Embeds keep the shipped date zoom, which never clears it.
     const isEmbedded = useIsEmbedded();
@@ -107,31 +121,52 @@ export const DateZoomEditorProvider: FC<{
         if (!isViewer && !isEmbedded) setDateZoomGranularity(undefined);
     }, [isViewer, isEmbedded, setDateZoomGranularity]);
     const [state, setState] = useState<EditState | null>(null);
+    // The default's session key: unlike any saved zoom's uuid, so a toggle never confuses them
+    const [defaultKey] = useState(() => `default-${uuidv4()}`);
+    const findEditedPill = useStableCallback((id: string) =>
+        id === defaultKey
+            ? document.querySelector<HTMLElement>(DEFAULT_ZOOM_SELECTOR)
+            : findPill(id),
+    );
     // Derived: a mode change, or the zoom leaving the dashboard, ends the edit
     const edit =
         state !== null &&
         state.isViewer === isViewer &&
-        (state.isNew || config.controls.some(({ uuid }) => uuid === state.id))
+        (state.isNew ||
+            state.isDefault ||
+            config.controls.some(({ uuid }) => uuid === state.id))
             ? state
             : null;
-    const start = (control: DateZoomControl, isNew: boolean) => {
-        // The tiles show the grain being edited, not a viewer's pick
-        if (controlGranularities[control.uuid] !== undefined)
+    const start = (
+        control: DateZoomControl,
+        isNew: boolean,
+        isDefault: boolean,
+    ) => {
+        // The tiles show the grain being edited, not a viewer's pick; the
+        // default's runtime grain was cleared as edit mode began
+        if (!isDefault && controlGranularities[control.uuid] !== undefined)
             setControlGranularity(control.uuid, undefined);
+        const pick = isDefault ? (defaultGranularity ?? null) : null;
         session.begin({
             id: control.uuid,
+            isDefault,
             isNew,
             isViewer,
             snapshot: control,
             draft: control,
             snapshotTargets: config.tileTargets,
             draftTargets: config.tileTargets,
+            snapshotPick: pick,
+            pick,
             mapping: null,
         });
     };
 
     const applyEdit = (current: EditState) => {
-        if (current.isNew || isDirty(current))
+        if (current.isDefault) {
+            if (isDirty(current))
+                setDefaultDateZoomGranularity(current.pick ?? undefined);
+        } else if (current.isNew || isDirty(current)) {
             setDateZoomConfig(
                 applyZoomDraft({
                     config: selectCurrentDateZoomConfig(store.getState()),
@@ -140,6 +175,7 @@ export const DateZoomEditorProvider: FC<{
                     draftTargets: current.draftTargets,
                 }),
             );
+        }
         return current.id;
     };
 
@@ -164,7 +200,12 @@ export const DateZoomEditorProvider: FC<{
     const { endMapping, cancelMapping, undoMapping } = session;
 
     const open = useStableCallback((control: DateZoomControl) =>
-        session.open(control.uuid, () => start(control, false)),
+        session.open(control.uuid, () => start(control, false, false)),
+    );
+    const openDefault = useStableCallback(() =>
+        session.open(defaultKey, () =>
+            start({ uuid: defaultKey, name: '', granularity: '' }, false, true),
+        ),
     );
 
     const add = useStableCallback((sectionId: string | null) =>
@@ -176,6 +217,7 @@ export const DateZoomEditorProvider: FC<{
                 ...(sectionId !== null && { sectionId }),
             },
             true,
+            false,
         ),
     );
 
@@ -239,6 +281,11 @@ export const DateZoomEditorProvider: FC<{
         });
     });
 
+    const setPick = useStableCallback((granularity: string | null) => {
+        const current = latest.current;
+        if (current !== null) setState({ ...current, pick: granularity });
+    });
+
     const [announcement, setAnnouncement] = useState({ text: '', count: 0 });
     // As a parameter's move: the list order is the bar's without sections
     const move = useStableCallback((id: string, overId: string) => {
@@ -287,14 +334,18 @@ export const DateZoomEditorProvider: FC<{
     const value = useMemo<DateZoomEditorValue>(
         () => ({
             editingId: edit?.id ?? null,
+            isEditingDefault: edit?.isDefault ?? false,
             draft: edit?.draft ?? null,
             newZoom: edit?.isNew ? edit.snapshot : null,
             draftTargets: edit?.draftTargets ?? null,
             isViewer,
+            pick: edit?.pick ?? null,
             isAsking,
             open,
+            openDefault,
             add,
             update,
+            setPick,
             apply,
             cancel,
             resolvePending,
@@ -321,8 +372,10 @@ export const DateZoomEditorProvider: FC<{
             isViewer,
             isAsking,
             open,
+            openDefault,
             add,
             update,
+            setPick,
             apply,
             cancel,
             resolvePending,
@@ -335,7 +388,10 @@ export const DateZoomEditorProvider: FC<{
     return (
         <DateZoomEditorContext.Provider value={value}>
             {children}
-            <DateZoomFocusReturn target={session.focusReturn} />
+            <DateZoomFocusReturn
+                target={session.focusReturn}
+                findPill={findEditedPill}
+            />
             {/* Moves are an editor's. Not a second `status` role: the filter moves own that one */}
             {!isViewer && (
                 <VisuallyHidden aria-live="polite">

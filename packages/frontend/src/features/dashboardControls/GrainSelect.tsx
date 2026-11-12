@@ -8,9 +8,20 @@ export const GrainSelect: FC<{
     label: string;
     granularities: string[];
     customLabels: Record<string, string>;
-    value: string;
-    onChange: (granularity: string) => void;
-}> = ({ label, granularities, customLabels, value, onChange }) => {
+    value: string | null;
+    /** Shown while cleared: what the tiles fall back to. */
+    placeholder: string;
+    isClearable: boolean;
+    onChange: (granularity: string | null) => void;
+}> = ({
+    label,
+    granularities,
+    customLabels,
+    value,
+    placeholder,
+    isClearable,
+    onChange,
+}) => {
     const getUiString = useUiStrings();
     return (
         <Select
@@ -18,11 +29,18 @@ export const GrainSelect: FC<{
             aria-label={label}
             data={getGrainOptions(granularities, customLabels, getUiString)}
             value={value}
+            placeholder={placeholder}
             allowDeselect={false}
-            comboboxProps={{ withinPortal: true }}
-            onChange={(granularity) => {
-                if (granularity !== null) onChange(granularity);
+            clearable={isClearable}
+            // Mantine hides its clear button from the keyboard; here it is the
+            // only way to clear, so it is a named tab stop, as `LazySelect`'s
+            clearButtonProps={{
+                'aria-label': getUiString('controls.dateZoom.clearGrain'),
+                'aria-hidden': false,
+                tabIndex: 0,
             }}
+            comboboxProps={{ withinPortal: true }}
+            onChange={onChange}
         />
     );
 };

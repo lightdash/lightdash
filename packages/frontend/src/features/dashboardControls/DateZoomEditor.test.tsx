@@ -19,7 +19,7 @@ import {
     selectDateZoomGranularity,
 } from '../dashboard/store';
 import { DateZoomEditorProvider } from './DateZoomEditorProvider';
-import { DateZoomPills } from './DateZoomPills';
+import { DateZoomPills, DefaultZoomButton } from './DateZoomPills';
 import { ParameterEditorProvider } from './ParameterEditorProvider';
 import {
     RailContractClasses,
@@ -151,6 +151,7 @@ const setup = ({
                 <ParameterEditorProvider isViewer={isViewer}>
                     <DateZoomEditorProvider isViewer={isViewer}>
                         <DateZoomPills />
+                        {!isViewer && <DefaultZoomButton />}
                         <AddButton />
                         <button type="button" data-controls-pill="f1">
                             Region filter
@@ -187,10 +188,20 @@ const setup = ({
     return { store, user, config };
 };
 
-// "Revenue zoom is Week"
+// "Revenue zoom is Week"; the default zoom's button reads "Default zoom Month"
 const pill = (name: string) =>
     screen.getByRole('button', { name: new RegExp(`^${name} `) });
 const dialog = () => screen.getByRole('dialog');
+const pickDefault = async (
+    user: ReturnType<typeof userEvent.setup>,
+    grain: string,
+) => {
+    await user.click(pill('Default zoom'));
+    await user.click(
+        within(dialog()).getByRole('combobox', { name: 'Default zoom' }),
+    );
+    await user.click(await screen.findByRole('option', { name: grain }));
+};
 
 describe('Date zoom editor', () => {
     beforeEach(() => {
@@ -526,6 +537,153 @@ describe('Date zoom editor', () => {
         expect(pill('Revenue zoom')).toHaveFocus();
         expect(store.getState().dateZoom.controlGranularities).toEqual({});
     });
+
+    describe('a named zoom whose uuid is "default-zoom"', () => {
+        const named: DateZoomConfig = {
+            controls: [{ ...saved.controls[0], uuid: 'default-zoom' }],
+            tileTargets: {
+                'tile-1': {
+                    ...saved.tileTargets['tile-1'],
+                    controlUuid: 'default-zoom',
+                },
+            },
+        };
+
+        it("takes a viewer's pick for its own tiles, not the default's", async () => {
+            const { user, store } = setup({ isViewer: true, config: named });
+            await user.click(pill('Revenue zoom'));
+            await user.click(screen.getByRole('menuitem', { name: 'Day' }));
+            expect(store.getState().dateZoom.controlGranularities).toEqual({
+                'default-zoom': DateGranularity.DAY,
+            });
+            expect(store.getState().dateZoom.granularity).toBeUndefined();
+        });
+
+        it("applies an editor's rename and grain", async () => {
+            const { user, config } = setup({ config: named });
+            await user.click(pill('Revenue zoom'));
+            await user.click(
+                within(dialog()).getByRole('combobox', {
+                    name: 'Revenue zoom',
+                }),
+            );
+            await user.click(
+                await screen.findByRole('option', { name: 'Day' }),
+            );
+            await user.click(
+                within(dialog()).getByRole('button', { name: 'Rename' }),
+            );
+            await user.clear(
+                within(dialog()).getByRole('textbox', { name: 'Name' }),
+            );
+            await user.keyboard('Sales zoom{Enter}');
+            await user.click(
+                within(dialog()).getByRole('button', { name: 'Apply' }),
+            );
+            expect(config().controls).toEqual([
+                {
+                    uuid: 'default-zoom',
+                    name: 'Sales zoom',
+                    granularity: DateGranularity.DAY,
+                },
+            ]);
+        });
+
+        it('leaves the Default zoom button editing the default, switching from the named zoom', async () => {
+            const { user, config } = setup({ config: named });
+            await user.click(pill('Revenue zoom'));
+            await pickDefault(user, 'Month');
+            await user.click(
+                within(dialog()).getByRole('button', { name: 'Apply' }),
+            );
+            expect(pill('Default zoom')).toHaveTextContent(
+                'Default zoom Month',
+            );
+            expect(pill('Revenue zoom')).toHaveTextContent(
+                'Revenue zoom is Week',
+            );
+            expect(config()).toEqual(named);
+        });
+    });
+
+    it('sets and clears the default zoom in the dashboard draft', async () => {
+        const { user } = setup();
+        expect(pill('Default zoom')).toHaveTextContent('Default zoom None');
+        await pickDefault(user, 'Month');
+        expect(
+            within(dialog()).getByText('Applies to the other 1 tile'),
+        ).toBeInTheDocument();
+        // Grains are the "..." menu's: no checkboxes or pin here
+        expect(within(dialog()).queryByRole('checkbox')).toBeNull();
+        await user.click(
+            within(dialog()).getByRole('button', { name: 'Apply' }),
+        );
+        expect(pill('Default zoom')).toHaveTextContent('Default zoom Month');
+
+        await user.click(pill('Default zoom'));
+        await user.click(
+            within(dialog()).getByRole('button', { name: 'Clear grain' }),
+        );
+        await user.click(
+            within(dialog()).getByRole('button', { name: 'Apply' }),
+        );
+        expect(pill('Default zoom')).toHaveTextContent('Default zoom None');
+    });
+
+    it('drops the default zoom draft on Cancel', async () => {
+        const { user } = setup();
+        await pickDefault(user, 'Month');
+        await user.click(
+            within(dialog()).getByRole('button', { name: 'Cancel' }),
+        );
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(pill('Default zoom')).toHaveTextContent('Default zoom None');
+        expect(pill('Default zoom')).toHaveFocus();
+    });
+
+    it('asks before switching from an unapplied default to a named zoom, and back', async () => {
+        const { user } = setup();
+        await pickDefault(user, 'Month');
+        await user.click(pill('Revenue zoom'));
+        expect(
+            screen.getByText('Apply changes to Default zoom first?'),
+        ).toBeInTheDocument();
+        await user.click(
+            within(
+                screen.getByText('Apply changes to Default zoom first?')
+                    .parentElement as HTMLElement,
+            ).getByRole('button', { name: 'Apply' }),
+        );
+        expect(
+            screen.getByRole('dialog', { name: 'Revenue zoom' }),
+        ).toBeVisible();
+        expect(pill('Default zoom')).toHaveTextContent('Default zoom Month');
+
+        await user.click(
+            within(dialog()).getByRole('combobox', { name: 'Revenue zoom' }),
+        );
+        await user.click(await screen.findByRole('option', { name: 'Day' }));
+        await user.click(pill('Default zoom'));
+        expect(
+            screen.getByText('Apply changes to Revenue zoom first?'),
+        ).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Discard' }));
+        expect(
+            screen.getByRole('dialog', { name: 'Default zoom' }),
+        ).toBeVisible();
+    });
+
+    it.each(['Region filter', 'Remove parameter'])(
+        'asks before an unapplied default switches to %s',
+        async (name) => {
+            const { user } = setup();
+            await pickDefault(user, 'Month');
+            await user.click(screen.getByRole('button', { name }));
+            expect(
+                screen.getByText('Apply changes to Default zoom first?'),
+            ).toBeInTheDocument();
+        },
+    );
 
     it("puts an embed's date zoom contract classes on the pills and menus", async () => {
         const { user } = setup({

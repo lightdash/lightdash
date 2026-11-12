@@ -72,7 +72,9 @@ Openings (optional props, defaults are today's behaviour):
   `withDateZoomControls` (the controls bar passes `false` for both: no
   funnel, sliders or calendar circles; on the right, Default zoom alone,
   without the named zooms, "Add date zoom" or the eye, which are pills and
-  "..." items on the bar).
+  "..." items on the bar), and `defaultZoom` (replaces the shipped Default
+  zoom on the right: in edit mode the controls bar passes
+  `DefaultZoomButton`).
 - `dateZoom/DateZoom`: `withControls` (`false`: Default zoom alone, no
   named zoom pills or "Add date zoom"; the embed's bar passes it too).
 - `AddFilterButton`: `editModeAction`.
@@ -142,9 +144,9 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `controlOrder.ts` | Pure bar order and section line helpers, free of dnd-kit: the store and `utils/dashboardConfig.ts` import them |
 | `SelectionBar.tsx`, `SelectionActions.tsx`, `barSelection.ts` | Multi-select on the sectioned bar |
 | `useEditorSession.ts`, `EditorFocusReturn.tsx`, `controlKinds.ts` | The parameter and date zoom editors' shared session: the pending question, open, Apply, Cancel, Escape, a press outside, another kind's pill, mode change, mapping steps, focus return; each kind's pill selectors |
-| `DateZoomEditorProvider.tsx`, `useDateZoomEditor.ts`, `dateZoomControls.ts` | The date zoom editor: named zooms, their draft, Apply, switching, mapping; every write to the date zoom config from the bar; pure config helpers |
-| `DateZoomPills.tsx`, `useDateZoomBar.ts` | Named zoom pills (in the order, sections, drag and selection); an editor's anchors its popover, a viewer's opens the shipped menu. Default zoom is the shipped one on the bar's right |
-| `DateZoomControlPopover.tsx`, `GrainSelect.tsx`, `ControlPopoverParts.tsx`, `dateZoomGrains.ts`, `DateZoomGrainsMenu.tsx` | The named zoom popover by props (draft held by the editor), the grain select, the "..." menu's grains |
+| `DateZoomEditorProvider.tsx`, `useDateZoomEditor.ts`, `dateZoomControls.ts` | The date zoom editor: named zooms and the default zoom, their draft, Apply, switching, mapping; every write to the date zoom config from the bar; pure config helpers |
+| `DateZoomPills.tsx`, `useDateZoomBar.ts` | Named zoom pills (in the order, sections, drag and selection); an editor's anchors its popover, a viewer's opens the shipped menu. `DefaultZoomButton`: an editor's Default zoom on the bar's right, anchoring its popover; viewers keep the shipped one |
+| `DateZoomControlPopover.tsx`, `DefaultZoomPopover.tsx`, `GrainSelect.tsx`, `ControlPopoverParts.tsx`, `dateZoomGrains.ts`, `DateZoomGrainsMenu.tsx` | The date zoom popovers by props (draft held by the editor), the grain select, the "..." menu's grains |
 | `DateZoomMappingRow.tsx`, `DateZoomTileOverlay.tsx`, `DateZoomTilesBar.tsx`, `useDateZoomMapping.ts` | Choosing a zoom's tiles: the row, a card per tile, the floating bar |
 | `sectionVersionChanges.ts` | Section rows for the version comparison page |
 | `DashboardHeaderGuard.tsx` | Wraps the shipped header; inert while an editor's filter is edited |
@@ -211,9 +213,11 @@ Each one has broken before or would break silently.
   `applyDimensionOverrides` / `applyMetricOverrides`, `adoptPlaceholder` and
   the emptied placeholder. See `docs/sections.md`.
 - **`data-tour-*` anchors** on the bar are the shipped bar's; keep them.
+  The shipped Default zoom button's are copied to `DefaultZoomButton`.
 - **One editor at a time, three providers.** Filter, parameter and date
   zoom editors each capture a click on another kind's pill or "Add"
-  (`[data-controls-pill]`, `[data-parameter-pill]`, `[data-date-zoom-pill]`)
+  (`[data-controls-pill]`, `[data-parameter-pill]`, `[data-date-zoom-pill]`,
+  `[data-default-date-zoom]`)
   and each lists the others' pills in its `useEditorDismiss` selector, so a
   switch asks on unapplied changes instead of discarding them. The lists
   come from `getOtherPillsSelector` (`controlKinds.ts`): a new kind joins
@@ -298,7 +302,11 @@ Every flag-on pill is the default white pill; only these change it, all in
   kind's icon, grey): dashed until saved, the ink ring while open, eye-off
   when hidden from viewers (by itself or with every date zoom), an X in
   edit mode; a viewer's opens the shipped menu. The default zoom is no
-  pill: the shipped Default zoom stays on the bar's right.
+  pill: it stays on the bar's right. An editor's is a quiet button reading
+  "Default zoom Month" or "None" (the grain bold while in effect), eye-off
+  when hidden from viewers, opening a popover with the grain only (grains
+  and their lock stay in "..."); a viewer's is the shipped Default zoom
+  and its menu.
 - Required with no value: a muted asterisk on the left, before the field
   icon, with the requirement's tooltip (the pill is described by it); none
   once it has a value, nor on a locked pill (no viewer can set it). A

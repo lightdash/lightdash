@@ -6,10 +6,11 @@ import {
     useDashboardSelector,
 } from '../dashboard/store';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
+import { DateZoomCrossTabFieldsLoader } from '../dateZoom/components/DateZoomCrossTabFieldsLoader';
 import { AddControl } from './AddControl';
 import classes from './ControlsBar.module.css';
 import { DateZoomMappingRow } from './DateZoomMappingRow';
-import { DateZoomPills } from './DateZoomPills';
+import { DateZoomPills, DefaultZoomButton } from './DateZoomPills';
 import { FilterPills } from './FilterPills';
 import { MappingRow } from './MappingRow';
 import { ParameterMappingRow } from './ParameterMappingRow';
@@ -58,6 +59,15 @@ export const ControlsBar: FC<Props> = (props) => {
             withGroupMarkers={false}
             // Default zoom stays on the right; named zooms are pills
             withDateZoomControls={false}
+            // An editor's Default zoom opens its popover; grains stay in "..."
+            defaultZoom={
+                props.isEditMode ? (
+                    <>
+                        <DefaultZoomButton />
+                        <DateZoomCrossTabFieldsLoader />
+                    </>
+                ) : undefined
+            }
             filterArea={
                 <SettledFilterFields>
                     {/* An editor's bar is always sectioned: its selection starts the first section */}

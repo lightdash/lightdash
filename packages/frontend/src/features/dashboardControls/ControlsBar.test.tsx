@@ -17,6 +17,7 @@ import { dashboardParametersActions } from '../dashboard/store';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import type * as AddControlModule from './AddControl';
 import { ControlsBar } from './ControlsBar';
+import type * as DateZoomPillsModule from './DateZoomPills';
 
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
@@ -102,6 +103,15 @@ vi.mock('../dateZoom', () => ({
     DateZoom: ({ withControls = true }: { withControls?: boolean }) => (
         <div data-testid={withControls ? 'date-zoom' : 'default-zoom'} />
     ),
+}));
+
+// An editor's Default zoom opens its popover instead
+vi.mock('./DateZoomPills', async (importOriginal) => ({
+    ...(await importOriginal<typeof DateZoomPillsModule>()),
+    DefaultZoomButton: () => <div data-testid="editor-default-zoom" />,
+}));
+vi.mock('../dateZoom/components/DateZoomCrossTabFieldsLoader', () => ({
+    DateZoomCrossTabFieldsLoader: () => null,
 }));
 
 const baseProps: ComponentProps<typeof ControlsBar> = {
@@ -315,7 +325,9 @@ describe('ControlsBar', () => {
                 name: 'Toggle date zoom visibility for viewers',
             }),
         ).not.toBeInTheDocument();
-        expect(screen.getByTestId('default-zoom')).toBeInTheDocument();
+        // An editor's Default zoom opens its popover, not the shipped menu
+        expect(screen.getByTestId('editor-default-zoom')).toBeInTheDocument();
+        expect(screen.queryByTestId('default-zoom')).toBeNull();
         expect(
             screen.queryByRole('button', { name: 'Hide' }),
         ).not.toBeInTheDocument();
@@ -474,7 +486,17 @@ describe('ControlsBar', () => {
                         />
                     </DashboardStoreTestProvider>,
                 );
-                expect(screen.getByTestId('default-zoom')).toBeInTheDocument();
+                // A viewer's is the shipped menu; an editor's opens its popover
+                expect(
+                    screen.queryByTestId(
+                        isEditMode ? 'editor-default-zoom' : 'default-zoom',
+                    ),
+                ).toBeInTheDocument();
+                expect(
+                    screen.queryByTestId(
+                        isEditMode ? 'default-zoom' : 'editor-default-zoom',
+                    ),
+                ).toBeNull();
                 expect(screen.queryByTestId('filter-pills')).toBeNull();
                 expect(screen.queryByTestId('sectioned-filters')).toBeNull();
                 expect(

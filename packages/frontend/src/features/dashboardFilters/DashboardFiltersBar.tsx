@@ -75,6 +75,8 @@ type Props = {
     withGroupMarkers?: boolean;
     /** The named zooms' pills, "Add date zoom" and the editor's eye beside Default zoom (default true). */
     withDateZoomControls?: boolean;
+    /** Replaces the shipped Default zoom on the right. Defaults to `DateZoom`. */
+    defaultZoom?: ReactNode;
 };
 
 export const DashboardFiltersBar: FC<Props> = ({
@@ -101,6 +103,7 @@ export const DashboardFiltersBar: FC<Props> = ({
     isParametersColumn = false,
     withGroupMarkers = true,
     withDateZoomControls = true,
+    defaultZoom,
 }) => {
     const compact = useCompactContentHeader();
     const [opened, { open, close }] = useDisclosure(false);
@@ -302,10 +305,12 @@ export const DashboardFiltersBar: FC<Props> = ({
                                         </ActionIcon>
                                     </Tooltip>
                                 )}
-                                <DateZoom
-                                    isEditMode={isEditMode}
-                                    withControls={withDateZoomControls}
-                                />
+                                {defaultZoom ?? (
+                                    <DateZoom
+                                        isEditMode={isEditMode}
+                                        withControls={withDateZoomControls}
+                                    />
+                                )}
                             </>
                         )}
 

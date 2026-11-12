@@ -5,12 +5,13 @@ import { withStoryFrame } from './decorators';
 import {
     createDateZoomControl,
     dateZoomSettings,
+    TOTAL_TILE_COUNT,
     waitForApiIdle,
 } from './fixtures';
 import { type DashboardStoryParameters } from './storyParameters';
 
 // The real bar: date zooms are pills among the controls, each opening its
-// popover; the shipped Default zoom stays on the right
+// popover; Default zoom stays on the right, an editor's opening its popover
 const meta: Meta<typeof AddControlFlow> = {
     title: 'Dashboards/Controls/Date zoom popover',
     component: AddControlFlow,
@@ -193,16 +194,16 @@ export const NamedViewer: Story = {
     },
 };
 
-// The shipped Default zoom, on the bar's right
+// Default zoom, on the bar's right
 const defaultZoom = (page: Page) =>
     waitFor(() => page.getByRole('button', { name: /^Default zoom/ }), {
         timeout: 10000,
     });
 
-/** An editor's Default zoom is the shipped one on the right, after the named zooms. */
+/** An editor's Default zoom on the right, after the named zooms, opens its popover: clearing it leaves tiles their own grain. */
 export const Default: Story = {
     name: 'Default zoom, on the right',
-    play: async ({ canvasElement }) => {
+    play: async ({ canvasElement, userEvent }) => {
         const page = onPage(canvasElement);
         await waitForApiIdle();
         const named = await pill(page, 'Revenue zoom');
@@ -211,6 +212,25 @@ export const Default: Story = {
             named.compareDocumentPosition(button) &
                 Node.DOCUMENT_POSITION_FOLLOWING,
         ).toBeTruthy();
+        await expect(button).toHaveTextContent('Default zoom Month');
+        await userEvent.click(button);
+        const dialog = within(await popover(page));
+        await waitFor(() =>
+            expect(
+                dialog.getByText(
+                    `Applies to the other ${TOTAL_TILE_COUNT - 3} tiles`,
+                ),
+            ).toBeVisible(),
+        );
+        // Grains are the "..." menu's: none to check here
+        await expect(dialog.queryByRole('checkbox')).toBeNull();
+        await userEvent.click(
+            dialog.getByRole('button', { name: 'Clear grain' }),
+        );
+        await userEvent.click(dialog.getByRole('button', { name: 'Apply' }));
+        await expect(await defaultZoom(page)).toHaveTextContent(
+            'Default zoom None',
+        );
     },
 };
 

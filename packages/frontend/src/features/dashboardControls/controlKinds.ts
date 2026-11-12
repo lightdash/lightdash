@@ -1,6 +1,7 @@
 import {
     DATE_ZOOM_PILL_ACTION_SELECTOR,
     DATE_ZOOM_PILL_SELECTOR,
+    DEFAULT_ZOOM_SELECTOR,
 } from './dateZoomControls';
 import {
     PARAMETER_PILL_ACTION_SELECTOR,
@@ -21,7 +22,7 @@ export const PILL_SELECTORS: Record<
         action: PARAMETER_PILL_ACTION_SELECTOR,
     },
     dateZoom: {
-        pill: DATE_ZOOM_PILL_SELECTOR,
+        pill: `${DATE_ZOOM_PILL_SELECTOR}, ${DEFAULT_ZOOM_SELECTOR}`,
         action: DATE_ZOOM_PILL_ACTION_SELECTOR,
     },
 };

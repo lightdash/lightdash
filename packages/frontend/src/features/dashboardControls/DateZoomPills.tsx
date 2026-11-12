@@ -2,6 +2,8 @@ import { ActionIcon, Box, Button, Menu, Text, Tooltip } from '@mantine/core';
 import {
     IconCalendarSearch,
     IconCheck,
+    IconChevronDown,
+    IconChevronUp,
     IconEyeOff,
     IconX,
 } from '@tabler/icons-react';
@@ -12,9 +14,11 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectAvailableCustomGranularities,
     selectControlSections,
+    selectIsDateZoomDisabled,
     useDashboardDateZoomConfig,
     useDashboardDateZoomGranularities,
     useDashboardSelector,
+    useDefaultDateZoomGranularity,
 } from '../dashboard/store';
 import filterClasses from '../dashboardFilters/ActiveFilters/Filter.module.css';
 import { DateZoomControlMenuItems } from '../dateZoom/components/DateZoomControlPills';
@@ -27,18 +31,51 @@ import {
     DATE_ZOOM_PILL_SELECTOR,
     getZoomTileUuids,
 } from './dateZoomControls';
+import { DefaultZoomPopover } from './DefaultZoomPopover';
 import pillClasses from './FilterPills.module.css';
 import classes from './ParameterPills.module.css';
 import { BarDroppable, PillDraggable } from './PillDraggable';
 import { useRailContractClasses } from './railContractClasses';
 import { useBarPill } from './useBarPill';
 import { useControlsSidebarSelector } from './useControlsSidebar';
-import { useDateZoomBar, type DateZoomBarEntry } from './useDateZoomBar';
+import {
+    useDateZoomBar,
+    useDefaultZoomTileCount,
+    type DateZoomBarEntry,
+} from './useDateZoomBar';
 import { useDateZoomEditorSelector } from './useDateZoomEditor';
 import { useIsControlEdited } from './useIsControlEdited';
 import { useParameterEditorSelector } from './useParameterEditor';
 
 const DRAG_DATA = { kind: DATE_ZOOM_DRAG };
+
+// The default zoom's popover: an editor's draft
+const DefaultZoomEditorContent: FC = () => {
+    const pick = useDateZoomEditorSelector((c) => c.pick);
+    const isAsking = useDateZoomEditorSelector((c) => c.isAsking);
+    const setPick = useDateZoomEditorSelector((c) => c.setPick);
+    const apply = useDateZoomEditorSelector((c) => c.apply);
+    const cancel = useDateZoomEditorSelector((c) => c.cancel);
+    const resolvePending = useDateZoomEditorSelector((c) => c.resolvePending);
+    const granularities = useDashboardDateZoomGranularities();
+    const customLabels = useDashboardSelector(
+        selectAvailableCustomGranularities,
+    );
+    const tileCount = useDefaultZoomTileCount();
+    return (
+        <DefaultZoomPopover
+            enabledGranularities={granularities}
+            value={pick}
+            customLabels={customLabels}
+            tileCount={tileCount}
+            isAsking={isAsking}
+            onResolvePending={resolvePending}
+            onChange={setPick}
+            onCancel={cancel}
+            onApply={apply}
+        />
+    );
+};
 
 // The open zoom's popover, wired to the provider, the only writer
 const DateZoomEditorContent: FC = () => {
@@ -84,8 +121,9 @@ const DateZoomEditorContent: FC = () => {
 
 const DateZoomEditorPopover: FC<{
     isOpen: boolean;
+    isDefault?: boolean;
     children: ReactNode;
-}> = ({ isOpen, children }) => {
+}> = ({ isOpen, isDefault = false, children }) => {
     const filterMapping = useControlsSidebarSelector((c) => c.isMapping);
     const parameterMapping = useParameterEditorSelector((c) => c.isMapping);
     const dateZoomMapping = useDateZoomEditorSelector((c) => c.isMapping);
@@ -98,7 +136,15 @@ const DateZoomEditorPopover: FC<{
                 !dateZoomMapping
             }
             dropdownClass="dateZoomDropdown"
-            content={<DateZoomEditorContent />}
+            // The default sits at the bar's end
+            position={isDefault ? 'bottom-end' : 'bottom-start'}
+            content={
+                isDefault ? (
+                    <DefaultZoomEditorContent />
+                ) : (
+                    <DateZoomEditorContent />
+                )
+            }
         >
             {children}
         </ControlEditorPopover>
@@ -138,7 +184,7 @@ const DateZoomPill: FC<{
     const contractClasses = useRailContractClasses();
     const { control, isNew } = entry;
     const isOpen = useDateZoomEditorSelector(
-        (c) => c.editingId === control.uuid,
+        (c) => !c.isEditingDefault && c.editingId === control.uuid,
     );
     const isViewer = useDateZoomEditorSelector((c) => c.isViewer);
     const open = useDateZoomEditorSelector((c) => c.open);
@@ -146,7 +192,7 @@ const DateZoomPill: FC<{
     const remove = useDateZoomEditorSelector((c) => c.remove);
     // The open popover's grain and name, as the draft has them
     const draft = useDateZoomEditorSelector((c) =>
-        c.editingId === control.uuid ? c.draft : null,
+        !c.isEditingDefault && c.editingId === control.uuid ? c.draft : null,
     );
     // A filter being edited closes first, or asks on unapplied changes
     const requestSwitch = useControlsSidebarSelector((c) => c.requestSwitch);
@@ -385,5 +431,93 @@ export const DateZoomPills: FC<Props> = ({
                 );
             })}
         </>
+    );
+};
+
+// An editor's dashboard-wide default zoom, in the shipped Default zoom's place
+// on the bar's right. Never moved or removed; its grains are the "..." menu's
+export const DefaultZoomButton: FC = () => {
+    const getUiString = useUiStrings();
+    const isOpen = useDateZoomEditorSelector((c) => c.isEditingDefault);
+    const openDefault = useDateZoomEditorSelector((c) => c.openDefault);
+    // The open popover's draft, else the saved default
+    const pick = useDateZoomEditorSelector((c) =>
+        c.isEditingDefault ? c.pick : undefined,
+    );
+    const requestSwitch = useControlsSidebarSelector((c) => c.requestSwitch);
+    const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
+    const defaultGranularity = useDefaultDateZoomGranularity();
+    const customLabels = useDashboardSelector(
+        selectAvailableCustomGranularities,
+    );
+    const tileCount = useDefaultZoomTileCount();
+    const granularity =
+        pick !== undefined ? pick : (defaultGranularity ?? null);
+    const isHidden = isDateZoomDisabled;
+    const isInEffect = granularity !== null && tileCount > 0;
+    return (
+        <DateZoomEditorPopover isOpen={isOpen} isDefault>
+            <Tooltip
+                fz="xs"
+                openDelay={500}
+                label="Hidden from viewers"
+                disabled={!isHidden || isOpen}
+            >
+                <Button
+                    size="xs"
+                    variant="subtle"
+                    color="gray"
+                    data-default-date-zoom
+                    // The shipped Default zoom button's walkthrough
+                    // marker (view:Dashboard), kept on its equivalent
+                    data-tour-scope="view:Dashboard"
+                    data-tour-step="2"
+                    data-tour-route="/projects/:projectUuid/dashboards/:dashboardUuid/view"
+                    data-tour-label="Open the date zoom"
+                    data-tour-title="Open and read a dashboard"
+                    data-tour-interactive="true"
+                    data-tour-via='[data-tour-nav="browse"] >> [data-tour-nav="all-dashboards"] >> [data-tour-anchor="dashboard-row"][data-tour-value="Jaffle Shop overview"]'
+                    data-tour-then='[data-tour-anchor="zoom-option"][data-tour-value="Month"]'
+                    data-tour-docs="explore/dashboards/date-zoom.mdx#intro:1"
+                    data-in-effect={isInEffect || undefined}
+                    data-open={isOpen || undefined}
+                    data-hidden={isHidden || undefined}
+                    aria-pressed={isOpen}
+                    leftSection={
+                        <MantineIcon
+                            icon={isHidden ? IconEyeOff : IconCalendarSearch}
+                            color="dimmed"
+                        />
+                    }
+                    rightSection={
+                        <MantineIcon
+                            icon={isOpen ? IconChevronUp : IconChevronDown}
+                            color="dimmed"
+                        />
+                    }
+                    onClick={() => requestSwitch(openDefault)}
+                >
+                    {/* One text run: the label's flex would drop the space */}
+                    <Text span fz="xs">
+                        <Text span c="dimmed">
+                            {getUiString('dateZoom.defaultZoom')}{' '}
+                        </Text>
+                        <Text
+                            span
+                            fw={isInEffect ? 600 : undefined}
+                            c={isInEffect ? undefined : 'dimmed'}
+                        >
+                            {granularity === null
+                                ? getUiString('dateZoom.none')
+                                : getGranularityLabel(
+                                      granularity,
+                                      customLabels,
+                                      getUiString,
+                                  )}
+                        </Text>
+                    </Text>
+                </Button>
+            </Tooltip>
+        </DateZoomEditorPopover>
     );
 };
