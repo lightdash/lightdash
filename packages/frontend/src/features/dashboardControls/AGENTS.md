@@ -65,8 +65,8 @@ Gated on the flag:
   `save` class, so the header's rule draws Save as an outline), sets the
   store's edit mode and clears the runtime zoom pick, builds Save with
   `buildEmbedDashboardUpdate`, counts control drafts in "changed", and
-  resets them on Cancel, on leaving edit mode with drafts (a host's switch)
-  and settles them after a save (`useControlDraftResets`).
+  resets them on Cancel and on leaving edit mode (a host's switch), and
+  settles them after a save (`useControlDraftResets`).
 - `pages/Dashboard.tsx` Save: `getDimensionFiltersToSave` keeps a required
   filter's value as its default with the flag on; off, it strips it as before.
 - `pages/DashboardVersionComparison.tsx`: a "Filter sections" block after
@@ -248,7 +248,9 @@ Each one has broken before or would break silently.
   `parameterOrder`, and `isDateZoomDisabled` unless the token allows date
   zoom, where an editor's edit mode seeds it from the saved config, tiles
   or none (and puts it back to `false` on the way out: an embed viewer's
-  date zoom follows the token). The embed resolves the flag for the JWT's
+  date zoom follows the token). A host turning `isEditMode` off without
+  Cancel drops the control drafts (what an open editor applies on the way
+  out included) but keeps filter rule drafts, as before the controls. The embed resolves the flag for the JWT's
   organisation (`FeatureFlagService.getForAccount`).
 - **Saved section keys survive every rewrite**: `sectionId` is carried in
   `applyDimensionOverrides` / `applyMetricOverrides`, `adoptPlaceholder` and

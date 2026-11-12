@@ -1,7 +1,7 @@
 import { type Dashboard } from '@lightdash/common';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useEffect, type FC } from 'react';
+import { useEffect, useRef, type FC } from 'react';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -14,6 +14,7 @@ import {
     selectIsDateZoomDisabled,
     selectParameterPicks,
     selectRawTemporaryFilters,
+    useDashboardDateZoomGranularities,
     useDashboardDispatch,
     useDashboardSelector,
     type DashboardStoreDispatch,
@@ -25,6 +26,7 @@ import EmbedDashboard from './EmbedDashboard';
 
 const mocks = vi.hoisted(() => ({
     isFlagEnabled: true,
+    draftsOnExit: false,
     availableFilters: undefined as unknown,
     dispatch: undefined as DashboardStoreDispatch | undefined,
     embed: {} as Record<string, unknown>,
@@ -192,8 +194,10 @@ const ParametersState: FC = () => {
     const picks = useDashboardSelector(selectParameterPicks);
     const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
     const zoom = useDashboardSelector(selectDateZoomGranularity);
+    const grains = useDashboardDateZoomGranularities();
     return (
         <>
+            <output data-testid="grains">{grains.join(',')}</output>
             <output data-testid="zoom">{zoom ?? 'none'}</output>
             <output data-testid="parameters-state">
                 {isEditMode ? 'edit' : 'view'}:{Object.keys(picks).join(',')}
@@ -203,6 +207,26 @@ const ParametersState: FC = () => {
             </output>
         </>
     );
+};
+
+// Writes a section draft in the commit that leaves edit mode, before the
+// embed's own effects, as the controls provider does when it applies an open
+// edit on a mode change
+const DraftOnExit: FC<{ isEditMode: boolean }> = ({ isEditMode }) => {
+    const dispatch = useDashboardDispatch();
+    const wasEditMode = useRef(isEditMode);
+    useEffect(() => {
+        if (mocks.draftsOnExit && wasEditMode.current && !isEditMode) {
+            dispatch(
+                dashboardEditActions.renameControlSection({
+                    id: 'a',
+                    name: 'Applied on exit',
+                }),
+            );
+        }
+        wasEditMode.current = isEditMode;
+    }, [dispatch, isEditMode]);
+    return null;
 };
 
 const embedElement = (isEditMode: boolean, loaded = dashboard) => (
@@ -216,6 +240,7 @@ const embedElement = (isEditMode: boolean, loaded = dashboard) => (
             <SectionNames />
             <FilterIds />
             <ParametersState />
+            <DraftOnExit isEditMode={isEditMode} />
             <EmbedDashboard
                 initialDashboard={
                     loaded as unknown as Parameters<
@@ -343,6 +368,7 @@ describe('EmbedDashboard editor controls', () => {
     beforeEach(() => {
         mocks.isFlagEnabled = true;
         mocks.availableFilters = undefined;
+        mocks.draftsOnExit = false;
         mocks.updateDashboard.mockReset();
         mocks.embed = {
             dashboardUuid: dashboard.uuid,
@@ -541,6 +567,39 @@ describe('EmbedDashboard editor controls', () => {
             await waitFor(() =>
                 expect(sectionNames()).toHaveTextContent('Dates'),
             );
+        });
+
+        it('drops a draft the open editor applies as the mode changes', async () => {
+            mocks.draftsOnExit = true;
+            const { rerender } = renderEmbed(true);
+            await waitFor(() =>
+                expect(sectionNames()).toHaveTextContent('Dates'),
+            );
+
+            rerender(embedElement(false));
+            await screen.findByRole('group', { name: 'Dates' });
+            await act(async () => {});
+            expect(sectionNames().textContent).toBe('Dates');
+        });
+
+        it('leaves the grains as a fresh load has them after Cancel, with no saved list', async () => {
+            renderEmbed(true, {
+                ...dashboard,
+                canDateZoom: true,
+            } as unknown as Dashboard);
+            await waitFor(() =>
+                expect(sectionNames()).toHaveTextContent('Dates'),
+            );
+            const loaded = screen.getByTestId('grains').textContent;
+            expect(loaded).toContain('Day');
+            expect(loaded).not.toMatch(/Second|Minute|Hour/);
+
+            await userEvent.click(
+                screen.getByRole('button', { name: 'Cancel' }),
+            );
+            await act(async () => {});
+            expect(screen.getByTestId('grains').textContent).toBe(loaded);
+            expect(save()).toBeDisabled();
         });
 
         it('keeps what a save just wrote', async () => {

@@ -988,16 +988,17 @@ const EmbedDashboard: FC<{
         }
     }, [isEditMode, resetDashboardDraft]);
 
-    // Leaving edit mode with control drafts drops them too: a host's switch
-    // without Cancel. A save has settled them by then, so it is left alone
+    // Leaving edit mode drops the control drafts too, a host's switch without
+    // Cancel and what an open editor applied on the way out included. After a
+    // save `dashboard` is the saved one, so its state is kept
     const wasEditModeRef = useRef(isEditMode);
     useEffect(() => {
         const wasEditMode = wasEditModeRef.current;
         wasEditModeRef.current = isEditMode;
-        if (wasEditMode && !isEditMode && haveControlsChanged) {
+        if (isControlsEnabled && wasEditMode && !isEditMode) {
             resetControlDrafts(dashboard?.config);
         }
-    }, [dashboard, haveControlsChanged, isEditMode, resetControlDrafts]);
+    }, [dashboard, isControlsEnabled, isEditMode, resetControlDrafts]);
 
     // Filters are not part of resetDashboardDraft: it also runs on mount, where
     // it would clobber the SDK/URL filter overrides the provider applies.
