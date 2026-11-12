@@ -9,6 +9,7 @@ import { type PullRequestProvider } from '../../types/gitIntegration';
 import { type ParametersValuesMap } from '../../types/parameters';
 import { type ChartKind } from '../../types/savedCharts';
 import { type TraceTaskBase } from '../../types/scheduler';
+import { type DateGranularity } from '../../types/timeFrames';
 import {
     type AiAgentEvidenceExcerpt,
     type AiAgentJudgeProjectContextEntry,
@@ -51,11 +52,33 @@ export type AiDashboardActiveTab = {
     name: string;
 };
 
+export type AiDashboardTileRef = {
+    uuid: string;
+    name: string;
+};
+
+export type AiDashboardDateZoomControl = {
+    uuid: string;
+    name: string;
+    /** The viewer's pick, else the control's saved grain */
+    granularity: DateGranularity | string;
+    tiles: AiDashboardTileRef[];
+};
+
+export type AiDashboardTileParameters = {
+    tile: AiDashboardTileRef;
+    parameters: ParametersValuesMap;
+};
+
 export type AiDashboardRuntimeOverrides = {
     activeTab?: AiDashboardActiveTab;
     dashboardFilters?: AiDashboardFilters;
     dashboardParameters?: ParametersValuesMap;
     dateZoom?: DateZoom | null;
+    /** Every named date zoom on the dashboard; absent when it has none */
+    dateZoomControls?: AiDashboardDateZoomControl[];
+    /** The values each tile runs with; present only when parameter controls give tiles different values */
+    tileParameters?: AiDashboardTileParameters[];
 };
 
 export type AiThread = {

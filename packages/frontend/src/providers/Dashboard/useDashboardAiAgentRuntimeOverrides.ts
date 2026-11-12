@@ -6,15 +6,21 @@ import {
 import { useMemo } from 'react';
 import {
     addActiveTabToDashboardRuntimeOverrides,
+    addControlsToDashboardRuntimeOverrides,
     getDashboardParametersValuesMap,
     getNonDefaultDashboardRuntimeOverrides,
 } from '../../ee/features/aiCopilot/store/dashboardPageContext';
 import {
     selectActiveTab,
+    selectControlGranularities,
+    selectDashboardTiles,
     selectDateZoomGranularity,
     selectIsDateZoomDisabled,
+    selectParameterControlInputs,
     selectParameterValues,
+    selectTileParameterReferences,
     useDashboardAllFilters,
+    useDashboardDateZoomConfig,
     useDashboardSelector,
     useDefaultDateZoomGranularity,
 } from '../../features/dashboard/store';
@@ -42,6 +48,18 @@ export const useDashboardAiAgentRuntimeOverrides =
             selectIsDateZoomDisabled,
         );
 
+        const tiles = useDashboardSelector(selectDashboardTiles);
+        const dateZoomConfig = useDashboardDateZoomConfig();
+        const controlGranularities = useDashboardSelector(
+            selectControlGranularities,
+        );
+        const parameterControlInputs = useDashboardSelector(
+            selectParameterControlInputs,
+        );
+        const tileParameterReferences = useDashboardSelector(
+            selectTileParameterReferences,
+        );
+
         const defaultParameterValues = useMemo(
             () => getDashboardParametersValuesMap(dashboard?.parameters ?? {}),
             [dashboard?.parameters],
@@ -63,25 +81,38 @@ export const useDashboardAiAgentRuntimeOverrides =
 
         return useMemo(
             () =>
-                addActiveTabToDashboardRuntimeOverrides({
-                    activeTab,
-                    runtimeOverrides: getNonDefaultDashboardRuntimeOverrides({
-                        defaultFilters: originalDashboardFilters,
-                        effectiveFilters: allFilters,
-                        defaultParameters: defaultParameterValues,
-                        effectiveParameters: parameterValues,
-                        defaultDateZoom,
-                        effectiveDateZoom,
+                addControlsToDashboardRuntimeOverrides({
+                    runtimeOverrides: addActiveTabToDashboardRuntimeOverrides({
+                        activeTab,
+                        runtimeOverrides:
+                            getNonDefaultDashboardRuntimeOverrides({
+                                defaultFilters: originalDashboardFilters,
+                                effectiveFilters: allFilters,
+                                defaultParameters: defaultParameterValues,
+                                effectiveParameters: parameterValues,
+                                defaultDateZoom,
+                                effectiveDateZoom,
+                            }),
                     }),
+                    tiles: tiles ?? [],
+                    dateZoomConfig,
+                    controlGranularities,
+                    parameterControlInputs,
+                    tileParameterReferences,
                 }),
             [
                 activeTab,
                 allFilters,
+                controlGranularities,
+                dateZoomConfig,
                 defaultDateZoom,
                 defaultParameterValues,
                 effectiveDateZoom,
                 originalDashboardFilters,
+                parameterControlInputs,
                 parameterValues,
+                tileParameterReferences,
+                tiles,
             ],
         );
     };

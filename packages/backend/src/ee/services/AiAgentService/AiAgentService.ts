@@ -181,7 +181,9 @@ import {
     QuerySourceType,
     QuerySurface,
     ReadinessScore,
+    serializeDashboardDateZoomControlsForAiContext,
     serializeDashboardFiltersForAiContext,
+    serializeDashboardTileParametersForAiContext,
     ShareUrl,
     SlackPrompt,
     sleep,
@@ -13026,7 +13028,9 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                     // Stated explicitly so a reset replaces overrides from earlier turns.
                     const savedState = [
                         !overrides.dashboardFilters && 'filters',
-                        !overrides.dashboardParameters && 'parameter values',
+                        !overrides.dashboardParameters &&
+                            !overrides.tileParameters &&
+                            'parameter values',
                         overrides.dateZoom === undefined && 'date zoom',
                     ].filter((label): label is string => !!label);
                     if (savedState.length > 0) {
@@ -13047,6 +13051,16 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                     if (overrides.dateZoom !== undefined) {
                         overrideLines.push(
                             `  Date zoom: ${JSON.stringify(overrides.dateZoom)}`,
+                        );
+                    }
+                    if (overrides.tileParameters) {
+                        overrideLines.push(
+                            `  Parameter values by tile: ${JSON.stringify(serializeDashboardTileParametersForAiContext(overrides.tileParameters))}`,
+                        );
+                    }
+                    if (overrides.dateZoomControls) {
+                        overrideLines.push(
+                            `  Named date zooms, each setting the grain of its own tiles: ${JSON.stringify(serializeDashboardDateZoomControlsForAiContext(overrides.dateZoomControls))}`,
                         );
                     }
                     return overrideLines.length > 0
