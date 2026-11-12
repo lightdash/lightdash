@@ -5,6 +5,7 @@ import {
     Checkbox,
     Group,
     Kbd,
+    Paper,
     Radio,
     Stack,
     Text,
@@ -17,7 +18,6 @@ import {
     type FC,
     type KeyboardEvent,
 } from 'react';
-import composerStyles from '../../../../../components/common/PromptComposer/PromptComposer.module.css';
 import styles from './AskUserQuestionCard.module.css';
 
 const isTypingTarget = (target: EventTarget) =>
@@ -34,8 +34,6 @@ const isOptionOrCard = ({ target, currentTarget }: KeyboardEvent) =>
 type Props = {
     questions: AskUserQuestion[];
     onSubmit: (answer: string) => void;
-    /** Hands the composer back for a message that answers nothing. */
-    onSkip: () => void;
 };
 
 type Answer = { selected: string[]; custom: string };
@@ -43,12 +41,8 @@ type Answer = { selected: string[]; custom: string };
 const getAnswerText = ({ selected, custom }: Answer) =>
     custom.trim() || selected.join(', ');
 
-/** Takes the composer's place: one question at a time, answers sent as the next message. */
-export const AskUserQuestionCard: FC<Props> = ({
-    questions,
-    onSubmit,
-    onSkip,
-}) => {
+/** Sits above the composer: one question at a time, answers sent as the next message. */
+export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
     const [index, setIndex] = useState(0);
     const [answers, setAnswers] = useState<Answer[]>(() =>
         questions.map(() => ({ selected: [], custom: '' })),
@@ -160,14 +154,13 @@ export const AskUserQuestionCard: FC<Props> = ({
     });
 
     return (
-        <Box
+        <Paper
             ref={cardRef}
             tabIndex={-1}
             onKeyDown={onKeyDown}
-            data-variant="card"
-            className={`${composerStyles.root} ${styles.card}`}
+            className={styles.card}
         >
-            <Stack gap="sm" p="md" className={styles.body}>
+            <Stack gap="sm" p="sm">
                 <Group justify="space-between" wrap="nowrap">
                     <Text fz="xs" fw={500} c="dimmed">
                         {question.header}
@@ -219,11 +212,7 @@ export const AskUserQuestionCard: FC<Props> = ({
                         }
                     }}
                 />
-                <Group gap="xs" wrap="nowrap">
-                    <Button size="xs" variant="subtle" onClick={onSkip}>
-                        Skip
-                    </Button>
-                    <Box flex={1} />
+                <Group gap="xs" justify="flex-end" wrap="nowrap">
                     {index > 0 && (
                         <Button
                             size="xs"
@@ -242,6 +231,6 @@ export const AskUserQuestionCard: FC<Props> = ({
                     </Button>
                 </Group>
             </Stack>
-        </Box>
+        </Paper>
     );
 };

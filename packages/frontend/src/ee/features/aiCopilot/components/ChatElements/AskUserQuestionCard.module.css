@@ -1,23 +1,17 @@
-/* Same box as the composer it stands in for (AgentChatInput minimal layout). */
+/* Same column as the composer below it (AgentChatInput minimal layout). */
 .container {
     width: 100%;
     max-width: 48rem;
     margin-inline: auto;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md)
-        var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md) 0;
 }
 
 .card:focus {
     outline: none;
 }
 
-.body {
-    max-height: 50vh;
-    overflow-y: auto;
-}
-
 .option {
-    padding: var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
     transition:
         border-color 120ms ease,
         background-color 120ms ease;
@@ -25,10 +19,4 @@
 
 .option[data-checked] {
     border-color: var(--mantine-primary-color-filled);
-}
-
-.resume {
-    display: flex;
-    justify-content: center;
-    padding-top: var(--mantine-spacing-xs);
 }

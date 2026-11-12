@@ -28,11 +28,7 @@ const renderCard = (questions: AskUserQuestion[]) => {
     const onSubmit = vi.fn();
     render(
         <MantineProvider env="test">
-            <AskUserQuestionCard
-                questions={questions}
-                onSubmit={onSubmit}
-                onSkip={vi.fn()}
-            />
+            <AskUserQuestionCard questions={questions} onSubmit={onSubmit} />
         </MantineProvider>,
     );
     return onSubmit;

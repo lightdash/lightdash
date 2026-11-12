@@ -1,13 +1,5 @@
 import { type AiAgentThread } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Divider,
-    Flex,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { Box, Divider, Flex, Stack, Text, Tooltip } from '@mantine/core';
 import { IconCrop, IconInfoCircle } from '@tabler/icons-react';
 import {
     Fragment,
@@ -196,18 +188,9 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
             message.role === 'user' ? [message.uuid] : [],
         ),
     );
-    // A skipped question gives the composer back until the next question.
-    const [skippedAskUserId, setSkippedAskUserId] = useState<string | null>(
-        null,
-    );
-    const pendingAskUser = onChoiceSelect
+    const askUser = onChoiceSelect
         ? getPendingAskUser(visibleMessages.at(-1))
         : null;
-    const isAskUserSkipped =
-        pendingAskUser !== null &&
-        pendingAskUser.toolCallId === skippedAskUserId;
-    const askUser = isAskUserSkipped ? null : pendingAskUser;
-    const composer = useRef<HTMLDivElement>(null);
     const unanchoredDeepResearchRegistrations =
         deepResearchRegistrations.filter(
             (registration) =>
@@ -362,49 +345,16 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                         bottom={0}
                         w="100%"
                     >
-                        {/* Hidden while skipped, so Back to questions keeps the picks. */}
-                        {pendingAskUser && onChoiceSelect && (
-                            <Box
-                                className={askUserStyles.container}
-                                display={askUser ? undefined : 'none'}
-                            >
+                        {askUser && onChoiceSelect && (
+                            <Box className={askUserStyles.container}>
                                 <AskUserQuestionCard
-                                    key={pendingAskUser.toolCallId}
-                                    questions={pendingAskUser.questions}
+                                    key={askUser.toolCallId}
+                                    questions={askUser.questions}
                                     onSubmit={onChoiceSelect}
-                                    onSkip={() => {
-                                        setSkippedAskUserId(
-                                            pendingAskUser.toolCallId,
-                                        );
-                                        requestAnimationFrame(() =>
-                                            composer.current
-                                                ?.querySelector<HTMLElement>(
-                                                    '[contenteditable="true"]',
-                                                )
-                                                ?.focus(),
-                                        );
-                                    }}
                                 />
                             </Box>
                         )}
-                        {isAskUserSkipped && (
-                            <Box className={askUserStyles.resume}>
-                                <Button
-                                    size="xs"
-                                    variant="subtle"
-                                    onClick={() => setSkippedAskUserId(null)}
-                                >
-                                    Back to questions
-                                </Button>
-                            </Box>
-                        )}
-                        {/* Hidden, not unmounted, so a draft survives the question. */}
-                        <Box
-                            ref={composer}
-                            display={askUser ? 'none' : undefined}
-                        >
-                            {children}
-                        </Box>
+                        {children}
                     </Box>
                 ) : null}
             </Flex>

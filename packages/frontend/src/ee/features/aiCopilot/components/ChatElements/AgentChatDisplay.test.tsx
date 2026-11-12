@@ -3,7 +3,7 @@ import {
     type AiAgentMessageUser,
     type AiAgentThread,
 } from '@lightdash/common';
-import { fireEvent, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { AgentChatDisplay } from './AgentChatDisplay';
@@ -257,7 +257,7 @@ describe('AgentChatDisplay', () => {
         ]);
     });
 
-    it('swaps the composer for a pending question and keeps its draft', () => {
+    it('shows a pending question above the composer', () => {
         deepResearchRegistrationsMock.mockReturnValue([]);
         const asking: AiAgentMessageAssistant = {
             ...getAssistantMessage(
@@ -301,24 +301,7 @@ describe('AgentChatDisplay', () => {
             </AgentChatDisplay>,
         );
 
-        fireEvent.change(screen.getByLabelText('Composer'), {
-            target: { value: 'typed while the agent ran' },
-        });
         expect(screen.getByRole('radio', { name: /November/ })).toBeVisible();
-        expect(screen.getByLabelText('Composer')).not.toBeVisible();
-
-        fireEvent.click(screen.getByRole('radio', { name: /October/ }));
-        fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
-
-        expect(screen.queryByRole('radio', { name: /November/ })).toBeNull();
         expect(screen.getByLabelText('Composer')).toBeVisible();
-        expect(screen.getByLabelText('Composer')).toHaveValue(
-            'typed while the agent ran',
-        );
-
-        fireEvent.click(
-            screen.getByRole('button', { name: 'Back to questions' }),
-        );
-        expect(screen.getByRole('radio', { name: /October/ })).toBeChecked();
     });
 });
