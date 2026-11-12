@@ -85,6 +85,7 @@ import {
     type McpListCustomChartTypesOutput,
     type ParameterDefinitions,
     type PersistedDataAppDataReferences,
+    type SavedChartDAO,
     type SchedulerAiAugmentation,
     type SqlChart,
     type SqlChartAsCode,
@@ -4460,12 +4461,13 @@ export class AiAgentToolsService extends BaseService {
                     );
                 }
 
-                const dateZoom = await this.resolveDashboardTileDateZoom(
-                    context,
-                    dashboard,
-                    tile.uuid,
-                    args.chartUuid,
-                );
+                const { dateZoom, savedChart } =
+                    await this.resolveDashboardTileDateZoom(
+                        context,
+                        dashboard,
+                        tile.uuid,
+                        args.chartUuid,
+                    );
 
                 await context.onWarehouseQuery?.();
                 return this.asyncQueryService.executeDashboardChartQueryAndGetResults(
@@ -4478,6 +4480,9 @@ export class AiAgentToolsService extends BaseService {
                         dashboardFilters: dashboard.filters,
                         dashboardSorts: [],
                         ...(dateZoom ? { dateZoom } : {}),
+                        ...(savedChart
+                            ? { preloadedSavedChart: savedChart }
+                            : {}),
                         limit,
                         context: context.defaultQueryExecutionContext,
                         querySurface: context.querySurface,
@@ -4498,7 +4503,12 @@ export class AiAgentToolsService extends BaseService {
         dashboard: Pick<Dashboard, 'uuid' | 'config'>,
         tileUuid: string,
         chartUuid: string,
-    ): Promise<DateZoom | undefined> {
+    ): Promise<{
+        dateZoom: DateZoom | undefined;
+        /** Loaded for the x-axis field, so the query need not load it again */
+        savedChart: SavedChartDAO | null;
+    }> {
+        // A viewer can pick a zoom on a dashboard that saves none, so a thread is always read
         const overrides = context.threadUuid
             ? await this.aiAgentModel.findThreadDashboardRuntimeOverrides(
                   context.threadUuid,
@@ -4515,36 +4525,38 @@ export class AiAgentToolsService extends BaseService {
                 ? savedGranularity
                 : overrides.dateZoom?.granularity;
 
+        let savedChart: SavedChartDAO | null = null;
         let defaultXAxisFieldId: string | undefined;
         if (
             globalGranularity !== undefined &&
             getTileControl(config, tileUuid) === undefined
         ) {
-            const chart = await this.savedChartModel.get(chartUuid, undefined, {
+            savedChart = await this.savedChartModel.get(chartUuid, undefined, {
                 projectUuid: context.projectUuid,
             });
             defaultXAxisFieldId = getDateZoomXAxisFieldId(
-                chart.chartConfig,
+                savedChart.chartConfig,
                 await this.projectService.getExplore(
                     context.account,
                     context.projectUuid,
-                    chart.metricQuery.exploreName,
+                    savedChart.metricQuery.exploreName,
                 ),
             );
         }
 
-        return resolveTileDateZoom({
+        const dateZoom = resolveTileDateZoom({
             config,
             tileUuid,
+            // A grain stored as saved gives way to the config, which may have changed since
             runtimeGranularities: Object.fromEntries(
-                (overrides?.dateZoomControls ?? []).map((control) => [
-                    control.uuid,
-                    control.granularity,
-                ]),
+                (overrides?.dateZoomControls ?? [])
+                    .filter((control) => control.isViewerPick === true)
+                    .map((control) => [control.uuid, control.granularity]),
             ),
             globalGranularity,
             defaultXAxisFieldId,
         });
+        return { dateZoom, savedChart };
     }
 
     private runSqlJob(

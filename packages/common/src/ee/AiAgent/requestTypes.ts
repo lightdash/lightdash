@@ -62,6 +62,8 @@ export type AiDashboardDateZoomControl = {
     name: string;
     /** The viewer's pick, else the control's saved grain */
     granularity: DateGranularity | string;
+    /** False: the saved grain when the context was attached, which the saved config supersedes */
+    isViewerPick: boolean;
     tiles: AiDashboardTileRef[];
 };
 
@@ -77,7 +79,7 @@ export type AiDashboardRuntimeOverrides = {
     dateZoom?: DateZoom | null;
     /** Every named date zoom on the dashboard; absent when it has none */
     dateZoomControls?: AiDashboardDateZoomControl[];
-    /** The values each tile runs with; present only when parameter controls give tiles different values */
+    /** The values each tile runs with; present only when the viewer's picks on parameter controls change them */
     tileParameters?: AiDashboardTileParameters[];
 };
 

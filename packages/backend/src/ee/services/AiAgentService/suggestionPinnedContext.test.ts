@@ -78,6 +78,46 @@ describe('suggestion pinned context', () => {
         });
     });
 
+    it('keeps dashboard-wide view state and leaves out per-tile state', () => {
+        const dashboard = {
+            name: 'Revenue overview',
+            description: null,
+            tabs: [],
+        } as Parameters<typeof buildDashboardSuggestionContext>[0];
+        const dashboardWide = {
+            dashboardParameters: { region: 'EU' },
+            dateZoom: { granularity: 'Week' },
+        };
+
+        expect(
+            buildDashboardSuggestionContext(dashboard, [], [], dashboardWide)
+                .metadata,
+        ).toMatchObject({ runtimeOverrides: dashboardWide });
+        expect(
+            buildDashboardSuggestionContext(dashboard, [], [], {
+                ...dashboardWide,
+                dateZoomControls: [
+                    {
+                        uuid: 'zoom-uuid',
+                        name: 'Revenue zoom',
+                        granularity: 'Week',
+                        isViewerPick: true,
+                        tiles: [{ uuid: 'tile-uuid', name: 'Revenue' }],
+                    },
+                ],
+                tileParameters: [
+                    {
+                        tile: { uuid: 'tile-uuid', name: 'Revenue' },
+                        parameters: { region: 'US' },
+                    },
+                ],
+            }).metadata,
+        ).toMatchObject({ runtimeOverrides: dashboardWide });
+        expect(
+            buildDashboardSuggestionContext(dashboard, [], []).metadata,
+        ).toMatchObject({ runtimeOverrides: null });
+    });
+
     it('aggregates dashboard chart fields and metadata', () => {
         const result = buildDashboardSuggestionContext(
             {

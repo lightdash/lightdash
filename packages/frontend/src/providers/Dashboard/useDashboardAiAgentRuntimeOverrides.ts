@@ -17,6 +17,7 @@ import {
     selectDateZoomGranularity,
     selectIsDateZoomDisabled,
     selectParameterControlInputs,
+    selectParameterControls,
     selectParameterValues,
     selectTileParameterReferences,
     useDashboardAllFilters,
@@ -56,6 +57,7 @@ export const useDashboardAiAgentRuntimeOverrides =
         const parameterControlInputs = useDashboardSelector(
             selectParameterControlInputs,
         );
+        const parameterControls = useDashboardSelector(selectParameterControls);
         const tileParameterReferences = useDashboardSelector(
             selectTileParameterReferences,
         );
@@ -98,6 +100,7 @@ export const useDashboardAiAgentRuntimeOverrides =
                     dateZoomConfig,
                     controlGranularities,
                     parameterControlInputs,
+                    parameterControls,
                     tileParameterReferences,
                 }),
             [
@@ -110,6 +113,7 @@ export const useDashboardAiAgentRuntimeOverrides =
                 effectiveDateZoom,
                 originalDashboardFilters,
                 parameterControlInputs,
+                parameterControls,
                 parameterValues,
                 tileParameterReferences,
                 tiles,

@@ -70,6 +70,7 @@ export const getAiDashboardDateZoomControls = ({
                   control,
                   runtimeGranularities,
               ),
+              isViewerPick: Object.hasOwn(runtimeGranularities, control.uuid),
               tiles: tiles.filter(
                   (tile) =>
                       config.tileTargets[tile.uuid]?.controlUuid ===
@@ -77,21 +78,29 @@ export const getAiDashboardDateZoomControls = ({
               ),
           }));
 
-/** Undefined without parameter controls, and while every tile runs with the same values */
+/** Undefined without parameter controls, and while every tile runs with the values the controls hold without picks */
 export const getAiDashboardTileParameters = ({
     tiles,
     parametersByTileUuid,
+    unpickedParametersByTileUuid,
 }: {
     tiles: AiDashboardTileRef[];
     parametersByTileUuid: Record<string, ParametersValuesMap> | undefined;
+    unpickedParametersByTileUuid:
+        | Record<string, ParametersValuesMap>
+        | undefined;
 }): AiDashboardTileParameters[] | undefined => {
-    if (parametersByTileUuid === undefined) return undefined;
+    if (
+        parametersByTileUuid === undefined ||
+        unpickedParametersByTileUuid === undefined
+    )
+        return undefined;
     const entries = tiles.map((tile) => ({
         tile,
         parameters: parametersByTileUuid[tile.uuid] ?? {},
     }));
-    return entries.every(({ parameters }) =>
-        isEqual(parameters, entries[0].parameters),
+    return entries.every(({ tile, parameters }) =>
+        isEqual(parameters, unpickedParametersByTileUuid[tile.uuid] ?? {}),
     )
         ? undefined
         : entries.filter(
@@ -102,9 +111,11 @@ export const getAiDashboardTileParameters = ({
 export const serializeDashboardDateZoomControlsForAiContext = (
     controls: AiDashboardDateZoomControl[],
 ) =>
-    controls.map(({ name, granularity, tiles }) => ({
+    controls.map(({ name, granularity, isViewerPick, tiles }) => ({
         name,
         granularity,
+        // Rows stored before the flag existed count as saved
+        source: isViewerPick === true ? 'viewer pick' : 'saved',
         tiles: tiles.map((tile) => tile.name),
     }));
 

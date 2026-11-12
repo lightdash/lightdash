@@ -120,12 +120,14 @@ describe('getAiDashboardDateZoomControls', () => {
                 uuid: 'zoom-1',
                 name: 'Revenue zoom',
                 granularity: DateGranularity.WEEK,
+                isViewerPick: true,
                 tiles: [tiles[0]],
             },
             {
                 uuid: 'zoom-2',
                 name: 'Growth zoom',
                 granularity: DateGranularity.QUARTER,
+                isViewerPick: false,
                 tiles: [tiles[2]],
             },
         ]);
@@ -135,11 +137,13 @@ describe('getAiDashboardDateZoomControls', () => {
             {
                 name: 'Revenue zoom',
                 granularity: DateGranularity.WEEK,
+                source: 'viewer pick',
                 tiles: ['Revenue'],
             },
             {
                 name: 'Growth zoom',
                 granularity: DateGranularity.QUARTER,
+                source: 'saved',
                 tiles: ['Signups'],
             },
         ]);
@@ -147,23 +151,58 @@ describe('getAiDashboardDateZoomControls', () => {
 });
 
 describe('getAiDashboardTileParameters', () => {
+    const unpicked = {
+        'tile-1': { region: 'EU' },
+        'tile-2': { region: 'EU' },
+        'tile-3': { region: 'EU' },
+    };
+
     it('is absent without parameter controls', () => {
         expect(
             getAiDashboardTileParameters({
                 tiles,
                 parametersByTileUuid: undefined,
+                unpickedParametersByTileUuid: undefined,
             }),
         ).toBeUndefined();
     });
 
-    it('lists the values of each tile once tiles differ', () => {
+    it('is absent while no pick changes what the controls hold', () => {
+        const scoped = { ...unpicked, 'tile-2': { region: 'US' } };
+        expect(
+            getAiDashboardTileParameters({
+                tiles,
+                parametersByTileUuid: scoped,
+                unpickedParametersByTileUuid: scoped,
+            }),
+        ).toBeUndefined();
+    });
+
+    it('lists every tile when a pick sets them all alike', () => {
         const tileParameters = getAiDashboardTileParameters({
             tiles,
             parametersByTileUuid: {
-                'tile-1': { region: 'EU' },
+                'tile-1': { region: 'US' },
                 'tile-2': { region: 'US' },
-                'tile-3': { region: 'EU' },
+                'tile-3': { region: 'US' },
             },
+            unpickedParametersByTileUuid: unpicked,
+        });
+        expect(
+            serializeDashboardTileParametersForAiContext(tileParameters!),
+        ).toEqual([
+            {
+                tiles: ['Revenue', 'Orders', 'Signups'],
+                parameters: { region: 'US' },
+            },
+        ]);
+    });
+
+    it('groups tiles by the values a pick leaves them with', () => {
+        const tileParameters = getAiDashboardTileParameters({
+            tiles,
+            parametersByTileUuid: { ...unpicked, 'tile-2': { region: 'US' } },
+            unpickedParametersByTileUuid: unpicked,
         });
 
         expect(tileParameters).toEqual([
@@ -179,12 +218,26 @@ describe('getAiDashboardTileParameters', () => {
         ]);
     });
 
-    it('leaves out tiles no control gives a value', () => {
+    it('leaves out tiles left without a value', () => {
         expect(
             getAiDashboardTileParameters({
                 tiles,
-                parametersByTileUuid: { 'tile-1': { region: 'EU' } },
+                parametersByTileUuid: { 'tile-1': { region: 'US' } },
+                unpickedParametersByTileUuid: unpicked,
             }),
-        ).toEqual([{ tile: tiles[0], parameters: { region: 'EU' } }]);
+        ).toEqual([{ tile: tiles[0], parameters: { region: 'US' } }]);
+    });
+});
+
+describe('serializeDashboardDateZoomControlsForAiContext', () => {
+    it('reads a control stored without the pick flag as saved', () => {
+        const stored = [
+            { uuid: 'zoom-1', name: 'Revenue zoom', granularity: 'Day', tiles },
+        ] as Parameters<
+            typeof serializeDashboardDateZoomControlsForAiContext
+        >[0];
+        expect(
+            serializeDashboardDateZoomControlsForAiContext(stored)[0].source,
+        ).toBe('saved');
     });
 });

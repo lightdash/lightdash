@@ -13025,13 +13025,17 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                             `  Active tab: "${overrides.activeTab.name}"`,
                         );
                     }
+                    // With named zooms the dashboard-wide one needs its own name
+                    const dateZoomLabel = overrides.dateZoomControls
+                        ? 'default date zoom'
+                        : 'date zoom';
                     // Stated explicitly so a reset replaces overrides from earlier turns.
                     const savedState = [
                         !overrides.dashboardFilters && 'filters',
                         !overrides.dashboardParameters &&
                             !overrides.tileParameters &&
                             'parameter values',
-                        overrides.dateZoom === undefined && 'date zoom',
+                        overrides.dateZoom === undefined && dateZoomLabel,
                     ].filter((label): label is string => !!label);
                     if (savedState.length > 0) {
                         overrideLines.push(
@@ -13050,7 +13054,7 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                     }
                     if (overrides.dateZoom !== undefined) {
                         overrideLines.push(
-                            `  Date zoom: ${JSON.stringify(overrides.dateZoom)}`,
+                            `  ${overrides.dateZoomControls ? 'Default date zoom' : 'Date zoom'}: ${JSON.stringify(overrides.dateZoom)}`,
                         );
                     }
                     if (overrides.tileParameters) {
@@ -13060,7 +13064,7 @@ Prefer reusing a matching query before rediscovering fields or constructing a ne
                     }
                     if (overrides.dateZoomControls) {
                         overrideLines.push(
-                            `  Named date zooms, each setting the grain of its own tiles: ${JSON.stringify(serializeDashboardDateZoomControlsForAiContext(overrides.dateZoomControls))}`,
+                            `  Named date zooms, each setting the grain of its own tiles; the other tiles follow the default date zoom: ${JSON.stringify(serializeDashboardDateZoomControlsForAiContext(overrides.dateZoomControls))}`,
                         );
                     }
                     return overrideLines.length > 0

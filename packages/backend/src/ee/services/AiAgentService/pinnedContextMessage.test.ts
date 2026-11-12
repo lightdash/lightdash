@@ -159,7 +159,15 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
                             uuid: 'zoom-uuid',
                             name: 'Revenue zoom',
                             granularity: 'Week',
+                            isViewerPick: true,
                             tiles: [{ uuid: 'tile-uuid-1', name: 'Revenue' }],
+                        },
+                        {
+                            uuid: 'zoom-uuid-2',
+                            name: 'Orders zoom',
+                            granularity: 'Day',
+                            isViewerPick: false,
+                            tiles: [{ uuid: 'tile-uuid-2', name: 'Orders' }],
                         },
                     ],
                     tileParameters: [
@@ -182,14 +190,33 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
         expect(content).toContain(
             [
                 '- Dashboard "Executive dashboard" (dashboardSlug: exec-dashboard)',
-                '  As saved on the dashboard: filters, date zoom',
+                '  As saved on the dashboard: filters, default date zoom',
                 '  Parameter values by tile: [{"tiles":["Revenue","Signups"],"parameters":{"region":"EU"}},{"tiles":["Orders"],"parameters":{"region":"US"}}]',
-                '  Named date zooms, each setting the grain of its own tiles: [{"name":"Revenue zoom","granularity":"Week","tiles":["Revenue"]}]',
+                '  Named date zooms, each setting the grain of its own tiles; the other tiles follow the default date zoom: [{"name":"Revenue zoom","granularity":"Week","source":"viewer pick","tiles":["Revenue"]},{"name":"Orders zoom","granularity":"Day","source":"saved","tiles":["Orders"]}]',
                 '',
             ].join('\n'),
         );
         expect(content).not.toContain('zoom-uuid');
         expect(content).not.toContain('tile-uuid');
+    });
+
+    it('names the dashboard-wide zoom the default one beside named zooms', () => {
+        const content = buildMessage([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'exec-dashboard',
+                displayName: 'Executive dashboard',
+                pinnedVersionUuid: null,
+                runtimeOverrides: {
+                    dateZoom: { granularity: 'Week' },
+                    dateZoomControls: [],
+                },
+            },
+        ]);
+        expect(content).toContain(
+            '\n  Default date zoom: {"granularity":"Week"}\n',
+        );
     });
 
     it('renders dashboard parameter and date zoom overrides', () => {
