@@ -490,6 +490,9 @@ const setup = ({
                     contentDisposition: null,
                 };
             },
+            deleteFile: async (fileId) => {
+                files.delete(fileId);
+            },
         },
     };
     const service = new SemanticStudioService(args);
@@ -1025,6 +1028,7 @@ describe('SemanticStudioService', () => {
             }),
             lightdashConfigYaml: 'spotlight:\n  default_visibility: show\n',
             changedFiles: [],
+            prUrl: 'https://github.com/acme/shop/pull/1',
         };
         const dbt = (overrides: Parameters<typeof setup>[0] = {}) =>
             setup({ dbtConnection: DBT_IN_GITHUB, ...overrides });
@@ -1059,6 +1063,37 @@ describe('SemanticStudioService', () => {
             expect(
                 await context.service.findDevelopmentExplores(
                     deployer,
+                    PROJECT_UUID,
+                ),
+            ).toBeNull();
+        });
+
+        it('is forgotten once its own pull request closes, not another one', async () => {
+            const context = dbt();
+            await context.service.saveDbtTryOut(
+                repoWriter,
+                PROJECT_UUID,
+                project,
+            );
+            await context.service.retireDbtTryOut(
+                repoWriter,
+                PROJECT_UUID,
+                'https://github.com/acme/shop/pull/2',
+            );
+            expect(
+                await context.service.findDevelopmentExplores(
+                    repoWriter,
+                    PROJECT_UUID,
+                ),
+            ).not.toBeNull();
+            await context.service.retireDbtTryOut(
+                repoWriter,
+                PROJECT_UUID,
+                project.prUrl,
+            );
+            expect(
+                await context.service.findDevelopmentExplores(
+                    repoWriter,
                     PROJECT_UUID,
                 ),
             ).toBeNull();

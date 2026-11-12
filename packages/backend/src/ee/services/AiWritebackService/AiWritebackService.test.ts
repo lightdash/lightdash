@@ -3494,6 +3494,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
             manifestJson: 'model contents',
             lightdashConfigYaml: 'model contents',
             changedFiles: expect.any(Array),
+            prUrl: expect.any(String),
         });
         const parse = (sandbox.commands.run as import('vitest').Mock).mock.calls
             .map((call) => String(call[0]))

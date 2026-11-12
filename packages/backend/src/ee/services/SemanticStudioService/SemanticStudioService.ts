@@ -61,6 +61,7 @@ import {
     findLiveTableLocations,
     markNewModels,
     pointManifestAtLiveTables,
+    type DbtTryOut,
 } from './dbtTryOut';
 import {
     DraftChecker,
@@ -143,7 +144,7 @@ export type SemanticStudioServiceArguments = {
         DraftCheckerProjectService;
     fileStorageClient: Pick<
         FileStorageClient,
-        'isEnabled' | 'uploadTxt' | 'getFileStream'
+        'isEnabled' | 'uploadTxt' | 'getFileStream' | 'deleteFile'
     >;
     repoModels: Pick<
         RepoModelSource,
@@ -688,15 +689,16 @@ export class SemanticStudioService extends BaseService {
         ]);
     }
 
-    /**
-     * Compiles what a dbt project's latest change leaves, from the manifest its edit
-     * parsed, so the person who asked for it can try it before a preview is built.
-     */
     /** Stores what this person's latest dbt change leaves to try, and returns the models it changed. */
     async saveDbtTryOut(
         user: SessionUser,
         projectUuid: string,
-        { manifestJson, lightdashConfigYaml, changedFiles }: ParsedDbtProject,
+        {
+            manifestJson,
+            lightdashConfigYaml,
+            changedFiles,
+            prUrl,
+        }: ParsedDbtProject,
     ): Promise<string[]> {
         let manifest: DbtManifest;
         try {
@@ -729,11 +731,43 @@ export class SemanticStudioService extends BaseService {
             ),
             pointed.newModels,
         );
+        const tryOut: DbtTryOut = { prUrl, explores };
         await this.fileStorageClient.uploadTxt(
-            Buffer.from(JSON.stringify(explores)),
+            Buffer.from(JSON.stringify(tryOut)),
             dbtTryOutFileId(projectUuid, user.userUuid),
         );
         return changedModels;
+    }
+
+    /** Forgets this person's try-out once its pull request is merged or closed. */
+    async retireDbtTryOut(
+        user: SessionUser,
+        projectUuid: string,
+        prUrl: string,
+    ): Promise<void> {
+        const tryOut = await this.readDbtTryOut(user, projectUuid);
+        if (tryOut?.prUrl !== prUrl) return;
+        await this.fileStorageClient.deleteFile(
+            `${dbtTryOutFileId(projectUuid, user.userUuid)}.txt`,
+        );
+    }
+
+    private async readDbtTryOut(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<DbtTryOut | null> {
+        if (!this.fileStorageClient.isEnabled()) return null;
+        try {
+            const { stream } = await this.fileStorageClient.getFileStream(
+                `${dbtTryOutFileId(projectUuid, user.userUuid)}.txt`,
+            );
+            const tryOut: DbtTryOut = JSON.parse(await text(stream));
+            return Array.isArray(tryOut.explores) ? tryOut : null;
+        } catch (error) {
+            if (error instanceof NotFoundError || error instanceof SyntaxError)
+                return null;
+            throw error;
+        }
     }
 
     /** The explores this person's latest dbt change leaves, by name; null when they have none to try. */
@@ -741,19 +775,11 @@ export class SemanticStudioService extends BaseService {
         user: SessionUser,
         projectUuid: string,
     ): Promise<Map<string, Explore | ExploreError> | null> {
-        if (!this.fileStorageClient.isEnabled()) return null;
-        let explores: (Explore | ExploreError)[];
-        try {
-            const { stream } = await this.fileStorageClient.getFileStream(
-                `${dbtTryOutFileId(projectUuid, user.userUuid)}.txt`,
-            );
-            explores = JSON.parse(await text(stream));
-        } catch (error) {
-            if (error instanceof NotFoundError) return null;
-            throw error;
-        }
+        const tryOut = await this.readDbtTryOut(user, projectUuid);
         // ponytail: models the change removes still show; the preview shows removals.
-        return new Map(explores.map((explore) => [explore.name, explore]));
+        return tryOut
+            ? new Map(tryOut.explores.map((explore) => [explore.name, explore]))
+            : null;
     }
 
     /**

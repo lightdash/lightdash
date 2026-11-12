@@ -13,6 +13,7 @@ const manifest = (): DbtManifest => {
         'model.shop.orders': {
             unique_id: 'model.shop.orders',
             resource_type: 'model',
+            package_name: 'shop',
             name: 'orders',
             database: 'placeholder',
             schema: 'placeholder',
@@ -23,9 +24,17 @@ const manifest = (): DbtManifest => {
         'model.shop.refunds': {
             unique_id: 'model.shop.refunds',
             resource_type: 'model',
+            package_name: 'shop',
             name: 'refunds',
             database: 'placeholder',
             schema: 'placeholder',
+            original_file_path: 'models/refunds.sql',
+        },
+        'model.utils.calendar': {
+            unique_id: 'model.utils.calendar',
+            resource_type: 'model',
+            package_name: 'utils',
+            name: 'calendar',
             original_file_path: 'models/refunds.sql',
         },
         'test.shop.not_null': {
@@ -40,6 +49,7 @@ const manifest = (): DbtManifest => {
                 'https://schemas.getdbt.com/dbt/manifest/v12.json',
             generated_at: '2026-11-12T00:00:00Z',
             adapter_type: 'postgres',
+            project_name: 'shop',
         },
         metrics: {},
         docs: {},
@@ -62,7 +72,7 @@ describe('trying a dbt change before its preview', () => {
             unique_id: 'test.shop.not_null',
             resource_type: 'test',
         });
-        expect([...pointed.newModels]).toEqual(['refunds']);
+        expect([...pointed.newModels]).toEqual(['refunds', 'calendar']);
     });
 
     it('turns the explore of a new model into one that says why it cannot be tried', () => {

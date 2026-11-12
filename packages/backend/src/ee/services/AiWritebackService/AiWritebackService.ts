@@ -120,6 +120,9 @@ import {
     STDERR_TAIL_BYTES,
     SYSTEM_PROMPT_PATH,
     TMP_PROFILES_DIR,
+    TRY_OUT_HAND_OVER_TIMEOUT_MS,
+    TRY_OUT_MAX_FILE_BYTES,
+    TRY_OUT_MAX_MANIFEST_BYTES,
     TRY_OUT_PARSE_TIMEOUT_MS,
     TRY_OUT_TARGET_DIR,
     WAREHOUSE_SKILL_PATH,
@@ -2680,7 +2683,12 @@ export class AiWritebackService extends BaseService {
                     turn.gitConnection.semanticLayer === 'lightdash'
                 )
             ) {
-                await this.handOverDbtProject(sandbox, turn, args.onDbtProject);
+                await this.handOverDbtProject(
+                    sandbox,
+                    turn,
+                    applied.prUrl ?? null,
+                    args.onDbtProject,
+                );
             }
 
             tracker.completed({
@@ -4174,6 +4182,7 @@ export class AiWritebackService extends BaseService {
     private async handOverDbtProject(
         sandbox: SandboxHandle,
         turn: TurnContext,
+        prUrl: string | null,
         onDbtProject: (project: ParsedDbtProject) => Promise<void>,
     ): Promise<void> {
         const projectDir = `${CWD}/${turn.gitConnection.projectSubPath}`;
@@ -4191,19 +4200,36 @@ export class AiWritebackService extends BaseService {
             );
             const manifestJson = await sandbox.files.read(
                 `${TRY_OUT_TARGET_DIR}/manifest.json`,
+                { maxBytes: TRY_OUT_MAX_MANIFEST_BYTES },
             );
             const lightdashConfigYaml = await sandbox.files
-                .read(`${projectDir}/lightdash.config.yml`)
+                .read(`${projectDir}/lightdash.config.yml`, {
+                    maxBytes: TRY_OUT_MAX_FILE_BYTES,
+                })
                 .catch(() => null);
             const diff = await sandbox.commands.run(
-                'git diff --name-only --relative HEAD~1 HEAD',
-                { cwd: projectDir },
+                'git -c core.quotepath=off diff --name-only -z --relative HEAD~1 HEAD',
+                { cwd: projectDir, maxOutputBytes: TRY_OUT_MAX_FILE_BYTES },
             );
-            await onDbtProject({
-                manifestJson,
-                lightdashConfigYaml,
-                changedFiles: diff.stdout.split('\n').filter(Boolean),
-            });
+            let timer: NodeJS.Timeout | undefined;
+            try {
+                await Promise.race([
+                    onDbtProject({
+                        manifestJson,
+                        lightdashConfigYaml,
+                        changedFiles: diff.stdout.split('\0').filter(Boolean),
+                        prUrl,
+                    }),
+                    new Promise<never>((_, reject) => {
+                        timer = setTimeout(
+                            () => reject(new Error('timed out')),
+                            TRY_OUT_HAND_OVER_TIMEOUT_MS,
+                        );
+                    }),
+                ]);
+            } finally {
+                clearTimeout(timer);
+            }
         } catch (error) {
             this.logger.warn(
                 `AiWriteback: could not prepare the change to be tried before its preview: ${getErrorMessage(

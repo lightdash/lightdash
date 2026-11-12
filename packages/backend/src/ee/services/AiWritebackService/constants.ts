@@ -232,3 +232,8 @@ export const STDERR_TAIL_BYTES = 4096;
 // this is the only human-readable explanation available. Clipped because the
 // message is model output over customer files — enough to diagnose, not a dump.
 export const ASSISTANT_TEXT_TAIL_CHARS = 2000;
+/** Ceilings on what a try-out reads back from the sandbox, which runs repository code. */
+export const TRY_OUT_MAX_MANIFEST_BYTES = 200 * 1024 * 1024;
+export const TRY_OUT_MAX_FILE_BYTES = 1024 * 1024;
+/** How long a try-out may hold up the end of a run before it is given up. */
+export const TRY_OUT_HAND_OVER_TIMEOUT_MS = 2 * 60 * 1000;

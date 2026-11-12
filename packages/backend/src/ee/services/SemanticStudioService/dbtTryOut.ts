@@ -15,6 +15,7 @@ type ModelNode = DbtNode & {
     database?: string | null;
     schema?: string;
     relation_name?: string | null;
+    package_name?: string;
     original_file_path?: string;
     patch_path?: string | null;
 };
@@ -77,7 +78,7 @@ export const pointManifestAtLiveTables = (
     return { manifest: { ...manifest, nodes }, newModels };
 };
 
-/** A new model has no table to read yet; it can be tried once the preview is built. */
+/** A model with no working live explore has no known table; it can be tried once the preview is built. */
 export const markNewModels = (
     explores: (Explore | ExploreError)[],
     newModels: Set<string>,
@@ -93,7 +94,7 @@ export const markNewModels = (
                       {
                           type: InlineErrorType.METADATA_PARSE_ERROR,
                           message:
-                              'This model is new, so it has no table yet. Open the preview project to try it.',
+                              'There is no live table for this model to read yet. Open the preview project to try it.',
                       },
                   ],
               }
@@ -107,17 +108,25 @@ export const findChangedModels = (
     changedFiles: string[],
 ): string[] => {
     const changed = new Set(changedFiles);
+    const project = manifest.metadata.project_name;
     return Object.values(manifest.nodes)
         .filter(isModelNode)
         .filter(
             (node) =>
-                (node.original_file_path !== undefined &&
+                ((project === undefined || node.package_name === project) &&
+                    node.original_file_path !== undefined &&
                     changed.has(node.original_file_path)) ||
                 (node.patch_path != null &&
                     changed.has(node.patch_path.replace(/^[^:]*:\/\//, ''))),
         )
         .map((node) => node.name)
         .sort();
+};
+
+/** What is stored for a person's latest dbt change: the pull request it went to, and what it compiles to. */
+export type DbtTryOut = {
+    prUrl: string | null;
+    explores: (Explore | ExploreError)[];
 };
 
 export const dbtTryOutFileId = (projectUuid: string, userUuid: string) =>
