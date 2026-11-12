@@ -247,6 +247,7 @@ const ExistingThread: FC<
     );
     const keepsDraft = useKeepsSemanticLayerDraft(projectUuid);
     const pullRequest = useStudioPullRequest(projectUuid);
+    const isRequestingPullRequest = useRef(false);
     if (isLoading || !thread) {
         return (
             <Center flex={1}>
@@ -272,7 +273,9 @@ const ExistingThread: FC<
                     leftSection={
                         <MantineIcon icon={IconGitPullRequest} size={14} />
                     }
-                    onClick={() =>
+                    onClick={() => {
+                        if (isRequestingPullRequest.current) return;
+                        isRequestingPullRequest.current = true;
                         void sendMessage({
                             enableSqlMode: sqlMode,
                             prompt: pullRequest?.isOpen
@@ -280,8 +283,10 @@ const ExistingThread: FC<
                                 : 'Open the pull request.',
                             // The pull request tools only join a turn that carries this hint.
                             toolHints: ['editDbtProject'],
-                        })
-                    }
+                        }).finally(() => {
+                            isRequestingPullRequest.current = false;
+                        });
+                    }}
                 >
                     {pullRequest?.isOpen
                         ? 'Save to pull request'
