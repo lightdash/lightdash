@@ -23,7 +23,8 @@
 .pullRequestPrompt {
     max-width: 48rem;
     margin-inline: auto;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md) 0;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md)
+        var(--mantine-spacing-xs);
 }
 
 @media (hover: hover) {

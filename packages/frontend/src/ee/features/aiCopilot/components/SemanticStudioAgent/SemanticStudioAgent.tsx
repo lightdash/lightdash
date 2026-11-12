@@ -271,9 +271,10 @@ const ExistingThread: FC<
                 <Group
                     className={classes.pullRequestPrompt}
                     justify="space-between"
+                    gap="md"
                     wrap="nowrap"
                 >
-                    <Text fz="sm" c="dimmed">
+                    <Text fz="sm" c="dimmed" truncate="end">
                         {pullRequest?.isOpen
                             ? 'Add this to your pull request?'
                             : 'Happy with this change?'}
