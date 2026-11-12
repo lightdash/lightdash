@@ -25982,6 +25982,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "createContent",
   "createScheduledDelivery",
   "updateUserName",
+  "askUser",
   "runContentQuery",
   "listContent",
   "loadSkill",

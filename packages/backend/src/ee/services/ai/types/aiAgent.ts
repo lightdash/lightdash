@@ -312,6 +312,8 @@ export type AiAgentArgs = AnyAiModel & {
     // The thread owns at least one attached document, so readAttachments is
     // registered.
     enableReadAttachments: boolean;
+    // A web app thread whose UI renders askUser questions, so the tool is offered.
+    enableAskUser: boolean;
     enableFilterExpressions: boolean;
     // dbt project root within the repo (from project_sub_path); '.' = repo root,
     // null when repo discovery is off or the project is not git-backed.

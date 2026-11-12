@@ -552,6 +552,7 @@ import {
 } from '../ai/repoFs/mountingRepoFileSystem';
 import { RepoFs } from '../ai/repoFs/RepoFs';
 import type { AiAgentSkill as ServedSkill } from '../ai/skills/types';
+import { canOfferAskUser } from '../ai/tools/askUser';
 import { executeEditContent } from '../ai/tools/editContent';
 import { formatSkillResult } from '../ai/tools/loadSkill';
 import {
@@ -17539,6 +17540,14 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         user,
                         featureFlagId: FeatureFlags.AiFilterExpressions,
                     });
+                const enableAskUser =
+                    canOfferAskUser(prompt, responseExecution.mode) &&
+                    (
+                        await this.featureFlagService.get({
+                            user,
+                            featureFlagId: FeatureFlags.AiAgentAskUser,
+                        })
+                    ).enabled;
                 let aiWritebackEnabled = hasTrustedPromptUserIdentity;
                 if (!aiWritebackEnabled) {
                     this.logger.info(
@@ -18030,6 +18039,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,
+                    enableAskUser,
                     enableFilterExpressions: filterExpressionsEnabled,
                     repoFsRoot,
                     repoFsSupportsCodeSearch,
@@ -20207,6 +20217,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 case 'delegateResearchTask':
                 case 'submitWorkerFindings':
                 case 'updateUserName':
+                case 'askUser':
                     return 'Answering your question';
                 default:
                     return assertUnreachable(

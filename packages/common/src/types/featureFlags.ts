@@ -151,6 +151,12 @@ export enum FeatureFlags {
     AiFilterExpressions = 'ai-filter-expressions',
 
     /**
+     * Offer AI agents the askUser tool in web app threads: the agent ends its
+     * turn with clickable clarifying questions. Off by default; enable per org.
+     */
+    AiAgentAskUser = 'ai-agent-ask-user',
+
+    /**
      * Enable the async compose SQL endpoint
      * (POST /api/v2/projects/{projectUuid}/query/compose-sql), which runs
      * DuckDB SQL over other queries' results, exposed as named tables via
