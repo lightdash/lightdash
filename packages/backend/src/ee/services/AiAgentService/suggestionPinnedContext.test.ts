@@ -81,7 +81,7 @@ describe('suggestion pinned context', () => {
     it('keeps dashboard-wide view state and leaves out per-tile state', () => {
         const dashboard = {
             name: 'Revenue overview',
-            description: null,
+            description: undefined,
             tabs: [],
         } as Parameters<typeof buildDashboardSuggestionContext>[0];
         const dashboardWide = {
