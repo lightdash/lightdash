@@ -447,3 +447,10 @@ An existing extra cannot change its type with either flag value; add a new
 connection instead. It does not remove
 saved connections or change query execution. Mixed-type extras keep their own
 user-credential requirement; same-type extras still inherit the original's.
+
+### Previews inherit across warehouses
+
+`preview-inherits-across-warehouses` is off by default; organisation scope. With
+it on, a CLI preview on a different Snowflake warehouse than its parent inherits
+the parent's connection settings. It applies when a preview is created or its
+credentials are refreshed from the CLI; saved previews are not changed.
