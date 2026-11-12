@@ -1,0 +1,81 @@
+.stages {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    min-width: 0;
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+}
+
+.stage {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.dot {
+    width: 14px;
+    height: 14px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 1.5px solid var(--mantine-color-default-border);
+    color: var(--mantine-color-body);
+}
+
+.stage[data-state='done'] .dot {
+    background: var(--mantine-color-text);
+    border-color: var(--mantine-color-text);
+}
+
+.stage[data-state='now'],
+.stage[data-state='busy'],
+.stage[data-state='stopped'] {
+    color: var(--mantine-color-text);
+    font-weight: 500;
+}
+
+.stage[data-state='now'] .dot {
+    border-color: var(--mantine-color-text);
+    background: radial-gradient(
+        circle,
+        var(--mantine-color-text) 2.5px,
+        transparent 3px
+    );
+}
+
+.stage[data-state='busy'] .dot {
+    border-top-color: var(--mantine-color-text);
+    animation: spin 0.9s linear infinite;
+}
+
+.stage[data-state='stopped'] .dot {
+    border-color: var(--mantine-color-red-6);
+    color: var(--mantine-color-red-6);
+}
+
+.line {
+    width: 16px;
+    height: 1.5px;
+    margin: 0 6px;
+    flex: none;
+    background: var(--mantine-color-default-border);
+}
+
+.line[data-done='true'] {
+    background: var(--mantine-color-text);
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stage[data-state='busy'] .dot {
+        animation: none;
+    }
+}

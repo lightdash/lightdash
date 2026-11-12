@@ -13881,6 +13881,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                                           user,
                                           projectUuid,
                                           project,
+                                          prompt.threadUuid,
                                       );
                               },
                           }

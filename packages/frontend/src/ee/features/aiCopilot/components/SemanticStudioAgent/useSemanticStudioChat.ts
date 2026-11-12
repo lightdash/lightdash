@@ -1,5 +1,9 @@
 import { useLocalStorage } from '@mantine/hooks';
 import { useCanEditSemanticLayer } from '../../../../../features/semanticStudio/useSemanticLayerModel';
+import {
+    useStudioWorkspaceAction,
+    useStudioWorkspaces,
+} from '../../../../../features/semanticStudio/useStudioWorkspaces';
 import { useDefaultAiAgent } from '../Launcher/useDefaultAiAgent';
 
 export type StoredThread = { threadUuid: string; agentUuid: string };
@@ -10,18 +14,37 @@ export const useChatOpen = () =>
         defaultValue: true,
     });
 
-export const useStudioAgent = (projectUuid: string) => {
-    const isEnabled = useCanEditSemanticLayer(projectUuid);
-    const { agent: defaultAgent, agents } = useDefaultAiAgent(projectUuid);
-    const [stored, setStored] = useLocalStorage<StoredThread | null>({
+/** The chat this browser has open; it follows the active workspace, see useSyncStudioWorkspace. */
+export const useStoredStudioThread = (projectUuid: string) =>
+    useLocalStorage<StoredThread | null>({
         key: `semantic-studio-agent-thread-${projectUuid}`,
         defaultValue: null,
     });
-    // ponytail: one chat back, not a history; list the project's Studio threads if people need more.
+
+export const useStudioAgent = (projectUuid: string) => {
+    const isEnabled = useCanEditSemanticLayer(projectUuid);
+    const { agent: defaultAgent, agents } = useDefaultAiAgent(projectUuid);
+    const [stored, setStored] = useStoredStudioThread(projectUuid);
+    // ponytail: one chat back, not a history; the workspaces list holds the rest.
     const [previous, setPrevious] = useLocalStorage<StoredThread | null>({
         key: `semantic-studio-agent-previous-thread-${projectUuid}`,
         defaultValue: null,
     });
+    const { data: workspaces } = useStudioWorkspaces(projectUuid);
+    const workspaceAction = useStudioWorkspaceAction(projectUuid);
+    // Switching chats switches workspaces: the one you talk in is the one your changes go to.
+    const follow = (next: StoredThread | null) => {
+        const workspace = next
+            ? workspaces?.mine.find(
+                  ({ threadUuid }) => threadUuid === next.threadUuid,
+              )
+            : undefined;
+        workspaceAction.mutate(
+            workspace
+                ? { kind: 'activate', workspaceUuid: workspace.workspaceUuid }
+                : { kind: 'leave' },
+        );
+    };
     const storedAgent = agents.find(({ uuid }) => uuid === stored?.agentUuid);
     return {
         isEnabled,
@@ -34,6 +57,7 @@ export const useStudioAgent = (projectUuid: string) => {
         startNewThread: () => {
             if (stored) setPrevious(stored);
             setStored(null);
+            follow(null);
         },
         previousThread:
             previous && agents.some(({ uuid }) => uuid === previous.agentUuid)
@@ -43,6 +67,7 @@ export const useStudioAgent = (projectUuid: string) => {
         returnToPreviousThread: () => {
             setPrevious(stored);
             setStored(previous);
+            follow(previous);
         },
     };
 };

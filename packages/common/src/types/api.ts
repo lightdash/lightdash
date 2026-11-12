@@ -482,6 +482,8 @@ import {
     type ApiSemanticLayerDraftResponse,
     type ApiSemanticLayerDraftStateResponse,
     type ApiSemanticLayerDraftUsageResponse,
+    type ApiSemanticStudioWorkspaceResponse,
+    type ApiSemanticStudioWorkspacesResponse,
 } from './semanticStudio';
 import { type ShareUrl } from './share';
 import { type SharedSignInStatus } from './sharedSignIn';
@@ -1900,6 +1902,8 @@ type ApiResults =
     | ApiSemanticLayerDraftResponse['results']
     | ApiSemanticLayerDraftedModelsResponse['results']
     | ApiSemanticLayerDraftStateResponse['results']
+    | ApiSemanticStudioWorkspacesResponse['results']
+    | ApiSemanticStudioWorkspaceResponse['results']
     | ApiSemanticLayerDraftApplyResponse['results']
     | ApiSemanticLayerDraftImpactResponse['results']
     | ApiSemanticLayerDraftUsageResponse['results'];

@@ -14,8 +14,12 @@ import {
     type ApiSemanticLayerStatusResponse,
     type ApiSemanticLayerStoredModelsResponse,
     type ApiSemanticLayerUndoResponse,
+    type ApiSemanticStudioWorkspaceResponse,
+    type ApiSemanticStudioWorkspacesResponse,
     type ApiSuccessEmpty,
     type SemanticLayerUndoRequest,
+    type SemanticStudioWorkspaceRenameBody,
+    type SemanticStudioWorkspaceStartBody,
     type UUID,
 } from '@lightdash/common';
 import {
@@ -24,6 +28,7 @@ import {
     Get,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
     Query,
@@ -92,6 +97,168 @@ export class SemanticStudioController extends BaseController {
                 projectUuid,
             ),
         };
+    }
+
+    /**
+     * Studio work in this project: yours in flight, others' in flight, and yours finished lately.
+     * @summary List Semantic Studio workspaces
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/workspaces')
+    @OperationId('listSemanticStudioWorkspaces')
+    async listWorkspaces(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSemanticStudioWorkspacesResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().listWorkspaces(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    /**
+     * Makes a Studio conversation's workspace your active one, starting it when it has none.
+     * @summary Start a Semantic Studio workspace
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/workspaces')
+    @OperationId('startSemanticStudioWorkspace')
+    async startWorkspace(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: SemanticStudioWorkspaceStartBody,
+    ): Promise<ApiSemanticStudioWorkspaceResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().startWorkspace(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            ),
+        };
+    }
+
+    /**
+     * Leaves your active workspace, so your next conversation starts a new one.
+     * @summary Leave my Semantic Studio workspace
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/workspaces/leave')
+    @OperationId('leaveSemanticStudioWorkspace')
+    async leaveWorkspace(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().leaveWorkspace(
+            toSessionUser(req.account),
+            projectUuid,
+        );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * One workspace in this project.
+     * @summary Get a Semantic Studio workspace
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/workspaces/{workspaceUuid}')
+    @OperationId('getSemanticStudioWorkspace')
+    async getWorkspace(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() workspaceUuid: UUID,
+    ): Promise<ApiSemanticStudioWorkspaceResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().getWorkspace(
+                toSessionUser(req.account),
+                projectUuid,
+                workspaceUuid,
+            ),
+        };
+    }
+
+    /**
+     * Renames one of your workspaces.
+     * @summary Rename a Semantic Studio workspace
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch('/workspaces/{workspaceUuid}')
+    @OperationId('renameSemanticStudioWorkspace')
+    async renameWorkspace(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() workspaceUuid: UUID,
+        @Body() body: SemanticStudioWorkspaceRenameBody,
+    ): Promise<ApiSemanticStudioWorkspaceResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().renameWorkspace(
+                toSessionUser(req.account),
+                projectUuid,
+                workspaceUuid,
+                body.name,
+            ),
+        };
+    }
+
+    /**
+     * Makes one of your workspaces the active one.
+     * @summary Switch to a Semantic Studio workspace
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/workspaces/{workspaceUuid}/activate')
+    @OperationId('activateSemanticStudioWorkspace')
+    async activateWorkspace(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() workspaceUuid: UUID,
+    ): Promise<ApiSemanticStudioWorkspaceResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getService().activateWorkspace(
+                toSessionUser(req.account),
+                projectUuid,
+                workspaceUuid,
+            ),
+        };
+    }
+
+    /**
+     * Ends one of your workspaces after its changes were discarded; it stays as history.
+     * @summary Finish a Semantic Studio workspace
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/workspaces/{workspaceUuid}/finish')
+    @OperationId('finishSemanticStudioWorkspace')
+    async finishWorkspace(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() workspaceUuid: UUID,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().finishWorkspace(
+            toSessionUser(req.account),
+            projectUuid,
+            workspaceUuid,
+        );
+        return { status: 'ok', results: undefined };
     }
 
     /**

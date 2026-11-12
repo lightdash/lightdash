@@ -37,7 +37,7 @@ import {
     type FC,
     type KeyboardEvent,
 } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
 import { SemanticStudioAgent } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/SemanticStudioAgent';
 import { StudioChanges } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/StudioChanges';
@@ -48,12 +48,14 @@ import {
 import {
     useChatOpen,
     useSemanticStudioChat,
+    useStoredStudioThread,
 } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSemanticStudioChat';
 import {
     useStudioPendingChange,
     useStudioProposal,
     useStudioPullRequest,
 } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useStudioPullRequest';
+import { useSyncStudioWorkspace } from '../../ee/features/aiCopilot/components/SemanticStudioAgent/useSyncStudioWorkspace';
 import { useProject } from '../../hooks/useProject';
 import { LiveSourceBetaBadge } from '../externalConnections/liveSources/LiveSourceBetaBadge';
 import { useDevelopmentView } from './developmentView';
@@ -114,7 +116,14 @@ import {
     SemanticLayerNudge,
     SettingsLink,
 } from './shared';
-import { getSemanticStudioUrl } from './urls';
+import { StudioStageLine, type StudioStage } from './StudioStageLine';
+import { StudioWorkspacesList } from './StudioWorkspacesList';
+import {
+    getSemanticStudioUrl,
+    getSemanticStudioWorkspaceUrl,
+    parseSemanticStudioWorkspaceUuid,
+    pullRequestNumberOf,
+} from './urls';
 import { useExploreFields } from './useExploreFields';
 import {
     useKeepsSemanticLayerDraft,
@@ -130,6 +139,10 @@ import {
     type SemanticStudioProps,
     type ViewModel,
 } from './useSemanticStudio';
+import {
+    useStudioWorkspaceAction,
+    useStudioWorkspaces,
+} from './useStudioWorkspaces';
 import classes from './WorkbenchView.module.css';
 
 const ROW_HEIGHT = 28;
@@ -138,6 +151,7 @@ const ROW_HEIGHT = 28;
 type Pane =
     | 'code'
     | 'changes'
+    | 'workspaces'
     | 'review'
     | 'browse'
     | 'intro'
@@ -997,6 +1011,109 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const hasChanges = keepsDraft
         ? hasDraft && !isBuildingFirstModel
         : !!development || hasProposal;
+    const { data: workspaces } = useStudioWorkspaces(view.project.id);
+    const workspaceAction = useStudioWorkspaceAction(view.project.id);
+    const activeWorkspace = useSyncStudioWorkspace(
+        view.project.id,
+        hasChanges || !!saving,
+    );
+    const [storedThread, setStoredThread] = useStoredStudioThread(
+        view.project.id,
+    );
+    const navigate = useNavigate();
+    const { pathname } = useLocation();
+    const routeWorkspaceUuid = parseSemanticStudioWorkspaceUuid(pathname);
+    const allWorkspaces = useMemo(
+        () => [
+            ...(workspaces?.mine ?? []),
+            ...(workspaces?.recent ?? []),
+            ...(workspaces?.others ?? []),
+        ],
+        [workspaces],
+    );
+    const routeWorkspace =
+        allWorkspaces.find(
+            ({ workspaceUuid }) => workspaceUuid === routeWorkspaceUuid,
+        ) ?? null;
+    // The workspace this page is about: the one in the link, else the one the open chat belongs to.
+    const shownWorkspace =
+        routeWorkspace ??
+        activeWorkspace ??
+        allWorkspaces.find(
+            ({ threadUuid, isMine }) =>
+                isMine && threadUuid === storedThread?.threadUuid,
+        ) ??
+        null;
+    const hasWorkspaces = allWorkspaces.length > 0;
+    const openWorkspace = useCallback(
+        (
+            target: (typeof allWorkspaces)[number],
+            { navigateTo }: { navigateTo: boolean },
+        ) => {
+            if (!target.isMine) return;
+            if (target.agentUuid) {
+                setStoredThread({
+                    threadUuid: target.threadUuid,
+                    agentUuid: target.agentUuid,
+                });
+            }
+            if (!target.isActive && !target.finishedAt) {
+                workspaceAction.mutate({
+                    kind: 'activate',
+                    workspaceUuid: target.workspaceUuid,
+                });
+            }
+            if (navigateTo) {
+                void navigate(
+                    getSemanticStudioWorkspaceUrl(
+                        view.project.id,
+                        target.workspaceUuid,
+                    ),
+                );
+            }
+        },
+        [navigate, setStoredThread, view.project.id, workspaceAction],
+    );
+    // A link to one of your workspaces opens it, here and in the chat.
+    const openedFromRoute = useRef<string | null>(null);
+    useEffect(() => {
+        if (!routeWorkspace || openedFromRoute.current === routeWorkspaceUuid)
+            return;
+        openedFromRoute.current = routeWorkspaceUuid;
+        openWorkspace(routeWorkspace, { navigateTo: false });
+    }, [routeWorkspace, routeWorkspaceUuid, openWorkspace]);
+    const isMerged =
+        !!pullRequest?.ciChecks?.merged ||
+        shownWorkspace?.pullRequest?.state === 'merged';
+    const stage = ((): StudioStage | null => {
+        if (saving) return { step: 'saving' };
+        if (development) {
+            return {
+                step: 'in_review',
+                pullRequestNumber: pullRequestNumberOf(development.prUrl),
+            };
+        }
+        if (isMerged) return { step: 'live' };
+        if (hasProposal || (keepsDraft && hasDraft && !isBuildingFirstModel)) {
+            return { step: 'proposed' };
+        }
+        if (hasClosedPullRequest) {
+            return {
+                step: 'closed',
+                pullRequestNumber: pullRequestNumberOf(pullRequest?.prUrl),
+            };
+        }
+        if (shownWorkspace?.pullRequest?.state === 'open') {
+            return {
+                step: 'in_review',
+                pullRequestNumber: pullRequestNumberOf(
+                    shownWorkspace.pullRequest.url,
+                ),
+            };
+        }
+        if (shownWorkspace?.finishedAt) return { step: 'live' };
+        return null;
+    })();
     // A new proposal opens the changes, like a save does.
     const proposalKey = hasProposal ? proposal.join('\n') : null;
     const lastProposalKey = useRef(proposalKey);
@@ -1066,6 +1183,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
     const canNudge =
         chat.isAvailable && keepsDraft && hasWarehouse && modelled.length === 0;
     const pane = ((): Pane => {
+        if (searchParams.get(VIEW_PARAM) === 'workspaces') return 'workspaces';
         if (isCode) return 'code';
         if (isChanges) return 'changes';
         if (isReviewingDraft) return 'review';
@@ -1074,7 +1192,8 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
         return chat.hasThread || hasStarted ? 'buildFirst' : 'intro';
     })();
     // Reviewing changes takes the full width: the tree is for browsing models.
-    const isReviewPane = pane === 'changes' || pane === 'review';
+    const isReviewPane =
+        pane === 'changes' || pane === 'review' || pane === 'workspaces';
     // What the chat is told the person has open: in the code view that is the file, not the page behind it.
     const openModel = isCode
         ? { modelName: file, fieldName: searchParams.get(FIELD_PARAM) }
@@ -1098,6 +1217,15 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                         projectUuid={view.project.id}
                         pullRequest={development}
                         proposal={hasProposal ? proposal : []}
+                    />
+                );
+            case 'workspaces':
+                return (
+                    <StudioWorkspacesList
+                        projectUuid={view.project.id}
+                        onOpen={(target) =>
+                            openWorkspace(target, { navigateTo: true })
+                        }
                     />
                 );
             case 'code':
@@ -1210,6 +1338,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                             !development &&
                             !saving &&
                             !hasProposal &&
+                            !hasWorkspaces &&
                             isChatOpen) ? null : (
                             <Group
                                 className={classes.toolbar}
@@ -1229,16 +1358,40 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                     >
                                         Models
                                     </UnstyledButton>
-                                    {workspace ? (
+                                    {hasWorkspaces ? (
+                                        <UnstyledButton
+                                            className={classes.crumb}
+                                            aria-current={
+                                                pane === 'workspaces'
+                                                    ? 'page'
+                                                    : undefined
+                                            }
+                                            onClick={() =>
+                                                setSearchParams({
+                                                    [VIEW_PARAM]: 'workspaces',
+                                                })
+                                            }
+                                        >
+                                            Workspaces
+                                        </UnstyledButton>
+                                    ) : null}
+                                    {shownWorkspace || workspace ? (
                                         <>
                                             <Text fz="xs" c="dimmed">
                                                 /
                                             </Text>
-                                            <Tooltip label={workspace.hint}>
+                                            <Tooltip
+                                                label={
+                                                    workspace?.hint ??
+                                                    'Open what this workspace changed'
+                                                }
+                                            >
                                                 <UnstyledButton
                                                     className={classes.crumb}
+                                                    data-workspace
                                                     aria-current={
-                                                        isReviewPane
+                                                        pane === 'changes' ||
+                                                        pane === 'review'
                                                             ? 'page'
                                                             : undefined
                                                     }
@@ -1246,12 +1399,18 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                                         switchView('changes')
                                                     }
                                                 >
-                                                    {workspace.name}
+                                                    {shownWorkspace?.name ??
+                                                        workspace?.name}
                                                 </UnstyledButton>
                                             </Tooltip>
                                         </>
                                     ) : null}
                                 </Group>
+                                {stage && (shownWorkspace || workspace) ? (
+                                    <Box className={classes.stageLine}>
+                                        <StudioStageLine stage={stage} />
+                                    </Box>
+                                ) : null}
                                 {saving ? (
                                     <StudioSavingBar
                                         projectUuid={view.project.id}

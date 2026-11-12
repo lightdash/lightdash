@@ -241,6 +241,7 @@ export type ModelManifest = {
     aiAgentModel: unknown;
     homepageRecommendedActionSkipsModel: unknown;
     projectModelDocumentModel: unknown;
+    semanticStudioWorkspaceModel: unknown;
     projectHomepageModel: unknown;
     aiAgentDocumentModel: unknown;
     aiThreadFileModel: unknown;
@@ -1294,6 +1295,10 @@ export class ModelRepository
 
     public getProjectModelDocumentModel<ModelImplT>(): ModelImplT {
         return this.getModel('projectModelDocumentModel');
+    }
+
+    public getSemanticStudioWorkspaceModel<ModelImplT>(): ModelImplT {
+        return this.getModel('semanticStudioWorkspaceModel');
     }
 
     public getMcpToolCallModel<ModelImplT>(): ModelImplT {
