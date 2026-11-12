@@ -1,6 +1,5 @@
 import {
     type CreateSavedChartVersion,
-    type DashboardFilters,
     type DashboardVersionedFields,
     type ExportContentRequest,
     type ParametersValuesMap,
@@ -115,7 +114,6 @@ export type ContentHeightChangedPayload = {
 export type DashboardContentState = {
     type: 'dashboard';
     dashboardUuid: string;
-    filters: DashboardFilters;
     parameters: ParametersValuesMap;
     // Null unless the dashboard uses parameter controls
     tileParameters: NonNullable<ExportContentRequest['tileParameters']> | null;

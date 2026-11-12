@@ -8,7 +8,6 @@ import {
     selectDateZoomGranularity,
     selectParameterControlInputs,
     selectTileParameterReferences,
-    useDashboardAllFilters,
     useDashboardSelector,
 } from '../../../../../features/dashboard/store';
 import { getDashboardExportTileParameters } from '../../../../../features/dashboard/store/parameterControls';
@@ -23,7 +22,6 @@ const EmbedDashboardContentStateEvent: FC<{
     const areFiltersApplied = useDashboardSelector(
         (state) => selectDashboardFilters(state) !== emptyDashboardFilters,
     );
-    const filters = useDashboardAllFilters();
     const parameters = useDashboardSelector(selectDashboardWideParameterValues);
     const controlInputs = useDashboardSelector(selectParameterControlInputs);
     const tileParameterReferences = useDashboardSelector(
@@ -37,7 +35,6 @@ const EmbedDashboardContentStateEvent: FC<{
         return {
             type: 'dashboard',
             dashboardUuid,
-            filters,
             parameters,
             tileParameters:
                 getDashboardExportTileParameters({
@@ -58,7 +55,6 @@ const EmbedDashboardContentStateEvent: FC<{
         dashboardUuid,
         dashboardVersion,
         dateZoomGranularity,
-        filters,
         parameters,
         tileParameterReferences,
     ]);

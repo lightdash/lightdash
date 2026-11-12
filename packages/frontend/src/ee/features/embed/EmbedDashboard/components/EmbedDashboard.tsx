@@ -12,7 +12,6 @@ import {
     isTileInEmbedExport,
     type DashboardFilters,
     type DashboardTile,
-    type DashboardVersionedFields,
     type EmbedDashboard as EmbedDashboardType,
     type ParametersValuesMap,
     type SavedChart,
@@ -79,10 +78,8 @@ import { LightdashEventType } from '../../events/types';
 import { useEmbedContentHeightEvent } from '../../hooks/useEmbedContentHeightEvent';
 import { useEmbedDashboardTabChange } from '../../hooks/useEmbedDashboardTabChange';
 import { embedContractClass } from '../../styles/embedClassContract';
-import {
-    applyFilterLabelOverrides,
-    restoreFilterLabelOverrides,
-} from '../filterLabelOverrides';
+import { applyFilterLabelOverrides } from '../filterLabelOverrides';
+import { getEmbedDashboardVersion } from '../getEmbedDashboardVersion';
 import { useEmbedDashboard, useEmbedSavedParameters } from '../hooks';
 import {
     type ChartSaveDestination,
@@ -906,37 +903,20 @@ const EmbedDashboard: FC<{
     ]);
 
     // The dashboard as it is now; Save writes it with the saved parameters
-    const dashboardVersion = useMemo<DashboardVersionedFields | undefined>(
+    const dashboardVersion = useMemo(
         () =>
             dashboard
-                ? {
+                ? getEmbedDashboardVersion({
+                      dashboard,
                       tiles: currentDashboardTiles,
-                      filters: restoreFilterLabelOverrides(
-                          {
-                              dimensions: [
-                                  ...dashboardFilters.dimensions,
-                                  ...dashboardTemporaryFilters.dimensions,
-                              ],
-                              metrics: [
-                                  ...dashboardFilters.metrics,
-                                  ...dashboardTemporaryFilters.metrics,
-                              ],
-                              tableCalculations: [
-                                  ...dashboardFilters.tableCalculations,
-                                  ...dashboardTemporaryFilters.tableCalculations,
-                              ],
-                          },
-                          dashboard.filters,
-                          filterLabelOverrides,
-                      ),
                       tabs: dashboardTabs,
-                      config: {
-                          ...dashboard.config,
-                          isDateZoomDisabled,
-                          isAddFilterDisabled,
-                      },
+                      filters: dashboardFilters,
+                      temporaryFilters: dashboardTemporaryFilters,
                       parameters: dashboardParameters,
-                  }
+                      isDateZoomDisabled,
+                      isAddFilterDisabled,
+                      filterLabelOverrides,
+                  })
                 : undefined,
         [
             currentDashboardTiles,

@@ -22,20 +22,20 @@ The event system must be enabled in the Lightdash embedding configuration. Direc
 
 `contentStateChanged` tells the host what the user is looking at, for example to export it. The payload's `type` says which shape it is:
 
-- `dashboard`: `{ dashboardUuid, filters, parameters, tileParameters, dateZoomGranularity, activeTabUuid, dashboard }`. Filters include the ones the user added. `tileParameters` is `null` unless the dashboard uses parameter controls. `dashboard` is the dashboard as it is now (`tiles`, `tabs`, `filters`, `parameters`, `config`), with unsaved edits, added filters and the current parameter values.
+- `dashboard`: `{ dashboardUuid, parameters, tileParameters, dateZoomGranularity, activeTabUuid, dashboard }`. `dashboard` is the dashboard as it is now (`tiles`, `tabs`, `filters`, `parameters`, `config`), with unsaved edits, the filters the user added and the current parameter values. Filter labels are the untranslated ones. `tileParameters` is `null` unless the dashboard uses parameter controls.
 - `chart`: `{ chartUuid, chart }` for a saved chart in `Lightdash.Chart` with `isEditMode` set. `chart` is the unsaved chart version (`tableName`, `metricQuery`, `parameters`, `chartConfig`, `tableConfig`, `pivotConfig`), unsaved edits included.
 - `explore`: `{ chart }` for a query that isn't a saved chart, such as `Lightdash.Explore` or "Explore from here".
 
 `chart` has the saved chart's shape, so hosts can build export options (column order, labels, hidden fields, pivots, totals, conditional formatting) the same way they do for a saved chart.
 
-The dashboard fields match `POST /api/v2/dashboards/{uuid}/exports`, so a host can export what the user sees:
+The dashboard fields map onto `POST /api/v2/dashboards/{uuid}/exports`, so a host can export what the user sees:
 
 ```js
 onEvent={(event) => {
     if (event.type === 'contentStateChanged' && event.payload.type === 'dashboard') {
-        const { filters, parameters, tileParameters, dateZoomGranularity } = event.payload;
+        const { dashboard, parameters, tileParameters, dateZoomGranularity } = event.payload;
         latestExportRequest = {
-            dashboardFilters: filters,
+            dashboardFilters: dashboard.filters,
             parameters,
             ...(tileParameters && { tileParameters }),
             ...(dateZoomGranularity && { dateZoomGranularity }),

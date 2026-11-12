@@ -83,7 +83,7 @@ describe('EmbedDashboardContentStateEvent', () => {
         expect(dispatchEmbedEvent).toHaveBeenCalledOnce();
     });
 
-    it('emits filter values, added filters, parameters, date zoom and tab', () => {
+    it('emits the dashboard, parameters, date zoom and tab', () => {
         const store = createDashboardTestStore({
             dashboardFilters: filters([rule('saved', ['completed'])]),
             dashboardTemporaryFilters: filters([rule('added', ['placed'])]),
@@ -109,10 +109,6 @@ describe('EmbedDashboardContentStateEvent', () => {
             {
                 type: 'dashboard',
                 dashboardUuid: 'dashboard-uuid',
-                filters: filters([
-                    rule('saved', ['completed']),
-                    rule('added', ['placed']),
-                ]),
                 parameters: { region: 'EMEA' },
                 tileParameters: null,
                 dateZoomGranularity: 'MONTH',
