@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { type ComponentProps, type ReactElement, type ReactNode } from 'react';
+import { type ComponentProps, type ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
     createDashboardTestStore,
@@ -13,14 +13,10 @@ import {
 } from '../../testing/dashboardStore';
 import { DashboardStoreTestProvider } from '../../testing/DashboardStoreTestProvider';
 import { renderWithProviders as renderWithAppProviders } from '../../testing/testUtils';
-import {
-    dashboardEditActions,
-    dashboardParametersActions,
-} from '../dashboard/store';
+import { dashboardParametersActions } from '../dashboard/store';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import type * as AddControlModule from './AddControl';
 import { ControlsBar } from './ControlsBar';
-import type * as DateZoomPillsModule from './DateZoomPills';
 
 const mockDashboardContext = vi.hoisted(() => ({
     current: {} as Record<string, unknown>,
@@ -33,17 +29,6 @@ const renderWithProviders = (ui: ReactElement) =>
         </DashboardStoreTestProvider>,
     );
 const mockCompact = vi.hoisted(() => ({ current: false }));
-const mockEditErgonomics = vi.hoisted(() => ({ current: false }));
-vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
-    useServerFeatureFlag: (flag: string) => ({
-        data: {
-            id: flag,
-            enabled:
-                flag === 'dashboard-edit-ergonomics' &&
-                mockEditErgonomics.current,
-        },
-    }),
-}));
 const mockSidebar = vi.hoisted(() => ({
     current: { isSidebarOpen: false, isMapping: false },
 }));
@@ -84,20 +69,6 @@ vi.mock('./AddControl', async (importOriginal) => ({
     ...(await importOriginal<typeof AddControlModule>()),
     AddControl: () => <button>Add</button>,
 }));
-// Stubbed where a test pins only the default zoom's divider
-const mockStubDefaultZoom = vi.hoisted(() => ({ current: false }));
-vi.mock('./DateZoomPills', async (importOriginal) => {
-    const original = await importOriginal<typeof DateZoomPillsModule>();
-    return {
-        ...original,
-        DefaultZoomButton: ({ withDivider }: { withDivider: boolean }) =>
-            mockStubDefaultZoom.current ? (
-                withDivider && <hr data-testid="default-zoom-divider" />
-            ) : (
-                <original.DefaultZoomButton withDivider={withDivider} />
-            ),
-    };
-});
 vi.mock('./MappingRow', () => ({
     MappingRow: () => <div data-testid="mapping-row" />,
 }));
@@ -113,13 +84,12 @@ vi.mock('./SectionedFilters', async () => {
     const { FilterFieldsOverrideContext } =
         await import('../../providers/Dashboard/filterFieldsOverride');
     return {
-        SectionedFilters: ({ leading }: { leading?: ReactNode }) => {
+        SectionedFilters: () => {
             const override = useContext(FilterFieldsOverrideContext);
             const isFirstLoad = (override ?? mockDashboardContext.current)
                 .isLoadingDashboardFilters;
             return (
                 <div data-testid="sectioned-filters">
-                    {leading}
                     {!isFirstLoad && <div data-testid="capsules" />}
                 </div>
             );
@@ -127,15 +97,11 @@ vi.mock('./SectionedFilters', async () => {
     };
 });
 
+// The shipped date zoom on the right; without its controls, Default zoom alone
 vi.mock('../dateZoom', () => ({
     DateZoom: ({ withControls = true }: { withControls?: boolean }) => (
-        <div data-testid={withControls ? 'date-zoom' : 'default-zoom'}>
-            <button type="button">Default zoom</button>
-        </div>
+        <div data-testid={withControls ? 'date-zoom' : 'default-zoom'} />
     ),
-}));
-vi.mock('../dateZoom/components/DateZoomCrossTabFieldsLoader', () => ({
-    DateZoomCrossTabFieldsLoader: () => <div data-testid="cross-tab-loader" />,
 }));
 
 const baseProps: ComponentProps<typeof ControlsBar> = {
@@ -201,8 +167,6 @@ describe('ControlsBar', () => {
 
     beforeEach(() => {
         mockCompact.current = false;
-        mockEditErgonomics.current = false;
-        mockStubDefaultZoom.current = false;
         mockSidebar.current = { isSidebarOpen: false, isMapping: false };
         mockDashboardContext.current = {
             isAddFilterDisabled: false,
@@ -210,24 +174,22 @@ describe('ControlsBar', () => {
         };
     });
 
-    it('renders Add and the pills in view mode, without Hide, Required, the shipped date zoom or group markers', () => {
-        renderWithProviders(<ControlsBar {...baseProps} />);
+    it('renders Add and the pills in view mode, with Default zoom on the right and Hide, without Required or group markers', async () => {
+        const onCollapse = vi.fn();
+        renderWithProviders(
+            <ControlsBar {...baseProps} onCollapse={onCollapse} />,
+        );
 
         expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
         expect(screen.getByTestId('filter-pills')).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Add filter' }),
         ).not.toBeInTheDocument();
-        // Date zooms are pills among the controls
+        // Named zooms are pills among the controls; Default zoom stays on the right
         expect(screen.queryByTestId('date-zoom')).not.toBeInTheDocument();
-        expect(screen.queryByTestId('cross-tab-loader')).toBeNull();
-        expect(
-            screen.queryByRole('button', { name: 'Hide' }),
-        ).not.toBeInTheDocument();
-        // Nothing to collapse: no toggle
-        expect(
-            screen.queryByRole('button', { name: /^Controls/ }),
-        ).not.toBeInTheDocument();
+        expect(screen.getByTestId('default-zoom')).toBeInTheDocument();
+        await userEvent.click(screen.getByRole('button', { name: 'Hide' }));
+        expect(onCollapse).toHaveBeenCalledTimes(1);
         expect(
             screen.queryByRole('button', { name: 'Required' }),
         ).not.toBeInTheDocument();
@@ -236,119 +198,6 @@ describe('ControlsBar', () => {
             screen.queryByTestId('sectioned-filters'),
         ).not.toBeInTheDocument();
     });
-
-    it.each([false, true])(
-        'leads with a Controls toggle that collapses the strip (edit mode %s), not behind the narrow drawer',
-        async (isEditMode) => {
-            const onCollapse = vi.fn();
-            const store = () =>
-                createDashboardTestStore({
-                    dashboardFilters: {
-                        dimensions: [
-                            {
-                                id: 'f1',
-                                label: undefined,
-                                operator: FilterOperator.EQUALS,
-                                target: { fieldId: 'a', tableName: 'orders' },
-                                values: ['x'],
-                            },
-                        ],
-                        metrics: [],
-                        tableCalculations: [],
-                    },
-                });
-            const { unmount } = renderWithAppProviders(
-                <DashboardStoreTestProvider store={store()}>
-                    <ControlsBar
-                        {...baseProps}
-                        isEditMode={isEditMode}
-                        onCollapse={onCollapse}
-                    />
-                </DashboardStoreTestProvider>,
-            );
-            const toggle = screen.getByRole('button', { name: /^Controls/ });
-            expect(toggle).toHaveAttribute('aria-expanded', 'true');
-            expect(toggle).toHaveTextContent('Controls1');
-            await userEvent.setup().click(toggle);
-            expect(onCollapse).toHaveBeenCalledOnce();
-            unmount();
-
-            mockCompact.current = true;
-            renderWithAppProviders(
-                <DashboardStoreTestProvider store={store()}>
-                    <ControlsBar {...baseProps} isEditMode={isEditMode} />
-                </DashboardStoreTestProvider>,
-            );
-            expect(
-                screen.queryByRole('button', { name: /^Controls/ }),
-            ).not.toBeInTheDocument();
-        },
-    );
-
-    it.each([
-        [false, true],
-        [true, false],
-    ])(
-        'with the floating edit bar, edit mode %s has the toggle %s: its switch is the only collapse',
-        (isEditMode, hasToggle) => {
-            mockEditErgonomics.current = true;
-            renderWithAppProviders(
-                <DashboardStoreTestProvider
-                    store={createDashboardTestStore({
-                        dashboardFilters: {
-                            dimensions: [
-                                {
-                                    id: 'f1',
-                                    label: undefined,
-                                    operator: FilterOperator.EQUALS,
-                                    target: {
-                                        fieldId: 'a',
-                                        tableName: 'orders',
-                                    },
-                                    values: ['x'],
-                                },
-                            ],
-                            metrics: [],
-                            tableCalculations: [],
-                        },
-                    })}
-                >
-                    <ControlsBar {...baseProps} isEditMode={isEditMode} />
-                </DashboardStoreTestProvider>,
-            );
-            expect(
-                screen.queryByRole('button', { name: /^Controls/ }) !== null,
-            ).toBe(hasToggle);
-        },
-    );
-
-    it.each([
-        ['draws', false],
-        ['drops', true],
-    ])(
-        'with no controls, %s the divider after the default zoom when adding is disabled: %s',
-        (_, isAddFilterDisabled) => {
-            mockStubDefaultZoom.current = true;
-            mockSidebar.current = {
-                ...mockSidebar.current,
-                canAddFilters: true,
-            } as typeof mockSidebar.current;
-            const store = createDashboardTestStore();
-            store.dispatch(
-                dashboardEditActions.setIsAddFilterDisabled(
-                    isAddFilterDisabled,
-                ),
-            );
-            renderWithAppProviders(
-                <DashboardStoreTestProvider store={store}>
-                    <ControlsBar {...baseProps} />
-                </DashboardStoreTestProvider>,
-            );
-            expect(screen.queryByTestId('default-zoom-divider') !== null).toBe(
-                !isAddFilterDisabled,
-            );
-        },
-    );
 
     it("centres the flat view bar's items on each line, the funnel's centre; the sectioned flow centres its own", () => {
         const { unmount } = renderWithProviders(<ControlsBar {...baseProps} />);
@@ -466,7 +315,7 @@ describe('ControlsBar', () => {
                 name: 'Toggle date zoom visibility for viewers',
             }),
         ).not.toBeInTheDocument();
-        expect(screen.getByTestId('cross-tab-loader')).toBeInTheDocument();
+        expect(screen.getByTestId('default-zoom')).toBeInTheDocument();
         expect(
             screen.queryByRole('button', { name: 'Hide' }),
         ).not.toBeInTheDocument();
@@ -596,20 +445,8 @@ describe('ControlsBar', () => {
     });
 
     describe('on a dashboard whose tiles take no filters', () => {
-        const markdownOnly = (zoomable: boolean) => {
-            const store = createDashboardTestStore({
-                chartZoomableFieldsByTileUuid: zoomable
-                    ? {
-                          'tile-1': [
-                              {
-                                  fieldId: 'orders_date',
-                                  label: 'Order date',
-                                  tableName: 'orders',
-                              },
-                          ],
-                      }
-                    : {},
-            });
+        const markdownOnly = () => {
+            const store = createDashboardTestStore();
             seedDashboardEditState(store, {
                 dashboardTiles: [
                     {
@@ -626,45 +463,29 @@ describe('ControlsBar', () => {
             hasTilesThatSupportFilters: false,
         };
 
-        it.each([
-            ['shows', true],
-            ['hides', false],
-        ])(
-            '%s a viewer the default zoom on the strip by whether a tile zooms, and no filters',
-            (_, zoomable) => {
+        it.each([false, true])(
+            'shows Default zoom on the right and no filters (edit mode %s), Add for an editor',
+            (isEditMode) => {
                 renderWithAppProviders(
-                    <DashboardStoreTestProvider store={markdownOnly(zoomable)}>
-                        <ControlsBar {...noFilterTiles} />
+                    <DashboardStoreTestProvider store={markdownOnly()}>
+                        <ControlsBar
+                            {...noFilterTiles}
+                            isEditMode={isEditMode}
+                        />
                     </DashboardStoreTestProvider>,
                 );
-                expect(
-                    screen.queryByRole('button', { name: /^Default zoom/ }),
-                ).toEqual(zoomable ? expect.anything() : null);
+                expect(screen.getByTestId('default-zoom')).toBeInTheDocument();
                 expect(screen.queryByTestId('filter-pills')).toBeNull();
+                expect(screen.queryByTestId('sectioned-filters')).toBeNull();
                 expect(
-                    screen.queryByRole('button', { name: 'Add' }),
-                ).toBeNull();
+                    screen.queryByRole('button', { name: 'Add' }) !== null,
+                ).toBe(isEditMode);
             },
         );
 
-        it('gives an editor Add and the default zoom on the strip', () => {
-            renderWithAppProviders(
-                <DashboardStoreTestProvider store={markdownOnly(true)}>
-                    <ControlsBar {...noFilterTiles} isEditMode />
-                </DashboardStoreTestProvider>,
-            );
-            expect(
-                screen.getByRole('button', { name: 'Add' }),
-            ).toBeInTheDocument();
-            expect(
-                screen.getByRole('button', { name: /^Default zoom/ }),
-            ).toBeInTheDocument();
-            expect(screen.queryByTestId('sectioned-filters')).toBeNull();
-        });
-
         it('leaves the shipped bar as it is: date zoom on the right, no filters', () => {
             renderWithAppProviders(
-                <DashboardStoreTestProvider store={markdownOnly(true)}>
+                <DashboardStoreTestProvider store={markdownOnly()}>
                     <DashboardFiltersBar {...noFilterTiles} />
                 </DashboardStoreTestProvider>,
             );

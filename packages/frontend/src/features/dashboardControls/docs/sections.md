@@ -19,7 +19,7 @@ _group_ (that is `requiredGroupId`).
   `selectOrderedControls` passes the edited date zoom config's controls,
   and the save's `getControlOrderToSave` keeps their refs. With no stored
   order they follow the parameter controls of their pass. The default zoom
-  is never in the order: it is off the bar, right above the tiles.
+  is never in the order: it is the shipped one on the bar's right.
 - These keys must survive every rewrite: the dimension and metric overrides,
   `adoptPlaceholder`, and `buildDashboardConfig`.
 - Dashboard files never hold section ids: see "Dashboard files (as code)" in

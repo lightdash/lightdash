@@ -5,13 +5,12 @@ import { withStoryFrame } from './decorators';
 import {
     createDateZoomControl,
     dateZoomSettings,
-    TOTAL_TILE_COUNT,
     waitForApiIdle,
 } from './fixtures';
 import { type DashboardStoryParameters } from './storyParameters';
 
-// The real bar: date zooms are pills among the controls, the default zoom
-// at the strip's start; each opens its popover
+// The real bar: date zooms are pills among the controls, each opening its
+// popover; the shipped Default zoom stays on the right
 const meta: Meta<typeof AddControlFlow> = {
     title: 'Dashboards/Controls/Date zoom popover',
     component: AddControlFlow,
@@ -33,13 +32,13 @@ const onPage = (canvasElement: HTMLElement) =>
     within(canvasElement.ownerDocument.body);
 // By its marker: the pill's CSS adds to the name a browser computes. The
 // bar draws its pills once the dashboard's fields have settled. A pill reads
-// "Revenue zoom is Week", the default zoom "Default zoom Month"
+// "Revenue zoom is Week"
 const pill = (_page: Page, name: string) =>
     waitFor(
         () => {
             const found = [
                 ...document.querySelectorAll<HTMLElement>(
-                    '[data-default-date-zoom], [data-date-zoom-pill]',
+                    '[data-date-zoom-pill]',
                 ),
             ].find((element) => element.textContent?.startsWith(`${name} `));
             if (found === undefined) throw new Error(`No ${name} pill`);
@@ -173,8 +172,15 @@ export const NamedViewer: Story = {
     play: async ({ canvasElement, userEvent }) => {
         const page = onPage(canvasElement);
         await waitForApiIdle();
+        // A viewer's pill has no editor marker: found by its name
         const revenue = await waitFor(
-            () => page.getByRole('button', { name: /^Revenue zoom / }),
+            () => {
+                const found = document.querySelector<HTMLElement>(
+                    '[data-date-zoom-name="Revenue zoom"]',
+                );
+                if (found === null) throw new Error('No Revenue zoom pill');
+                return found;
+            },
             { timeout: 10000 },
         );
         await expect(revenue).toHaveTextContent('Revenue zoom is Week');
@@ -187,36 +193,24 @@ export const NamedViewer: Story = {
     },
 };
 
-/** Default zoom leads the strip, before the named zooms; clearing it leaves tiles their own grain. */
+// The shipped Default zoom, on the bar's right
+const defaultZoom = (page: Page) =>
+    waitFor(() => page.getByRole('button', { name: /^Default zoom/ }), {
+        timeout: 10000,
+    });
+
+/** An editor's Default zoom is the shipped one on the right, after the named zooms. */
 export const Default: Story = {
-    name: "Default zoom, at the strip's start",
-    play: async ({ canvasElement, userEvent }) => {
+    name: 'Default zoom, on the right',
+    play: async ({ canvasElement }) => {
         const page = onPage(canvasElement);
         await waitForApiIdle();
-        const defaultPill = await pill(page, 'Default zoom');
-        await expect(defaultPill).toHaveTextContent('Default zoom Month');
-        const pills = [
-            ...canvasElement.querySelectorAll(
-                '[data-default-date-zoom], [data-date-zoom-pill]',
-            ),
-        ];
-        await expect(pills.at(0)).toBe(defaultPill);
-        await userEvent.click(defaultPill);
-        const dialog = within(await popover(page));
-        await waitFor(() =>
-            expect(
-                dialog.getByText(
-                    `Applies to the other ${TOTAL_TILE_COUNT - 3} tiles`,
-                ),
-            ).toBeVisible(),
-        );
-        await userEvent.click(
-            dialog.getByRole('button', { name: 'Clear grain' }),
-        );
-        await userEvent.click(dialog.getByRole('button', { name: 'Apply' }));
-        await expect(await pill(page, 'Default zoom')).toHaveTextContent(
-            'Default zoom None',
-        );
+        const named = await pill(page, 'Revenue zoom');
+        const button = await defaultZoom(page);
+        await expect(
+            named.compareDocumentPosition(button) &
+                Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
     },
 };
 
@@ -227,12 +221,7 @@ export const DefaultViewer: Story = {
     play: async ({ canvasElement, userEvent }) => {
         const page = onPage(canvasElement);
         await waitForApiIdle();
-        await userEvent.click(
-            await waitFor(
-                () => page.getByRole('button', { name: /^Default zoom/ }),
-                { timeout: 10000 },
-            ),
-        );
+        await userEvent.click(await defaultZoom(page));
         await userEvent.click(
             await page.findByRole('menuitem', { name: 'Week' }),
         );
@@ -256,7 +245,7 @@ export const NoNamedZoom: Story = {
     play: async ({ canvasElement }) => {
         const page = onPage(canvasElement);
         await waitForApiIdle();
-        await expect(await pill(page, 'Default zoom')).toBeVisible();
+        await expect(await defaultZoom(page)).toBeVisible();
         await expect(
             page.queryByRole('button', {
                 name: new RegExp(`^${createDateZoomControl().name}`),

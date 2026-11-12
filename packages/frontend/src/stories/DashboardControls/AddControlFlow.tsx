@@ -1,8 +1,7 @@
 import { Box, Paper, SimpleGrid, Text } from '@mantine/core';
-import { useState, type FC } from 'react';
+import { type FC } from 'react';
 import { ControlsBar } from '../../features/dashboardControls/ControlsBar';
 import { ControlsSidebarProvider } from '../../features/dashboardControls/ControlsSidebarProvider';
-import { ControlsSummary } from '../../features/dashboardControls/ControlsStrip';
 import { DateZoomTileOverlays } from '../../features/dashboardControls/DateZoomTileOverlay';
 import { DateZoomTilesBar } from '../../features/dashboardControls/DateZoomTilesBar';
 import { FilterBarPopoversProvider } from '../../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
@@ -15,39 +14,29 @@ export const AddControlFlow: FC<{
     isEditMode?: boolean;
     /** The first tab's tiles under the bar, for choosing a date zoom's tiles. */
     withTiles?: boolean;
-    /** Starts with the strip collapsed, as its toggle leaves it. */
-    isCollapsed?: boolean;
-}> = ({ isEditMode = true, withTiles = false, isCollapsed = false }) => {
-    const [isStripCollapsed, setIsStripCollapsed] = useState(isCollapsed);
+}> = ({ isEditMode = true, withTiles = false }) => {
     return (
         <ControlsSidebarProvider isEditMode={isEditMode}>
             <FilterBarPopoversProvider>
-                {isStripCollapsed ? (
-                    <ControlsSummary
-                        isEditMode={isEditMode}
-                        onExpand={() => setIsStripCollapsed(false)}
-                    />
-                ) : (
-                    <ControlsBar
-                        isEditMode={isEditMode}
-                        activeTabUuid={tabs[0]?.uuid}
-                        hasTilesThatSupportFilters
-                        hasDashboardTiles
-                        parameters={{}}
-                        shadowedReservedNames={[]}
-                        parameterValues={{}}
-                        onParameterChange={noop}
-                        onParameterClearAll={noop}
-                        isParameterLoading={false}
-                        missingRequiredParameters={[]}
-                        pinnedParameters={[]}
-                        onParameterPin={noop}
-                        parameterOrder={[]}
-                        onParameterReorder={noop}
-                        isDateZoomDisabled
-                        onCollapse={() => setIsStripCollapsed(true)}
-                    />
-                )}
+                <ControlsBar
+                    isEditMode={isEditMode}
+                    activeTabUuid={tabs[0]?.uuid}
+                    hasTilesThatSupportFilters
+                    hasDashboardTiles
+                    parameters={{}}
+                    shadowedReservedNames={[]}
+                    parameterValues={{}}
+                    onParameterChange={noop}
+                    onParameterClearAll={noop}
+                    isParameterLoading={false}
+                    missingRequiredParameters={[]}
+                    pinnedParameters={[]}
+                    onParameterPin={noop}
+                    parameterOrder={[]}
+                    onParameterReorder={noop}
+                    isDateZoomDisabled={false}
+                    onCollapse={noop}
+                />
             </FilterBarPopoversProvider>
             <Box
                 aria-hidden={!withTiles}

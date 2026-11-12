@@ -19,7 +19,6 @@ import {
 } from '../dashboard/store';
 import classes from './AddFilterButton.module.css';
 import FilterConfiguration from './FilterConfiguration';
-import { useIsAddFilterButtonShown } from './useIsAddFilterButtonShown';
 
 type Props = {
     isEditMode: boolean;
@@ -66,7 +65,6 @@ const AddFilterButton: FC<Props> = ({
     const popoverId = useId();
     const getUiString = useUiStrings();
     const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
-    const isShown = useIsAddFilterButtonShown(isEditMode);
     const setIsAddFilterDisabled = useDashboardContext(
         (c) => c.setIsAddFilterDisabled,
     );
@@ -167,27 +165,28 @@ const AddFilterButton: FC<Props> = ({
             <Text fz="xs">{unsavedFiltersTooltip}</Text>
         );
 
-    if (!isShown) return null;
     if (isAddFilterDisabled && !isEditMode) {
-        return (
-            <Tooltip label={getUiString('filters.resetAll')}>
-                <Button
-                    data-dashboard-filter-control
-                    aria-label={getUiString('filters.resetAll')}
-                    size="xs"
-                    variant="default"
-                    color="gray"
-                    onClick={() => {
-                        setHaveFiltersChanged(false);
-                        onResetDashboardFilters();
-                    }}
-                    radius={100}
-                    className={classes.dashed}
-                >
-                    <MantineIcon icon={IconRotate2} />
-                </Button>
-            </Tooltip>
-        );
+        if (showResetFiltersButton)
+            return (
+                <Tooltip label={getUiString('filters.resetAll')}>
+                    <Button
+                        data-dashboard-filter-control
+                        aria-label={getUiString('filters.resetAll')}
+                        size="xs"
+                        variant="default"
+                        color="gray"
+                        onClick={() => {
+                            setHaveFiltersChanged(false);
+                            onResetDashboardFilters();
+                        }}
+                        radius={100}
+                        className={classes.dashed}
+                    >
+                        <MantineIcon icon={IconRotate2} />
+                    </Button>
+                </Tooltip>
+            );
+        return null;
     }
 
     return (

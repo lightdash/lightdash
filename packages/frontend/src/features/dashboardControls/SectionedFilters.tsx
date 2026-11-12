@@ -569,8 +569,6 @@ const OVERLAY_MODIFIERS = [besidePointer];
 
 type Props = {
     activeTabUuid: string | undefined;
-    /** Before everything on the first line, wrapping with the controls (default none). */
-    leading?: ReactNode;
     /** A viewer's bar before the pills (default: `AddControl`); an embed passes its own. */
     viewerActions?: ReactNode;
     /** An embed's class contract hook on each pill (default none). */
@@ -591,7 +589,6 @@ type Props = {
 // last, on the first button or the bar's empty space leaves its section
 export const SectionedFilters: FC<Props> = ({
     activeTabUuid,
-    leading,
     viewerActions = <AddControl />,
     triggerClassName,
     withParameters = true,
@@ -745,9 +742,7 @@ export const SectionedFilters: FC<Props> = ({
         dateZoomEntries.filter((entry) => entry.sectionId === sectionId).length;
     const setZoomSection = useDateZoomEditorSelector((c) => c.setSection);
     const removeZoom = useDateZoomEditorSelector((c) => c.remove);
-    const editedZoomId = useDateZoomEditorSelector((c) =>
-        c.isEditingDefault ? null : c.editingId,
-    );
+    const editedZoomId = useDateZoomEditorSelector((c) => c.editingId);
     const editedZoomSectionId =
         dateZoomEntries.find(({ control }) => control.uuid === editedZoomId)
             ?.sectionId ?? null;
@@ -1411,13 +1406,7 @@ export const SectionedFilters: FC<Props> = ({
                 className={classes.flow}
                 data-sectioned={orderLines.length > 1 || undefined}
             >
-                {renderOrderLines(
-                    <>
-                        {leading}
-                        {viewerActions}
-                    </>,
-                    null,
-                )}
+                {renderOrderLines(viewerActions, null)}
             </Box>
         );
     }
@@ -1427,7 +1416,6 @@ export const SectionedFilters: FC<Props> = ({
                 className={classes.flow}
                 data-sectioned={sections.length > 0 || undefined}
             >
-                {leading}
                 {viewerActions}
                 {pills}
                 <Box
@@ -1987,12 +1975,9 @@ export const SectionedFilters: FC<Props> = ({
                             {hasStoredOrder ? (
                                 <>
                                     {renderOrderLines(
-                                        <>
-                                            {leading}
-                                            <UnsectionTarget>
-                                                <AddControl />
-                                            </UnsectionTarget>
-                                        </>,
+                                        <UnsectionTarget>
+                                            <AddControl />
+                                        </UnsectionTarget>,
                                         barEnd,
                                     )}
                                 </>
@@ -2006,7 +1991,6 @@ export const SectionedFilters: FC<Props> = ({
                                             isShown={isGapShown(null)}
                                         />
                                     )}
-                                    {leading}
                                     <UnsectionTarget>
                                         <AddControl />
                                     </UnsectionTarget>

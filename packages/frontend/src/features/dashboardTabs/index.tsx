@@ -64,7 +64,6 @@ import {
     useDashboardUnmetFilterRequirements,
 } from '../dashboard/store';
 import { ControlsBar } from '../dashboardControls/ControlsBar';
-import { ControlsSummary } from '../dashboardControls/ControlsStrip';
 import { useParameterBarControls } from '../dashboardControls/useParameterBarControls';
 import { useParameterEditorSelector } from '../dashboardControls/useParameterEditor';
 import addFilterClasses from '../dashboardFilters/AddFilterButton.module.css';
@@ -79,7 +78,6 @@ import { AddTabModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
 import DuplicateTabModal from './DuplicateTabModal';
 import { TabEditModal } from './EditTabModal';
-import { isEditSwitchCollapse } from './filtersCollapse';
 import GridTile from './GridTile';
 import {
     convertLayoutToBaseCoordinates,
@@ -414,18 +412,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const [isFiltersCollapsed, setIsFiltersCollapsed] =
         useState<boolean>(false);
 
-    const isEditSwitch = isEditSwitchCollapse({
-        isEditMode,
-        isEditErgonomicsEnabled: editErgonomicsFlag?.enabled === true,
-        isDashboardControlsEnabled,
-    });
-    const isFiltersSummaryShown = isEditSwitch
+    const isFiltersSummaryShown = isEditMode
         ? editFiltersVisibility === 'summary'
         : isFiltersCollapsed;
-    const setFiltersSummaryShown = (isShown: boolean) =>
-        isEditSwitch
-            ? onEditFiltersVisibilityChange(isShown ? 'summary' : 'all')
-            : setIsFiltersCollapsed(isShown);
 
     const [isHeaderStuck, setIsHeaderStuck] = useState<boolean>(false);
 
@@ -1143,15 +1132,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 
                             {editFiltersVisibility !== 'hidden' && (
                                 <div className={styles.filtersBar}>
-                                    {isFiltersSummaryShown &&
-                                    isDashboardControlsEnabled ? (
-                                        <ControlsSummary
-                                            isEditMode={isEditMode}
-                                            onExpand={() =>
-                                                setFiltersSummaryShown(false)
-                                            }
-                                        />
-                                    ) : isFiltersSummaryShown ? (
+                                    {isFiltersSummaryShown ? (
                                         <DashboardFiltersBarSummary
                                             filtersCount={totalFiltersCount}
                                             parametersCount={
@@ -1166,7 +1147,13 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                       )
                                             }
                                             onExpand={() =>
-                                                setFiltersSummaryShown(false)
+                                                isEditMode
+                                                    ? onEditFiltersVisibilityChange(
+                                                          'all',
+                                                      )
+                                                    : setIsFiltersCollapsed(
+                                                          false,
+                                                      )
                                             }
                                         />
                                     ) : (
@@ -1206,7 +1193,13 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                 isDateZoomDisabled
                                             }
                                             onCollapse={() =>
-                                                setFiltersSummaryShown(true)
+                                                isEditMode
+                                                    ? onEditFiltersVisibilityChange(
+                                                          'summary',
+                                                      )
+                                                    : setIsFiltersCollapsed(
+                                                          true,
+                                                      )
                                             }
                                         />
                                     )}

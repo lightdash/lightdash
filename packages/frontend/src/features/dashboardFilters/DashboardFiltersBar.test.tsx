@@ -40,7 +40,12 @@ vi.mock('./FilterRequirements/FilterRequirementsButton', () => ({
     default: () => null,
 }));
 vi.mock('../dateZoom', () => ({
-    DateZoom: () => <span data-testid="date-zoom" />,
+    DateZoom: ({ withControls = true }: { withControls?: boolean }) => (
+        <span
+            data-testid="date-zoom"
+            data-with-controls={String(withControls)}
+        />
+    ),
 }));
 
 const props: ComponentProps<typeof DashboardFiltersBar> = {
@@ -218,7 +223,10 @@ describe('DashboardFiltersBar group markers and date zoom', () => {
         renderBar({ isEditMode: true, isDateZoomDisabled: false });
         // Filters, parameters and date zoom each have their circle
         expect(screen.getAllByTestId('group-marker')).toHaveLength(3);
-        expect(screen.getByTestId('date-zoom')).toBeInTheDocument();
+        expect(screen.getByTestId('date-zoom')).toHaveAttribute(
+            'data-with-controls',
+            'true',
+        );
         expect(
             screen.getByRole('button', {
                 name: 'Toggle date zoom visibility for viewers',
@@ -226,16 +234,22 @@ describe('DashboardFiltersBar group markers and date zoom', () => {
         ).toBeInTheDocument();
     });
 
-    it('leaves out the markers and the date zoom group when asked, keeping Hide', () => {
+    it('leaves out the markers, the named zooms and the eye when asked, keeping Default zoom', () => {
         renderBar({
+            isEditMode: true,
             isDateZoomDisabled: false,
             withGroupMarkers: false,
-            withDateZoom: false,
+            withDateZoomControls: false,
         });
         expect(screen.queryByTestId('group-marker')).not.toBeInTheDocument();
-        expect(screen.queryByTestId('date-zoom')).not.toBeInTheDocument();
+        expect(screen.getByTestId('date-zoom')).toHaveAttribute(
+            'data-with-controls',
+            'false',
+        );
         expect(
-            screen.getByRole('button', { name: 'Hide' }),
-        ).toBeInTheDocument();
+            screen.queryByRole('button', {
+                name: 'Toggle date zoom visibility for viewers',
+            }),
+        ).not.toBeInTheDocument();
     });
 });

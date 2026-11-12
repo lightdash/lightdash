@@ -13,8 +13,6 @@ export const DATE_ZOOM_PILL_SELECTOR = `[${DATE_ZOOM_PILL_ATTRIBUTE}]`;
 export const DATE_ZOOM_PILL_ACTION_SELECTOR = '[data-date-zoom-pill-action]';
 export const dateZoomPillSelector = (uuid: string) =>
     `[${DATE_ZOOM_PILL_ATTRIBUTE}="${uuid}"]`;
-/** The default zoom's button: its own marker, as any string can be a saved zoom's uuid. */
-export const DEFAULT_ZOOM_SELECTOR = '[data-default-date-zoom]';
 /** A name that is gone falls back to this, as a new zoom's does. */
 export const DEFAULT_DATE_ZOOM_NAME = 'Date zoom';
 

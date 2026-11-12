@@ -73,10 +73,8 @@ type Props = {
     isParametersColumn?: boolean;
     /** The funnel, sliders and calendar circles before each group (default true). */
     withGroupMarkers?: boolean;
-    /** The date zoom group on the right, its eye and menus (default true). */
-    withDateZoom?: boolean;
-    /** The "Hide" button on the right, in view mode (default true). */
-    withHideButton?: boolean;
+    /** The named zooms' pills, "Add date zoom" and the editor's eye beside Default zoom (default true). */
+    withDateZoomControls?: boolean;
 };
 
 export const DashboardFiltersBar: FC<Props> = ({
@@ -102,8 +100,7 @@ export const DashboardFiltersBar: FC<Props> = ({
     filtersAlign = 'flex-start',
     isParametersColumn = false,
     withGroupMarkers = true,
-    withDateZoom = true,
-    withHideButton = true,
+    withDateZoomControls = true,
 }) => {
     const compact = useCompactContentHeader();
     const [opened, { open, close }] = useDisclosure(false);
@@ -257,27 +254,28 @@ export const DashboardFiltersBar: FC<Props> = ({
 
                 {/* Right section - date zoom and hide button */}
                 <Group gap="xs" ml="auto" wrap={compact ? 'wrap' : 'nowrap'}>
-                    {withDateZoom &&
-                        hasDashboardTiles &&
+                    {hasDashboardTiles &&
                         (!isDateZoomDisabled || isEditMode) && (
                             <>
                                 <Divider orientation="vertical" />
 
-                                <FilterGroupSeparator
-                                    icon={IconCalendar}
-                                    tooltipLabel={
-                                        <Box>
-                                            <Text fw={500} fz="xs">
-                                                Date Zoom
-                                            </Text>
-                                            <Text fz="xs">
-                                                Quickly change the date
-                                                granularity of charts.
-                                            </Text>
-                                        </Box>
-                                    }
-                                />
-                                {isEditMode && (
+                                {withGroupMarkers && (
+                                    <FilterGroupSeparator
+                                        icon={IconCalendar}
+                                        tooltipLabel={
+                                            <Box>
+                                                <Text fw={500} fz="xs">
+                                                    Date Zoom
+                                                </Text>
+                                                <Text fz="xs">
+                                                    Quickly change the date
+                                                    granularity of charts.
+                                                </Text>
+                                            </Box>
+                                        }
+                                    />
+                                )}
+                                {isEditMode && withDateZoomControls && (
                                     <Tooltip
                                         label={
                                             isDateZoomDisabled
@@ -304,12 +302,15 @@ export const DashboardFiltersBar: FC<Props> = ({
                                         </ActionIcon>
                                     </Tooltip>
                                 )}
-                                <DateZoom isEditMode={isEditMode} />
+                                <DateZoom
+                                    isEditMode={isEditMode}
+                                    withControls={withDateZoomControls}
+                                />
                             </>
                         )}
 
                     {/* Hide button - only in view mode */}
-                    {withHideButton && !isEditMode && !compact && (
+                    {!isEditMode && !compact && (
                         <>
                             <Divider orientation="vertical" />
                             <Tooltip label="Hide filters">

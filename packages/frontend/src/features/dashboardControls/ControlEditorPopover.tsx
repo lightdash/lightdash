@@ -18,7 +18,6 @@ type Props = {
         RailContractClassNames,
         'filterDropdown' | 'parameterDropdown' | 'dateZoomDropdown'
     >;
-    position?: 'bottom-start' | 'bottom-end';
     /** The editor; mounted only while shown. */
     content: ReactNode;
     /** The pill, or "Add filter" for a new filter; must take a ref. */
@@ -33,7 +32,6 @@ type Props = {
 export const ControlEditorPopover: FC<Props> = ({
     isShown,
     dropdownClass,
-    position = 'bottom-start',
     content,
     children,
 }) => {
@@ -41,7 +39,7 @@ export const ControlEditorPopover: FC<Props> = ({
     return (
         <Popover
             opened={isShown}
-            position={position}
+            position="bottom-start"
             withArrow
             offset={1}
             arrowOffset={14}

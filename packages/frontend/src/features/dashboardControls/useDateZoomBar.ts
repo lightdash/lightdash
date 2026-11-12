@@ -1,12 +1,10 @@
 import {
     getControlActiveGranularity,
-    getTileControl,
     type DateZoomControl,
 } from '@lightdash/common';
 import { useMemo } from 'react';
 import {
     selectActiveTabUuid,
-    selectChartZoomableFieldsByTileUuid,
     selectControlGranularities,
     selectControlSections,
     selectDashboardTabs,
@@ -83,19 +81,4 @@ export const useDateZoomBar = (): DateZoomBarEntry[] => {
         isViewer,
         newZoom,
     ]);
-};
-
-/** Tiles the default zoom governs: zoomable tiles no named zoom has, as the shipped Default counts them */
-export const useDefaultZoomTileCount = (): number => {
-    const config = useDashboardDateZoomConfig();
-    const chartZoomableFieldsByTileUuid = useDashboardSelector(
-        selectChartZoomableFieldsByTileUuid,
-    );
-    return useMemo(
-        () =>
-            Object.entries(chartZoomableFieldsByTileUuid)
-                .filter(([, fields]) => fields.length > 0)
-                .filter(([uuid]) => !getTileControl(config, uuid)).length,
-        [chartZoomableFieldsByTileUuid, config],
-    );
 };

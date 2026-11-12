@@ -12,10 +12,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { type ReactElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-    dashboardEditActions,
-    dashboardParametersActions,
-} from '../../../../../features/dashboard/store';
+import { dashboardParametersActions } from '../../../../../features/dashboard/store';
 import { RailContractClasses } from '../../../../../features/dashboardControls/railContractClasses';
 import {
     createDashboardTestStore,
@@ -129,15 +126,11 @@ vi.mock('../../../../../features/dateZoom', () => ({
         dropdownClassName?: string;
         withControls?: boolean;
     }) => (
-        // Without its controls: a viewer's Default zoom on the strip
         <div
-            data-testid={
-                withControls ? 'shipped-date-zoom' : 'shipped-default-zoom'
-            }
+            data-testid="shipped-date-zoom"
+            data-with-controls={String(withControls)}
             className={dropdownClassName}
-        >
-            <button type="button">Default zoom</button>
-        </div>
+        />
     ),
 }));
 
@@ -242,32 +235,6 @@ describe('EmbedDashboardFilterBar', () => {
         );
         expect(
             screen.queryByRole('button', { name: 'Reset' }),
-        ).not.toBeInTheDocument();
-    });
-
-    it('counts filters in the collapsed strip, singular', async () => {
-        const user = userEvent.setup();
-        renderBar(true, true);
-        await user.click(screen.getByRole('button', { name: /^Controls/ }));
-        expect(
-            screen
-                .getByRole('button', { name: /^Controls/ })
-                .closest('.ld-dashboard-filters'),
-        ).toHaveTextContent(/1 filter$/);
-    });
-
-    it('keeps the shipped Hide and summary with the controls off', async () => {
-        const user = userEvent.setup();
-        renderBar(true, false);
-        expect(
-            screen.queryByRole('button', { name: /^Controls/ }),
-        ).not.toBeInTheDocument();
-        await user.click(screen.getByRole('button', { name: 'Hide' }));
-        expect(
-            screen.getByRole('button', { name: 'Show filters' }),
-        ).toBeInTheDocument();
-        expect(
-            screen.queryByRole('button', { name: /^Controls/ }),
         ).not.toBeInTheDocument();
     });
 
@@ -531,92 +498,31 @@ describe('EmbedDashboardFilterBar', () => {
         const zoomPill = (name: string) =>
             screen.getByRole('button', { name: new RegExp(`^${name} is`) });
 
-        it('renders date zoom pills in the flow with the class contract, not the shipped group', () => {
-            renderZoom({ isControlsEnabled: true });
-            expect(zoomPill('Revenue zoom')).toHaveClass(
-                'ld-dashboard-date-zoom',
-            );
-            // The strip's start: the shipped Default zoom, its contract classes
-            const defaultZoom = screen.getByTestId('shipped-default-zoom');
-            expect(defaultZoom).toHaveClass('ld-dashboard-date-zoom-dropdown');
-            expect(defaultZoom.parentElement).toHaveClass(
-                'ld-dashboard-date-zoom',
-            );
-            expect(
-                screen.queryByTestId('shipped-date-zoom'),
-            ).not.toBeInTheDocument();
-        });
-
-        it('collapses to the toggle, the default zoom and a count of each kind present', async () => {
-            const user = userEvent.setup();
-            renderZoom({ isControlsEnabled: true });
-            const toggle = screen.getByRole('button', { name: /^Controls/ });
-            expect(toggle).toHaveAttribute('aria-expanded', 'true');
-            expect(toggle).toHaveTextContent('Controls1');
-            expect(
-                screen.queryByRole('button', { name: 'Hide' }),
-            ).not.toBeInTheDocument();
-
-            await user.click(toggle);
-            const collapsed = screen.getByRole('button', {
-                name: /^Controls/,
-            });
-            expect(collapsed).toHaveAttribute('aria-expanded', 'false');
-            expect(screen.queryByText('Revenue zoom')).not.toBeInTheDocument();
-            // No filters on this dashboard: only the date zoom is counted
-            expect(
-                collapsed.closest('.ld-dashboard-filters'),
-            ).toHaveTextContent(/1 date zoom$/);
-            expect(screen.queryByText(/filter/)).not.toBeInTheDocument();
-            expect(
-                screen.getByRole('button', { name: /^Default zoom/ }),
-            ).toBeInTheDocument();
-
-            await user.click(collapsed);
-            expect(zoomPill('Revenue zoom')).toBeInTheDocument();
-        });
-
-        it.each([
-            ['draws', false],
-            ['drops', true],
-        ])(
-            'with no controls, %s the divider after the default zoom when adding is disabled: %s',
-            (_, isAddFilterDisabled) => {
-                const store = zoomStore();
-                mockDashboardContext.current = {};
-                store.dispatch(
-                    dashboardEditActions.setIsAddFilterDisabled(
-                        isAddFilterDisabled,
-                    ),
+        it.each([true, false])(
+            'renders date zoom pills in the flow and the shipped Default zoom alone on the right (filters shown: %s)',
+            (shouldShowFilters) => {
+                renderZoom({ isControlsEnabled: true, shouldShowFilters });
+                expect(zoomPill('Revenue zoom')).toHaveClass(
+                    'ld-dashboard-date-zoom',
                 );
-                renderWithProviders(
-                    <DashboardStoreTestProvider store={store}>
-                        <EmbedDashboardFilterBar
-                            dashboard={{
-                                ...dashboard(true),
-                                canDateZoom: true,
-                            }}
-                            shouldShowFilters
-                            activeTiles={[]}
-                            isControlsEnabled
-                        />
-                    </DashboardStoreTestProvider>,
+                const shipped = screen.getByTestId('shipped-date-zoom');
+                expect(shipped).toHaveAttribute('data-with-controls', 'false');
+                expect(shipped).toHaveClass('ld-dashboard-date-zoom-dropdown');
+                expect(shipped.parentElement).toHaveClass(
+                    'ld-dashboard-date-zoom',
                 );
-                const defaultZoom = screen
-                    .getByRole('button', { name: /^Default zoom/ })
-                    .closest('.mantine-Group-root');
-                expect(
-                    defaultZoom?.querySelector('.mantine-Divider-root') ?? null,
-                ).toEqual(isAddFilterDisabled ? null : expect.anything());
             },
         );
 
-        it('renders date zoom pills when filters are hidden', () => {
-            renderZoom({ isControlsEnabled: true, shouldShowFilters: false });
-            expect(zoomPill('Revenue zoom')).toBeInTheDocument();
-            expect(
-                screen.queryByTestId('shipped-date-zoom'),
-            ).not.toBeInTheDocument();
+        it('hides the bar behind the shipped Hide and summary with the controls on', async () => {
+            const user = userEvent.setup();
+            renderBar(true, true);
+            await user.click(screen.getByRole('button', { name: 'Hide' }));
+            expect(screen.queryByTestId('rail-pills')).not.toBeInTheDocument();
+            await user.click(
+                screen.getByRole('button', { name: 'Show filters' }),
+            );
+            expect(screen.getByTestId('rail-pills')).toBeInTheDocument();
         });
 
         it.each([
@@ -628,6 +534,7 @@ describe('EmbedDashboardFilterBar', () => {
         ])('keeps the shipped date zoom group when %s', (_, props) => {
             renderZoom(props);
             const shipped = screen.getByTestId('shipped-date-zoom');
+            expect(shipped).toHaveAttribute('data-with-controls', 'true');
             expect(shipped).toHaveClass('ld-dashboard-date-zoom-dropdown');
             expect(shipped.parentElement).toHaveClass('ld-dashboard-date-zoom');
             expect(

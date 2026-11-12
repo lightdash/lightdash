@@ -46,12 +46,9 @@ Gated on the flag:
   `isInitialLoading` ends, so `Page` is never swapped for
   `ControlsSidebarPage` (that remounts the grid).
 - `features/dashboardTabs/index.tsx`: `ControlsBar` instead of
-  `DashboardFiltersBar`; `hasQuietActions` on each `DraggableTab`;
-  `ControlsSummary` instead of the collapsed `DashboardFiltersBarSummary`.
-  Editing with the edit ergonomics flag, the floating bar's switch collapses
-  the strip (no toggle); without it, the strip's toggle does, as in view.
-- `components/common/Dashboard/DashboardHeader.tsx`: `isControls` on
-  `EditFiltersVisibilityControl` (the switch says "Controls"); the indigo "Editing"
+  `DashboardFiltersBar`; `hasQuietActions` on each `DraggableTab`. The
+  shipped Hide and collapsed `DashboardFiltersBarSummary` are unchanged.
+- `components/common/Dashboard/DashboardHeader.tsx`: the indigo "Editing"
   badge before the name in edit mode, for users who can manage the dashboard;
   the `save` class, outlined by `DashboardHeader.module.css` under the guard's
   `[data-dashboard-header-guard][inert]`.
@@ -72,12 +69,12 @@ Openings (optional props, defaults are today's behaviour):
   `--dashboard-tab-max-width` first (also in the embed's tabs).
 - `DashboardFiltersBar`: `filterArea`, `isCompactDrawerSuppressed`,
   `filtersAlign`, `isParametersColumn`, `withGroupMarkers` and
-  `withDateZoom` (the controls bar passes `false` for both: no funnel,
-  sliders or calendar circles, no date zoom group on the right), and
-  `withHideButton` (`false`: the strip's toggle collapses it).
-- `EditFiltersVisibilityControl`: `isControls`.
+  `withDateZoomControls` (the controls bar passes `false` for both: no
+  funnel, sliders or calendar circles; on the right, Default zoom alone,
+  without the named zooms, "Add date zoom" or the eye, which are pills and
+  "..." items on the bar).
 - `dateZoom/DateZoom`: `withControls` (`false`: Default zoom alone, no
-  named zoom pills or "Add date zoom").
+  named zoom pills or "Add date zoom"; the embed's bar passes it too).
 - `AddFilterButton`: `editModeAction`.
 - `FilterRequirements/FilterRequirementsButton`: `renderTarget` (must take a
   ref; the popover anchors on it).
@@ -100,9 +97,7 @@ Openings (optional props, defaults are today's behaviour):
 - `FilterConfiguration/utils`: `getFilterRuleWithRequired` takes
   `savedDefaultRule` (only the editor passes it).
 - Embed: `EmbedDashboardFilterBar` and `EmbedDashboardHeader` take
-  `isControlsEnabled`; with it the filter bar sits in `MappingSwap`, starts
-  with `ControlsLead` (no shipped Hide) and collapses to
-  `ControlsCollapsedStrip`.
+  `isControlsEnabled`; with it the filter bar sits in `MappingSwap`.
 
 Pure moves out of shipped files, now shared by both sides:
 `features/dateZoom/hooks.ts` (`useGranularityData`,
@@ -147,10 +142,9 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `controlOrder.ts` | Pure bar order and section line helpers, free of dnd-kit: the store and `utils/dashboardConfig.ts` import them |
 | `SelectionBar.tsx`, `SelectionActions.tsx`, `barSelection.ts` | Multi-select on the sectioned bar |
 | `useEditorSession.ts`, `EditorFocusReturn.tsx`, `controlKinds.ts` | The parameter and date zoom editors' shared session: the pending question, open, Apply, Cancel, Escape, a press outside, another kind's pill, mode change, mapping steps, focus return; each kind's pill selectors |
-| `DateZoomEditorProvider.tsx`, `useDateZoomEditor.ts`, `dateZoomControls.ts` | The date zoom editor: named zooms and the default zoom, their draft, Apply, switching, mapping; every write to the date zoom config from the bar; pure config helpers |
-| `ControlsStrip.tsx`, `useControlCounts.ts`, `useHasControlsToggle.ts` | The strip's start (the "Controls" toggle, the default zoom, each with a divider while something follows) and its collapsed line (counts per kind); the toggle shows when there is something to collapse, not behind the narrow drawer, and not while editing with the floating edit bar |
-| `DateZoomPills.tsx`, `useDateZoomBar.ts` | Named zoom pills (in the order, sections, drag and selection) and the default zoom button, at the strip's start (inert with the bar while tiles are chosen); each anchors its popover |
-| `DateZoomControlPopover.tsx`, `DefaultZoomPopover.tsx`, `GrainSelect.tsx`, `ControlPopoverParts.tsx`, `dateZoomGrains.ts`, `DateZoomGrainsMenu.tsx` | The date zoom popovers by props (draft held by the editor), the grain select, the "..." menu's grains |
+| `DateZoomEditorProvider.tsx`, `useDateZoomEditor.ts`, `dateZoomControls.ts` | The date zoom editor: named zooms, their draft, Apply, switching, mapping; every write to the date zoom config from the bar; pure config helpers |
+| `DateZoomPills.tsx`, `useDateZoomBar.ts` | Named zoom pills (in the order, sections, drag and selection); an editor's anchors its popover, a viewer's opens the shipped menu. Default zoom is the shipped one on the bar's right |
+| `DateZoomControlPopover.tsx`, `GrainSelect.tsx`, `ControlPopoverParts.tsx`, `dateZoomGrains.ts`, `DateZoomGrainsMenu.tsx` | The named zoom popover by props (draft held by the editor), the grain select, the "..." menu's grains |
 | `DateZoomMappingRow.tsx`, `DateZoomTileOverlay.tsx`, `DateZoomTilesBar.tsx`, `useDateZoomMapping.ts` | Choosing a zoom's tiles: the row, a card per tile, the floating bar |
 | `sectionVersionChanges.ts` | Section rows for the version comparison page |
 | `DashboardHeaderGuard.tsx` | Wraps the shipped header; inert while an editor's filter is edited |
@@ -217,12 +211,9 @@ Each one has broken before or would break silently.
   `applyDimensionOverrides` / `applyMetricOverrides`, `adoptPlaceholder` and
   the emptied placeholder. See `docs/sections.md`.
 - **`data-tour-*` anchors** on the bar are the shipped bar's; keep them.
-  The shipped Default zoom button's are on `DefaultZoomButton`, its menu's
-  `zoom-option` on `GrainSelect`'s options.
 - **One editor at a time, three providers.** Filter, parameter and date
   zoom editors each capture a click on another kind's pill or "Add"
-  (`[data-controls-pill]`, `[data-parameter-pill]`, `[data-date-zoom-pill]`,
-  `[data-default-date-zoom]`)
+  (`[data-controls-pill]`, `[data-parameter-pill]`, `[data-date-zoom-pill]`)
   and each lists the others' pills in its `useEditorDismiss` selector, so a
   switch asks on unapplied changes instead of discarding them. The lists
   come from `getOtherPillsSelector` (`controlKinds.ts`): a new kind joins
@@ -307,10 +298,7 @@ Every flag-on pill is the default white pill; only these change it, all in
   kind's icon, grey): dashed until saved, the ink ring while open, eye-off
   when hidden from viewers (by itself or with every date zoom), an X in
   edit mode; a viewer's opens the shipped menu. The default zoom is no
-  pill: an editor's is a quiet button at the strip's start reading "Default
-  zoom Month" or "None" (the grain bold while in effect), eye-off when
-  hidden from viewers, never dragged or picked; a viewer's is the shipped
-  Default zoom and its menu.
+  pill: the shipped Default zoom stays on the bar's right.
 - Required with no value: a muted asterisk on the left, before the field
   icon, with the requirement's tooltip (the pill is described by it); none
   once it has a value, nor on a locked pill (no viewer can set it). A

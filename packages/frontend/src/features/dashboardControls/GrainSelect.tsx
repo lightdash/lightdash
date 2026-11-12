@@ -1,4 +1,4 @@
-import { Select, Text } from '@mantine/core';
+import { Select } from '@mantine/core';
 import { type FC } from 'react';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { getGrainOptions } from './dateZoomGrains';
@@ -8,20 +8,9 @@ export const GrainSelect: FC<{
     label: string;
     granularities: string[];
     customLabels: Record<string, string>;
-    value: string | null;
-    /** Shown while cleared: what the tiles fall back to. */
-    placeholder: string;
-    isClearable: boolean;
-    onChange: (granularity: string | null) => void;
-}> = ({
-    label,
-    granularities,
-    customLabels,
-    value,
-    placeholder,
-    isClearable,
-    onChange,
-}) => {
+    value: string;
+    onChange: (granularity: string) => void;
+}> = ({ label, granularities, customLabels, value, onChange }) => {
     const getUiString = useUiStrings();
     return (
         <Select
@@ -29,30 +18,11 @@ export const GrainSelect: FC<{
             aria-label={label}
             data={getGrainOptions(granularities, customLabels, getUiString)}
             value={value}
-            placeholder={placeholder}
             allowDeselect={false}
-            clearable={isClearable}
-            // Mantine hides its clear button from the keyboard; here it is the
-            // only way to clear, so it is a named tab stop, as `LazySelect`'s
-            clearButtonProps={{
-                'aria-label': getUiString('controls.dateZoom.clearGrain'),
-                'aria-hidden': false,
-                tabIndex: 0,
-            }}
             comboboxProps={{ withinPortal: true }}
-            // The shipped view-mode menu's walkthrough anchor, one grain by its label
-            renderOption={({ option }) => (
-                <Text
-                    span
-                    fz="xs"
-                    data-tour-anchor="zoom-option"
-                    data-tour-hint="Choose {value}"
-                    data-tour-value={option.label}
-                >
-                    {option.label}
-                </Text>
-            )}
-            onChange={onChange}
+            onChange={(granularity) => {
+                if (granularity !== null) onChange(granularity);
+            }}
         />
     );
 };

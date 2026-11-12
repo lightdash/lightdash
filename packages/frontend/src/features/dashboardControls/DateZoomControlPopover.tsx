@@ -9,7 +9,6 @@ import { useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import TruncatedText from '../../components/common/TruncatedText';
 import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
-import { getGranularityLabel } from '../dateZoom/utils';
 import {
     SettingsChip,
     SettingsHeader,
@@ -143,19 +142,9 @@ export const DateZoomControlPopover: FC<Props> = ({
                     granularities={granularities}
                     customLabels={customLabels}
                     value={draft.granularity}
-                    placeholder={getGranularityLabel(
-                        control.granularity,
-                        customLabels,
-                        getUiString,
-                    )}
-                    isClearable={false}
-                    onChange={(granularity) => {
-                        if (granularity !== null)
-                            setDraft((current) => ({
-                                ...current,
-                                granularity,
-                            }));
-                    }}
+                    onChange={(granularity) =>
+                        setDraft((current) => ({ ...current, granularity }))
+                    }
                 />
             </Stack>
         </Box>

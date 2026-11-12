@@ -1,5 +1,6 @@
 import { DateGranularity, type Dashboard } from '@lightdash/common';
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import {
     createDashboardTestStore,
@@ -9,6 +10,10 @@ import { DashboardStoreTestProvider } from '../../../testing/DashboardStoreTestP
 import { renderWithProviders } from '../../../testing/testUtils';
 import { DateZoom } from './DateZoom';
 
+const { track } = vi.hoisted(() => ({ track: vi.fn() }));
+vi.mock('../../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track }),
+}));
 vi.mock('./DateZoomCrossTabFieldsLoader', () => ({
     DateZoomCrossTabFieldsLoader: () => null,
 }));
@@ -96,5 +101,49 @@ describe('DateZoom with the flag off', () => {
         expect(
             screen.queryByRole('button', { name: 'Add date zoom' }),
         ).not.toBeInTheDocument();
+    });
+
+    it("picks a viewer's Default zoom at once, tracked, and None clears it", async () => {
+        const user = userEvent.setup();
+        const store = createDashboardTestStore({
+            isEditMode: false,
+            // A tile in no named zoom: the Default zoom governs it
+            chartZoomableFieldsByTileUuid: {
+                t3: [
+                    {
+                        fieldId: 'orders_date',
+                        label: 'Order date',
+                        tableName: 'o',
+                    },
+                ],
+            },
+            source: { embedDashboard: { config } as unknown as Dashboard },
+        });
+        seedDashboardEditState(store, { dashboard: { config } });
+        renderWithProviders(
+            <DashboardStoreTestProvider store={store}>
+                <DateZoom isEditMode={false} withControls={false} />
+            </DashboardStoreTestProvider>,
+        );
+        await user.click(screen.getByRole('button', { name: 'Default zoom' }));
+        await user.click(screen.getByRole('menuitem', { name: 'Week' }));
+        expect(store.getState().dateZoom.granularity).toBe(
+            DateGranularity.WEEK,
+        );
+        expect(track).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                properties: { granularity: DateGranularity.WEEK },
+            }),
+        );
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+        await user.click(
+            screen.getByRole('button', { name: 'Default zoom · Week' }),
+        );
+        await user.click(screen.getByRole('menuitem', { name: 'None' }));
+        expect(store.getState().dateZoom.granularity).toBeUndefined();
+        expect(track).toHaveBeenLastCalledWith(
+            expect.objectContaining({ properties: { granularity: 'default' } }),
+        );
     });
 });
