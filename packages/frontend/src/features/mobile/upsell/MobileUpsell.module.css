@@ -36,7 +36,7 @@
 .answer {
     animation: answer 3s ease-out both;
 }
-.answer svg {
+.graphic .answer svg {
     display: block;
     width: 100%;
     height: 78px;
