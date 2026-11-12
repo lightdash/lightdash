@@ -510,17 +510,6 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                 isOnMyChanges={isPreviewing}
                 onChange={setIsPreviewing}
             />
-            {tryModel ? (
-                <Tooltip label="Switches to My changes and opens the changed model in Explore.">
-                    <Button
-                        size="xs"
-                        variant="default"
-                        onClick={() => tryInExplore(tryModel, null)}
-                    >
-                        Try in Explore
-                    </Button>
-                </Tooltip>
-            ) : null}
             {reviewing ? null : (
                 <Button
                     size="xs"
@@ -589,6 +578,11 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                     </ActionIcon>
                 </Menu.Target>
                 <Menu.Dropdown>
+                    {tryModel ? (
+                        <Menu.Item onClick={() => tryInExplore(tryModel, null)}>
+                            Try in Explore
+                        </Menu.Item>
+                    ) : null}
                     <Menu.Item
                         disabled={
                             check.isLoading ||

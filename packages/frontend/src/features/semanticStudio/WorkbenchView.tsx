@@ -829,8 +829,14 @@ const Rail: FC<{
                                 <Box
                                     key={id}
                                     component="button"
+                                    type="button"
                                     className={classes.fileRow}
                                     data-selected={id === openExploreId}
+                                    aria-current={
+                                        id === openExploreId
+                                            ? 'true'
+                                            : undefined
+                                    }
                                     onClick={() =>
                                         onOpen({
                                             type: 'explore',
@@ -1232,6 +1238,7 @@ export const WorkbenchView: FC<SemanticStudioProps> = (props) => {
                                     <StudioSavingBar
                                         projectUuid={view.project.id}
                                         change={saving}
+                                        pullRequest={development}
                                     />
                                 ) : development ? (
                                     <StudioDevelopmentBar

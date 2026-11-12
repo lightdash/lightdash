@@ -7,6 +7,8 @@ describe('writeback progress', () => {
         expect(getWritebackStepIndex('clone')).toBe(1);
         expect(getWritebackStepIndex('agent')).toBe(2);
         expect(getWritebackStepIndex('push')).toBe(3);
+        expect(getWritebackStepIndex('ready')).toBeNull();
+        expect(getWritebackStepIndex('error')).toBeNull();
     });
 
     it('formats elapsed time as minutes and seconds', () => {

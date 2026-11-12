@@ -11,8 +11,10 @@ export const WRITEBACK_STEPS = [
     'Opening the pull request',
 ] as const;
 
-/** The step a run is on, counted from zero; the last one once it has ended. */
-export const getWritebackStepIndex = (status: AiWritebackRunStatus): number => {
+/** The step a run still going is on, counted from zero; null once it has ended. */
+export const getWritebackStepIndex = (
+    status: AiWritebackRunStatus,
+): number | null => {
     switch (status) {
         case 'pending':
         case 'install':
@@ -25,10 +27,11 @@ export const getWritebackStepIndex = (status: AiWritebackRunStatus): number => {
         case 'commit':
         case 'push':
         case 'pull_request':
+            return 3;
         case 'ready':
         case 'error':
         case 'cancelled':
-            return 3;
+            return null;
         default:
             return assertUnreachable(status, 'Unknown writeback run status');
     }

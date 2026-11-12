@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Anchor,
     Badge,
     Button,
     Loader,
@@ -13,7 +14,7 @@ import {
     Tooltip,
 } from '@mantine/core';
 import { IconDots, IconExternalLink } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
+import { Fragment, useEffect, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
@@ -27,7 +28,10 @@ import { useTryInExplore } from '../../../../../features/semanticStudio/useTryIn
 import { useProject } from '../../../../../hooks/useProject';
 import { useClosePullRequest } from '../../hooks/useClosePullRequest';
 import { useMergePullRequest } from '../../hooks/useMergePullRequest';
-import { useElapsed, useWritebackStep } from '../../hooks/useWritebackProgress';
+import {
+    useElapsed,
+    useWritebackProgress,
+} from '../../hooks/useWritebackProgress';
 import { isMergeable } from '../ChatElements/ToolCalls/pullRequestActions';
 import { WRITEBACK_STEPS } from '../ChatElements/ToolCalls/writebackProgress';
 import classes from './SemanticStudioAgent.module.css';
@@ -57,11 +61,6 @@ const getBlockedReason = (ciChecks: CiChecks | null): string => {
             return assertUnreachable(mergeState, 'Unknown merge state');
     }
 };
-
-const summarizeModels = (models: string[]) =>
-    models.length <= 2
-        ? models.join(', ')
-        : `${models.slice(0, 2).join(', ')} and ${models.length - 2} more`;
 
 /** What a dbt project's Studio conversation has saved so far: its pull request, a look at the result, and merging it. */
 export const StudioDevelopmentBar: FC<{
@@ -114,9 +113,31 @@ export const StudioDevelopmentBar: FC<{
             }
             summary={
                 <Text fz="xs" c="dimmed" truncate>
-                    {changedModels.length > 0
-                        ? summarizeModels(changedModels)
-                        : 'Not live until it merges'}
+                    {changedModels.length === 0
+                        ? 'Not live until it merges'
+                        : null}
+                    {changedModels.slice(0, 2).map((model, index) => (
+                        <Fragment key={model}>
+                            {index > 0 ? ', ' : null}
+                            <Tooltip label="Try in Explore with your changes">
+                                <Anchor
+                                    component="button"
+                                    type="button"
+                                    fz="xs"
+                                    c="dimmed"
+                                    underline="always"
+                                    onClick={() =>
+                                        tryInExplore(model, previewProjectUuid)
+                                    }
+                                >
+                                    {model}
+                                </Anchor>
+                            </Tooltip>
+                        </Fragment>
+                    ))}
+                    {changedModels.length > 2
+                        ? ` and ${changedModels.length - 2} more`
+                        : null}
                 </Text>
             }
         >
@@ -124,19 +145,6 @@ export const StudioDevelopmentBar: FC<{
                 isOnMyChanges={isTrying}
                 onChange={(next) => setIsTrying(next, previewProjectUuid)}
             />
-            {changedModels.length > 0 ? (
-                <Tooltip label="Switches to My changes and opens the changed model in Explore.">
-                    <Button
-                        size="xs"
-                        variant="default"
-                        onClick={() =>
-                            tryInExplore(changedModels[0], previewProjectUuid)
-                        }
-                    >
-                        Try in Explore
-                    </Button>
-                </Tooltip>
-            ) : null}
             <Tooltip
                 multiline
                 w={240}
@@ -168,6 +176,18 @@ export const StudioDevelopmentBar: FC<{
                     </ActionIcon>
                 </Menu.Target>
                 <Menu.Dropdown>
+                    {changedModels.length > 0 ? (
+                        <Menu.Item
+                            onClick={() =>
+                                tryInExplore(
+                                    changedModels[0],
+                                    previewProjectUuid,
+                                )
+                            }
+                        >
+                            Try in Explore
+                        </Menu.Item>
+                    ) : null}
                     {previewProjectUuid ? (
                         <Menu.Item
                             component={Link}
@@ -191,7 +211,7 @@ export const StudioDevelopmentBar: FC<{
                     </Menu.Item>
                     <Menu.Divider />
                     <Menu.Item color="red" onClick={() => setDiscarding(true)}>
-                        Close pull request
+                        Discard changes
                     </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
@@ -215,9 +235,9 @@ export const StudioDevelopmentBar: FC<{
                 <MantineModal
                     opened
                     variant="delete"
-                    title="Close pull request"
-                    description={`This closes ${name} without merging it. Nothing live changes, and it can be reopened from the repository.`}
-                    confirmLabel="Close pull request"
+                    title="Discard changes"
+                    description={`This closes ${name} without merging it, so these changes never go live. The pull request can be reopened from the repository.`}
+                    confirmLabel="Discard changes"
                     confirmLoading={isClosing}
                     onClose={() => setDiscarding(false)}
                     onConfirm={() =>
@@ -241,32 +261,54 @@ export const StudioDevelopmentBar: FC<{
 export const StudioSavingBar: FC<{
     projectUuid: string;
     change: StudioPendingChange;
-}> = ({ projectUuid, change }) => {
-    const step = useWritebackStep(projectUuid, change.aiWritebackRunUuid);
+    /** The open pull request this save adds to; null when the save opens the first one. */
+    pullRequest: StudioPullRequest | null;
+}> = ({ projectUuid, change, pullRequest }) => {
+    const { step, state } = useWritebackProgress(
+        projectUuid,
+        change.aiWritebackRunUuid,
+    );
     const elapsed = useElapsed(change.startedAt);
-    const [isOnMyChanges] = useDevelopmentView();
+    const [isOnMyChanges, setIsOnMyChanges] = useDevelopmentView();
     return (
         <DevelopmentBar
             status={
                 <Badge
                     color="gray"
                     flex="none"
-                    leftSection={<Loader size={10} color="gray" />}
+                    leftSection={
+                        state === 'running' ? (
+                            <Loader size={10} color="gray" />
+                        ) : null
+                    }
                 >
                     Saving
                 </Badge>
             }
             summary={
                 <Text fz="xs" c="dimmed" truncate>
-                    {WRITEBACK_STEPS[step]}, step {step + 1} of{' '}
-                    {WRITEBACK_STEPS.length}
+                    {state === 'running'
+                        ? `${WRITEBACK_STEPS[step]}, step ${step + 1} of ${WRITEBACK_STEPS.length}`
+                        : state === 'done'
+                          ? 'Saved'
+                          : 'The change stopped'}
                 </Text>
             }
         >
+            {/* An earlier save can still be tried, and left, while this one runs. */}
             <ChangesSwitch
                 isOnMyChanges={isOnMyChanges}
-                onChange={() => undefined}
-                unavailableReason="Available when the save finishes."
+                onChange={(next) =>
+                    setIsOnMyChanges(
+                        next,
+                        pullRequest?.previewProjectUuid ?? null,
+                    )
+                }
+                unavailableReason={
+                    pullRequest
+                        ? undefined
+                        : 'Available when the pull request opens.'
+                }
             />
             <Tooltip label="Usually takes 2 to 3 minutes. The pull request shows up here when it is ready.">
                 <Text fz="xs" c="dimmed" ff="monospace">

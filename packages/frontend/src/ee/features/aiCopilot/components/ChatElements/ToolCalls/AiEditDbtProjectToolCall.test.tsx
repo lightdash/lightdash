@@ -128,7 +128,7 @@ describe('the quiet pull request card of a side panel', () => {
         fireEvent.click(screen.getByRole('button', { name: 'More' }));
         await waitFor(() =>
             expect(
-                screen.getByRole('menuitem', { name: 'Close pull request' }),
+                screen.getByRole('menuitem', { name: 'Discard changes' }),
             ).toBeVisible(),
         );
         expect(

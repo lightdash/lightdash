@@ -63,6 +63,11 @@
 
 /* Studio reads the person's changes too, and looks the same either way without this. */
 .toolbar[data-my-changes] {
+    background: color-mix(
+        in srgb,
+        var(--mantine-color-orange-5) 7%,
+        transparent
+    );
     border-bottom-color: var(--mantine-color-orange-5);
     box-shadow: 0 1px 0 var(--mantine-color-orange-5);
 }
@@ -128,10 +133,6 @@
 
 .changed .fileRow {
     padding-left: 24px;
-}
-
-.changed .fileRow:first-child {
-    margin-top: 0;
 }
 
 .treeScroll:focus-visible {

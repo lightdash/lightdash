@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     formatElapsed,
     getWritebackStepIndex,
+    WRITEBACK_STEPS,
 } from '../components/ChatElements/ToolCalls/writebackProgress';
 import { useWritebackRunStatus } from './useWritebackRunStatus';
 
@@ -18,11 +19,25 @@ export const useElapsed = (startedAt: string | null): string | null => {
         : null;
 };
 
+export type WritebackProgress = {
+    /** The step it is on, or was on when it ended. */
+    step: number;
+    /** `done` opened or updated the pull request; `stopped` failed or was cancelled. */
+    state: 'running' | 'done' | 'stopped';
+};
+
 /** The step a background dbt change is on, read from its run. */
-export const useWritebackStep = (
+export const useWritebackProgress = (
     projectUuid: string,
     aiWritebackRunUuid: string | null,
-): number => {
+): WritebackProgress => {
     const { data } = useWritebackRunStatus(projectUuid, aiWritebackRunUuid);
-    return data ? getWritebackStepIndex(data.status) : 0;
+    // An ended run no longer says which step it was on, so the last one seen is kept.
+    const lastStep = useRef(0);
+    const step = data ? getWritebackStepIndex(data.status) : 0;
+    if (step !== null) lastStep.current = step;
+    if (!data || step !== null) return { step: step ?? 0, state: 'running' };
+    return data.status === 'ready'
+        ? { step: WRITEBACK_STEPS.length, state: 'done' }
+        : { step: lastStep.current, state: 'stopped' };
 };

@@ -83,15 +83,18 @@ export const useStudioPendingChange = (
         thread?.threadUuid,
         { enabled: !!thread },
     );
-    const last = data?.messages.findLast(({ role }) => role === 'assistant');
-    if (last?.role !== 'assistant') return null;
-    const pending = last.toolResults
-        .filter(isToolEditDbtProjectResult)
-        .findLast(({ metadata }) => metadata.status === 'pending');
-    return pending?.metadata.status === 'pending'
+    // The latest change of the whole thread, so a message sent while it runs does not hide it.
+    const latest = (data?.messages ?? [])
+        .flatMap((message) =>
+            message.role === 'assistant'
+                ? message.toolResults.filter(isToolEditDbtProjectResult)
+                : [],
+        )
+        .at(-1);
+    return latest?.metadata.status === 'pending'
         ? {
-              aiWritebackRunUuid: pending.metadata.aiWritebackRunUuid,
-              startedAt: last.createdAt,
+              aiWritebackRunUuid: latest.metadata.aiWritebackRunUuid,
+              startedAt: new Date(latest.createdAt).toISOString(),
           }
         : null;
 };

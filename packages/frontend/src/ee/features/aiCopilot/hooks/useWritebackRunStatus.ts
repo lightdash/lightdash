@@ -3,18 +3,20 @@ import {
     type AiWritebackRunStatusResult,
     type ApiError,
 } from '@lightdash/common';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { useLightdashApi } from '../../../../providers/LightdashApi/useLightdashApi';
 
 const POLL_INTERVAL_MS = 3_000;
 
-/** The stage a background dbt change has reached; polled until the run ends. */
+/** The stage a background dbt change has reached; polled until the run ends or the read fails. */
 export const useWritebackRunStatus = (
     projectUuid: string,
     aiWritebackRunUuid: string | null,
 ) => {
     const lightdashApi = useLightdashApi();
-    return useQuery<AiWritebackRunStatusResult, ApiError>({
+    const queryClient = useQueryClient();
+    const query = useQuery<AiWritebackRunStatusResult, ApiError>({
         queryKey: ['aiWritebackRunStatus', projectUuid, aiWritebackRunUuid],
         queryFn: () =>
             lightdashApi<AiWritebackRunStatusResult>({
@@ -24,9 +26,22 @@ export const useWritebackRunStatus = (
                 body: undefined,
             }),
         enabled: !!aiWritebackRunUuid,
-        refetchInterval: (data) =>
-            !data || isAiWritebackRunInProgress(data.status)
+        retry: false,
+        refetchInterval: (data, { state }) =>
+            state.status !== 'error' &&
+            (!data || isAiWritebackRunInProgress(data.status))
                 ? POLL_INTERVAL_MS
                 : false,
     });
+    const hasEnded =
+        !!query.data && !isAiWritebackRunInProgress(query.data.status);
+    // The thread stops refetching on its own after a few minutes, so a long run would never show its result.
+    useEffect(() => {
+        if (hasEnded) {
+            void queryClient.invalidateQueries({
+                queryKey: ['aiAgents', projectUuid],
+            });
+        }
+    }, [hasEnded, projectUuid, queryClient]);
+    return query;
 };
