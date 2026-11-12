@@ -358,6 +358,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'CustomFields', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'MergeQuery', {
+            organizationUuid: member.organizationUuid,
+        });
         can('view', 'CompiledSql', {
             organizationUuid: member.organizationUuid,
         });
