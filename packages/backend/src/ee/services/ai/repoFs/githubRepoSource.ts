@@ -74,8 +74,24 @@ const keepArchive = (key: string, files: Map<string, string>): void => {
     });
 };
 
+// Downloads under way, so runs listing the same tree share one.
+const archiveDownloads = new Map<string, Promise<Map<string, string> | null>>();
+// Trees whose text was over the cap once, so later runs read them file by file without downloading again.
+const MAX_TOO_LARGE_TREES = 1000;
+const tooLargeTrees = new Set<string>();
+
+const markTooLarge = (key: string): void => {
+    tooLargeTrees.add(key);
+    if (tooLargeTrees.size > MAX_TOO_LARGE_TREES) {
+        tooLargeTrees.delete(tooLargeTrees.values().next().value as string);
+    }
+};
+
 /** Forgets every kept archive; for tests. */
-export const clearKeptRepoArchives = (): void => keptArchives.clear();
+export const clearKeptRepoArchives = (): void => {
+    keptArchives.clear();
+    tooLargeTrees.clear();
+};
 
 /**
  * The text files of a repository archive under `prefix`, keyed relative to it;
@@ -159,6 +175,7 @@ export const createGithubRepoSource = ({
     // The size of the whole repo and the hash of its tree, known once this run has listed it with its own token.
     let repoBytes: number | null = null;
     let treeSha: string | null = null;
+    let downloaded = false;
     return {
         label: `${owner}/${repo}@${branch}${root ? `/${root}` : ''}`,
         listAllPaths: async () => {
@@ -217,44 +234,54 @@ export const createGithubRepoSource = ({
                 keptArchives.set(key, kept);
                 return kept.files;
             }
-            const start = Date.now();
-            try {
-                const files = await readRepoArchive(
-                    await getRepoArchiveStream({
-                        owner,
-                        repo,
-                        // The tree that was listed, not the branch: the branch may have moved since, and the files are kept under this hash.
-                        ref: treeSha,
-                        token,
-                    }),
-                    { prefix, maxBytes },
-                );
-                const durationMs = Date.now() - start;
-                Logger.info(
-                    `[repoShell] github archive ${
-                        files
-                            ? `read in ${durationMs}ms (${files.size} files)`
-                            : 'too large to hold'
-                    }`,
-                    {
-                        event: 'ai.repofs.github.archive',
-                        repo: `${owner}/${repo}`,
-                        branch,
-                        fileCount: files?.size ?? null,
-                        durationMs,
-                    },
-                );
-                onTiming?.({ kind: 'archive', durationMs });
-                if (files) keepArchive(key, files);
-                return files;
-            } catch (error) {
-                // The per-file path still works, and reports a rate limit properly.
-                Logger.warn(
-                    `[repoShell] github archive failed, reading file by file: ${getErrorMessage(error)}`,
-                    { event: 'ai.repofs.github.archive_error' },
-                );
-                return null;
-            }
+            const inFlight = archiveDownloads.get(key);
+            if (inFlight) return inFlight;
+            // ponytail: one download per source, so held archives stay within MAX_KEPT_ARCHIVES_BYTES plus those in flight; an evicted one is read file by file.
+            if (downloaded || tooLargeTrees.has(key)) return null;
+            downloaded = true;
+            const download = (async () => {
+                const start = Date.now();
+                try {
+                    const files = await readRepoArchive(
+                        await getRepoArchiveStream({
+                            owner,
+                            repo,
+                            // The tree that was listed, not the branch: the branch may have moved since, and the files are kept under this hash.
+                            ref: treeSha,
+                            token,
+                        }),
+                        { prefix, maxBytes },
+                    );
+                    const durationMs = Date.now() - start;
+                    Logger.info(
+                        `[repoShell] github archive ${
+                            files
+                                ? `read in ${durationMs}ms (${files.size} files)`
+                                : 'too large to hold'
+                        }`,
+                        {
+                            event: 'ai.repofs.github.archive',
+                            repo: `${owner}/${repo}`,
+                            branch,
+                            fileCount: files?.size ?? null,
+                            durationMs,
+                        },
+                    );
+                    onTiming?.({ kind: 'archive', durationMs });
+                    if (files) keepArchive(key, files);
+                    else markTooLarge(key);
+                    return files;
+                } catch (error) {
+                    // The per-file path still works, and reports a rate limit properly.
+                    Logger.warn(
+                        `[repoShell] github archive failed, reading file by file: ${getErrorMessage(error)}`,
+                        { event: 'ai.repofs.github.archive_error' },
+                    );
+                    return null;
+                }
+            })().finally(() => archiveDownloads.delete(key));
+            archiveDownloads.set(key, download);
+            return download;
         },
         searchCode: async (query) => {
             const start = Date.now();

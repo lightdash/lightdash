@@ -283,6 +283,7 @@ describe('githubRepoSource.readAll', () => {
         const repo = source();
         await repo.listAllPaths();
         expect(await repo.readAll?.(1024)).toBeNull();
+        expect(await repo.readAll?.(1024)).toBeNull();
         expect(mockArchive).toHaveBeenCalledTimes(1);
     });
 });

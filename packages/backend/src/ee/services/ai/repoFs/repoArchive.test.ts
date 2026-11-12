@@ -84,7 +84,7 @@ describe('readRepoArchive', () => {
 });
 
 describe('an archive kept across agent runs', () => {
-    const run = async (sha: string) => {
+    const run = async (sha: string, maxBytes = 1024) => {
         vi.mocked(getRepoTree).mockResolvedValue({
             files: [{ path: 'models/a.sql', size: 8 }],
             truncated: false,
@@ -97,7 +97,7 @@ describe('an archive kept across agent runs', () => {
             token: 'tok',
         });
         await source.listAllPaths();
-        return source.readAll?.(1024);
+        return source.readAll?.(maxBytes);
     };
 
     beforeEach(() => {
@@ -116,6 +116,22 @@ describe('an archive kept across agent runs', () => {
         expect(getRepoArchiveStream).toHaveBeenCalledWith(
             expect.objectContaining({ ref: 'tree-1' }),
         );
+    });
+
+    it('is downloaded once by runs listing the same tree at the same time', async () => {
+        const [first, second] = await Promise.all([
+            run('tree-1'),
+            run('tree-1'),
+        ]);
+        expect(first?.get('models/a.sql')).toBe('select 1');
+        expect(second).toBe(first);
+        expect(getRepoArchiveStream).toHaveBeenCalledTimes(1);
+    });
+
+    it('is not downloaded again once its text was too large to hold', async () => {
+        expect(await run('tree-1', 4)).toBeNull();
+        expect(await run('tree-1', 4)).toBeNull();
+        expect(getRepoArchiveStream).toHaveBeenCalledTimes(1);
     });
 
     it('is downloaded again once the tree changes', async () => {

@@ -28,6 +28,7 @@ export interface RepoSource {
      * Every readable text file's content in one fetch, keyed like
      * {@link listAllPaths}; null when it would hold more than `maxBytes` or
      * could not be fetched, and the caller reads file by file instead.
+     * Called on every read, so a repeat must be cheap and not fetch again.
      */
     readAll?(maxBytes: number): Promise<Map<string, string> | null>;
 }
@@ -119,9 +120,6 @@ export class RepoFs {
 
     private cacheBytes = 0;
 
-    // The whole repo's text, once a source could hand it over in one fetch.
-    private allPromise: Promise<Map<string, string> | null> | null = null;
-
     private readonly maxCacheBytes: number;
 
     constructor(source: RepoSource, maxCacheBytes: number = MAX_CACHE_BYTES) {
@@ -180,15 +178,12 @@ export class RepoFs {
         };
     }
 
+    // Not memoised: the source holds the repo, so dropping it there frees it.
     private loadAll(index: RepoIndex): Promise<Map<string, string> | null> {
-        if (!this.allPromise) {
-            // A truncated tree cannot say which paths exist, so it keeps the per-file path.
-            this.allPromise =
-                this.source.readAll && !index.truncated
-                    ? this.source.readAll(this.maxCacheBytes)
-                    : Promise.resolve(null);
-        }
-        return this.allPromise;
+        // A truncated tree cannot say which paths exist, so it keeps the per-file path.
+        return this.source.readAll && !index.truncated
+            ? this.source.readAll(this.maxCacheBytes)
+            : Promise.resolve(null);
     }
 
     /** Whether file reads are served from memory with no further fetches; the first call does the one fetch. */

@@ -153,20 +153,23 @@ describe('RepoFs with a source that hands over the whole repo', () => {
 
     it('reads every file from one fetch and never per file', async () => {
         const source = instrumentedSource(files);
-        let fetches = 0;
-        const repo = new RepoFs({
-            ...source,
-            readAll: async () => {
-                fetches += 1;
-                return new Map(Object.entries(files));
-            },
-        });
+        const all = new Map(Object.entries(files));
+        const repo = new RepoFs({ ...source, readAll: async () => all });
         const out = await repo.readFiles(['models/a.sql', 'models/b.sql']);
         expect(out.get('models/b.sql')).toBe('select 2');
         expect(await repo.readFile('models/a.sql')).toBe('select 1');
-        expect(fetches).toBe(1);
         expect(source.reads).toEqual({});
         expect(await repo.readsFromMemory()).toBe(true);
+    });
+
+    it('reads file by file once the source drops the repo', async () => {
+        const source = instrumentedSource(files);
+        let held: Map<string, string> | null = new Map(Object.entries(files));
+        const repo = new RepoFs({ ...source, readAll: async () => held });
+        expect(await repo.readFile('models/a.sql')).toBe('select 1');
+        held = null;
+        expect(await repo.readFile('models/b.sql')).toBe('select 2');
+        expect(source.reads).toEqual({ 'models/b.sql': 1 });
     });
 
     it('reads a file the fetch left out as absent', async () => {
