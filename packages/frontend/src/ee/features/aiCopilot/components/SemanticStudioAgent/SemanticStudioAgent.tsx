@@ -270,29 +270,30 @@ const ExistingThread: FC<
         >
             {!keepsDraft && !isBusy && hasOpenProposal(thread.messages) ? (
                 <div className={classes.pullRequestPrompt}>
-                    <Group
-                        className={classes.pullRequestCard}
-                        gap="sm"
-                        wrap="nowrap"
-                    >
-                        <span className={classes.pullRequestIcon}>
-                            <MantineIcon icon={IconGitPullRequest} size={16} />
-                        </span>
-                        <Stack gap={0} flex={1} miw={0}>
-                            <Text fz="sm" fw={500} truncate="end">
-                                {pullRequest?.isOpen
-                                    ? 'Add this to your pull request?'
-                                    : 'Happy with this change?'}
-                            </Text>
-                            <Text fz="xs" c="dimmed" truncate="end">
-                                {pullRequest?.isOpen
-                                    ? 'Commits it to the same pull request.'
-                                    : 'You can try it once its preview builds.'}
-                            </Text>
-                        </Stack>
+                    <Stack className={classes.pullRequestCard} gap="sm">
+                        <Group gap="sm" wrap="nowrap">
+                            <span className={classes.pullRequestIcon}>
+                                <MantineIcon
+                                    icon={IconGitPullRequest}
+                                    size={16}
+                                />
+                            </span>
+                            <Stack gap={0} flex={1} miw={0}>
+                                <Text fz="sm" fw={500}>
+                                    {pullRequest?.isOpen
+                                        ? 'Add this to your pull request?'
+                                        : 'Happy with this change?'}
+                                </Text>
+                                <Text fz="xs" c="dimmed">
+                                    {pullRequest?.isOpen
+                                        ? 'Commits it to the same pull request.'
+                                        : 'You can try it once its preview builds.'}
+                                </Text>
+                            </Stack>
+                        </Group>
                         <Button
                             size="xs"
-                            flex="none"
+                            fullWidth
                             onClick={() => {
                                 if (isRequestingPullRequest.current) return;
                                 isRequestingPullRequest.current = true;
@@ -312,7 +313,7 @@ const ExistingThread: FC<
                                 ? 'Save to pull request'
                                 : 'Open pull request'}
                         </Button>
-                    </Group>
+                    </Stack>
                 </div>
             ) : null}
             <AgentChatInput
