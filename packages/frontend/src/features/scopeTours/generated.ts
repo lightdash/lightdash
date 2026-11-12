@@ -1863,7 +1863,7 @@ export const SCOPE_TOURS: Record<string, ScopeTourDefinition> = {
                 target: '[data-tour-scope="manage:ExportCsv"][data-tour-step="2"]',
                 route: '/projects/:projectUuid/saved/:savedQueryUuid',
                 title: 'Open the export dialog',
-                body: "JPEG, PNG, and PDF images are rendered at the chart's on-screen size in pixels, with no extra resolution, so they can look blurry when enlarged in a slide or report.",
+                body: 'You can also download the results table as a CSV or an Excel spreadsheet, or export it to a Google Sheet if your organization has [that set up](https://docs.lightdash.com/integrations/google-sheets).',
                 interactive: true,
                 advanceOnTargetClick: true,
                 advanceOnTargetInput: false,
