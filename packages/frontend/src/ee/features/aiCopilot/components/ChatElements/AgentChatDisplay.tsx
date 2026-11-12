@@ -11,6 +11,9 @@ import {
     type PropsWithChildren,
 } from 'react';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
+import useApp from '../../../../../providers/App/useApp';
+import useTracking from '../../../../../providers/Tracking/useTracking';
+import { EventName } from '../../../../../types/Events';
 import { type DeepResearchRunRegistration } from '../../deepResearch/types';
 import { ChatViewportContext } from '../../hooks/useChatBackUrl';
 import { useDeepResearchThreadRunRegistrations } from '../../hooks/useDeepResearch';
@@ -21,7 +24,10 @@ import { DeepResearchThreadRuns } from '../DeepResearch/DeepResearchThreadRuns';
 import { AssistantBubble } from './AgentChatAssistantBubble';
 import styles from './AgentChatDisplay.module.css';
 import { UserBubble } from './AgentChatUserBubble';
-import { AskUserQuestionCard } from './AskUserQuestionCard';
+import {
+    AskUserQuestionCard,
+    type AskUserSubmission,
+} from './AskUserQuestionCard';
 import askUserStyles from './AskUserQuestionCard.module.css';
 import { getPendingAskUser } from './askUserQuestions';
 import { JevChoiceChips } from './JevChoiceChips';
@@ -188,9 +194,28 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
             message.role === 'user' ? [message.uuid] : [],
         ),
     );
-    const askUser = onChoiceSelect
-        ? getPendingAskUser(visibleMessages.at(-1))
-        : null;
+    const lastMessage = visibleMessages.at(-1);
+    const askUser = onChoiceSelect ? getPendingAskUser(lastMessage) : null;
+    const { user } = useApp();
+    const { track } = useTracking();
+    const submitAskUser = (submission: AskUserSubmission) => {
+        const organizationId = user.data?.organizationUuid;
+        if (organizationId && projectUuid && agentUuid && lastMessage) {
+            track({
+                name: EventName.AI_AGENT_QUESTION_ANSWERED,
+                properties: {
+                    organizationId,
+                    projectId: projectUuid,
+                    agentId: agentUuid,
+                    threadId: thread.uuid,
+                    messageId: lastMessage.uuid,
+                    questionCount: askUser?.questions.length ?? 0,
+                    typedAnswerCount: submission.typedAnswerCount,
+                },
+            });
+        }
+        onChoiceSelect?.(submission.text);
+    };
     const unanchoredDeepResearchRegistrations =
         deepResearchRegistrations.filter(
             (registration) =>
@@ -350,7 +375,7 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                 <AskUserQuestionCard
                                     key={askUser.toolCallId}
                                     questions={askUser.questions}
-                                    onSubmit={onChoiceSelect}
+                                    onSubmit={submitAskUser}
                                 />
                             </Box>
                         )}

@@ -31,9 +31,16 @@ const isOptionOrCard = ({ target, currentTarget }: KeyboardEvent) =>
     (target instanceof HTMLElement &&
         ['radio', 'checkbox'].includes(target.getAttribute('role') ?? ''));
 
+export type AskUserSubmission = {
+    /** Sent as the next user message. */
+    text: string;
+    /** Answers typed into the own-answer box rather than picked. */
+    typedAnswerCount: number;
+};
+
 type Props = {
     questions: AskUserQuestion[];
-    onSubmit: (answer: string) => void;
+    onSubmit: (submission: AskUserSubmission) => void;
 };
 
 type Answer = { selected: string[]; custom: string };
@@ -78,14 +85,16 @@ export const AskUserQuestionCard: FC<Props> = ({ questions, onSubmit }) => {
             setIndex(index + 1);
             return;
         }
-        onSubmit(
-            formatAskUserAnswers(
+        onSubmit({
+            text: formatAskUserAnswers(
                 questions.map(({ header }, i) => ({
                     header,
                     answer: getAnswerText(answers[i]),
                 })),
             ),
-        );
+            typedAnswerCount: answers.filter(({ custom }) => custom.trim())
+                .length,
+        });
     };
 
     const pick = (label: string) => {

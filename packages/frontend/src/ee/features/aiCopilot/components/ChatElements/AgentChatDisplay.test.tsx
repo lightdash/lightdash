@@ -3,13 +3,29 @@ import {
     type AiAgentMessageUser,
     type AiAgentThread,
 } from '@lightdash/common';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type useApp from '../../../../../providers/App/useApp';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import { AgentChatDisplay } from './AgentChatDisplay';
 
-const { deepResearchRegistrationsMock } = vi.hoisted(() => ({
+const { deepResearchRegistrationsMock, trackMock } = vi.hoisted(() => ({
+    trackMock: vi.fn(),
     deepResearchRegistrationsMock: vi.fn(),
+}));
+
+vi.mock('../../../../../providers/App/useApp', async (importOriginal) => {
+    const actual = await importOriginal<{ default: typeof useApp }>();
+    return {
+        default: () => ({
+            ...actual.default(),
+            user: { data: { organizationUuid: 'org-1' } },
+        }),
+    };
+});
+
+vi.mock('../../../../../providers/Tracking/useTracking', () => ({
+    default: () => ({ track: trackMock }),
 }));
 
 vi.mock('../../hooks/useProjectAiMcpServers', () => ({
@@ -290,12 +306,13 @@ describe('AgentChatDisplay', () => {
                 },
             ],
         };
+        const onChoiceSelect = vi.fn();
         renderWithProviders(
             <AgentChatDisplay
                 thread={{ ...thread, messages: [followUpUserMessage, asking] }}
                 projectUuid="project-1"
                 agentUuid="agent-1"
-                onChoiceSelect={vi.fn()}
+                onChoiceSelect={onChoiceSelect}
             >
                 <textarea aria-label="Composer" />
             </AgentChatDisplay>,
@@ -303,5 +320,19 @@ describe('AgentChatDisplay', () => {
 
         expect(screen.getByRole('radio', { name: /November/ })).toBeVisible();
         expect(screen.getByLabelText('Composer')).toBeVisible();
+
+        fireEvent.click(screen.getByRole('radio', { name: /October/ }));
+        fireEvent.click(screen.getByRole('button', { name: 'Submit answer' }));
+
+        expect(onChoiceSelect).toHaveBeenCalledWith('October');
+        expect(trackMock).toHaveBeenCalledWith({
+            name: 'ai_agent.question_answered',
+            properties: expect.objectContaining({
+                organizationId: 'org-1',
+                messageId: asking.uuid,
+                questionCount: 1,
+                typedAnswerCount: 0,
+            }),
+        });
     });
 });

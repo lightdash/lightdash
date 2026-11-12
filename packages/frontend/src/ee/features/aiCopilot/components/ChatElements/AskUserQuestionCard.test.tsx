@@ -43,7 +43,10 @@ describe('AskUserQuestionCard', () => {
         fireEvent.click(screen.getByRole('radio', { name: /October 2022/ }));
         fireEvent.click(submit);
 
-        expect(onSubmit).toHaveBeenCalledWith('October 2022');
+        expect(onSubmit).toHaveBeenCalledWith({
+            text: 'October 2022',
+            typedAnswerCount: 0,
+        });
     });
 
     it('picks with a number key and submits with Enter', () => {
@@ -56,7 +59,10 @@ describe('AskUserQuestionCard', () => {
         ).toBeChecked();
         fireEvent.keyDown(card, { key: 'Enter' });
 
-        expect(onSubmit).toHaveBeenCalledWith('October 2022');
+        expect(onSubmit).toHaveBeenCalledWith({
+            text: 'October 2022',
+            typedAnswerCount: 0,
+        });
     });
 
     it('ignores number keys typed into the answer box', () => {
@@ -81,9 +87,10 @@ describe('AskUserQuestionCard', () => {
         fireEvent.click(screen.getByRole('checkbox', { name: /Orders/ }));
         fireEvent.click(screen.getByRole('button', { name: 'Submit answers' }));
 
-        expect(onSubmit).toHaveBeenCalledWith(
-            'Period: November 2022\nMetrics: Revenue, Orders',
-        );
+        expect(onSubmit).toHaveBeenCalledWith({
+            text: 'Period: November 2022\nMetrics: Revenue, Orders',
+            typedAnswerCount: 0,
+        });
     });
 
     it('sends a typed answer in place of the options', () => {
@@ -96,9 +103,10 @@ describe('AskUserQuestionCard', () => {
         fireEvent.click(screen.getByRole('checkbox', { name: /Revenue/ }));
         fireEvent.click(screen.getByRole('button', { name: 'Submit answers' }));
 
-        expect(onSubmit).toHaveBeenCalledWith(
-            'Period: Q4 2022\nMetrics: Revenue',
-        );
+        expect(onSubmit).toHaveBeenCalledWith({
+            text: 'Period: Q4 2022\nMetrics: Revenue',
+            typedAnswerCount: 1,
+        });
     });
 
     it('keeps a picked option when the next answer is typed', () => {
@@ -113,8 +121,9 @@ describe('AskUserQuestionCard', () => {
             key: 'Enter',
         });
 
-        expect(onSubmit).toHaveBeenCalledWith(
-            'Period: November 2022\nMetrics: Margin',
-        );
+        expect(onSubmit).toHaveBeenCalledWith({
+            text: 'Period: November 2022\nMetrics: Margin',
+            typedAnswerCount: 1,
+        });
     });
 });
