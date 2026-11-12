@@ -399,6 +399,28 @@ describe('getComposerMergeSavedChart', () => {
             ),
         ],
         [
+            'a join key part has no field on the first source',
+            artifact(
+                [
+                    orders,
+                    payments,
+                    {
+                        ...twoSourceMerge,
+                        joinKey: [
+                            {
+                                name: 'month',
+                                fieldIdBySourceId: {
+                                    payments_monthly: 'payments_payment_month',
+                                },
+                            },
+                        ],
+                    },
+                ],
+                'orders_vs_payments',
+                null,
+            ),
+        ],
+        [
             'the chart is a custom chart type',
             artifact([orders, payments, twoSourceMerge], 'orders_vs_payments', {
                 type: 'custom',
