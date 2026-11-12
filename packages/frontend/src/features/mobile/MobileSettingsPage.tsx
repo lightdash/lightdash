@@ -36,11 +36,13 @@ import { SettingsPage } from '../../components/common/Settings/SettingsPage';
 import useHealth from '../../hooks/health/useHealth';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
+import { CloudMobileSignInView } from './CloudMobileSignInView';
 import { getHost } from './mobileFormat';
 import classes from './MobileSettingsPage.module.css';
 import { MobileSignInStep } from './MobileSignInStep';
 import { MOBILE_STRINGS } from './mobileStrings';
 import { StoreBadges } from './StoreBadges';
+import { useCloudMobileSetup } from './useCloudMobileSetup';
 import { useMobileAppLink } from './useMobileAppLink';
 import {
     useMobileSignInCode,
@@ -335,14 +337,21 @@ export const MobileSettingsPage: FC = () => {
     const { data: health } = useHealth();
     const host = getHost(health?.siteUrl);
     const [hasApp, setHasApp] = useState(false);
-    const appLink = useMobileAppLink({ isPaused: hasApp });
+    const isCloudMobileSetup = useCloudMobileSetup();
+    const appLink = useMobileAppLink({
+        isPaused: hasApp || isCloudMobileSetup !== false,
+    });
     const { data: qrSignInFlag } = useServerFeatureFlag(
         FeatureFlags.MobileQrSignIn,
     );
 
+    if (isCloudMobileSetup === null) return null;
+
     return (
         <SettingsPage title={MOBILE_STRINGS.pageTitle}>
-            {qrSignInFlag?.enabled ? (
+            {isCloudMobileSetup ? (
+                <CloudMobileSignInView host={host} />
+            ) : qrSignInFlag?.enabled ? (
                 <SignInStepsView
                     host={host}
                     appLink={appLink}

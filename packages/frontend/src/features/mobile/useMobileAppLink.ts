@@ -95,7 +95,13 @@ export const useMobileAppLink = ({
     const { mutate, isLoading: isMinting } = mint;
     const firedScheduleId = useRef<number | null>(null);
     useEffect(() => {
-        if (!isVisible || isScanned || isMinting || schedule === null) {
+        if (
+            !isVisible ||
+            isScanned ||
+            isMinting ||
+            isPaused ||
+            schedule === null
+        ) {
             return undefined;
         }
         const fire = () => {
@@ -110,7 +116,7 @@ export const useMobileAppLink = ({
         }
         const timer = window.setTimeout(fire, delay);
         return () => window.clearTimeout(timer);
-    }, [isVisible, isScanned, isMinting, schedule, mutate]);
+    }, [isVisible, isScanned, isMinting, isPaused, schedule, mutate]);
 
     return {
         link,
