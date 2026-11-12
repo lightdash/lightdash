@@ -138,6 +138,7 @@ import { ReleaseHighlightsService } from './services/ReleaseHighlightsService/Re
 import { RoadmapService } from './services/RoadmapService/RoadmapService';
 import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import { ScimService } from './services/ScimService/ScimService';
+import { RepoModelSource } from './services/SemanticStudioService/repoModels';
 import { SemanticStudioService } from './services/SemanticStudioService/SemanticStudioService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
 import { CommercialSlackService } from './services/SlackService/SlackService';
@@ -427,6 +428,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getProjectModelDocumentModel<ProjectModelDocumentModel>(),
                     projectService: repository.getProjectService(),
                     validationService: repository.getValidationService(),
+                    repoModels: new RepoModelSource({
+                        githubAppInstallationsModel:
+                            models.getGithubAppInstallationsModel(),
+                    }),
                 }),
             homepageRecommendedActionSkipsService: ({ models }) =>
                 new HomepageRecommendedActionSkipsService({

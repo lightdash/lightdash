@@ -6,9 +6,13 @@ import { type ApiSuccess } from './api/success';
 import { type UUID } from './api/uuid';
 import { type Explore } from './explore';
 
+export type SemanticLayerApplyMode = 'live' | 'pull_request';
+
 export type SemanticLayerStatus = {
     /** Whether this person can change this project's models from the server. */
     enabled: boolean;
+    /** What applying a draft does: `live` writes the models here, `pull_request` sends them to the project's repository. */
+    appliesAs: SemanticLayerApplyMode;
 };
 
 export type ApiSemanticLayerStatusResponse = ApiSuccess<SemanticLayerStatus>;
@@ -95,6 +99,8 @@ export type SemanticLayerDraftModel = {
 export type SemanticLayerSettledDraftChange = {
     draftChangeUuid: string;
     status: 'applied' | 'discarded' | 'undone';
+    /** The pull request an applied change was sent as; null when it went live on the server. */
+    pullRequestUrl: string | null;
 };
 
 export type SemanticLayerDraft = {
@@ -113,6 +119,8 @@ export type SemanticLayerDraftApplyResult = {
     exploreCount: number | null;
     /** A draft applies whole, so any failure leaves it as it was. */
     failures: { model: string; error: string }[];
+    /** The pull request the draft was sent as, for a project whose models live in a repository; null otherwise. */
+    pullRequestUrl: string | null;
 };
 
 export type ApiSemanticLayerDraftApplyResponse =

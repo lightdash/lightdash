@@ -39,6 +39,7 @@ import classes from './ModelTabs.module.css';
 import {
     useSemanticLayerDraft,
     useSemanticLayerModel,
+    useAppliesAsPullRequest,
     useUndoSemanticLayerChanges,
 } from './useSemanticLayerModel';
 
@@ -247,9 +248,11 @@ export const ModelTabs: FC<{
     fields: ReactNode;
 }> = ({ projectUuid, modelName, fields }) => {
     const { data: model } = useSemanticLayerModel(projectUuid, modelName);
+    // A repository keeps its own history.
+    const asPullRequest = useAppliesAsPullRequest(projectUuid);
     const [searchParams, setSearchParams] = useSearchParams();
     const view =
-        model && searchParams.get(VIEW_PARAM) === 'history'
+        model && !asPullRequest && searchParams.get(VIEW_PARAM) === 'history'
             ? 'history'
             : 'fields';
     return (
@@ -263,7 +266,7 @@ export const ModelTabs: FC<{
                 )
             }
         >
-            {model ? (
+            {model && !asPullRequest ? (
                 <Tabs.List mb="md">
                     <Tabs.Tab value="fields">Fields</Tabs.Tab>
                     <Tabs.Tab value="history">History</Tabs.Tab>

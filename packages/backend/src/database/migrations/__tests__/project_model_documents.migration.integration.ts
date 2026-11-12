@@ -8,6 +8,7 @@ import {
     type MigratedDatabase,
 } from '../../../testing/migratedDatabase';
 import { down, up } from '../20261110100000_create_project_model_documents';
+import { up as addPullRequestUrl } from '../20261111130000_add_pull_request_url_to_project_model_draft_changes';
 
 describe('Project model documents on PostgreSQL', () => {
     let migrated: MigratedDatabase;
@@ -111,6 +112,7 @@ describe('Project model documents on PostgreSQL', () => {
             await database.schema.hasTable('project_model_draft_changes'),
         ).toBe(false);
         await database.transaction(up);
+        await database.transaction(addPullRequestUrl);
         expect(await database.schema.hasTable('project_model_revisions')).toBe(
             true,
         );
@@ -291,12 +293,32 @@ describe('Project model documents on PostgreSQL', () => {
             userUuid,
             drafts: { changeUuids: [draftChangeUuid], model: 'customers' },
             status: 'discarded',
+            pullRequestUrl: null,
         });
         expect(settled).toBe(1);
         expect(await draftedModels()).toEqual([['orders']]);
         expect(
             await model.findSettledDraftChanges(projectUuid, userUuid),
         ).toEqual([expect.objectContaining({ status: 'discarded' })]);
+    });
+
+    test('a draft applied as a pull request keeps the link', async () => {
+        const drafts = { changeUuids: [await draft(['orders'])], model: null };
+        await model.updateDraftChangeStatus({
+            projectUuid,
+            userUuid,
+            drafts,
+            status: 'applied',
+            pullRequestUrl: 'https://github.example/acme/analytics/pull/1',
+        });
+        expect(
+            await model.findSettledDraftChanges(projectUuid, userUuid),
+        ).toEqual([
+            expect.objectContaining({
+                status: 'applied',
+                pullRequestUrl: 'https://github.example/acme/analytics/pull/1',
+            }),
+        ]);
     });
 
     test('a commit takes one model of a draft change live, and a failed deploy leaves the draft whole', async () => {
@@ -329,6 +351,7 @@ describe('Project model documents on PostgreSQL', () => {
             userUuid,
             drafts,
             status: 'discarded',
+            pullRequestUrl: null,
         });
         await expect(
             apply(new Map(), [{ name: 'orders', content: 'v1' }], { drafts }),

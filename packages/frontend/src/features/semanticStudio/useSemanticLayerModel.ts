@@ -49,14 +49,21 @@ const useGet = <T extends ApiResponse['results']>(
     });
 };
 
-/** Whether this person can change this project's models from the server. */
-export const useCanEditSemanticLayer = (projectUuid: string): boolean =>
+const useStatus = (projectUuid: string) =>
     useGet<SemanticLayerStatus>(
         ['semantic-layer-status', projectUuid],
         projectUuid,
         '/status',
         true,
-    ).data?.enabled === true;
+    ).data;
+
+/** Whether this person can change this project's models here. */
+export const useCanEditSemanticLayer = (projectUuid: string): boolean =>
+    useStatus(projectUuid)?.enabled === true;
+
+/** Whether applying a draft opens a pull request on the project's repository instead of going live. */
+export const useAppliesAsPullRequest = (projectUuid: string): boolean =>
+    useStatus(projectUuid)?.appliesAs === 'pull_request';
 
 /** A model's YAML and history; null when the project keeps no such model or this person cannot change it. */
 export const useSemanticLayerModel = (projectUuid: string, modelName: string) =>
