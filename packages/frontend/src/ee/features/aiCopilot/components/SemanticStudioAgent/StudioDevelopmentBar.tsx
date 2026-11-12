@@ -57,35 +57,41 @@ export const StudioDevelopmentBar: FC<{
             }
         >
             {previewProjectUuid ? (
-                <>
-                    <Tooltip label="Open the preview project built from this pull request">
-                        <ActionIcon
-                            component={Link}
-                            to={`/projects/${previewProjectUuid}/semantic-layer`}
-                            target="_blank"
-                            aria-label="Open the preview project"
-                        >
-                            <MantineIcon icon={IconExternalLink} />
-                        </ActionIcon>
-                    </Tooltip>
-                    <Tooltip label="Explore and your charts read the pull request's models. Only you see them.">
-                        <Button
-                            size="xs"
-                            variant="default"
-                            leftSection={
-                                <MantineIcon
-                                    icon={isTrying ? IconEyeOff : IconEye}
-                                    size={14}
-                                />
-                            }
-                            onClick={() =>
-                                setIsTrying(!isTrying, previewProjectUuid)
-                            }
-                        >
-                            {isTrying ? 'Back to live' : 'Try my changes'}
-                        </Button>
-                    </Tooltip>
-                </>
+                <Tooltip label="Open the preview project built from this pull request">
+                    <ActionIcon
+                        component={Link}
+                        to={`/projects/${previewProjectUuid}/semantic-layer`}
+                        target="_blank"
+                        aria-label="Open the preview project"
+                    >
+                        <MantineIcon icon={IconExternalLink} />
+                    </ActionIcon>
+                </Tooltip>
+            ) : null}
+            {previewProjectUuid || pullRequest.isOpen ? (
+                <Tooltip
+                    label={
+                        previewProjectUuid
+                            ? "Explore and your charts read the pull request's models. Only you see them."
+                            : 'Explore and your charts read your latest change. Only you see them. New models can be tried once the preview is built.'
+                    }
+                >
+                    <Button
+                        size="xs"
+                        variant="default"
+                        leftSection={
+                            <MantineIcon
+                                icon={isTrying ? IconEyeOff : IconEye}
+                                size={14}
+                            />
+                        }
+                        onClick={() =>
+                            setIsTrying(!isTrying, previewProjectUuid)
+                        }
+                    >
+                        {isTrying ? 'Back to live' : 'Try my changes'}
+                    </Button>
+                </Tooltip>
             ) : null}
             <Button
                 size="xs"
