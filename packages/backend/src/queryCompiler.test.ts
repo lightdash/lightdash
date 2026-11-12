@@ -8,6 +8,7 @@ import {
     FieldType,
     FilterOperator,
     MetricType,
+    SupportedDbtAdapter,
     TableCalculation,
     TableCalculationTemplateType,
     UnitOfTime,
@@ -1692,6 +1693,46 @@ describe('compilePostCalculationMetric', () => {
         expect(result).toBe(
             '(CAST("metric" AS FLOAT) / CAST(NULLIF(LAG("metric") OVER(PARTITION BY "employee"ORDER BY "week"), 0) AS FLOAT)) - 1',
         );
+    });
+
+    test.each([
+        {
+            adapter: SupportedDbtAdapter.POSTGRES,
+            fieldQuoteChar: '"',
+            reference: 'Team "West"',
+            quotedReference: '"Team ""West"""',
+        },
+        {
+            adapter: SupportedDbtAdapter.BIGQUERY,
+            fieldQuoteChar: '`',
+            reference: 'Team `West`',
+            quotedReference: '`Team \\`West\\``',
+        },
+    ])('quotes pivot partition references for $adapter', (fixture) => {
+        const { adapter, fieldQuoteChar, reference, quotedReference } = fixture;
+        const warehouseSqlBuilder = {
+            ...warehouseClientMock,
+            getAdapterType: () => adapter,
+            getFieldQuoteChar: () => fieldQuoteChar,
+        };
+        const pivotConfiguration: PivotConfiguration = {
+            ...pivotedConfig,
+            indexColumn: { reference, type: VizIndexType.CATEGORY },
+            groupByColumns: [{ reference }],
+        };
+
+        for (const type of [
+            MetricType.RUNNING_TOTAL,
+            MetricType.PERCENT_OF_TOTAL,
+        ]) {
+            const result = compilePostCalculationMetric({
+                warehouseSqlBuilder,
+                type,
+                sql: `${fieldQuoteChar}metric${fieldQuoteChar}`,
+                pivotConfiguration,
+            });
+            expect(result).toContain(`PARTITION BY ${quotedReference}`);
+        }
     });
 });
 
