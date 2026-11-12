@@ -3,6 +3,7 @@ import type { EmbedConfigState } from '../hooks/useEmbedConfig';
 import { AiAgentExamplePage } from './AiAgentExamplePage';
 import { ChartExamplePage } from './ChartExamplePage';
 import { ContentCatalogExamplePage } from './ContentCatalogExamplePage';
+import { DashboardAiAgentExamplePage } from './DashboardAiAgentExamplePage';
 import { DashboardBuilderExamplePage } from './DashboardBuilderExamplePage';
 import { ErrorHandlingExamplePage } from './ErrorHandlingExamplePage';
 import { ExploreFromHereExamplePage } from './ExploreFromHereExamplePage';
@@ -33,6 +34,16 @@ export const examples: ExampleDefinition[] = [
             'Embed an AI agent using an AI-agent embed token scoped to the configured write space.',
         sourcePath: 'packages/sdk-test-app/src/examples/AiAgentExamplePage.tsx',
         component: AiAgentExamplePage,
+    },
+    {
+        slug: 'dashboard-ai-agent',
+        path: '/examples/dashboard-ai-agent',
+        title: 'Dashboard with AI agent demo',
+        description:
+            'An AI agent bound to the dashboard next to it, answering with the filters and tab on screen.',
+        sourcePath:
+            'packages/sdk-test-app/src/examples/DashboardAiAgentExamplePage.tsx',
+        component: DashboardAiAgentExamplePage,
     },
     {
         slug: 'metrics-catalog',

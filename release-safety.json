@@ -1,14 +1,25 @@
 {
   "schemaVersion": "2",
-  "version": "3.214.1",
-  "previousVersion": "3.214.0",
-  "releaseDate": "2026-11-11T15:57:22.883Z",
+  "version": "3.231.0",
+  "previousVersion": "3.230.0",
+  "releaseDate": "2026-11-12T13:06:15.587Z",
   "migrations": {
-    "present": false,
-    "count": 0,
-    "coreCount": 0,
+    "present": true,
+    "count": 1,
+    "coreCount": 1,
     "eeCount": 0,
-    "files": []
+    "files": [
+      {
+        "name": "20261112120000_grant_merge_query_scope_to_explore_roles.ts",
+        "edition": "core",
+        "tables": [],
+        "heaviness": {
+          "locksTable": false,
+          "rewritesTable": false,
+          "scansTable": true
+        }
+      }
+    ]
   },
   "compatibility": {
     "rollingUpdateSafe": true,

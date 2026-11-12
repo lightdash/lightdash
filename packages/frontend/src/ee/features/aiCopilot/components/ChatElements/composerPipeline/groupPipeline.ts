@@ -48,6 +48,8 @@ export const nodeTypeLabelOf = (query: SourceQuery): string => {
             return LIVE_DATA_SOURCE_LABEL;
         case QuerySourceType.DUCKDB:
             return 'DuckDB';
+        case QuerySourceType.MERGE:
+            return 'Merge';
         default:
             return assertUnreachable(query, 'Unknown source type');
     }

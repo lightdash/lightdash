@@ -4,6 +4,7 @@ import {
     DimensionType,
     FeatureFlags,
     ForbiddenError,
+    MergeJoinType,
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
@@ -282,6 +283,46 @@ describe('QuerySourceService', () => {
     });
 
     describe('executeSourceQueries submission', () => {
+        it('refuses a query its source rejects before submitting any node', async () => {
+            const fakes = createRegistryWithFakes();
+            const validateQuery = vi
+                .fn()
+                .mockRejectedValue(new ParameterError('refused'));
+            fakes.registry.register({
+                ...createFakeSource(QuerySourceType.MERGE),
+                getQueryReferences: () => ['orders'],
+                validateQuery,
+            });
+            const { service } = createService(fakes.registry);
+
+            await expect(
+                service.executeSourceQueries({
+                    ...executionContext,
+                    account,
+                    projectUuid,
+                    queries: [
+                        {
+                            nodeId: 'orders',
+                            sourceType: QuerySourceType.SEMANTIC_LAYER,
+                            exploreName: 'orders',
+                            dimensions: [],
+                            metrics: [],
+                        },
+                        {
+                            sourceType: QuerySourceType.MERGE,
+                            sources: [{ nodeId: 'orders' }],
+                            joinKey: [],
+                            joinType: MergeJoinType.FULL,
+                        },
+                    ],
+                    context: QueryExecutionContext.MULTI_SOURCE_QUERY,
+                }),
+            ).rejects.toThrow('refused');
+            expect(
+                fakes.semanticLayerSource.submitQuery,
+            ).not.toHaveBeenCalled();
+        });
+
         it('submits a single query and generates a node id', async () => {
             const fakes = createRegistryWithFakes();
             const { service } = createService(fakes.registry);
@@ -534,6 +575,7 @@ describe('QuerySourceService', () => {
                 context: QueryExecutionContext.MULTI_SOURCE_QUERY,
                 query: { sourceType: QuerySourceType.SQL, sql: 'SELECT 1' },
                 resolvedReferences: {},
+                submission: [],
                 parameters: {},
                 userAttributeOverrides: {},
                 invalidateCache: false,

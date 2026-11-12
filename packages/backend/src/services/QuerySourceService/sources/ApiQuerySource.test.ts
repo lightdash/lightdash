@@ -61,6 +61,7 @@ const submitArgs = (query: ApiSourceQuery): SubmitSourceQueryArgs => ({
     context: QueryExecutionContext.AI,
     query,
     resolvedReferences: {},
+    submission: [],
     parameters: {},
     userAttributeOverrides: {},
     invalidateCache: false,

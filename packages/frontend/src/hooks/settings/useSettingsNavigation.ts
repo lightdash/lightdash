@@ -105,7 +105,6 @@ export const useSettingsNavigation = (
         dataAppsFlag,
         isChartStudioAvailable,
         isApiQuerySourcesEnabled,
-        externalSourcesFlag,
         isMobileSettingsEnabled,
         isResultsCacheAvailable,
         isGitProject,
@@ -117,8 +116,7 @@ export const useSettingsNavigation = (
     const isScimEnabled = isScimTokenManagementEnabled?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
     const isExternalSourcesEnabled =
-        (externalSourcesFlag?.enabled ?? false) &&
-        (health?.externalSources.engineAvailable ?? false);
+        health?.externalSources.engineAvailable ?? false;
 
     return useMemo<SettingsNavigationSection[]>(() => {
         const ability = user?.ability;

@@ -66,6 +66,7 @@ describe('moving a pill on the bar', () => {
         const store = createDashboardTestStore({ dashboardFilters: filters });
         const fields = [field('status'), field('region')];
         mockDashboardContext.current = {
+            setDateZoomGranularity: vi.fn(),
             dashboard: { uuid: 'dashboard-1', filters, tiles: [] },
             dashboardTiles: [
                 {
@@ -154,6 +155,7 @@ describe('moving a pill on the bar', () => {
                 properties: {},
             }) as DashboardTile;
         mockDashboardContext.current = {
+            setDateZoomGranularity: vi.fn(),
             dashboard: { uuid: 'dashboard-1', filters: tabbed, tiles: [] },
             dashboardTiles: [
                 onTab('tile-1', 'tab-1'),

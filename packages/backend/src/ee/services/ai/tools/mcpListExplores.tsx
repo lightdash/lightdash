@@ -81,6 +81,10 @@ const renderExplore = (explore: Explore) => {
             type={explore.apiSource ? 'liveDataSource' : undefined}
         >
             {explore.apiSource && renderLiveDataSource(explore.apiSource)}
+            {explore.apiSource &&
+                [explore.aiHint ?? []]
+                    .flat()
+                    .map((hint) => <aiHint>{hint}</aiHint>)}
             {explore.tags && explore.tags.length > 0 && (
                 <tags>
                     {explore.tags.map((tag) => (

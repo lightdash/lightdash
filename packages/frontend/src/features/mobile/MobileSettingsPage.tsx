@@ -262,7 +262,7 @@ const SignInStepsView: FC<SignInStepsViewProps> = ({
     const { link, isScanned, hasFailed, retry } = appLink;
     const { user } = useApp();
     const isStepOneDone = isScanned || hasApp;
-    const signIn = useMobileSignInCode();
+    const signIn = useMobileSignInCode({ autoShow: isStepOneDone });
 
     const stepOneHeading = useRef<HTMLHeadingElement>(null);
     const stepTwoHeading = useRef<HTMLHeadingElement>(null);

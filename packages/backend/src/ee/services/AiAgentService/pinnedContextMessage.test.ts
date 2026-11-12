@@ -33,8 +33,25 @@ describe('AiAgentService.createPinnedContextMessage review pins', () => {
             },
         ]);
         expect(content).toContain(
-            '- Dashboard "Executive dashboard" (dashboardSlug: exec-dashboard)',
+            '- Dashboard "Executive dashboard" (dashboardSlug: exec-dashboard)\n  As saved on the dashboard: filters, parameter values, date zoom',
         );
+    });
+
+    it('names only the view state that matches the saved dashboard', () => {
+        const content = buildMessage([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'exec-dashboard',
+                displayName: 'Executive dashboard',
+                pinnedVersionUuid: null,
+                runtimeOverrides: {
+                    dashboardParameters: { region: 'EU' },
+                    dateZoom: null,
+                },
+            },
+        ]);
+        expect(content).toContain('As saved on the dashboard: filters\n');
     });
 
     it('renders the active dashboard tab name without its uuid', () => {

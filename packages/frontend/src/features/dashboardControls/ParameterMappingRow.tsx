@@ -1,19 +1,10 @@
-import { ActionIcon, Box, Button, Group, Text, Tooltip } from '@mantine/core';
-import { IconAdjustmentsHorizontal, IconArrowLeft } from '@tabler/icons-react';
+import { Button, Text } from '@mantine/core';
+import { IconAdjustmentsHorizontal } from '@tabler/icons-react';
 import { type FC } from 'react';
-import MantineIcon from '../../components/common/MantineIcon';
-import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import { selectDashboardTiles, useDashboardSelector } from '../dashboard/store';
-import filterClasses from '../dashboardFilters/ActiveFilters/Filter.module.css';
-import { formatTilesOf } from './fieldLabels';
-import {
-    chipMarker,
-    findFieldBarStart,
-    focusOnMount,
-    mappingRowMarker,
-} from './mappingFocus';
+import { ControlMappingRow } from './ControlMappingRow';
+import { chipMarker, findFieldBarStart } from './mappingFocus';
 import classes from './MappingRow.module.css';
-import { useRailContractClasses } from './railContractClasses';
 import { useParameterEditorSelector } from './useParameterEditor';
 import {
     useParameterMapping,
@@ -62,8 +53,10 @@ const KeyChip: FC<{
     );
 };
 
-const MappingRowContent: FC<{ mapping: ParameterMapping }> = ({ mapping }) => {
-    const getUiString = useUiStrings();
+// In the bar's place while a parameter control's tiles are chosen, as the
+// filter's mapping row: back, the open pill, its count, a chip per parameter
+export const ParameterMappingRow: FC = () => {
+    const mapping = useParameterMapping();
     const selectedKey = useParameterEditorSelector((c) => c.selectedKey);
     const selectKey = useParameterEditorSelector((c) => c.selectKey);
     const endMapping = useParameterEditorSelector((c) => c.endMapping);
@@ -71,129 +64,41 @@ const MappingRowContent: FC<{ mapping: ParameterMapping }> = ({ mapping }) => {
     const apply = useParameterEditorSelector((c) => c.apply);
     const clearAllTiles = useParameterEditorSelector((c) => c.clearAllTiles);
     const tiles = useDashboardSelector(selectDashboardTiles);
-    const { control, name } = mapping;
-    const total = mapping.takeableTileUuids.length;
-    const format = (count: number) => {
-        const tilesOf = formatTilesOf(getUiString, count, total);
-        return `${tilesOf.count} ${tilesOf.noun}`;
-    };
-    const applied = mapping.setTileUuids.length;
-    const applyBlockedReason = null;
-
-    return (
-        <>
-            <Tooltip fz="xs" label="Back to parameter">
-                <ActionIcon
-                    variant="subtle"
-                    size="sm"
-                    aria-label="Back to parameter"
-                    onClick={endMapping}
-                >
-                    <MantineIcon icon={IconArrowLeft} />
-                </ActionIcon>
-            </Tooltip>
-            {/* The open pill names the control; it does nothing here */}
-            <Box inert className={classes.pill}>
-                <Button
-                    size="xs"
-                    variant="default"
-                    data-open
-                    data-in-effect={control.value !== null || undefined}
-                    classNames={{ label: filterClasses.label }}
-                    className={`${filterClasses.button} ${filterClasses.plain}`}
-                    leftSection={
-                        <MantineIcon
-                            icon={IconAdjustmentsHorizontal}
-                            size="sm"
-                            className={filterClasses.statusIcon}
-                        />
-                    }
-                >
-                    <Text span fz="xs" fw={600}>
-                        {name}
-                    </Text>
-                </Button>
-            </Box>
-            {/* One sentence: "[pill] sets 4 of 6 tiles through [chips]" */}
-            <Text fz="sm" className={classes.words}>
-                sets
-            </Text>
-            <Text
-                fz="sm"
-                fw={600}
-                className={classes.summary}
-                data-reserve={format(total)}
-                aria-live="polite"
-            >
-                <span>{format(applied)}</span>
-            </Text>
-            <Text fz="sm" className={classes.words}>
-                through
-            </Text>
-            {mapping.controlKeys.map((key) => (
-                <KeyChip
-                    key={key}
-                    mapping={mapping}
-                    parameterKey={key}
-                    isSelected={selectedKey === key}
-                    onClick={() => selectKey(selectedKey === key ? null : key)}
-                />
-            ))}
-            <Button
-                variant="subtle"
-                color="gray"
-                size="xs"
-                onClick={() =>
-                    clearAllTiles((tiles ?? []).map(({ uuid }) => uuid))
-                }
-            >
-                Clear all tiles
-            </Button>
-            <Group gap="xs" wrap="nowrap" className={classes.actions}>
-                <Button variant="default" size="xs" onClick={cancelMapping}>
-                    {getUiString('filters.actions.cancel')}
-                </Button>
-                <Tooltip
-                    fz="xs"
-                    label={applyBlockedReason}
-                    disabled={applyBlockedReason === null}
-                >
-                    <Box>
-                        <Button
-                            size="xs"
-                            data-controls-apply
-                            disabled={applyBlockedReason !== null}
-                            onClick={apply}
-                        >
-                            {getUiString('filters.apply')}
-                        </Button>
-                    </Box>
-                </Tooltip>
-            </Group>
-        </>
-    );
-};
-
-// In the bar's place while a parameter control's tiles are chosen, as the
-// filter's mapping row: back, the open pill, its count, a chip per parameter
-export const ParameterMappingRow: FC = () => {
-    const mapping = useParameterMapping();
-    const contractClasses = useRailContractClasses();
     if (mapping === null) return null;
     return (
-        <Group
-            className={
-                contractClasses === null
-                    ? classes.row
-                    : `${classes.row} ${contractClasses.rail}`
+        <ControlMappingRow
+            backLabel="Back to parameter"
+            onBack={endMapping}
+            icon={IconAdjustmentsHorizontal}
+            name={mapping.name}
+            isInEffect={mapping.control.value !== null}
+            verb="sets"
+            applied={mapping.appliedTileUuids.length}
+            total={mapping.takeableTileUuids.length}
+            // "[pill] sets 4 of 6 tiles through [chips]"
+            afterCount={
+                <>
+                    <Text fz="sm" className={classes.words}>
+                        through
+                    </Text>
+                    {mapping.controlKeys.map((key) => (
+                        <KeyChip
+                            key={key}
+                            mapping={mapping}
+                            parameterKey={key}
+                            isSelected={selectedKey === key}
+                            onClick={() =>
+                                selectKey(selectedKey === key ? null : key)
+                            }
+                        />
+                    ))}
+                </>
             }
-            gap="xs"
-            tabIndex={-1}
-            ref={focusOnMount}
-            data-controls-editor
-            {...mappingRowMarker}
-        >
-            <MappingRowContent mapping={mapping} />
-        </Group>
+            onClearAll={() =>
+                clearAllTiles((tiles ?? []).map(({ uuid }) => uuid))
+            }
+            onCancel={cancelMapping}
+            onApply={apply}
+        />
     );
 };

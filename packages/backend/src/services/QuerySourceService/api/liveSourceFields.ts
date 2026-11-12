@@ -49,6 +49,8 @@ export type LiveSourceFieldState = {
     lastScan: LiveSourceScan | null;
     /** Absent until the source's first build under curation. */
     fields: LiveSourceFieldEdits | null;
+    aiHint: string | null;
+    targetLabel: string | null;
 };
 
 const fieldDefinitionSchema = z.object({
@@ -85,6 +87,8 @@ const editorSchema = z.object({
 });
 
 const fieldStateSchema = z.object({
+    aiHint: z.string().nullish().catch(null),
+    targetLabel: z.string().nullish().catch(null),
     lastScan: z
         .object({
             scannedAt: z.string(),
@@ -112,11 +116,18 @@ export const parseLiveSourceFieldState = (
 ): LiveSourceFieldState => {
     const parsed = fieldStateSchema.safeParse(apiSource);
     if (!parsed.success) {
-        return { lastScan: null, fields: null };
+        return {
+            lastScan: null,
+            fields: null,
+            aiHint: null,
+            targetLabel: null,
+        };
     }
     return {
         lastScan: parsed.data.lastScan ?? null,
         fields: parsed.data.fields ?? null,
+        aiHint: parsed.data.aiHint ?? null,
+        targetLabel: parsed.data.targetLabel ?? null,
     };
 };
 

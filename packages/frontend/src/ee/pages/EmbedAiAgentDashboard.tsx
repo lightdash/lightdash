@@ -36,7 +36,10 @@ const EmbedAiAgentDashboardPage: FC = () => {
                     </Button>
                 </Group>
             )}
-            <EmbedDashboardPage containerStyles={DASHBOARD_CONTAINER_STYLES} />
+            <EmbedDashboardPage
+                containerStyles={DASHBOARD_CONTAINER_STYLES}
+                sharesViewWithAiAgent={false}
+            />
         </Stack>
     );
 };

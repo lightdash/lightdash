@@ -28,6 +28,7 @@ type Props = {
     agents: AiAgentSummary[];
     agentsUpdatedAt: number;
     selectedAgent: LauncherSelectedAgent;
+    showAskAiLabel: boolean;
 };
 
 export const LauncherDock: FC<Props> = ({
@@ -35,6 +36,7 @@ export const LauncherDock: FC<Props> = ({
     agents,
     agentsUpdatedAt,
     selectedAgent,
+    showAskAiLabel,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
     const { abort } = useAiAgentThreadStreamAbortController();
@@ -155,10 +157,13 @@ export const LauncherDock: FC<Props> = ({
                     type="button"
                     title="Ask AI Agent"
                     aria-label="Ask AI Agent"
-                    className={`${styles.dockTab} ${styles.dockIconTab} ${isPanelOpen && view === 'chat' && !activeThreadId ? styles.dockTabActive : ''}`}
+                    className={`${styles.dockTab} ${showAskAiLabel ? '' : styles.dockIconTab} ${isPanelOpen && view === 'chat' && !activeThreadId ? styles.dockTabActive : ''}`}
                     onClick={handleNewThread}
                 >
                     <AiAgentIcon size={16} />
+                    {showAskAiLabel && (
+                        <span className={styles.dockTabTitle}>Ask AI</span>
+                    )}
                 </Box>
             )}
         </Box>

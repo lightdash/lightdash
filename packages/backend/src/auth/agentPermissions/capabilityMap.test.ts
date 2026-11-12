@@ -292,6 +292,7 @@ it('covers common agent definitions and all runtime variants without stale entri
     const variants: Partial<AiAgentArgs>[] = [
         {},
         { enableComposerQueries: true },
+        { enableAskUser: true },
         { enableContentTools: false },
         { isSemanticStudioThread: true, semanticStudioDrafts: true },
         { isSemanticStudioThread: true, semanticStudioDrafts: false },
