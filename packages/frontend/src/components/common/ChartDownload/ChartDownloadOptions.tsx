@@ -3,10 +3,10 @@ import {
     ActionIcon,
     Button,
     Group,
+    Input,
     SegmentedControl,
     Select,
     Stack,
-    Text,
     Tooltip,
 } from '@mantine/core';
 import { IconCheck, IconCopy, IconDownload } from '@tabler/icons-react';
@@ -228,11 +228,11 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
     }, [getChartInstance, isBackgroundTransparent, showToastError]);
 
     return (
-        <Stack>
-            <Text fw={500}>Options</Text>
+        <Stack gap="sm">
             <Select
                 size="xs"
                 id="download-type"
+                label="Format"
                 value={type}
                 onChange={(value) => setType(value as DownloadType)}
                 allowDeselect={false}
@@ -248,26 +248,40 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                     }))}
             />
             {type === DownloadType.PNG && (
-                <SegmentedControl
-                    size="xs"
-                    id="background-transparency"
-                    value={isBackgroundTransparent ? 'Transparent' : 'Opaque'}
-                    onChange={(value) =>
-                        setIsBackgroundTransparent(value === 'Transparent')
-                    }
-                    data={[
-                        { value: 'Opaque', label: 'Opaque' },
-                        { value: 'Transparent', label: 'Transparent' },
-                    ]}
-                />
+                <Input.Wrapper size="xs" label="Background">
+                    <SegmentedControl
+                        size="xs"
+                        fullWidth
+                        id="background-transparency"
+                        value={
+                            isBackgroundTransparent ? 'Transparent' : 'Opaque'
+                        }
+                        onChange={(value) =>
+                            setIsBackgroundTransparent(value === 'Transparent')
+                        }
+                        data={[
+                            { value: 'Opaque', label: 'Opaque' },
+                            { value: 'Transparent', label: 'Transparent' },
+                        ]}
+                    />
+                </Input.Wrapper>
             )}
-            <Group gap="xs" justify="flex-end">
+            <Group gap="xs" wrap="nowrap">
+                <Button
+                    flex={1}
+                    size="xs"
+                    leftSection={<MantineIcon icon={IconDownload} />}
+                    onClick={onDownload}
+                >
+                    Download {type}
+                </Button>
                 <Tooltip
                     color={isCopied ? 'teal' : undefined}
                     label={isCopied ? 'Copied!' : 'Copy to clipboard'}
                 >
                     <ActionIcon
                         size="md"
+                        aria-label="Copy chart image to clipboard"
                         onClick={onCopyToClipboard}
                         variant="default"
                     >
@@ -277,13 +291,6 @@ const ChartDownloadOptions: React.FC<DownloadOptions> = ({
                         />
                     </ActionIcon>
                 </Tooltip>
-                <Button
-                    size="xs"
-                    leftSection={<MantineIcon icon={IconDownload} />}
-                    onClick={onDownload}
-                >
-                    Download
-                </Button>
             </Group>
         </Stack>
     );

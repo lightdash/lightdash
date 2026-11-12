@@ -1,0 +1,48 @@
+/* One quiet panel: a heading, then the questions as rows split by hairlines */
+.card {
+    width: 300px;
+    padding: 14px 14px 6px;
+    background-color: var(--mantine-color-ldGray-0);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-lg);
+}
+
+.list {
+    margin: 10px -8px 0;
+}
+
+.question {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px;
+    border-radius: var(--mantine-radius-sm);
+    transition: background-color 120ms ease;
+}
+
+.question + .question {
+    box-shadow: 0 -1px 0 var(--mantine-color-default-border);
+}
+
+.question:hover {
+    background-color: var(--mantine-color-default-hover);
+    box-shadow: none;
+}
+
+.question:hover + .question {
+    box-shadow: none;
+}
+
+/* The arrow only shows on the row being pointed at */
+.arrow {
+    flex-shrink: 0;
+    color: var(--mantine-color-dimmed);
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.question:hover .arrow,
+.question:focus-visible .arrow {
+    opacity: 1;
+}

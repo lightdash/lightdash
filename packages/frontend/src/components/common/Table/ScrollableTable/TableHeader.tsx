@@ -1,4 +1,4 @@
-import { isField, isTableCalculation } from '@lightdash/common';
+import { isField, isNumericItem, isTableCalculation } from '@lightdash/common';
 import { Tooltip } from '@mantine/core';
 import { flexRender } from '@tanstack/react-table';
 import { isEqual } from 'es-toolkit/compat';
@@ -119,6 +119,9 @@ const TableHeader: FC<TableHeaderProps> = ({
                                 w={meta?.width}
                                 bg={meta?.bgColor ?? 'ldGray.0'}
                                 className={meta?.className}
+                                data-numeric={
+                                    isNumericItem(meta?.item) || undefined
+                                }
                                 {...(meta?.item && isTableCalculation(meta.item)
                                     ? tableCalculationTourProps
                                     : {})}

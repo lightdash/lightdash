@@ -1,4 +1,4 @@
-import { Group, NavLink, Text } from '@mantine/core';
+import { NavLink, Text } from '@mantine/core';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { TableItemDetailPreview } from '../ItemDetailPreview';
@@ -19,14 +19,6 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
 }) => {
     const { table, isExpanded } = item.data;
     const [isHover, toggleHover] = useToggle(false);
-
-    // Matches what the tree renders: hidden fields are excluded
-    const fieldCount = useMemo(
-        () =>
-            Object.values(table.dimensions).filter((d) => !d.hidden).length +
-            Object.values(table.metrics).filter((m) => !m.hidden).length,
-        [table.dimensions, table.metrics],
-    );
 
     const tableMetadata = useMemo(
         () => ({
@@ -64,16 +56,9 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
             closePreview={handleMouseLeave}
             tableMetadata={tableMetadata}
         >
-            <Group gap="xs" wrap="nowrap">
-                <Text truncate fz="sm" fw={600}>
-                    {table.label}
-                </Text>
-                {!isExpanded && (
-                    <Text size="xs" c="dimmed" fw={400}>
-                        {fieldCount} {fieldCount === 1 ? 'field' : 'fields'}
-                    </Text>
-                )}
-            </Group>
+            <Text truncate fz={13} fw={600}>
+                {table.label}
+            </Text>
         </TableItemDetailPreview>
     );
 

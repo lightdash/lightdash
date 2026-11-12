@@ -9,7 +9,7 @@
 .scrollArea {
     flex: 1 1 auto;
     min-height: 0;
-    margin-right: -8px;
+    margin-right: calc(-0.5rem * var(--mantine-scale));
 }
 
 .scrollContent {
