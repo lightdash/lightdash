@@ -5,7 +5,7 @@ import {
 } from '../outputMetadata';
 
 export const TOOL_ASK_USER_DESCRIPTION =
-    'Ask the user to choose when their request has several reasonable readings that lead to different answers and neither the conversation nor your tools settle it (which date field, which revenue definition, which time period). When one reading is clearly most likely, answer with it and state the assumption instead. The user picks an option or types their own answer. Calling this tool ends your turn: write the question here rather than in your reply, and continue from the answers, which arrive as the next user message.';
+    'Ask the user a question with clickable options. Every question you ask the user that has 2-4 likely answers goes through this tool, including the ones your instructions tell you to ask (which explore, which definition, which time period). Calling it ends your turn: put each question here, and continue from the answers, which arrive as the next user message. List only real choices; the user can always type their own answer.';
 
 const askUserOptionSchema = z.object({
     label: z
