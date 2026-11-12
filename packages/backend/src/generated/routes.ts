@@ -28482,6 +28482,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                foldOverflowGroups: { dataType: 'boolean' },
                 pivotColumnsOrder: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'GroupByColumn' },
@@ -29542,6 +29543,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                isOtherGroup: { dataType: 'boolean' },
                 columnIndex: { dataType: 'double' },
                 pivotValues: {
                     dataType: 'array',

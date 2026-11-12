@@ -30178,6 +30178,10 @@
             },
             "PivotConfiguration": {
                 "properties": {
+                    "foldOverflowGroups": {
+                        "type": "boolean",
+                        "description": "When true, groups past the pivot column limit are not dropped. Their\nvalues are added up per row into one extra \"Other\" pivot column\n(`OTHER_PIVOT_KEY`), so anything summed across the groups, such as a\nstacked bar total, still covers the whole result. Only set for stacked\ncartesian charts whose values are all numeric."
+                    },
                     "pivotColumnsOrder": {
                         "items": {
                             "$ref": "#/components/schemas/GroupByColumn"
@@ -31336,6 +31340,10 @@
             },
             "PivotValuesColumn": {
                 "properties": {
+                    "isOtherGroup": {
+                        "type": "boolean",
+                        "description": "True on the column that holds several groups added together as \"Other\".\nClients identify the bucket by this flag, not by its label. Absent\nmeans false."
+                    },
                     "columnIndex": {
                         "type": "number",
                         "format": "double"
@@ -78348,7 +78356,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "3.234.2",
+        "version": "3.234.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Authenticate using the Authorization header with either 'ApiKey <personal-access-token>' or 'Bearer <service-account-token>'. Create a Personal Access Token by following this guide: https://docs.lightdash.com/references/personal_tokens Self-hosted provisioning can use the admin token configured with LD_SETUP_SERVICE_ACCOUNT_TOKEN to create scoped service accounts through the Service Accounts API.\n",
         "license": {
             "name": "MIT"

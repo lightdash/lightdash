@@ -1,3 +1,11 @@
+## [3.234.3](https://github.com/lightdash/lightdash/compare/3.234.2...3.234.3) (2026-11-12)
+
+
+### Bug Fixes
+
+* **dashboards:** align Markdown tile formatting ([#32485](https://github.com/lightdash/lightdash/issues/32485)) ([10d6820](https://github.com/lightdash/lightdash/commit/10d6820fcb65b90599e67cd5435a762137bf254b))
+* **pivot:** fold groups past the column limit into "Other" on stacked charts ([#32373](https://github.com/lightdash/lightdash/issues/32373)) ([a422260](https://github.com/lightdash/lightdash/commit/a4222607aa30b483f5ee21077a3ecbcca7d709ae))
+
 ## [3.234.2](https://github.com/lightdash/lightdash/compare/3.234.1...3.234.2) (2026-11-12)
 
 
