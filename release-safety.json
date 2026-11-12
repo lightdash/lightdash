@@ -1,39 +1,14 @@
 {
   "schemaVersion": "2",
-  "version": "3.232.0",
-  "previousVersion": "3.231.0",
-  "releaseDate": "2026-11-12T13:40:04.300Z",
+  "version": "3.233.0",
+  "previousVersion": "3.232.0",
+  "releaseDate": "2026-11-12T14:02:12.015Z",
   "migrations": {
-    "present": true,
-    "count": 2,
-    "coreCount": 2,
+    "present": false,
+    "count": 0,
+    "coreCount": 0,
     "eeCount": 0,
-    "files": [
-      {
-        "name": "20261111130000_add_pull_request_url_to_project_model_draft_changes.ts",
-        "edition": "core",
-        "tables": [
-          "project_model_draft_changes"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      },
-      {
-        "name": "20261111200000_add_base_versions_to_project_model_draft_changes.ts",
-        "edition": "core",
-        "tables": [
-          "project_model_draft_changes"
-        ],
-        "heaviness": {
-          "locksTable": true,
-          "rewritesTable": false,
-          "scansTable": false
-        }
-      }
-    ]
+    "files": []
   },
   "compatibility": {
     "rollingUpdateSafe": true,

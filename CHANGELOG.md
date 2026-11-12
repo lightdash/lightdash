@@ -1,3 +1,10 @@
+# [3.233.0](https://github.com/lightdash/lightdash/compare/3.232.0...3.233.0) (2026-11-12)
+
+
+### Features
+
+* **dashboard-controls:** one quiet Default zoom button in both modes ([#32473](https://github.com/lightdash/lightdash/issues/32473)) ([1f7e940](https://github.com/lightdash/lightdash/commit/1f7e9408a78f8f224ec6fe2bb0e7bc849eb5e728))
+
 # [3.232.0](https://github.com/lightdash/lightdash/compare/3.231.0...3.232.0) (2026-11-12)
 
 
