@@ -21,10 +21,10 @@ import {
     IconDots,
     IconExternalLink,
     IconEye,
-    IconEyeOff,
     IconGitPullRequest,
     IconTable,
     IconWorldUpload,
+    IconX,
 } from '@tabler/icons-react';
 import { countBy, sortBy, uniqBy } from 'es-toolkit/compat';
 import { useEffect, useRef, useState, type FC } from 'react';
@@ -378,20 +378,25 @@ const PreviewToggle: FC<{
     isPreviewing: boolean;
     onChange: (next: boolean) => void;
 }> = ({ isPreviewing, onChange }) => (
-    <Tooltip label="Explore and your charts read your changes. Only you see them.">
-        <Button
-            size="xs"
-            variant="default"
-            leftSection={
-                <MantineIcon
-                    icon={isPreviewing ? IconEyeOff : IconEye}
-                    size={14}
-                />
-            }
+    <Tooltip
+        multiline
+        w={240}
+        label={
+            isPreviewing
+                ? 'Back to live. Explore and your charts are reading your changes.'
+                : 'Try my changes. Explore and your charts read them, and only you see it.'
+        }
+    >
+        <ActionIcon
+            size="md"
+            variant={isPreviewing ? 'filled' : 'default'}
+            color={isPreviewing ? 'orange' : undefined}
+            aria-label={isPreviewing ? 'Back to live' : 'Try my changes'}
+            aria-pressed={isPreviewing}
             onClick={() => onChange(!isPreviewing)}
         >
-            {isPreviewing ? 'Back to live' : 'Try my changes'}
-        </Button>
+            <MantineIcon icon={IconEye} />
+        </ActionIcon>
     </Tooltip>
 );
 
@@ -479,17 +484,17 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                 isPreviewing={isPreviewing}
                 onChange={setIsPreviewing}
             />
-            <Button
-                size="xs"
-                variant="default"
-                onClick={() =>
-                    setSearchParams(
-                        reviewing ? {} : { [DRAFT_PARAM]: DRAFT_REVIEW },
-                    )
-                }
-            >
-                {reviewing ? 'Close review' : 'Review'}
-            </Button>
+            {reviewing ? null : (
+                <Button
+                    size="xs"
+                    variant="default"
+                    onClick={() =>
+                        setSearchParams({ [DRAFT_PARAM]: DRAFT_REVIEW })
+                    }
+                >
+                    Review
+                </Button>
+            )}
             {conflicts > 0 ? (
                 <Tooltip label="Someone published to a part you changed too. Choose which version to keep, then publish.">
                     <Button
@@ -538,7 +543,11 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
             ) : null}
             <Menu position="bottom-end" withinPortal>
                 <Menu.Target>
-                    <ActionIcon aria-label="More actions" variant="default">
+                    <ActionIcon
+                        size="md"
+                        aria-label="More actions"
+                        variant="default"
+                    >
                         <MantineIcon icon={IconDots} />
                     </ActionIcon>
                 </Menu.Target>
@@ -548,6 +557,17 @@ export const DraftDevelopmentBar: FC<{ projectUuid: string }> = ({
                     </Menu.Item>
                 </Menu.Dropdown>
             </Menu>
+            {reviewing ? (
+                <Tooltip label="Close review">
+                    <ActionIcon
+                        size="md"
+                        aria-label="Close review"
+                        onClick={() => setSearchParams({})}
+                    >
+                        <MantineIcon icon={IconX} />
+                    </ActionIcon>
+                </Tooltip>
+            ) : null}
             {discarding ? (
                 <MantineModal
                     opened
