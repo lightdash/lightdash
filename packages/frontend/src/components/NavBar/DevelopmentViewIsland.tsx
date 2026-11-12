@@ -6,24 +6,24 @@ import classes from './DevelopmentViewIsland.module.css';
 export const DevelopmentViewIsland = () => {
     const [, setIsOn] = useDevelopmentView();
     return (
-        <Box className={classes.island} role="status">
+        <Box className={classes.island}>
+            <Box className={classes.state} role="status">
+                <Box className={classes.pulse} />
+                Viewing my changes
+            </Box>
             <Tooltip
                 multiline
                 w={260}
                 position="top"
                 label="You are viewing this project with your unpublished changes. Nobody else sees them, and charts and dashboards cannot be saved in this view."
             >
-                <Box className={classes.state}>
-                    <Box className={classes.pulse} />
-                    Viewing my changes
-                </Box>
+                <UnstyledButton
+                    className={classes.exit}
+                    onClick={() => setIsOn(false)}
+                >
+                    Back to live
+                </UnstyledButton>
             </Tooltip>
-            <UnstyledButton
-                className={classes.exit}
-                onClick={() => setIsOn(false)}
-            >
-                Back to live
-            </UnstyledButton>
         </Box>
     );
 };
