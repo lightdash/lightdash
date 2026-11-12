@@ -252,4 +252,25 @@ describe('DashboardFiltersBar group markers and date zoom', () => {
             }),
         ).not.toBeInTheDocument();
     });
+
+    it('drops the rule before a replaced Default zoom, keeping it before the shipped one', () => {
+        const { unmount } = renderBar({
+            isEditMode: true,
+            isDateZoomDisabled: false,
+        });
+        const shippedRules = screen.getAllByRole('separator').length;
+        unmount();
+        renderBar({
+            isEditMode: true,
+            isDateZoomDisabled: false,
+            defaultZoom: <button type="button">Replaced zoom</button>,
+        });
+        expect(
+            screen.getByRole('button', { name: 'Replaced zoom' }),
+        ).toBeInTheDocument();
+        expect(screen.queryByTestId('date-zoom')).not.toBeInTheDocument();
+        expect(screen.queryAllByRole('separator')).toHaveLength(
+            shippedRules - 1,
+        );
+    });
 });

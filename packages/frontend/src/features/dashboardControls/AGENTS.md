@@ -74,10 +74,12 @@ Openings (optional props, defaults are today's behaviour):
   funnel, sliders or calendar circles; on the right, Default zoom alone,
   without the named zooms, "Add date zoom" or the eye, which are pills and
   "..." items on the bar), and `defaultZoom` (replaces the shipped Default
-  zoom on the right: in edit mode the controls bar passes
-  `DefaultZoomButton`).
+  zoom on the right and drops the rule before it: the controls bar passes
+  `DefaultZoomButton` in edit mode and a quiet `DateZoom` in view mode).
 - `dateZoom/DateZoom`: `withControls` (`false`: Default zoom alone, no
-  named zoom pills or "Add date zoom"; the embed's bar passes it too).
+  named zoom pills or "Add date zoom"; the embed's bar passes it too) and
+  `isQuiet` (the controls bar's viewer button, drawn as
+  `DefaultZoomButton`; default `false`: the bordered pill).
 - `DashboardFiltersBarSummary`: `dateZoomsCount` (default 0: no count).
 - `AddFilterButton`: `editModeAction`.
 - `FilterRequirements/FilterRequirementsButton`: `renderTarget` (must take a
@@ -149,7 +151,7 @@ Fix behaviour in the shared piece, once, never in a copy.
 | `SelectionBar.tsx`, `SelectionActions.tsx`, `barSelection.ts` | Multi-select on the sectioned bar |
 | `useEditorSession.ts`, `EditorFocusReturn.tsx`, `controlKinds.ts` | The parameter and date zoom editors' shared session: the pending question, open, Apply, Cancel, Escape, a press outside, another kind's pill, mode change, mapping steps, focus return; each kind's pill selectors |
 | `DateZoomEditorProvider.tsx`, `useDateZoomEditor.ts`, `dateZoomControls.ts` | The date zoom editor: named zooms and the default zoom, their draft, Apply, switching, mapping; every write to the date zoom config from the bar; pure config helpers |
-| `DateZoomPills.tsx`, `useDateZoomBar.ts` | Named zoom pills (in the order, sections, drag and selection); an editor's anchors its popover, a viewer's opens the shipped menu. `DefaultZoomButton`: an editor's Default zoom on the bar's right, anchoring its popover; viewers keep the shipped one |
+| `DateZoomPills.tsx`, `useDateZoomBar.ts` | Named zoom pills (in the order, sections, drag and selection); an editor's anchors its popover, a viewer's opens the shipped menu. `DefaultZoomButton`: an editor's Default zoom on the bar's right, anchoring its popover; viewers get the shipped one with `isQuiet` |
 | `DateZoomControlPopover.tsx`, `DefaultZoomPopover.tsx`, `GrainSelect.tsx`, `ControlPopoverParts.tsx`, `dateZoomGrains.ts`, `DateZoomGrainsMenu.tsx` | The date zoom popovers by props (draft held by the editor), the grain select, the "..." menu's grains |
 | `DateZoomMappingRow.tsx`, `DateZoomTileOverlay.tsx`, `DateZoomTilesBar.tsx`, `useDateZoomMapping.ts` | Choosing a zoom's tiles: the row, a card per tile, the floating bar |
 | `sectionVersionChanges.ts` | Section rows for the version comparison page |
@@ -305,11 +307,12 @@ Every flag-on pill is the default white pill; only these change it, all in
   kind's icon, grey): dashed until saved, the ink ring while open, eye-off
   when hidden from viewers (by itself or with every date zoom), an X in
   edit mode; a viewer's opens the shipped menu. The default zoom is no
-  pill: it stays on the bar's right. An editor's is a quiet button reading
-  "Default zoom Month" or "None" (the grain bold while in effect), eye-off
-  when hidden from viewers, opening a popover with the grain only (grains
-  and their lock stay in "..."); a viewer's is the shipped Default zoom
-  and its menu.
+  pill: it stays on the bar's right, with no rule before it, one quiet
+  button in both modes reading "Default zoom Month", or "Default zoom"
+  alone with no grain (the grain bold while in effect). An editor's is
+  eye-off when hidden from viewers and opens a popover with the grain only
+  (grains and their lock stay in "..."); a viewer's is the shipped
+  `DateZoom` with `isQuiet`, opening the shipped menu.
 - Required with no value: a muted asterisk on the left, before the field
   icon, with the requirement's tooltip (the pill is described by it); none
   once it has a value, nor on a locked pill (no viewer can set it). A
