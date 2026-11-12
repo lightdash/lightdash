@@ -451,10 +451,46 @@ describe.each([DbtProjectType.GITHUB, DbtProjectType.GITLAB] as const)(
         };
         const client =
             type === DbtProjectType.GITHUB ? GithubClient : GitlabClient;
+        const sqlRunnerUser = {
+            ...writebackUser,
+            ability: new Ability<PossibleAbilities>([
+                {
+                    action: 'manage',
+                    subject: 'SqlRunner',
+                    conditions: { projectUuid: 'project' },
+                },
+            ]),
+        };
+
+        it('checks the project organization before preparing the writeback', async () => {
+            const { service, projectModel } = setup(legacyConnection);
+            projectModel.getSummary.mockResolvedValueOnce({
+                organizationUuid: 'other-organization',
+            });
+            await expect(
+                service.createPullRequestFromSql(
+                    sqlRunnerUser,
+                    'project',
+                    'Daily Revenue',
+                    sql,
+                    columns,
+                ),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(projectModel.get).not.toHaveBeenCalled();
+            expect(client.createBranch).not.toHaveBeenCalled();
+        });
 
         it('retains separate SQL/YAML writes and the configured PR destination', async () => {
-            const { create, pullRequests } = setup(legacyConnection);
-            await expect(create()).resolves.toMatchObject({
+            const { service, pullRequests } = setup(legacyConnection);
+            await expect(
+                service.createPullRequestFromSql(
+                    sqlRunnerUser,
+                    'project',
+                    'Daily Revenue',
+                    sql,
+                    columns,
+                ),
+            ).resolves.toMatchObject({
                 prUrl: 'https://example.com/pr/21',
             });
             expect(client.checkFileDoesNotExist).toHaveBeenCalledTimes(2);
@@ -491,7 +527,7 @@ describe.each([DbtProjectType.GITHUB, DbtProjectType.GITLAB] as const)(
         it('previews without loading credentials or calling the Git provider', async () => {
             const { service, projectModel } = setup(legacyConnection);
             const result = await service.writeBackPreview(
-                writebackUser,
+                sqlRunnerUser,
                 'project',
                 'Daily Revenue',
             );
