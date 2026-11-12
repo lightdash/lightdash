@@ -22,10 +22,16 @@ describe('DashboardControlsSummary', () => {
         vi.mocked(useNamedDateZoomCount).mockReset().mockReturnValue(3);
     });
 
-    it('counts the named date zooms with the controls on', () => {
-        renderSummary(true);
+    it('counts the named date zooms with the controls on, with no funnel', () => {
+        const { container } = renderSummary(true);
         expect(screen.getByText(/date zooms/)).toBeInTheDocument();
         expect(useNamedDateZoomCount).toHaveBeenCalled();
+        expect(container.querySelector('.tabler-icon-filter')).toBeNull();
+    });
+
+    it('keeps the funnel with the controls off', () => {
+        const { container } = renderSummary(false);
+        expect(container.querySelector('.tabler-icon-filter')).not.toBeNull();
     });
 
     it('shows no count and never reads the date zooms with the controls off', () => {

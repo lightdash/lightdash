@@ -10,6 +10,8 @@ type Props = {
     parametersCount: number;
     /** Named date zooms on the bar (default 0). */
     dateZoomsCount?: number;
+    /** The funnel circle before the counts (default true). */
+    withGroupMarker?: boolean;
     dateZoomLabel: string | null;
     onExpand: () => void;
 };
@@ -18,6 +20,7 @@ export const DashboardFiltersBarSummary: FC<Props> = ({
     filtersCount,
     parametersCount,
     dateZoomsCount = 0,
+    withGroupMarker = true,
     dateZoomLabel,
     onExpand,
 }) => {
@@ -36,10 +39,13 @@ export const DashboardFiltersBarSummary: FC<Props> = ({
             py="xxs"
         >
             <Group gap="xs" align="center">
-                {(hasFilters ||
-                    hasParameters ||
-                    hasDateZooms ||
-                    hasDateZoom) && <FilterGroupSeparator icon={IconFilter} />}
+                {withGroupMarker &&
+                    (hasFilters ||
+                        hasParameters ||
+                        hasDateZooms ||
+                        hasDateZoom) && (
+                        <FilterGroupSeparator icon={IconFilter} />
+                    )}
 
                 <Text fz="12" c="dimmed">
                     {hasFilters && (

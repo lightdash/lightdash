@@ -80,7 +80,8 @@ Openings (optional props, defaults are today's behaviour):
   named zoom pills or "Add date zoom"; the embed's bar passes it too) and
   `isQuiet` (the controls bar's viewer button, drawn as
   `DefaultZoomButton`; default `false`: the bordered pill).
-- `DashboardFiltersBarSummary`: `dateZoomsCount` (default 0: no count).
+- `DashboardFiltersBarSummary`: `dateZoomsCount` (default 0: no count) and
+  `withGroupMarker` (`false` with the controls on: no funnel).
 - `AddFilterButton`: `editModeAction`.
 - `FilterRequirements/FilterRequirementsButton`: `renderTarget` (must take a
   ref; the popover anchors on it).

@@ -4,7 +4,7 @@ import { useNamedDateZoomCount } from './useDateZoomBar';
 
 type Props = Omit<
     ComponentProps<typeof DashboardFiltersBarSummary>,
-    'dateZoomsCount'
+    'dateZoomsCount' | 'withGroupMarker'
 >;
 
 const WithNamedZooms: FC<Props> = (props) => {
@@ -13,11 +13,13 @@ const WithNamedZooms: FC<Props> = (props) => {
         <DashboardFiltersBarSummary
             {...props}
             dateZoomsCount={dateZoomsCount}
+            // As the open controls bar: no funnel for a bar of mixed controls
+            withGroupMarker={false}
         />
     );
 };
 
-/** The collapsed summary; with the controls on, it counts the named date zooms. */
+/** The collapsed summary; with the controls on, it counts the named date zooms and has no funnel. */
 export const DashboardControlsSummary: FC<
     Props & { isControlsEnabled: boolean }
 > = ({ isControlsEnabled, ...props }) =>
