@@ -121,7 +121,19 @@ export const addControlsToDashboardRuntimeOverrides = ({
             tileParameters &&
             Object.fromEntries(
                 Object.entries(tileParameters).map(
-                    ([tileUuid, { parameters }]) => [tileUuid, parameters],
+                    ([tileUuid, { parameters }]) => [
+                        tileUuid,
+                        // A tile that has reported its references runs with those keys only
+                        Object.hasOwn(tileParameterReferences, tileUuid)
+                            ? Object.fromEntries(
+                                  Object.entries(parameters).filter(([key]) =>
+                                      tileParameterReferences[
+                                          tileUuid
+                                      ].includes(key),
+                                  ),
+                              )
+                            : parameters,
+                    ],
                 ),
             )
         );

@@ -410,6 +410,32 @@ describe('addControlsToDashboardRuntimeOverrides', () => {
         });
     });
 
+    it('leaves a picked value off tiles that do not use the parameter, and keeps it on tiles not yet loaded', () => {
+        const inputs = withParameterControls(
+            [regionControl('control-1', 'EU', 'all')],
+            { 'control-1': 'US' },
+        );
+        expect(
+            addControlsToDashboardRuntimeOverrides({
+                ...inputs,
+                tileParameterReferences: { 'tile-1': ['region'], 'tile-2': [] },
+            }),
+        ).toEqual({
+            tileParameters: [
+                {
+                    tile: { uuid: 'tile-1', name: 'Revenue' },
+                    parameters: { region: 'US' },
+                },
+            ],
+        });
+        expect(
+            addControlsToDashboardRuntimeOverrides({
+                ...inputs,
+                tileParameterReferences: { 'tile-1': ['region'] },
+            })?.tileParameters,
+        ).toHaveLength(2);
+    });
+
     it('sends the values each tile runs with after a pick on a scoped control', () => {
         expect(
             addControlsToDashboardRuntimeOverrides(
