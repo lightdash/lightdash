@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { useExplorePrefixCheck } from './useLiveSourceReattach';
 
 /**
- * A new source's Source ID, ready to ignore: it follows the name, moves to a
+ * A new source's explore prefix, ready to ignore: it follows the name, moves to a
  * free one when that's taken, and only reports problems once the admin types.
  */
 export const useNewSourceId = ({
