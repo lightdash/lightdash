@@ -26,6 +26,7 @@ import {
     ContentType,
     DATA_APP_CLAUDE_MODELS,
     DATA_APP_CODEX_MODELS,
+    DATA_APP_NEWER_VERSION_CODE,
     DATA_APP_VIZ_TEMPLATE,
     DATA_REFERENCE_EXTRACTOR_VERSION,
     dataAppManifestRegistryProvenanceSchema,
@@ -13452,6 +13453,7 @@ export class AppGenerateService extends BaseService {
         if (!latest || latest.version !== version)
             throw new ForbiddenError(
                 'This data app has a newer version. Reload the app to continue.',
+                { code: DATA_APP_NEWER_VERSION_CODE },
             );
         return latest;
     }
