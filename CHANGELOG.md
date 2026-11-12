@@ -1,3 +1,11 @@
+## [3.234.5](https://github.com/lightdash/lightdash/compare/3.234.4...3.234.5) (2026-11-12)
+
+
+### Bug Fixes
+
+* **dashboards:** keep live data source tiles working under date zoom ([#32466](https://github.com/lightdash/lightdash/issues/32466)) ([3afc2de](https://github.com/lightdash/lightdash/commit/3afc2de760b8084aff82452958ec5f32da99910f))
+* **live-sources:** refuse ads queries grouped by an attribute alone ([#32463](https://github.com/lightdash/lightdash/issues/32463)) ([f4d7a30](https://github.com/lightdash/lightdash/commit/f4d7a300c9d08c8eba2e00a960bea2beca78d889))
+
 ## [3.234.4](https://github.com/lightdash/lightdash/compare/3.234.3...3.234.4) (2026-11-12)
 
 
