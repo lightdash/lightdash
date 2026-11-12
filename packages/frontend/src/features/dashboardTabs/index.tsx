@@ -53,6 +53,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../types/Events';
 import {
+    selectCanvasBackground,
     selectCanvasZoom,
     selectDashboardFilters,
     selectDashboardTabs,
@@ -660,6 +661,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         (isEditActionBarShown ? EDIT_ACTION_BAR_CLEARANCE : 0);
 
     const canvasZoom = useDashboardSelector(selectCanvasZoom);
+    const canvasBackground = useDashboardSelector(selectCanvasBackground);
     const isCanvasZoomable = isEditMode && editErgonomicsFlag?.enabled === true;
     // Apart from the zoom, so a zoom step keeps the grid's own props stable
     const unzoomedGridProps = useMemo(
@@ -1398,6 +1400,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                 .join(' ')}
                             data-edit-canvas={
                                 isEditErgonomicsEnabled ? true : undefined
+                            }
+                            data-canvas-background={
+                                isEditErgonomicsEnabled
+                                    ? canvasBackground
+                                    : undefined
                             }
                             // oxlint-disable-next-line lightdash-ui/no-inline-style-prop
                             style={showGridLines ? gridLineStyles : undefined}

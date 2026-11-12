@@ -77,13 +77,17 @@ export {
     getSavedDateZoomSettings,
     isSameTilePlacement,
 } from './dashboardEditReducer';
-export type { DashboardEditState } from './dashboardEditReducer';
+export type {
+    CanvasBackground,
+    DashboardEditState,
+} from './dashboardEditReducer';
 export {
     selectActiveTab,
     selectActiveTabUuid,
     selectCanRedoTileLayout,
     selectCanTidyTiles,
     selectCanUndoTileLayout,
+    selectCanvasBackground,
     selectCanvasZoom,
     selectControlOrder,
     selectControlSections,
