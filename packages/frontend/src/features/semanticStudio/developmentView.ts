@@ -34,6 +34,15 @@ export const clearDevelopmentView = () => {
     }
 };
 
+/** The preview project the view reads, or null when it reads the person's latest change directly. */
+export const getDevelopmentPreview = (): string | null => {
+    try {
+        return localStorage.getItem(PREVIEW_STORAGE_KEY);
+    } catch {
+        return null;
+    }
+};
+
 /** The headers that put a request in the development view; none when it is off. Read outside React by the API client. */
 export const getDevelopmentViewHeaders = (): Record<string, string> => {
     try {
