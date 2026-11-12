@@ -78,27 +78,15 @@
     left: var(--tile-gutter);
 }
 
-.react-grid-item > .react-resizable-handle-ne,
 .react-grid-item > .react-resizable-handle-se,
-.react-grid-item > .react-resizable-handle-sw,
-.react-grid-item > .react-resizable-handle-nw {
+.react-grid-item > .react-resizable-handle-sw {
     width: var(--handle-size);
     height: var(--handle-size);
-}
-.react-grid-item > .react-resizable-handle-ne {
-    top: var(--tile-gutter);
-    right: var(--tile-gutter);
-    cursor: nesw-resize;
 }
 .react-grid-item > .react-resizable-handle-sw {
     bottom: var(--tile-gutter);
     left: var(--tile-gutter);
     cursor: nesw-resize;
-}
-.react-grid-item > .react-resizable-handle-nw {
-    top: var(--tile-gutter);
-    left: var(--tile-gutter);
-    cursor: nwse-resize;
 }
 .react-grid-item > .react-resizable-handle-se {
     bottom: var(--tile-gutter);

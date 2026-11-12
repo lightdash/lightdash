@@ -93,7 +93,7 @@ import {
     withGridItem,
     getSnapTarget,
     GRID_DESKTOP_COLS,
-    ALL_RESIZE_HANDLES,
+    EDIT_RESIZE_HANDLES,
     DEFAULT_RESIZE_HANDLES,
     type ResizeHandle,
     DEFAULT_ROW_HEIGHT,
@@ -683,7 +683,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             // Only mid-gesture, so the grid still pushes stored overlaps apart
             allowOverlap: isEditErgonomicsEnabled && isInteracting,
             resizeHandles: isEditErgonomicsEnabled
-                ? ALL_RESIZE_HANDLES
+                ? EDIT_RESIZE_HANDLES
                 : DEFAULT_RESIZE_HANDLES,
         }),
         [

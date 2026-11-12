@@ -479,15 +479,14 @@ export type ResizeHandle = NonNullable<Layout['resizeHandles']>[number];
 
 export const DEFAULT_RESIZE_HANDLES: ResizeHandle[] = ['se'];
 
-export const ALL_RESIZE_HANDLES: ResizeHandle[] = [
+// No top corners: they sit under the tile's drag grip and actions menu
+export const EDIT_RESIZE_HANDLES: ResizeHandle[] = [
     'n',
     'e',
     's',
     'w',
-    'ne',
     'se',
     'sw',
-    'nw',
 ];
 
 export type ResponsiveGridLayoutProps = {
