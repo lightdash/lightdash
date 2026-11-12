@@ -5,7 +5,7 @@ export const UPSELL_STRINGS = {
     },
     2: {
         headline: 'Dashboards, made for your phone.',
-        support: 'Give each chart room to tell its story.',
+        support: 'View dashboard tiles at full phone width.',
     },
     3: {
         headline: 'Find your next chart.',
