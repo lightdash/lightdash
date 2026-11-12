@@ -5,6 +5,7 @@ import {
     type StreamPart,
 } from '../store/aiAgentThreadStreamSlice';
 import {
+    getAwaitingQuestions,
     getAwaitingSqlApprovals,
     getSqlApprovalNotificationClickAction,
     getSqlApprovalNotificationContent,
@@ -272,5 +273,37 @@ describe('getSqlApprovalNotificationContent', () => {
             title: 'Approval needed',
             body: 'AI agent',
         });
+    });
+});
+
+describe('getAwaitingQuestions', () => {
+    it('returns complete askUser calls in live streams only', () => {
+        expect(
+            getAwaitingQuestions([
+                stream({
+                    parts: [
+                        toolCall('ask-1', 'askUser', { questions: [] }),
+                        toolCall(
+                            'ask-2',
+                            'askUser',
+                            {},
+                            { isArgsPartial: true },
+                        ),
+                    ],
+                }),
+                stream({
+                    threadUuid: 'thread-2',
+                    connection: { status: 'complete' },
+                    parts: [toolCall('ask-3', 'askUser', { questions: [] })],
+                }),
+            ]),
+        ).toEqual([
+            {
+                toolCallId: 'ask-1',
+                threadUuid: 'thread-1',
+                projectUuid: 'project-1',
+                agentUuid: 'agent-1',
+            },
+        ]);
     });
 });

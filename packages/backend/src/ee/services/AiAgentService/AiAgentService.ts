@@ -17178,6 +17178,17 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                         user,
                         featureFlagId: FeatureFlags.AiFilterExpressions,
                     });
+                // Only the web app renders askUser questions; others would stall.
+                const enableAskUser =
+                    prompt.threadCreatedFrom === 'web_app' &&
+                    !isSlackPrompt(prompt) &&
+                    responseExecution.mode === 'standard' &&
+                    (
+                        await this.featureFlagService.get({
+                            user,
+                            featureFlagId: FeatureFlags.AiAgentAskUser,
+                        })
+                    ).enabled;
                 let aiWritebackEnabled = hasTrustedPromptUserIdentity;
                 if (!aiWritebackEnabled) {
                     this.logger.info(
@@ -17669,6 +17680,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                     writebackAttribution,
                     enableRepoDiscovery: repoDiscoveryEnabled,
                     enableReadAttachments: threadHasAttachments,
+                    enableAskUser,
                     enableFilterExpressions: filterExpressionsEnabled,
                     repoFsRoot,
                     repoFsSupportsCodeSearch,
@@ -19792,6 +19804,7 @@ ${lines.join('\n')}${guidanceSection}${inlinedSection}`,
                 case 'delegateResearchTask':
                 case 'submitWorkerFindings':
                 case 'updateUserName':
+                case 'askUser':
                     return 'Answering your question';
                 default:
                     return assertUnreachable(

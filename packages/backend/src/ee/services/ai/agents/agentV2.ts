@@ -94,6 +94,7 @@ import {
 } from '../promptTokenUsage';
 import type { AiAgentSkillReference } from '../skills/types';
 import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
+import { getAskUser, getAskUserResponse } from '../tools/askUser';
 import { getClosePullRequest } from '../tools/closePullRequest';
 import { getCreateContent } from '../tools/createContent';
 import { getCreateScheduledDelivery } from '../tools/createScheduledDelivery';
@@ -1333,6 +1334,11 @@ const getTurnFastResponse = (
     steps: ReadonlyArray<FastChartStep>,
     siteUrl: string,
 ) => {
+    // Asking ends the turn on any intent; the questions are its reply.
+    const askUserResponse = getAskUserResponse(
+        steps.flatMap((step) => step.toolCalls),
+    );
+    if (askUserResponse !== null) return askUserResponse;
     if (enableDataAnswerFastResponse && turnIntent === 'data_answer')
         return getDataAnswerFastResponse(steps);
     if (turnIntent === 'chart_from_previous')
@@ -1987,6 +1993,7 @@ export const getAgentTools = (
             getResolveUrl({ resolveUrl: dependencies.resolveUrl }),
         updateUserName: () =>
             getUpdateUserName({ updateUserName: dependencies.updateUserName }),
+        askUser: () => getAskUser(),
         readContent: () =>
             getReadContent({
                 readContent: dependencies.readContent,

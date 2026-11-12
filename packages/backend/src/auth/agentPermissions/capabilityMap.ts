@@ -118,6 +118,7 @@ export const AGENT_TOOL_CAPABILITIES = {
     submitWorkerFindings: [AgentCapability.ReadDiscover],
     syncDbtProject: [AgentCapability.DeployUpload],
     updateUserName: [AgentCapability.Administration],
+    askUser: [AgentCapability.ReadDiscover],
 } as const satisfies Record<
     AgentToolName | 'exportChartAsCode' | 'loadAgentTools',
     RequiredAgentCapabilities

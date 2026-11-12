@@ -1334,6 +1334,71 @@ describe('empty finishes and interrupts', () => {
     });
 });
 
+describe('askUser', () => {
+    const usage = {
+        inputTokens: { total: 1, noCache: 1, cacheRead: 0, cacheWrite: 0 },
+        outputTokens: { total: 1, text: 1, reasoning: 0 },
+    };
+    const questions = [
+        {
+            header: 'Period',
+            question: 'Which month should I use?',
+            options: [
+                { label: 'November 2022', description: 'Latest full month' },
+                { label: 'October 2022', description: 'Previous month' },
+            ],
+            multiSelect: false,
+        },
+    ];
+
+    it('is offered only when enabled', () => {
+        const args = buildAgentArgs();
+        expect(loadoutFor(args).toolNames.has('askUser')).toBe(false);
+        args.enableAskUser = true;
+        expect(loadoutFor(args).toolNames.has('askUser')).toBe(true);
+    });
+
+    it('generate: ends the turn and replies with the question', async () => {
+        const { generateText: generateWithSdk } =
+            await vi.importActual<typeof import('ai')>('ai');
+        vi.mocked(generateText).mockImplementationOnce(generateWithSdk);
+        const updatePrompt = vi.fn().mockResolvedValue(undefined);
+        const dependencies = buildAgentDependencies(updatePrompt);
+        Object.assign(dependencies, {
+            isPromptInterrupted: async () => false,
+            consumePromptSteers: async () => [],
+        });
+        const args = buildAgentArgs();
+        args.enableAskUser = true;
+        const doGenerate = vi.fn(async () => ({
+            content: [
+                {
+                    type: 'tool-call' as const,
+                    toolCallId: 'ask-call',
+                    toolName: 'askUser',
+                    input: JSON.stringify({ questions }),
+                },
+            ],
+            finishReason: { unified: 'tool-calls' as const, raw: undefined },
+            usage,
+            warnings: [],
+        }));
+        args.model = new MockLanguageModelV4({ doGenerate });
+
+        await expect(
+            generateAgentResponse({
+                args,
+                dependencies,
+                mcpToolSetup: mcpToolSetup(),
+            }),
+        ).resolves.toBe('Which month should I use?');
+        expect(doGenerate).toHaveBeenCalledTimes(1);
+        expect(updatePrompt).not.toHaveBeenCalledWith(
+            expect.objectContaining({ errorMessage: expect.any(String) }),
+        );
+    });
+});
+
 describe('generateAgentResponse token usage persistence', () => {
     const runWithSteps = async (
         execution: Record<string, unknown>,

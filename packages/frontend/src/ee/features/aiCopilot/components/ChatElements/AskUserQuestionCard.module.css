@@ -1,0 +1,13 @@
+.card {
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+.option {
+    padding: var(--mantine-spacing-sm);
+}
+
+.option[data-checked] {
+    border-color: var(--mantine-color-default-border);
+    background-color: var(--mantine-color-default-hover);
+}

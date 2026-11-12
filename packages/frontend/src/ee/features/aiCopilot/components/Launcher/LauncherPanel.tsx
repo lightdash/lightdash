@@ -690,6 +690,15 @@ const ExistingThreadPanel: FC<{
                     agentUuid={agent.uuid}
                     renderArtifactsInline
                     onDashboardLinkClick={handleDashboardLinkClick}
+                    onChoiceSelect={
+                        isInputDisabled || isBusy
+                            ? undefined
+                            : (choice) =>
+                                  handleSubmit({
+                                      message: choice,
+                                      toolHints: [],
+                                  })
+                    }
                     canRetryDeepResearch={
                         canStartDeepResearch && !isInputDisabled && !isBusy
                     }

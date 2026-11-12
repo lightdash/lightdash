@@ -19,6 +19,13 @@ export const getSqlApprovalNotificationContent = (
     body: agentName || 'AI agent',
 });
 
+export const getQuestionNotificationContent = (
+    agentName: string | null,
+): { title: string; body: string } => ({
+    title: 'Question for you',
+    body: agentName || 'AI agent',
+});
+
 export type SqlApprovalNotificationClickAction =
     | 'focus'
     | 'openLauncher'
@@ -66,4 +73,27 @@ export const getAwaitingSqlApprovals = (
                 projectUuid,
                 agentUuid,
             })),
+        );
+
+/** askUser calls in live streams: the turn ends waiting on the user's answer. */
+export const getAwaitingQuestions = (
+    streams: AiAgentThreadStreamingState[],
+): AwaitingSqlApproval[] =>
+    streams
+        .filter((stream) => isAiAgentThreadStreamActive(stream.connection))
+        .flatMap(({ threadUuid, projectUuid, agentUuid, parts }) =>
+            parts.flatMap((part) =>
+                part.type === 'toolCall' &&
+                part.toolName === 'askUser' &&
+                part.isArgsPartial !== true
+                    ? [
+                          {
+                              toolCallId: part.toolCallId,
+                              threadUuid,
+                              projectUuid,
+                              agentUuid,
+                          },
+                      ]
+                    : [],
+            ),
         );
