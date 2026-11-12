@@ -19,6 +19,7 @@ import {
     CustomDimensionType,
     DashboardTileTypes,
     DatabricksAuthenticationType,
+    DateGranularity,
     DbtProjectType,
     DimensionType,
     DownloadFileType,
@@ -14972,6 +14973,79 @@ describe('AsyncQueryService', () => {
                 );
             },
         );
+
+        describe('dashboard date zoom on a live data source tile', () => {
+            const [liveExplore] = buildApiSourceExplores({
+                connectionUuid: '03386598-7a51-45b2-b1f9-5ef55bd09016',
+                sourceName: 'ga4_03386598',
+                name: 'Marketing site',
+                apiSource: {
+                    connector: ApiConnectorType.GA4,
+                    propertyId: '123',
+                },
+                scannedFields: [],
+                edits: {},
+            });
+            const runZoomedTile = async (explore: Explore) => {
+                const { service, execute } = buildService();
+                service.getExploreWithUserAccessControls = vi
+                    .fn()
+                    .mockResolvedValue({
+                        explore,
+                        userAccessControls: {
+                            userAttributes: {},
+                            intrinsicUserAttributes: {},
+                        },
+                    });
+                const result = await service.executeAsyncDashboardChartQuery({
+                    account: viewer,
+                    projectUuid,
+                    tileUuid: 'tile-1',
+                    chartUuid: savedChart.uuid,
+                    dashboardUuid: 'dashboard-uuid',
+                    dashboardFilters: {
+                        dimensions: [],
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                    dashboardSorts: [],
+                    dateZoom: { granularity: DateGranularity.MONTH },
+                    context: QueryExecutionContext.SCHEDULED_DELIVERY,
+                    invalidateCache: false,
+                    limit: undefined,
+                    parameters: undefined,
+                    pivotResults: false,
+                });
+                const internals = service as AnyType;
+                const [[prepared]] = vi.mocked(
+                    internals.prepareMetricQueryAsyncQueryArgs,
+                ).mock.calls as AnyType;
+                const [[, requestParameters]] = execute.mock.calls;
+                return { result, prepared, requestParameters };
+            };
+
+            test('keeps the saved grain instead of refusing the query', async () => {
+                const { result, prepared, requestParameters } =
+                    await runZoomedTile(liveExplore);
+
+                expect(prepared.dateZoom).toBeUndefined();
+                // Totals and reruns read the zoom back from the stored request
+                expect(requestParameters.dateZoom).toBeUndefined();
+                expect(result.dateZoomApplied).toBe(false);
+            });
+
+            test('still zooms a warehouse tile', async () => {
+                const { prepared, requestParameters } =
+                    await runZoomedTile(validExplore);
+
+                expect(prepared.dateZoom).toEqual({
+                    granularity: DateGranularity.MONTH,
+                });
+                expect(requestParameters.dateZoom).toEqual({
+                    granularity: DateGranularity.MONTH,
+                });
+            });
+        });
 
         describe('dashboard tile parameters', () => {
             const runTile = async ({

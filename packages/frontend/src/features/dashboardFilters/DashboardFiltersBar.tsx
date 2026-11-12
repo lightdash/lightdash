@@ -29,6 +29,7 @@ import { useUiStrings } from '../../ee/providers/Embed/useUiStrings';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
     selectIsAddFilterDisabled,
+    selectIsDateZoomRefusedOnAllChartTiles,
     useDashboardAllFilters,
     useDashboardSelector,
 } from '../dashboard/store';
@@ -118,6 +119,10 @@ export const DashboardFiltersBar: FC<Props> = ({
     }
     const getUiString = useUiStrings();
     const isAddFilterDisabled = useDashboardSelector(selectIsAddFilterDisabled);
+    // Only live data source tiles, which keep their saved grain: no zoom to offer
+    const isDateZoomRefusedOnAllChartTiles = useDashboardSelector(
+        selectIsDateZoomRefusedOnAllChartTiles,
+    );
     const allFilters = useDashboardAllFilters();
     const setIsDateZoomDisabled = useDashboardContext(
         (c) => c.setIsDateZoomDisabled,
@@ -258,6 +263,7 @@ export const DashboardFiltersBar: FC<Props> = ({
                 {/* Right section - date zoom and hide button */}
                 <Group gap="xs" ml="auto" wrap={compact ? 'wrap' : 'nowrap'}>
                     {hasDashboardTiles &&
+                        !isDateZoomRefusedOnAllChartTiles &&
                         (!isDateZoomDisabled || isEditMode) && (
                             <>
                                 {/* A replaced Default zoom is one of the bar's controls: no rule before it */}

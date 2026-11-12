@@ -58,6 +58,7 @@ import {
     selectDashboardFilters,
     selectDashboardTabs,
     selectDateZoomGranularity,
+    selectIsDateZoomRefusedOnAllChartTiles,
     selectIsDateZoomDisabled,
     useDashboardDateZoomConfig,
     useDashboardSelector,
@@ -553,6 +554,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const isDateZoomDisabled = useDashboardSelector(selectIsDateZoomDisabled);
     const getUiString = useUiStrings();
     const dateZoomGranularity = useDashboardSelector(selectDateZoomGranularity);
+    const isDateZoomRefusedOnAllChartTiles = useDashboardSelector(
+        selectIsDateZoomRefusedOnAllChartTiles,
+    );
     const dashboardTemporaryFilters = useDashboardTemporaryFilters();
 
     // filters bar state
@@ -1301,7 +1305,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                 totalParametersCount
                                             }
                                             dateZoomLabel={
-                                                isDateZoomDisabled
+                                                isDateZoomDisabled ||
+                                                isDateZoomRefusedOnAllChartTiles
                                                     ? null
                                                     : isDashboardControlsEnabled &&
                                                         !dateZoomGranularity
