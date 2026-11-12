@@ -3,9 +3,13 @@ import {
     formatSql,
     friendlyName,
     getItemMap,
+    getMergeCompiledSqlText,
+    getMergeNodeMergeQuery,
+    getMergeNodeParameters,
     metricQueryOfSemanticNode,
     QuerySourceType,
     WarehouseTypes,
+    type ApiError,
     type MergeSourceQuery,
     type SemanticLayerSourceQuery,
     type SourceQuery,
@@ -29,14 +33,21 @@ import {
     IconTable,
     type Icon,
 } from '@tabler/icons-react';
+import { useQuery } from '@tanstack/react-query';
 import { clsx } from 'clsx';
 import { useId, useMemo, useState, type FC } from 'react';
 import CodeBlock from '../../../../../../../components/common/CodeBlock/CodeBlock';
 import InlineErrorState from '../../../../../../../components/common/InlineErrorState';
 import MantineIcon from '../../../../../../../components/common/MantineIcon';
 import { ItemDetailMarkdown } from '../../../../../../../components/Explorer/ExploreTree/TableTree/ItemDetailPreview';
+import {
+    compileMergeQuery,
+    type CompiledMergeQuery,
+} from '../../../../../../../features/mergeQuery/hooks/useMergeQuery';
 import { useCompiledSqlFromMetricQuery } from '../../../../../../../hooks/useCompiledSql';
 import { useExploreByProjectUuid } from '../../../../../../../hooks/useExplore';
+import { useExploreWarehouseConnection } from '../../../../../../../hooks/useExploreWarehouseConnection';
+import { useLightdashApi } from '../../../../../../../providers/LightdashApi/useLightdashApi';
 import { useUiStrings } from '../../../../../../providers/Embed/useUiStrings';
 import { SemanticNodeDetails } from '../SemanticNodeDetails';
 import { isLongCode } from './codeCollapse';
@@ -121,7 +132,6 @@ const CompiledSql: FC<{
     query: SemanticLayerSourceQuery;
     projectUuid: string;
 }> = ({ query, projectUuid }) => {
-    const getUiString = useUiStrings();
     const metricQuery = useMemo(
         () => metricQueryOfSemanticNode(query),
         [query],
@@ -135,16 +145,27 @@ const CompiledSql: FC<{
     if (data) {
         return <NotebookCode code={formatSql(data.query)} language="sql" />;
     }
-    if (error) {
-        return (
-            <InlineErrorState
-                message={getUiString(
-                    'aiAgent.composer.semanticNode.compileError',
-                )}
-                onRetry={() => void refetch()}
-            />
-        );
-    }
+    return error ? (
+        <CompileError onRetry={() => void refetch()} />
+    ) : (
+        <Compiling />
+    );
+};
+
+const CompileError: FC<{ onRetry: (() => void) | undefined }> = ({
+    onRetry,
+}) => {
+    const getUiString = useUiStrings();
+    return (
+        <InlineErrorState
+            message={getUiString('aiAgent.composer.semanticNode.compileError')}
+            onRetry={onRetry}
+        />
+    );
+};
+
+const Compiling: FC = () => {
+    const getUiString = useUiStrings();
     return (
         <Group gap="xs" p="sm">
             <Loader size="xs" color="ldGray.6" />
@@ -152,6 +173,57 @@ const CompiledSql: FC<{
                 {getUiString('aiAgent.composer.semanticNode.compiling')}
             </Text>
         </Group>
+    );
+};
+
+const getMergeCompileRequest = (
+    query: MergeSourceQuery,
+    reads: SourceQuery[],
+) => {
+    const mergeQuery = getMergeNodeMergeQuery(query, reads);
+    if (!mergeQuery) return null;
+    try {
+        return {
+            mergeQuery,
+            parameters: getMergeNodeParameters(query, reads),
+        };
+    } catch {
+        // Sources that set a parameter differently cannot compile
+        return null;
+    }
+};
+
+// Each step's SQL, then the join, as the Explorer's SQL view shows a merge.
+const MergeCompiledSql: FC<{
+    query: MergeSourceQuery;
+    reads: SourceQuery[];
+    projectUuid: string;
+}> = ({ query, reads, projectUuid }) => {
+    const lightdashApi = useLightdashApi();
+    const request = getMergeCompileRequest(query, reads);
+    const { warehouseType } = useExploreWarehouseConnection(
+        request?.mergeQuery.sources[0]?.metricQuery.exploreName ?? null,
+        projectUuid,
+    );
+    const { data, error, refetch } = useQuery<CompiledMergeQuery, ApiError>({
+        queryKey: ['composerMergeNodeSql', projectUuid, request],
+        queryFn: () =>
+            compileMergeQuery(
+                lightdashApi,
+                projectUuid,
+                request!.mergeQuery,
+                request!.parameters,
+            ),
+        enabled: request !== null,
+    });
+    if (!request) return <CompileError onRetry={undefined} />;
+    const sql =
+        data && getMergeCompiledSqlText(data, warehouseType ?? undefined);
+    if (sql) return <NotebookCode code={sql} language="sql" />;
+    return error || data ? (
+        <CompileError onRetry={() => void refetch()} />
+    ) : (
+        <Compiling />
     );
 };
 
@@ -187,6 +259,8 @@ const IconFilterLines = createReactComponent(
 
 type CellQueryProps = {
     query: SourceQuery;
+    /** The queries of the steps it reads. */
+    reads: SourceQuery[];
     projectUuid: string;
     canViewSql: boolean;
     openPanels: ReadonlySet<QueryPanel>;
@@ -232,17 +306,28 @@ export const ExploreSource: FC<{
 };
 
 export const MergeCellToggles: FC<{
+    canViewSql: boolean;
     openPanels: ReadonlySet<QueryPanel>;
     onTogglePanel: (panel: QueryPanel) => void;
-}> = ({ openPanels, onTogglePanel }) => {
+}> = ({ canViewSql, openPanels, onTogglePanel }) => {
     const getUiString = useUiStrings();
     return (
-        <ToolbarToggle
-            label={getUiString('aiAgent.composer.mergeNode.setup')}
-            icon={IconFilterLines}
-            open={openPanels.has('details')}
-            onToggle={() => onTogglePanel('details')}
-        />
+        <Group gap="xxs" wrap="nowrap">
+            <ToolbarToggle
+                label={getUiString('aiAgent.composer.mergeNode.setup')}
+                icon={IconFilterLines}
+                open={openPanels.has('details')}
+                onToggle={() => onTogglePanel('details')}
+            />
+            {canViewSql && (
+                <ToolbarToggle
+                    label={getUiString('aiAgent.composer.node.sqlQuery')}
+                    icon={IconCode}
+                    open={openPanels.has('sql')}
+                    onToggle={() => onTogglePanel('sql')}
+                />
+            )}
+        </Group>
     );
 };
 
@@ -279,7 +364,9 @@ export const CellQueryToggles: FC<{
 };
 
 const SemanticPanels: FC<
-    Omit<CellQueryProps, 'query'> & { query: SemanticLayerSourceQuery }
+    Omit<CellQueryProps, 'query' | 'reads'> & {
+        query: SemanticLayerSourceQuery;
+    }
 > = ({ query, projectUuid, canViewSql, openPanels }) => {
     const explore = useNodeExplore(query, projectUuid);
     const fieldsMap = useMemo(
@@ -319,11 +406,26 @@ const SemanticPanels: FC<
 };
 
 /** Semantic query views when toggled open; a code cell's code, always. */
-export const CellQueryPanels: FC<CellQueryProps> = ({ query, ...props }) => (
+export const CellQueryPanels: FC<CellQueryProps> = ({
+    query,
+    reads,
+    ...props
+}) => (
     <Box className={styles.panels}>
         {query.sourceType === QuerySourceType.SEMANTIC_LAYER ? (
             <SemanticPanels query={query} {...props} />
-        ) : query.sourceType === QuerySourceType.MERGE ? null : (
+        ) : query.sourceType === QuerySourceType.MERGE ? (
+            props.canViewSql &&
+            props.openPanels.has('sql') && (
+                <Box className={styles.codePanel}>
+                    <MergeCompiledSql
+                        query={query}
+                        reads={reads}
+                        projectUuid={props.projectUuid}
+                    />
+                </Box>
+            )
+        ) : (
             props.canViewSql && (
                 <Box className={styles.codePanel}>
                     <NotebookCode {...codeOf(query)} />
