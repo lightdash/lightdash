@@ -746,7 +746,10 @@ export class UserModel {
 
     async getUserProjectRoles(
         userUuid: string,
-        { trx = this.database }: { trx?: Knex } = {},
+        {
+            trx = this.database,
+            organizationId,
+        }: { trx?: Knex; organizationId?: number } = {},
     ): Promise<ProjectAbilityProfile[]> {
         type Row = {
             project_id: number;
@@ -756,7 +759,7 @@ export class UserModel {
             project_type: ProjectType;
             created_by_user_uuid: string | null;
         };
-        const projectMemberships = await trx('project_memberships')
+        const projectMembershipsQuery = trx('project_memberships')
             .leftJoin(
                 ProjectTableName,
                 'project_memberships.project_id',
@@ -772,6 +775,13 @@ export class UserModel {
                 `${ProjectTableName}.created_by_user_uuid`,
             ])
             .where('users.user_uuid', userUuid);
+        if (organizationId !== undefined) {
+            void projectMembershipsQuery.where(
+                `${ProjectTableName}.organization_id`,
+                organizationId,
+            );
+        }
+        const projectMemberships = await projectMembershipsQuery;
 
         const extraRoleUuidsByProjectId = await this.getProjectExtraRoleUuids(
             projectMemberships.map((m) => m.project_id),
@@ -789,6 +799,46 @@ export class UserModel {
             extraRoleUuids:
                 extraRoleUuidsByProjectId.get(membership.project_id) ?? [],
         }));
+    }
+
+    async getUserProjectRoleAssignments(
+        userUuid: string,
+        organizationUuid: string,
+    ): Promise<ProjectAbilityProfile[]> {
+        const membership = await this.database(OrganizationMembershipsTableName)
+            .join(
+                UserTableName,
+                `${UserTableName}.user_id`,
+                `${OrganizationMembershipsTableName}.user_id`,
+            )
+            .join(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${OrganizationMembershipsTableName}.organization_id`,
+            )
+            .where(`${UserTableName}.user_uuid`, userUuid)
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .first(
+                `${UserTableName}.user_id`,
+                `${OrganizationTableName}.organization_id`,
+            );
+        if (!membership)
+            throw new NotFoundError('Organization member not found');
+
+        const [direct, group] = await Promise.all([
+            this.getUserProjectRoles(userUuid, {
+                organizationId: membership.organization_id,
+            }),
+            this.getUserGroupProjectRoles(
+                membership.user_id,
+                membership.organization_id,
+                userUuid,
+            ),
+        ]);
+        return [...direct, ...group];
     }
 
     /** Extra custom roles per project for one user's direct memberships. */

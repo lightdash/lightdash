@@ -128,6 +128,51 @@ export type OrganizationSpaceAccessWithCustomRole = OrganizationSpaceAccess & {
 export class SpacePermissionModel {
     constructor(private readonly database: Knex) {}
 
+    async findGrantedSpaceUuids(
+        userUuid: string,
+        organizationUuid: string,
+    ): Promise<string[]> {
+        const db = this.database;
+        const directGrants = db(SpaceUserAccessTableName)
+            .select('space_uuid')
+            .where('user_uuid', userUuid);
+        const groupGrants = db(SpaceGroupAccessTableName)
+            .select(`${SpaceGroupAccessTableName}.space_uuid`)
+            .join(
+                GroupMembershipTableName,
+                `${GroupMembershipTableName}.group_uuid`,
+                `${SpaceGroupAccessTableName}.group_uuid`,
+            )
+            .join(
+                UserTableName,
+                `${UserTableName}.user_id`,
+                `${GroupMembershipTableName}.user_id`,
+            )
+            .where(`${UserTableName}.user_uuid`, userUuid);
+        return db(SpaceTableName)
+            .join(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .join(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .where((grants) =>
+                grants
+                    .whereIn(`${SpaceTableName}.space_uuid`, directGrants)
+                    .orWhereIn(`${SpaceTableName}.space_uuid`, groupGrants),
+            )
+            .pluck(`${SpaceTableName}.space_uuid`);
+    }
+
     /** Returns only rows persisted directly against each space. */
     async getRawDirectAccess(
         spaceUuids: string[],
