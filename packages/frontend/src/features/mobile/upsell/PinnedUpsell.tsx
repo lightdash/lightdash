@@ -1,29 +1,46 @@
+import {
+    IconChartBar,
+    IconChartLine,
+    IconClock,
+    IconLayoutDashboard,
+    IconPin,
+    type Icon,
+} from '@tabler/icons-react';
 import classes from './MobileUpsell.module.css';
-import { UpsellChart } from './UpsellChart';
+import { Phone, Spark } from './UpsellParts';
 import { UPSELL_GRAPHIC_STRINGS as S } from './upsellStrings';
 
+const Row = ({
+    icon: RowIcon,
+    name,
+    chart = true,
+}: {
+    icon: Icon;
+    name: string;
+    chart?: boolean;
+}) => (
+    <div className={classes.homeRow}>
+        <RowIcon />
+        <span>{name}</span>
+        {chart && <Spark />}
+    </div>
+);
+
 export const PinnedUpsell = () => (
-    <div className={classes.pinned}>
-        <div className={classes.pinLabel}>
-            <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-            >
-                <path d="m8 3 8 0-1 7 4 4H5l4-4zM12 14v7" />
-            </svg>
-            {S.pinned}
-        </div>
-        <div className={classes.pinChart}>
-            <span>{S.orders}</span>
-            <UpsellChart />
-        </div>
-        <div className={classes.recent}>
-            <span>{S.recent}</span>
-            <i />
-            <i />
-            <i />
-        </div>
+    <div className={`${classes.scene} ${classes.homeScene}`}>
+        <Phone className={classes.homePhone}>
+            <div className={classes.homeHeader}>
+                <IconPin />
+                {S.pinned}
+            </div>
+            <Row icon={IconLayoutDashboard} name={S.dashboard} chart={false} />
+            <Row icon={IconChartLine} name={S.ordersQuestion} />
+            <div className={classes.homeHeader}>
+                <IconClock />
+                {S.recent}
+            </div>
+            <Row icon={IconChartBar} name={S.revenueQuestion} />
+            <Row icon={IconChartBar} name={S.shipping} />
+        </Phone>
     </div>
 );
